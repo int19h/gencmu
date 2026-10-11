@@ -24,7 +24,6 @@ var errTooMany = errors.New("too many steps")
 type proofOracle struct {
 	r       *recognizer
 	helpers map[int32]bool
-	maximal map[int32]bool // the helpers of the optionals of maximal terminators
 	budget  int
 	// written and after remember the answers of readsWritten and
 	// forbiddenAfter, which scan the whole chart.
@@ -119,19 +118,6 @@ func (o *proofOracle) nextOptional(x *item) string {
 	return "constituent"
 }
 
-// longer says whether the chart has a completed item of a constituent's
-// rule from its origin that ends later.
-func (o *proofOracle) longer(y *symNode) bool {
-	for _, s := range o.r.sets {
-		for _, c := range s.syms {
-			if c.rule == y.rule && c.start == y.start && c.end > y.end {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 type proofState struct {
 	it     *item
 	permit bool
@@ -165,12 +151,6 @@ func (o *proofOracle) search(x *item, permit bool, path map[proofState]bool) (bo
 	for _, l := range x.links {
 		b := o.prior(x, l)
 		if kind == "constituent" && (l.sym == nil || o.forbiddenAfter(b, x.set)) {
-			continue
-		}
-		// Before the optional of a maximal terminator, Y must also be the
-		// longest that the chart has from its origin. The generated
-		// grammars have no tests.
-		if kind == "constituent" && o.maximal[x.prod.rhs[x.dot].id] && o.longer(l.sym) {
 			continue
 		}
 		if l.sym == nil {
@@ -221,15 +201,7 @@ func TestEligibleProperty(t *testing.T) {
 			}
 			return rules[r.Intn(len(rules))]
 		}
-		// Now and then T or U is maximal: every optional of it is marked
-		// ++ (engine §3.8).
 		markT, markU := "+", "+"
-		switch r.Intn(4) {
-		case 0:
-			markT = "++"
-		case 1:
-			markT, markU = "++", "++"
-		}
 		body := func() string {
 			var syms []string
 			for i := r.Intn(4); i > 0; i-- {
@@ -293,13 +265,10 @@ func TestEligibleProperty(t *testing.T) {
 		if len(items) == 0 {
 			continue
 		}
-		o := &proofOracle{r: rec, helpers: map[int32]bool{}, maximal: map[int32]bool{}, budget: 200000, written: map[*item]bool{}, after: map[proofAfter]bool{}}
+		o := &proofOracle{r: rec, helpers: map[int32]bool{}, budget: 200000, written: map[*item]bool{}, after: map[proofAfter]bool{}}
 		for _, p := range lg.prods {
 			if p.helper && p.elided != "" {
 				o.helpers[p.lhs] = true
-				if lg.maximalH[p.lhs] {
-					o.maximal[p.lhs] = true
-				}
 			}
 		}
 		var want []bool

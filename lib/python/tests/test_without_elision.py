@@ -12,7 +12,8 @@ from gencmu._closes import Block, CloseMachine, Sequences
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Restoration
 
-from .shared import case_tokens, load_case_dialect, parse_case, run_case
+from .shared import case_features, case_tokens, cases, load_case, load_case_dialect, parse_case, run_case
+from . import test_engine_cases as engine_cases
 
 
 def tokens(*tags):
@@ -20,6 +21,25 @@ def tokens(*tags):
 
 
 class WithoutElision(unittest.TestCase):
+    def test_shared_aligned_queries(self):
+        paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
+        self.assertEqual(len(paths), 99)
+        checker = engine_cases.EngineCases()
+        for path in paths:
+            with self.subTest(case=path.name):
+                case = load_case(path)
+                if "parses" in case:
+                    dialect, error = load_case_dialect(case)
+                    self.assertIsNone(error)
+                    self.assertIsNotNone(dialect)
+                    for index, run in enumerate(case["parses"]):
+                        value, result, error = parse_case(dialect, case, run)
+                        checker.check(f"{path.name} parse {index}", run["expect"],
+                                      value, result, error, case_features(dialect))
+                else:
+                    value, result, error, features = run_case(case)
+                    checker.check(path.name, case["expect"], value, result, error, features)
+
     def assert_outcome(self, grammar, input_tags, accepted):
         value, result, error, _ = run_case({"grammar": grammar, "tokens": tokens(*input_tags)})
         self.assertIsNone(error)
@@ -222,6 +242,38 @@ class WithoutElision(unittest.TestCase):
                 self.assertTrue(value["ok"],value)
             finally:
                 _testing.work = None
+
+
+    def test_caller_scope_leaves_other_uses_shared(self):
+        root = Path(__file__).resolve().parents[3] / "tests"
+        growth = json.loads((root / "without-elision-growth.json").read_text())
+        for shared in (growth["callerScope"],growth["impossiblePrefix"]):
+            fixture = json.loads((root / shared["case"]).read_text())
+            dialect, error = load_case_dialect(fixture)
+            self.assertIsNone(error)
+            original_count = _testing.count
+            for length in shared["lengths"]:
+                limits = {"close_sequence_nodes": shared["maxCloseNodes"],
+                          "close_observation_states": shared["maxCloseStates"],
+                          "items": shared["itemsPerUnit"] * length + shared["slack"]}
+                def bounded_count(name):
+                    original_count(name)
+                    if name in limits:
+                        self.assertLessEqual(_testing.work[name], limits[name])
+                _testing.work = {}
+                try:
+                    case = {**fixture, "input": "x" + "a" * length}
+                    with patch.object(_testing, "count", bounded_count):
+                        value, result, error = parse_case(dialect, case)
+                    self.assertIsNone(error)
+                    self.assertFalse(value["ok"])
+                    self.assertEqual(value["error"]["reason"], "tie")
+                    if shared["maxCloseNodes"]:
+                        self.assertGreater(_testing.work.get("close_observation_states", 0), 0)
+                    self.assertGreater(_testing.work.get("items", 0), 0)
+                    print(f"caller scope {length}: {_testing.work}")
+                finally:
+                    _testing.work = None
 
 
 if __name__ == '__main__':

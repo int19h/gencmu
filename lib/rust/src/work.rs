@@ -30,10 +30,6 @@ pub(crate) enum Work {
     /// at: each completed item that their index is built from, and then
     /// each that they read from it.
     Searched,
-    /// The completed items that the checks of maximality look at: those
-    /// that their tables are found from, as each table is found, and each
-    /// completion that a tested symbol's test is evaluated on.
-    Looked,
     /// The cycle contexts that the rankings make.
     Contexts,
     /// The sequences of captured parts that the recognizer makes, each one
@@ -82,6 +78,8 @@ pub(crate) enum Work {
     /// The clauses that stitching substitutes constants in and checks.
     Stitched,
     /// The classes of a key that resolving a classifier compares with.
+    /// Interned restoration observations, including cycle footprints.
+    CloseStates,
     CloseSequences,
     Classified,
 }
@@ -104,9 +102,6 @@ pub(crate) enum Mutant {
     /// The searches for a blocking path build their index of the chart
     /// again for each search.
     IndexPerSearch,
-    /// The checks of maximality find their tables of the chart again for
-    /// each check.
-    TablePerCheck,
     /// The check of an optional that stands alone asks again at each edge
     /// of an item whether the chart reads the optional as written there.
     AskWrittenAgain,

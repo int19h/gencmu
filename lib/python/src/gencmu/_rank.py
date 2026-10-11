@@ -18,7 +18,6 @@ from typing import Any, Iterator, Optional
 
 from . import _testing
 from ._earley import RESTORE, Forest
-from ._maximal import Maximal
 
 Count = float
 """A number of visible actions, an exact integer, or INF."""
@@ -259,17 +258,11 @@ terminal of a read or the child item of a completion."""
 
 
 class Summaries:
-    """What every ranking rule shares (engine §6): the summaries of a
-    forest's items, one for each item, eligibility and cycle context, found
-    without recursion. A summary of an item up to its dot is a pair: over
-    all its derivations, and over those that ``maximal`` lets an elided
-    terminator follow, its eligible ones. Without ``maximal``, or for an
-    item whose next symbol is no elidable optional, the two are one."""
+    """The summaries of forest items in each cycle context."""
 
-    def __init__(self, forest: Forest, maximal: Maximal | None) -> None:
+    def __init__(self, forest: Forest) -> None:
         self.forest = forest
         self.admission = None
-        self.maximal = maximal
         self.productions = forest.lowered.productions
         self.memo: dict[Key, Any] = {}
         self.steps_memo: dict[Key, list[Step]] = {}
@@ -430,10 +423,6 @@ class Summaries:
             return found
         _, item, context = key
         forest = self.forest
-        scope = forest.slot_scopes[item] if hasattr(forest,"slot_scopes") else None
-        if scope is not None and scope["blocked"]:
-            self.steps_memo[key] = []
-            return []
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):
@@ -497,34 +486,9 @@ class Summaries:
     def compute(self, key: Key) -> Any:
         raise NotImplementedError
 
-    # -- eligibility under maximal
-
-    def guarded(self, item: int) -> bool:
-        """Whether the item's next symbol is an elidable optional whose
-        elision maximal can forbid, so that its two summaries can differ."""
-        return self.maximal is not None and self.maximal.guards(item)
-
-    def eligible_before(self, kind: int, child: Any) -> bool:
-        """Whether an edge combines only the eligible derivations of the
-        item before it: an edge over an elided terminator (engine §6)."""
-        return kind == 2 and self.maximal is not None and self.maximal.elided(child)
-
-    def permits(self, item: int, kind: int, child: Any) -> bool:
-        """Whether the derivations of a guarded item through an edge are
-        eligible: maximal does not forbid the node of its last symbol."""
-        if kind != 2:
-            return True
-        assert self.maximal is not None
-        forest = self.forest
-        tests = self.productions[forest.prod[item]].tests
-        test = tests[forest.dot[item] - 1] if tests else None
-        return not self.maximal.forbids(child, test)
-
-
 class Ranker(Summaries):
     """Ranks a forest's derivations under ``greedy``, ``lazy`` or no lean,
-    or only counts them (up to two). ``maximal`` is the resolution's
-    maximal, if it has it (engine §4). ``best``, when given, is the
+    or only counts them (up to two). ``best``, when given, is the
     summaries of ``late-elision``, and the ranker then sees only the edges
     that attain their least vectors, the forest of the best derivations
     (engine §6)."""
@@ -533,11 +497,10 @@ class Ranker(Summaries):
         self,
         forest: Forest,
         lean: str,
-        maximal: Maximal | None = None,
         entries: bool = True,
         best: Elisions | None = None,
     ) -> None:
-        super().__init__(forest, maximal)
+        super().__init__(forest)
         self.lean = lean
         self.entries = entries
         self.best = best
@@ -549,10 +512,9 @@ class Ranker(Summaries):
         # The witness hook's marks (tests/README.md): for each item of W(D),
         # the indices of its edges that W(D) uses. With them, the same loop
         # that counts also says, for each key, whether its count includes a
-        # derivation of marked edges only: over all derivations and over the
-        # eligible ones. A parse that no test watches has none.
+        # derivation of marked edges only. A parse that no test watches has none.
         self.marks: dict[int, set[int]] | None = None
-        self.witnessed: dict[Key, tuple[bool, bool]] = {}
+        self.witnessed: dict[Key, bool] = {}
 
     def steps(self, key: Key) -> list[Step]:
         best = self.best
@@ -591,16 +553,15 @@ class Ranker(Summaries):
 
     def compute(self, key: Key) -> Any:
         """A key's value: the candidates and the number of derivations, or
-        the number alone when only counting. A partial key has two, as a
-        pair: over all its item's derivations, and over its eligible ones."""
+        the number alone when only counting. Each partial key holds its item's derivations."""
         kind, item, _ = key
         memo = self.memo
         marks = self.marks
         if kind == 0:
             if marks is not None:
-                inner_w = self.witnessed[self.inner_key(key)][0]
-                self.witnessed[key] = (inner_w, inner_w)
-            inner = memo[self.inner_key(key)][0]
+                inner_w = self.witnessed[self.inner_key(key)]
+                self.witnessed[key] = inner_w
+            inner = memo[self.inner_key(key)]
             if not self.entries:
                 return inner
             entries, count = inner
@@ -609,25 +570,20 @@ class Ranker(Summaries):
             for entry in entries:
                 self.keep(kept, self.extend(entry, close))
             return (kept, count)
-        guarded = self.guarded(item)
         mask = self.admission.mask(key) if self.admission is not None else None
-        guarded = guarded or mask is not None and mask[0] != mask[1]
         best = self.best
         if best is not None:
-            best_all, best_eligible = best.edges(key)
-        total = allowed_total = 0
+            best_all = best.edges(key)
+        total = 0
         kept = []
-        allowed: list[Entry] = []
         marked = marks.get(item) if marks is not None else None
         witnessed = self.witnessed
-        w_all = w_allowed = False
+        w_all = False
         edges = len(self.forest.edges[item])
         for index, edge_kind, pred_key, child_key, a, b in self.steps(key):
-            to_all = mask is None or index in mask[0]
-            to_allowed = guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1])
+            to_all = mask is None or index in mask
             if best is not None:
                 to_all = to_all and index in best_all
-                to_allowed = to_allowed and index in best_eligible
             # Faults of the check skip the first of two or more edges, in the
             # count or in the candidates (tests/README.md). Python's agenda
             # completes the restoring sibling first.
@@ -647,7 +603,7 @@ class Ranker(Summaries):
                     produced.append(Entry(self.read_leaf(a, b), [], INF))
             else:
                 assert pred_key is not None
-                earlier = memo[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
+                earlier = memo[pred_key]
                 if not self.entries:
                     ways = earlier * (memo[child_key] if edge_kind == 2 else 1)
                 elif edge_kind == 1:
@@ -667,34 +623,24 @@ class Ranker(Summaries):
                 # and child are W(D)'s.
                 edge_w = True
                 if pred_key is not None:
-                    edge_w = witnessed[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
+                    edge_w = witnessed[pred_key]
                 if edge_w and child_key is not None and edge_kind == 2:
-                    edge_w = witnessed[child_key][0]
+                    edge_w = witnessed[child_key]
                 w_all = w_all or (to_all and edge_w)
-                w_allowed = w_allowed or (to_allowed and edge_w)
             if not counted:
                 ways = 0
             if to_all:
                 total += ways
-            if to_allowed:
-                allowed_total += ways
             if not selected:
                 produced = []
             for entry in produced:
-                if to_allowed:
-                    # Candidates are settled in place, so the second list
-                    # keeps copies of its own.
-                    self.keep(allowed, Entry(entry.seq, list(entry.alts), entry.at))
                 if to_all:
                     self.keep(kept, entry)
         total = min(total, 2)
         value = (kept, total) if self.entries else total
         if marks is not None:
-            witnessed[key] = (w_all, w_allowed if guarded else w_all)
-        if not guarded:
-            return (value, value)
-        allowed_total = min(allowed_total, 2)
-        return (value, (allowed, allowed_total) if self.entries else allowed_total)
+            witnessed[key] = w_all
+        return value
 
     def extend(self, entry: Entry, rope: Rope) -> Entry:
         result = Entry(concat(entry.seq, rope), [], INF)
@@ -802,7 +748,7 @@ class Ranker(Summaries):
             entries, count = self.solve(key)
             total += count
             if self.marks is not None:
-                counted = counted or (count > 0 and self.witnessed[key][0])
+                counted = counted or (count > 0 and self.witnessed[key])
             for entry in entries:
                 self.keep(kept, Entry(entry.seq, list(entry.alts), entry.at))
         if total == 0 or not kept:
@@ -1032,8 +978,8 @@ class Elisions(Summaries):
     Reconstruction uses projected spans and no stage policy (engine §7).
     """
 
-    def __init__(self, forest: Forest, maximal: Maximal | None = None, lean: str = "late-elision") -> None:
-        super().__init__(forest, maximal)
+    def __init__(self, forest: Forest, lean: str = "late-elision") -> None:
+        super().__init__(forest)
         self.lean = lean
         self.check = False
         self.marks: dict[int, set[int]] | None = None
@@ -1047,12 +993,12 @@ class Elisions(Summaries):
 
     def compute(self, key: Key) -> Any:
         """A full key's summary, or ``None`` with no derivation; a partial
-        key's pair of them, over all its derivations and its eligible ones."""
+        key's summary of all its derivations."""
         kind, item, _ = key
         forest = self.forest
         memo = self.memo
         if kind == 0:
-            inner = memo[self.inner_key(key)][0]
+            inner = memo[self.inner_key(key)]
             if inner is None:
                 return None
             profile, vector = inner.profile, inner.vector
@@ -1071,17 +1017,14 @@ class Elisions(Summaries):
                     unit = self.leaves[at] = Elided(1, at, at)
                 vector = join(vector, unit)
             return Summary(inner.total, vector, inner.count, NO_EDGES, profile)
-        guarded = self.guarded(item)
         mask = self.admission.mask(key) if self.admission is not None else None
-        guarded = guarded or mask is not None and mask[0] != mask[1]
         every = Least()
-        eligible = Least()
         for index, edge_kind, pred_key, child_key, a, _ in self.steps(key):
             if edge_kind == 0 or edge_kind == RESTORE:
                 total, vector, count, profile = 1, None, 1, ()
             else:
                 assert pred_key is not None
-                before: Summary | None = memo[pred_key][1 if self.eligible_before(edge_kind, a) else 0]
+                before: Summary | None = memo[pred_key]
                 if before is None:
                     continue
                 total, vector, count, profile = before.total, before.vector, before.count, before.profile
@@ -1093,23 +1036,18 @@ class Elisions(Summaries):
                     vector = join(vector, child.vector)
                     profile = sum_profiles(profile, child.profile)
                     count = min(count * child.count, 2)
-            if mask is None or index in mask[0]:
+            if mask is None or index in mask:
                 every.offer(index, total, vector, count, profile)
-            if guarded and (self.maximal is None or self.permits(item, edge_kind, a)) and (mask is None or index in mask[1]):
-                eligible.offer(index, total, vector, count, profile)
         summary = every.summary()
-        return (summary, eligible.summary() if guarded else summary)
+        return summary
 
-    def edges(self, key: Key) -> tuple[frozenset[int], frozenset[int]]:
-        """The edges of a partial key that attain its least vectors, over all
-        its derivations and over its eligible ones."""
-        every, eligible = self.memo[key]
-        return (every.edges if every is not None else NO_EDGES, eligible.edges if eligible is not None else NO_EDGES)
+    def edges(self, key: Key) -> frozenset[int]:
+        """The edges that attain the least score of a partial key."""
+        summary = self.memo[key]
+        return summary.edges if summary is not None else NO_EDGES
 
     def kept(self, key: Key) -> frozenset[int]:
-        """The edges of a partial key in the forest of the best derivations."""
-        every, eligible = self.edges(key)
-        return every | eligible
+        return self.edges(key)
 
     def rank(self, roots: list[int]) -> Ranking | None:
         """The verdict from the totals and least counts, and the readings
@@ -1132,7 +1070,7 @@ class Elisions(Summaries):
         count = roots_least.count
         best = roots_least.edges
         lean = "none" if self.lean == "late-elision" else self.lean
-        ranker = Ranker(self.forest, lean, self.maximal, best=self)
+        ranker = Ranker(self.forest, lean, best=self)
         ranker.admission = self.admission
         ranker.check = self.check
         readings = ranker.rank(best)
@@ -1147,7 +1085,7 @@ class Elisions(Summaries):
             readings.verdict = "resolved"
         readings.profile = roots_least.profile
         if self.marks is not None:
-            counter = Ranker(self.forest, "none", self.maximal)
+            counter = Ranker(self.forest, "none")
             counter.admission = self.admission
             counter.check, counter.marks = self.check, self.marks
             unfiltered = counter.rank(roots)
@@ -1181,34 +1119,34 @@ class Ranking:
         self.witness_counted = witness_counted
 
 
-def rank(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, unfiltered=False) -> Ranking | None:
+def rank(forest: Forest, lean: str, marks=None, check=False, unfiltered=False) -> Ranking | None:
     admission = None
     if not unfiltered and forest.lowered.ranked_helpers:
         from ._ranked_admission import RankedAdmission
         from ._slot_views import helper_forest
         names = {forest.lowered.rule_names[r] for r in forest.lowered.ranked_helpers}
         raw_facts = len(forest.prod)
-        forest,maximal,marks = helper_forest(forest,names,maximal,marks)
-        admission = RankedAdmission(forest,maximal,check)
+        forest,marks = helper_forest(forest,names,marks)
+        admission = RankedAdmission(forest,check)
         admission.stats['chart_facts'] = raw_facts
         admission.prepare()
-    result = rank_original(forest,lean,maximal,marks,check,admission)
+    result = rank_original(forest,lean,marks,check,admission)
     callback = _testing.slot_admission.get()
     if admission is not None and callback is not None:
         callback(admission.stats)
     return result
 
 
-def rank_original(forest: Forest, lean: str, maximal: Maximal | None = None, marks=None, check=False, admission=None) -> Ranking | None:
+def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=None) -> Ranking | None:
     """Rank a forest's derivations by a rule of the ranking, ``greedy``,
     ``lazy`` or ``late-elision``, or by no lean, ``none``; ``None`` if the
     input has no derivation that counts."""
     if not forest.roots:
         return None
     if lean == "late-elision" or any(production.leftmost_longest for production in forest.lowered.productions):
-        ranker = Elisions(forest, maximal, lean)
+        ranker = Elisions(forest, lean)
     else:
-        ranker = Ranker(forest, lean, maximal)
+        ranker = Ranker(forest, lean)
     ranker.marks, ranker.check = marks, check
     ranker.admission = admission
     return ranker.rank(forest.roots)

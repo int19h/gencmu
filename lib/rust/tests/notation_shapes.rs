@@ -118,10 +118,15 @@ fn notation_shapes() {
 /// Each notation stage runs the check of `elision-only` where its own
 /// directive declares it (engine §8). With `greedy` and `elision-only` on
 /// the lexical stage, the check finds the ambiguity that `greedy` settled
-/// in `++`, which is also two `+`, and the document does not load.
+/// in `...`, which is also `..` and `.`, and the document does not load.
 #[test]
 fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
+    let bootstrap = bootstrap.replacen(
+        r#""name":"symbol","op":"define","flags":[],"alternatives":["#,
+        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"'.'"}},"#,
+        1,
+    );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
     let lexical = bootstrap.find(r#""path":"notation/lexical.md""#).expect("the lexical document");
     let syntax = bootstrap.find(r#""path":"notation/syntax.md""#).expect("the syntax document");
@@ -131,7 +136,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let sources = |bootstrap: String| {
         [
             ("p.md", "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string()),
-            ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n".to_string()),
+            ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n".to_string()),
             ("notation/bootstrap.json", bootstrap),
         ]
     };

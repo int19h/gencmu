@@ -15,11 +15,11 @@ type slotGroup struct {
 	candidates []slotCandidate
 	maxima     map[string]slotLabels
 }
-type slotLabels struct{ all, allowed map[string]bool }
-type slotMask struct{ all, allowed map[int]bool }
+type slotLabels map[string]bool
+type slotMask map[int]bool
 type slotCount struct {
-	all, allowed int
-	w, allowedW  bool
+	all int
+	w   bool
 }
 type slotCountKey struct {
 	it      *item
@@ -58,7 +58,7 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 		if rk.views != nil {
 			scope = rk.views.itemScopes[it]
 		}
-		if scope != nil && scope.blocked || g.rules[it.prod.lhs].helper && scope == nil {
+		if g.rules[it.prod.lhs].helper && scope == nil {
 			continue
 		}
 		pos := int(it.dot) - 1
@@ -120,7 +120,7 @@ func (a *slotAdmission) key(it *item, sym *symNode, f forbidden) slotCountKey {
 			scope = a.rk.views.itemScopes[it]
 		}
 	}
-	cut := sym != nil && f.has(sym.rule) || scope != nil && scope.blocked
+	cut := sym != nil && f.has(sym.rule)
 	if sym != nil {
 		f = a.rk.slotContext(f, sym.rule, scope)
 	} else {
@@ -150,7 +150,7 @@ func (a *slotAdmission) edgeKeys(it *item, edge link, f forbidden) (slotCountKey
 }
 func (a *slotAdmission) value(key slotCountKey) slotCount {
 	if key.it == nil && key.sym == nil {
-		return slotCount{all: 1, allowed: 1, w: true, allowedW: true}
+		return slotCount{all: 1, w: true}
 	}
 	return a.counts[key]
 }
@@ -217,46 +217,30 @@ func (a *slotAdmission) dependencies(key slotCountKey) []slotCountKey {
 	}
 	return out
 }
-func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, slotCount, bool) {
+func (a *slotAdmission) edgeCount(it *item, edge link, f forbidden) (slotCount, slotCount) {
 	p, c := a.edgeKeys(it, edge, f)
 	left, right := a.value(p), a.value(c)
-	mx := a.rk.maximal
-	if edge.sym != nil && mx != nil && mx.elided(edge.sym.rule, edge.sym.start, edge.sym.end) {
-		left.all, left.w = left.allowed, left.allowedW
-	}
-	allowed := true
-	if mx != nil && mx.guards(it) && edge.sym != nil {
-		allowed = !mx.forbidsIn(edge.sym.rule, edge.sym.start, edge.sym.end, it.prod.testAt(int(it.dot)-1), edge.sym.lexical)
-	}
-	return left, right, allowed
+	return left, right
 }
 func (a *slotAdmission) admit(key slotCountKey) {
 	choices := a.at[key.it]
 	if choices == nil {
-		if a.rk.views != nil {
-			if mask, ok := a.rk.views.routes[key.it]; ok {
-				a.masks[key] = mask
-			}
-		}
 		return
 	}
 	context := a.availabilityKey(key.it, key.context)
 	f := a.contexts[key.context]
-	mask := slotMask{map[int]bool{}, map[int]bool{}}
+	mask := slotMask{}
 	for index, group := range choices {
 		kept, ok := group.maxima[context]
 		if !ok {
-			present, allowed := map[string]bool{}, map[string]bool{}
+			present := map[string]bool{}
 			for _, candidate := range group.candidates {
-				l, r, permit := a.edgeCount(candidate.item, candidate.item.links[candidate.index], f)
+				l, r := a.edgeCount(candidate.item, candidate.item.links[candidate.index], f)
 				if l.all > 0 && r.all > 0 {
 					present[candidate.label] = true
-					if permit {
-						allowed[candidate.label] = true
-					}
 				}
 			}
-			maximal := func(labels map[string]bool) map[string]bool {
+			greatest := func(labels map[string]bool) map[string]bool {
 				out := map[string]bool{}
 				first := ""
 				for label := range labels {
@@ -269,36 +253,19 @@ func (a *slotAdmission) admit(key slotCountKey) {
 				}
 				return out
 			}
-			kept = slotLabels{maximal(present), maximal(allowed)}
+			kept = greatest(present)
 			group.maxima[context] = kept
 		}
 		label := a.rk.rec.g.rules[key.it.prod.rhs[int(key.it.dot)-1].id].name
 		if len(a.rk.rec.g.rankedHelpers) > 0 {
 			label = fmt.Sprintf("%020d", key.it.links[index].sym.option)
 		}
-		if kept.all[label] {
-			mask.all[index] = true
-		}
-		if kept.allowed[label] {
-			mask.allowed[index] = true
-		}
-	}
-	if a.rk.views != nil {
-		if route, ok := a.rk.views.routes[key.it]; ok {
-			for i := range mask.all {
-				if !route.all[i] {
-					delete(mask.all, i)
-				}
-			}
-			for i := range mask.allowed {
-				if !route.allowed[i] {
-					delete(mask.allowed, i)
-				}
-			}
+		if kept[label] {
+			mask[index] = true
 		}
 	}
 	a.masks[key] = mask
-	a.stats.retainedEdges += len(mask.all)
+	a.stats.retainedEdges += len(mask)
 }
 func (a *slotAdmission) compute(key slotCountKey) slotCount {
 	if key.cut {
@@ -319,13 +286,12 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 			out.all = min(out.all+v.all, 2)
 			out.w = out.w || v.w
 		}
-		out.allowed, out.allowedW = out.all, out.w
 		return out
 	}
 	it := key.it
 	if it.dot == 0 && !it.restores {
 		w := rk.slotMarks(it) != nil
-		return slotCount{1, 1, w, w}
+		return slotCount{1, w}
 	}
 	if it.restores && rk.rec.run.ps.fault("rank-restoration") {
 		return slotCount{}
@@ -338,16 +304,12 @@ func (a *slotAdmission) compute(key slotCountKey) slotCount {
 		if rk.skips("lost:context", "links", index, len(it.links)) {
 			continue
 		}
-		l, r, permit := a.edgeCount(it, edge, f)
+		l, r := a.edgeCount(it, edge, f)
 		ways := min(l.all*r.all, 2)
 		w := rk.slotMarks(it)[edge] && (edge.prev == nil || l.w) && (edge.sym == nil || r.w)
-		if !filtered || mask.all[index] {
+		if !filtered || mask[index] {
 			out.all = min(out.all+ways, 2)
 			out.w = out.w || ways > 0 && w
-		}
-		if permit && (!filtered || mask.allowed[index]) {
-			out.allowed = min(out.allowed+ways, 2)
-			out.allowedW = out.allowedW || ways > 0 && w
 		}
 	}
 	return out
@@ -387,10 +349,6 @@ func (a *slotAdmission) prepare(key slotCountKey) {
 }
 func (a *slotAdmission) mask(it *item, f forbidden) (slotMask, bool) {
 	if a.at[it] == nil {
-		if a.rk.views != nil {
-			mask, ok := a.rk.views.routes[it]
-			return mask, ok
-		}
 		return slotMask{}, false
 	}
 	key := a.key(it, nil, f)

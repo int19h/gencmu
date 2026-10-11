@@ -30,7 +30,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 24
+FORMAT = 25
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -150,7 +150,7 @@ _EXPRESSION_FORMS = (
     ("choice",),
     ("ranked",),
     ("and",),
-    ("optional", "elidable?", "maximal?"),
+    ("optional", "elidable?"),
     ("repeat", "separator?", "chain?"),
     ("ref",),
     ("terminal",),
@@ -561,13 +561,11 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
                 if "separator" in value:
                     pending.append(("expr", value["separator"], below, _SEALED))
             elif "optional" in value:
-                # An elidable optional is marked true, and maximal only with
-                # it; its expression begins with its terminal (engine §3.8,
+                # An elidable optional is marked true, and its expression
+                # begins with its terminal (engine §3.8,
                 # §9). The member is the boolean True itself: 1 equals True
                 # in Python, but it is no boolean.
-                if ("elidable" in value and value["elidable"] is not True) or (
-                    "maximal" in value and (value["maximal"] is not True or "elidable" not in value)
-                ):
+                if "elidable" in value and value["elidable"] is not True:
                     return "a malformed expression"
                 elidable = value.get("elidable") is True
                 if elidable and elidable_head(value["optional"]) is None:

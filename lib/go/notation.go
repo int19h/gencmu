@@ -501,7 +501,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			if dir.Name == "ambiguity-resolution" {
 				for _, arg := range dir.Args {
 					if arg == "maximal" {
-						b.fail(keyword, "stage-wide maximal is retired; use [++T] for an individual terminator")
+						b.fail(keyword, "the maximal operand is retired")
 					}
 				}
 			}

@@ -34,7 +34,7 @@ func rankEmpty(t *testing.T, grammar string) *rankResult {
 	lg := d.lower(0, map[string]bool{})
 	ps := newParseState(d.uni, nil)
 	rec := ps.newRun("main", d.stages[0], nil).recognize(lg, lg.byName["text"], 0, 0)
-	return newRanker(rec, lg.lean, nil).rank(rec.accepted(lg.byName["text"]))
+	return newRanker(rec, lg.lean).rank(rec.accepted(lg.byName["text"]))
 }
 
 // The ranking stays exact and polynomial where a derivation of the empty

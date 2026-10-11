@@ -241,6 +241,10 @@ func TestBundledCacheSameStages(t *testing.T) {
 				t.Fatal(err)
 			}
 			l.noCache = noCache
+			if !noCache {
+				// A cache miss fails because this loader cannot read notation.
+				l.reader = nil
+			}
 			if loaded[i], err = l.dialect(name); err != nil {
 				t.Fatalf("%s (cache bypassed: %v): %v", name, noCache, err)
 			}
@@ -335,7 +339,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ {E ... \ '\\'} [+KU] [++TOI] | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ {E ... \ '\\'} [+KU] [+TOI] | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -346,7 +350,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	want := [][2]string{
 		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
 		{"/d/", "phoneme"}, {"{", "'{'"}, {"E", "identifier"}, {"...", "ellipsis"}, {`\`, `'\u{5C}'`}, {`'\\'`, "character"}, {"}", "'}'"},
-		{"[", "'['"}, {"+", "'+'"}, {"KU", "identifier"}, {"]", "']'"}, {"[", "'['"}, {"++", "double-plus"}, {"TOI", "identifier"}, {"]", "']'"},
+		{"[", "'['"}, {"+", "'+'"}, {"KU", "identifier"}, {"]", "']'"}, {"[", "'['"}, {"+", "'+'"}, {"TOI", "identifier"}, {"]", "']'"},
 		{"|", "'|'"}, {"g!", "guard"},
 		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬'"}, {"h", "identifier"},
 		{"'x'", "character"}, {"..", "double-dot"}, {"'y'", "character"}, {`'\p{L}'`, "property"}, {"'a'", "character"}, {"...", "ellipsis"},

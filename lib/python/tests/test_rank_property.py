@@ -28,7 +28,6 @@ import gencmu
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
 from gencmu._earley import Forest, Parser, StageContext
 from gencmu._grammar import lower, stitch
-from gencmu._maximal import Maximal
 from gencmu import _rank
 from gencmu._model import Token
 from gencmu._rank import Elided, Least, Vector, actions, compare_vectors, count_roots, join, rank
@@ -343,12 +342,12 @@ def library(lowered: Any, tokens: list[frozenset[str]], lean: str) -> dict[str, 
     context = StageContext(lowered, token_list, text, _unicode_table(_resources().unicode))
     context.count = count_roots
     forest = Parser(context).parse(lowered.rule_ids["text"])
-    return library_ranking(forest, lean, None)
+    return library_ranking(forest, lean)
 
 
-def library_ranking(forest: Any, lean: str, maximal: Maximal | None) -> dict[str, Any]:
+def library_ranking(forest: Any, lean: str) -> dict[str, Any]:
     """The library's ranking of a forest, in the reference's terms."""
-    ranking = rank(forest, lean, maximal)
+    ranking = rank(forest, lean)
     if ranking is None:
         return {"verdict": None}
 
@@ -468,12 +467,10 @@ def describe(rules: list[list[list[Any]]], names: list[str], tokens: list[frozen
     return f"{lean}: {grammar} over {shown}"
 
 
-def forest_derivations(forest: Forest, context: StageContext, maximal: bool, budget: int) -> list[tuple[Any, ...]]:
+def forest_derivations(forest: Forest, context: StageContext, budget: int) -> list[tuple[Any, ...]]:
     """Every derivation of the input that counts (engine §4), enumerated
     from the forest's items and edges. The oracle leaves out the cyclic ones
-    and, under maximal, those with an elided terminator whose constituent
-    could be longer. It applies maximal itself, from the definition, and
-    uses the library only to test a symbol's span (engine §4)."""
+    using the cycle rule (engine §4)."""
     productions = forest.lowered.productions
     spent = [0]
 
@@ -490,17 +487,6 @@ def forest_derivations(forest: Forest, context: StageContext, maximal: bool, bud
     def close(item: int) -> tuple[Any, ...]:
         found = production(item)
         return ("c", found.id, forest.origin[item], forest.end[item], not found.transparent)
-
-    def shorter(constituent: int, test: Any) -> bool:
-        # A completed item of the same symbol from the same origin ends
-        # later, and the symbol's test, if any, holds of it.
-        lhs, origin, end = production(constituent).lhs, forest.origin[constituent], forest.end[constituent]
-        for other in range(len(forest.prod)):
-            if not complete(other) or production(other).lhs != lhs or forest.origin[other] != origin or forest.end[other] <= end:
-                continue
-            if test is None or context.test_holds(test, origin, forest.end[other], forest.tag[other]):
-                return True
-        return False
 
     def spend(amount: int) -> None:
         spent[0] += amount
@@ -528,21 +514,7 @@ def forest_derivations(forest: Forest, context: StageContext, maximal: bool, bud
                     found.append((before + (("r", a, b),), None))
             else:
                 children = [sequence + (close(a),) for sequence, _ in enumerate_item(a, inner)]
-                # The constituent of an elided terminator is the node just
-                # before it, unless that is a terminal, or it stands first,
-                # or it is what a left-recursive production has read so far.
-                previous = production(pred)
-                dot = forest.dot[pred]
-                guarded = (
-                    maximal
-                    and elided(a)
-                    and dot > 0
-                    and not (dot == 1 and not previous.terminal[0] and previous.rhs[0] == previous.lhs)
-                )
-                test = previous.tests[dot - 1] if guarded and previous.tests else None
                 for before, last in enumerate_item(pred, inner):
-                    if guarded and last is not None and shorter(last, test):
-                        continue
                     for child in children:
                         found.append((before + child, a))
             spend(len(found) + 1)
@@ -551,17 +523,15 @@ def forest_derivations(forest: Forest, context: StageContext, maximal: bool, bud
     return [sequence + (close(root),) for root in forest.roots for sequence, _ in enumerate_item(root, frozenset())]
 
 
-def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool, bool, list[str]]:
+def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool, list[str]]:
     """A random grammar like that of the JS property test: text and three
     rules, references now and then tested by their sound, the notation's
     sugar, and under late-elision, or now and then another rule, optionals
-    of the elidable T, often right after a rule reference; now and then
-    maximal. The grammar's DOM, the rule of the ranking, whether T is
-    elidable, whether maximal holds, and the terminals."""
+    of the elidable T, often right after a rule reference. The grammar's DOM, the rule of the ranking, whether T is
+    elidable, and the terminals."""
     pick = rng.random()
     lean = "greedy" if pick < 0.3 else "lazy" if pick < 0.6 else "late-elision" if pick < 0.85 else "none"
     elidable = lean == "late-elision" or rng.random() < 0.3
-    maximal = elidable and rng.random() < 0.4
     terminals = ["A", "B", "T"] if elidable else ["A", "B", "C"]
     rules = ["t", "u", "v"]
 
@@ -581,13 +551,13 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
             sugar = rng.random()
             if elidable and sugar < 0.25:
                 # A rule right before an elidable optional is the node that
-                # maximal tests, so its own test often decides (engine §4).
+                # sound tests, so its own test often decides (engine §4).
                 if rng.random() < 0.5:
                     symbols.append(reference(0.6))
                 symbols.append(
-                    {"optional": {"ref": "T"}, "elidable": True, **({"maximal": True} if maximal else {})}
+                    {"optional": {"ref": "T"}, "elidable": True}
                     if rng.random() < 0.5
-                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True, **({"maximal": True} if maximal else {})}
+                    else {"optional": {"seq": [{"ref": "T"}, symbol]}, "elidable": True}
                 )
             elif sugar < 0.08:
                 symbols.append({"optional": symbol})
@@ -629,7 +599,7 @@ def random_rules_grammar(rng: random.Random) -> tuple[dict[str, Any], str, bool,
     args = ["greedy" if lean == "none" else lean]
     directives: list[dict[str, Any]] = [{"name": "ambiguity-resolution", "args": args, "at": [1, 1]}]
     dom = {"format": DOM_FORMAT, "rules": dom_rules, "directives": directives, "constants": []}
-    return dom, lean, elidable, maximal, terminals
+    return dom, lean, elidable, terminals
 
 
 class RankingProperty(unittest.TestCase):
@@ -646,10 +616,10 @@ class RankingProperty(unittest.TestCase):
         context = StageContext(lowered, tokens, text, dialect.unicode)
         context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
-        derivations = forest_derivations(forest, context, False, 20000)
+        derivations = forest_derivations(forest, context, 20000)
         expected = ranked(derivations, lowered.lean, frozenset(), len(tokens))
         self.assertEqual(expected["verdict"], "resolved")
-        self.assertEqual(library_ranking(forest, lowered.lean, None), expected)
+        self.assertEqual(library_ranking(forest, lowered.lean), expected)
 
     def test_a_divergence_past_any_fixed_bound_stays_decisive(self) -> None:
         """Two derivations that first differ visibly after 2^n visible
@@ -699,7 +669,7 @@ class RankingProperty(unittest.TestCase):
         context = StageContext(lowered, [Token("a", frozenset(["A"]), (0, 1), (0, 1))], "a", unicode)
         context.count = count_roots
         forest = Parser(context).parse(lowered.rule_ids["text"])
-        self.assertEqual(library_ranking(forest, "late-elision", None)["verdict"], "tie")
+        self.assertEqual(library_ranking(forest, "late-elision")["verdict"], "tie")
         summary = Least.summary
 
         def one(self: Least) -> Any:
@@ -711,8 +681,8 @@ class RankingProperty(unittest.TestCase):
         with mock.patch.object(Least, "summary", one), self.assertRaisesRegex(RuntimeError, "internal error"):
             rank(forest, "late-elision")
 
-    def test_rules_and_maximal_against_enumeration(self) -> None:
-        """Every rule of the ranking, with and without maximal, over empty
+    def test_rules_against_enumeration(self) -> None:
+        """Every rule of the ranking, over empty
         and rejected inputs too, against an oracle that enumerates the
         derivations that count by itself. The ranking is None exactly when
         no derivation counts, and the stage has the oracle's verdict, or
@@ -720,11 +690,11 @@ class RankingProperty(unittest.TestCase):
         rounds = int(os.environ.get("GENCMU_PROPERTY_CASES", "1000")) * 3
         seed = int(os.environ.get("GENCMU_PROPERTY_SEED", "1"))
         unicode = _unicode_table(_resources().unicode)
-        checked = rejected = empty = with_maximal = 0
+        checked = rejected = empty = 0
         verdicts: dict[Any, int] = {}
         for number in range(rounds):
             rng = random.Random(30_000_000 + seed + number)
-            dom, lean, elidable, maximal, terminals = random_rules_grammar(rng)
+            dom, lean, elidable, terminals = random_rules_grammar(rng)
             specs = []
             for _ in range(rng.randrange(4)):
                 tags = frozenset(terminal for terminal in terminals if rng.random() < 0.5) or frozenset(["A"])
@@ -739,15 +709,15 @@ class RankingProperty(unittest.TestCase):
             context.count = count_roots
             forest = Parser(context).parse(lowered.rule_ids["text"])
             try:
-                derivations = forest_derivations(forest, context, maximal, 20000)
+                derivations = forest_derivations(forest, context, 20000)
             except Budget:
                 continue
             if len(derivations) > 200:
                 continue
             elided = frozenset(p.id for p in lowered.productions if p.helper and p.elided is not None and not p.rhs)
             expected = ranked(derivations, lean, elided, len(tokens), flagged_productions(lowered, dom["rules"]))
-            where = f"seed {30_000_000 + seed + number}, {lean}{' maximal' if maximal else ''}: {dom['rules']} over {specs}"
-            found = library_ranking(forest, lean, Maximal(forest, context) if maximal else None)
+            where = f"seed {30_000_000 + seed + number}, {lean}: {dom['rules']} over {specs}"
+            found = library_ranking(forest, lean)
             self.assertEqual(found, expected, where)
             if lean != "none":
                 stage = StageRunner("main", lowered, tokens, text, unicode).run(False)
@@ -757,15 +727,12 @@ class RankingProperty(unittest.TestCase):
                 rejected += 1
             elif not tokens:
                 empty += 1
-            if maximal and expected["verdict"] is not None:
-                with_maximal += 1
             checked += 1
         if os.environ.get("GENCMU_PROPERTY_VERBOSE"):
-            print(f"\nrules: checked {checked}, rejected {rejected}, empty {empty}, under maximal {with_maximal}, verdicts {verdicts}")
+            print(f"\nrules: checked {checked}, rejected {rejected}, empty {empty}, verdicts {verdicts}")
         # Every kind of round is checked often enough to count.
         self.assertGreater(rejected, rounds / 50)
         self.assertGreater(empty, rounds / 100)
-        self.assertGreater(with_maximal, rounds / 50)
         self.assertGreater(checked, rounds / 6)
 
     def test_against_enumeration(self) -> None:

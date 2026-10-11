@@ -111,4 +111,28 @@ export declare function needsCloseObservations(value: unknown): boolean;
  * @returns {Set<string>}
  */
 export declare function closeDemands(lowered: import("./types.js").LoweredGrammar): Set<string>;
+export type LocalCloseDemand = {
+    whole: boolean;
+    parts: Set<number>;
+    queries: Map<number, Set<string> | null>;
+};
+/**
+ * Only a caller that consumes an observation asks its child to retain it.
+ * A private whole capture also needs the enclosing written alternative.
+ * @param {import("./types.js").Production} production
+ * @returns {LocalCloseDemand}
+ */
+export declare function localCloseDemand(production: import("./types.js").Production): LocalCloseDemand;
+export type QueryPrefix = {
+    nullable: boolean;
+    leadingClose: boolean;
+    first: Set<import("./types.js").GrammarSymbol>;
+};
+/**
+ * Conditions can only reduce these possible prefixes. A leading omission
+ * or an empty capture prevents this shortcut from discarding observations.
+ * @param {import("./types.js").LoweredGrammar} grammar
+ * @returns {Map<string,QueryPrefix>}
+ */
+export declare function queryPrefixes(grammar: import("./types.js").LoweredGrammar): Map<string, QueryPrefix>;
 export {};

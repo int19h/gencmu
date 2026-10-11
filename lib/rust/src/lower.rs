@@ -274,15 +274,12 @@ pub(crate) struct LRule {
     pub helper: bool,
     pub leftmost_longest: bool,
     pub prods: Vec<u32>,
-    /// For the helper of an elidable optional, `[+T …]` or `[++T …]`: its
+    /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
     pub elided: Option<String>,
     /// The id of that terminator's test, if it has one: an `=` test,
     /// whose string a restored token sounds like (engine §7).
     pub elided_test: Option<u32>,
-    /// Whether that terminator is maximal: its optional is written
-    /// `[++T …]` (engine §3.8, §4).
-    pub maximal: bool,
 }
 
 impl Prod {
@@ -389,8 +386,7 @@ struct HelperDef {
     expr: usize,
     prods: Vec<Sequence>,
     elided: Option<(String, Option<u32>)>,
-    /// Whether the optional is written `[++T …]` (§3.8).
-    maximal: bool,
+
     /// The helpers of the places written inside this one, in order.
     children: Vec<usize>,
     options: Option<Vec<usize>>,
@@ -495,13 +491,7 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Makes the helper of a place whose inside `enter` began.
-    fn helper(
-        &mut self,
-        prods: Vec<Sequence>,
-        elided: Option<(String, Option<u32>)>,
-        maximal: bool,
-        expr: &Expr,
-    ) -> Sym {
+    fn helper(&mut self, prods: Vec<Sequence>, elided: Option<(String, Option<u32>)>, expr: &Expr) -> Sym {
         let id = (self.grammar.rules.len() + self.helpers.len()) as u32;
         let children = self.places.pop().expect("a place entered");
         self.places.last_mut().expect("an alternative").push(self.helpers.len());
@@ -511,7 +501,6 @@ impl<'a> Lowerer<'a> {
             expr: expr as *const Expr as usize,
             prods,
             elided,
-            maximal,
             children,
             options: None,
         });
@@ -584,7 +573,7 @@ impl<'a> Lowerer<'a> {
                     options.extend(std::iter::repeat(index).take(expanded.len()));
                     prods.extend(expanded);
                 }
-                let sym = self.helper(prods, None, false, expr);
+                let sym = self.helper(prods, None, expr);
                 self.helpers.last_mut().expect("a ranked helper").options = Some(options);
                 vec![vec![(sym, None, None)]]
             }
@@ -630,7 +619,7 @@ impl<'a> Lowerer<'a> {
                     .into_iter()
                     .map(|route| {
                         self.enter();
-                        let sym = self.helper(vec![route], None, false, expr);
+                        let sym = self.helper(vec![route], None, expr);
                         vec![(sym, None, None)]
                     })
                     .collect()
@@ -639,18 +628,18 @@ impl<'a> Lowerer<'a> {
                 self.enter();
                 let body = self.expand(inner);
                 // A marked optional is elidable, with the terminal that its
-                // marker names, and `++` makes it maximal (§3.8).
+                // marker names (§3.8).
                 let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner));
                 let mut prods = vec![Vec::new()];
                 prods.extend(body);
-                let sym = self.helper(prods, elided, *mark == Mark::Maximal, expr);
+                let sym = self.helper(prods, elided, expr);
                 vec![vec![(sym, None, None)]]
             }
             // Flat braces are a helper, `h → x | h s x` (§3.2).
             Expr::Repeat(item, separator, _) => {
                 self.enter();
                 let prods = self.braces(item, separator.as_deref(), None, Chain::Left);
-                let sym = self.helper(prods, None, false, expr);
+                let sym = self.helper(prods, None, expr);
                 vec![vec![(sym, None, None)]]
             }
             Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
@@ -975,7 +964,6 @@ fn lower_mode(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
-            maximal: false,
         })
         .collect();
     for helper in &lowerer.helpers {
@@ -986,7 +974,6 @@ fn lower_mode(
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
-            maximal: helper.maximal,
         });
     }
     let mut order: Vec<Pending> = Vec::new();

@@ -9,13 +9,8 @@ import (
 
 // workCounts counts work, for the tests that it grows with the input as it
 // should: the items that the recognizer makes, in parses and nested parses
-// alike (tests/growth.json), the checks of maximality and the completions
-// that they read, and the searches of eligibility. Each is counted where
-// the work is done, as it is done: scanned counts the completed symbols of
-// the chart that the checks read to find their tables, and candidates the
-// completions that they read for a tested symbol. A test can give a count
-// a budget, which the count past it panics at, so that a regression to
-// quadratic work stops at once and does not run on.
+// alike (tests/growth.json), and the searches of eligibility.
+// A test can give a count a budget that stops excess work at once.
 //
 // The other counts are the steps of work that once grew faster than its
 // input, each counted where the fixed code does it, so that the old code
@@ -50,8 +45,8 @@ import (
 //     indexes and compares as it sorts them, each before it does.
 //   - implicationSteps: the implications that a token's tags set off.
 //   - decodeSteps: the values that decoding a precompiled DOM reads.
-//   - elidableSteps: the productions that finding elidable helpers and
-//     maximal terminators walks, each before it is looked at.
+//   - elidableSteps: the productions that finding elidable helpers
+//     walks, each before it is looked at.
 //   - spliceSteps: the documents and stages that splicing a pipeline
 //     looks at.
 //   - keySteps: the tokens that keys of nested parses by content are
@@ -59,7 +54,7 @@ import (
 type workCounts struct {
 	closeStates, closeLinks, closeContexts                                workCount
 	structuralStates, structuralTransitions, packedEdges, summaryContexts workCount
-	items, checks, scanned, candidates, eligibilityRuns                   workCount
+	items, eligibilityRuns                                                workCount
 
 	captureSteps, linkSteps, conditions, soundSteps, readerSteps workCount
 	interned, loweredSlots, ruleSetSteps, clauseSteps, emitSteps workCount

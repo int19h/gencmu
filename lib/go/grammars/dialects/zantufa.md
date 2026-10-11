@@ -107,9 +107,21 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
 
 ## Differences from Zantufa and CLL
 
-The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading. The dialect settles ties as Zantufa's ordered choice (the fixed order in which a PEG tries alternatives) does. It follows Zantufa's explicit lookaheads (tests of the words that follow).
+The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect keeps the reference's choice of grammatical category wherever both readings omit the same terminators. Outside those reservations, the dialect can accept texts that the PEG rejects through commitment.
 
-CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure and the camxes history. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
+A constituent is the text read by one rule. A pattern tests a constituent's tree. Patterns remove duplicate constructions while preserving their actual children and boundaries.
+
+A following-input condition tests words after a constituent. These conditions reserve words after the selected constituent.
+
+An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, term-initial tags, and arguments after tense or modal runs. The competing reading that satisfies the query cannot shorten the constituent's modifiers.
+
+A ranked choice filters alternatives at one written position. The MOI construction takes priority over SE and NAhE conversion. MAhO takes a mathematical expression before a predicate or argument. MOhE takes a predicate before an argument.
+
+Late elision ranks complete readings by omitted terminators. Fewer omissions win at the first differing boundary.
+
+The dialect permits an unwritten TOI or SEhU to close early when a longer body prevents a complete reading. The [syntax comparison](../syntax/zantufa.md#early-closure) explains the three accepted departures and their written-terminator controls.
+
+CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 

@@ -10,7 +10,6 @@ from ._earley import RESTORE, Evaluator, Forest, Parser, Sources, StageContext
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
-from ._maximal import Maximal
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
     Act, Elisions, Ranker, Ranking, Rope, actions, compare_profiles, concat,
@@ -187,34 +186,6 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
     return warnings
 
 
-def forbidden_terminator(forest: Forest, ranking: Ranking | None, maximal: Maximal) -> tuple[int, list[Expected]] | None:
-    """Of a ranking's first reading, the first elided terminator, in the
-    order of the tree's leaves, that maximal forbids: its position, and its
-    terminal with the rule its optional is written in as the one expected
-    there (engine §4). ``None`` for no ranking, or none forbidden."""
-    if ranking is None:
-        return None
-    # Each entry is a node, its parent, and its place among the parent's
-    # children.
-    stack: list[tuple[DChild, DNode | None, int]] = [(derivation(forest, ranking.first), None, 0)]
-    while stack:
-        node, parent, index = stack.pop()
-        if isinstance(node, DRead):
-            continue
-        if parent is not None and index > 0 and maximal.elided(node.item):
-            production = parent.production
-            own = index == 1 and not production.terminal[0] and production.rhs[0] == production.lhs
-            before = parent.children[index - 1]
-            test = production.tests[index - 1] if production.tests else None
-            if not own and isinstance(before, DNode) and maximal.forbids(before.item, test):
-                terminal = node.production.elided
-                assert terminal is not None
-                written = written_symbol(terminal, node.production.elided_test)
-                return (node.start, [Expected(written, [node.production.rule_name])])
-        children = node.children
-        for position in range(len(children) - 1, -1, -1):
-            stack.append((children[position], node, position))
-    return None
 
 
 def elided_nodes(tree: Node) -> list[Node]:
@@ -632,17 +603,13 @@ class StageRunner:
         # A defect found while parsing has its stage and no position (§13).
         return ParseError("grammar", fault.message, stage=self.name)
 
-    def rejection(self, forest: Forest, forbidden: tuple[int, list[Expected]] | None = None) -> ParseError:
+    def rejection(self, forest: Forest) -> ParseError:
         """The error of a stage that rejected its input: at the furthest
         position any item reached, with the terminals the items there could
-        have read next, or at the terminator maximal forbids, ``forbidden``,
-        with its one terminal (engine §4)."""
+        have read next (engine §4)."""
         tokens = self.tokens
-        if forbidden is not None:
-            position, expected = forbidden
-        else:
-            position = forest.furthest
-            expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
+        position = forest.furthest
+        expected = [Expected(terminal, sorted(rules)) for terminal, rules in sorted(forest.expected.items())]
         if position < len(tokens):
             source = tokens[position].source
             shown = f"token {position} ({tokens[position].text!r})"
@@ -671,21 +638,11 @@ class StageRunner:
         context = self.context(lowered, self.tokens)
         start = lowered.rule_ids["text"]
         forest = Parser(context).parse(start)
-        # Maximality, for maximal terminators, before
-        # the ranking (engine §4).
-        maximal = Maximal(forest, context) if lowered.maximal_helpers else None
-        ranking = rank(forest, lowered.lean, maximal)
+        ranking = rank(forest, lowered.lean)
         if ranking is None:
-            forbidden = None
             if forest.roots:
                 forest.furthest = len(self.tokens)
-                if maximal is not None:
-                    # A text that maximality leaves with no derivation is
-                    # rejected at the first terminator it forbids in the
-                    # first reading of the ranking with both forms off, on
-                    # the same chart, whatever its verdict (engine §4).
-                    forbidden = forbidden_terminator(forest, rank(forest, lowered.lean), maximal)
-            return StageOutcome(error=self.rejection(forest, forbidden))
+            return StageOutcome(error=self.rejection(forest))
         if ranking.verdict == "tie":
             return self.tie(forest, context, ranking)
         root = derivation(forest, ranking.first)
@@ -771,7 +728,7 @@ class StageRunner:
         # ranks (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
-        # Maximality does not apply to the derivations of R, and
+        # The reconstruction ranks with no stage policy, and
         # they rank with no lean (engine §7.7).
         chosen_profile = ()
         walk = None
@@ -875,7 +832,7 @@ def _reconstruct(context: StageContext) -> Forest:
 
 
 def _rank_check(forest: Forest, marks: dict[int, set[int]] | None = None) -> Ranking | None:
-    """Rank reconstruction with no stage policy or maximality."""
+    """Rank reconstruction with no stage policy."""
     return rank(forest, "none", marks=marks, check=True)
 
 

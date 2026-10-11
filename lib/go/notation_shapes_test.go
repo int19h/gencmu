@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -173,24 +174,48 @@ func TestNotationShapes(t *testing.T) {
 // Each notation stage runs the check of elision-only where its own
 // directive declares it (engine §8). With greedy and elision-only on the
 // lexical stage, the check finds the ambiguity that greedy settled in
-// `++`, which is also two `+`, and the document does not load.
+// `...`, which is also three `.`, and the document does not load.
 func TestNotationStageRunsTheCheck(t *testing.T) {
 	raw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := string(raw)
-	directive := `"name":"ambiguity-resolution","args":["greedy"]`
-	lexical := strings.Index(bootstrap, `"path":"notation/lexical.md"`)
-	syntax := strings.Index(bootstrap, `"path":"notation/syntax.md"`)
-	at := strings.Index(bootstrap, directive)
-	if lexical < 0 || !(lexical < at && at < syntax) {
-		t.Fatalf("the first directive is not the lexical stage's: %d %d %d", lexical, at, syntax)
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatal(err)
 	}
-	elision := strings.Replace(bootstrap, directive, `"name":"ambiguity-resolution","args":["greedy","elision-only"]`, 1)
+	for _, document := range parsed["stages"].([]any)[0].(map[string]any)["documents"].([]any) {
+		d := document.(map[string]any)
+		if d["path"] != "notation/lexical.md" {
+			continue
+		}
+		for _, rule := range d["dom"].(map[string]any)["rules"].([]any) {
+			r := rule.(map[string]any)
+			if r["name"] == "symbol" {
+				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"terminal": "'.'"}})
+			}
+		}
+	}
+	encoded, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap := string(encoded)
+	lexicalDOM := parsed["stages"].([]any)[0].(map[string]any)["documents"].([]any)[0].(map[string]any)["dom"].(map[string]any)
+	for _, value := range lexicalDOM["directives"].([]any) {
+		directive := value.(map[string]any)
+		if directive["name"] == "ambiguity-resolution" {
+			directive["args"] = []any{"greedy", "elision-only"}
+		}
+	}
+	encoded, err = json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	elision := string(encoded)
 	sources := func(boot string) map[string]string {
 		return map[string]string{"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
-			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n", "notation/bootstrap.json": boot}
+			"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n", "notation/bootstrap.json": boot}
 	}
 	// The bundled bootstrap loads the same documents.
 	if _, err := LoadDialectSources(sources(bootstrap), "p.md"); err != nil {

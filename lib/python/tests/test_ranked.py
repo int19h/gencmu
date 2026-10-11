@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import unittest
+from contextlib import contextmanager
 from unittest.mock import patch
 from gencmu import GencmuError, _testing, load_dialect_sources
 from gencmu._dialect import DOM_FORMAT, bundled_text, _reader, _resources, NotationReader
@@ -19,6 +20,26 @@ def cached_sources(texts, dom):
         'bootstrap': fnv1a64(bundled_text('notation/bootstrap.json')),
         'documents': {'g.md': {'hash': fnv1a64(texts['g.md']), 'dom': dom}},
     })}
+
+
+@contextmanager
+def require_compiled_cache(reader, texts):
+    read = NotationReader.read
+    memory_get = reader.doms.get
+    grammar_key = (fnv1a64(texts['g.md']), DOM_FORMAT)
+
+    def read_source(self, text, path, *args, **kwargs):
+        if path == 'g.md':
+            raise AssertionError('compiled grammar cache was bypassed for g.md')
+        return read(self, text, path, *args, **kwargs)
+
+    def get_memory(key):
+        if key == grammar_key:
+            raise AssertionError('compiled grammar cache was bypassed for g.md')
+        return memory_get(key)
+
+    with patch.object(NotationReader, 'read', read_source), patch.object(reader.doms, 'get', get_memory):
+        yield
 
 
 class Ranked(unittest.TestCase):
@@ -45,8 +66,9 @@ class Ranked(unittest.TestCase):
         dom = reader.read(texts['g.md'], 'g.md', True)
         with patch.object(NotationReader, 'located', side_effect=AssertionError('source-location recovery ran')), patch('gencmu._ranked.restore_locations', side_effect=AssertionError('source-location recovery ran')):
             load_dialect_sources(texts, 'p.md', use_cache=False)
-            for _ in range(2):
-                load_dialect_sources(cached_sources(texts, dom), 'p.md')
+            with require_compiled_cache(reader, texts):
+                for _ in range(2):
+                    load_dialect_sources(cached_sources(texts, dom), 'p.md')
 
     def test_cached_dom_preserves_original_diagnostic(self):
         texts = sources('%const $K ~k\n%ambiguity-resolution late-elision\n%rule text Q (($x(a) ≻ b) ≻ c) Z\n%tags $x ⟹ (tags($x) ∪ $K)\n%rule a X Y\n%rule b U V\n%rule c R S')
@@ -55,7 +77,7 @@ class Ranked(unittest.TestCase):
         found = _resources()
         reader = _reader(found.bootstrap, found.unicode)
         dom = reader.read(texts['g.md'], 'g.md', True)
-        with self.assertRaises(GencmuError) as cached:
+        with require_compiled_cache(reader, texts), self.assertRaises(GencmuError) as cached:
             load_dialect_sources(cached_sources(texts, dom), 'p.md')
         error = plain.exception
         self.assertEqual(error.to_dict(), cached.exception.to_dict())

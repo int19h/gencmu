@@ -21,7 +21,7 @@ import { UnicodeTable } from "../lib/js/src/unicode.js";
 // and the marks that a character tag escapes (engine §1, §9).
 const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.txt", import.meta.url), "utf8"));
 
-// The symbols of one character; `..`, `...`, `++` and `¬` have rules of
+// The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
 const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "\\", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=", "≠",
   "∈", "∉", "⊆", "⊈", "⊇", "⊉", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱", "≻"]);
@@ -151,7 +151,6 @@ function lex(text, positions) {
       if (chars[i + 1] === ".") found.push([i + 2, ".."]);
       reach = Math.max(reach, chars[i + 1] === "." ? Math.min(i + 3, n) : i + 1);
     }
-    if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
     if (SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
@@ -472,7 +471,7 @@ class Parser {
       case "(": return this.node("group", start, [this.tok(), (yield this.choice()), this.expect(")")]);
       case "[": {
         const children = [this.tok()];
-        if (this.is("+") || this.is("++")) children.push(this.tok());
+        if (this.is("+")) children.push(this.tok());
         children.push((yield this.choice()), this.expect("]"));
         return this.node("optional", start, children);
       }

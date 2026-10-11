@@ -580,7 +580,7 @@ export function expressionPiece(expr, limit = MAX_WIDTH, omission = unknownOmiss
     const first = "seq" in expr.optional ? expr.optional.seq[0] : expr.optional;
     const allowed = "test" in first ? omission(expr) : true;
     if (allowed === false) return expressionPiece(expr.optional, limit, omission);
-    const kind = expr.maximal ? "elided, maximal" : "elided";
+    const kind = "elided";
     return optional(framed(expr.optional), allowed ? kind : `${kind}, where its test allows`);
   }
   if ("repeat" in expr) {

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%implies UI ∪ $MORE ⟹ ~indicator\n%implies 'a'..'c' ⟹ ~early ∪ /a/\n```\n",
   "expect": {
     "dom": {
-      "format": 24,
+      "format": 25,
       "rules": [],
       "directives": [],
       "constants": [],

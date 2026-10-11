@@ -29,8 +29,9 @@ type rankedProductionKey struct {
 	frame *rankedFrame
 }
 type rankedPrediction struct {
-	rule  int32
-	frame *rankedFrame
+	requested bool
+	rule      int32
+	frame     *rankedFrame
 }
 
 func rankedPrivateNames(e *domExpr) map[string]bool {
@@ -279,7 +280,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		f.root, f.origin = outer.root, outer.origin
 		f.closeRoute = outer.closeRoute + f.closeRoute
 		f.prefix = r.machine.concat(outer.prefix, it.prefix)
-		if r.observesCloses(p.lhs) {
+		if r.observesCloses(p) {
 			a, b := r.observed(f.origin, it.set)
 			x, y := r.observed(outer.origin, it.origin)
 			u, v := r.observed(it.origin, it.set)
@@ -441,7 +442,7 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 	}
 	for _, bound := range scope.bounds {
 		c := bound.carrier
-		parts = append(parts, fmt.Sprintf("%s/%d/%d/%t", r.g.writtenHelpers[c.rule], c.start, c.end, bound.restricted))
+		parts = append(parts, fmt.Sprintf("%s/%d/%d", r.g.writtenHelpers[c.rule], c.start, c.end))
 	}
 	return strings.Join(parts, "|")
 }

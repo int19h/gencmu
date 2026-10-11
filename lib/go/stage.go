@@ -256,22 +256,11 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 	start := g.byName["text"]
 	rec := run.recognize(g, start, 0, len(run.toks))
 	top := rec.accepted(start)
-	// Maximality applies before the ranking, from either form (§4).
-	mx := newMaximal(rec)
 	var res *rankResult
 	if len(top) > 0 {
-		res = newRanker(rec, g.lean, mx).rank(top)
+		res = newRanker(rec, g.lean).rank(top)
 	}
 	if res == nil {
-		// A text that maximality leaves with no derivation is rejected at
-		// the first terminator it forbids in the first reading, m, of the
-		// ranking on the same chart with both forms off, whatever its
-		// verdict (§4).
-		if mx != nil && len(top) > 0 {
-			if other := newRanker(rec, g.lean, nil).rank(top); other != nil {
-				out.err = run.forbiddenTerminator(rec, other.first, mx)
-			}
-		}
 		if out.err == nil {
 			out.err = run.rejection(rec)
 		}
@@ -362,46 +351,6 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 	}
 	sort.Slice(expected, func(i, j int) bool { return expected[i].Terminal < expected[j].Terminal })
 	return run.rejectedAt(k, expected)
-}
-
-// forbiddenTerminator is the rejection of a text that maximal leaves with no
-// derivation (§4): of the first reading d of the ranking without maximal,
-// the first elided terminator, in the order of the tree's leaves, that
-// maximal forbids, at its position, with its terminal and the rule its
-// optional is written in as the one expected there. It is nil if d has none.
-func (run *stageRun) forbiddenTerminator(rec *recognizer, d *dn, mx *maximal) *ParseError {
-	type frame struct {
-		prod *production
-		kids []*dn
-		next int
-	}
-	stack := []frame{{prod: d.prod, kids: flattenKids(d.a)}}
-	for len(stack) > 0 {
-		f := &stack[len(stack)-1]
-		if f.next == len(f.kids) {
-			stack = stack[:len(stack)-1]
-			continue
-		}
-		i := f.next
-		f.next++
-		k := f.kids[i]
-		if k.kind == dRead {
-			continue
-		}
-		if i > 0 && mx.elided(k.prod.lhs, k.start, k.end) {
-			// Its constituent is the node before it, unless that is a token,
-			// or what a production whose first symbol is its own rule has
-			// read so far.
-			rhs := f.prod.rhs
-			own := i == 1 && !rhs[0].term && rhs[0].id == f.prod.lhs
-			if b := f.kids[i-1]; !own && b.kind == dClose && mx.forbidsIn(b.prod.lhs, b.start, b.end, f.prod.testAt(i-1), b.prod.lexical) {
-				expected := []Expected{{Terminal: writtenSymbol(mx.elides[k.prod.lhs], k.prod.elidedTest), Rules: []string{k.prod.ruleName}}}
-				return run.rejectedAt(rec.base+int(k.start), expected)
-			}
-		}
-		stack = append(stack, frame{prod: k.prod, kids: flattenKids(k.a)})
-	}
-	return nil
 }
 
 // rejectedAt is the error of a text rejected at token k, where the expected

@@ -3,21 +3,7 @@ from dataclasses import replace
 from ._earley import RESTORE
 
 
-class SlotMaximal:
-    def __init__(self, raw, originals):
-        self.raw, self.originals = raw, originals
-
-    def guards(self, item):
-        return self.raw.guards(self.originals[item])
-
-    def elided(self, item):
-        return self.raw.elided(self.originals[item])
-
-    def forbids(self, item, test=None):
-        return self.raw.forbids(self.originals[item],test)
-
-
-def helper_forest(raw, names, maximal, marks):
+def helper_forest(raw, names, marks):
     productions = raw.lowered.productions
     helpers = {p.lhs for p in productions if p.helper}
     users = {}
@@ -34,12 +20,11 @@ def helper_forest(raw, names, maximal, marks):
                 wrapped.add(parent)
                 pending.append(parent)
     if not wrapped:
-        return raw,maximal,marks
+        return raw,marks
     names = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix']
     forest = replace(raw,**{name:list(getattr(raw,name)) for name in names},tag=dict(raw.tag))
     forest.slot_original = list(range(len(raw.prod)))
     forest.slot_scopes = [None]*len(raw.prod)
-    forest.slot_routes = {}
     forest.slot_indices = [[] for _ in raw.prod]
     forest.slot_helpers = helpers
     scoped,scopes = {},{}
@@ -65,18 +50,14 @@ def helper_forest(raw, names, maximal, marks):
         forest.slot_indices.append([])
         return number
 
-    def scope_for(previous,carrier,outer,restricted,guarded,parent):
+    def scope_for(previous,carrier,outer,parent):
         if outer is not None and productions[raw.prod[parent]].lhs == productions[raw.prod[carrier]].lhs:
             return outer
-        key = (previous,carrier,outer['id'] if outer is not None else None,restricted)
+        key = (previous,carrier,outer['id'] if outer is not None else None)
         if key in scopes:
             return scopes[key]
-        p = productions[raw.prod[parent]]
-        test = p.tests[raw.dot[parent]-1] if p.tests else None
-        blocked = restricted and guarded and maximal.forbids(carrier,test)
         scope = {'id':len(scopes),'frames':(outer['frames'] if outer else ())+(previous,),
-                 'bounds':(outer['bounds'] if outer else ()) + ((carrier,restricted),),
-                 'blocked':bool(outer and outer['blocked']) or blocked}
+                 'bounds':(outer['bounds'] if outer else ()) + (carrier,)}
         scopes[key] = scope
         return scope
 
@@ -84,39 +65,25 @@ def helper_forest(raw, names, maximal, marks):
     while at < len(forest.prod):
         original,scope = forest.slot_original[at],forest.slot_scopes[at]
         production = productions[raw.prod[original]]
-        all_,allowed,edges,indices = set(),set(),[],[]
-        routed = False
+        edges,indices = [],[]
 
-        def append(edge,index,channel):
-            number = len(edges)
+        def append(edge,index):
             edges.append(edge)
             indices.append(index)
-            if channel != 1:
-                all_.add(number)
-            if channel != 0:
-                allowed.add(number)
-
         for index,(previous,kind,child,extra) in enumerate(raw.edges[original]):
             if kind != 1 and kind != 2:
-                append((previous,kind,child,extra),index,2)
+                append((previous,kind,child,extra),index)
                 continue
             predecessor = view(previous,scope)
             carries = kind == 2 and productions[raw.prod[child]].lhs in wrapped and (not production.helper or scope is not None)
             if not carries:
-                append((predecessor,kind,child,extra),index,2)
+                append((predecessor,kind,child,extra),index)
                 continue
-            guarded = maximal is not None and maximal.guards(original)
-            inner = scope_for(previous,child,scope,False,guarded,original)
-            append((predecessor,kind,view(child,inner),extra),index,0 if guarded else 2)
-            if guarded:
-                routed = True
-                inner = scope_for(previous,child,scope,True,True,original)
-                append((predecessor,kind,view(child,inner),extra),index,1)
+            inner = scope_for(previous,child,scope,original)
+            append((predecessor,kind,view(child,inner),extra),index)
         forest.edges[at] = edges
         forest.slot_indices[at] = indices
-        if routed:
-            forest.slot_routes[at] = (frozenset(all_),frozenset(allowed))
         at += 1
     if marks is not None:
         marks = {item:{i for i,original_index in enumerate(forest.slot_indices[item]) if original_index in marks[original]} for item,original in enumerate(forest.slot_original) if original in marks}
-    return forest,SlotMaximal(maximal,forest.slot_original) if maximal is not None else None,marks
+    return forest,marks

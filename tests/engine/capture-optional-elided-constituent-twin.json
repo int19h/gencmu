@@ -1,6 +1,6 @@
 {
-  "description": "Twin of capture-optional-elided-constituent.json with the plain [y]: its empty helper is the constituent of the elided T, and it can be longer, so a c is rejected at the T (engine §4).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A [y] [++T] C\n%rule y C",
+  "description": "A plain optional retains its empty helper before the elided T. The complete reading still consumes C outside the optional.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A [y] [+T] C\n%rule y C",
   "tokens": [
     {
       "text": "a",
@@ -17,33 +17,13 @@
   ],
   "expect": {
     "result": {
-      "ok": false,
+      "ok": true,
       "stages": [
         {
-          "name": "main",
-          "verdict": null
+          "verdict": "unique"
         }
-      ],
-      "error": {
-        "kind": "rejected",
-        "stage": "main",
-        "token": 1,
-        "source": [
-          2,
-          3
-        ],
-        "line": 1,
-        "column": 3,
-        "expected": [
-          {
-            "terminal": "T",
-            "rules": [
-              "text"
-            ]
-          }
-        ]
-      }
+      ]
     },
-    "error": "rejected"
+    "brackets": "(a c)"
   }
 }

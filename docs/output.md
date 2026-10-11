@@ -29,7 +29,7 @@ A stage has one of these forms:
 
 If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
-The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (engine §4). The canonical tie-break keys never turn a tie into an accepted reading.
+The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
 `output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
@@ -139,14 +139,14 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":24,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":25,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 24 supports `without-elision` spans, ordered ranked expressions, stage selectors, pattern values, tree comparisons, rule flags, braces, and elidable optional markers. All six tests are valid on elidable terminators.
+DOM format 25 supports `without-elision` spans, ordered ranked expressions, stage selectors, pattern values, tree comparisons, rule flags, braces, and elidable optional markers. All six tests are valid on elidable terminators.
 
-Format 24 applies to grammar DOMs, bootstrap envelopes, and cache envelopes. Parse-result format 11 stays unchanged.
+Format 25 applies to grammar DOMs, bootstrap envelopes, and cache envelopes. Parse-result format 11 stays unchanged.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -160,7 +160,7 @@ An expression is one of these forms:
 
 ```
 {"seq":[EXPR...]}  {"choice":[EXPR...]}  {"ranked":[EXPR,EXPR...]}  {"and":[EXPR...]}
-{"optional":EXPR}  {"optional":EXPR,"elidable":true,"maximal":true}
+{"optional":EXPR}  {"optional":EXPR,"elidable":true}
 {"repeat":EXPR,"separator":EXPR,"chain":"left"}
 {"ref":"sumti"}    {"terminal":"KOhA"}    {"capture":"x","expr":EXPR}
 {"range":["'a'","'z'"]}    {"property":"L"}
@@ -174,7 +174,7 @@ An expression has no member but those of its one form.
 
 `terminal` holds a tag in its canonical spelling (engine §1): a name from `~name`, a phoneme tag `/p/`, or a character tag such as `'a'`. A bare name is a `ref`, whether it names a rule or, with a capital, a terminal. So a `ref` holds a name (engine §9), or `#`. A `range` holds its start and its end, each a character tag in its canonical spelling, and the start is not above the end. A `property` holds its name, one of those of engine §1.
 
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8): `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. `[++TOI #]` also has `"maximal":true`, after `elidable`. A plain optional has neither member. Each member, where present, is `true`, and `maximal` never stands without `elidable`.
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member. Any `maximal` member makes an optional malformed, regardless of its value.
 
 The `expr` of an elidable optional is its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be any existing `test` around one of these terminals. The notation also forbids a group at the head, as in `[+(KU) #]`. The reader makes sure that the written text meets this rule (engine §9). The DOM does not record it.
 
@@ -300,7 +300,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":24,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":25,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

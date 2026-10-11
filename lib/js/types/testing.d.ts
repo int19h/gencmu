@@ -76,20 +76,6 @@ export type WorkCounts = {
      */
     items: number;
     /**
-     * the checks of maximality in nested queries
-     */
-    checks: number;
-    /**
-     * the items of the chart that those checks
-     * read to find their table of completions
-     */
-    scanned: number;
-    /**
-     * the completions that those checks read for
-     * a tested symbol
-     */
-    candidates: number;
-    /**
      * the captured parts that the recognizer made
      */
     captures: number;
@@ -187,7 +173,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -222,11 +208,6 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
  * @property {number} packedEdges distinct packed forest edges
  * @property {number} summaryContexts summary results stored per traversal
  * @property {number} items the items that the recognizer made
- * @property {number} checks the checks of maximality in nested queries
- * @property {number} scanned the items of the chart that those checks
- *   read to find their table of completions
- * @property {number} candidates the completions that those checks read for
- *   a tested symbol
  * @property {number} captures the captured parts that the recognizer made
  * @property {number} captureSteps the steps that find a captured part from
  *   the last one, or that list every part at once
@@ -271,7 +252,7 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

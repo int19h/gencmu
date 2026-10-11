@@ -808,6 +808,20 @@ mod ranked_location_tests {
     use super::*;
 
     #[test]
+    fn bundled_cached_grammars_never_read_source() {
+        let bundled = Context::bundled().unwrap();
+        let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
+        let compiled = Compiled::parse(super::bundled("compiled.json").unwrap(), &bootstrap_hash()).unwrap();
+        let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
+        let sources = MapSources {
+            map: bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect(),
+        };
+        for path in sources.map.keys().filter(|path| path.starts_with("dialects/") && path.ends_with(".md")) {
+            load(&context, &sources, path).expect("the compiled grammar cache loads without notation stages");
+        }
+    }
+
+    #[test]
     fn valid_cached_ranked_grammar_never_recovers_locations() {
         let bundled = Context::bundled().unwrap();
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n";
@@ -820,7 +834,9 @@ mod ranked_location_tests {
             assert!(dom.rules.iter().all(|rule| rule.alternatives.iter().all(|alt| alt.ranked_locations.is_empty())));
             compiled.by_path.insert(path.clone(), (fnv1a64(text), Arc::new(json::parse(&dom_to_json(&dom)).unwrap())));
         }
-        let context = Context { unicode: bundled.unicode.clone(), notation: bundled.notation.clone(), compiled };
+        // No notation stages can parse a document if the compiled cache is bypassed.
+        let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
+        let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
         LOCATION_RECOVERIES.with(|count| count.set(0));
         for _ in 0..2 {
             load(&context, &sources, "p.md").unwrap();

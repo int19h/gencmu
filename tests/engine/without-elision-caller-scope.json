@@ -1,0 +1,16 @@
+{
+  "description": "A query observes one seed while an ordinary repetition shares its alternatives. The same text rule also occurs inside an observed seed.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x(seed) {unit}\n%conditions matches(without-elision($x), seed)\n%rule seed 'x' [+T] | '(' text ')'\n%rule unit 'a' [+U] | 'a' [+V]",
+  "input": "xaaaa",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

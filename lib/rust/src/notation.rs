@@ -312,7 +312,7 @@ impl<'a> Reader<'a> {
             });
         }
         if name == "ambiguity-resolution" && args.iter().any(|arg| arg == "maximal") {
-            return Err(self.error(node, "stage-wide maximal is retired; use [++T] for an individual terminator"));
+            return Err(self.error(node, "the maximal operand is retired"));
         }
         Ok(Directive { name, args, at: self.at(token) })
     }
@@ -665,7 +665,7 @@ impl<'a> Reader<'a> {
         })
     }
 
-    /// An optional, and with a marker `+` or `++` among its parts an
+    /// An optional, and with a marker `+` among its parts an
     /// elidable one (§3.8, §9). Its form is checked on the tree, where a
     /// group is still a node: one sequence, whose first primary is the
     /// terminal itself, `=`-tested or not.
@@ -679,12 +679,11 @@ impl<'a> Reader<'a> {
         let node = frame.node;
         // Its required part first, then its markers (§9).
         let choice = self.one(node, "choice")?;
-        let markers: Vec<&Node> =
-            Self::tokens_of(node).filter(|token| matches!(self.text(token), "+" | "++")).collect();
+        let markers: Vec<&Node> = Self::tokens_of(node).filter(|token| self.text(token) == "+").collect();
         if let Some(second) = markers.get(1) {
-            return Err(self.error(second, "an optional has one marker + or ++ at most"));
+            return Err(self.error(second, "an optional has one marker + at most"));
         }
-        let Some(&marker) = markers.first() else {
+        let Some(_) = markers.first() else {
             return Ok(Step::Call(Frame::Choice(Choice::new(choice))));
         };
         let form = || {
@@ -725,7 +724,7 @@ impl<'a> Reader<'a> {
             return Err(form());
         }
         self.marked.set(self.marked.get() + 1);
-        frame.mark = if self.text(marker) == "++" { Mark::Maximal } else { Mark::Elidable };
+        frame.mark = Mark::Elidable;
         Ok(Step::Call(Frame::Choice(Choice::new(choice))))
     }
 

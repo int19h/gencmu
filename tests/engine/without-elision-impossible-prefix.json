@@ -1,0 +1,16 @@
+{
+  "description": "An impossible witness prefix leaves a long captured body shared. Its unit alternatives have different closes.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x(body)\n%conditions \u00acbegins(from(without-elision($x)), other)\n%rule body 'x' {unit}\n%rule unit 'a' [+T] | 'a' [+U]\n%rule other 'z'",
+  "input": "xaaaa",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

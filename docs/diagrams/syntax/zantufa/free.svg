@@ -15,10 +15,10 @@
 <g class="terminal"><rect x="249" y="60" width="50" height="24" rx="12"/><text x="274" y="77" textLength="33.6" lengthAdjust="spacingAndGlyphs">SEhU</text></g>
 <path d="M299 72h10"/>
 <g class="rule"><rect x="309" y="60" width="25" height="24" rx="0"/><text x="321.5" y="77" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M334 72H385"/>
-<path d="M229 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H365a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
-<text class="label" x="253" y="45" textLength="108" lengthAdjust="spacingAndGlyphs">elided, maximal</text>
-<path d="M385 72H749"/>
+<path d="M334 72H354"/>
+<path d="M229 72a10 10 0 0 0 10 -10V60a10 10 0 0 1 10 -10H334a10 10 0 0 1 10 10V62a10 10 0 0 0 10 10"/>
+<text class="label" x="253" y="45" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M354 72H749"/>
 <path d="M20 72a10 10 0 0 1 10 10V122a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="120" width="84" height="24" rx="0"/><text x="82" y="137" textLength="67.2" lengthAdjust="spacingAndGlyphs">vocative</text></g>
 <path d="M124 132h10"/>
@@ -63,10 +63,10 @@
 <g class="terminal"><rect x="299" y="258" width="42" height="24" rx="12"/><text x="320" y="275" textLength="25.2" lengthAdjust="spacingAndGlyphs">TOI</text></g>
 <path d="M341 270h10"/>
 <g class="rule"><rect x="351" y="258" width="25" height="24" rx="0"/><text x="363.5" y="275" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M376 270H435"/>
-<path d="M279 270a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10H415a10 10 0 0 1 10 10V260a10 10 0 0 0 10 10"/>
-<text class="label" x="303" y="243" textLength="108" lengthAdjust="spacingAndGlyphs">elided, maximal</text>
-<path d="M435 270H729a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<path d="M376 270H396"/>
+<path d="M279 270a10 10 0 0 0 10 -10V258a10 10 0 0 1 10 -10H376a10 10 0 0 1 10 10V260a10 10 0 0 0 10 10"/>
+<text class="label" x="303" y="243" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M396 270H729a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M20 72a10 10 0 0 1 10 10V294a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="292" width="33" height="24" rx="12"/><text x="56.5" y="309" textLength="16.8" lengthAdjust="spacingAndGlyphs">XI</text></g>
 <path d="M73 304h10"/>

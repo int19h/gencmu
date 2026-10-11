@@ -86,7 +86,7 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 
 `tests/engine/` tests the specification. Each case is a small grammar, an input, and a pattern that the canonical result JSON of `docs/output.md` must match. So a fifth implementation can run the cases to make sure that it follows the specification, without the Lojban grammars at all. The cases cover every specification rule, with one or more cases per rule. They settle the edge cases that decide which parse comes out, so that the Lojban corpus does not become the specification by accident:
 
-- A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
+- A tie is an error (`ok` is false) of kind `ambiguous`, with the reason `tie`. The stage has the verdict `tie` and a witness, and the error has two readings. The first reading is the least in a total order, *T*, that breaks the ranking's ties by canonical keys. The second is the tied derivation that diverges from the first earliest (engine §6). *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 - The witness of a tie is the pair of actions at the first visible difference between the two readings. A close of a helper rule, or of an alternative with one symbol, is transparent (not visible). An earlier difference at such a close does not decide the witness. If the two readings have no visible difference, the witness is the pair of actions at their first difference.
 - A stage with a tie emits nothing, and the pipeline stops there. Its tie stands even when every tied derivation emits the same tokens. The stage is ambiguous as written, and the error lets a grammar author fix it. The engine cases include a three-way tie and a tie whose derivations emit the same tokens.
 - The cases cover empty spans and cycles: rules that can match no tokens, empty captures and a condition on an empty span. They also cover a unary cycle of `a` to `b` and `b` to `a`. Another case is a nested parse asked about its own span as the same rule. Each case has its defined outcome.
@@ -162,7 +162,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 - `[x]` is optional.
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x \ s}` is a separated list.
 - `{... x \ s}` is a left chain, and `{x ... \ s}` a right chain. A chain, like a list, can leave out `\ s`, as in `{... x}`. A chain is the whole of its rule.
-- `[+T x]` is an elidable optional, which begins with the terminator `T`. `[++T x]` also makes `T` maximal there, for Zantufa alone.
+- `[+T x]` is an elidable optional, which begins with the terminator `T`.
 - `A & B` reads `A`, `B`, or both, in order.
 - `( )` is grouping.
 - `ε` is empty.
@@ -197,9 +197,9 @@ A tag term is an error unless it is guarded, as in `($c ⟹ classify(phonemes($c
 
 Directives are keywords too, and can stand in any block.
 
-`%ambiguity-resolution` says how the stage chooses among the parses that share the greatest rule profile (see "Ambiguity"). Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
+`%ambiguity-resolution` says how the stage chooses among the parses that share the greatest rule profile (see "Ambiguity"). Its first operand is the ranking rule: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. Every stage must have exactly one, in any of its documents. A stage with none or two is a load error that names the stage.
 
-No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators. `[++TOI]` also makes its terminator maximal (see "Maximal terminators").
+No directive lists the elidable terminators. An absent elidable optional, `[+KU]`, appears in the tree as its terminator, elided at that point. `elision-only` restores these terminators.
 
 By convention, a directive stands in its own block. The preceding prose explains why the grammar needs it. gencmu does not enforce the convention.
 
@@ -243,7 +243,7 @@ A capture cannot stand inside braces or around them because a repeated part has 
 
 The engine defines these rules in §3:
 
-- A flat list is a helper. The `greedy` and `lazy` rankings do not observe its prefix ends. A rule's conditions do not apply to each list prefix. A grammar that needs those prefixes uses a chain or explicit recursion. The notation's lexical `text` rule uses explicit recursion because `greedy` must distinguish `++` from two `+` tokens.
+- A flat list is a helper. The `greedy` and `lazy` rankings do not observe its prefix ends. A rule's conditions do not apply to each list prefix. A grammar that needs those prefixes uses a chain or explicit recursion. The notation's lexical `text` rule uses explicit recursion to expose token boundaries.
 - Each chain level sees its rule's clauses and has its own `$`. A warning on the alternative gives one warning per level.
 - A right chain differs from `x [s r]` at its single-item level. If the suffix is `[+T s′ r]`, that level has no elidable optional. The elision vectors differ, so `late-elision` can choose a different reading. A single-symbol item gives the level its tags. A terminator elided at the start of `s` has a constituent under the ordinary rules.
 - The operator chain of `mex` and connected abstractors of `tanru-unit-2` have their own rules. Each level holds its first part. A single abstractor with `nai` or free modifiers forms its own group.
@@ -257,8 +257,6 @@ An elidable optional permits an omitted closing word. A grammar marks each elida
 A marked optional has one form, with the terminator directly after the marker. A group there, even `[+(KU) #]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
 An omission has an elided node, a constituent, and an elision vector. `elision-only` restores it through its defined routes and preserves the sound of an `=` test.
-
-Maximality restricts a constituent to its longest match. `[++T]` makes an optional's terminator maximal. Zantufa uses it for `TOI` and `SEhU`. The restriction belongs to the optional, rather than to every occurrence of the terminal.
 
 A capture can stand anywhere except inside braces or inside an elidable optional. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
@@ -282,11 +280,13 @@ A tree pattern tests a constructed constituent without recognizing its words aga
 
 All constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 
-The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations. Summary contexts retain eligibility and same-span cycle exclusion. A structural-state change does not bypass rule-and-span cycle exclusion.
+The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations.
+
+Ranking summaries retain their cycle context. Ranked admission keeps eligibility and cycle contexts separate. A structural-state change does not bypass rule-and-span cycle exclusion.
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
-Grammar DOM format 24 stores span calls, pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No [seal](notation.md#ranked-choices) node is serialized.
+Grammar DOM format 25 stores span calls, pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No [seal](notation.md#ranked-choices) node is serialized.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -308,11 +308,11 @@ The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1
 
 Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
-Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
+Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks whole MOI constructions, MAhO, and MOhE. Its fragments and ME operands use ordinary alternatives with aligned category conditions. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
 
 The ranked choices need no wrapper rules. The rule `me-unit` names the shared experimental ME construction. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture.
 
-Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported, so the fragment keeps its readable compound name `terms-vau`.
+Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported. The fragment keeps `terms-vau` for its capture and `fragment-terms` for its aligned category query.
 
 ## Pipelines
 
@@ -423,11 +423,9 @@ The notation writes `leftmost-longest` in parentheses after the keyword. The nam
 
 A tie is an error of kind `ambiguous`, with the reason `tie`. The stage emits nothing, and no later stage runs. The error shows two of the best parses, and the stage shows the witness, the pair of actions at their first difference. A tied stage gives no warnings, since it has no chosen parse.
 
-The canonical order, *T*, orders ambiguity diagnostics and selects the forbidden terminator that a `maximal` rejection reports. Its canonical keys never turn a tie into an accepted reading. Production numbers follow the written order of alternatives. Using those numbers to accept a tied reading gives source order an unstated preference.
+The canonical order, *T*, orders ambiguity diagnostics. Its canonical keys never turn a tie into an accepted reading. Production numbers follow the written order of alternatives. Using those numbers to accept a tied reading gives source order an unstated preference.
 
 An error is better than a hidden choice. A reader of the error sees the two readings and where they part. The grammar author settles the choice with a rule, and the rule says why. Every stage follows this, also a stage whose tied parses emit the same tokens, since the grammar is ambiguous there as written.
-
-
 
 ### Elision-only
 
@@ -454,10 +452,6 @@ The recognizer retains the strictness of its items only for reconstruction (engi
 
 ### Independent elision controls
 
-`late-elision` does not replace maximal terminators or `elision-only`. A maximal terminator removes a parse because of a longer constituent. That constituent need not fit any parse of the whole text. A ranking sees only parses of the whole text, so it cannot reproduce this rejection.
-
-For example, take `text → A body [++T] B` and `body → X | X B`. On `A X B`, the one complete parse uses `body → X` and elides `T`. The maximal terminator forbids that elision, because `body → X B` is longer, so the text is an error. With `[+T]`, every ranking rule accepts the one parse.
-
 `elision-only` parses again with the terminators written back. That can let another alternative match, or a test on a terminal read a written-back terminator. A ranking of the original parses sees neither. For example, take `text → a | b | c`, `a → A [+T]`, `b → A [+T] [+T]` and `c → A T`. On `A`, `late-elision` prefers `a`, with one elided `T`, to `b`, with two. Written back, `A T` parses through both `a` and `c`, so `elision-only` reports the text.
 
 ### Nested queries and elided terminators
@@ -466,15 +460,11 @@ A condition can ask whether a span parses as a rule, with `matches`, `begins` or
 
 So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers from the proof trees that remain. Several such trees are an ordinary success, never a tie. No option turns this priority off.
 
-In Zantufa, `cy to roi toi klama` holds the parenthesis `to roi toi` after the letter `cy`. A condition of `term-2` requires that no tag begins where the term begins. Without priority, the nested parse reads `cy to roi` as the tag `cy roi`. It closes the parenthesis at once, with its `toi` left out, although `toi` is written right after `roi`. That reading fails the condition and rejects the text. With priority, the brackets output is `([cy {to roi toi}] klama)`, as the Zantufa reference parser reads it.
-
-In the experimental dialect, `mi klama na to broda toi` has the same problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
+In the experimental dialect, `mi klama na to broda toi` illustrates this boundary problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
 
 The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
 The window of an ordinary query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
-
-Applying maximality to every elidable optional inside queries also restricts readings where no terminator is written. Written-terminator priority restricts only omissions that compete with a written optional.
 
 ### Queries with fixed closes
 
@@ -492,29 +482,13 @@ The span function requires observations from each candidate during recognition. 
 
 Engine §7 supplies synthetic tokens, saved sound, provenance, and source projection for reuse. Its reconstruction policy also permits bare synthetic reads and forbids omissions throughout the reconstructed input. An aligned query needs its own qualification policy and ordinary parsing after the fixed capture. It emits nothing and selects no replacement tree. No parse configuration switch controls this grammar facility.
 
-### Maximal terminators
+### Early closure and candidate ownership
 
-With `[++TOI]`, `so to recap` reads `(so [to recap])`, and `so to mi klama` reads `(so [to {mi klama}])`. With `[++SEhU]`, `ro sei ny rere'u basna mutce cusku` holds `cusku` inside `sei`. Both constructs take their complete content, as the reference does.
+A constituent is the text read by one grammar rule. A candidate is one constructed reading of a constituent. A pattern tests that candidate's actual children and boundaries. A query parses an input range again.
 
-Written-terminator priority cannot settle those boundaries because neither `toi` nor `se'u` is written. A condition cannot state that a construct's content cannot be longer.
+TO, SEI, and XOI bodies compete as ordinary constituents. Late elision selects complete readings with fewer omissions at the first differing boundary. A longer body usually wins when it leaves a complete reading. Written terminators retain their ordinary grammatical force.
 
-A grammar can select individual optionals for maximality (engine §4). `[++T]` selects an optional's terminator in both the main parse and nested queries. The DOM records `"maximal":true` on the `optional`. A maximal terminator is always elidable, so one marker states both properties.
-
-Inside a query, the longer constituent comes from the query's own chart. A `begins` with `from` or `after` already sees the rest of the input. A bounded `matches` sees only its span, and a constituent that goes on past the span does not count there.
-
-Maximal terminators remove derivations before any ranking rule ranks them. In a query, written-terminator priority and a maximal terminator can each forbid an omission. `elision-only` writes back a maximal terminator as any other.
-
-A rejection names a forbidden terminator only when maximality removes every main derivation. The stage then reads the same chart, with maximal terminators unrestricted, to find that terminator. A nested query that maximality changes only changes the value of its condition. If no main derivation remains, the rejection is ordinary, and it lists the terminals expected at the furthest position.
-
-The four libraries find the furthest completion of each symbol from each origin for maximal terminators. Lowering keeps the set of maximal terminals with the lowered grammar, so a cache of lowered grammars tells them apart. The main parse builds the table whenever a maximal terminator needs it. A nested query builds the same table from its own chart, which costs one pass over that chart.
-
-The engine feature and the choice of terminators are separate decisions. The engine defines what a maximal terminator does. The Zantufa grammar chooses which of its terminators are maximal, and that choice has a cost.
-
-The Zantufa `tag-term` has the condition `¬begins(after($t), free)`. It excludes a tag that ends before a following free modifier. In `sei abu pensi ba ju'o rinka`, the reference's tag is `ba ju'o`. The `sei` therefore ends after `pensi`. The condition excludes the longer candidate `abu pensi ba`, which otherwise forbids that elision.
-
-The main parse enforces maximality regardless of conditions. Zantufa selects `TOI` and `SEhU` for this restriction.
-
-A bounded query stays within its span. A `matches` over a captured span asks whether that span alone parses as the rule. A longer constituent past the span is outside that question. Looking past the span changes the windows and the memo keys of every query.
+Zantufa uses patterns and aligned category queries to remove duplicate constructions without moving the candidate's closes. Its following-input conditions reserve words after the selected constituent. In `cy to roi toi klama`, the aligned tag query keeps ROI inside the letter's written parenthesis. It cannot invent an outside ROI by moving TOI. Its [syntax comparison](../grammars/syntax/zantufa.md#early-closure) records the three early-close departures and their written-terminator controls.
 
 ### Where an elided terminator can fall
 
@@ -524,11 +498,7 @@ A bounded query stays within its span. A `matches` over a captured span asks whe
 - CLL's official parser reads one lexeme ahead and never goes back. A lexeme is one unit that the parser reads. It is a word, or a run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
 - camxes-std commits too, but in another way. YACC is the grammar of CLL 1.1's official parser. camxes-std provides an alternative. It reads as far as its rules permit before it elides a terminator. So `le nanmu joi le ninmu` parses. The `le lojbo` text above does not.
 
-
-
-The cll-ebnf and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa has explicit exceptions for `TOI` and `SEhU`, which are maximal terminators and commit as the PEG does. Its grammar document lists the three texts that it rejects for this reason. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
-
-
+The cll-ebnf and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa also uses ordinary early closure for TOI and SEhU. Its grammar document lists the three accepted departures from PEG commitment. The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble, the steps that prepare the words for its grammar, joins runs of words into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. A word-level rule therefore does not express the same policy.
 
@@ -563,19 +533,21 @@ The Zantufa grammar states its attachment conventions as rules, derived from its
 - A free modifier nests in the nearest open slot. The rule stands on `free`, not on each slot. So the dialect keeps its departure from CLL 19.6 in `mi klama pamai le zarci .e remai le zdani`.
 - A sumti connection comes before a term connection.
 - An operator run is read whole, and the operand after it is read wherever one follows.
-- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. A bridi-tail that a further `gi` follows does not count, because the reference's runs of `gik` read as far as they can.
+- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. The sentence condition tests the actual branches. It excludes a forethought sentence only when every branch has the bridi-tail form.
 
-Other conditions state the reference's ordered choices where the ranking leaves a tie. A gek tanru unit comes before the forms with `se`, `fa` and `na'e`. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag. A `ke` group of terms comes before a `ke` sumti.
+Other conditions exclude SE and NAhE conversions that duplicate an actual bare gek unit. FA cannot begin a gek and has no such exclusion. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag.
+
+Written KEhE selects one bare grouped sumti. Omitted KEhE selects the corresponding grouped terms. Patterns test the actual body and closer.
 
 The vocative follows the reference. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of an address reads as far as it can, so `doi djan klama` is one vocative with the address `djan klama`. The dialect also keeps an odd reading of the reference. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the vocative `pe'u` takes `ko` as its address, so `jmina` has no first place.
 
-Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked. Both are separators, and neither closes a constituent. So both are plain optionals, `[CU #]` and `[IAU #]`. An absent `cu` or `i'au` counts for nothing, leaves no `elided` node, and `maximal` and `elision-only` do not see it. The marker is the only control, and the ranker has no logic for `CU` or for any other terminal.
+Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked. Both are separators, and neither closes a constituent. So both are plain optionals, `[CU #]` and `[IAU #]`. An absent `cu` or `i'au` counts for nothing, leaves no `elided` node, and `elision-only` does not see it. The marker is the only control, and the ranker has no logic for `CU` or for any other terminal.
 
 ## Indivisible numbers and letter strings
 
 Both CLL dialects use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
-The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation. `[++T]` expresses maximality per optional.
+The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation.
 
 Both CLL dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. This policy interprets CLL 1.1 section 21.2 note 10. Number and letter boundaries follow CLL 17.9 and 18.6.
 

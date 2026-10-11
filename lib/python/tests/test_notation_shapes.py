@@ -5,6 +5,7 @@ outcome that every library gives."""
 
 from __future__ import annotations
 
+import json
 import unittest
 from typing import Any, Callable
 
@@ -63,22 +64,26 @@ class NotationShapes(unittest.TestCase):
         """Each notation stage runs the check of elision-only where its own
         directive declares it (engine §8). With greedy and elision-only on
         the lexical stage, the check finds the ambiguity that greedy settled
-        in `++`, which is also two `+`, and the document does not load."""
+        in `...`, which is also three `.`, and the document does not load."""
+        parsed = json.loads(BOOTSTRAP)
+        lexical_dom = next(d["dom"] for stage in parsed["stages"] for d in stage["documents"] if d["path"] == "notation/lexical.md")
+        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append({"guards": [], "expr": {"terminal": "'.'"}})
+        bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
-        lexical = BOOTSTRAP.index('"path":"notation/lexical.md"')
-        at = BOOTSTRAP.index(directive)
-        self.assertTrue(lexical < at < SYNTAX_AT, "the first directive is the lexical stage's")
-        elision = BOOTSTRAP.replace(directive, '"name":"ambiguity-resolution","args":["greedy","elision-only"]', 1)
+        lexical = bootstrap.index('"path":"notation/lexical.md"')
+        at = bootstrap.index(directive)
+        self.assertTrue(lexical < at < bootstrap.index('"path":"notation/syntax.md"'), "the first directive is the lexical stage's")
+        elision = bootstrap.replace(directive, '"name":"ambiguity-resolution","args":["greedy","elision-only"]', 1)
 
         def sources(bootstrap: str) -> dict[str, str]:
             return {
                 "p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n',
-                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A [++B]\n```\n",
+                "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {...B}\n```\n",
                 "notation/bootstrap.json": bootstrap,
             }
 
         # The bundled bootstrap loads the same documents.
-        gencmu.load_dialect_sources(sources(BOOTSTRAP), "p.md", use_cache=False)
+        gencmu.load_dialect_sources(sources(bootstrap), "p.md", use_cache=False)
         with self.assertRaises(gencmu.GencmuError) as raised:
             gencmu.load_dialect_sources(sources(elision), "p.md", use_cache=False)
         self.assertEqual(raised.exception.kind, "grammar")

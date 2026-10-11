@@ -1,9 +1,4 @@
 import type { Action, Derivation, Item, Lean, Production, Rope, RopeLeaf, Token } from "./types.js";
-import type { Maximal } from "./maximal.js";
-export type Allowed<T> = {
-    all: T;
-    allowed: T;
-};
 export type Candidate = {
     seq: Rope;
     alts: Rope[];
@@ -96,11 +91,10 @@ export declare class Ranker {
     profileProject: number[] | null;
     /** @type {Lean} */
     lean: Lean;
-    maximal: Maximal | null;
-    /** @type {{plain: Map<Item, Allowed<ElisionSummary>>, contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>}} */
+    /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
     summaries: {
-        plain: Map<Item, Allowed<ElisionSummary>>;
-        contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>;
+        plain: Map<Item, ElisionSummary>;
+        contextual: Map<Item, Map<string, ElisionSummary>>;
     };
     /** @type {Map<number, ElisionSeq>} */
     elisionLeaves: Map<number, ElisionSeq>;
@@ -108,17 +102,21 @@ export declare class Ranker {
     ruleGroups: Map<string, number>;
     /** @type {(rule: string) => number | undefined} */
     groups: (rule: string) => number | undefined;
-    /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
+    /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
     memo: {
-        plain: Map<Item, Allowed<Candidate[]>>;
-        contextual: Map<Item, Map<string, Allowed<Candidate[]>>>;
+        plain: Map<Item, Candidate[]>;
+        contextual: Map<Item, Map<string, Candidate[]>>;
     };
-    /** @type {{plain: Map<Item, Allowed<number> & {w: boolean}>, contextual: Map<Item, Map<string, Allowed<number> & {w: boolean}>>}} */
+    /** @type {{plain: Map<Item, {all: number} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number} & {w: boolean}>>}} */
     counts: {
-        plain: Map<Item, Allowed<number> & {
+        plain: Map<Item, {
+            all: number;
+        } & {
             w: boolean;
         }>;
-        contextual: Map<Item, Map<string, Allowed<number> & {
+        contextual: Map<Item, Map<string, {
+            all: number;
+        } & {
             w: boolean;
         }>>;
     };
@@ -141,13 +139,11 @@ export declare class Ranker {
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
-     * @param {Maximal | null} [maximal] the maximal terminators, if there are
-     *   any (engine §4)
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)
      */
-    constructor(tokens: Token[], lean: Lean, maximal?: Maximal | null, project?: number[] | null);
+    constructor(tokens: Token[], lean: Lean, project?: number[] | null);
     /**
      * @param {Item} item
      * @returns {Candidate[]}
@@ -155,22 +151,22 @@ export declare class Ranker {
     candidates(item: Item): Candidate[];
     /**
      * @param {Item} item
-     * @returns {Allowed<Candidate[]>}
+     * @returns {Candidate[]}
      */
-    allowedCandidates(item: Item): Allowed<Candidate[]>;
+    candidateSummary(item: Item): Candidate[];
     /**
      * @param {Item} item
-     * @returns {Allowed<ElisionSummary>}
+     * @returns {ElisionSummary}
      */
-    elisionSummary(item: Item): Allowed<ElisionSummary>;
+    elisionSummary(item: Item): ElisionSummary;
     /**
      * The summaries of an item in the context that `key` names, which
      * elisionSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {Allowed<ElisionSummary>}
+     * @returns {ElisionSummary}
      */
-    summaryAt(item: Item, key: string): Allowed<ElisionSummary>;
+    summaryAt(item: Item, key: string): ElisionSummary;
     /**
      * The edges of an item that attain a least vector in its context.
      * @param {Item} item
@@ -224,16 +220,17 @@ export declare class Ranker {
      */
     count(item: Item): number;
     /**
-     * The number of an item's derivations, capped at two, over all of them
-     * and over those that maximal allows. With the witness hook's marks, `w`
+     * The number of an item's derivations, capped at two. With the witness hook's marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
      * A dependency that closes a cycle has no derivation, and no `w`.
      * @param {Item} item
-     * @returns {Allowed<number> & {w: boolean}}
+     * @returns {{all: number} & {w: boolean}}
      */
-    countOf(item: Item): Allowed<number> & {
+    countOf(item: Item): {
+        all: number;
+    } & {
         w: boolean;
     };
     /**

@@ -1,10 +1,10 @@
 {
-  "description": "+++ is ++ and then +, a syntax error at the + (engine §9).",
+  "description": "Three pluses are separate tokens. The second plus is a syntax error.",
   "document": "```jbogenbau\n%rule a [+++KU]\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 12
+      "column": 11
     }
   }
 }

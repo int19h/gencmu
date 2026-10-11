@@ -1378,7 +1378,7 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
     assert_eq!(expression_problem(&format!(r#"{{"repeat":{{"ref":"A"}},"separator":{}}}"#, deep(255))), None);
 }
 
-/// An elidable optional is marked true, maximal only with it, and begins
+/// An elidable optional is marked true and begins
 /// with its terminal; a capture stands anywhere but in it and in braces,
 /// and a name once in each production (docs/output.md, engine §3.5, §9).
 #[test]
@@ -1387,7 +1387,6 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
     let ku = r#"{"ref":"KU"}"#;
     let well_formed = [
         marked(ku, ""),
-        marked(ku, r#","maximal":true"#),
         marked(r#"{"terminal":"KU"}"#, ""),
         marked(&format!(r##"{{"seq":[{ku},{{"ref":"#"}}]}}"##), ""),
         marked(&format!(r#"{{"test":"=","value":{{"string":"ku"}},"expr":{ku}}}"#), ""),
@@ -1407,7 +1406,9 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         format!(r#"{{"optional":{ku},"elidable":"true"}}"#),
         format!(r#"{{"optional":{ku},"elidable":null}}"#),
         format!(r#"{{"optional":{ku},"maximal":true}}"#),
+        marked(ku, r#","maximal":true"#),
         marked(ku, r#","maximal":false"#),
+        marked(ku, r#","maximal":null"#),
     ];
     for expr in &malformed {
         assert_eq!(expression_problem(expr).as_deref(), Some("a malformed expression"), "{expr}");

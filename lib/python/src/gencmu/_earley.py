@@ -19,7 +19,7 @@ from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference,
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
-from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed
+from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed, local_demand, query_prefixes
 from ._model import Restoration
 from ._restored import empty_source
 
@@ -248,6 +248,7 @@ class Forest:
     close_structure: list[int] = field(default_factory=list)
     close_prefix: list[int] = field(default_factory=list)
     close_machine: CloseMachine | None = None
+    close_requested: bool = False
 
 
 @dataclass
@@ -539,12 +540,13 @@ class StageContext:
                 number = self.lowered.rule_ids.get(rule)
                 if number is None:
                     raise _GrammarFault(f"{rule} is not a rule of this stage")
-                forest = yield Parser(self, span.start, span.context_end).walk(number)
+                forest = yield Parser(self, span.start, span.context_end, observe=True).walk(number)
                 candidates = [item for item in range(len(forest.prod))
                               if item in forest.tag and forest.origin[item] == 0
                               and forest.lowered.productions[forest.prod[item]].lhs == number
-                              and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)]
-                qualified = forest, eligible(forest, candidates, self, span.start)
+                              and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)
+                              and forest.lowered.productions[forest.prod[item]].close_requested]
+                qualified = forest, eligible(forest, candidates)
                 self.qualified_memo[raw_key] = qualified
             forest, candidates = qualified
             tags = Gathered()
@@ -591,7 +593,7 @@ class StageContext:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
             # priority (engine §4).
-            found_items = eligible(forest, forest.roots, self, start)
+            found_items = eligible(forest, forest.roots)
             gathered = Gathered()
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
@@ -602,10 +604,10 @@ class StageContext:
         witnesses = [
             item
             for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
-            if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
+            if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        self.begins_memo[key] = bool(eligible(forest, witnesses, self, start))
+        self.begins_memo[key] = bool(eligible(forest, witnesses))
 
 
 def _as_set(value: Any) -> Tags:
@@ -869,7 +871,8 @@ class Evaluator:
 class Parser:
     """One Earley parse of tokens start..end of a stage's input."""
 
-    def __init__(self, context: StageContext, start: int = 0, end: int | None = None) -> None:
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False) -> None:
+        self.observe = observe
         self.context = context
         self.base = start
         self.end = len(context.tokens) if end is None else end
@@ -911,8 +914,9 @@ class Parser:
         less, and most advances evaluate nothing."""
         context = self.context
         lowered = context.lowered
+        prefix_table = query_prefixes(lowered) if context.closes is not None else None
         ranked_groups = bool(lowered.ranked_helpers)
-        if ranked_groups:
+        if ranked_groups or context.closes is not None:
             lowered = replace(lowered,productions=list(lowered.productions))
         productions = lowered.productions
         # The stage's tokens, read from base on: a copy of the rest of a long
@@ -950,8 +954,38 @@ class Parser:
             return project[position] if project is not None else base + position
         from ._ranked_frame import Frames
         frames = Frames(lowered, machine, closes, original) if ranked_groups else None
-        def prediction_key(rule,frame=None):
-            return (rule,frame.id if frame else 0) if frames is not None else rule
+        def prediction_key(rule, frame=None, requested=False):
+            if closes is not None:
+                return rule, frame.id if frame else 0, requested
+            return (rule, frame.id if frame else 0) if frames is not None else rule
+        variants = {}
+        demands = {}
+        def demand(production):
+            if production.id not in demands:
+                demands[production.id] = local_demand(production)
+            return demands[production.id]
+        def request_child(production, position, at):
+            if closes is None:
+                return False
+            if production.observes_closes:
+                return True
+            local = demand(production)
+            if position not in local[1]:
+                return False
+            rules = local[2].get(position)
+            child = prefix_table[production.rhs[position]]
+            if rules is None or child[0] or child[1] or base + at >= len(tokens) or recon:
+                return True
+            for rule in rules:
+                witness = prefix_table[lowered.rule_ids[rule]]
+                if witness[0]:
+                    return True
+                for terminal in witness[2]:
+                    tags = token_tags[base + at]
+                    if (context.carries(terminal, tags) if terminal in lowered.characters
+                            else terminal in tagtab.get(tags)):
+                        return True
+            return False
         elidable_heads = {p.lhs:p.elided for p in productions if p.elided is not None} if machine is not None else {}
         # The interned captured parts, each by the parts it extends and the
         # part it adds.
@@ -1011,7 +1045,7 @@ class Parser:
             return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), sound))
 
         def completed_closes(production, position, start, at, prefix):
-            if closes is None or production.lhs not in context.close_rules or position != len(production.rhs):
+            if closes is None or not production.observes_closes or position != len(production.rhs):
                 return 0
             if production.elided is not None:
                 test = production.elided_test
@@ -1036,6 +1070,7 @@ class Parser:
                 key += close_prefix, close_structure
             found = sets[at].get(key)
             if found is None:
+                _testing.count("items")
                 found = len(prod)
                 sets[at][key] = found
                 prod.append(production)
@@ -1080,14 +1115,25 @@ class Parser:
             p = productions[prod[item]]
             return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item])
 
-        def candidate(p,frame):
-            return frames.production(p,frame) if frames is not None else p
+        def candidate(p, frame, requested=False):
+            p = frames.production(p, frame) if frames is not None else p
+            if closes is None:
+                return p
+            key = p.id, requested
+            if key not in variants:
+                q = replace(p, id=len(productions), base_id=p.real_id,
+                            close_requested=requested,
+                            observes_closes=requested or demand(p)[0])
+                productions.append(q)
+                demands[q.id] = demand(p)
+                variants[key] = q
+            return variants[key]
 
         def bound_for(production, captured, whole=None, structure=0, close_structure=0):
             frame = production.lexical
             if frame is not None and whole is not None:
                 start, at, own = whole
-                if closes is not None and frame.root.lhs in context.close_rules and frame.seal_group is not None:
+                if closes is not None and frame.root.observes_closes and frame.seal_group is not None:
                     sealed = closes.seal(close_structure, block(production, start, at, frame, True))
                     close_structure = closes.concat(frame.seal_close_prefix, sealed)
                     close_structure = closes.complete(close_structure, frame.root.lhs, original(frame.origin), original(at))
@@ -1185,12 +1231,12 @@ class Parser:
                     child = edge[2]
                     part_closes = close_structures[child]
                     symbol = production.rhs[position]
-                    if production.lhs in context.close_rules and not production.terminal[position] and symbol in lowered.ranked_helpers:
+                    if production.observes_closes and not production.terminal[position] and symbol in lowered.ranked_helpers:
                         child_production = productions[prod[child]]
                         part_closes = closes.seal(part_closes, block(child_production, origin[child], end[child], child_production.lexical))
                 elif recon and synthetic[edge[2]]:
                     part_closes = close_record(edge[3], edge[2], tokens[edge[2]].phonemes)
-                if production.lhs in context.close_rules:
+                if production.observes_closes:
                     close_prefix = closes.concat(close_prefixes[item], part_closes)
                     close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
                 part = (*part[:3], part_structure, part_closes)
@@ -1281,23 +1327,23 @@ class Parser:
                 return
             restorations.append(number)
 
-        def begin(rule: int, j: int, strict_prediction: bool = False, frame=None) -> bool:
+        def begin(rule: int, j: int, strict_prediction: bool = False, frame=None, requested=False) -> bool:
             """Whether a prediction of rule in set j adds anything, which
             then begins. A rule's productions are the same at every
             prediction in one set. A strict prediction (engine §7.4) leaves
             some out, so an ordinary one after it adds them."""
-            key = prediction_key(rule,frame)
+            key = prediction_key(rule,frame,requested)
             before = predicted[j].get(key)
             if before is not None and (before is False or strict_prediction):
                 return False
             predicted[j][key] = strict_prediction
             return True
 
-        def predict(rule: int, j: int, strict_prediction: bool = False, frame=None) -> Walk:
+        def predict(rule: int, j: int, strict_prediction: bool = False, frame=None, requested=False) -> Walk:
             """The prediction that :func:`begin` began, a walk since its
             conditions can ask nested parses."""
             for number in not_terminal_first[rule]:
-                production = candidate(productions[number],frame)
+                production = candidate(productions[number],frame,requested)
                 number = production.id
                 if production.elided is not None and not omission_allowed(production):
                     continue
@@ -1318,7 +1364,7 @@ class Parser:
                 if table:
                     for tag in tokens[base + j].tags:
                         for number in table.get(tag, ()):
-                            p = candidate(productions[number],frame)
+                            p = candidate(productions[number],frame,requested)
                             number = p.id
                             if not p.conds_predict or (yield allowed(p, j)):
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
@@ -1329,15 +1375,15 @@ class Parser:
                     for terminal, numbers in table.items():
                         if carries(terminal, token_tag):
                             for number in numbers:
-                                p = candidate(productions[number],frame)
+                                p = candidate(productions[number],frame,requested)
                                 number = p.id
                                 if not p.conds_predict or (yield allowed(p, j)):
                                     add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
 
         current = [0]
         following: list[int] = []
-        if begin(start_rule, 0):
-            yield from predict(start_rule, 0)
+        if begin(start_rule, 0, requested=self.observe):
+            yield from predict(start_rule, 0, requested=self.observe)
         furthest = 0
         for j in range(n + 1):
             current[0] = j
@@ -1363,9 +1409,10 @@ class Parser:
                         if position < len(production.rhs) and not production.terminal[position]:
                             rule = production.rhs[position]
                             frame = entry(item,rule)
-                            if begin(rule, j,frame=frame):  # type: ignore[arg-type]
-                                yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
-                            for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
+                            requested = request_child(production, position, j)
+                            if begin(rule, j,frame=frame,requested=requested):  # type: ignore[arg-type]
+                                yield from predict(rule, j,frame=frame,requested=requested)  # type: ignore[arg-type]
+                            for child in empty_done[j].get(prediction_key(rule,frame,requested), ()):  # type: ignore[arg-type]
                                 walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                                 if walk is not None:
                                     yield walk
@@ -1378,26 +1425,27 @@ class Parser:
                         continue
                     rule = symbol
                     frame = entry(item,rule)
-                    waiting[j].setdefault(prediction_key(rule,frame), []).append(item)  # type: ignore[arg-type]
+                    requested = request_child(production, position, j)
+                    waiting[j].setdefault(prediction_key(rule,frame,requested), []).append(item)  # type: ignore[arg-type]
                     if recon and strict[item]:
                         if last_reading[production.real_id] <= position:
                             # No symbol after the next one can read: the
                             # strict item predicts its next symbol strictly,
                             # and does not advance over an empty constituent
                             # (engine §7.4).
-                            if begin(rule, j, True,frame):  # type: ignore[arg-type]
-                                yield from predict(rule, j, True,frame)  # type: ignore[arg-type]
+                            if begin(rule, j, True,frame,requested):  # type: ignore[arg-type]
+                                yield from predict(rule, j, True,frame,requested)  # type: ignore[arg-type]
                             continue
-                        if begin(rule, j,frame=frame):  # type: ignore[arg-type]
-                            yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
-                        for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
+                        if begin(rule, j,frame=frame,requested=requested):  # type: ignore[arg-type]
+                            yield from predict(rule, j,frame=frame,requested=requested)  # type: ignore[arg-type]
+                        for child in empty_done[j].get(prediction_key(rule,frame,requested), ()):  # type: ignore[arg-type]
                             walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0), True)
                             if walk is not None:
                                 yield walk
                         continue
-                    if begin(rule, j,frame=frame):  # type: ignore[arg-type]
-                        yield from predict(rule, j,frame=frame)  # type: ignore[arg-type]
-                    for child in empty_done[j].get(prediction_key(rule,frame), ()):  # type: ignore[arg-type]
+                    if begin(rule, j,frame=frame,requested=requested):  # type: ignore[arg-type]
+                        yield from predict(rule, j,frame=frame,requested=requested)  # type: ignore[arg-type]
+                    for child in empty_done[j].get(prediction_key(rule,frame,requested), ()):  # type: ignore[arg-type]
                         walk = advance(item, (j, j, tag[child]), j, (item, 2, child, 0))
                         if walk is not None:
                             yield walk
@@ -1414,9 +1462,9 @@ class Parser:
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
-                    empty_done[j].setdefault(prediction_key(lhs,production.lexical), []).append(item)
+                    empty_done[j].setdefault(prediction_key(lhs,production.lexical,production.close_requested), []).append(item)
                     if recon:
-                        for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical), ())):
+                        for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,production.close_requested), ())):
                             if not strict[waiter]:
                                 walk = advance(waiter, part, j, (waiter, 2, item, 0))
                                 if walk is not None:
@@ -1429,7 +1477,7 @@ class Parser:
                                 if walk is not None:
                                     yield walk
                         continue
-                for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical), ())):
+                for waiter in list(waiting[start].get(prediction_key(lhs,production.lexical,production.close_requested), ())):
                     walk = advance(waiter, part, j, (waiter, 2, item, 0))
                     if walk is not None:
                         yield walk
@@ -1477,18 +1525,20 @@ class Parser:
             item
             for item in final.values()
             if item in tag and origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
+            and productions[prod[item]].close_requested == self.observe
         ]
         expected: dict[str, set[str]] = {}
         here = tokens[base + furthest].tags if furthest < n else {}
         here_tag = token_tags[base + furthest] if furthest < n else None
         for prediction in predicted[furthest]:
-            rule = prediction[0] if frames is not None else prediction
+            rule = prediction[0] if frames is not None or closes is not None else prediction
+            requested = prediction[2] if closes is not None else False
             frame = next((f for f in frames.frames.values() if f.id==prediction[1]),None) if frames is not None else None
             for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
                 if here_tag is not None and (carries(terminal, here_tag) if terminal in characters else terminal in here):
                     continue
                 for number in numbers:
-                    production = candidate(productions[number],frame)
+                    production = candidate(productions[number],frame,requested)
                     if not production.conds_predict or (yield allowed(production, furthest)):
                         written = written_symbol(terminal, production.tests[0] if production.tests else None)
                         expected.setdefault(written, set()).add(production.rule_name)
@@ -1499,7 +1549,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe)
 
 
 def reading_last(lowered: Lowered) -> list[int]:

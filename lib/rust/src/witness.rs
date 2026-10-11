@@ -334,9 +334,21 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                     .map(|(i, _)| i as u32)
                     .collect()
             } else {
-                at(end, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
-                    .into_iter()
-                    .collect()
+                at(
+                    end,
+                    Item {
+                        close_requested: false,
+                        lexical: 0,
+                        prod,
+                        dot: 0,
+                        origin: start,
+                        caps: 0,
+                        prefix: 0,
+                        structure: u32::MAX,
+                    },
+                )
+                .into_iter()
+                .collect()
             };
             marks.items.extend(found[index as usize].iter().map(|&item| (end, item)));
             continue;
@@ -369,7 +381,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             if let Some(&structure) = forest.chart.terminal_states.get(&(from, symbol, omitted)) {
                                 let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
                                 let tags = if forest.synthetic[from as usize] { forest.empty } else { token.tags };
-                                caps.push(Cap { start: from, end: to, tags, structure });
+                                caps.push(Cap { close_requested: false, start: from, end: to, tags, structure });
                             }
                         }
                         (IKind::Close { .. }, Sym::N(_)) => {
@@ -379,6 +391,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                     continue;
                                 }
                                 caps.push(Cap {
+                                    close_requested: set.items[i as usize].close_requested,
                                     start: from,
                                     end: to,
                                     tags: set.tagset[i as usize],
@@ -405,14 +418,46 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             found[index as usize] = current.into_iter().filter_map(|item| at(end, item)).collect();
             continue;
         }
-        let mut current: Vec<Item> =
-            at(start, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
-                .map(|_| Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
-                .into_iter()
-                .collect();
+        let mut current: Vec<Item> = at(
+            start,
+            Item {
+                close_requested: false,
+                lexical: 0,
+                prod,
+                dot: 0,
+                origin: start,
+                caps: 0,
+                prefix: 0,
+                structure: u32::MAX,
+            },
+        )
+        .map(|_| Item {
+            close_requested: false,
+            lexical: 0,
+            prod,
+            dot: 0,
+            origin: start,
+            caps: 0,
+            prefix: 0,
+            structure: u32::MAX,
+        })
+        .into_iter()
+        .collect();
         marks.items.extend(
-            at(start, Item { lexical: 0, prod, dot: 0, origin: start, caps: 0, prefix: 0, structure: u32::MAX })
-                .map(|item| (start, item)),
+            at(
+                start,
+                Item {
+                    close_requested: false,
+                    lexical: 0,
+                    prod,
+                    dot: 0,
+                    origin: start,
+                    caps: 0,
+                    prefix: 0,
+                    structure: u32::MAX,
+                },
+            )
+            .map(|item| (start, item)),
         );
         for (position, &child) in node.children.iter().enumerate() {
             let (from, to) = spans[child as usize];
@@ -457,13 +502,14 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                             Sym::T(_) if forest.synthetic[from as usize] => forest.empty,
                             _ => tags,
                         };
-                        let Some(caps) = forest
-                            .chart
-                            .lookup_caps(item.caps, Cap { start: from, end: to, tags, structure: u32::MAX })
-                        else {
+                        let Some(caps) = forest.chart.lookup_caps(
+                            item.caps,
+                            Cap { close_requested: false, start: from, end: to, tags, structure: u32::MAX },
+                        ) else {
                             continue;
                         };
                         let advanced = Item {
+                            close_requested: item.close_requested,
                             lexical: 0,
                             prod,
                             dot: item.dot + 1,
@@ -478,6 +524,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                     }
                 } else if !own.is_empty() {
                     let advanced = Item {
+                        close_requested: item.close_requested,
                         lexical: item.lexical,
                         prod,
                         dot: item.dot + 1,

@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 24
+const domFormat = 25
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -109,15 +109,13 @@ type domExpr struct {
 	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
 	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
 	// a chain, "" for flat braces (engine §3.2, §3.3).
-	Sep   *domExpr
-	Chain string
-	// Elidable marks an optional written [+T x] or [++T x], and Maximal one
-	// written [++T x] (engine §3.8).
-	Elidable, Maximal bool
-	Name              string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
-	Range             [2]string // range: its two ends, character tags in their canonical spelling
-	Op                string    // test: its comparator, one of testOps
-	Value             *domTerm  // test: its value, a closed term
+	Sep      *domExpr
+	Chain    string
+	Elidable bool
+	Name     string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Range    [2]string // range: its two ends, character tags in their canonical spelling
+	Op       string    // test: its comparator, one of testOps
+	Value    *domTerm  // test: its value, a closed term
 }
 
 // testOps are the comparators of a test in a body (engine §2): the two
@@ -435,9 +433,6 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		e.Inner.writeJSON(w)
 		if e.Elidable {
 			w.raw(`,"elidable":true`)
-		}
-		if e.Maximal {
-			w.raw(`,"maximal":true`)
 		}
 		w.raw("}")
 	case exRepeat:
@@ -1041,22 +1036,12 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		// An elidable optional is marked true, and a maximal one too; a
-		// maximal member stands only beside elidable (engine §9).
 		e := &domExpr{Kind: exOptional, Inner: inner}
-		for _, flag := range []struct {
-			name string
-			into *bool
-		}{{"elidable", &e.Elidable}, {"maximal", &e.Maximal}} {
-			if raw, ok := o[flag.name]; ok {
-				if string(bytes.TrimSpace(raw)) != "true" {
-					return nil, fmt.Errorf("a malformed expression")
-				}
-				*flag.into = true
+		if raw, ok := o["elidable"]; ok {
+			if string(bytes.TrimSpace(raw)) != "true" {
+				return nil, fmt.Errorf("a malformed expression")
 			}
-		}
-		if e.Maximal && !e.Elidable {
-			return nil, fmt.Errorf("a malformed expression")
+			e.Elidable = true
 		}
 		return e, nil
 	}
@@ -1122,7 +1107,7 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?", "maximal?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
+	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
 	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
 }
 

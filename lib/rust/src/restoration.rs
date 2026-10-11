@@ -191,7 +191,6 @@ struct Observation {
 }
 #[derive(Debug)]
 pub(crate) struct Observations {
-    pub(crate) rules: Option<crate::fxhash::FxSet<u32>>,
     bounds: Vec<(usize, usize)>,
     prefixes: FxMap<(u32, usize), Option<u32>>,
     events: Sequence<Event>,
@@ -207,7 +206,6 @@ impl Observations {
     pub(crate) fn new() -> Self {
         let empty = Observation { events: 0, aligned: 0, footprint: Vec::new() };
         Self {
-            rules: None,
             bounds: vec![(usize::MAX, 0)],
             prefixes: FxMap::default(),
             events: Sequence::new(),
@@ -227,6 +225,7 @@ impl Observations {
         let id = self.states.len() as u32;
         self.states.push(state.clone());
         self.index.insert(state, id);
+        crate::work::count(crate::work::Work::CloseStates, 1);
         id
     }
     pub(crate) fn normalized(&self, id: u32) -> u32 {
@@ -300,9 +299,6 @@ impl Observations {
             }
         }
         self.intern(state)
-    }
-    pub(crate) fn wanted(&self, rule: u32) -> bool {
-        self.rules.as_ref().map_or(true, |rules| rules.contains(&rule))
     }
     fn through(&mut self, id: u32, end: usize) -> Option<u32> {
         while self.bounds.len() < self.aligned.nodes.len() {
@@ -704,5 +700,245 @@ mod tests {
         }
         assert_ne!(large, rope.join(large, large));
         assert!(rope.nodes.len() < 120);
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub(crate) struct LocalDemand {
+    pub(crate) whole: bool,
+    pub(crate) captures: crate::fxhash::FxSet<u32>,
+    pub(crate) lexical: crate::fxhash::FxSet<String>,
+    pub(crate) queries: crate::fxhash::FxMap<u32, Option<crate::fxhash::FxSet<u32>>>,
+}
+
+pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
+    use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Span};
+    fn span(s: &Span, out: &mut LocalDemand) {
+        match s {
+            Span::WithoutElision(inner) => match &**inner {
+                Span::Cap(c) => {
+                    out.captures.insert(*c);
+                    out.queries.insert(*c, None);
+                }
+                Span::Whole => out.whole = true,
+                Span::Lexical(name) if name.is_empty() => out.whole = true,
+                Span::Lexical(name) => {
+                    out.lexical.insert(name.clone());
+                }
+                _ => {}
+            },
+            Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span(s, out),
+            _ => {}
+        }
+    }
+    fn term(t: &LTerm, out: &mut LocalDemand) {
+        match t {
+            LTerm::TagsRule(s, _) | LTerm::Text(s) | LTerm::Phonemes(s) | LTerm::Tags(s) | LTerm::Classes(s) => {
+                span(s, out)
+            }
+            LTerm::If(c, t) => {
+                cond(c, out);
+                term(t, out);
+            }
+            LTerm::Union(ts) | LTerm::Inter(ts) => {
+                for t in ts {
+                    term(t, out);
+                }
+            }
+            LTerm::Diff(a, b) | LTerm::Split(a, b) => {
+                term(a, out);
+                term(b, out);
+            }
+            LTerm::TagOf(t) | LTerm::Classify(t, _) => term(t, out),
+            _ => {}
+        }
+    }
+    fn cond(c: &LCond, out: &mut LocalDemand) {
+        match c {
+            LCond::Matches(s, rule) | LCond::Begins(s, rule) => {
+                let aligned = if let Span::From(inner) = s { &**inner } else { s };
+                if let Span::WithoutElision(inner) = aligned {
+                    if let Span::Cap(c) = &**inner {
+                        out.captures.insert(*c);
+                        if let Some(rules) = out.queries.entry(*c).or_insert_with(|| Some(Default::default())) {
+                            rules.insert(*rule);
+                        }
+                        return;
+                    }
+                }
+                span(s, out);
+            }
+            LCond::Initial(s) | LCond::Tree(s, _, _) => span(s, out),
+            LCond::Cmp(_, a, b) => {
+                term(a, out);
+                term(b, out);
+            }
+            LCond::Not(c) => cond(c, out),
+            LCond::Any(cs) | LCond::All(cs) => {
+                for c in cs {
+                    cond(c, out);
+                }
+            }
+            LCond::If(a, b) => {
+                cond(a, out);
+                cond(b, out);
+            }
+        }
+    }
+    let mut out = vec![LocalDemand::default(); g.prods.len()];
+    let mut sources: crate::fxhash::FxMap<(usize, usize), LocalDemand> = crate::fxhash::FxMap::default();
+    for (i, p) in g.prods.iter().enumerate() {
+        let d = &mut out[i];
+        for (c, _) in &p.conds {
+            cond(c, d);
+        }
+        if let Some(t) = &p.tags {
+            term(t, d);
+        }
+        match &p.emit {
+            LEmit::This(ts) => {
+                for t in ts.iter().flatten() {
+                    term(t, d);
+                }
+            }
+            LEmit::Items(es) => {
+                for e in es {
+                    if let LEmitItem::Cap(_, Some(t), _, _) = e {
+                        term(t, d);
+                    }
+                }
+            }
+            _ => {}
+        }
+        for ((production, _, _, _), plan) in &g.ranked.plans {
+            if *production == i as u32 {
+                for (c, _) in plan.conditions.iter().flatten() {
+                    cond(c, d);
+                }
+                if let Some(t) = &plan.whole_tags {
+                    term(t, d);
+                }
+                if let Some(slot) = &p.slot {
+                    let shared = sources.entry(slot.source).or_default();
+                    shared.whole |= d.whole;
+                    shared.lexical.extend(d.lexical.iter().cloned());
+                }
+            }
+        }
+    }
+    for (p, d) in g.prods.iter().zip(&mut out) {
+        if let Some(shared) = p.slot.as_ref().and_then(|s| sources.get(&s.source)) {
+            d.whole |= shared.whole;
+            d.lexical.extend(shared.lexical.iter().cloned());
+        }
+    }
+    out
+}
+
+#[derive(Default, Clone)]
+pub(crate) struct QueryPrefix {
+    pub(crate) nullable: bool,
+    pub(crate) leading_close: bool,
+    pub(crate) first: crate::fxhash::FxSet<u32>,
+}
+
+// Conditions only reduce these prefixes. A leading omission or an empty
+// capture prevents this shortcut from discarding observations.
+pub(crate) fn query_prefixes(g: &crate::lower::Lowered) -> Vec<QueryPrefix> {
+    use crate::lower::Sym;
+    let mut table = vec![QueryPrefix::default(); g.rules.len()];
+    let mut dependents = vec![Vec::new(); g.rules.len()];
+    for (number, p) in g.prods.iter().enumerate() {
+        for s in &p.syms {
+            if let Sym::N(rule) = s {
+                dependents[*rule as usize].push(number);
+            }
+        }
+    }
+    let mut pending: Vec<_> = (0..g.prods.len()).collect();
+    let mut queued = vec![true; g.prods.len()];
+    while let Some(number) = pending.pop() {
+        queued[number] = false;
+        let p = &g.prods[number];
+        let mut here = table[p.rule as usize].clone();
+        let before = (here.nullable, here.leading_close, here.first.len());
+        if p.syms.is_empty() && g.rules[p.rule as usize].elided.is_some() {
+            here.leading_close = true;
+        }
+        let mut empty = true;
+        for s in &p.syms {
+            match s {
+                Sym::T(t) => {
+                    here.first.insert(*t);
+                    empty = false;
+                    break;
+                }
+                Sym::N(n) => {
+                    let child = &table[*n as usize];
+                    here.first.extend(&child.first);
+                    here.leading_close |= child.leading_close;
+                    if !child.nullable {
+                        empty = false;
+                        break;
+                    }
+                }
+            }
+        }
+        here.nullable |= empty;
+        let changed = before != (here.nullable, here.leading_close, here.first.len());
+        table[p.rule as usize] = here;
+        if changed {
+            for &dependent in &dependents[p.rule as usize] {
+                if !queued[dependent] {
+                    queued[dependent] = true;
+                    pending.push(dependent);
+                }
+            }
+        }
+    }
+    table
+}
+
+#[cfg(test)]
+#[test]
+fn caller_scope_leaves_other_uses_shared() {
+    use crate::work::{self, Work};
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests");
+    let growth =
+        crate::json::parse(&std::fs::read_to_string(root.join("without-elision-growth.json")).unwrap()).unwrap();
+    for name in ["callerScope", "impossiblePrefix"] {
+        let shared = growth.get(name).unwrap();
+        let fixture = crate::json::parse(
+            &std::fs::read_to_string(root.join(shared.get("case").unwrap().as_str().unwrap())).unwrap(),
+        )
+        .unwrap();
+        let rules = fixture.get("grammar").unwrap().as_str().unwrap();
+        let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
+        let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+        for length in shared.get("lengths").unwrap().as_array().unwrap() {
+            let length = length.as_int().unwrap() as usize;
+            work::reset();
+            work::budget(Work::CloseSequences, shared.get("maxCloseNodes").unwrap().as_int().unwrap() as u64);
+            work::budget(Work::CloseStates, shared.get("maxCloseStates").unwrap().as_int().unwrap() as u64);
+            work::budget(
+                Work::Items,
+                (shared.get("itemsPerUnit").unwrap().as_int().unwrap() * length as i64
+                    + shared.get("slack").unwrap().as_int().unwrap()) as u64,
+            );
+            let result = dialect.parse(&format!("x{}", "a".repeat(length)), &crate::ParseOptions::default()).unwrap();
+            assert!(!result.ok);
+            assert_eq!(result.error.as_ref().unwrap().kind, crate::result::ParseErrorKind::Ambiguous);
+            if shared.get("maxCloseNodes").unwrap().as_int().unwrap() > 0 {
+                assert!(work::counted(Work::CloseStates) > 0);
+            }
+            assert!(work::counted(Work::Items) > 0);
+            eprintln!(
+                "caller scope {length}: {} items, {} states, {} sequences",
+                work::counted(Work::Items),
+                work::counted(Work::CloseStates),
+                work::counted(Work::CloseSequences)
+            );
+            work::reset();
+        }
     }
 }

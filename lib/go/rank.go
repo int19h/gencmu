@@ -246,7 +246,6 @@ type ranker struct {
 	lean     string
 	elisions bool
 	profiles bool
-	maximal  *maximal // the maximal terminators, if there are any (engine §4)
 	items    map[*item]*itemRank
 	syms     map[*symNode]*itemRank
 	marked   map[*item]bool
@@ -272,8 +271,8 @@ func (rk *ranker) skips(fault, site string, i, n int) bool {
 
 // newRanker ranks under the rule of a directive, greedy, lazy or
 // late-elision, or under no lean for "".
-func newRanker(rec *recognizer, rule string, mx *maximal) *ranker {
-	rk := &ranker{rec: rec, lean: rule, maximal: mx, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
+func newRanker(rec *recognizer, rule string) *ranker {
+	rk := &ranker{rec: rec, lean: rule, items: map[*item]*itemRank{}, syms: map[*symNode]*itemRank{}, marked: map[*item]bool{}}
 	if rule == "late-elision" {
 		// The readings come from a ranking with no lean over the forest of
 		// the best derivations (engine §6).
@@ -514,10 +513,6 @@ type entry struct {
 	// decides both, so any choice that drops W(D) from the count drops it
 	// here.
 	w bool
-	// allowed is the same over only the derivations an elided terminator
-	// may follow, where maximal forbids some of the item's (see itemVal);
-	// nil where it may follow them all.
-	allowed *entry
 }
 
 func (rk *ranker) addTo(s *tiedSet, d *dn, div count) {
@@ -812,18 +807,9 @@ func (rk *ranker) symVal(s *symNode, f forbidden) *entry {
 // startItem gives an item's value where it is known without its links,
 // and otherwise a frame that ranks them.
 //
-// Under maximal (engine §4, §6), an item whose next symbol is an elidable
-// optional ranks twice: over all its derivations, and over only those of
-// the links whose last symbol's node maximal does not forbid, which an
-// elided terminator may follow. A link over an elided terminator combines
-// the second of the item before it.
-//
 // A restoration (engine §7.4) has one link, a read of its synthetic token,
 // and its close follows (§7.7).
 func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
-	if rk.views != nil && rk.views.itemScopes[it] != nil && rk.views.itemScopes[it].blocked {
-		return nil, nil
-	}
 	if it.dot == 0 && !it.restores {
 		// A predicted item of W(D), such as an empty production's, is
 		// W(D)'s (tests/README.md).
@@ -851,8 +837,7 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 	if w := work.Load(); w != nil {
 		w.summaryContexts.add("summary contexts")
 	}
-	mx := rk.maximal
-	return &itemFrame{it: it, f: f, slot: slot, guarded: mx != nil && mx.guards(it), marked: rk.slotMarks(it)}, nil
+	return &itemFrame{it: it, f: f, slot: slot, marked: rk.slotMarks(it)}, nil
 }
 
 // linkVal is the summary of one link: its derivations, and under
@@ -860,7 +845,6 @@ func (rk *ranker) startItem(it *item, f forbidden) (rankFrame, *entry) {
 type linkVal struct {
 	profile     ruleProfile
 	prev, child *entry
-	permitted   bool
 	admitted    bool
 	vec         *elSeq
 	least       int
@@ -869,20 +853,18 @@ type linkVal struct {
 // itemFrame ranks an item's links in turn, each first its predecessor and
 // then its child.
 type itemFrame struct {
-	it      *item
-	f       forbidden
-	slot    *memoSlot
-	guarded bool
-	marked  map[link]bool
+	it     *item
+	f      forbidden
+	slot   *memoSlot
+	marked map[link]bool
 	// The link being ranked, what of it is ranked so far, and the values
 	// and summaries of the links before it.
-	i              int
-	phase          int
-	prev, child    *entry
-	vals           []linkVal
-	all, allowed   summary
-	allW, allowedW bool
-	forbade        bool
+	i           int
+	phase       int
+	prev, child *entry
+	vals        []linkVal
+	all         summary
+	allW        bool
 }
 
 // The phases of a link: ask for its predecessor, take it, ask for its
@@ -896,7 +878,7 @@ const (
 )
 
 func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
-	it, mx := fr.it, rk.maximal
+	it := fr.it
 	for fr.i < len(it.links) {
 		l := it.links[fr.i]
 		switch fr.phase {
@@ -918,9 +900,6 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			fallthrough
 		case linkTakePrev:
 			prev := in
-			if prev != nil && prev.allowed != nil && l.sym != nil && mx.elided(l.sym.rule, l.sym.start, l.sym.end) {
-				prev = prev.allowed
-			}
 			fr.prev, fr.phase = prev, linkAskChild
 			fallthrough
 		case linkAskChild:
@@ -956,21 +935,16 @@ func (fr *itemFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 
 // summarize adds a link whose predecessor and child are ranked.
 func (fr *itemFrame) summarize(rk *ranker, l link) {
-	it, mx := fr.it, rk.maximal
+	it := fr.it
 	prev, child, i := fr.prev, fr.child, fr.i
 	if child == nil || child.count == 0 {
 		return
 	}
-	v := linkVal{prev: prev, child: child, permitted: true, admitted: true}
+	v := linkVal{prev: prev, child: child, admitted: true}
 	if rk.admission != nil {
 		if mask, ok := rk.admission.mask(it, fr.f); ok {
-			v.admitted = mask.all[i]
-			v.permitted = mask.allowed[i]
-			fr.forbade = fr.forbade || v.admitted != v.permitted
+			v.admitted = mask[i]
 		}
-	}
-	if fr.guarded && l.sym != nil && mx.forbidsIn(l.sym.rule, l.sym.start, l.sym.end, it.prod.testAt(int(it.dot)-1), l.sym.lexical) {
-		v.permitted, fr.forbade = false, true
 	}
 	count := prev.count * child.count
 	if rk.elisions || rk.profiles {
@@ -989,10 +963,6 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 			fr.all.add(v.profile, v.vec, v.least, count)
 			fr.allW = fr.allW || w
 		}
-		if v.permitted {
-			fr.allowed.add(v.profile, v.vec, v.least, count)
-			fr.allowedW = fr.allowedW || w
-		}
 	}
 	if !rk.skips("lost:select", "links", i, len(it.links)) {
 		fr.vals = append(fr.vals, v)
@@ -1003,34 +973,20 @@ func (fr *itemFrame) summarize(rk *ranker, l link) {
 func (fr *itemFrame) finish(rk *ranker) *entry {
 	// The candidates. Under late-elision, only the links that attain the
 	// least vector of the summary give them.
-	var cands, permitted []*cand
+	var cands []*cand
 	for _, v := range fr.vals {
 		inAll := v.admitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.all.profile, fr.all.vec) == 0)
-		inAllowed := v.permitted && (!(rk.elisions || rk.profiles) || compareScore(v.profile, v.vec, fr.allowed.profile, fr.allowed.vec) == 0)
-		if !inAll && !(fr.forbade && inAllowed) {
+		if !inAll {
 			continue
 		}
 		produced := rk.extend(v.prev.cands, v.child.cands, nil)
 		if inAll {
 			cands = append(cands, produced...)
 		}
-		if fr.forbade && inAllowed {
-			permitted = append(permitted, produced...)
-		}
 	}
 	var e *entry
-	if fr.all.total > 0 || fr.allowed.total > 0 {
+	if fr.all.total > 0 {
 		e = &entry{count: fr.all.total, profile: fr.all.profile, vec: fr.all.vec, least: fr.all.least, w: fr.allW}
-		// Where maximal forbids none of the links, an elided terminator may
-		// follow every derivation. Otherwise it may follow the candidates of
-		// the links maximal permits, copied before merging changes them.
-		if fr.forbade {
-			forks := make([]*cand, len(permitted))
-			for i, c := range permitted {
-				forks[i] = c.fork()
-			}
-			e.allowed = &entry{cands: rk.merge(forks), count: fr.allowed.total, profile: fr.allowed.profile, vec: fr.allowed.vec, least: fr.allowed.least, w: fr.allowedW}
-		}
 		e.cands = rk.merge(cands)
 	}
 	fr.slot.state, fr.slot.e = 2, e
@@ -1043,9 +999,6 @@ func (rk *ranker) startSym(s *symNode, f forbidden) (rankFrame, *entry) {
 	var scope *slotScope
 	if rk.views != nil {
 		scope = rk.views.symScopes[s]
-	}
-	if scope != nil && scope.blocked {
-		return nil, nil
 	}
 	if f.has(s.rule) {
 		return nil, nil

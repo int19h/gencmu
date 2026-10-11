@@ -372,7 +372,7 @@ class UnitEdges(Linear):
     @staticmethod
     def make(n: int) -> Callable[[], object]:
         forest = unit_chain(n)
-        return lambda: Summaries(forest, None).groups()
+        return lambda: Summaries(forest).groups()
 
     def test_finding_the_arcs_examines_each_edge_once(self) -> None:
         self.assert_linear(self.watches, self.make, 200)

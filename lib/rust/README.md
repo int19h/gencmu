@@ -56,7 +56,7 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 24. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error.
+The DOM format is 25. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`. An optional with a `maximal` member is malformed. No directive names elidable terminators: `%elidable` is a syntax error.
 
 `without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The function takes one bare capture. `from(without-elision($x))` extends the query through the following input.
 
@@ -75,7 +75,7 @@ The grammars of the crate, `grammars/`, are a copy of the grammars of the reposi
 - The core sample of the Lojban corpus
 - The ranking property test in `tests/ranking.rs` compares results with every derivation of small random grammars. These grammars contain optionals, marked optionals, flat braces, separated lists, and chains.
 - The tests in `tests/engine.rs` compare the place and order of lowering errors. The tests in `src/earley.rs` measure captures with many ends, which keep one completed item per end.
-- The eligibility property test in `src/eligible.rs` searches eligible proof trees for small random grammars. These grammars contain chained elidable optionals and maximal terminators.
+- The eligibility property test in `src/eligible.rs` searches eligible proof trees for small random grammars. These grammars contain chained elidable optionals.
 - The tests examine invariants of canonical results from shared cases. Examples include ties and ambiguous errors without positions. Other tests supply broken results to these tests.
 - The witness of the check of `elision-only` (tests/README.md). The runners of the shared cases and of the corpus fail any result with the error `elision-witness-lost`. They also ask the hidden hook `gencmu::tools::with_elision_checks`, after each check, whether the check kept the chosen derivation, mapped to the reconstructed input. A watched check marks that derivation's links before it ranks.
 

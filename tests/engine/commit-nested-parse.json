@@ -1,5 +1,5 @@
 {
-  "description": "A plain [+T] keeps the default omission policy in a query. No maximal marker restricts it (engine §4).",
+  "description": "A plain [+T] keeps the default omission policy in a query. The query retains its written-terminator priority (engine §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text $a(w) %conditions matches($a, x)\n%rule w A B C\n%rule x y [+T] B C\n%rule y A | A B",
   "tokens": [
     {

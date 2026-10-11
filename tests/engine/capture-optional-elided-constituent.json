@@ -1,6 +1,6 @@
 {
-  "description": "An optional expanded in place leaves the production A h C, where the elided T follows the terminal A and has no constituent, so maximal forbids nothing and a c parses (engine §3.2, §4).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A [$y(y)] [++T] C\n%rule y C",
+  "description": "An expanded optional leaves no helper when its capture is absent. The elided T remains between A and C.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text A [$y(y)] [+T] C\n%rule y C",
   "tokens": [
     {
       "text": "a",

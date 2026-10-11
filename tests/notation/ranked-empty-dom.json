@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text ε ≻ b\n```\n",
   "expect": {
     "dom": {
-      "format": 24,
+      "format": 25,
       "rules": [
         {
           "alternatives": [

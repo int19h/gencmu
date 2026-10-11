@@ -120,9 +120,9 @@ A call `classify(a, C)` names the classifier `C` (§10). A `classify` whose clas
 
 A stage also has implications. An item `%implies A ⟹ B` (`implication`) adds one. `A` and `B` are closed terms (§10) whose type is a tag set. A constant in them has the value that the last definition of the stage gives it, as in a rule. After the loader stitches the stage, it makes sure that their types agree, as it does for a rule (§9). §11 says how the stage applies its implications.
 
-A stage has exactly one `%ambiguity-resolution L [elision-only]`, or it is an error naming the stage. `L` is `greedy`, `lazy` or `late-elision` (§6). A document that declares the operand `maximal` is an error at the directive. `[++T]` marks an individual maximal terminator (§4).
+A stage has exactly one `%ambiguity-resolution L [elision-only]`, or it is an error naming the stage. `L` is `greedy`, `lazy` or `late-elision` (§6). A document that declares the operand `maximal` is an error at the directive.
 
-No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`, or as `[++T …]` where its terminator is also maximal (§3.8, §4). `%elidable` is not a directive. So whether an optional is elidable, and whether its terminator is maximal, is a property of the optional itself. It is the same in every stage that includes its document.
+No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`. `%elidable` is not a directive. Whether an optional is elidable is a property of the optional itself. It is the same in every stage that includes its document.
 
 A name whose first character is `A` to `Z` is a terminal, the identifier tag of that name. The DOM writes both kinds of name as `ref`, and lowering (§3) tells them apart by that first letter. Any other name is a rule reference, and must be defined in the stage, or it is an error. `#`, the free-modifier slot, is a rule's name like any other.
 
@@ -187,7 +187,7 @@ So a chain beside another alternative is reported before an empty item, whicheve
 
    It expands first to the empty sequence, then to each expansion of `x`, in order. It has no helper. Any other `[x]`, plain or elidable (step 8), is a helper `h → ε | x` (step 4).
 
-   An elidable optional `[+T x]` or `[++T x]` is always a helper `h → ε | T x`, since it never holds a capture. Flat braces are a helper too. `{x}` is `h → x | h x`, and `{x \ s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative. So a sequence or a choice there needs no helper of its own.
+   An elidable optional `[+T x]` is always a helper `h → ε | T x`, since it never holds a capture. Flat braces are a helper too. `{x}` is `h → x | h x`, and `{x \ s}` is `h → x | h s x`. So `[{x}]` is a helper `o → ε | h` around the helper `h` of `{x}`. Lowering expands `x` and `s` in place in these productions, as anywhere in an alternative. So a sequence or a choice there needs no helper of its own.
 
    `A₁ & … & Aₙ` has at most 16 items. More is an error of the document (§9), since the expansions number 2ⁿ−1. It expands to every non-empty subsequence that keeps their order. The subsequences come in the order of the binary numbers 1 to 2ⁿ−1, with `A₁` as the lowest bit. `ε` is the empty sequence. A sequence's expansions are the products of its items' expansions, the first item varying slowest.
 
@@ -244,9 +244,9 @@ So a chain beside another alternative is reported before an empty item, whicheve
    - Lowering drops an emission item whose carrier (§11) the production lacks from that production's emission. It also drops each attachment capture that the production lacks from its item.
    - A tag term, the alternative's own or the definition's `%tags`, that uses a capture the production lacks is an error of the document.
 7. A production's tags are the union of its alternative's own tag term and its definition's `%tags` term, where either is written. A production with neither has the tags of its symbol's constituent if it has one symbol, and none if it has none or several. Lowering makes this explicit: it treats the single symbol as captured. In the check of §7, a restoration has the tags of the empty production that it stands for, which are none. A terminal that reads a synthetic token gives no tags to the production that inherits from it (§7.5).
-8. An optional is elidable exactly when it is written `[+T x]` or `[++T x]`. Its terminal is `T`, an identifier tag, which can carry any existing symbol test. `T` stands directly after the marker, with no group around it or around the content.
+8. An optional is elidable exactly when it is written `[+T x]`. Its terminal is `T`, an identifier tag, which can carry any existing symbol test. `T` stands directly after the marker, with no group around it or around the content.
 
-   `x` is a sequence of any primaries, possibly empty, and holds no capture at any depth. The reader makes sure of this form (§9). An optional written `[++T x]` is maximal: its terminator follows the rule of maximal terminators (§4).
+   `x` is a sequence of any primaries, possibly empty, and holds no capture at any depth. The reader makes sure of this form (§9).
 
    A plain optional `[x]` is never elidable, whatever its content, also where it begins with a terminal that another optional marks. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals, and the `[+KU]` of `{[+KU] A}` is elidable.
 
@@ -254,9 +254,9 @@ So a chain beside another alternative is reported before an empty item, whicheve
 
    Every well-typed test on the elidable terminal is legal. The omission predicate determines whether its empty production can succeed. The marker is part of the optional's text, so no later item of the stage can change whether an optional is elidable. A test on a later symbol of the optional is no error, since §7 restores only the terminal.
 
-   Lowering keeps, with each helper, whether it is the helper of an elidable optional, its terminal `T` with its test, and whether it is maximal. The rest of this document says "elidable optional" and "maximal terminator" of these helpers. Two elidable optionals of one terminal can differ: `[+T]` and `[++T]` in one stage are one plain and one maximal terminator.
+   Lowering records whether each helper represents an elidable optional. For an elidable helper, it also records the terminal `T` and its test. The rest of this document says "elidable optional" of these helpers.
 
-Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (§4). The canonical tie-break keys never turn a tie into an accepted reading.
+Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
 A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
 
@@ -272,7 +272,7 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(s,{T})` for equality `=s`, and `("",{T})` otherwise. Without a test, it is true. This condition applies in main recognition, nested queries and reconstruction.
 
-A false predicate creates no omitted node, maximality candidate, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
+A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
 
 ## 4. Recognition
 
@@ -359,9 +359,7 @@ Whether an omission is forbidden depends on the production prefix that the proof
 - Where the optional has a constituent `Y` (below), the fixed prefix is the item before `Y` in the same proof tree, with its captures. The omission is forbidden when the chart advances that item over a completed `Y` that ends at some position `p′ ≥ p`. The resulting item then advances over a completed nonempty alternative of the optional, from `p′`. That completed `Y` passes `Y`'s test, if it has one.
 - Where the optional has no constituent, the fixed prefix is the item before the optional itself. The omission is forbidden when the chart advances that item over a completed nonempty alternative of the optional, from `p`.
 
-An omission of a maximal terminator (below) is also forbidden when its constituent is not the longest possible. The test is that of the main parse. A longer candidate is a completed item of the same symbol, with the same origin and a later end. The constituent's symbol test, if any, holds of the candidate's own span and tags.
-
-The candidate comes from the unfiltered chart of the query. It need not have an eligible proof tree, and it need not fit a proof tree of `rule`. This holds whether or not a terminator is written, also where the whole written optional cannot complete. The query's chart ends with its span. So a `matches` over a captured span sees no longer constituent past the span. A `begins` with `from` or `after` sees the rest of the input.
+The blocking advances come from the unfiltered query chart. The query's chart ends with its span. A bounded `matches` sees no written continuation past that span. A `begins` with `from` or `after` sees the remaining input.
 
 The nonempty alternative is the whole content of the optional, not only its terminator. So a written terminator forbids an omission only where the whole optional can complete after it. For example, take `r → c [+T A] D` and `c → B | B D`. On `B D T`, `begins` of `r` holds. The longer `c` reaches the `T`, but `[+T A]` cannot complete. On `B D T A`, `begins` is false, because the whole written optional completes.
 
@@ -380,7 +378,7 @@ An implementation can keep two states for each item. The first, E, says that the
 - A predicted item has E.
 - An advance that is not an omission gives the new item E when the item before it has E. For a completion, the completed item has E too.
 - An omission gives the new item E only when the item before it has P.
-- The item before an optional with a constituent `Y` has P through one advance over `Y` that gives it E. The item before that advance is the fixed prefix, and that prefix must permit the omission. Where the optional's terminal is maximal, the completed `Y` of that advance must also be the longest possible, by the test above.
+- The item before an optional with a constituent `Y` has P through one advance over `Y` that gives it E. The item before that advance is the fixed prefix, and that prefix must permit the omission.
 - The item before an optional with no constituent has P when it has E and it permits the omission itself.
 
 The implementation computes E and P together, to the least answer that the advances give. So an item that only a cycle through itself makes eligible has neither state.
@@ -480,29 +478,9 @@ One elided at the start of each later item of `{x}` has none either, as the seco
 
 A PEG (parsing expression grammar) repetition such as `{[+T] A}` reads its next item after what it read. It does not make what it read longer first.
 
-A maximal terminator is the terminator of an optional written `[++T …]` (§3.8). An optional of the same terminal written `[+T …]` is not maximal. The engine excludes a derivation when a maximal terminator is elided after a constituent that can be longer.
-
-The constituent is a symbol `Y` over `[s, p)`. A longer candidate is a completed item of `Y`, with origin `s`, in a set after `p`. When `Y` is tested, that test must hold of the candidate's own span and tags. The longer constituent need not fit into a derivation of `text`. It can contain the shorter constituent, as left recursion builds a longer node on a shorter one.
-
-Only the constituent matters, not what follows the terminator in its production. The restriction depends on the symbol, its test, its origin, and its end. The three cases with no constituent above permit the omission. Written-terminator priority still applies in a query.
-
-Maximal terminators apply in the main parse and nested queries. The ranking (§6) sees only the remaining derivations. `elision-only` restores a maximal terminator as any other (§7). A restoration reads a token, so its derivation contains no elided terminator for maximality to forbid.
-
-Lowering records which helpers belong to maximal terminators (§3.8). The lowered grammar and its cache identity include this information. For each parse that needs them, the engine records the furthest completion of each symbol from each origin. A tested symbol needs its completed items because the furthest completion need not pass its test. A nested parse builds this table from its own chart, once per query. The query's memo keys identify that chart.
-
 A counted derivation is an eligible noncyclic derivation of a completed `text` item that spans the input. With a counted derivation, a stage accepts its input. Ranked admission preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
 
 The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
-
-An input rejected only because maximality forbids an elided terminator in every derivation that is not cyclic reports that terminator instead. The terminator comes from the first reading, `m`, of the ranking that the stage makes with maximal terminators unrestricted (§6). It is the first elided terminator of that derivation, in the order of the tree's leaves, that maximality forbids. Its position is the position reported, and its terminal, with the rule in whose alternative its optional is written, is the one terminal expected there. If that terminator is tested, the stage writes it with its test there too.
-
-That diagnostic ranking uses the same raw chart and nested-query answers. Recompute ranked admission with maximal terminators unrestricted before ranking. Feature gates, ordinary conditions, written priority and cycle exclusion still apply. Keep this admission mode separate from ordinary maximality. The diagnostic never turns rejection into acceptance.
-
-This report covers only main derivations that maximality removes. If a nested query's answer makes a condition false, the recognizer does not make that advanced item. If no counted main derivation remains, the ordinary rejection rules apply. An ordinary rejection reports the furthest position and the terminals expected there, and those terminals can include a terminator.
-
-For example, take `text → A B` with the condition `begins(from($), r)`. Also take `r → y [++T] B` and `y → A | A B`. On `A B`, the query fails, because `y → A B` is longer. No main root remains, so the rejection is an ordinary one, at the furthest position.
-
-The reported terminator comes from `m` whatever the verdict of that ranking. So *T* (§6) selects the forbidden terminator that such a rejection reports. The canonical tie-break keys never turn a tie into an accepted reading.
 
 ### 4.1 Shared candidate observations
 
@@ -525,6 +503,12 @@ Private option captures retain their real completed states for ready gates. The 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
 Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `without-elision`, and their dependencies, need these observations. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
+
+A caller consumes a constituent in a rule occurrence. An observed caller retains its item's closes for `without-elision`. A capture or an enclosing observed caller can demand those closes. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
+
+An implementation can test possible first terminals before it retains a capture's close sequences. If no witness can begin at that token, the capture's own query needs no close observation. An enclosing observed capture still needs every close inside that capture.
+
+This shortcut requires a nonempty capture with no possible leading omission. An empty witness prevents the shortcut. Conditions can reduce the possible prefixes, so this test ignores them. The query still uses its original context and written-terminator priority.
 
 A ranked group contributes one opaque block outside its options. The block identifies its written occurrence, original span, and common entry observations. It excludes the option index, private captures, private closes, and proof identity. Wrappers and outside captures retain the block. Empty completed options also supply a block.
 
@@ -620,7 +604,9 @@ Among equal rule profiles, `late-elision` compares only the elided terminators (
 
 The vector counts each elided terminator once, whatever its terminal, its constituent or its depth. So two terminators elided at one position count two, also when they are of different terminals. An ordinary empty optional, such as an empty `[{x}]`, and a close of any other production count nothing.
 
-The markers of §3.8 alone decide what counts. They also decide which empty optionals become `elided` nodes (§12), what maximality forbids (§4) and what §7 restores. An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal, so a grammar that wants a separator not to count writes it as a plain optional, `[CU #]`.
+The markers of §3.8 alone decide what counts. They also decide which empty optionals become `elided` nodes (§12) and what §7 restores.
+
+An optional that is not elidable (§3.8), such as an optional separator, can still be empty. Its absence counts nothing and leaves no node. The ranking knows no particular terminal. A grammar that excludes a separator from the count writes it as a plain optional, `[CU #]`.
 
 Among equal rule profiles, `late-elision` prefers a derivation whose elision vector is less. The stage compares two vectors from boundary 0 to boundary N. At the first boundary where they differ, the vector with the smaller count is less. Derivations with equal rule profiles and equal elision vectors tie, even where their trees differ. Without flagged rules, several derivations that elide nothing always tie.
 
@@ -634,7 +620,7 @@ At the first differing pair of projected actions, `read(p)` and `end(N)` beat `e
 
 So under `late-elision`, a token read as two terminals does not stop the comparison, as rule 1 does. Two different closes do not stop it either, as rule 3 does. The preference does not depend on the age, the nesting or the name of a terminator.
 
-The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports (§4). The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater rule profiles before lesser ones. Within an equal rule profile, `greedy`, `lazy` and no lean compare visible sequences:
+The stage puts the derivations in a canonical order, *T*. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading. First, *T* puts greater rule profiles before lesser ones. Within an equal rule profile, `greedy`, `lazy` and no lean compare visible sequences:
 
 - *T* compares them at their first differing visible pair, by rules 1 to 3 where those decide, and otherwise by the canonical keys. The canonical keys put a read before a close. They order two reads by terminal, in code point order. They order two closes by production number, then span start, then span end.
 - If one visible sequence is a proper prefix of the other, the shorter comes first.
@@ -670,14 +656,13 @@ Every ranking rule composes over the packed forest. The packed forest is the sha
 
 An edge of an item is one step by which the recognizer makes it. A start edge predicts an item with its dot at the start, and it combines nothing. A read edge advances an item over a token that its next terminal reads. A completion edge advances an item over a completed item of its next symbol. A read or completion edge has two children: the item before the step, and the token or completed item that the step reads.
 
-The context of a child is what its use in a derivation allows it. It has two parts, under every ranking rule:
+A cycle context records ancestor rules over the same span. The context of a child is its cycle context under every ranking rule.
 
-- The eligibility of the child. Before an elided maximal terminator (§4), an edge combines only the prefixes whose last constituent permits the omission. Every other edge combines all derivations of its children.
-- The cycle context of the child. A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
+A child cannot reuse an ancestor rule over its own span, or the derivation is cyclic (§4).
 
-  Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
+Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
 
-A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item, eligibility and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
+A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
 
 For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal rule profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
 
@@ -687,7 +672,7 @@ Under every ranking rule, the verdict needs the total, the number of admitted el
 
 The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
 
-A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same eligibility and cycle contexts. Admission counts remain separate from counts of ranking-best derivations.
+A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same cycle context. The total remains separate from the count of best derivations.
 
 For `greedy` and `lazy`, the action summaries of this section run over the forest of greatest rule profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its rule profile first, with the greater rule profile preferred. Within an equal rule profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
 
@@ -703,28 +688,26 @@ The root compares its items by the same rule profile and elision pair. A total o
 
 The best derivations form a smaller forest. For each summary, the implementation keeps the edges that attain its best rule profile and elision pair. Each kept edge leads to the summaries of its children, in their own contexts. The stage finds `m` and `t` by a ranking with no lean over that forest. That ranking keeps the same contexts, so it reaches a child only through the summary that its context allows.
 
-For example, take `text → [A] y [++T] B` and `y → A A | A A B | A [+U]`. On `A A B`, the least prefix before `[++T]` over all edges uses `y → A A` and elides nothing. The maximal terminator forbids `T` after it, because `y → A A B` ends later. The only eligible prefix reads the first `A` alone and uses `y → A [+U]`. A forest of the least edges over all derivations loses the only derivation that counts.
-
 A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
-Structural state forms part of each summary's item identity. Eligibility and same-span cycle contexts remain separate. A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
+Structural state forms part of each summary's item identity. Ranked admission keeps eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
 
 ### 6.1 Ranked admission before ranking
 
-Retain the raw chart, completion tables, and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
+Retain the raw chart and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
 A prefix context records state before a ranked group. An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
 | Component | Required equality |
 | --- | --- |
-| Recognition | Input recognition, selected features, and main, query, reconstruction, or diagnostic mode. |
+| Recognition | Input recognition, selected features, and main, query, or reconstruction mode. |
 | Source | Final stitched rule, alternative, and expression path. |
 | Entry | Enclosing named invocation origin and control route to the helper entry. |
 | Prefix | Complete common prefix recognition state at entry. |
 | Span | Actual group start and end positions. |
-| Eligibility | Requested existing eligibility channel and normalized continuation guards. |
+| Eligibility | Written-terminator priority. |
 | Cycles | Existing enclosing named-rule context for relevant spans. |
 | Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 
@@ -738,9 +721,7 @@ Compute the options with a qualified finite proof in each admission group. Keep 
 
 For `a ≻ b ≻ c`, qualified `a` removes `c` even when `b` is absent. Ordinary branches within one option share its index. A nested group finishes admission before its option supplies an outer witness.
 
-A candidate must pass its tests and ready conditions in the requested eligibility and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness. A candidate forbidden by maximality cannot suppress a lower option in that channel. It can qualify in a written-terminator channel.
-
-A maximal terminator inside an option applies to its actual preceding symbol. A maximal terminator after the group applies to the group as one symbol. Raw group completions determine maximality. Admission leaves those completions unchanged.
+A candidate must pass its tests and ready conditions in the requested eligibility and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness.
 
 The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by `leftmost-longest`, then the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
 
@@ -881,7 +862,7 @@ An omitted final terminator still stops the last-child path. Its pattern sound r
 
 An ordinary nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4.
 
-Written-terminator priority applies to the tokens that it reads, and a maximal terminator (§4) is maximal in it. It does not rank its proof trees, and it emits nothing.
+Written-terminator priority applies to the tokens that it reads. It does not rank its proof trees, and it emits nothing.
 
 Inside the query, `initial`, `from` and `after` read the query's span of O. Its start and end are positions of O.
 
@@ -893,13 +874,11 @@ A query over an explicit `without-elision` span follows the aligned rules of §4
 
 `tags(s, R)` is the union of the tags of the query's eligible readings (§4). `tags($x)`, with no rule, is the capture's own constituent tags. The two do not stand in for each other.
 
-### 7.7 Recognition, cycles, maximality and ranking
+### 7.7 Recognition, cycles and ranking
 
 The check recognizes all of R, from the start rule `text`, in the reconstruction mode, with the observations of §7.5. A derivation of R counts where it is finite and every test and condition in it holds.
 
 Cycles are found over spans of R, as §4 says. Two constituents of one rule whose spans of R differ are no cycle, even where both project to one span of O.
-
-Maximality does not apply to the derivations of R. A restoration reads a token, so the reconstruction has no elided terminator, and nothing for maximality to forbid. The queries of §7.6 keep their own policy.
 
 Locate raw W(D) before applying ranked admission. Admission groups options by their physical spans in R, including synthetic tokens. Reconstruction eligibility still applies. Equal projected O spans do not establish equal admission spans. Rank admitted derivations by rule profiles over projected spans `[π(a),π(b))` in O.
 
@@ -932,7 +911,6 @@ W(D) is a derivation of R that counts in the raw reconstructed forest. In outlin
 
    A test of a terminal reads an original token as in D, or a compatible synthetic token. No query of W(D) is recursive. The reconstruction's recognition is not a query, and each query of W(D) is a query of D.
 6. W(D) is not cyclic. Suppose that two nested nodes of one rule have one span of R. Both project to one span of O. Then D has two nested nodes of that rule over one span. That is a cycle, but D is not cyclic.
-7. Maximality does not apply (§7.7), so it cannot remove W(D) from the raw reconstructed forest.
 
 So, unless an error of the grammar ends the check, the raw reconstructed forest contains W(D). The argument depends on no corpus, no terminal and no shape of the optional's content. It depends on every observer, every test and every tag rule following §7.5 and §7.6. The strict items of §7.4 do not touch W(D), whose written optionals all start with an original token.
 
@@ -1065,7 +1043,7 @@ The notation's syntax grammar names its constituents so that the reader can read
 | `test-operand` | its term, as a `term-atom` reads it |
 | `capture` | `capture`, the name without `$`, of its primary, which must be a `reference`, `tag`, `character`, `phoneme`, `range`, `property` or `tested` |
 | `group` | its `choice` |
-| `optional` | `optional` of its `choice`. With a marker, also `elidable`, `true`, and for the marker `++` also `maximal`, `true`: `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}` for `[+KU #]`. A marker is a token `+` or `++` among its parts |
+| `optional` | `optional` of its `choice`. With a marker, also `elidable`, `true`: `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}` for `[+KU #]`. The marker is the token `+` among its parts |
 | `empty` | `empty` |
 | `tags-clause` | its `term` |
 | `conditions-clause` | its `implication`s, each one condition of the list, in order |
@@ -1129,7 +1107,7 @@ These are the parts that each known rule must have. Where a list says "one or mo
 | `tested` | a `primary` and a `test` |
 | `test` | a `test-operand`. Its tokens make its comparator |
 | `capture` | a token, its capture, and a `primary` |
-| `group`, `optional` | a `choice`. An `optional` can also have a marker, a token `+` or `++` |
+| `group`, `optional` | a `choice`. An `optional` can also have a marker, the token `+` |
 | `tags-clause`, `alternative-tags`, `emit-tags` | a `term` |
 | `guarded-term` | one or more `any-of`, and a `union` or a `term` |
 | `conditions-clause` | one or more `implication` |
@@ -1151,7 +1129,7 @@ The other known rules need no part.
 
 The lexical stage reads the longest symbol. So `...` is always one token, the chain marker, and never `..` followed by a period. So `'a'...'z'` is not a range. It is an error at `...`, which only braces can hold. A range is two character tags joined by `..`, with any layout between them.
 
-In the same way, `++` is always one token, the marker of an elidable optional whose terminator is maximal. `+` alone is the marker of any other elidable optional. `+` has no other use. `{`, `}` and a backslash outside a string or a character tag are one-character symbols. Inside a string, a character tag or a property, they are part of that token, as in `'\\'` and `'\p{L}'`.
+`+` is the sole marker of an elidable optional. `+` has no other use. `{`, `}` and a backslash outside a string or a character tag are one-character symbols. Inside a string, a character tag or a property, they are part of that token, as in `'\\'` and `'\p{L}'`.
 
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 
@@ -1159,7 +1137,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 2. Within an alternative's expression, the reader makes sure that each construct meets its rules when it reaches it. It examines constructs in text order, each form before its contents. So it reports the first error of the first construct in the text that has one, with these steps for each construct:
    - A tested primary: a test that does not follow a reference other than `#` or a terminal. It stands at the test, before anything that the primary holds. So `{$c(B)}="b"` and `[+KU $x(A)]="a"` are errors at the test.
    - A capture: first a capture inside braces, then one inside an elidable optional, then `$` that wraps something. Then come a name that is not all lower case and a capture that wraps anything but one symbol. Each stands at the capture, before what it wraps.
-   - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x(A)]` is an error at the `[`, and `[+KU≠"ku" $x(A)]` at the `$x`. The same order applies to `++`.
+   - An optional: first two markers, at the second. Then an elidable optional that is not of the form below, at its `[`. Last, what it holds through the ordinary symbol-test rules. So `[+KU | $x(A)]` is an error at the `[`, and `[+KU≠"ku" $x(A)]` at the `$x`.
    - An `&`: more than 16 items, at the `&` construct, that is, at its first item. This comes before any of its items, since the bound is its own form. So an `&` of 17 items is an error at its first item, whatever error a later item holds.
    - Braces: first two markers, at the second, or a marker after the separator, at that marker. Then a chain that is not the whole expression of its alternative, at its `{`. Last, the item and the separator. So `A {$c(B) ... \ S}` is an error at the `{`, although its marker follows the capture.
 3. The names that a production reads twice come after the whole expression of the alternative, by the rule below, and before the alternative's own tags.
@@ -1200,11 +1178,11 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture inside braces is an error, reported at the capture. A capture that wraps braces is an error by the first item of this list.
 - A capture inside an elidable optional, an `optional` with a marker, is an error at any depth, reported at the capture.
 - An `optional` with two or more markers is an error, reported at the second marker. The bundled syntax grammar never gives such a node, but a bootstrap of another notation can.
-- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]`, `[+& KU]` and `[++| TOI]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
+- An elidable optional that is not of the form of §3.8 is an error, reported at its `[`. Before the reader drops groups, it makes sure that the notation tree meets this rule. The hand-written bootstrap reader builds the same tree, so it makes the same check. The `optional`'s `choice` must be one `conjunction` of one `sequence`, with no leading `|` before the conjunction and no leading `&` before the sequence. This is the one place where a leading separator is not allowed: `[+| KU]` and `[+& KU]` are errors. A choice in parentheses later in the optional can still begin with `|`, as in `[+KU (| A | B)]`.
 
   The first `primary` of that sequence must be the terminal itself. That is a `reference` whose name begins with `A` to `Z`, or a `tag`. It can also be a `tested` whose primary is one of these with any existing symbol-test comparator. So a `group` there is an error, even of one terminal or around the whole content.
 
-  `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors, as are `[++(TOI) #]` and the other `++` forms. So are a choice, an `and`, a rule, `#`, a phoneme tag and a character tag in first place. The same holds for a range, a property, `ε`, braces and an optional.
+  `[+(KU) #]`, `[+((KU)) #]`, `[+(KU #)]` and `[+(KU #) A]` are errors. So are a choice, an `and`, a rule, `#`, a phoneme tag and a character tag in first place. The same holds for a range, a property, `ε`, braces and an optional.
 
   A DOM cannot show a group, so its own requirement is on the normalized form. The `expr` of an elidable `optional` must be its terminal, or a `seq` whose first expression is its terminal. The terminal is a `ref` whose name begins with `A` to `Z`, or a `terminal` whose tag is a name. It can also be any existing `test` around one of these terminals.
 
@@ -1280,7 +1258,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a `ref` that is not a name or `#`.
 - It has a `ranked` value that is not an array of at least two expressions. Report `ranked-choice-syntax`.
 - It has a `repeat` with a `chain` other than `left` or `right`, or with a `chain` that is not the whole `expr` of an alternative. A `repeat` with a `min` member is malformed too, since the form has no such member.
-- It has an `optional` with an `elidable` or a `maximal` member whose value is not `true`, or with `maximal` and no `elidable`. It has an elidable `optional` whose expression the reader refuses (above).
+- It has an `optional` with an `elidable` member whose value is not `true`, or with any `maximal` member. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`.
 - It has an alternative guard whose feature is not a name. Or the guard has members beyond its feature, kind, and negation state.

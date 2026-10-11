@@ -1056,7 +1056,11 @@ fn ranked_diagnostics_match_with_a_dom_cache() {
     let sources = single(text);
     let dom = gencmu::tools::read_grammar_document(&grammar(text)).unwrap();
     let mut cached = sources.clone();
-    cached.insert("compiled.json".into(), compiled(text, &dom));
+    // The source alone now loads. Only the cached DOM retains the export error.
+    let cache_source = text.replace("%tags $x ⟹ (tags($x) ∪ $K)", "%tags ∅");
+    cached.insert("g.md".into(), grammar(&cache_source));
+    gencmu::load_dialect_sources(&cached, "p.md").expect("the cache bypass control loads");
+    cached.insert("compiled.json".into(), compiled(&cache_source, &dom));
     let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
     let cached = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
     assert_eq!(plain, cached);

@@ -121,7 +121,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 - Juxtaposition is sequence.
 - `a ≻ b` is a ranked choice, with the preferred option first (see "Ranked choices").
 - `[x]` is optional.
-- `[+T x]` is an elidable optional, whose first item is the terminator `T`. `[++T x]` is one whose terminator is also maximal. "Elided terminators" below explains both.
+- `[+T x]` is an elidable optional, whose first item is the terminator `T`. "Elided terminators" below explains the marker.
 - `{x}` is one or more of `x`, and `[{x}]` is zero or more. `{x \ s}` is one or more of `x` with `s` between each two. "Repetition" below explains braces, and the chains `{... x \ s}` and `{x ... \ s}`. A chain can also leave out `\ s`, as `{... x}` and `{x ...}`.
 - `A & B` reads one or both parts: `A`, `B` or `A B`, but not `B A`. `A & B & C` is any non-empty subsequence in that order.
 - `( )` groups.
@@ -205,7 +205,7 @@ A chain cannot hold a capture, since a capture never stands inside braces (see "
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
-- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and maximal terminators and `elision-only` see a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
+- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - That level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags.
 - Where `s` begins with an elidable optional `[+T]`, the two place `[+T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
 
@@ -459,7 +459,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 Writing `$name(symbol)` around a symbol of a rule's body captures that symbol. A capture gives a part of the constituent a name that the clauses of the rule can use. A capture's name is all lower case.
 
-A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]` or `[++ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
+A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
 
 A name can stand at most once in each production (below), so two branches of a choice can capture one name, as two alternatives can. `A ($x(B) | $x(C))` is valid, but `[$x(A)] $x(B)` and `$x(A) & $x(B)` are errors, because one of their productions reads `$x` twice. Before gates apply, gencmu makes sure that each capture name occurs at most once per production. A guard does not excuse a repeated capture. An alternative can have any number of captures, but each one has a cost (below). `$` alone is the whole constituent, a capture that every alternative has without writing it.
 
@@ -744,8 +744,8 @@ An inserted token with a phoneme tag has that phoneme as its label, or a space f
 
 A directive is a keyword and its operands. By convention each stands in a block of its own, after prose that says why the grammar needs it. Two directives can share a line.
 
-- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the rule of the ranking: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. The operand `maximal` is an error. "Ambiguity" and "Elided terminators" explain it. Every stage must say it exactly once, in any of its documents.
-- No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` or `[++TOI]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
+- `%ambiguity-resolution` ranks the best parses under rule flags, as "Ambiguity" explains. Its first operand is the ranking rule: `greedy`, `lazy` or `late-elision`. `elision-only` can follow it. "Elided terminators" explains the elision test. The operand `maximal` is an error. Every stage must say it exactly once, in any of its documents.
+- No directive names the elidable terminators. Each elidable optional is marked in its place, as `[+KU]` (see "Elided terminators"). `%elidable` is not a directive. A document that writes it is an error, which the reader reports at the keyword.
 - `%stage NAME`, `%include "PATH"` and `%features NAME…` build a pipeline, as the next section says.
 
 ## Pipelines
@@ -824,11 +824,11 @@ Two nested flagged occurrences over one span contribute twice, so two such occur
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries, or change maximal terminators.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 
-The engine's canonical order (engine §6) orders the ambiguity diagnostics and selects the forbidden terminator that a maximality rejection reports. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
+The engine's canonical order (engine §6) orders the ambiguity diagnostics. Among its keys are the numbers of the productions, which follow the order of a rule's alternatives. The canonical tie-break keys never turn a tie into an accepted reading.
 
 `greedy` and `lazy` treat each parse as the sequence of actions that a bottom-up reader takes. Some closes are transparent and do not participate in the comparison (below). All other actions are visible. The stage compares parses with the greatest rule profile at their first differing visible action:
 
@@ -854,7 +854,7 @@ The forms and words stages are lazy. The word forms divide a run in one way only
 
 ## Elided terminators
 
-CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. A stage decides it from the whole text. A grammar can restrict an individual terminator with `[++T]`.
+CLL permits eliding a terminator "if no grammatical ambiguity results", and says no more about how a parser decides that. A stage decides it from the whole text.
 
 A grammar marks each terminator that can be elided where it writes it. An elidable optional is a bracket, then `+`, then the terminator, then the rest of the optional:
 
@@ -869,13 +869,12 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - `T` can carry any existing symbol test. A test on a later item remains an ordinary test.
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
-- `[++T rest]` is the same, but its terminator is also maximal (below).
 
-An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU #]` without them. `++` is one token, so `[+ +KU]` is an error.
+An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU #]` without them. A second plus is an error, so `[++T]` and `[+ + T]` are invalid.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 
-The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what maximality forbids and what `elision-only` writes back. The terminator of an elided node is `T`.
+The marker decides everything that follows in this section, and in "Ambiguity". It decides which absent optionals show as elided terminators and what `late-elision` counts. It also decides what `elision-only` writes back. The terminator of an elided node is `T`.
 
 An elided terminator ends the part of its alternative that is written directly before it. That part is its *constituent*: a rule, an optional or braces, once parentheses are spelled out. In `le nanmu joi le ninmu`, the `ku` elided after `nanmu` ends the `sumti-tail` of `LE sumti-tail [+KU #]`, which is `nanmu`. Some elided terminators have no constituent. These are the terminators elided directly after a terminal or at the start of their alternative. The next paragraph gives one more case.
 
@@ -887,21 +886,7 @@ A production is an alternative of the expanded grammar (engine §3). An elided t
 
 A plain optional that holds a capture is expanded in place (see "Captures"), so it is no part of its own here. The part before the terminator is what the production reads before it. In `a [$b(b)] [+KU]`, where `a` and `b` are rules, that is `b` where the production reads `b`, and `a` where it does not. The usual exceptions still apply: in `A [$b(B)] [+KU]`, both productions put `KU` after a terminal, so it has no constituent in either.
 
-By default, the constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
-
-A maximal terminator, written `[++T]`, cannot be elided where its constituent can be longer. If the constituent is a tested symbol, the test must hold of the longer one too. The longer constituent need not fit into a parse of the whole text. This restriction only removes parses and never chooses among those that remain.
-
-If maximal terminators remove every main parse, the text is an error. The error names the first forbidden terminator in the parse that the stage ranks first without the restriction. Where that ranking ties, the engine's canonical order selects the diagnostic parse. The canonical order never decides whether the text parses.
-
-`late-elision` ranks only complete parses. Maximal terminators can exclude a parse because of a longer constituent that fits no complete parse. So ranking cannot replace the restriction.
-
-`[++T]` applies in the main parse and inside `matches`, `begins` and `tags`. Inside a query, the longer constituent lies within the query's span. Written-terminator priority also applies there. An optional written `[+T]` keeps the default, even when another optional of that terminal uses `[++T]`.
-
-Only the Zantufa dialect uses `[++T]`, for `TOI` and `SEhU`. A document that declares stage-wide `maximal` is an error.
-
-A rejection names a forbidden terminator only when maximality removes every main parse. A nested query that maximality changes only changes the value of its condition. If no parse then remains, the error is an ordinary rejection, which lists the terminals expected at the furthest position.
-
-`[++T]` is for a construct that a reader closes as late as it can, such as a parenthesis. In Zantufa, `so to mi klama` can close the parenthesis `to` after `mi`, with `toi` elided, and leave `klama` as the selbri. The reference parser reads `to mi klama` as one parenthesis. No `toi` is written, so written-terminator priority cannot decide. With `TOI` maximal, the `to` cannot close before `klama`, because a longer parenthesis exists.
+The constituent of an elided terminator can end wherever a parse of the whole text needs it to end. The ranking above chooses among the parses. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses. The `sumti-tail` of `le lojbo` ends before `se farvi`, which becomes the selbri (the main predicate). A parse with the longer `sumti-tail` `lojbo se farvi` leaves the sentence without a selbri.
 
 CLL's own rule is narrower: a terminator can be elided only if no ambiguity results. CLL says nothing of the other ambiguities of its EBNF. The `elision-only` check is one reading of that rule. It examines only the parse that the ranking chose, and CLL does not say how to choose that parse.
 
@@ -919,7 +904,7 @@ An omission exists only when its test passes on this restoration value. A failed
 | `T∩S=∅` | `T ∉ S` | Empty |
 | `T∩S≠∅` | `T ∈ S` | Empty |
 
-Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+`, `++` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
+Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
 
 Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 
@@ -957,7 +942,7 @@ The diagrams draw the notation in this way:
 - A sequence runs from left to right. A sequence too wide for the page continues on the next row. The track runs back under the row before it.
 - A choice puts its first branch on the track and its other branches below it. The alternatives of a rule are a choice.
 - A ranked choice draws its options in a dashed frame, numbered from 1 in preferred order. The label `≻ same span` precedes the frame. Ordinary branches inside an option are unnumbered, and a nested ranked choice has its own frame. A note under the rule repeats the filter rule.
-- An optional has a bypass over its content. The bypass of an elidable optional has the label "elided", or "elided, maximal" for `[++T ...]`.
+- An optional has a bypass over its content. The bypass of an elidable optional has the label "elided".
 - A test on an elided terminator also tests the omitted terminator, as "Elided terminators" says. Where the test forbids the omission, the diagram has no bypass. Where the dialects that read the document disagree, the label adds "where its test allows".
 - Braces loop back under their item, and a separator stands on the loop. So `[{x}]` is a bypass over a loop.
 - The loop runs from right to left, so the separator is drawn from right to left too, with its text upright. In `{A \ B C}`, the loop meets `B` first, at its right, and then `C`.

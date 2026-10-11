@@ -15,13 +15,13 @@ def ancestry(forest,scope):
         return None
     lowered = forest.lowered
     frames = tuple(prefix(forest,item) for item in scope['frames'])
-    bounds = tuple((lowered.written_helpers[lowered.productions[forest.prod[item]].lhs],forest.origin[item],forest.end[item],restricted) for item,restricted in scope['bounds'])
+    bounds = tuple((lowered.written_helpers[lowered.productions[forest.prod[item]].lhs],forest.origin[item],forest.end[item]) for item in scope['bounds'])
     return (frames,bounds)
 
 
 class RankedAdmission(RankedFacts):
-    def __init__(self,forest,maximal,check=False):
-        Summaries.__init__(self,forest,maximal)
+    def __init__(self,forest,check=False):
+        Summaries.__init__(self,forest)
         self.check = check
         self.at,self.slot_groups,self.maxima,self.masks = {},{},{},{}
         self.stats = {'chart_facts':len(forest.prod),'groups':0,'candidate_edges':0,'retained_edges':0}
@@ -50,32 +50,24 @@ class RankedAdmission(RankedFacts):
     def admit(self,key):
         choices = self.at.get(key[1])
         if choices is None:
-            return getattr(self.forest,'slot_routes',{}).get(key[1])
-        all_,allowed = set(),set()
+            return None
+        all_ = set()
         for index,group in choices.items():
             context = self.availability_key(key,group)
             kept = self.maxima.get(context)
-            if kept is None:
-                present,eligible = set(),set()
+            if context not in self.maxima:
+                present = set()
                 for item,number,option in self.slot_groups[group]:
                     candidate = self.partial_key(item,key[2])
                     step = next((s for s in self.all_steps(candidate) if s[0]==number),None)
                     if step is not None and self.ways(step):
                         present.add(option)
-                        if not self.guarded(item) or self.permits(item,step[1],step[4]):
-                            eligible.add(option)
-                kept = self.maxima[context] = (min(present,default=None),min(eligible,default=None))
+                kept = self.maxima[context] = min(present,default=None)
             child = self.forest.edges[key[1]][index][2]
             option = self.productions[self.forest.prod[child]].option
-            if option==kept[0]:
+            if option==kept:
                 all_.add(index)
-            if option==kept[1]:
-                allowed.add(index)
-        route = getattr(self.forest,'slot_routes',{}).get(key[1])
-        if route is not None:
-            all_ &= route[0]
-            allowed &= route[1]
-        mask = (frozenset(all_),frozenset(allowed))
+        mask = frozenset(all_)
         self.masks[key] = mask
         self.stats['retained_edges'] += len(all_)
         return mask

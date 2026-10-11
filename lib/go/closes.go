@@ -32,16 +32,16 @@ type closeState struct {
 }
 
 type closeArena struct {
-	links      []closeLink
-	leaves     map[closeEvent]int
-	buckets    map[[2]uint64][]int
-	prefixes   map[[2]int]int
-	rules      map[int32]bool
-	states     []closeState
-	stateIDs   map[closeState]int
-	contexts   [][]int32
-	contextIDs map[string]int
-	concatIDs  map[[2]int]int
+	links         []closeLink
+	leaves        map[closeEvent]int
+	buckets       map[[2]uint64][]int
+	prefixes      map[[2]int]int
+	queryPrefixes []closePrefix
+	states        []closeState
+	stateIDs      map[closeState]int
+	contexts      [][]int32
+	contextIDs    map[string]int
+	concatIDs     map[[2]int]int
 }
 
 // State 1 is the shared invalid observation. Its chart edges still exist
@@ -270,7 +270,7 @@ func (run *stageRun) closeArena(g *lowered) *closeArena {
 	var m *closeArena
 	if len(rules) > 0 {
 		m = newCloseArena()
-		m.rules = rules
+		m.queryPrefixes = queryPrefixes(g)
 	}
 	run.closeArenas[g] = m
 	return m
@@ -284,12 +284,12 @@ func (r *recognizer) closeRecord(terminal string, at int, test *symTest) Restora
 	return record
 }
 
-func (r *recognizer) observesCloses(rule int32) bool {
-	return r.closes != nil && (r.closes.rules == nil || r.closes.rules[rule])
+func (r *recognizer) observesCloses(p *production) bool {
+	return r.closes != nil && p.observesCloses
 }
 
 func (r *recognizer) finishCloses(key *itemKey, end int32) {
-	if !r.observesCloses(key.prod.lhs) {
+	if !r.observesCloses(key.prod) {
 		key.closes = 0
 		return
 	}
@@ -322,7 +322,7 @@ func (r *recognizer) derivationCloses(n *dn) int {
 	if n.kind == dRead {
 		return r.terminalCloses(int(n.tok), r.g.terminals[n.term])
 	}
-	if n.prod != nil && n.prod.ranked != nil && r.observesCloses(n.prod.lhs) {
+	if n.prod != nil && n.prod.ranked != nil && r.observesCloses(n.prod) {
 		return r.closes.seal(n.closes, r.blockEvent(&symNode{rule: n.prod.lhs, lexical: n.prod.lexical, start: n.start, end: n.end}))
 	}
 	return n.closes
@@ -492,4 +492,189 @@ func demandedCloses(g *lowered) map[int32]bool {
 		}
 	}
 	return wanted
+}
+
+type closeVariantKey struct {
+	p         *production
+	requested bool
+}
+type closeDemand struct {
+	whole     bool
+	positions map[int]bool
+	queries   map[int]map[int32]bool
+}
+
+func (r *recognizer) localCloseDemand(p *production) closeDemand {
+	if d, ok := r.closeDemands[p]; ok {
+		return d
+	}
+	d := closeDemand{positions: map[int]bool{}, queries: map[int]map[int32]bool{}}
+	scan := func(n clausePart) bool {
+		if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins) {
+			span := n.c.Span
+			if span != nil && span.Kind == tmCall && span.Str == "from" {
+				span = span.Items[0]
+			}
+			if span != nil && span.Kind == tmCall && span.Str == "without-elision" {
+				if at, ok := p.posOf[span.Items[0].Str]; ok {
+					d.positions[at] = true
+					if _, known := d.queries[at]; !known {
+						d.queries[at] = map[int32]bool{}
+					}
+					if d.queries[at] != nil {
+						d.queries[at][r.g.byName[n.c.Rule]] = true
+					}
+					return false
+				}
+			}
+		}
+		if n.t != nil && n.t.Kind == tmCall && n.t.Str == "without-elision" {
+			name := n.t.Items[0].Str
+			if name == "" {
+				d.whole = true
+			} else if at, ok := p.posOf[name]; ok {
+				d.positions[at] = true
+				d.queries[at] = nil
+			}
+		}
+		return true
+	}
+	for _, c := range p.conds {
+		walkClause(clausePart{c: c.cond}, scan)
+	}
+	for _, c := range p.predictConds {
+		walkClause(clausePart{c: c}, scan)
+	}
+	walkClause(clausePart{t: p.tags}, scan)
+	walkClause(clausePart{t: p.parentTags}, scan)
+	if p.emit != nil {
+		for _, e := range p.emit.Items {
+			walkClause(clausePart{t: e.Tags}, scan)
+		}
+	}
+	if p.slot != nil {
+		for _, c := range p.slot.source.conds {
+			walkClause(clausePart{c: c}, scan)
+		}
+		walkClause(clausePart{t: p.slot.source.alt.Tags}, scan)
+		walkClause(clausePart{t: p.slot.source.ruleTags}, scan)
+	}
+	if r.closeDemands == nil {
+		r.closeDemands = map[*production]closeDemand{}
+	}
+	r.closeDemands[p] = d
+	return d
+}
+
+func (r *recognizer) closeProduction(p *production, requested bool) *production {
+	if r.closes == nil {
+		return p
+	}
+	key := closeVariantKey{p, requested}
+	if q := r.closeVariants[key]; q != nil {
+		return q
+	}
+	if r.closeVariants == nil {
+		r.closeVariants = map[closeVariantKey]*production{}
+	}
+	d := r.localCloseDemand(p)
+	q := *p
+	q.base = baseProduction(p)
+	q.closeRequested = requested
+	q.observesCloses = requested || d.whole
+	r.closeVariants[key] = &q
+	r.closeDemands[&q] = d
+	return &q
+}
+
+func (r *recognizer) requestsChild(p *production, at, position int) bool {
+	if r.closes == nil {
+		return false
+	}
+	if p.observesCloses {
+		return true
+	}
+	d := r.localCloseDemand(p)
+	if !d.positions[at] {
+		return false
+	}
+	rules := d.queries[at]
+	child := r.closes.queryPrefixes[p.rhs[at].id]
+	if rules == nil || child.nullable || child.leadingClose || position >= r.n || r.recon != nil {
+		return true
+	}
+	for rule := range rules {
+		prefix := r.closes.queryPrefixes[rule]
+		if prefix.nullable {
+			return true
+		}
+		for terminal := range prefix.first {
+			if r.reads(r.tokenTags(position), terminal) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Conditions only reduce these possible prefixes. Empty captures and
+// leading omissions retain their observations even without a first match.
+type closePrefix struct {
+	nullable, leadingClose bool
+	first                  map[int32]bool
+}
+
+func queryPrefixes(g *lowered) []closePrefix {
+	table := make([]closePrefix, len(g.rules))
+	for i := range table {
+		table[i].first = map[int32]bool{}
+	}
+	dependents := make([][]*production, len(g.rules))
+	queued := map[*production]bool{}
+	pending := append([]*production(nil), g.prods...)
+	for _, p := range g.prods {
+		queued[p] = true
+		for _, symbol := range p.rhs {
+			if !symbol.term {
+				dependents[symbol.id] = append(dependents[symbol.id], p)
+			}
+		}
+	}
+	for len(pending) > 0 {
+		p := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		queued[p] = false
+		here := &table[p.lhs]
+		n, emptyBefore, closeBefore := len(here.first), here.nullable, here.leadingClose
+		if p.restoration() {
+			here.leadingClose = true
+		}
+		empty := true
+		for _, s := range p.rhs {
+			if s.term {
+				here.first[s.id] = true
+				empty = false
+				break
+			}
+			child := &table[s.id]
+			for terminal := range child.first {
+				here.first[terminal] = true
+			}
+			here.leadingClose = here.leadingClose || child.leadingClose
+			if !child.nullable {
+				empty = false
+				break
+			}
+		}
+		here.nullable = here.nullable || empty
+		if n != len(here.first) || emptyBefore != here.nullable || closeBefore != here.leadingClose {
+			for _, dependent := range dependents[p.lhs] {
+				if !queued[dependent] {
+					queued[dependent] = true
+					pending = append(pending, dependent)
+				}
+			}
+		}
+	}
+	return table
 }

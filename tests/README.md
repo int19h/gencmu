@@ -112,7 +112,7 @@ Each library also tests its recognizer on a capture of a rule that can end in ma
 
 A shared case shows that a library is wrong where it fails. It cannot show that a library is right. So each library also breaks itself on purpose, one fault at a time, and makes sure that the shared cases see the break. A fault is a private switch of the library's own tests, which the documented API does not name. Each one changes one path of the engine, mostly a path of the check of engine §7, in a way that the specification forbids.
 
-- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles, maximality, and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
+- The JavaScript library holds the full table. Its faults cover each observer of engine §7.5, the tags of synthetic tokens, and the routes and strictness of §7.4. They cover projection, queries (§7.6), cycles and ways to lose W(D). They also cover the order of steps 3 and 4 of §4. `lib/js/test/faults.json` names the cases that must catch each fault, and records every catch.
 - Each other library has faults of its own paths. Some are paths that JavaScript does not have, such as a ranker that rebuilds the check's links from completed spans and applies the tests there. Others are paths that every library has in a form of its own. Examples are the strictness of route 3, a restoration's test, and the ways to lose W(D). Another is the processing again of an item that an ordinary step reaches after it was processed as strict. Its own tests name, for each fault, the shared cases that catch it.
 
 Each library's fault test must establish three facts about each fault:
@@ -256,6 +256,14 @@ The runners replace `r16` with the selected deepest rule and regenerate each dou
 
 `unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
 
+An observed capture retains close information for a query. A caller is a rule that uses another rule.
+
+`callerScope` bounds an ordinary repetition beside an observed capture. The observed rule can reach that repetition through a parenthesis. Its demand must not split the ordinary caller into different close sequences.
+
+`impossiblePrefix` bounds a capture whose first token cannot start its aligned witness. The capture cannot be empty or begin with an omission. It needs no close sequences because every possible witness fails before their comparison.
+
+Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNodes` bounds close sequence nodes. `maxCloseStates` bounds close observation states. `itemsPerUnit` and `slack` bound chart items by `itemsPerUnit*length+slack`. Each library stops before its first count past a bound.
+
 ## Result mutants: `result-mutants.json`
 
 ```
@@ -277,6 +285,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
 Corpus identifiers stay stable when grammar rules change.
+
+`corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
 
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
 

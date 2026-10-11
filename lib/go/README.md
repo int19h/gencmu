@@ -36,7 +36,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 24 accepts `without-elision($x)`. A close is an omitted terminal at an original boundary. This span function restores captured omitted terminators for a query that preserves their closes.
+Grammar document object model (DOM) format 25 accepts `without-elision($x)`. A close is an omitted terminal at an original boundary. This span function restores captured omitted terminators for a query that preserves their closes.
 
 The query keeps original following input visible. `from(without-elision($x))` extends the match window through that input. Parse-result format 11 stays unchanged. No parse configuration controls this grammar facility.
 
@@ -96,7 +96,7 @@ GENCMU_PROPERTY_CASES=200000 GENCMU_PROPERTY_SEED=1000 go test -run TestRankingP
 
 For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases ranked with no lean, as elision-only's check ranks them, add `GENCMU_PROPERTY_RULE1`. To run one case again and print its derivations, add `GENCMU_PROPERTY_ONLY=seed`.
 
-`TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`, and occasional maximal `[++T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
+`TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
 
 The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
 

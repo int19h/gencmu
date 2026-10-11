@@ -81,10 +81,7 @@
   //
   // `hooks.work`, when set, counts work for the tests that it grows with the
   // input as it should: the items that the recognizer makes, in parses and
-  // nested parses alike (tests/growth.json), and the checks of maximality in
-  // nested queries, the items of the chart that they read to find their
-  // table, and the completions that they read for a tested symbol (engine
-  // §4). Each is counted where the work is done, as it is done, by
+  // nested parses alike (tests/growth.json). Each step counts through
   // countWork, which throws a WorkBudget at the first count past the budget
   // that `hooks.work.budget` gives it, if any, so that a regression to
   // quadratic work stops at once. Unset, a parse counts nothing.
@@ -143,11 +140,6 @@
    * @property {number} packedEdges distinct packed forest edges
    * @property {number} summaryContexts summary results stored per traversal
    * @property {number} items the items that the recognizer made
-   * @property {number} checks the checks of maximality in nested queries
-   * @property {number} scanned the items of the chart that those checks
-   *   read to find their table of completions
-   * @property {number} candidates the completions that those checks read for
-   *   a tested symbol
    * @property {number} captures the captured parts that the recognizer made
    * @property {number} captureSteps the steps that find a captured part from
    *   the last one, or that list every part at once
@@ -193,10 +185,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -1780,6 +1772,107 @@
     return wanted;
   }
 
+  /** @typedef {{whole:boolean, parts:Set<number>, queries:Map<number,Set<string>|null>}} LocalCloseDemand */
+  /** @type {WeakMap<import("./types.js").Production,LocalCloseDemand>} */
+  const localDemands = new WeakMap();
+
+  /**
+   * Only a caller that consumes an observation asks its child to retain it.
+   * A private whole capture also needs the enclosing written alternative.
+   * @param {import("./types.js").Production} production
+   * @returns {LocalCloseDemand}
+   */
+  function localCloseDemand(production) {
+    const base = production.baseProduction ?? production;
+    const old = localDemands.get(base);
+    if (old) return old;
+    const result = {whole:false, parts:new Set(), queries:new Map()};
+    const stack = [base.conditions, base.tags, base.emit, base.rankedDeferred,
+      base.parentTags, base.writtenTagClauses, base.source?.clauses.conditions];
+    const seen = new Set();
+    while (stack.length) {
+      const node = /** @type {any} */ (stack.pop());
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      const value = node.matches ?? node.begins;
+      const aligned = value?.call === "from" ? value.args[0] : value;
+      if (aligned?.call === "without-elision" && typeof node.rule === "string") {
+        const part = base.captures.find(capture => capture.name === aligned.args[0].capture);
+        if (part) {
+          result.parts.add(part.index);
+          if (!result.queries.has(part.index)) result.queries.set(part.index,new Set());
+          result.queries.get(part.index)?.add(node.rule);
+          continue;
+        }
+      }
+      if (node.call === "without-elision") {
+        const name = node.args[0].capture;
+        if (name === "") result.whole = true;
+        else {
+          const part = base.captures.find(capture => capture.name === name);
+          if (part) {
+            result.parts.add(part.index);
+            result.queries.set(part.index,null);
+          }
+        }
+      }
+      for (const value of Object.values(node)) stack.push(value);
+    }
+    localDemands.set(base, result);
+    return result;
+  }
+
+  /** @typedef {{nullable:boolean, leadingClose:boolean, first:Set<import("./types.js").GrammarSymbol>}} QueryPrefix */
+  /** @type {WeakMap<import("./types.js").LoweredGrammar,Map<string,QueryPrefix>>} */
+  const prefixes = new WeakMap();
+
+  /**
+   * Conditions can only reduce these possible prefixes. A leading omission
+   * or an empty capture prevents this shortcut from discarding observations.
+   * @param {import("./types.js").LoweredGrammar} grammar
+   * @returns {Map<string,QueryPrefix>}
+   */
+  function queryPrefixes(grammar) {
+    const old = prefixes.get(grammar);
+    if (old) return old;
+    const table = new Map([...grammar.byLhs.keys()].map(name =>
+      [name,{nullable:false,leadingClose:false,first:new Set()}]));
+    /** @type {Map<string,Set<import("./types.js").Production>>} */
+    const dependents = new Map();
+    for (const production of grammar.productions) {
+      for (const symbol of production.rhs) if (!symbol.terminal) {
+        if (!dependents.has(symbol.name)) dependents.set(symbol.name,new Set());
+        dependents.get(symbol.name)?.add(production);
+      }
+    }
+    const pending = grammar.productions.slice(), queued = new Set(pending);
+    while (pending.length) {
+      const production = /** @type {import("./types.js").Production} */ (pending.pop());
+      queued.delete(production);
+      const here = /** @type {QueryPrefix} */ (table.get(production.lhs));
+      const before = here.first.size;
+      const wasEmpty = here.nullable, wasClose = here.leadingClose;
+      if (production.rhs.length === 0 && production.elided !== null) here.leadingClose = true;
+      let empty = true;
+      for (const symbol of production.rhs) {
+        if (symbol.terminal) { here.first.add(symbol); empty = false; break; }
+        const child = /** @type {QueryPrefix} */ (table.get(symbol.name));
+        for (const terminal of child.first) here.first.add(terminal);
+        here.leadingClose ||= child.leadingClose;
+        if (!child.nullable) { empty = false; break; }
+      }
+      here.nullable ||= empty;
+      if (before !== here.first.size || wasEmpty !== here.nullable || wasClose !== here.leadingClose) {
+        for (const dependent of dependents.get(production.lhs) ?? []) if (!queued.has(dependent)) {
+          queued.add(dependent);
+          pending.push(dependent);
+        }
+      }
+    }
+    prefixes.set(grammar,table);
+    return table;
+  }
+
   // ---- patterns.js
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
@@ -2279,17 +2372,10 @@
   // completed items of a queried rule have an eligible witness.
 
   /**
-   * @import { Edge, Item, LoweredGrammar, SymbolTest, TagSet } from "./types.js"
-   * @import { Chart, ParseContext } from "./earley.js"
+   * @import { Edge, Item, LoweredGrammar } from "./types.js"
+   * @import { Chart } from "./earley.js"
    */
 
-
-
-  /**
-   * Whether a test holds of a span with the given tags: the recognizer's own,
-   * passed in so that this module does not import the recognizer.
-   * @typedef {(context: ParseContext, test: SymbolTest, from: number, to: number, tags: TagSet) => boolean} TestHolds
-   */
 
   /** @type {WeakMap<LoweredGrammar, Set<string>>} */
   const elidableHelpers = new WeakMap();
@@ -2344,11 +2430,6 @@
    *   is forbidden when the chart advances that item over the nonempty
    *   alternative.
    *
-   * An omission of a maximal terminator with a constituent Y is also
-   * forbidden when the chart has a longer Y: a completed item of Y from the
-   * same origin with a later end, which passes Y's test. Maximality never
-   * forbids an omission with no constituent.
-   *
    * The chart is the whole recognition of the query, before any filtering,
    * so an attempt that never completes the rule can forbid an omission.
    *
@@ -2358,10 +2439,9 @@
    * so a permitted omission never combines with another witness's prefix.
    * @param {Chart} chart
    * @param {Item[]} witnesses
-   * @param {TestHolds} testHolds
    * @returns {Item[]}
    */
-  function eligibleWitnesses(chart, witnesses, testHolds) {
+  function eligibleWitnesses(chart, witnesses) {
     if (witnesses.length === 0) return witnesses;
     const helpers = helpersOf(chart.context.lowered);
     if (helpers.size === 0) return witnesses;
@@ -2440,55 +2520,6 @@
       if (item.dot === 1 && rhs[0].name === item.production.lhs) return "alone";
       return "constituent";
     });
-    // Whether the optional after each item is of a maximal terminator.
-    const lowered = chart.context.lowered;
-    const maximalNext = order.map((item, x) => {
-      if (next[x] !== "constituent" || lowered.maximalHelpers.size === 0) return false;
-      const helpers = lowered.byLhs.get(item.production.rhs[item.dot].name) || [];
-      return helpers.some((production) => production.elided !== null && lowered.maximalHelpers.has(production.lhs));
-    });
-    // The completed items of each symbol from each origin, in the query's
-    // chart, made once per query when a maximal terminator needs them, with
-    // the furthest end of each list. For a tested symbol, the furthest end of
-    // a completion that passes the test is kept for each test, since a test
-    // reads only the candidate's own span and tags. So each check is a
-    // lookup, and not a walk of the list.
-    /** @type {Map<string, {items: Item[], furthest: number, tested: Map<SymbolTest, number>}> | null} */
-    let completed = null;
-    /** @type {(constituent: Item, x: number) => boolean} */
-    const longer = (constituent, x) => {
-      if (hooks.work) countWork(hooks.work, "checks");
-      if (completed === null) {
-        completed = new Map();
-        for (const set of chart.sets) {
-          if (!set) continue;
-          for (const item of set.items) {
-            if (hooks.work) countWork(hooks.work, "scanned");
-            if (item.dot !== item.production.rhs.length) continue;
-            const key = `${item.production.lhs}\u0000${item.origin}/${item.production.lexicalFrame?.id ?? ""}`;
-            const entry = completed.get(key);
-            if (entry) {
-              entry.items.push(item);
-              if (item.end > entry.furthest) entry.furthest = item.end;
-            } else completed.set(key, { items: [item], furthest: item.end, tested: new Map() });
-          }
-        }
-      }
-      const entry = completed.get(`${constituent.production.lhs}\u0000${constituent.origin}/${constituent.production.lexicalFrame?.id ?? ""}`);
-      if (entry === undefined) return false;
-      const test = order[x].production.rhs[order[x].dot - 1].test;
-      if (!test) return entry.furthest > constituent.end;
-      let furthest = entry.tested.get(test);
-      if (furthest === undefined) {
-        furthest = -1;
-        for (const candidate of entry.items) {
-          if (hooks.work) countWork(hooks.work, "candidates");
-          if (candidate.end > furthest && testHolds(chart.context, test, candidate.origin, candidate.end, chart.context.interner.get(candidate.tagId))) furthest = candidate.end;
-        }
-        entry.tested.set(test, furthest);
-      }
-      return furthest > constituent.end;
-    };
     const eligible = new Uint8Array(order.length);
     const permits = new Uint8Array(order.length);
     /** @type {(item: Item) => number} */
@@ -2516,7 +2547,7 @@
             if (!reads.has(item)) l = 1;
           } else if (next[x] === "constituent" && edge.kind === "complete") {
             const end = further.get(edge.previous);
-            if ((end === undefined || end < item.end) && !(maximalNext[x] && longer(edge.child, x))) l = 1;
+            if (end === undefined || end < item.end) l = 1;
           }
         }
         if (a && !eligible[x]) {
@@ -2746,7 +2777,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 24;
+  const DOM_FORMAT = 25;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2891,7 +2922,7 @@
    * The forms of an expression, a term and a condition, each as its members
    * (docs/output.md). The first member names the form.
    */
-  const EXPRESSION_FORMS = [["seq"], ["choice"], ["ranked"], ["and"], ["optional", "elidable?", "maximal?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
+  const EXPRESSION_FORMS = [["seq"], ["choice"], ["ranked"], ["and"], ["optional", "elidable?"], ["repeat", "separator?", "chain?"], ["ref"], ["terminal"], ["capture", "expr"],
     ["range"], ["property"], ["test", "value", "expr"], ["empty"]];
   const TERM_FORMS = [["pattern"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["call", "args"], ["string"], ["tag"], ["range"], ["emptySet"], ["capture"], ["const", "at"]];
   const CONDITION_FORMS = [["op", "left", "right"], ["matches", "rule"], ["begins", "rule"], ["initial"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]];
@@ -3038,9 +3069,9 @@
           pushExpr(value.repeat, true);
           if ("separator" in value) pushExpr(value.separator, true);
         } else if ("optional" in value) {
-          // An elidable optional is marked true, and maximal only with it;
+          // An elidable optional is marked true;
           // its expression begins with its terminal (engine §3.8, §9).
-          if (("elidable" in value && value.elidable !== true) || ("maximal" in value && (value.maximal !== true || !("elidable" in value)))) return "a malformed expression";
+          if (("elidable" in value && value.elidable !== true)) return "a malformed expression";
           if (value.elidable === true && elidableHead(value.optional) === null) return "a malformed elidable optional";
           pushExpr(value.optional, value.elidable === true);
         } else if ("capture" in value) {
@@ -6025,10 +6056,6 @@
       /** @type {WeakMap<SequenceItem[],{group:import("./ranked.js").RankedGroup,option:number}>} */
       this.rankedSequences = new WeakMap();
       this.rankedHelpers = new Set();
-      // The helpers of the optionals written [++T x], whose terminators are
-      // maximal (engine §3.8, §4).
-      /** @type {Set<string>} */
-      this.maximalHelpers = new Set();
       // The structural grammar (engine §3.3): every production that the gates
       // and the expansion make, before a false condition removes any, with
       // its symbols' tests ignored.
@@ -6059,7 +6086,6 @@
       return {
         productions: this.productions,
         byLhs: this.byLhs,
-        maximalHelpers: this.maximalHelpers,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
       };
@@ -6411,12 +6437,11 @@
           });
         }
         // Any other optional is a helper, and a marked one is elidable, with
-        // the terminal that its marker names; ++ makes it maximal
+        // the terminal that its marker names
         // (engine §3.8).
         const elided = expr.elidable === true ? this.elidedTerminal(inner, where) : null;
         this.helperExpression = expr;
         const name = this.helper(where, (context) => [/** @type {SequenceItem[]} */ ([]), ...this.expand(inner, context)], elided);
-        if (expr.maximal === true) this.maximalHelpers.add(name);
         return [[{ symbol: { name, terminal: false } }]];
       }
       if ("repeat" in expr) {
@@ -6661,6 +6686,7 @@
    *   making it: a set the recognizer never reached is empty
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
+   * @property {boolean} [closeRequested]
    */
 
   // Interns tag sets, so that an item names a captured part's tags by number.
@@ -6796,7 +6822,7 @@
    */
   function restoredClose(context, production, position) {
     const machine = context.closes;
-    if (!machine || !context.closeRules.has(production.lhs)) return null;
+    if (!machine || !production.observesCloses) return null;
     if (context.synthetic?.[position]) {
       return terminalObservation(context, /** @type {string} */ (production.elided), position);
     }
@@ -6956,7 +6982,7 @@
    */
   function closeStep(context, production, dot, origin, previous, child, end) {
     const machine = context.closes;
-    if (!machine || !context.closeRules.has(production.lhs)) return null;
+    if (!machine || !production.observesCloses) return null;
     let prefix = previous?.observationPrefix ?? machine.empty;
     if (previous && child) {
       prefix = machine.concat(prefix, /** @type {CloseObservation} */ (closeChild(context, previous, child)));
@@ -7419,9 +7445,9 @@
       for (const set of chart.sets) {
         if (!set || set.position > constraint.matchEnd) continue;
         if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const qualified = eligibleWitnesses(chart,witnesses,testHolds);
+      const qualified = eligibleWitnesses(chart, witnesses);
       const aligned = qualified.filter(item => item.observation && context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
       if (kind === "tags") {
         const tags = new TagUnion();
@@ -7429,19 +7455,19 @@
         answer = tags.result();
       } else answer = aligned.length !== 0;
     } else   if (kind === "matches") {
-      answer = eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0;
+      answer = eligibleWitnesses(chart, rootItems(chart, rule)).length > 0;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
       const witnesses = [];
       for (const set of chart.sets) {
         if (set === undefined) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      answer = eligibleWitnesses(chart, witnesses, testHolds).length > 0;
+      answer = eligibleWitnesses(chart, witnesses).length > 0;
     } else {
       const result = new TagUnion();
-      for (const item of eligibleWitnesses(chart, rootItems(chart, rule), testHolds)) result.add(context.interner.get(item.tagId));
+      for (const item of eligibleWitnesses(chart, rootItems(chart, rule))) result.add(context.interner.get(item.tagId));
       answer = result.result();
     }
     context.nested.set(query.key, answer);
@@ -7495,15 +7521,53 @@
     const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
     const width = end - start + 1;
+    // Ordinary and observed uses share the grammar, but have different
+    // prediction and completion identities. Otherwise a demand inside a
+    // parenthesis also splits unrelated paragraphs into all close sequences.
+    /** @type {Map<string,Production>} */
+    const variants = new Map();
+    /** @param {Production} production @param {boolean} requested @returns {Production} */
+    const variant = (production, requested) => {
+      if (!context.closes) return production;
+      const key = `${production.id}/${production.lexicalFrame?.id ?? -1}/${requested}`;
+      let found = variants.get(key);
+      if (found) return found;
+      found = {...production, baseProduction:production.baseProduction ?? production,
+        closeRequested:requested,
+        observesCloses:requested || localCloseDemand(production).whole};
+      variants.set(key, found);
+      return found;
+    };
+    const prefixTable = context.closes ? queryPrefixes(lowered) : null;
+    /** @param {Item} item @returns {boolean} */
+    const requestChild = item => {
+      if (!context.closes) return false;
+      if (item.production.observesCloses) return true;
+      const demand = localCloseDemand(item.production);
+      if (!demand.parts.has(item.dot)) return false;
+      const rules = demand.queries.get(item.dot);
+      const child = prefixTable?.get(item.production.rhs[item.dot].name);
+      const token = tokens[item.end];
+      if (!rules || !child || child.nullable || child.leadingClose || !token || context.recon) return true;
+      for (const rule of rules) {
+        const prefix = prefixTable?.get(rule);
+        if (!prefix || prefix.nullable) return true;
+        for (const terminal of prefix.first) if (reads(context,terminal,token)) return true;
+      }
+      return false;
+    };
+    /** @param {string} name @param {any} frame @param {boolean|undefined} requested */
+    const demandKey = (name, frame, requested) =>
+      (frame ? `${name}/${frame.id}` : name) + (requested ? "/observed" : "");
     const lexical = lowered.ranked?.groups.length ? rankedFrameTable(context) : null;
     /** @param {Item} item */
     const waitingKey = item => {
       const name = item.production.rhs[item.dot].name;
       const frame = lexical?.entry(item,name);
-      return frame ? `${name}/${frame.id}` : name;
+      return demandKey(name,frame,requestChild(item));
     };
     /** @param {Production} production */
-    const completionKey = production => production.lexicalFrame ? `${production.lhs}/${production.lexicalFrame.id}` : production.lhs;
+    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,production.closeRequested);
 
     // The reconstruction mode of engine §7.4, or the old contract's
     // mandatory optionals (a fault); null for the ordinary mode of §4.
@@ -7522,6 +7586,7 @@
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
@@ -7623,6 +7688,7 @@
       const target = setAt(position + 1);
       const structure = omittedState(context, production.elided);
       let key = itemKey((production.id * dots) * width + position - start, null);
+      if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       const observation = restoredClose(context,production,position);
@@ -7654,6 +7720,7 @@
     /** @type {ChartSet} */
     let predictSet = /** @type {any} */ (null);
     let predictName = "";
+    let predictCloses = false;
     let predictStrict = false;
     /** @type {any} */
     let predictFrame = null;
@@ -7663,9 +7730,9 @@
     let predictSkipped = false;
 
     // Begins the prediction of a rule in a set: false when it adds nothing.
-    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any) => boolean} */
-    const beginPredict = (set, name, strict = false, frame = null) => {
-      const key = frame ? `${name}/${frame.id}` : name;
+    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: boolean) => boolean} */
+    const beginPredict = (set, name, strict = false, frame = null, requested = false) => {
+      const key = demandKey(name,frame,requested);
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
@@ -7676,6 +7743,7 @@
       if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
       set.predicted.set(key, strict);
       predictFrame = frame;
+      predictCloses = requested;
       predictSet = set;
       predictName = name;
       predictStrict = strict;
@@ -7700,7 +7768,7 @@
       const next = set.position < end ? tokens[set.position] : null;
       for (; predictIndex < productions.length; predictIndex++) {
         const base = productions[predictIndex];
-        const production = predictFrame ? /** @type {NonNullable<typeof lexical>} */ (lexical).production(base,predictFrame) : base;
+        const production = variant(predictFrame ? /** @type {NonNullable<typeof lexical>} */ (lexical).production(base,predictFrame) : base, predictCloses);
         if (production.helper && production.elided !== null && production.rhs.length === 0 && !fault("omission:skip") && !omissionAllowed(production)) continue;
         // In the reconstruction mode, the empty production of an elidable
         // optional is its restoration, and it never derives the empty
@@ -7862,7 +7930,7 @@
     let strict = false;
     /** @type {Pending | null} */
     let halted = null;
-    beginPredict(setAt(start), rule);
+    beginPredict(setAt(start), rule,false,null,!!query?.aligned);
 
     /** @type {Run} */
     const run = {
@@ -7944,7 +8012,7 @@
               } else if (!symbol.terminal) {
                 // A strict item predicts its next symbol strictly where no
                 // symbol after it can read (engine §7.4).
-                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null) ? PREDICT : EMPTIES;
+                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null,requestChild(taken)) ? PREDICT : EMPTIES;
                 if (kind === EMPTIES) next = -1;
               } else if (at < end && (symbol.characters === undefined ? tokens[at].tags.has(symbol.name) : carries(context.unicode, symbol.characters, tokens[at].tags))) {
                 // The written routes of an elidable optional (engine §7.4):
@@ -8026,7 +8094,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context };
+          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned };
         }
         step = kind;
         item = entry;
@@ -8433,7 +8501,7 @@
    */
   function rootItems(chart, rule) {
     return chart.setAt(chart.end).items.filter((item) =>
-      item.complete && item.origin === chart.start && item.production.lhs === rule);
+      item.complete && item.origin === chart.start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested);
   }
 
   /**
@@ -8939,7 +9007,7 @@
     const rspan = span.space === "R" ? [span.start, span.end] : span.reconstructed || [span.start, span.end];
     const [start, end] = span.space === "R" ? [recon.project[span.start], recon.project[span.end]] : [span.start, span.end];
     if (fault("F3")) return { context: faultyContext(r, "F3"), start: rspan[0], end: rspan[1], key: null, fromCheck: true };
-    for (const name of ["F2", "F5", "F6"]) {
+    for (const name of ["F2"]) {
       if (fault(name)) return { context: faultyContext(r, name), start, end, key: null, fromCheck: true };
     }
     if (fault("F4")) {
@@ -8961,9 +9029,7 @@
     let found = recon.faulty.get(name);
     if (found) return found;
     const observed = recon.observed;
-    let lowered = observed.lowered;
-    if (name === "F5") lowered = { ...lowered, maximalHelpers: new Set() };
-    if (name === "F6") lowered = { ...lowered, maximalHelpers: new Set(lowered.productions.flatMap((production) => (production.helper && production.elided !== null ? [production.lhs] : []))) };
+    const lowered = observed.lowered;
     const tokens = name === "F3" || name === "F13" ? r.tokens : observed.tokens;
     found = new ParseContext(lowered, tokens, observed.sourceText, observed.unicode);
     if (name === "F13" || name === "F2") {
@@ -10483,14 +10549,6 @@
 
   /**
    * @import { Action, Derivation, Item, Lean, Production, ReadAction, Rope, RopeConcat, RopeLeaf, Token } from "./types.js"
-   * @import { Maximal } from "./maximal.js"
-   */
-
-  /**
-   * A value over an item's derivations, and over those an elided terminator
-   * may follow (see Ranker.allowedCandidates).
-   * @template T
-   * @typedef {{all: T, allowed: T}} Allowed
    */
 
   /**
@@ -10822,8 +10880,7 @@
   // pair's decision by lean, and where that is a tie, the
   // canonical keys; sequences equal in their visible actions are ordered at
   // their first difference among all actions. The first reading is T's
-  // minimum. T orders the diagnostics and picks the terminator that a
-  // maximal rejection reports, and never turns a tie into a choice.
+  // minimum. T orders diagnostics and never turns a tie into a choice.
   /**
    * @param {Rope} left
    * @param {Rope} right
@@ -10873,13 +10930,11 @@
     /**
      * @param {Token[]} tokens
      * @param {Lean} lean
-     * @param {Maximal | null} [maximal] the maximal terminators, if there are
-     *   any (engine §4)
      * @param {number[] | null} [project] positions to find cycles over in
      *   place of the items' own, which only a fault of the check of engine
      *   §7 gives (F19)
      */
-    constructor(tokens, lean, maximal = null, project = null) {
+    constructor(tokens, lean, project = null) {
       this.tokens = tokens;
       /** @type {(left: Item, right: Item) => boolean} */
       this.sameSpan = project === null
@@ -10893,8 +10948,7 @@
       this.profileProject = null;
       /** @type {Lean} */
       this.lean = this.elisions ? "none" : lean;
-      this.maximal = maximal;
-      /** @type {{plain: Map<Item, Allowed<ElisionSummary>>, contextual: Map<Item, Map<string, Allowed<ElisionSummary>>>}} */
+      /** @type {{plain: Map<Item, ElisionSummary>, contextual: Map<Item, Map<string, ElisionSummary>>}} */
       this.summaries = { plain: new Map(), contextual: new Map() };
       /** @type {Map<number, ElisionSeq>} */
       this.elisionLeaves = new Map();
@@ -10904,9 +10958,9 @@
       // groupRules, or undefined for a rule that cannot reach itself there.
       /** @type {(rule: string) => number | undefined} */
       this.groups = (rule) => this.ruleGroups.get(rule);
-      /** @type {{plain: Map<Item, Allowed<Candidate[]>>, contextual: Map<Item, Map<string, Allowed<Candidate[]>>>}} */
+      /** @type {{plain: Map<Item, Candidate[]>, contextual: Map<Item, Map<string, Candidate[]>>}} */
       this.memo = { plain: new Map(), contextual: new Map() };
-      /** @type {{plain: Map<Item, Allowed<number> & {w: boolean}>, contextual: Map<Item, Map<string, Allowed<number> & {w: boolean}>>}} */
+      /** @type {{plain: Map<Item, {all: number} & {w: boolean}>, contextual: Map<Item, Map<string, {all: number} & {w: boolean}>>}} */
       this.counts = { plain: new Map(), contextual: new Map() };
       /** @type {Map<Item, RopeLeaf>} */
       this.closes = new Map();
@@ -10942,40 +10996,30 @@
      * @returns {Candidate[]}
      */
     candidates(item) {
-      return this.allowedCandidates(item).all;
+      return this.candidateSummary(item);
     }
 
-    // An item's candidates twice: over all its derivations, and, under maximal
-    // (engine §4, §6), for an item whose next symbol is an elidable optional,
-    // over only the ways of building it whose last symbol's node maximal does
-    // not forbid, which an elided terminator may follow. An elided
-    // terminator's edge takes the second of the item before it.
+    // Candidates preserve their cycle and admission context.
     /**
      * @param {Item} item
-     * @returns {Allowed<Candidate[]>}
+     * @returns {Candidate[]}
      */
-    allowedCandidates(item) {
-      const maximal = this.maximal;
+    candidateSummary(item) {
       return this.traverse(item, this.memo, (current, dependency, key) => {
-        const guarded = maximal !== null && maximal.guards(current);
         // Under late-elision, only the edges that attain the least vector of
         // the item in its context (engine §6).
         const summary = this.elisions || this.profiles ? this.summaryAt(current, key) : null;
         const admitted = this.admission?.mask(current, key);
         /** @type {Candidate[]} */
         let all = [];
-        /** @type {Candidate[]} */
-        let allowed = [];
         // The getter builds the list on each read, so it is read once.
         current.edges.forEach((edge, index, edges) => {
           // A fault skips the last of two or more edges in the check (lost:select).
           if (this.check && index > 0 && index === edges.length - 1 && fault("lost:select")) return;
-          const inAll = (summary === null || summary.all.kept.has(index)) && (!admitted || admitted.all.has(index));
-          const inAllowed = (summary === null || summary.allowed.kept.has(index)) && (!admitted || admitted.allowed.has(index));
-          if (!inAll && !inAllowed) return;
+          const inAll = (summary === null || summary.kept.has(index)) && (!admitted || admitted.has(index));
+          if (!inAll) return;
           /** @type {Candidate[]} */
           let produced;
-          let permitted = true;
           if (edge.kind === "seed") produced = [{ seq: EMPTY, alts: [], at: Infinity }];
           // A restoration reads its synthetic token, and its own close
           // follows (engine §7.4, §7.7).
@@ -10984,11 +11028,11 @@
           else if (edge.kind === "restore") produced = fault("lost:rank", "candidates") ? [] : [{ seq: this.readLeaf(edge.token, edge.terminal), alts: [], at: Infinity }];
           else if (edge.kind === "scan") {
             const read = this.readLeaf(edge.token, edge.terminal);
-            produced = dependency(edge.previous).all.map((entry) => extend(entry, read));
+            produced = dependency(edge.previous).map((entry) => extend(entry, read));
           } else {
             const close = this.closeLeaf(edge.child);
-            const children = dependency(edge.child).all.map((entry) => extend(entry, close));
-            const earlier = maximal !== null && maximal.elided(edge.child) ? dependency(edge.previous).allowed : dependency(edge.previous).all;
+            const children = dependency(edge.child).map((entry) => extend(entry, close));
+            const earlier = dependency(edge.previous);
             produced = [];
             for (const before of earlier) {
               for (const child of children) {
@@ -11001,43 +11045,32 @@
                 produced.push(entry);
               }
             }
-            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
           for (const entry of produced) {
             if (inAll) all = this.keep(all, entry);
-            if (guarded && permitted && inAllowed) allowed = this.keep(allowed, entry);
           }
         });
-        return { all, allowed: guarded ? allowed : all };
-      }, { all: [], allowed: [] }, this.elisions || this.profiles ? (current, key) => this.keptEdges(current, key) : null);
+        return all;
+      }, [], this.elisions || this.profiles ? (current, key) => this.keptEdges(current, key) : null);
     }
 
-    // Under late-elision, an item's summaries in one context (engine §6).
-    // As for the candidates, one summary covers all its derivations, and the
-    // other only those that an elided terminator can follow. Each holds the
-    // least elision vector, the number of derivations that attain it and the
-    // number of all derivations, both capped at two. It also holds the edges
-    // that attain the least vector.
+    // Each context holds its least elision vector and retained edges.
     /**
      * @param {Item} item
-     * @returns {Allowed<ElisionSummary>}
+     * @returns {ElisionSummary}
      */
     elisionSummary(item) {
-      const maximal = this.maximal;
       return this.traverse(item, this.summaries, (current, dependency, key) => {
-        const guarded = maximal !== null && maximal.guards(current);
         const all = noDerivation();
-        const allowed = guarded ? noDerivation() : all;
         const admitted = this.admission?.mask(current, key);
         current.edges.forEach((edge, index) => {
-          if (admitted && !admitted.all.has(index) && !admitted.allowed.has(index)) return;
+          if (admitted && !admitted.has(index)) return;
           /** @type {ElisionSeq} */
           let vector;
           /** @type {RuleProfile} */
           let profile = [];
           let least;
           let total;
-          let permitted = true;
           if (edge.kind === "seed" || edge.kind === "restore") {
             // The helper of an elidable optional that derives ε elides its
             // terminator where it is empty. A restoration elides nothing.
@@ -11045,7 +11078,7 @@
             least = 1;
             total = 1;
           } else if (edge.kind === "scan") {
-            const before = dependency(edge.previous).all;
+            const before = dependency(edge.previous);
             if (before.total === 0) return;
             vector = /** @type {ElisionSeq} */ (before.vector);
             profile = before.profile;
@@ -11053,25 +11086,23 @@
             total = before.total;
           } else {
             const earlier = dependency(edge.previous);
-            const before = maximal !== null && maximal.elided(edge.child) ? earlier.allowed : earlier.all;
-            const child = dependency(edge.child).all;
+            const before = earlier;
+            const child = dependency(edge.child);
             if (before.total === 0 || child.total === 0) return;
             vector = concatElisions(/** @type {ElisionSeq} */ (before.vector), /** @type {ElisionSeq} */ (child.vector));
             profile = sumProfiles(before.profile, child.profile);
             least = Math.min(2, before.least * child.least);
             total = Math.min(2, before.total * child.total);
-            if (guarded) permitted = !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test);
           }
           if (current.dot === current.production.rhs.length && current.production.flags.includes("leftmost-longest")) {
             const p = this.profileProject?.[current.origin] ?? current.origin;
             const q = this.profileProject?.[current.end] ?? current.end;
             if (p < q) profile = sumProfiles(profile, [[p, q, 1]]);
           }
-          if (!admitted || admitted.all.has(index)) addEdge(all, index, vector, least, total, profile);
-          if ((!admitted || admitted.allowed.has(index)) && guarded && permitted) addEdge(allowed, index, vector, least, total, profile);
+          if (!admitted || admitted.has(index)) addEdge(all, index, vector, least, total, profile);
         });
-        return { all, allowed };
-      }, { all: noDerivation(), allowed: noDerivation() });
+        return all;
+      }, noDerivation());
     }
 
     /**
@@ -11079,7 +11110,7 @@
      * elisionSummary has already computed.
      * @param {Item} item
      * @param {string} key
-     * @returns {Allowed<ElisionSummary>}
+     * @returns {ElisionSummary}
      */
     summaryAt(item, key) {
       const found = key === "" ? this.summaries.plain.get(item) : this.summaries.contextual.get(item)?.get(key);
@@ -11095,7 +11126,7 @@
      */
     keptEdges(item, key) {
       const summary = this.summaryAt(item, key);
-      return item.edges.filter((_, index) => summary.all.kept.has(index) || summary.allowed.kept.has(index));
+      return item.edges.filter((_, index) => summary.kept.has(index));
     }
 
     /**
@@ -11241,29 +11272,25 @@
     }
 
     /**
-     * The number of an item's derivations, capped at two, over all of them
-     * and over those that maximal allows. With the witness hook's marks, `w`
+     * The number of an item's derivations, capped at two. With the witness hook's marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
      * A dependency that closes a cycle has no derivation, and no `w`.
      * @param {Item} item
-     * @returns {Allowed<number> & {w: boolean}}
+     * @returns {{all: number} & {w: boolean}}
      */
     countOf(item) {
-      const maximal = this.maximal;
       const marks = this.marks;
       return this.traverse(item, this.counts, (current, dependency, key) => {
-        const guarded = maximal !== null && maximal.guards(current);
         const marked = marks === null ? undefined : marks.get(current.slotOriginal ?? current);
         const edges = current.edges;
         const admitted = this.admission?.compute(current, dependency, key);
         let all = 0;
-        let allowed = 0;
         let w = false;
         for (let index = 0; index < edges.length; index++) {
           const edge = edges[index];
-          if (admitted && !admitted.all.has(index) && !admitted.allowed.has(index)) continue;
+          if (admitted && !admitted.has(index)) continue;
           let ways;
           let edgeW;
           if (edge.kind === "restore" && fault("lost:rank", "count")) continue;
@@ -11280,18 +11307,17 @@
           } else {
             const before = dependency(edge.previous);
             const child = dependency(edge.child);
-            ways = (maximal !== null && maximal.elided(edge.child) ? before.allowed : before.all) * child.all;
+            ways = before.all * child.all;
             edgeW = before.w && child.w;
           }
-          if ((!admitted || admitted.all.has(index)) && marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
-          if (!admitted || admitted.all.has(index)) all = Math.min(2, all + ways);
-          if ((!admitted || admitted.allowed.has(index)) && guarded && (edge.kind !== "complete" || !(/** @type {Maximal} */ (maximal)).forbids(edge.child, current.production.rhs[current.dot - 1].test))) allowed = Math.min(2, allowed + ways);
+          if ((!admitted || admitted.has(index)) && marked !== undefined && ways > 0 && edgeW && marked.has(this.admission?.forest?.rawIndices.get(edge) ?? index)) w = true;
+          if (!admitted || admitted.has(index)) all = Math.min(2, all + ways);
           // The count is capped and only grows, so the loop can stop at two,
           // but with marks only once `w` is known.
-          if (all === 2 && (!guarded || allowed === 2) && (marked === undefined || w)) break;
+          if (all === 2 && (marked === undefined || w)) break;
         }
-        return { all, allowed: guarded ? allowed : all, w };
-      }, { all: 0, allowed: 0, w: false });
+        return { all, w };
+      }, { all: 0, w: false });
     }
 
     // Computes `combine(item, dependency)` for an item after every item it
@@ -11419,7 +11445,6 @@
         if (hooks.work) countWork(hooks.work, "traversal");
         const frame = stack[stack.length - 1];
         if (!frame.started) {
-          if(frame.item.slotScope?.blocked){deliver(cut);continue;}
           if (complete(frame.item) && frame.context.has(ruleKey(frame.item))) {
             deliver(cut);
             continue;
@@ -11571,7 +11596,7 @@
         // Every complete item of `text` is an edge of one root (engine §6).
         const root = noDerivation();
         roots.forEach((item, index) => {
-          const summary = this.elisionSummary(item).all;
+          const summary = this.elisionSummary(item);
           if (summary.total > 0) addEdge(root, index, /** @type {ElisionSeq} */ (summary.vector), summary.least, summary.total, summary.profile);
         });
         if (this.marks !== null) {
@@ -11937,10 +11962,9 @@
   // A ranking view carries the written invocation across generated helpers.
   // Recognition keeps the original chart and its completion tables.
   /** @typedef {import("./types.js").Item} Item */
-  /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item,restricted:boolean}[],blocked:boolean}} SlotScope */
-  /** @typedef {{all:Set<number>,allowed:Set<number>}} RouteMask */
-  /** @param {import("./earley.js").Chart} chart @param {Set<string>} names @param {import("./maximal.js").Maximal|null} maximal */
-  function helperSlotForest(chart, names, maximal) {
+  /** @typedef {{id:number,frames:Item[],bounds:{carrier:Item}[]}} SlotScope */
+  /** @param {import("./earley.js").Chart} chart @param {Set<string>} names */
+  function helperSlotForest(chart, names) {
     const lowered = chart.context.lowered;
     const helpers = new Set(lowered.productions.filter(p => p.helper).map(p => p.lhs));
     const users = new Map();
@@ -11963,8 +11987,6 @@
     const scopes = new Map();
     /** @type {Item[]} */
     const queue = [];
-    /** @type {Map<Item,RouteMask>} */
-    const routeMasks = new Map();
     /** @type {WeakMap<import("./types.js").Edge,number>} */
     const rawIndices = new WeakMap();
     let nextScope = 0, nextSource = 0;
@@ -11993,51 +12015,38 @@
       queue.push(item);
       return item;
     };
-    /** @param {Item} before @param {Item} carrier @param {SlotScope|null} outer @param {boolean} restricted @param {boolean} guarded @returns {SlotScope} */
-    const scopeFor = (before, carrier, outer, restricted, guarded) => {
+    /** @param {Item} before @param {Item} carrier @param {SlotScope|null} outer @returns {SlotScope} */
+    const scopeFor = (before, carrier, outer) => {
       // A flat repetition consumes another item within the same invocation.
       if (outer && before.production.lhs === carrier.production.lhs) return outer;
-      const key = JSON.stringify([outer?.id ?? -1, id(before), id(carrier), restricted]);
+      const key = JSON.stringify([outer?.id ?? -1, id(before), id(carrier)]);
       const old = scopes.get(key);
       if (old) return old;
       const scope = {id:nextScope++, frames:[...(outer?.frames ?? []), before],
-        bounds:[...(outer?.bounds ?? []), {carrier, restricted}],
-        blocked:!!outer?.blocked || !!(restricted && guarded && maximal?.forbids(carrier, before.production.rhs[before.dot].test))};
+        bounds:[...(outer?.bounds ?? []), {carrier}]};
       scopes.set(key, scope);
       return scope;
     };
     for (const set of chart.sets) if (set) for (const raw of set.items) view(raw);
     for (let at = 0; at < queue.length; at++) {
       const item = queue[at], raw = /** @type {Item} */ (item.slotOriginal), scope = item.slotScope ?? null;
-      const all = new Set(), allowed = new Set();
-      let routed = false;
-      /** @param {import("./types.js").Edge} next @param {number} channel @param {number} index */
-      const append = (next, channel, index) => {
-        const number = item.edges.length;
+      /** @param {import("./types.js").Edge} next @param {number} index */
+      const append = (next, index) => {
         item.edges.push(next);
         rawIndices.set(next, index);
-        if (channel !== 1) all.add(number);
-        if (channel !== 0) allowed.add(number);
       };
       for (const [index, edge] of raw.edges.entries()) {
-        if (edge.kind === "seed" || edge.kind === "restore") { append(edge, 2, index); continue; }
+        if (edge.kind === "seed" || edge.kind === "restore") { append(edge, index); continue; }
         const previous = view(edge.previous, scope);
-        if (edge.kind === "scan") { append({...edge, previous}, 2, index); continue; }
+        if (edge.kind === "scan") { append({...edge, previous}, index); continue; }
         const child = edge.child;
         const carries = child.production.helper && wrapped.has(child.production.lhs) && (!raw.production.helper || scope);
-        if (!carries) { append({...edge, previous, child:view(child)}, 2, index); continue; }
-        const guarded = !!maximal?.guards(raw);
-        const inner = scopeFor(edge.previous, child, scope, false, guarded);
-        append({...edge, previous, child:view(child, inner)}, guarded ? 0 : 2, index);
-        if (guarded) {
-          routed = true;
-          const eligible = scopeFor(edge.previous, child, scope, true, true);
-          append({...edge, previous, child:view(child, eligible)}, 1, index);
-        }
+        if (!carries) { append({...edge, previous, child:view(child)}, index); continue; }
+        const inner = scopeFor(edge.previous, child, scope);
+        append({...edge, previous, child:view(child, inner)}, index);
       }
-      if (routed) routeMasks.set(item, {all, allowed});
     }
-    return {chart:{...chart, sets}, plain, helpers, routeMasks, rawIndices};
+    return {chart:{...chart, sets}, plain, helpers, rawIndices};
   }
 
   // ---- ranked-admission.js
@@ -12045,11 +12054,10 @@
 
   // Admission uses finite eligible facts, before the ordinary ranker.
   class RankedAdmission {
-    /** @param {any} chart @param {any} ranked @param {any} maximal */
-    constructor(chart, ranked, maximal) {
+    /** @param {any} chart @param {any} ranked */
+    constructor(chart, ranked) {
       const names = new Set(ranked.groups.map((/** @type {any} */ g) => g.helper));
-      this.forest = helperSlotForest(chart,names,maximal);
-      this.maximal = maximal;
+      this.forest = helperSlotForest(chart,names);
       this.groups = new Map();
       this.at = new Map();
       this.maxima = new Map();
@@ -12075,7 +12083,7 @@
         for (const [index,edge] of item.edges.entries()) {
           if (edge.kind !== 'complete') continue;
           const scope = item.slotScope;
-          const ancestry = scope ? [scope.frames.map(prefix),scope.bounds.map((/** @type {any} */ b) => [written(b.carrier.production),b.carrier.origin,b.carrier.end,b.restricted])] : null;
+          const ancestry = scope ? [scope.frames.map(prefix),scope.bounds.map((/** @type {any} */ b) => [written(b.carrier.production),b.carrier.origin,b.carrier.end])] : null;
           const key = JSON.stringify([group.id,prefix(edge.previous),ancestry,edge.child.origin,edge.child.end]);
           let candidates = this.groups.get(key);
           if (!candidates) this.groups.set(key,candidates=[]);
@@ -12104,43 +12112,35 @@
     /** @param {any} item @param {any} dependency @param {string} context */
     compute(item,dependency,context) {
       const choices = this.at.get(item);
-      if (!choices) return this.forest?.routeMasks.get(item) ?? null;
-      const key = this.availabilityKey(item,context), mask = {all:new Set(),allowed:new Set()};
+      if (!choices) return null;
+      const key = this.availabilityKey(item,context), mask = new Set();
       for (const [index,group] of choices) {
         let contexts = this.maxima.get(group);
         if (!contexts) this.maxima.set(group,contexts=new Map());
         let kept = contexts.get(key);
-        if (!kept) {
-          kept = {all:Infinity,allowed:Infinity};
+        if (kept === undefined) {
+          kept = Infinity;
           for (const candidate of group) {
             const {edge} = candidate;
             if (!dependency(edge.previous).all || !dependency(edge.child).all) continue;
-            kept.all = Math.min(kept.all,candidate.option);
-            if (!this.maximal?.guards(candidate.item) || !this.maximal.forbids(edge.child,candidate.item.production.rhs[candidate.item.dot-1].test)) {
-              kept.allowed = Math.min(kept.allowed,candidate.option);
-            }
+            kept = Math.min(kept,candidate.option);
+
           }
           contexts.set(key,kept);
         }
         const option = item.edges[index].child.production.rankedOption;
-        if (option === kept.all) mask.all.add(index);
-        if (option === kept.allowed) mask.allowed.add(index);
-      }
-      const route = this.forest?.routeMasks.get(item);
-      if (route) {
-        for (const index of mask.all) if (!route.all.has(index)) mask.all.delete(index);
-        for (const index of mask.allowed) if (!route.allowed.has(index)) mask.allowed.delete(index);
+        if (option === kept) mask.add(index);
       }
       let contexts = this.masks.get(item);
       if (!contexts) this.masks.set(item,contexts=new Map());
       contexts.set(context,mask);
-      this.stats.retainedEdges += mask.all.size;
+      this.stats.retainedEdges += mask.size;
       return mask;
     }
 
     /** @param {any} item @param {string} context */
     mask(item,context) {
-      if (!this.at.has(item)) return this.forest?.routeMasks.get(item) ?? null;
+      if (!this.at.has(item)) return null;
       const found = this.masks.get(item)?.get(context);
       if (!found) throw new Error('Ranked admission requires eligible child facts before ranking.');
       return found;
@@ -12330,113 +12330,9 @@
     return !("read" in node) && node.production.helper && node.production.elided !== null && node.production.rhs.length === 0 && node.children.length === 0;
   }
 
-  // ---- maximal.js
-  // Maximal terminators (engine §4): an elided terminator is forbidden
-  // where its constituent, the node before it, could have been longer.
-
-  /**
-   * @import { Item, LoweredGrammar, SymbolTest } from "./types.js"
-   * @import { Chart } from "./earley.js"
-   */
-
-
-
-  /**
-   * What the ranking asks of maximal.
-   * @typedef {object} Maximal
-   * @property {(item: Item) => boolean} elided whether a completed item is an
-   *   elided terminator: the empty production of an elidable optional's helper
-   * @property {(item: Item) => boolean} guards whether an item's next symbol
-   *   is an elidable optional whose elision the node before it can forbid:
-   *   not at the start of a production, and not after a production's first
-   *   symbol when that is its own rule, what a repetition has read so far
-   * @property {(item: Item, test?: SymbolTest) => boolean} forbids whether an
-   *   elided terminator may not follow the completed item, its constituent,
-   *   which stands for a symbol with the given test, if it has one
-   */
-
-  /**
-   * @param {Chart} chart
-   * @param {LoweredGrammar} lowered
-   * @returns {Maximal}
-   */
-  function maximalRule(chart, lowered) {
-    // The helpers of maximal terminators (engine §4).
-    /** @type {Set<string>} */
-    const elidable = new Set();
-    for (const production of lowered.productions) {
-      if (production.helper && production.elided !== null && lowered.maximalHelpers.has(production.lhs)) elidable.add(production.lhs);
-    }
-    /** @param {Item} item */
-    const symbolKey = item => item.production.lexicalFrame ? `${item.production.lhs}/${item.production.lexicalFrame.id}` : item.production.lhs;
-    // Whether a constituent could have been longer depends only on its
-    // symbol, origin and end: the furthest set holding a completed item of
-    // each symbol from each origin decides it.
-    /** @type {Map<string, Map<number, number>> | null} */
-    let furthest = null;
-    const longest = () => {
-      if (furthest) return furthest;
-      furthest = new Map();
-      for (const set of chart.sets) {
-        if (!set) continue;
-        for (const item of set.items) {
-          if (item.dot !== item.production.rhs.length) continue;
-          let byOrigin = furthest.get(symbolKey(item));
-          if (!byOrigin) furthest.set(symbolKey(item), (byOrigin = new Map()));
-          const known = byOrigin.get(item.origin);
-          if (known === undefined || known < set.position) byOrigin.set(item.origin, set.position);
-        }
-      }
-      return furthest;
-    };
-    // For a tested symbol, every completed item of each symbol from each
-    // origin, since a longer constituent counts only where the test holds of
-    // it too, with its own span and tags (engine §4).
-    /** @type {Map<string, Map<number, Item[]>> | null} */
-    let completed = null;
-    const allCompleted = () => {
-      if (completed) return completed;
-      completed = new Map();
-      for (const set of chart.sets) {
-        if (!set) continue;
-        for (const item of set.items) {
-          if (item.dot !== item.production.rhs.length) continue;
-          let byOrigin = completed.get(symbolKey(item));
-          if (!byOrigin) completed.set(symbolKey(item), (byOrigin = new Map()));
-          const list = byOrigin.get(item.origin);
-          if (!list) byOrigin.set(item.origin, [item]);
-          else list.push(item);
-        }
-      }
-      return completed;
-    };
-    return {
-      elided: (item) => item.production.rhs.length === 0 && elidable.has(item.production.lhs),
-      guards: (item) => {
-        const rhs = item.production.rhs;
-        const next = rhs[item.dot];
-        if (next === undefined || next.terminal || !elidable.has(next.name)) return false;
-        return !(item.dot === 1 && !rhs[0].terminal && rhs[0].name === item.production.lhs);
-      },
-      forbids: (item, test) => {
-        if (test !== undefined) {
-          const byOrigin = allCompleted().get(symbolKey(item));
-          const list = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
-          const context = chart.context;
-          return list !== undefined && list.some((longer) => longer.end > item.end &&
-            testHolds(context, test, item.origin, longer.end, context.interner.get(longer.tagId)));
-        }
-        const byOrigin = longest().get(symbolKey(item));
-        const end = byOrigin === undefined ? undefined : byOrigin.get(item.origin);
-        return end !== undefined && end > item.end;
-      },
-    };
-  }
-
   // ---- stage.js
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
-
 
 
 
@@ -12463,10 +12359,10 @@
    * @property {boolean} last whether this is the pipeline's last stage
    */
 
-  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {import("./maximal.js").Maximal | null} [maximal] @param {number[] | null} [project] */
-  function slotRanker(chart, tokens, lean, maximal = null, project = null) {
-    const ranker = new Ranker(tokens, lean, maximal, project);
-    if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked,maximal);
+  /** @param {import("./earley.js").Chart} chart @param {Token[]} tokens @param {import("./types.js").Lean} lean @param {number[] | null} [project] */
+  function slotRanker(chart, tokens, lean, project = null) {
+    const ranker = new Ranker(tokens, lean, project);
+    if (chart.context.lowered.ranked?.groups.length) ranker.admission = new RankedAdmission(chart,chart.context.lowered.ranked);
     return ranker;
   }
 
@@ -12515,16 +12411,9 @@
       // An input whose every derivation is cyclic (engine §4) has none to
       // count, and is rejected like one with no item of `text` at all.
       const resolution = lowered.resolution;
-      // Maximal terminators before
-      // the ranking (engine §4).
-      const maximal = lowered.maximalHelpers.size > 0 ? maximalRule(chart, lowered) : null;
-      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.lean, maximal).rank(roots);
+      const ranking = roots.length === 0 ? null : slotRanker(chart, tokens, resolution.lean).rank(roots);
       if (ranking === null) {
-        // A text that maximal leaves with no derivation is rejected at the
-        // first terminator it forbids in the first reading, m, of the ranking
-        // without maximal, whatever its verdict (engine §4).
-        const rejection = (maximal && roots.length > 0 && forbiddenTerminator(slotRanker(chart, tokens, resolution.lean).rank(roots), maximal))
-          || rejectionOf(chart);
+        const rejection = rejectionOf(chart);
         report.error = {
           kind: "rejected",
           stage: this.name,
@@ -12696,11 +12585,6 @@
       }
       let roots = rootItems(chart, "text");
       if (fault("lost:roots")) roots = [];
-      // Maximality does not apply to the derivations of R (engine
-      // §7.7), unless a fault applies them (F20). Cycles are over spans of R,
-      // unless a fault finds them over projected spans (F19).
-      const maximal = fault("F20") && (lowered.maximalHelpers.size > 0)
-        ? maximalRule(chart, lowered) : null;
       // A test that watches the check marks W(D)'s edges before the check
       // ranks (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
@@ -12708,14 +12592,14 @@
       const walk = protectWitness ? walkWitness(run) : null;
       const watch = hooks.elisionCheck ? hooks.elisionCheck(run) : null;
       // The check's ranker: no lean, and cycles over spans of R (engine §7.7).
-      const ranker = slotRanker(chart, restored, "none", maximal, fault("F19") ? project : null);
+      const ranker = slotRanker(chart, restored, "none", fault("F19") ? project : null);
       ranker.profileProject = project;
       ranker.check = true;
       ranker.marks = protectWitness ? walk?.marks ?? null : watch?.marks ?? null;
       // Raw witness membership and filtered admission are separate decisions.
       let raw = ranker;
       if (ranker.admission) {
-        raw = new Ranker(restored, "none", maximal, fault("F19") ? project : null);
+        raw = new Ranker(restored, "none", fault("F19") ? project : null);
         raw.profileProject = project;
         raw.check = true;
         raw.marks = ranker.marks;
@@ -12962,44 +12846,6 @@
       for (let index = children.length - 1; index >= 0; index--) stack.push(children[index]);
     }
     return warnings;
-  }
-
-  /**
-   * Of a ranking's first reading, the first elided terminator, in the order
-   * of the tree's leaves, that maximal forbids: its position, and its terminal
-   * with the rule its optional is written in as the one expected there (engine
-   * §4). Null for no ranking, or none forbidden.
-   * @param {import("./rank.js").Ranking | null} ranking
-   * @param {import("./maximal.js").Maximal} maximal
-   * @returns {{position: number, expected: import("./types.js").Expectation[]} | null}
-   */
-  function forbiddenTerminator(ranking, maximal) {
-    if (ranking === null) return null;
-    /** @type {{node: Derivation, next: number}[]} */
-    const stack = [{ node: derivationTree(ranking.first), next: 0 }];
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
-      const node = frame.node;
-      if ("read" in node || frame.next >= node.children.length) {
-        stack.pop();
-        continue;
-      }
-      const index = frame.next++;
-      const child = node.children[index];
-      if (!("read" in child) && maximal.elided(child.item)) {
-        const rhs = node.production.rhs;
-        const own = index === 1 && !rhs[0].terminal && rhs[0].name === node.production.lhs;
-        const before = index > 0 && !own ? node.children[index - 1] : null;
-        if (before && !("read" in before) && maximal.forbids(before.item, rhs[index - 1].test)) {
-          const production = child.production;
-          const terminal = /** @type {string} */ (production.elided);
-          const written = writtenSymbol({ name: terminal, test: production.elidedTest });
-          return { position: child.start, expected: [{ terminal: written, rules: [production.owner] }] };
-        }
-      }
-      stack.push({ node: child, next: 0 });
-    }
-    return null;
   }
 
   /**
@@ -13770,7 +13616,7 @@
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         if (name === "ambiguity-resolution" && operands.some((child) => text(token(child)) === "maximal")) {
-          fail("stage-wide maximal is retired; use [++T] for an individual terminator", item);
+          fail("the maximal operand is retired", item);
         }
         directives.push({
           name,
@@ -14018,8 +13864,8 @@
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
       const found = parts(node);
-      const markers = found.filter((child) => tokenText(child) === "+" || tokenText(child) === "++");
-      if (markers.length >= 2) fail("an optional has one marker + or ++ at most", markers[1]);
+      const markers = found.filter((child) => tokenText(child) === "+");
+      if (markers.length >= 2) fail("an optional has one marker + at most", markers[1]);
       if (markers.length === 0) return { optional: yield readExpression(choice) };
       const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
       // One conjunction of one sequence, with no leading | or & either: the
@@ -14044,7 +13890,7 @@
       marked++;
       const expr = /** @type {Expr} */ (yield readExpression(choice));
       marked--;
-      return tokenText(markers[0]) === "++" ? { optional: expr, elidable: true, maximal: true } : { optional: expr, elidable: true };
+      return { optional: expr, elidable: true };
     }
 
     /**
@@ -16112,7 +15958,7 @@
    * A rule body expression.
    * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
-   *   | {optional: Expr, elidable?: true, maximal?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
+   *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
    *   | {range: [string, string]} | {property: string}
    *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
    */
@@ -16232,6 +16078,8 @@
    * @property {Condition[]} [rankedDeferred]
    * @property {Term} [parentTags]
    * @property {any} [lexicalFrame]
+   * @property {boolean} [closeRequested]
+   * @property {boolean} [observesCloses]
    * @property {Production} [baseProduction]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]
@@ -16272,9 +16120,6 @@
    * @typedef {object} LoweredGrammar
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
-   * @property {Set<string>} maximalHelpers the helpers of the elidable
-   *   optionals written [++T x], whose terminators are maximal (engine §3.8,
-   *   §4)
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
