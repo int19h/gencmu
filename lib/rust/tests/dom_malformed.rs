@@ -17,9 +17,12 @@ fn dom_malformed_cases() {
     for case in cases.array() {
         let description = case.get("description").and_then(Value::str).unwrap_or("?");
         let malformed = case.get("malformed") == Some(&Value::Bool(true));
-        let directive = case.get("directive").expect("a directive").to_text();
+        let (rules, directives) = match case.get("rule") {
+            Some(rule) => (format!("[{}]", rule.to_text()), "[]".to_string()),
+            None => ("[]".to_string(), format!("[{}]", case.get("directive").expect("a directive").to_text())),
+        };
         let dom = format!(
-            r#"{{"format":{DOM_FORMAT},"rules":[],"directives":[{directive}],"constants":[],"classifiers":[],"implications":[]}}"#
+            r#"{{"format":{DOM_FORMAT},"rules":{rules},"directives":{directives},"constants":[],"classifiers":[],"implications":[]}}"#
         );
         let problem = check_dom(&dom).expect("the bundled context");
         if problem.is_some() != malformed {

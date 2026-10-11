@@ -1268,6 +1268,12 @@ impl<'a> Reader<'a> {
         // A constant's type is known only when the loader stitches the
         // stage.
         let string_like = |index: usize| matches!(frame.types.get(index), Some(Some(Type::String | Type::Any)));
+        if name == "without-elision" && !matches!(&args[..], [Arg::Term(Term::Capture(_))]) {
+            return Err(self.error(
+                name_token,
+                "without-elision() takes one bare capture: use from(without-elision($x)) for an extended query",
+            ));
+        }
         let ok = match (name.as_str(), &args[..]) {
             ("tags", [first]) => span(first),
             ("tags" | "matches" | "begins", [first, second]) => span(first) && rule(second),
@@ -2037,9 +2043,23 @@ const ATOMS: [&str; 13] = [
 ];
 
 /// The functions of the notation (engine §9).
-const FUNCTIONS: [&str; 15] = [
-    "phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after",
-    "matches", "begins", "initial",
+const FUNCTIONS: [&str; 16] = [
+    "phonemes",
+    "text",
+    "split",
+    "tag",
+    "tags",
+    "classes",
+    "classify",
+    "head",
+    "tail",
+    "last",
+    "from",
+    "after",
+    "matches",
+    "begins",
+    "initial",
+    "without-elision",
 ];
 
 /// Whether a name begins with a capital, and so is a terminal and a tag
@@ -2053,7 +2073,7 @@ fn is_capital(name: &str) -> bool {
 fn is_span(term: &Term) -> bool {
     match term {
         Term::Capture(_) => true,
-        Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after"),
+        Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision"),
         _ => false,
     }
 }

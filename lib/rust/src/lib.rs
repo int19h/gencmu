@@ -58,6 +58,7 @@ mod pipeline;
 mod rank;
 mod ranked;
 mod recent;
+mod restoration;
 mod result;
 mod slot_stats;
 mod tags;

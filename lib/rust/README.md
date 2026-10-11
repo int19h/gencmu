@@ -56,7 +56,9 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 22. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error.
+The DOM format is 24. Braces are a `repeat`, with a `separator` for `{x \ s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`, and `[++T x]` also has `maximal`. No directive names elidable terminators: `%elidable` is a syntax error.
+
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. Its argument is one bare capture. `from(without-elision($x))` extends the query through the following input.
 
 A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 

@@ -321,6 +321,8 @@ pub(crate) struct LexicalFrame {
     pub prefix: u32,
     pub seal_prefix: u32,
     pub inside: bool,
+    pub restoration_entry: Option<u32>,
+    pub restoration_seal: Option<(usize, u32, usize)>,
 }
 
 fn lexical_rule(rule: u32, lexical: u32) -> u64 {
@@ -334,7 +336,7 @@ impl Chart {
     pub(crate) fn expected_lexical(&self, before: Item, at: u32) -> u32 {
         self.helper_entries.get(&(at, before)).copied().unwrap_or(0)
     }
-    fn enter_helper(&mut self, g: &Lowered, before: Item, at: u32) -> u32 {
+    fn enter_helper(&mut self, g: &Lowered, before: Item, at: u32, base: usize, project: Option<&[u32]>) -> u32 {
         let p = &g.prods[before.prod as usize];
         let Sym::N(rule) = p.syms[before.dot as usize] else { return 0 };
         if !g.ranked.contextual.contains(&rule) {
@@ -405,6 +407,50 @@ impl Chart {
         });
         let inside = outer.is_some_and(|f| f.inside) || g.ranked.slots.contains_key(&p.rule);
         let seal_prefix = if inside { outer.map_or(prefix, |f| f.seal_prefix) } else { prefix };
+        let original = |at: u32| base + project.map_or(at, |p| p[at as usize]) as usize;
+        let restoration_entry = self.machine.as_ref().and_then(|machine| {
+            let mut m = machine.borrow_mut();
+            m.observations.as_ref()?;
+            let captures = captures
+                .iter()
+                .filter(|(name, _)| !known.contains(*name))
+                .map(|(name, cap)| {
+                    let structure = m.structural(cap.structure);
+                    (
+                        name.clone(),
+                        original(cap.start),
+                        original(cap.end),
+                        cap.tags,
+                        structure,
+                        m.normalized_observation(cap.structure),
+                    )
+                })
+                .collect();
+            let structure = m.structural(prefix);
+            let control = m.observations.as_mut().unwrap().control(&symbols[..before.dot as usize]);
+            let entry = crate::restoration::Entry {
+                parent: outer.and_then(|f| f.restoration_entry),
+                written: written.clone(),
+                origin: original(origin),
+                at: original(at),
+                dot: before.dot,
+                control,
+                prefix: m.normalized_observation(prefix),
+                structure,
+                captures,
+            };
+            Some(m.observations.as_mut().unwrap().entry(entry))
+        });
+        let restoration_seal = if inside {
+            outer.and_then(|f| f.restoration_seal)
+        } else {
+            g.ranked
+                .slots
+                .get(&rule)
+                .zip(restoration_entry)
+                .map(|(&group, entry)| (group, entry, original(at)))
+                .or_else(|| outer.and_then(|f| f.restoration_seal))
+        };
         let id = self.lexical.len() as u32 + 1;
         self.lexical.push(LexicalFrame {
             key: key.clone(),
@@ -417,6 +463,8 @@ impl Chart {
             prefix,
             seal_prefix,
             inside,
+            restoration_entry,
+            restoration_seal,
         });
         self.lexical_index.insert(key, id);
         self.helper_entries.insert((at, before), id);
@@ -603,6 +651,13 @@ enum NestedKey {
     Content(u32, String, Vec<ObservedToken>),
     /// A long span: its place.
     Place(Place),
+    Aligned {
+        place: Place,
+        match_end: usize,
+        fixed_end: usize,
+        observation: u32,
+        active: Vec<Place>,
+    },
 }
 
 /// What every parse of one stage shares: the tag tables, the original
@@ -620,6 +675,8 @@ pub(crate) struct Shared<'a> {
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, (bool, SetId)>,
+    /// Original qualified witnesses, shared by alignment constraints and endpoints.
+    qualified: FxMap<(Place, Vec<Place>), Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
     begins: FxMap<NestedKey, bool>,
@@ -638,6 +695,7 @@ impl<'a> Shared<'a> {
             unicode,
             text,
             memo: FxMap::default(),
+            qualified: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
         }
@@ -649,6 +707,7 @@ impl<'a> Shared<'a> {
         self.machine = None;
         self.pattern_grammar = 0;
         self.memo.clear();
+        self.qualified.clear();
         self.begins.clear();
         self.running.clear();
     }
@@ -795,6 +854,10 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
             let (start, end) = projected(frame.lexical.map_or(frame.origin, |f| f.origin), frame.end);
             (start, end, Whose::Whole)
         }
+        Span::WithoutElision(inner) => {
+            let (start, end, _) = span_bounds(inner, frame, input);
+            (start, end, Whose::Tokens)
+        }
         Span::Head(inner) => {
             let (start, end, _) = span_bounds(inner, frame, input);
             (start, if start < end { start + 1 } else { start }, Whose::Tokens)
@@ -820,7 +883,8 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
 #[derive(Debug)]
 pub(crate) enum Halt<'t> {
     Error(EngineError),
-    Pending(Request<'t>),
+    Pending(Box<Request<'t>>),
+    Invalid,
 }
 
 impl From<EngineError> for Halt<'_> {
@@ -841,11 +905,32 @@ pub(crate) struct Request<'t> {
     rule: u32,
     key: NestedKey,
     begins: bool,
+    aligned: Option<Alignment>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct QualifiedWitness {
+    end: usize,
+    observation: u32,
+    tags: SetId,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Alignment {
+    observation: u32,
+    fixed_end: usize,
+    match_end: usize,
 }
 
 impl Request<'_> {
     fn place(&self) -> Place {
         (self.rule, self.base + self.start, self.base + self.end)
+    }
+    fn qualification_key(&self) -> (Place, Vec<Place>) {
+        match &self.key {
+            NestedKey::Aligned { active, .. } => (self.place(), active.clone()),
+            _ => unreachable!("an aligned qualification key"),
+        }
     }
 }
 
@@ -1211,14 +1296,60 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 term(t, &mut roots);
             }
         }
-        self.shared.machine = if roots.is_empty() && self.g.ranked.slots.is_empty() {
+        fn span_uses(span: &Span) -> bool {
+            match span {
+                Span::WithoutElision(_) => true,
+                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span_uses(s),
+                _ => false,
+            }
+        }
+        fn term_uses(t: &LTerm) -> bool {
+            match t {
+                LTerm::Text(s) | LTerm::Phonemes(s) | LTerm::Tags(s) | LTerm::TagsRule(s, _) | LTerm::Classes(s) => {
+                    span_uses(s)
+                }
+                LTerm::If(c, t) => cond_uses(c) || term_uses(t),
+                LTerm::Union(ts) | LTerm::Inter(ts) => ts.iter().any(term_uses),
+                LTerm::Diff(a, b) | LTerm::Split(a, b) => term_uses(a) || term_uses(b),
+                LTerm::TagOf(t) | LTerm::Classify(t, _) => term_uses(t),
+                _ => false,
+            }
+        }
+        fn cond_uses(c: &LCond) -> bool {
+            match c {
+                LCond::Matches(s, _) | LCond::Begins(s, _) | LCond::Initial(s) | LCond::Tree(s, _, _) => span_uses(s),
+                LCond::Cmp(_, a, b) => term_uses(a) || term_uses(b),
+                LCond::Not(c) => cond_uses(c),
+                LCond::Any(cs) | LCond::All(cs) => cs.iter().any(cond_uses),
+                LCond::If(a, b) => cond_uses(a) || cond_uses(b),
+            }
+        }
+        let observes = self.g.prods.iter().any(|p| {
+            let emission = match &p.emit {
+                crate::lower::LEmit::This(terms) => terms.iter().flatten().any(term_uses),
+                crate::lower::LEmit::Items(items) => {
+                    items.iter().any(|item| matches!(item,crate::lower::LEmitItem::Cap(_,Some(t),_,_) if term_uses(t)))
+                }
+                _ => false,
+            };
+            p.conds.iter().any(|(c, _)| cond_uses(c)) || p.tags.as_ref().is_some_and(term_uses) || emission
+        }) || self.g.ranked.plans.values().any(|p| {
+            p.conditions.iter().flatten().any(|(c, _)| cond_uses(c)) || p.whole_tags.as_ref().is_some_and(term_uses)
+        });
+        self.shared.machine = if roots.is_empty() && self.g.ranked.slots.is_empty() && !observes {
             None
         } else {
-            Some(Rc::new(RefCell::new(Machine::new(&roots))))
+            {
+                let mut machine = Machine::new(&roots);
+                if observes {
+                    machine.observations = Some(crate::restoration::Observations::new());
+                }
+                Some(Rc::new(RefCell::new(machine)))
+            }
         };
         self.shared.pattern_grammar = key;
     }
-    fn finish_structure(&self, item: &mut Item) {
+    fn finish_structure(&self, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
         if let Some(machine) = &self.shared.machine {
             let g = self.g;
             let p = &g.prods[item.prod as usize];
@@ -1228,7 +1359,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
             let rule = &g.rules[p.rule as usize];
             let mut m = machine.borrow_mut();
-            item.structure = if rule.helper {
+            let mut structure = if rule.helper {
                 if p.syms.is_empty() {
                     if let Some(t) = &rule.elided {
                         let tags = vec![t.clone()];
@@ -1243,8 +1374,65 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             } else {
                 m.node(Some(&rule.name), item.prefix, None)
             };
+            if m.observations.is_some() {
+                let original = |at: usize| self.recon.map_or(at, |r| r.project[at] as usize);
+                let start = original(item.origin as usize);
+                let end = original(set);
+                let mut observation = m.observation(structure);
+                if rule.helper && p.syms.is_empty() {
+                    if let Some(terminal) = &rule.elided {
+                        let observed = self.recon.map_or(tokens, |r| r.observed);
+                        let sound = if let Some(recon) = self.recon {
+                            if set > item.origin as usize && recon.synthetic[item.origin as usize] {
+                                tokens[item.origin as usize].phonemes.clone()
+                            } else {
+                                None
+                            }
+                        } else {
+                            rule.elided_test.and_then(|test| {
+                                let t = &g.tests[test as usize];
+                                (t.op == TestOp::Is).then(|| t.sound.clone()).flatten()
+                            })
+                        };
+                        let mut record = crate::restoration::record(terminal.clone(), start, observed, sound);
+                        record.at += base;
+                        observation = m.observations.as_mut().unwrap().close(record);
+                    }
+                }
+                let named =
+                    (!rule.helper && (self.recon.is_some() || g.cycle[p.rule as usize].is_some())).then_some(p.rule);
+                observation = m.observations.as_mut().unwrap().complete(observation, named, base + start, base + end);
+                structure = m.observing(structure, observation);
+            }
+            item.structure = structure;
         }
     }
+
+    /// The enclosing named view retains cycles hidden by a ranked seal.
+    fn lexical_whole_structure(&self, frame: &mut Frame<'_>, prefix: u32, base: usize) {
+        let (Some(lexical), Some(machine)) = (frame.lexical, &self.shared.machine) else { return };
+        let rule = self.g.prods[lexical.root as usize].rule;
+        let parent = &self.g.rules[rule as usize].name;
+        let mut m = machine.borrow_mut();
+        frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
+        if m.observations.is_none() {
+            return;
+        }
+        let original = |at: u32| base + frame.project.map_or(at, |p| p[at as usize]) as usize;
+        let end = original(frame.end);
+        let child = m.concat(lexical.prefix, prefix);
+        let viewed = if let Some((group, entry, start)) = lexical.restoration_seal {
+            let block = m.block(crate::restoration::Block { group, entry, start, end }, child);
+            m.concat(lexical.seal_prefix, block)
+        } else {
+            child
+        };
+        let observation = m.observation(viewed);
+        let named = (self.recon.is_some() || self.g.cycle[rule as usize].is_some()).then_some(rule);
+        let observation = m.observations.as_mut().unwrap().complete(observation, named, original(lexical.origin), end);
+        frame.parent_structure = m.observing(frame.parent_structure, observation);
+    }
+    #[allow(clippy::too_many_arguments)]
     fn terminal_structure(
         &self,
         chart: &mut Chart,
@@ -1253,6 +1441,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         terminal: u32,
         token: &Tok,
         synthetic: bool,
+        base: usize,
     ) -> u32 {
         let Some(machine) = &self.shared.machine else {
             return u32::MAX;
@@ -1266,7 +1455,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut m = machine.borrow_mut();
         let empty = m.empty;
         let name = &self.g.terminals[terminal as usize];
-        let id = if omitted {
+        let mut id = if omitted {
             let tags = vec![name.clone()];
             m.node(None, empty, Some((name, "", &tags)))
         } else if synthetic {
@@ -1281,6 +1470,18 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 .collect::<Vec<_>>();
             m.node(None, empty, Some((name, token.sound(self.shared.unicode), &tags)))
         };
+        if synthetic && m.observations.is_some() {
+            let recon = self.recon.expect("synthetic provenance");
+            let mut record = crate::restoration::record(
+                name.clone(),
+                recon.project[e] as usize,
+                recon.observed,
+                token.phonemes.clone(),
+            );
+            record.at += base;
+            let observation = m.observations.as_mut().unwrap().close(record);
+            id = m.observing(id, observation);
+        }
         chart.terminal_states.insert(key, id);
         id
     }
@@ -1325,10 +1526,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         }
                     }
                 }
+                Err(Halt::Invalid) => unreachable!("a rejected observation is handled by its production"),
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
                     Ok(()) => {
-                        let mut run = Run::answering(request);
+                        let mut run = Run::answering(*request);
                         run.chart.machine = self.shared.machine.clone();
                         runs.push(run);
                     }
@@ -1377,45 +1579,72 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Remembers the answer of a nested parse from its chart. The chart
     /// stops at its first empty set, which may lie before the span's end.
     /// Only the items with an eligible proof tree count.
+    fn aligned_answer(&mut self, request: Request, witnesses: &[QualifiedWitness]) -> Answer {
+        let a = request.aligned.expect("an aligned request");
+        let limit = witnesses.partition_point(|w| w.end <= a.match_end);
+        let start = if request.begins { 0 } else { witnesses.partition_point(|w| w.end < a.match_end) };
+        let witnesses = &witnesses[start..limit];
+        let m = self.shared.machine.as_ref().unwrap().borrow();
+        let observations = m.observations.as_ref().unwrap();
+        let aligned = |w: &&QualifiedWitness| observations.aligns(a.observation, w.observation, a.fixed_end.min(w.end));
+        if request.begins {
+            let accepted = witnesses.iter().any(|w| aligned(&w));
+            self.shared.begins.insert(request.key, accepted);
+            return (accepted, 0);
+        }
+        let retained: Vec<_> = witnesses.iter().filter(aligned).collect();
+        let list = union_all(retained.iter().map(|w| self.shared.tags.list(w.tags)));
+        let answer = (!retained.is_empty(), self.shared.tags.set(list));
+        self.shared.memo.insert(request.key, answer);
+        answer
+    }
     fn settle(&mut self, request: Request, chart: &Chart) -> Answer {
         let rule = request.rule;
         let tokens = &request.tokens[request.start..request.end];
-        if request.begins {
-            // A completed item from the span's start, in any set, with an
-            // eligible proof tree (§4).
-            let witnesses: Vec<(u32, u32)> = (0..chart.sets.len())
-                .flat_map(|set| {
-                    chart.sets[set]
-                        .completed
-                        .get(&(rule, 0))
-                        .into_iter()
-                        .flatten()
-                        .map(move |&index| (set as u32, index))
-                })
-                .collect();
-            let answer = self.proofs(chart, tokens).eligible(&witnesses).contains(&true);
-            self.shared.begins.insert(request.key, answer);
-            return (answer, 0);
-        }
-        let set = tokens.len() as u32;
-        let witnesses: Vec<(u32, u32)> = chart
-            .sets
-            .get(set as usize)
-            .and_then(|last| last.completed.get(&(rule, 0)))
-            .into_iter()
-            .flatten()
-            .map(|&index| (set, index))
+        let query_base = request.base + request.start;
+        let sets = if request.begins || request.aligned.is_some() {
+            0..chart.sets.len()
+        } else {
+            tokens.len()..(tokens.len() + 1).min(chart.sets.len())
+        };
+        let witnesses: Vec<(u32, u32)> = sets
+            .flat_map(|set| {
+                chart.sets[set].completed.get(&(rule, 0)).into_iter().flatten().map(move |&index| (set as u32, index))
+            })
             .collect();
         let eligible = self.proofs(chart, tokens).eligible(&witnesses);
+        if request.aligned.is_some() {
+            let qualified: Vec<_> = witnesses
+                .into_iter()
+                .zip(eligible)
+                .filter(|(_, eligible)| *eligible)
+                .map(|((set, index), _)| QualifiedWitness {
+                    end: query_base + set as usize,
+                    observation: self
+                        .shared
+                        .machine
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .observation(chart.sets[set as usize].items[index as usize].structure),
+                    tags: chart.sets[set as usize].tagset[index as usize],
+                })
+                .collect();
+            let context = request.qualification_key();
+            let answer = self.aligned_answer(request, &qualified);
+            self.shared.qualified.insert(context, qualified);
+            return answer;
+        }
+        let retained: Vec<_> =
+            witnesses.into_iter().zip(eligible).filter_map(|(witness, eligible)| eligible.then_some(witness)).collect();
+        let accepted = !retained.is_empty();
+        if request.begins {
+            self.shared.begins.insert(request.key, accepted);
+            return (accepted, 0);
+        }
         let tags = &self.shared.tags;
-        let list = union_all(
-            witnesses
-                .iter()
-                .zip(&eligible)
-                .filter(|(_, &eligible)| eligible)
-                .map(|(&(set, index), _)| tags.list(chart.sets[set as usize].tagset[index as usize])),
-        );
-        let accepted = eligible.contains(&true);
+        let list =
+            union_all(retained.iter().map(|&(set, index)| tags.list(chart.sets[set as usize].tagset[index as usize])));
         let answer = (accepted, self.shared.tags.set(list));
         self.shared.memo.insert(request.key, answer);
         answer
@@ -1472,7 +1701,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Step::Complete { e, k } => {
                     let (e, k) = (*e, *k);
                     let tags = self.complete_tags(&run.chart, &mut run.evals, tokens, base, e, k)?;
-                    run.step = self.complete(&mut run.chart, e, k, tags);
+                    run.step = if tags == u32::MAX { Step::Next } else { self.complete(&mut run.chart, e, k, tags) };
                 }
                 Step::Waiters { e, origin, rule, tags, structure, empty, count, next } => {
                     while *next < *count {
@@ -1544,14 +1773,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             && rule.helper
                             && rule.elided.is_some()
                             && !witness::fault(Fault::Route3);
-                        let structure = self.terminal_structure(chart, item, e, terminal, &tokens[e], synthetic);
+                        let structure =
+                            self.terminal_structure(chart, item, e, terminal, &tokens[e], synthetic, run.base);
                         let cap = Cap { start: e as u32, end: e as u32 + 1, tags, structure };
                         run.step = Step::Terminal { item, cap, into: e + 1, strict };
                         return true;
                     }
                 }
                 Sym::N(rule) => {
-                    let lexical = chart.enter_helper(g, item, e as u32);
+                    let lexical = chart.enter_helper(g, item, e as u32, run.base, self.recon.map(|r| &r.project[..]));
                     let key = lexical_rule(rule, lexical);
                     if !again {
                         chart.sets[e].waiting.entry(key).or_default().push(k as u32);
@@ -1598,7 +1828,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
-        self.finish_structure(&mut item);
+        self.finish_structure(&mut item, set, base, tokens);
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict item never completes.
@@ -1660,14 +1890,15 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let (observed, project) = self.observed(tokens);
         let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
         let mut frame = state.frame(&search, project);
-        if let (Some(lexical), Some(machine)) = (frame.lexical, &chart.machine) {
-            let parent = &self.g.rules[self.g.prods[lexical.root as usize].rule as usize].name;
-            frame.parent_structure = machine.borrow_mut().node(Some(parent), frame.parent_structure, None);
-        }
+        self.lexical_whole_structure(&mut frame, state.item.prefix, base);
         let outcome = self.evaluate(&mut state.eval, &frame, observed, base);
         let (item, set) = (state.item, state.end as usize);
         let holds = match outcome {
             Ok(out) => out.holds(),
+            Err(Halt::Invalid) => {
+                state.eval.tasks.clear();
+                false
+            }
             Err(halt) => {
                 if matches!(halt, Halt::Pending(_)) {
                     state.keep(frame.tags.get(), search);
@@ -1878,7 +2109,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         let mut item =
             Item { lexical, prod: production, dot: 0, origin: e as u32, caps: 0, prefix: 0, structure: u32::MAX };
-        self.finish_structure(&mut item);
+        self.finish_structure(&mut item, e + 1, 0, tokens);
         if e + 1 >= chart.sets.len() {
             chart.sets.resize_with(e + 2, ESet::default);
         }
@@ -1953,8 +2184,44 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut m = m.borrow_mut();
             let ranked =
                 matches!(production.syms[item.dot as usize],Sym::N(rule) if g.ranked.slots.contains_key(&rule));
-            let child = if ranked { m.sealed() } else { cap.structure };
-            m.concat(item.prefix, child)
+            let child = if ranked {
+                let rule = match production.syms[item.dot as usize] {
+                    Sym::N(r) => r,
+                    _ => unreachable!(),
+                };
+                let lexical = chart.lexical_frame(chart.expected_lexical(item, cap.start));
+                match lexical.and_then(|f| f.restoration_entry) {
+                    Some(entry) => {
+                        let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
+                        m.block(
+                            crate::restoration::Block {
+                                group: g.ranked.slots[&rule],
+                                start: original(cap.start),
+                                end: original(cap.end),
+                                entry,
+                            },
+                            cap.structure,
+                        )
+                    }
+                    None => m.sealed(),
+                }
+            } else {
+                cap.structure
+            };
+            let prefix = m.concat(item.prefix, child);
+            if m.observations.is_some() {
+                let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
+                let observation = m.observation(prefix);
+                let observation = m.observations.as_mut().unwrap().complete(
+                    observation,
+                    None,
+                    original(item.origin),
+                    original(into as u32),
+                );
+                m.observing(prefix, observation)
+            } else {
+                prefix
+            }
         });
         let mut next = Item {
             lexical: item.lexical,
@@ -1965,7 +2232,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix,
             structure: u32::MAX,
         };
-        self.finish_structure(&mut next);
+        self.finish_structure(&mut next, into, base, tokens);
         if chart.machine.is_some() {
             let edges = chart.links.entry((into as u32, next)).or_default();
             if !edges.contains(&(item, cap)) {
@@ -2011,15 +2278,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let (observed, project) = self.observed(tokens);
         let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
         let mut frame = state.frame(&search, project);
-        if let (Some(lexical), Some(machine)) = (frame.lexical, &chart.machine) {
-            let parent = &self.g.rules[self.g.prods[lexical.root as usize].rule as usize].name;
-            frame.parent_structure = machine.borrow_mut().node(Some(parent), frame.parent_structure, None);
-        }
+        self.lexical_whole_structure(&mut frame, state.item.prefix, base);
         match self.evaluate(&mut state.eval, &frame, observed, base) {
             Ok(out) => {
                 evals.spare = state.eval.tasks;
                 Ok(out.constituent())
             }
+            Err(Halt::Invalid) => Ok(u32::MAX),
             Err(halt) => {
                 if matches!(halt, Halt::Pending(_)) {
                     state.keep(frame.tags.get(), search);
@@ -2181,6 +2446,38 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         Value::set(list.iter().copied().filter(class).collect())
     }
 
+    /// A reached restoration call must have a finite noncyclic observation.
+    fn checked_bounds<'t>(&self, span: &Span, frame: &Frame, input: usize) -> Result<Bounds, Halt<'t>> {
+        let mut pending = vec![span];
+        while let Some(span) = pending.pop() {
+            match span {
+                Span::WithoutElision(inner) => {
+                    let structure = self.span_structure(inner, frame);
+                    if self
+                        .shared
+                        .machine
+                        .as_ref()
+                        .is_some_and(|m| m.borrow().observation(structure) == crate::restoration::INVALID)
+                    {
+                        return Err(Halt::Invalid);
+                    }
+                    pending.push(inner);
+                }
+                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => pending.push(s),
+                _ => {}
+            }
+        }
+        Ok(span_bounds(span, frame, input))
+    }
+    fn span_structure(&self, span: &Span, frame: &Frame) -> u32 {
+        match span {
+            Span::Cap(slot) => frame.caps.get(*slot).structure,
+            Span::Lexical(name) => frame.lexical.expect("a lexical capture").captures[name].structure,
+            Span::Whole if frame.lexical.is_some() => frame.parent_structure,
+            Span::Whole => frame.structure,
+            _ => unreachable!("a restoration anchor is a bare capture"),
+        }
+    }
     /// A query's answer from the memo. One not yet known halts the
     /// evaluation, which waits for it in `Task::Await`.
     #[allow(clippy::too_many_arguments)]
@@ -2194,9 +2491,50 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         tokens: &'t [Tok],
         base: usize,
     ) -> Result<Out, Halt<'t>> {
-        let (start, end, _) = span_bounds(span, frame, tokens.len());
-        let key = self.nested_key(tokens, base, start, end, rule);
+        let (start, match_end, _) = self.checked_bounds(span, frame, tokens.len())?;
+        let mut anchor = span;
+        while let Span::From(inner) = anchor {
+            anchor = inner;
+        }
+        let aligned = if let Span::WithoutElision(inner) = anchor {
+            let fixed_end = span_bounds(inner, frame, tokens.len()).1;
+            let m = self.shared.machine.as_ref().expect("restoration observations").borrow();
+            Some(Alignment {
+                observation: m.observation(self.span_structure(inner, frame)),
+                fixed_end: base + fixed_end,
+                match_end: base + match_end,
+            })
+        } else {
+            None
+        };
+        let end = if aligned.is_some() { tokens.len() } else { match_end };
+        let mut active: Vec<_> = self.shared.running.iter().copied().collect();
+        active.sort_unstable();
+        let key = match aligned {
+            Some(a) => NestedKey::Aligned {
+                active,
+                place: (rule, base + start, base + end),
+                match_end: a.match_end,
+                fixed_end: a.fixed_end,
+                observation: self
+                    .shared
+                    .machine
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .observations
+                    .as_ref()
+                    .unwrap()
+                    .normalized(a.observation),
+            },
+            None => self.nested_key(tokens, base, start, end, rule),
+        };
         let begins = matches!(query, Query::Begins);
+        let place = (rule, base + start, base + end);
+        if self.shared.running.contains(&place) {
+            let request = Request { tokens, base, start, end, rule, key, begins, aligned };
+            return Err(Halt::Error(self.start_query(&request).expect_err("an active recursive query")));
+        }
         let known = if begins {
             self.shared.begins.get(&key).map(|&holds| (holds, 0))
         } else {
@@ -2205,8 +2543,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         match known {
             Some(answer) => Ok(query.out(answer, &self.shared.tags)),
             None => {
+                let request = Request { tokens, base, start, end, rule, key, begins, aligned };
+                if aligned.is_some() {
+                    if let Some(qualified) = self.shared.qualified.remove(&request.qualification_key()) {
+                        let context = request.qualification_key();
+                        let answer = self.aligned_answer(request, &qualified);
+                        self.shared.qualified.insert(context, qualified);
+                        return Ok(query.out(answer, &self.shared.tags));
+                    }
+                }
                 eval.tasks.push(Task::Await(query));
-                Err(Halt::Pending(Request { tokens, base, start, end, rule, key, begins }))
+                Err(Halt::Pending(Box::new(request)))
             }
         }
     }
@@ -2333,7 +2680,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         // condition begins (§10). Positions count from the
                         // start of the tokens that parse reads, a nested
                         // parse's own span included, so that is 0.
-                        LCond::Initial(span) => Out::Bool(span_bounds(span, frame, tokens.len()).0 == 0),
+                        LCond::Initial(span) => Out::Bool(self.checked_bounds(span, frame, tokens.len())?.0 == 0),
                         LCond::Cmp(op, left, right) => {
                             eval.push(Task::Left(*op, right), Task::Term(left));
                             continue;
@@ -2366,11 +2713,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             continue;
                         }
                         LTerm::Phonemes(span) => {
-                            let (start, end, _) = span_bounds(span, frame, tokens.len());
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
                             Value::Str(self.phonemes(tokens, start, end))
                         }
                         LTerm::Text(span) => {
-                            let (start, end, _) = span_bounds(span, frame, tokens.len());
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
                             Value::Str(self.text(tokens, start, end))
                         }
                         LTerm::Split(string, delimiter) => {
@@ -2381,7 +2728,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::TagOf, Task::Term(name));
                             continue;
                         }
-                        LTerm::Tags(span) => match span_bounds(span, frame, tokens.len()) {
+                        LTerm::Tags(span) => match self.checked_bounds(span, frame, tokens.len())? {
                             (_, _, Whose::Cap(set)) => Value::Set(self.shared.tags.shared(set)),
                             (_, _, Whose::Whole) => match self.whole(eval, frame, Wanted::Tags) {
                                 Some(set) => Value::Set(self.shared.tags.shared(set)),
@@ -2395,7 +2742,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                 _ => unreachable!("a set of tags"),
                             }
                         }
-                        LTerm::Classes(span) => match span_bounds(span, frame, tokens.len()) {
+                        LTerm::Classes(span) => match self.checked_bounds(span, frame, tokens.len())? {
                             (_, _, Whose::Cap(set)) => self.classes(&self.shared.tags.shared(set)),
                             (_, _, Whose::Whole) => match self.whole(eval, frame, Wanted::Classes) {
                                 Some(set) => self.classes(&self.shared.tags.shared(set)),
@@ -2597,8 +2944,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         loop {
             match self.evaluate(&mut eval, frame, tokens, base) {
                 Ok(out) => return Self::as_set(out.value()),
+                Err(Halt::Invalid) => {
+                    return Err(EngineError {
+                        message: "a reached span has a cyclic restoration observation".into(),
+                        rule: None,
+                    })
+                }
                 Err(Halt::Error(error)) => return Err(error),
-                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(request)?),
+                Err(Halt::Pending(request)) => eval.answer = Some(self.answer(*request)?),
             }
         }
     }
