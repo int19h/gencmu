@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 import unittest
+from gencmu import _testing
 from unittest.mock import patch
 
 from gencmu._closes import Block, CloseMachine, Sequences
@@ -143,6 +146,52 @@ class WithoutElision(unittest.TestCase):
             sizes.append((len(forest.prod), len(context.closes.states), len(context.closes.links)))
         for small, large in zip(*sizes):
             self.assertLessEqual(large, 6 * small, sizes)
+
+
+    def test_shared_doubling_bound_and_unused_queries(self):
+        shared_root = Path(__file__).resolve().parents[3] / "tests"
+        growth = json.loads((shared_root / "without-elision-growth.json").read_text())
+        fixture = json.loads((shared_root / growth["case"]).read_text())
+        original_count = _testing.count
+        for depth in growth["depths"]:
+            budget = growth["nodesPerDepth"] * (depth + 1) + growth["slack"]
+            for witness in (False,True):
+                grammar = "\n".join(fixture["grammar"].splitlines()[:5]).replace("r16",f"r{depth}")
+                grammar += "".join(f"\n%rule r{i} r{i-1} r{i-1}" for i in range(1,depth+1))
+                if witness:
+                    grammar = grammar.replace("matches(without-elision($x), empty)",f"¬matches(without-elision($x), r{depth})")
+                def bounded_count(name):
+                    original_count(name)
+                    if name == "close_sequence_nodes":
+                        self.assertLessEqual(_testing.work[name],budget)
+                _testing.work = {}
+                try:
+                    with patch.object(_testing,"count",bounded_count):
+                        value,result,error,_ = run_case({**fixture,"grammar":grammar})
+                    self.assertIsNone(error)
+                    self.assertTrue(value["ok"],value)
+                    print(f"depth {depth}, witness {witness}: {_testing.work.get('close_sequence_nodes',0)} close nodes")
+                finally:
+                    _testing.work = None
+        for file in growth["unusedCases"]:
+            fixture = json.loads((shared_root / "engine" / file).read_text())
+            fixture["grammar"] += "\n%rule unused $x(empty)\n%conditions matches(without-elision($x), empty)\n%rule empty ε"
+            dialect,error = load_case_dialect(fixture)
+            self.assertIsNone(error)
+            input_tokens,text = case_tokens(fixture)
+            context = StageContext(dialect.lowered(0,frozenset()),input_tokens,text,dialect.unicode)
+            self.assertIsNone(context.closes)
+            def unused_count(name):
+                original_count(name)
+                self.assertNotIn(name,("close_sequence_nodes","close_observation_states"))
+            _testing.work = {}
+            try:
+                with patch.object(_testing,"count",unused_count):
+                    value,result,error,_ = run_case(fixture)
+                self.assertIsNone(error)
+                self.assertTrue(value["ok"],value)
+            finally:
+                _testing.work = None
 
 
 if __name__ == '__main__':

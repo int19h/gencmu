@@ -943,6 +943,7 @@ class Lowered:
     # place in ``implications``; made when emission first needs it.
     implications_by_tag: dict[str, list[int]] | None = None
 
+    close_rules: frozenset[int] | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
 

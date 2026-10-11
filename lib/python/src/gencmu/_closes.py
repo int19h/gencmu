@@ -53,6 +53,8 @@ class Link:
     event: Any
     size: int
     fingerprint: int
+    power: int = 1
+    height: int = 0
 
 
 # A rope shares event leaves and concatenation nodes.
@@ -73,7 +75,8 @@ class Sequences:
         if old is not None:
             return old
         number = len(self.nodes)
-        self.nodes.append(Link(0, 0, event, 1, hash(event) & self.MASK))
+        _testing.count("close_sequence_nodes")
+        self.nodes.append(Link(0, 0, event, 1, hash(event) & self.MASK, self.BASE & self.MASK, 1))
         self.leaves[event] = number
         return number
 
@@ -85,10 +88,13 @@ class Sequences:
         if old is not None:
             return old
         a, b = self.nodes[left], self.nodes[right]
-        fingerprint = (a.fingerprint*pow(self.BASE, b.size, 1 << 64) + b.fingerprint) & self.MASK
+        fingerprint = (a.fingerprint*b.power + b.fingerprint) & self.MASK
+        # Bounded length filters candidates, while exact nodes decide equality.
+        size = (a.size + b.size) & ((1 << 64) - 1)
         number = len(self.nodes)
-        self.nodes.append(Link(left, right, None, a.size + b.size, fingerprint))
-        bucket = self.buckets.setdefault((a.size + b.size, fingerprint), [])
+        _testing.count("close_sequence_nodes")
+        self.nodes.append(Link(left, right, None, size, fingerprint, (a.power*b.power) & self.MASK, max(a.height,b.height)+1))
+        bucket = self.buckets.setdefault((size, fingerprint), [])
         for other in bucket:
             if self.equal(number, other):
                 self.nodes.pop()
@@ -113,10 +119,10 @@ class Sequences:
                 a.pop()
                 b.pop()
                 continue
-            if first.event is None and (last.event is not None or first.size >= last.size):
+            if first.event is None and (last.event is not None or first.height >= last.height):
                 a.pop()
                 a.extend((first.right, first.left))
-            if last.event is None and (first.event is not None or last.size >= first.size):
+            if last.event is None and (first.event is not None or last.height >= first.height):
                 b.pop()
                 b.extend((last.right, last.left))
         return not a and not b
@@ -143,6 +149,8 @@ class CloseMachine:
         self.links = self.sequences.nodes
         self.semantic_links = self.identities.nodes
         self.semantic_by_sequence = {0:0}
+        self.bounds = [(float("inf"), 0)]
+        self.prefixes = {}
         self.states = [CloseState(0, frozenset()), CloseState(0, frozenset())]
         self.state_ids = {self.states[0]: 0}
         self.concatenations: dict[tuple[int, int], int] = {}
@@ -218,38 +226,100 @@ class CloseMachine:
         """Compare complete boundary groups and retain zero-width blocks."""
         if state == self.INVALID:
             return None
-        semantic = 0
-        for event in self.events(self.states[state].sequence):
-            if isinstance(event, Restoration):
-                if event.at > endpoint:
-                    continue
-                identity = "close", event.terminal, event.at
+        sequence = self.semantic(state)
+        nodes = self.identities.nodes
+        while len(self.bounds) < len(nodes):
+            node = nodes[len(self.bounds)]
+            if node.event is None:
+                a,b = self.bounds[node.left],self.bounds[node.right]
+                bounds = min(a[0],b[0]),max(a[1],b[1])
+            elif node.event[0] == "close":
+                bounds = node.event[2],node.event[2]
             else:
-                if event.start < endpoint < event.end:
-                    return None
-                if event.end > endpoint:
-                    continue
-                identity = "block", event
-            semantic = self.identities.join(semantic, self.identities.leaf(identity))
-        return semantic
+                bounds = node.event[1].start,node.event[1].end
+            self.bounds.append(bounds)
+        pending = [sequence]
+        while pending:
+            at = pending[-1]
+            key = at,endpoint
+            if key in self.prefixes:
+                pending.pop()
+                continue
+            low,high = self.bounds[at]
+            node = nodes[at]
+            if not at or low > endpoint:
+                self.prefixes[key] = 0
+            elif high <= endpoint:
+                self.prefixes[key] = at
+            elif node.event is not None:
+                self.prefixes[key] = None if low < endpoint else 0
+            elif (node.left,endpoint) not in self.prefixes:
+                pending.append(node.left)
+            elif (node.right,endpoint) not in self.prefixes:
+                pending.append(node.right)
+            else:
+                a,b = self.prefixes[node.left,endpoint],self.prefixes[node.right,endpoint]
+                self.prefixes[key] = None if a is None or b is None else self.identities.join(a,b)
+        return self.prefixes[sequence,endpoint]
 
 
-def needed(lowered: Any) -> bool:
-    pending = []
-    for production in lowered.productions:
-        pending.extend(production.conds_predict)
-        pending.extend(condition for conditions in production.conds_at.values() for condition in conditions)
-        pending.extend((production.tags_term, production.emit))
-        if production.slot is not None:
-            source = production.slot.source
-            pending.extend(source.conditions)
-            pending.extend((source.tags, source.rule_tags, source.emit))
+def needed(lowered: Any) -> frozenset[int]:
+    """Find candidate and witness rules through reachable query references."""
+    if lowered.close_rules is not None:
+        return lowered.close_rules
+    wanted = set()
+    seen = set()
+    rules = [lowered.rule_ids["text"]]
+    while rules:
+        rule = rules.pop()
+        if rule in seen:
+            continue
+        seen.add(rule)
+        for number in lowered.rule_productions[rule]:
+            production = lowered.productions[number]
+            rules.extend(symbol for symbol,terminal in zip(production.rhs,production.terminal) if not terminal)
+            pending = [production.tags_term,production.emit,production.parent_tags,production.conds_predict]
+            pending.extend(production.conds_at.values())
+            if production.slot is not None:
+                source = production.slot.source
+                pending.extend((source.conditions,source.tags,source.rule_tags,source.emit))
+            while pending:
+                node = pending.pop()
+                if isinstance(node,(list,tuple)):
+                    pending.extend(node)
+                elif isinstance(node,dict):
+                    target = node.get("rule") if "matches" in node or "begins" in node else None
+                    span = node.get("matches",node.get("begins"))
+                    if node.get("call") == "tags" and len(node["args"]) == 2:
+                        span,target = node["args"][0],node["args"][1].get("rule")
+                    if target is not None:
+                        target = lowered.rule_ids[target]
+                        rules.append(target)
+                        spans = [span]
+                        while spans:
+                            part = spans.pop()
+                            if isinstance(part,dict):
+                                if part.get("call") == "without-elision":
+                                    wanted.add(target)
+                                spans.extend(part.values())
+                            elif isinstance(part,(list,tuple)):
+                                spans.extend(part)
+                    if node.get("call") == "without-elision":
+                        name = node["args"][0]["capture"]
+                        at = production.captures.get(name)
+                        if not name or at is None or production.contextual:
+                            wanted.update((production.lhs,lowered.rule_ids[production.rule_name]))
+                        elif not production.terminal[at]:
+                            wanted.add(production.rhs[at])
+                    pending.extend(node.values())
+    pending = list(wanted)
     while pending:
-        node = pending.pop()
-        if isinstance(node, dict):
-            if node.get("call") == "without-elision":
-                return True
-            pending.extend(node.values())
-        elif isinstance(node, (list, tuple)):
-            pending.extend(node)
-    return False
+        rule = pending.pop()
+        for number in lowered.rule_productions[rule]:
+            production = lowered.productions[number]
+            for symbol,terminal in zip(production.rhs,production.terminal):
+                if not terminal and symbol not in wanted:
+                    wanted.add(symbol)
+                    pending.append(symbol)
+    lowered.close_rules = frozenset(wanted)
+    return lowered.close_rules

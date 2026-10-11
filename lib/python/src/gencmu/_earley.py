@@ -350,6 +350,7 @@ class StageContext:
     project: list[int] | None = None
     observed: StageContext | None = None
     machine: PatternMachine | None = field(init=False, default=None)
+    close_rules: frozenset[int] = field(init=False, default=frozenset())
     closes: CloseMachine | None = field(init=False, default=None)
     aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
     qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
@@ -359,7 +360,8 @@ class StageContext:
         self.sources = Sources(self.tokens)
         self.sounds = [None] * len(self.tokens)
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
-        self.closes = self.observed.closes if self.observed is not None else CloseMachine() if needed(self.lowered) else None
+        self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
+        self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
 
     def carries(self, terminal: str, tag_id: int) -> bool:
         """Whether a tag set holds a character tag of a range or a property,
@@ -1009,7 +1011,7 @@ class Parser:
             return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), sound))
 
         def completed_closes(production, position, start, at, prefix):
-            if closes is None or position != len(production.rhs):
+            if closes is None or production.lhs not in context.close_rules or position != len(production.rhs):
                 return 0
             if production.elided is not None:
                 test = production.elided_test
