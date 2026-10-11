@@ -286,6 +286,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 
 Corpus identifiers stay stable when grammar rules change.
 
+`corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
+
 Each line is one case: a Lojban text, with the result that gencmu must give for it:
 
 ```
