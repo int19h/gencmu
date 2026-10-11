@@ -1,0 +1,9 @@
+{
+  "description": "An outside continuation cannot read a private capture through nested span functions (engine §4 and §10).",
+  "grammar": "%rule text Q ($x(a) ≻ b) $y(Z)\n%conditions text(from(without-elision($x))) = text($y)\n%rule a X Y\n%rule b U V",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-continuation"
+  }
+}

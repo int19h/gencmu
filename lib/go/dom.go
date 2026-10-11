@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 23
+const domFormat = 25
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -170,7 +170,7 @@ type domTerm struct {
 // isSpanFunction says whether a function gives a span (engine §10).
 func isSpanFunction(name string) bool {
 	switch name {
-	case "head", "tail", "last", "from", "after":
+	case "head", "tail", "last", "from", "after", "without-elision":
 		return true
 	}
 	return false

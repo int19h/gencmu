@@ -33,6 +33,8 @@ pub(crate) enum Span {
     Lexical(String),
     /// `$`, the whole constituent: from the item's origin to its end.
     Whole,
+    /// A captured proof with fixed projected closes (§4).
+    WithoutElision(Box<Span>),
     Head(Box<Span>),
     Tail(Box<Span>),
     Last(Box<Span>),
@@ -733,6 +735,7 @@ impl<'a> Scope<'a> {
                 let [Arg::Term(inner)] = &args[..] else { return Err(Missing) };
                 let inner = Box::new(self.span(inner)?);
                 match name.as_str() {
+                    "without-elision" => Ok(Span::WithoutElision(inner)),
                     "head" => Ok(Span::Head(inner)),
                     "tail" => Ok(Span::Tail(inner)),
                     "last" => Ok(Span::Last(inner)),

@@ -877,7 +877,7 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 // notationFunctions are the functions of the notation (§10).
 var notationFunctions = map[string]bool{
 	"phonemes": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "classify": true, "head": true, "tail": true,
-	"last": true, "from": true, "after": true, "matches": true, "begins": true, "initial": true,
+	"last": true, "from": true, "after": true, "without-elision": true, "matches": true, "begins": true, "initial": true,
 }
 
 // typeOf is a term's type, or why its parts do not agree, through the

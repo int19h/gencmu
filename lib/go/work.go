@@ -52,6 +52,7 @@ import (
 //   - keySteps: the tokens that keys of nested parses by content are
 //     written from, each before it is written.
 type workCounts struct {
+	closeStates, closeLinks, closeContexts                                workCount
 	structuralStates, structuralTransitions, packedEdges, summaryContexts workCount
 	items, eligibilityRuns                                                workCount
 

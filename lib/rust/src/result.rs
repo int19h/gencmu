@@ -377,7 +377,7 @@ pub enum ErrorCode {
 
 /// A terminator that the check of `elision-only` wrote back (engine §7.2,
 /// §7.9).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Restoration {
     /// The terminal.
     pub terminal: String,

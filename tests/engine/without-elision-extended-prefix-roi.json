@@ -1,0 +1,25 @@
+{
+  "description": "An extended prefix can read the following ROI (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate) ROI\n%conditions begins(from(without-elision($x)), rival)\n%rule candidate X [+T]\n%rule rival X [+T] ROI",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "roi",
+      "tags": [
+        "ROI"
+      ],
+      "phonemes": "roi"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

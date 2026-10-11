@@ -284,7 +284,7 @@ The recognizer compiles demanded patterns into finite structural states. Items r
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
-Grammar DOM format 23 stores pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No [seal](notation.md#ranked-choices) node is serialized.
+Grammar DOM format 25 stores span calls, pattern expressions, unresolved constants, and ranked expressions. Structural states remain internal. Parse-result format 11 reports the restored chosen witness first in elision-only errors. No [seal](notation.md#ranked-choices) node is serialized.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -464,7 +464,23 @@ In the experimental dialect, `mi klama na to broda toi` has the same problem. Th
 
 The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
-The window of a query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
+The window of an ordinary query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `from` or `after` already sees the rest of the input.
+
+### Queries with fixed closes
+
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary.
+
+An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A category condition sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
+
+The span function keeps the existing `matches`, `begins`, and two-argument `tags` forms. `matches(without-elision($x), R)` compares the whole capture. `begins(from(without-elision($x)), R)` permits a rival category that continues beyond it. The query can still inspect following original words. This context retains following-operator conditions and written-terminator priority.
+
+Restored tokens record the constraint without creating new mandatory words. A rival cannot read an omitted BOI as a bare required BOI. An omitted optional requires none of its remaining content. A prefix compares every close at its endpoint. These rules express a relation between original readings, rather than ordinary replay of completed spelling.
+
+A seal hides a ranked group's content. Outside restoration observations retain an opaque block, so private closes cannot change its common continuation. A private capture inside an option keeps its own closes for ready conditions. This preserves the replacement guarantee of engine §6.1.
+
+The span function requires observations from each candidate during recognition. Candidates over the same words can omit different terminators, and their queries can give different answers. Shared observation states preserve those distinctions without enumerating complete trees. Named-rule cycles use original spans, while active-query errors use the original context. Separate memo keys retain close groups, blocks, context, and features.
+
+Engine §7 supplies synthetic tokens, saved sound, provenance, and source projection for reuse. Its reconstruction policy also permits bare synthetic reads and forbids omissions throughout the reconstructed input. An aligned query needs its own qualification policy and ordinary parsing after the fixed capture. It emits nothing and selects no replacement tree. No parse configuration switch controls this grammar facility.
 
 ### Early closure and candidate ownership
 

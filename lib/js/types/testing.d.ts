@@ -48,6 +48,14 @@ export type ElisionCheckWatch = {
 };
 export type WorkCounts = {
     /**
+     * shared close and cycle summaries interned
+     */
+    closeStates: number;
+    /**
+     * shared close sequence links interned
+     */
+    closeSequences: number;
+    /**
      * finite structural states interned
      */
     structuralStates: number;
@@ -165,7 +173,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -193,6 +201,8 @@ export type WorkKind = "structuralStates" | "structuralTransitions" | "packedEdg
 /**
  * The counts of `hooks.work`.
  * @typedef {object} WorkCounts
+ * @property {number} closeStates shared close and cycle summaries interned
+ * @property {number} closeSequences shared close sequence links interned
  * @property {number} structuralStates finite structural states interned
  * @property {number} structuralTransitions structural transitions computed
  * @property {number} packedEdges distinct packed forest edges
@@ -242,7 +252,7 @@ export type WorkKind = "structuralStates" | "structuralTransitions" | "packedEdg
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

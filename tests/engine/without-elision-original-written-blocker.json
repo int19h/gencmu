@@ -1,0 +1,32 @@
+{
+  "description": "A written optional beyond the endpoint blocks the otherwise aligned omission (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate) T Y\n%conditions ¬matches(without-elision($x), rival)\n%rule candidate X [+T=\"other\"]\n%rule rival X [+T Y]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ],
+      "phonemes": "t"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -79,9 +79,9 @@ _PROPERTY = re.compile(r"'\\p\{([^}]*)\}'")
 _SYMBOLS = frozenset(["reference", "tag", "character", "phoneme", "range", "property", "tested"])
 """What a capture can wrap: one symbol (engine §9)."""
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
-_SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after"])
+_SPAN_FUNCTIONS = frozenset(["head", "tail", "last", "from", "after", "without-elision"])
 _FUNCTIONS = frozenset(
-    ["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]
+    ["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial", "without-elision"]
 )
 _SIGNATURES = {
     "phonemes": "one span",
@@ -93,6 +93,7 @@ _SIGNATURES = {
     "from": "one span",
     "after": "one span",
     "initial": "one span",
+    "without-elision": "one bare capture, including $",
     "split": "two strings",
     "tag": "one string",
     "tags": "a span, and optionally a rule",
@@ -920,6 +921,10 @@ class DomBuilder:
             ok = (len(args) == 1 and _is_span(args[0])) or (len(args) == 2 and _is_span(args[0]) and is_rule(args[1]))
         elif name in ("matches", "begins"):
             ok = len(args) == 2 and _is_span(args[0]) and is_rule(args[1])
+        elif name == "without-elision":
+            ok = len(args) == 1 and set(args[0]) == {"capture"}
+            if not ok and len(args) == 1 and args[0].get("call") == "from":
+                raise self.fail(node, "without-elision() takes one bare capture. Use from(without-elision($x))")
         elif name == "split":
             ok = len(args) == 2 and all(is_string(argument) for argument in args)
         elif name == "tag":

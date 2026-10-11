@@ -1,0 +1,10 @@
+{
+  "description": "An empty capture does not permit a partial close group (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions ¬begins(without-elision($x), rival)\n%rule candidate [+T] [+U]\n%rule rival [+T]",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

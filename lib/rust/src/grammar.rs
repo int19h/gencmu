@@ -1242,8 +1242,15 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
 fn check_span(term: &Term) -> Result<(), String> {
     match term {
         Term::Capture(_) => Ok(()),
-        Term::Call(name, args) if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after") => {
+        Term::Call(name, args)
+            if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision") =>
+        {
             match &args[..] {
+                [Arg::Term(Term::Capture(_))] if name == "without-elision" => Ok(()),
+                _ if name == "without-elision" => {
+                    Err("without-elision() takes one bare capture: use from(without-elision($x)) for an extended query"
+                        .to_string())
+                }
                 [Arg::Term(inner)] => check_span(inner),
                 _ => Err(format!("{name}() takes one span")),
             }
@@ -1291,7 +1298,9 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                     Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
                 }
             }
-            ("head" | "tail" | "last" | "from" | "after", _) => Err(format!("{name}() is a span, not a value")),
+            ("head" | "tail" | "last" | "from" | "after" | "without-elision", _) => {
+                Err(format!("{name}() is a span, not a value"))
+            }
             (
                 "phonemes" | "text" | "classes" | "tags" | "split" | "tag" | "classify" | "matches" | "begins"
                 | "initial",

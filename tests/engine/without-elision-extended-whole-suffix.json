@@ -1,0 +1,23 @@
+{
+  "description": "An extended whole query reaches the context end and permits a later suffix omission (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate) Y\n%conditions matches(from(without-elision($x)), rival)\n%rule candidate X [+T]\n%rule rival X [+T] Y [+U]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -993,6 +993,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "without-elision":
+			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
 		case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":

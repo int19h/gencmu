@@ -1,0 +1,23 @@
+{
+  "description": "Aligned conditions preserve the restored original witness during reconstruction (engine §4 and §10).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a $x(body)\n%conditions matches(without-elision($x), rival)\n%rule body X [+T]\n%rule b X [+T] [+U]\n%rule rival X [+T]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

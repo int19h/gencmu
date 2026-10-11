@@ -1,0 +1,25 @@
+{
+  "description": "A bounded prefix cannot read the following MOI (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate) MOI\n%conditions ¬begins(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival X [+T] MOI",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "moi",
+      "tags": [
+        "MOI"
+      ],
+      "phonemes": "moi"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

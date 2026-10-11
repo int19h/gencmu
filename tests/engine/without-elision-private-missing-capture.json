@@ -1,0 +1,18 @@
+{
+  "description": "A skipped private capture retains ordinary presence simplification (engine §4 and §10).",
+  "grammar": "%rule text (X [($x(Y) ≻ Z)] ≻ V W)\n%conditions ¬$x ∨ matches(without-elision($x), rival)\n%rule rival Y",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

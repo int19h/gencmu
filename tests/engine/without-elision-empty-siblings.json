@@ -1,0 +1,18 @@
+{
+  "description": "Repeated empty siblings keep two closes without creating a named-rule cycle (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate X empty empty\n%rule rival X empty empty\n%rule empty [+T]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

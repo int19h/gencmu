@@ -278,17 +278,19 @@ A false predicate creates no omitted node, elision count or restoration record. 
 
 The parser is an Earley recognizer, a parser for any context-free grammar, over the lowered grammar. The set of items that it produces specifies it, and any algorithm that produces that set is correct. The recognizer builds one set of items for each position in the input.
 
-An item has a production, dot position, origin and structural prefix state (§4.1). Each capture before the dot retains its span, tag set and completed structural state. Completed items also retain their constituent's structural state. Two items merge only when all these values agree. Their proof edges remain distinct.
+An item has a production, dot position, origin, structural prefix state, and demanded restoration observations (§4.1). Each capture before the dot retains its span, tags, structural state, and demanded close observation. Completed items retain the corresponding observations of their constituent. Two items merge only when all these values agree. Their proof edges remain distinct.
 
-Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Captures then add items only where their spans can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
+Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation too.
+
+Captures then add items only where their spans can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
 Captured spans increase the item count, and the notation sets no limit on the number of captures. A captured part's span before the dot is part of an item's identity. So items that differ only in where a captured part began or ended are not merged. Neither are the summaries of §6 and the states of eligibility above that are kept for each item.
 
-Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets and structural states can multiply the items again.
+Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets, structural states, and demanded restoration observations can multiply the items again.
 
-A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. Where a clause only needs the whole constituent, `$` costs nothing, since the origin and the position fix it.
+A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. The span of `$` needs no extra coordinates. Its demanded restoration observations can still distinguish items.
 
-No memo depends on the number of captures. The memo of nested queries (below) is keyed by the query's kind, rule and span or content, never by captures. Only the identity of items, and what is keyed by items, grows with them.
+A memo stores answers for reuse. Ordinary query keys use the query kind, rule, and span or content. Aligned query keys also retain the restoration constraints specified below. Capture names alone do not distinguish answers.
 
 A terminal `T` matches a token whose tags contain `T`. A range matches a token that carries at least one character tag of the range. A property matches a token that carries a character tag whose scalar value has the property. Either one matches such a token once, with one reading, however many of its tags qualify.
 
@@ -332,19 +334,19 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
 A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
 A proof tree is eligible when none of its omissions is forbidden (below).
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read these eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
+An ordinary query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read these eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
 - `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible proof tree.
 
-A proof tree is finite, and it does not depend on the order in which the recognizer finds items. A rule can occur again over the same span within it. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
+A proof tree is finite, and it does not depend on the order in which the recognizer finds items. In an ordinary query without restoration constraints, a rule can occur again over the same span within its proof tree. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
 
 An implementation can rebuild the advances from completed spans, as it can for a stage's derivations (below). Such a rebuilding keeps the captures, and it applies the symbol tests again to the actual candidate. It never evaluates a condition again.
 
@@ -383,11 +385,50 @@ The implementation computes E and P together, to the least answer that the advan
 
 Eligibility filtering reads only the chart, and it evaluates no conditions. A query's answer determines which expressions the enclosing condition evaluates. The recursive-query error rule (below) applies to those evaluations.
 
-A query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes.
 
-`begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
+A candidate is one constructed reading. A witness is a qualified reading that answers a query. A close record holds an omitted terminal and its original input boundary. Ordered records at one boundary form a close group. Aligned readings preserve these groups through their shared interval.
 
-An implementation can remember the answers for the whole parse of a stage, in a memo. A memo stores answers from earlier nested parses. This is recommended, but not required. Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
+Let O be the current input with N tokens. Let `$x` cover `[a,b)` in O. Its restoration observation contains its own close records in leaf order, including records at both endpoints. An absent ordinary optional contributes no record. The caller's omissions contribute none. Ranked groups contribute opaque blocks as §4.1 specifies.
+
+The logical view contains `O[a:b]` with those records restored, followed by the unchanged suffix `O[b:N]`. It uses the synthetic-token representation and original source mapping of §7.2 and §7.3. The captured endpoint follows every synthetic token at `b` and precedes original token `O[b]`. Morphology does not run again. Saved sound and provenance remain available, but saved sound is not an alignment field.
+
+The match bound limits a completed witness. The context bound limits input visible to conditions and written-terminator priority. An ordinary query uses its span end for both bounds. A restored query keeps context `[a,N)` even when its match bound is `b`.
+
+`matches(without-elision($x), R)` and `tags(without-elision($x), R)` require a witness of R from `a` to `b`. The latter unions those witnesses' own tags. `begins(without-elision($x), R)` permits any end `c` through `b`. `from` extends the match window through N without changing the restoration observation. Thus `begins(from(without-elision($x)), R)` permits any end `c` through N. A whole query on that extended window requires end N.
+
+Compare candidate and witness close groups through `min(b,c)`, including both boundaries. Every group must have the same terminals in the same order. Equal omission counts alone are insufficient. The witness cannot add, remove, move, or reorder a close in that interval.
+
+A prefix cannot end between records of one close group. An empty prefix compares the complete initial group. An extra omission at exactly `b` disagrees, even when the witness later consumes suffix tokens.
+
+After original position `b`, an extended witness follows ordinary omission rules. It can read real written terminators in the raw suffix. Those tokens retain written status. The candidate supplies no restoration records after `b`.
+
+Qualification uses original eligible proofs before applying the alignment filter. The witness's tests and conditions must hold on O. Written-terminator priority retains the full context bound and cannot treat a restored token as a written blocker. A blocker with another internal division still belongs to original eligibility. Filtering alignment before computing eligibility changes this policy and is forbidden. Ranked admission and stage ranking do not run inside the query.
+
+A synthetic token supplies evidence for an omission, rather than a new mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's saved equality-test sound. For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
+
+These four probes distinguish aligned queries from literal replay:
+
+| Candidate on X | Rival | Query | Answer |
+| --- | --- | --- | --- |
+| `X [+T]` | `X [+U] [+T]` | Whole | False, because U adds a close |
+| `X [+T]` | `X T` | Whole | False, because a bare T requires original input |
+| `X [+T] [+U]` | `X [+T]` | Prefix | False, because the final group includes U |
+| `X [+T Y]` | `X [+T Y]` | Whole | True, because the omitted optional requires no Y |
+
+All observations inside a witness use its own projected original spans and trees. `text`, `phonemes`, `initial`, token tags, and patterns never observe inserted spelling as written input. Ordinary nested queries receive no inherited alignment constraint. Explicit nested `without-elision($y)` uses the witness's captured observation. When `$y` extends into the suffix, its later omissions enter that new constraint. No token is restored twice.
+
+Every query retains its caller's lowered grammar, features, constants, classifiers, and Unicode data. No morphology, emission, implication, stage lean, or rule-profile ranking runs inside it. A rule flag cannot turn existence into a best-reading test.
+
+Aligned query answers need separate memo keys from ordinary queries. The keys include the original context and source observations, start, context end, match window, and whole or prefix mode. They include the ordered close groups, opaque blocks, common entry observations, lowered grammar, and features. They also include any cycle context on which a cached proof summary depends. A synthetic-token view keeps saved sound where recognition values use it. Saved sound never becomes part of close equality.
+
+The active-query identity remains the requested rule and projected context interval in O. For aligned whole and extended-prefix requests, that interval is `[a,N)`. The whole endpoint is a witness filter and does not change that identity. Ordinary and restored views share the same active stack across `matches`, `begins`, and `tags`. Another script, synthetic position, or query kind cannot evade the recursive-query grammar error. Answer keys distinguish constraints, while active keys detect self-definition.
+
+An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
+
+`begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
+
+For ordinary spans, an implementation can remember answers for the whole parse of a stage in a memo. A memo stores answers from earlier nested parses. This is recommended, but not required. Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
 
 The same span is the same start and end in the stage's input. Within one parse, the span fixes the tokens and the lowered grammar. A query that the check of §7 starts has its projected span here, never its span in the reconstructed input. Its grammar is the main parse's.
 
@@ -401,7 +442,7 @@ The recognition of §7 is not a query and has no entry.
 
 `matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` needs its own entry, since `begins` of a span can hold where `matches` of it does not. A memo that outlives the parse of one stage must also be keyed by what differs between the parses that it serves. These are the tokens, the original text, the lowered grammar and the features.
 
-A nested parse sets the start and the end of the input that `initial`, `from` and `after` see to those of its span. It restores both when it ends, also when it fails with an error of the grammar.
+An ordinary nested parse sets the start and end visible to `initial`, `from`, and `after` to its span. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
 A nested parse's own conditions and tag terms can start further queries, so queries nest. They nest to any depth, and no bound applies to it. The depth follows the input, as in a chain of `begins(after($), x)` across a long text. So an implementation keeps the active queries on a stack of its own, not on the call stack of its language.
 
@@ -441,7 +482,7 @@ A counted derivation is an eligible noncyclic derivation of a completed `text` i
 
 The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
-### 4.1 Finite structural observations
+### 4.1 Shared candidate observations
 
 A structural state is a finite summary of demanded tree predicates. Compile only patterns that conditions demand, and their dependencies. Reuse identical subpatterns. Intern states so equivalent observations share one state. A tree pointer in every item does not provide the required forest sharing.
 
@@ -460,6 +501,18 @@ At a ranked group completion, the structural sequence machine receives one fixed
 Private option captures retain their real completed states for ready gates. The composed parent state propagates the seal through subsequent constructors and captures. Output trees, tags, elisions and ranking actions retain their actual derivations. No seal appears in serialized trees or grammar DOMs. Queries and reconstruction apply the same transition at ranked group boundaries.
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
+
+Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `without-elision`, and their dependencies, need these observations. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
+
+A ranked group contributes one opaque block outside its options. The block identifies its written occurrence, original span, and common entry observations. It excludes the option index, private captures, private closes, and proof identity. Wrappers and outside captures retain the block. Empty completed options also supply a block.
+
+An aligned witness must carry that same block through the same written group occurrence. It cannot replace the block with unrelated syntax or finish inside it. Compare original positions and common entry observations, rather than unrelated runtime parser identifiers. Every proof represented by one block supplies the same outside answer. The query does not ask admission which option wins. Private captures inside an option retain their own real observations for ready conditions.
+
+Candidates and aligned witnesses use finite noncyclic observation proofs. Named-rule cycle exclusion uses original positions, including during restoration. A repeated named rule over one original span supplies no additional aligned observation. Synthetic positions and different observations cannot excuse that cycle. Ordinary unmarked queries keep their existing proof policy.
+
+The engine shares candidate and witness proof states with their relevant cycle contexts. It cannot enumerate every complete tree before evaluating a captured condition. It cannot impose an arbitrary limit on restoration length. Nullable recursive omission lists, such as `r → r [+T] | X`, must reach a finite shared construction.
+
+Measure chart items, proof edges, observation states, cycle contexts, elapsed time, and peak memory on growing inputs. Include nested omissions, repeated wrappers, recursive queries, and ambiguous ranked groups. A passing language corpus alone does not establish these sharing and termination properties.
 
 ## 5. Phonemes, labels and text
 
@@ -666,6 +719,8 @@ A candidate must pass its tests and ready conditions in the requested eligibilit
 
 The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by `leftmost-longest`, then the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
 
+Outside `without-elision` observations retain the same opaque group block for every option. Private captures keep their real closes only for ready conditions within the option. The admission key includes demanded common restoration observations and excludes all private closes. Thus an aligned outside condition gives the same answer for each admitted proof of one block.
+
 Every proof that admission excludes has an eligible same-context replacement at the group. The seal and local tag rule preserve its common continuation. Induction through finite admitted child proofs preserves eligible recognition with sealing fixed. Adding a seal can change outside pattern answers.
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
@@ -685,6 +740,8 @@ A tie never reaches it, because a tie ends the stage first. It does not run for 
 The check follows the decision order of §7.10. It chooses no replacement derivation and examines no other restoration.
 
 The check uses the main parse's lowered grammar, features, classifiers, constants and Unicode table. It does not lower the grammar again, and it does not run earlier stages again.
+
+Aligned queries reuse this section's synthetic-token representation and projection. They do not use its complete recognition policy. They preserve original query eligibility, forbid bare synthetic reads, and permit ordinary omissions beyond their fixed capture. They select no replacement tree and perform no elision-only ranking.
 
 ### 7.2 The two inputs
 
@@ -787,13 +844,17 @@ The difference is deliberate. A test of a reference must read the original input
 
 Presence tests `$x`, feature guards, closed terms and constants mean what they mean in the main parse. `classify`, `split` and `tag` take arguments computed as above, and fail as §10 says.
 
+`without-elision($x)` observes the reconstruction candidate's own projected omission events and opaque ranked blocks. Each synthetic terminal read contributes one close event at its original boundary, including synthetic written routes and bare reads (§7.10). A restoration contributes exactly one event, without another event for its transparent helper. The captured derivation determines event order and ownership. Ranked blocks hide private events.
+
+This close observation differs from pattern projection, which removes bare synthetic structural leaves. It never copies D's chosen close list. Nested aligned queries receive the candidate's close observation and original context. No restoration record is duplicated.
+
 Patterns compute each reconstruction candidate's projected structure over O and never copy the chosen original tree's observations. A restoration helper contributes exactly one omitted-T marker. Its synthetic terminal read contributes no second child. A synthetic read in an ordinary production contributes no observable child. Named constructors remain, subject to empty-child removal. Original terminal reads remain written.
 
 An omitted final terminator still stops the last-child path. Its pattern sound remains empty even when its body equality saved nonempty restoration sound. Its pattern tags remain `{T}`. Body tests read synthetic recognition values, while pattern tests read projected leaf observations. The reconstructed witness preserves these observations through helpers, named constructors, empty children and unary transitions.
 
 ### 7.6 Nested queries
 
-A nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4.
+An ordinary nested query that the check starts reads the tokens of `s′`, the projected span, in O. It runs with G in its ordinary mode, as in the main parse. In that mode every elidable optional is an optional. The query reads no synthetic token, and its own nested queries do the same. It follows the query policy of §4.
 
 Written-terminator priority applies to the tokens that it reads. It does not rank its proof trees, and it emits nothing.
 
@@ -802,6 +863,8 @@ Inside the query, `initial`, `from` and `after` read the query's span of O. Its 
 A query is about a rule and a span of O. For the recursive-query rule of §4, `matches`, `begins` and `tags(s, R)` of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
 
 The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
+
+A query over an explicit `without-elision` span follows the aligned rules of §4. It fixes the current reconstruction candidate's projected closes, rather than inheriting the outer reconstruction script. Active-query errors still use the shared stack and projected original context. The mapped original witness preserves its candidate closes and query answers.
 
 `tags(s, R)` is the union of the tags of the query's eligible readings (§4). `tags($x)`, with no rule, is the capture's own constituent tags. The two do not stand in for each other.
 
@@ -1127,7 +1190,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A test's operand of the wrong type is an error, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
 - A function that does not exist is an error, and so is one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
 
-  In these signatures, a span is a capture or `head`, `tail`, `last`, `from` or `after` of one. A string is a term whose type is string (§10). The reader reports a call with the wrong arguments at the call. So a bare name in an argument that takes no name, as in `classify(lex, "mi")`, is reported at `classify`, not at the name.
+  `without-elision` takes exactly one bare capture, including `$`. Reject `without-elision(from($x))` and direct the author to `from(without-elision($x))`. Capture-use analysis and private readiness follow captures through nested span calls.
+
+  In these signatures, a span is a capture or a valid call of a span function (§10). A string is a term whose type is string (§10). The reader reports a call with the wrong arguments at the call. So a bare name in an argument that takes no name, as in `classify(lex, "mi")`, is reported at `classify`, not at the name.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `tag` whose argument is a string literal that is not a name is an error, reported at the call.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
@@ -1235,6 +1300,14 @@ A capture `$x` is the span of the captured part, and `$` the span of the whole c
 
 That input is the stage's input or, in a nested parse (§4), the span that the nested parse reads. The same holds in a tag term. The recognizer computes a constituent's tags while its parse runs. The stage computes an emission's tags after its parse, over its input.
 
+`without-elision($x)` requires one bare capture and creates the restored query view of §4. `$` names the completed enclosing candidate. An arbitrary span has no constructed derivation from which to restore closes. Missing captures keep the condition simplification of §3.6.
+
+`from` preserves a restored view and extends its match window to the context end. Repeated `from` retains the same fixed capture. `head`, `tail`, `last`, and `after` first project to original tokens, then return ordinary spans. They remove the alignment constraint. `after(without-elision($x))` therefore starts at the original capture end and reads the raw suffix.
+
+`text`, `phonemes`, `initial`, and one-argument `tags` observe the original projection. A restored span carries no constituent tags, so `tags(without-elision($x))` unions original token tags. Two-argument `tags` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
+
+During §7 reconstruction, the function takes its closes from the current candidate's projected omission events. It never borrows the selected main derivation's list. The function introduces no new synthetic token where that event already has one.
+
 A term has five types: a string, a set of strings, a tag set, a span or a pattern. No value turns into another. The reader gives every term its type, and a term whose parts do not agree is an error of the document (§9).
 
 | term | type | value |
@@ -1256,7 +1329,7 @@ A term has five types: a string, a set of strings, a tag set, a span or a patter
 | `classify(a, C)` | tag set | the classes that the classifier `C` gives the string `a`, for the features of the parse (§2), empty if no entry names `a` |
 | `$x`, `$`, `head(s)` and the other span functions | span | the argument of a function, never a value |
 
-In the check of §7, each function of a span reads the projected span of its argument. The input of `initial`, `from` and `after` is the stage's input, or the query's span of it (§7.5).
+In the check of §7, ordinary span functions read their arguments' projected spans. `without-elision` also retains the candidate's projected omission events. The input of `initial`, `from` and `after` is the stage's input, or the query's span of it (§7.5).
 
 `split(a, d)` finds the occurrences of `d` in `a` from the left. Each search starts where the last occurrence ends, so two occurrences never overlap. The pieces are the strings before the first occurrence, between two occurrences and after the last one. The value is the set of the pieces that are not empty. So `split("a..b.", ".")` is the set of `"a"` and `"b"`, and `split("aaa", "aa")` is the set of `"a"`.
 
@@ -1276,7 +1349,7 @@ A constant value is a closed term with string, string-set, tag-set or pattern ty
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
 
-`matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included. Both read only eligible proof trees (§4).
+`matches(s, R)` holds when the span parses as `R`, and `begins(s, R)` when a prefix of it does, the empty prefix included. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 
 `initial(s)` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 

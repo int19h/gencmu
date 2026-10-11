@@ -36,6 +36,10 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
+Grammar document object model (DOM) format 25 accepts `without-elision($x)`. A close is an omitted terminal at an original boundary. This span function restores captured omitted terminators for a query that preserves their closes.
+
+The query keeps original following input visible. `from(without-elision($x))` extends the match window through that input. Parse-result format 11 stays unchanged. No parse configuration controls this grammar facility.
+
 For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. A caller cannot supply attachments: a token with a non-empty `Before` or `After` is a usage error, and empty ones are dropped. The parse copies the tokens, so the caller's stay as they are.
 
 
@@ -97,3 +101,5 @@ For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases 
 The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
 
 A captured part's span is part of an item's identity (engine §4), so the recognizer keys an item by its captures. A production can have any number of them: the key keeps the first inline and interns the rest. `TestCaptureGrowth` pins the cost of a capture of a rule that can end in many places.
+
+`TestWithoutElisionParserGrowth` measures chart items, proof edges, close states, cycle contexts, time, and allocated memory on growing inputs. It covers nested omissions and ranked groups. Storage tests bound shared close links and retained ancestry at each partial prefix. Other tests cover emission queries, original token observations, attachments, and nested whole guards.

@@ -1,0 +1,18 @@
+{
+  "description": "Explicit nested restoration uses the witness capture without duplicating T (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival $y(body)\n%conditions matches(without-elision($y), inner)\n%rule body X [+T]\n%rule inner X [+T]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

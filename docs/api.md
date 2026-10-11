@@ -22,7 +22,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 23 supports ranked expressions and rejects retired optional members.
+Grammar DOM format 25 supports `without-elision($x)` in grammar conditions. All four libraries accept that span function through their ordinary grammar loaders. The function requires no parse configuration switch. A library rejects a bootstrap with another format and skips a cached DOM with another format. Parse-result format 11 stays unchanged.
+
+Retired optional members are malformed.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 

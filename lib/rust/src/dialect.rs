@@ -16,7 +16,7 @@ use crate::result::{
     Stage, Tags, Token, Verdict, Warning,
 };
 use crate::tags::character_tag;
-use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, Sources, TreeContext};
+use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
@@ -816,7 +816,6 @@ impl Dialect {
         // terminators in the order of its leaves, each with its position,
         // the empty source of its elided node, and the string of its `=`
         // test, if it has one.
-        let sources = Sources::new(input);
         let mut records: Vec<Restoration> = Vec::new();
         let mut stack = vec![0u32];
         while let Some(index) = stack.pop() {
@@ -827,13 +826,12 @@ impl Dialect {
                 if let (true, Some(terminal), true) = (rule.helper, &rule.elided, production.syms.is_empty()) {
                     let test =
                         rule.elided_test.map(|test| &g.tests[test as usize]).filter(|test| test.op == TestOp::Is);
-                    let at = sources.empty(start as usize);
-                    records.push(Restoration {
-                        terminal: terminal.clone(),
-                        at: start as usize,
-                        source: at..at,
-                        sound: test.and_then(|test| test.sound.clone()),
-                    });
+                    records.push(crate::restoration::record(
+                        terminal.clone(),
+                        start as usize,
+                        input,
+                        test.and_then(|test| test.sound.clone()),
+                    ));
                 }
             }
             stack.extend(node.children.iter().rev());

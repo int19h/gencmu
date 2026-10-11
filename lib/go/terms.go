@@ -16,6 +16,14 @@ type spanVal struct {
 	lazy      *lazyTags
 	machine   *patternMachine
 	structure int
+	arena     *closeArena
+	closes    int
+	aligned   *alignedSpan
+}
+
+type alignedSpan struct {
+	end, contextEnd, observation int
+	arena                        *closeArena
 }
 
 // A term's value is a string or a set, of strings or of tags (§10). The
@@ -56,6 +64,7 @@ type lazyTags struct {
 	caps        itemCaps
 	origin, end int32
 	structure   int
+	closes      int
 	tags        *tagset
 }
 
@@ -96,7 +105,8 @@ func (ev *evaluator) spanTags(s spanVal) *tagset {
 // from the frame that halted, so no node is evaluated twice. The order of
 // evaluation, and so of errors, is the order of a recursive evaluation.
 type walk struct {
-	frames []frame
+	invalidObservation bool
+	frames             []frame
 	// b and v are the value of the frame that ended last: b of a
 	// condition, v of a term.
 	b bool
@@ -123,12 +133,14 @@ type frame struct {
 // cond begins the walk of a condition.
 func (w *walk) cond(ev *evaluator, c *domCond) {
 	w.frames = w.frames[:0]
+	w.invalidObservation = false
 	w.push(ev, c, nil)
 }
 
 // term begins the walk of a term.
 func (w *walk) term(ev *evaluator, t *domTerm) {
 	w.frames = w.frames[:0]
+	w.invalidObservation = false
 	w.push(ev, nil, t)
 }
 
@@ -218,15 +230,23 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		call := w.chain[i]
 		s.whole, s.tags, s.lazy = false, nil, nil
 		switch call.Str {
+		case "without-elision":
+			if s.arena != nil && s.closes == invalidCloses {
+				w.invalidObservation = true
+			}
+			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
 		case "head":
+			s.aligned = nil
 			if s.b > s.a {
 				s.b = s.a + 1
 			}
 		case "tail":
+			s.aligned = nil
 			if s.b > s.a {
 				s.a++
 			}
 		case "last":
+			s.aligned = nil
 			if s.b > s.a {
 				s.a = s.b - 1
 			}
@@ -235,6 +255,7 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 			// condition (§10).
 			if call.Str == "after" {
 				s.a = s.b
+				s.aligned = nil
 			}
 			s.b = ev.run.inputEnd
 		default:
@@ -260,7 +281,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 	case term != nil:
 		f := w.top()
 		f.c, f.t, f.lazy = nil, nil, lz
-		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure)), nil, term)
+		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure, lz.closes)), nil, term)
 		return true
 	case p.implicit && !lz.parent:
 		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
@@ -635,23 +656,102 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	ps := run.ps
 	start := g.byName[rule]
 	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b}
-	if s.b-s.a <= contentKeyLimit {
+	contextEnd := s.b
+	if s.aligned != nil {
+		if s.aligned.arena == nil || s.aligned.observation == invalidCloses {
+			return false, ps.in.empty(), nil
+		}
+		k.aligned, k.observation, k.fixedEnd = true, s.aligned.observation, s.aligned.end
+		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd
+	} else if s.b-s.a <= contentKeyLimit {
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
+	}
+	at := spanKey{g: g, rule: start, a: s.a, b: contextEnd}
+	if ps.inProgress[at] {
+		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
+	}
+	if run.closeArena(g) != nil {
+		k.queryContext = ps.queryContext
 	}
 	if r, ok := ps.nested[k]; ok {
 		return r.holds, r.tags, nil
 	}
-	return false, nil, &nestedQuery{g: g, name: rule, start: start, key: k, at: spanKey{g: g, rule: start, a: s.a, b: s.b}}
+	q := &nestedQuery{g: g, name: rule, start: start, key: k, at: at, aligned: s.aligned, matchEnd: s.b, parentContext: ps.queryContext}
+	if q.aligned != nil {
+		if proofs, ok := run.qualifiedQueries[q.qualifiedKey()]; ok {
+			answer := run.alignedAnswer(q, proofs)
+			ps.nested[k] = answer
+			return answer.holds, answer.tags, nil
+		}
+	}
+	return false, nil, q
 }
 
 // nestedQuery is a nested parse that an evaluation needs: the span at as
 // the rule named name, for the query that key remembers.
 type nestedQuery struct {
-	g     *lowered
-	name  string
-	start int32
-	key   nestedKey
-	at    spanKey
+	g             *lowered
+	name          string
+	start         int32
+	key           nestedKey
+	at            spanKey
+	aligned       *alignedSpan
+	matchEnd      int
+	parentContext int
+}
+
+// Qualification does not depend on an outer close constraint. Summaries
+// retain only eligible observations, after recognizing the whole context.
+type qualifiedQueryKey struct {
+	at            spanKey
+	parentContext int
+}
+
+type qualifiedProof struct {
+	end, observation int
+	tags             *tagset
+}
+
+func (q *nestedQuery) qualifiedKey() qualifiedQueryKey {
+	return qualifiedQueryKey{q.at, q.parentContext}
+}
+
+func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
+	var items []*item
+	tags := map[*item]*tagset{}
+	for _, set := range rec.sets {
+		for key, c := range set.syms {
+			if key.rule == rec.query.start && key.origin == 0 {
+				items = append(items, c.items...)
+				for _, it := range c.items {
+					tags[it] = c.tags
+				}
+			}
+		}
+	}
+	proofs := []qualifiedProof{}
+	for _, it := range rec.eligibleItems(items) {
+		proofs = append(proofs, qualifiedProof{rec.base + int(it.set), it.closes, tags[it]})
+	}
+	return proofs
+}
+
+func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nestedResult {
+	answer := &nestedResult{}
+	var sets []*tagset
+	for _, p := range proofs {
+		if p.end > q.matchEnd || q.key.kind != cdBegins && p.end != q.matchEnd {
+			continue
+		}
+		if q.aligned.arena.aligned(q.aligned.observation, p.observation, min(q.aligned.end, p.end)) {
+			answer.holds = true
+			if q.key.kind != cdBegins {
+				sets = append(sets, p.tags)
+			}
+		}
+	}
+	answer.tags = run.ps.in.unionAll(sets)
+	return answer
 }
 
 // recognizer is the recognition that answers the query: its span alone,
@@ -670,6 +770,10 @@ func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 // input while it runs.
 func (run *stageRun) drive(root *recognizer) {
 	outerStart, outerEnd := run.inputStart, run.inputEnd
+	outerContext := run.ps.queryContext
+	if root.query != nil {
+		outerContext = root.query.parentContext
+	}
 	frames := []*recognizer{root}
 	defer func() {
 		// A parse that failed frees its place, as one that finished does.
@@ -679,6 +783,7 @@ func (run *stageRun) drive(root *recognizer) {
 			}
 		}
 		run.inputStart, run.inputEnd = outerStart, outerEnd
+		run.ps.queryContext = outerContext
 	}()
 	for len(frames) > 0 {
 		r := frames[len(frames)-1]
@@ -691,6 +796,7 @@ func (run *stageRun) drive(root *recognizer) {
 		frames = frames[:len(frames)-1]
 		if r.query != nil {
 			delete(run.ps.inProgress, r.query.at)
+			run.ps.queryContext = r.query.parentContext
 			run.settle(r)
 			// A nested recognition is done with its walk, which the next
 			// can reuse.
@@ -709,6 +815,22 @@ func (run *stageRun) startQuery(q *nestedQuery) {
 		panic(&parseFailure{message: "a condition asks whether its own span parses as " + q.name + ", which defines " + q.name + " in terms of itself over the same text"})
 	}
 	ps.inProgress[q.at] = true
+	if ps.queryContexts == nil {
+		ps.queryContexts = map[activeQueryParent]int{}
+	}
+	k := activeQueryParent{ps.queryContext, q.at}
+	id, ok := ps.queryContexts[k]
+	if !ok {
+		id = len(ps.queryContexts) + 1
+		ps.queryContexts[k] = id
+	}
+	q.parentContext = ps.queryContext
+	ps.queryContext = id
+}
+
+type activeQueryParent struct {
+	parent int
+	at     spanKey
 }
 
 // settle remembers the answer of the query that a finished recognition
@@ -718,6 +840,16 @@ func (run *stageRun) settle(rec *recognizer) {
 	q, ps := rec.query, run.ps
 	start := q.start
 	res := &nestedResult{}
+	if q.aligned != nil {
+		proofs := run.qualifiedProofs(rec)
+		if run.qualifiedQueries == nil {
+			run.qualifiedQueries = map[qualifiedQueryKey][]qualifiedProof{}
+		}
+		run.qualifiedQueries[q.qualifiedKey()] = proofs
+		res = run.alignedAnswer(q, proofs)
+		ps.nested[q.key] = res
+		return
+	}
 	if q.key.kind == cdBegins {
 		res.holds = rec.begun(start)
 	} else {
@@ -798,11 +930,14 @@ type spanKey struct {
 // nestedKey is what the answer of one kind of query about a span as a rule
 // is remembered by: a short span's content, or a long span's position.
 type nestedKey struct {
-	g       *lowered
-	kind    string
-	rule    int32
-	content string // a short span's content, or ""
-	a, b    int    // a long span's position, or -1 where content keys it
+	g                                 *lowered
+	kind                              string
+	rule                              int32
+	content                           string // a short span's content, or ""
+	a, b                              int    // a long span's position, or -1 where content keys it
+	aligned                           bool
+	observation, fixedEnd, contextEnd int
+	queryContext                      int
 }
 
 // nestedResult is whether a query holds, and for matches, the tags.

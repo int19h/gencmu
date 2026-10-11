@@ -1,0 +1,10 @@
+{
+  "description": "A restored span rejects a noncapture argument. Engine \u00a79.",
+  "document": "```jbogenbau\n%rule a B %conditions matches(without-elision(\"b\"), r)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 31
+    }
+  }
+}

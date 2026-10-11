@@ -18,6 +18,7 @@ from ._rank import (
 from ._tags import PAUSE, phoneme_of
 from ._unicode import UnicodeTable
 from . import _testing
+from ._restored import empty_source, restore
 
 
 class DRead:
@@ -85,13 +86,7 @@ def _range_source(sources: Sources, start: int, end: int) -> Range:
 
 def _empty_source(tokens: list[Token], position: int) -> Range:
     """Where an empty span stands in the text (engine §12)."""
-    if position > 0:
-        at = tokens[position - 1].source[1]
-    elif tokens:
-        at = tokens[0].source[0]
-    else:
-        at = 0
-    return (at, at)
+    return empty_source(tokens, position)
 
 
 class Tree:
@@ -550,7 +545,7 @@ class Emitter:
         """The tags an emission item's term gives, over the constituent's
         captures and ``$``; no tags at all is an error of the grammar, since
         no terminal could read the token (engine §11)."""
-        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag), self.forest.structure[node.item] if self.forest.structure else 0)
+        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag), self.forest.structure[node.item] if self.forest.structure else 0, self.forest.close_structure[node.item] if self.forest.close_structure else 0)
         tags = self.evaluator.tags(term, bound)
         if not tags:
             raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε")
@@ -719,34 +714,9 @@ class StageRunner:
         records = [
             Restoration(node.terminal or "", node.span[0], node.source, node.sound) for node in elided_nodes(tree)
         ]
-        # R: the stage's input with one synthetic token before the input
-        # token at each record's position, or at the end. A synthetic token's
-        # recognition tags are its terminal, and its recognition sound is its
-        # saved sound. Its provenance, kept apart, is what marks it.
-        restored: list[Token] = []
-        synthetic: list[bool] = []
-        original_at: list[int] = []
-        record_at: list[int] = []
-        record_of: list[int] = []
-        pending = 0
-        for index in range(len(tokens) + 1):
-            while pending < len(records) and records[pending].at == index:
-                record = records[pending]
-                record_at.append(len(restored))
-                record_of.append(pending)
-                restored.append(Token("", frozenset((record.terminal,)), (len(restored), len(restored)), record.source, record.sound))
-                synthetic.append(True)
-                pending += 1
-            if index < len(tokens):
-                original_at.append(len(restored))
-                record_of.append(-1)
-                restored.append(tokens[index])
-                synthetic.append(False)
-        # π: the number of original tokens before each position of R (engine
-        # §7.3).
-        project = [0] * (len(restored) + 1)
-        for index, is_synthetic in enumerate(synthetic):
-            project[index + 1] = project[index] + (0 if is_synthetic else 1)
+        view = restore(tokens, records)
+        restored, synthetic, project = view.tokens, view.synthetic, view.project
+        original_at, record_at, record_of = view.original_at, view.record_at, view.record_of
         lowered = self.lowered
         context = StageContext(lowered, restored, self.text, self.unicode, tagtab=main.tagtab, observed=main)
         context.synthetic = synthetic

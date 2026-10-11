@@ -8,7 +8,7 @@ use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 23;
+pub const DOM_FORMAT: i64 = 25;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -662,7 +662,10 @@ fn is_whole(value: &Json) -> bool {
 fn is_span_json(value: &Json) -> bool {
     is_object(value)
         && (is_str(value.get("capture"))
-            || matches!(value.get("call").and_then(Json::as_str), Some("head" | "tail" | "last" | "from" | "after")))
+            || matches!(
+                value.get("call").and_then(Json::as_str),
+                Some("head" | "tail" | "last" | "from" | "after" | "without-elision")
+            ))
 }
 
 /// Whether a JSON value is a tag in its canonical spelling (engine §1).
@@ -1345,6 +1348,9 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                     let args = value.get("args").and_then(Json::as_array).unwrap_or(&[]);
                     let call = value.get("call").and_then(Json::as_str);
                     let ok = match call {
+                        Some("without-elision") => {
+                            matches!(args, [capture] if matches!(capture.as_object(), Some([(name, Json::Str(_))]) if name == "capture"))
+                        }
                         Some("tags") => match args {
                             [span] => is_span_json(span),
                             [span, rule] => is_span_json(span) && is_rule_arg(rule),
@@ -1365,7 +1371,8 @@ pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str>
                         // never terms.
                         _ => false,
                     };
-                    let span_call = matches!(call, Some("head" | "tail" | "last" | "from" | "after"));
+                    let span_call =
+                        matches!(call, Some("head" | "tail" | "last" | "from" | "after" | "without-elision"));
                     if !ok || (kind != Kind::Argument && span_call) {
                         return Some("a malformed term");
                     }

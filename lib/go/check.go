@@ -64,6 +64,7 @@ func makeReading(g *lowered) *readingSets {
 // reconstruction is how the recognition of R reads its tokens and observes
 // O (§7.2, §7.3).
 type reconstruction struct {
+	records []Restoration
 	// tagsets and sounds are each token's recognition tags and, for a
 	// synthetic token, its recognition sound, in canonical form.
 	tagsets []*tagset
@@ -173,7 +174,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	}
 	// R: O with one synthetic token before the token at each record's
 	// position, or at the end. Records at one position keep their order.
-	rc := &reconstruction{reading: readingOf(g)}
+	rc := &reconstruction{reading: readingOf(g), records: records}
 	var toks []Token // R's tokens, for the readings' trees
 	originalAt := make([]int, len(run.toks))
 	recordAt := make([]int, len(records))
