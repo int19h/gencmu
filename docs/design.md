@@ -478,7 +478,7 @@ Applying maximality to every elidable optional inside queries also restricts rea
 
 ### Queries with fixed closes
 
-`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes.
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary.
 
 An elision is an omitted terminator. An aligned witness is a reading with the same closes. An ordinary query parses captured words afresh and can choose another omission boundary. A category condition sometimes needs the captured candidate's actual boundaries while it asks about another grammatical category.
 
@@ -488,7 +488,7 @@ Restored tokens record the constraint without creating new mandatory words. A ri
 
 A seal hides a ranked group's content. Outside restoration observations retain an opaque block, so private closes cannot change its common continuation. A private capture inside an option keeps its own closes for ready conditions. This preserves the replacement guarantee of engine §6.1.
 
-The smaller notation still requires proof-sensitive observations during recognition. Candidates over the same words can omit different terminators, and their queries can give different answers. Shared observation states preserve those distinctions without enumerating complete trees. Named-rule cycles use original spans, while active-query errors use the original context. Separate memo keys retain close groups, blocks, context, and features.
+The span function requires observations from each candidate during recognition. Candidates over the same words can omit different terminators, and their queries can give different answers. Shared observation states preserve those distinctions without enumerating complete trees. Named-rule cycles use original spans, while active-query errors use the original context. Separate memo keys retain close groups, blocks, context, and features.
 
 Engine §7 supplies synthetic tokens, saved sound, provenance, and source projection for reuse. Its reconstruction policy also permits bare synthetic reads and forbids omissions throughout the reconstructed input. An aligned query needs its own qualification policy and ordinary parsing after the fixed capture. It emits nothing and selects no replacement tree. No parse configuration switch controls this grammar facility.
 
