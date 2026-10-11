@@ -279,7 +279,7 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 		f.root, f.origin = outer.root, outer.origin
 		f.closeRoute = outer.closeRoute + f.closeRoute
 		f.prefix = r.machine.concat(outer.prefix, it.prefix)
-		if r.closes != nil {
+		if r.observesCloses(p.lhs) {
 			a, b := r.observed(f.origin, it.set)
 			x, y := r.observed(outer.origin, it.origin)
 			u, v := r.observed(it.origin, it.set)

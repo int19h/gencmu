@@ -857,14 +857,14 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
 			return nil
 		}
-		if r.closes != nil && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
+		if r.observesCloses(p.lhs) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
 			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
 		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
 		key.dot++
-		if r.closes != nil {
+		if r.observesCloses(p.lhs) {
 			child := cv.closes
 			a, b := r.observed(it.origin, int32(k))
 			_, oldEnd := r.observed(it.origin, it.set)
@@ -974,7 +974,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			copy.parent = true
 			whole = &copy
 		}
-		if r.closes != nil {
+		if r.observesCloses(lexical.root.lhs) {
 			a, b := r.observed(parentOrigin, end)
 			x, y := r.observed(lexical.origin, origin)
 			u, v := r.observed(origin, end)

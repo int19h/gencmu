@@ -284,8 +284,16 @@ func (r *recognizer) closeRecord(terminal string, at int, test *symTest) Restora
 	return record
 }
 
+func (r *recognizer) observesCloses(rule int32) bool {
+	return r.closes != nil && (r.closes.rules == nil || r.closes.rules[rule])
+}
+
 func (r *recognizer) finishCloses(key *itemKey, end int32) {
-	if r.closes == nil || (r.closes.rules != nil && !r.closes.rules[key.prod.lhs]) || int(key.dot) != len(key.prod.rhs) {
+	if !r.observesCloses(key.prod.lhs) {
+		key.closes = 0
+		return
+	}
+	if int(key.dot) != len(key.prod.rhs) {
 		return
 	}
 	p := key.prod
@@ -314,7 +322,7 @@ func (r *recognizer) derivationCloses(n *dn) int {
 	if n.kind == dRead {
 		return r.terminalCloses(int(n.tok), r.g.terminals[n.term])
 	}
-	if n.prod != nil && n.prod.ranked != nil {
+	if n.prod != nil && n.prod.ranked != nil && r.observesCloses(n.prod.lhs) {
 		return r.closes.seal(n.closes, r.blockEvent(&symNode{rule: n.prod.lhs, lexical: n.prod.lexical, start: n.start, end: n.end}))
 	}
 	return n.closes

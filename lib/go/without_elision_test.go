@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -253,6 +254,66 @@ func TestWithoutElisionSharedDoublingBound(t *testing.T) {
 		if w.closeLinks.Load() != 0 || w.closeStates.Load() != 0 {
 			t.Fatalf("%s activated unused observations", file)
 		}
+	}
+}
+
+func TestWithoutElisionUndemandedRankedSibling(t *testing.T) {
+	data, err := os.ReadFile("../../tests/without-elision-growth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var growth struct {
+		RankedSibling struct {
+			Case          string `json:"case"`
+			Depths        []int  `json:"depths"`
+			MaxCloseNodes int64  `json:"maxCloseNodes"`
+		} `json:"rankedSibling"`
+	}
+	if err = unmarshalJSON(data, &growth); err != nil {
+		t.Fatal(err)
+	}
+	shared := growth.RankedSibling
+	fixture := loadCase(t, filepath.Join("../../tests", shared.Case))
+	for _, depth := range shared.Depths {
+		grammar := strings.ReplaceAll(strings.Join(strings.Split(*fixture.Grammar, "\n")[:7], "\n"), "r10", fmt.Sprintf("r%d", depth))
+		for i := 1; i <= depth; i++ {
+			grammar += fmt.Sprintf("\n%%rule r%d r%d r%d | [+V]", i, i-1, i-1)
+		}
+		results := []*ParseResult{}
+		counts := []*workCounts{}
+		for _, aligned := range []bool{false, true} {
+			c := *fixture
+			rules := grammar
+			if !aligned {
+				rules = strings.ReplaceAll(rules, "without-elision($x)", "$x")
+			}
+			c.Grammar = &rules
+			d, err := caseDialect(&c, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := &workCounts{}
+			w.closeLinks.under = &workCount{}
+			w.closeLinks.under.n.Store(shared.MaxCloseNodes)
+			countWorkIn(w, func() {
+				result, err := runCase(d, &c, &c.Options)
+				if err != nil || !result.OK {
+					t.Fatalf("depth %d, aligned %t: %v, %+v", depth, aligned, err, result)
+				}
+				results = append(results, result)
+			})
+			if w.closeLinks.Load() != shared.MaxCloseNodes {
+				t.Fatalf("depth %d: %d close nodes", depth, w.closeLinks.Load())
+			}
+			counts = append(counts, w)
+		}
+		if !reflect.DeepEqual(results[0], results[1]) {
+			t.Fatalf("depth %d changed the ordinary result", depth)
+		}
+		if counts[0].items.Load() != counts[1].items.Load() {
+			t.Fatalf("depth %d changed item counts: %d, %d", depth, counts[0].items.Load(), counts[1].items.Load())
+		}
+		t.Logf("ranked sibling depth %d: %d items, 0 close nodes", depth, counts[1].items.Load())
 	}
 }
 
