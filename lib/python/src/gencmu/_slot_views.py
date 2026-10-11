@@ -35,7 +35,7 @@ def helper_forest(raw, names, maximal, marks):
                 pending.append(parent)
     if not wrapped:
         return raw,maximal,marks
-    names = ['prod','dot','origin','end','caps','edges','structure','prefix','strict']
+    names = ['prod', 'dot', 'origin', 'end', 'caps', 'edges', 'structure', 'prefix', 'strict', 'close_structure', 'close_prefix']
     forest = replace(raw,**{name:list(getattr(raw,name)) for name in names},tag=dict(raw.tag))
     forest.slot_original = list(range(len(raw.prod)))
     forest.slot_scopes = [None]*len(raw.prod)

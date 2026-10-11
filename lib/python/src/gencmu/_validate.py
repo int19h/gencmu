@@ -30,7 +30,7 @@ class Lowercase(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 22
+FORMAT = 24
 """The version of the DOM's shape (docs/output.md)."""
 
 CONSTANT_NAME = re.compile(r"[A-Z][A-Za-z0-9-]*")
@@ -52,9 +52,9 @@ comparison."""
 
 TOO_DEEP = "nested too deeply"
 
-_FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"}
+_FUNCTIONS = {"phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial", "without-elision"}
 _COMPARATORS = {"=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"}
-_SPANS = {"head", "tail", "last", "from", "after"}
+_SPANS = {"head", "tail", "last", "from", "after", "without-elision"}
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
 CAPTURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 """A capture's name is all lower case (engine §9)."""
@@ -728,6 +728,8 @@ def _walk(pending: list[tuple[str, Any, int, int]], unicode: Lowercase, tests: l
                     ok = (len(args) == 1 and _is_span(args[0])) or (
                         len(args) == 2 and _is_span(args[0]) and _is_rule_name(args[1])
                     )
+                elif call == "without-elision":
+                    ok = len(args) == 1 and isinstance(args[0], dict) and set(args[0]) == {"capture"} and isinstance(args[0]["capture"], str)
                 elif call == "split":
                     # Its arguments' types are checked with the rule's types.
                     ok = len(args) == 2 and all(

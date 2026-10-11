@@ -16,6 +16,12 @@ class Frame:
     seal_prefix: int
     inside: bool
     known_private: set
+    close_prefix: int = 0
+    seal_close_prefix: int = 0
+    seal_group: object = None
+    seal_start: int = 0
+    close_entry: tuple = ()
+    seal_entry: tuple = ()
 
 
 def prepare_ranked(lowered):
@@ -50,19 +56,24 @@ def prepare_ranked(lowered):
         p.ranked_bindings = (tuple(sorted(n for n in p.captures if not n.startswith('\u0000'))),tuple(sorted(p.private_names)))
 
 
-def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False):
+def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes=None, close_prefix=0):
     symbols = tuple((terminal, lowered.written_helpers.get(symbol,symbol),p.tests[i] if p.tests else None) for i,(terminal,symbol) in enumerate(zip(p.terminal,p.rhs)))
-    captures = tuple((name,caps[p.slots[position]]) for name,position in sorted(p.captures.items(),key=lambda part:part[1]) if not name.startswith('\u0000') and position<dot)
+    def observation(part):
+        return (*part[:4], closes.semantic(part[4])) if closes is not None and len(part) > 4 else part
+    captures = tuple((name, observation(caps[p.slots[position]])) for name, position in sorted(p.captures.items(), key=lambda part: part[1]) if not name.startswith('\u0000') and position < dot)
     source = (p.rule_name,p.slot.source.document,p.slot.source.at,lowered.written_helpers.get(p.lhs))
-    return (p.lexical.key if p.lexical else None,source,symbols,dot,origin,prefix,captures,restores,p.ranked_bindings)
+    parent = p.lexical.close_entry if closes is not None and p.lexical else p.lexical.key if p.lexical else None
+    key = (parent, source, symbols, dot, origin, prefix, captures, restores, p.ranked_bindings)
+    return key + (closes.semantic(close_prefix),) if closes is not None else key
 
 
 class Frames:
-    def __init__(self,lowered,machine):
+    def __init__(self, lowered, machine, closes=None, project=None):
         self.lowered,self.machine = lowered,machine
+        self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
 
-    def entry(self,p,dot,origin,prefix,caps,rule,restores=False):
+    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0):
         own = self.lowered.rule_productions[rule]
         if not own or not self.lowered.productions[own[0]].contextual:
             return None
@@ -70,6 +81,8 @@ class Frames:
         if outer is not None and p.lhs==rule:
             return outer
         key = written_prefix(self.lowered,p,dot,origin,prefix,caps,restores)
+        if self.closes is not None:
+            key = key, close_prefix
         if key in self.frames:
             return self.frames[key]
         captures = dict(outer.captures) if outer else {}
@@ -81,8 +94,39 @@ class Frames:
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
         frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
+        if self.closes is not None:
+            frame.close_prefix = self.closes.concat(outer.close_prefix, close_prefix) if outer else close_prefix
+            frame.seal_close_prefix = outer.seal_close_prefix if inside and outer else frame.close_prefix
+            frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix)
+            own_group = self.lowered.ranked_helpers.get(rule)
+            frame.seal_group = outer.seal_group if inside and outer else own_group
+            frame.seal_start = outer.seal_start if inside and outer else at
+            frame.seal_entry = outer.seal_entry if inside and outer else frame.close_entry
         self.frames[key] = frame
         return frame
+
+    def common_entry(self, p, dot, origin, prefix, caps, outer, close_prefix):
+        """Use written control and public observations, without proof IDs."""
+        lowered = self.lowered
+        def symbol(value, terminal):
+            return value if terminal else lowered.written_helpers.get(value, lowered.rule_names[value])
+        route = tuple((terminal, symbol(value, terminal), p.tests[i] if p.tests else None)
+                      for i, (terminal, value) in enumerate(zip(p.terminal[:dot], p.rhs[:dot])))
+        private = p.private_names | (outer.known_private if outer else set())
+        public = dict(outer.captures) if outer else {}
+        public.update((name, caps[p.slots[position]]) for name, position in p.captures.items()
+                      if not name.startswith('\u0000') and position < dot)
+        observations = []
+        for name, part in sorted(public.items()):
+            if name in private:
+                continue
+            start, end, tags = part[:3]
+            observations.append((name, self.project(start), self.project(end), tags,
+                                 part[3] if len(part) > 3 else 0,
+                                 self.closes.semantic(part[4]) if len(part) > 4 else 0))
+        source = p.rule_name, p.slot.source.document, p.slot.source.at, lowered.written_helpers.get(p.lhs)
+        return (outer.close_entry if outer else None, source, route, self.project(origin), prefix,
+                tuple(observations), self.closes.semantic(close_prefix))
 
     def production(self,p,frame):
         if frame is None:

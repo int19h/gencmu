@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 from gencmu import GencmuError, _testing, load_dialect_sources
-from gencmu._dialect import bundled_text, _reader, _resources, NotationReader
+from gencmu._dialect import DOM_FORMAT, bundled_text, _reader, _resources, NotationReader
 from gencmu._hash import fnv1a64
 from .shared import load_case_dialect, parse_case
 
@@ -15,7 +15,7 @@ def sources(grammar):
 
 def cached_sources(texts, dom):
     return {**texts, 'compiled.json': json.dumps({
-        'format': 22,
+        'format': DOM_FORMAT,
         'bootstrap': fnv1a64(bundled_text('notation/bootstrap.json')),
         'documents': {'g.md': {'hash': fnv1a64(texts['g.md']), 'dom': dom}},
     })}
