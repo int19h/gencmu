@@ -1,0 +1,922 @@
+{
+  "grammar_commit": "f00676ce44be7ad7f63a75e3dcd843aa0c0ae9ae",
+  "sources": [
+    {
+      "id": "pw-the-book",
+      "title": "The Book",
+      "url": "https://lojban.pw/en/texts/the-book/",
+      "fetched": "2026-10-10",
+      "html": "pw-the-book.html",
+      "html_sha256": "e3fbc4cdd7882e8492e4e552f36975db6294c4d271e7946d7becce3112a5288a",
+      "extracted": "pw-the-book.txt",
+      "extracted_sha256": "656a1bed0298aad7ce68f95088a0b346d23ed4e3461cb0c760d71492dfb4fa6b",
+      "location": {
+        "column": "lojbo_se_fanva_la_o_gy_Jordan_DeLong_gy_",
+        "rows": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "656a1bed0298aad7ce68f95088a0b346d23ed4e3461cb0c760d71492dfb4fa6b",
+          "cases": [
+            "texts.pw-the-book.original.cll-ebnf",
+            "texts.pw-the-book.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-how-the-enemy-came-to-thlunrana",
+      "title": "How the enemy came to Thlunrana",
+      "url": "https://lojban.pw/en/texts/how-the-enemy-came-to-thlunrana/",
+      "fetched": "2026-10-10",
+      "html": "pw-how-the-enemy-came-to-thlunrana.html",
+      "html_sha256": "e61e4b604bece35fa497889b3b628405c7ed5b5ea81f1ad0c204c67b16d663ad",
+      "extracted": "pw-how-the-enemy-came-to-thlunrana.txt",
+      "extracted_sha256": "d520a06308311278e3f3cf1b3186c35060386906ad9cfc6fe9767d62074c3fc9",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "d520a06308311278e3f3cf1b3186c35060386906ad9cfc6fe9767d62074c3fc9",
+          "cases": [
+            "texts.pw-how-the-enemy-came-to-thlunrana.original.cll-ebnf",
+            "texts.pw-how-the-enemy-came-to-thlunrana.original.bpfk"
+          ]
+        },
+        {
+          "name": "bianfu-adaptation",
+          "changes": [
+            {
+              "before": "bianfu",
+              "after": "bi'anfu",
+              "kind": "grammar adaptation, not a proven typo"
+            }
+          ],
+          "text_sha256": "767de38abc44d5fd61a70250d39da82e62b46cb1c3e502b02ec432d1ab592d57",
+          "cases": [
+            "texts.pw-how-the-enemy-came-to-thlunrana.bianfu-adaptation.cll-ebnf",
+            "texts.pw-how-the-enemy-came-to-thlunrana.bianfu-adaptation.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-terry-the-tiger-visits-the-big-city",
+      "title": "Terry the Tiger Visits the Big City",
+      "url": "https://lojban.pw/en/texts/terry-the-tiger-visits-the-big-city/",
+      "fetched": "2026-10-10",
+      "html": "pw-terry-the-tiger-visits-the-big-city.html",
+      "html_sha256": "d9e2a586cbf1ee3f3faa6a24be1d0889d1fde0235ad750291d8e39ae7cfa9733",
+      "extracted": "pw-terry-the-tiger-visits-the-big-city.txt",
+      "extracted_sha256": "1df3aa61a63ca4a50bd071a52c41a3d9a0df8eb56ad8e99d619f20ed174924e7",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "1df3aa61a63ca4a50bd071a52c41a3d9a0df8eb56ad8e99d619f20ed174924e7",
+          "cases": [
+            "texts.pw-terry-the-tiger-visits-the-big-city.original.cll-ebnf",
+            "texts.pw-terry-the-tiger-visits-the-big-city.original.bpfk"
+          ]
+        },
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Replace decorative quotation marks with spaces. Preserve Lojban quotation particles."
+            }
+          ],
+          "text_sha256": "0da23ef5c78c83ea916ead072188a8caefa6beaad6757f260690a936e2a2093b",
+          "cases": [
+            "texts.pw-terry-the-tiger-visits-the-big-city.typography.cll-ebnf",
+            "texts.pw-terry-the-tiger-visits-the-big-city.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-emerald-tablet",
+      "title": "Emerald Tablet",
+      "url": "https://lojban.pw/en/texts/emerald-tablet/",
+      "fetched": "2026-10-10",
+      "html": "pw-emerald-tablet.html",
+      "html_sha256": "3e2fd210ece467ea6fd4f6b076f0d13a8222f1d28fbc37f85f1879dc3662219a",
+      "extracted": "pw-emerald-tablet.txt",
+      "extracted_sha256": "1adfa3c7aba88effd991e5a4a3cf26463b9a57e906c4b7b678e0f565442e50ed",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "1adfa3c7aba88effd991e5a4a3cf26463b9a57e906c4b7b678e0f565442e50ed",
+          "cases": [
+            "texts.pw-emerald-tablet.original.cll-ebnf",
+            "texts.pw-emerald-tablet.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-the-north-wind-and-the-sun",
+      "title": "The North Wind and the Sun",
+      "url": "https://lojban.pw/en/texts/the-north-wind-and-the-sun/",
+      "fetched": "2026-10-10",
+      "html": "pw-the-north-wind-and-the-sun.html",
+      "html_sha256": "9218b19c1f716a1597607ddf1dc5871b2ffc72419846390a52a67ad385f17275",
+      "extracted": "pw-the-north-wind-and-the-sun.txt",
+      "extracted_sha256": "987effc7ad2e5a8b7f3c5650aa1e611a57b36522a0627d0a97d808f880bb6e03",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "987effc7ad2e5a8b7f3c5650aa1e611a57b36522a0627d0a97d808f880bb6e03",
+          "cases": [
+            "texts.pw-the-north-wind-and-the-sun.original.cll-ebnf",
+            "texts.pw-the-north-wind-and-the-sun.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-the-girl-from-ipanema",
+      "title": "The Girl from Ipanema",
+      "url": "https://lojban.pw/en/texts/the-girl-from-ipanema/",
+      "fetched": "2026-10-10",
+      "html": "pw-the-girl-from-ipanema.html",
+      "html_sha256": "32d3e7a38bb834aed1d77affd3d11ee50e2b89b968fddb3d3dbb737d1f6b6b82",
+      "extracted": "pw-the-girl-from-ipanema.txt",
+      "extracted_sha256": "84f627fc70192f5959ab0700e86c1f6ab3bb903d75f6dc695c3de89aa032f851",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "84f627fc70192f5959ab0700e86c1f6ab3bb903d75f6dc695c3de89aa032f851",
+          "cases": [
+            "texts.pw-the-girl-from-ipanema.original.cll-ebnf",
+            "texts.pw-the-girl-from-ipanema.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-there-will-come-soft-rains",
+      "title": "There Will Come Soft Rains",
+      "url": "https://lojban.pw/en/texts/there-will-come-soft-rains/",
+      "fetched": "2026-10-10",
+      "html": "pw-there-will-come-soft-rains.html",
+      "html_sha256": "73bff191d2a37142583f1af033e1354c2a6f6fa4e56b7edb5c8c47e1e041ee49",
+      "extracted": "pw-there-will-come-soft-rains.txt",
+      "extracted_sha256": "9db6a1c0c49a1976cd1ec3d0fc383cb49444df2aad79263c4143920054962b5c",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "9db6a1c0c49a1976cd1ec3d0fc383cb49444df2aad79263c4143920054962b5c",
+          "cases": [
+            "texts.pw-there-will-come-soft-rains.original.cll-ebnf",
+            "texts.pw-there-will-come-soft-rains.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-various-texts",
+      "title": "Various texts",
+      "url": "https://lojban.pw/en/texts/various-texts/",
+      "fetched": "2026-10-10",
+      "html": "pw-various-texts.html",
+      "html_sha256": "35a5b60a1bc88163607bbc31b4c31d16a99e02d32e038d2692fdd59c0b524e46",
+      "extracted": "pw-various-texts.txt",
+      "extracted_sha256": "42100b85eb8045c50b1338dcb5d90ab811299e0788f83187244a567e8c68db08",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "42100b85eb8045c50b1338dcb5d90ab811299e0788f83187244a567e8c68db08",
+          "cases": [
+            "texts.pw-various-texts.original.cll-ebnf",
+            "texts.pw-various-texts.original.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-tarzan",
+      "title": "“All Star”\n  \nSmash Mouth\n  \nla’e zoi ly. “tarzan” .ly.",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/tarzan.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-tarzan.html",
+      "html_sha256": "a8e8fb1cfb374f02dac4c055f3d8fafe60b25c98c2f5d0bb4921cb67669a7631",
+      "extracted": "suzy-zgike-valsi-tarzan.txt",
+      "extracted_sha256": "2008ae49d78fe45ea3363e97cbd3573fef39e1ab4d106cb1b40d287f1f949907",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "96574e6a8046000fe50de8c5cf3a40dd8466f17512fc534f950261b551b16e11",
+          "cases": [
+            "texts.suzy-zgike-valsi-tarzan.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-tarzan.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-uenaisai",
+      "title": "“Alone Again (Naturally)”\n  \nGilbert O’Sullivan\n  \nla’e lu “.i .uenaisai .i’inai” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/uenaisai.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-uenaisai.html",
+      "html_sha256": "25ffde065245b180d5ea24dfe35675457de72c522cbd5b5082bafea99a7eaed9",
+      "extracted": "suzy-zgike-valsi-uenaisai.txt",
+      "extracted_sha256": "971a9172e9abab203bbcaaa529f428b4b029c65aa14bee329e98c6138a615837",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "0746dc2a061f44749bffea7649bb7165378159aa15666ae78b4921e50aef07dd",
+          "cases": [
+            "texts.suzy-zgike-valsi-uenaisai.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-uenaisai.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-dranicohe",
+      "title": "“Doin’ It Right”\n  \nDaft Punk\n  \nla’e lu “drani co’e” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/dranicohe.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-dranicohe.html",
+      "html_sha256": "fdd48a57e2d362531ffd2a7824b212fa6aa0a308ec7e2931af1e423536ad374d",
+      "extracted": "suzy-zgike-valsi-dranicohe.txt",
+      "extracted_sha256": "1facee3ed9c73ffe6063c8f9eda04fc016cc4840249eae386e4217ccc2af407e",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          5,
+          6,
+          7
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "1facee3ed9c73ffe6063c8f9eda04fc016cc4840249eae386e4217ccc2af407e",
+          "cases": [
+            "texts.suzy-zgike-valsi-dranicohe.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-dranicohe.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-klinasexance",
+      "title": "“Invisible Touch”\n  \nGenesis\n  \nla’e lu “klina se xance” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/klinasexance.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-klinasexance.html",
+      "html_sha256": "eed659fd715547f8d6e71da0b78708407dc439a492df61a75a10186f689b33de",
+      "extracted": "suzy-zgike-valsi-klinasexance.txt",
+      "extracted_sha256": "24e0052d1cb0916fb464aa9ff538317cb78d1acb52306bb6bad22d1d7deecea2",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "4da00c2edbad1a388876f9b74dbc6a5bc02c8e17006335d169350939e93e5409",
+          "cases": [
+            "texts.suzy-zgike-valsi-klinasexance.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-klinasexance.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-catramilxe",
+      "title": "“Killing Me Softly With His Song”\n  \nLori Lieberman et al.\n  \nla’e lu “.i catra milxe sanga .ua” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/catramilxe.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-catramilxe.html",
+      "html_sha256": "d6a17c972c96d77b6c5bc8f85a8cbb90e661a27eceb633843b3e9224222ba9ab",
+      "extracted": "suzy-zgike-valsi-catramilxe.txt",
+      "extracted_sha256": "f44c9d7f672a3c145f57daeae76d6ecd0091dfa5869e4a73899277128edda545",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "51955b1acf86dfcf5db9d484d4f9b615bd353f74a429a40bca830a93367ac9bf",
+          "cases": [
+            "texts.suzy-zgike-valsi-catramilxe.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-catramilxe.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-puzukusolji",
+      "title": "“Once You Had Gold”\n  \nEnya\n  \nla’e lu “puzuku solji” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/puzukusolji.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-puzukusolji.html",
+      "html_sha256": "d2d04d1d1ace77b59a58e18ccd7217a950f5985ca0f3ac6aa2f7095519e995d2",
+      "extracted": "suzy-zgike-valsi-puzukusolji.txt",
+      "extracted_sha256": "dbfc5d8c01ce5a96652bbe5f54bd3dd2d49369f80fc346dbd700428c987d9a0e",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          4,
+          5,
+          6
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "a134605c0bb83c24d1d22f8f41738543a0a363eb6f7339806bb113578536079d",
+          "cases": [
+            "texts.suzy-zgike-valsi-puzukusolji.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-puzukusolji.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-prenucuntu",
+      "title": "“People Make the World Go Round”\n  \nThe Stylistics\n  \nla’e lu “prenu cuntu carnybai” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/prenucuntu.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-prenucuntu.html",
+      "html_sha256": "93abbede95220fe26f01fbfd545cb40af689136e2acca8055037bbdc7826b121",
+      "extracted": "suzy-zgike-valsi-prenucuntu.txt",
+      "extracted_sha256": "f360dfabe54b459aba2a4bc1438116abe516ac15bac56446c1b7bcc5ae94cab9",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "2c68487ab9c40127edff00392dca9a7385ceb420c21bc0564c7c4fc88b07598e",
+          "cases": [
+            "texts.suzy-zgike-valsi-prenucuntu.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-prenucuntu.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-nupre",
+      "title": "“Promises, Promises”\n  \nBurt Bacharach\n  \nla’e lu “.i nupre .i nupre” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/nupre.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-nupre.html",
+      "html_sha256": "17bb8fe562a606af3f0bd0ed42f25cd849963263328a9b84cd1bb185d127e973",
+      "extracted": "suzy-zgike-valsi-nupre.txt",
+      "extracted_sha256": "fabf78921b88ec71517dbb81e35254718032384afc2515857ddd9a1dcc856b17",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          6,
+          7,
+          8
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "5919852fcc96e38183ebe90316c9ed4f8569b567c6eb64605f24d8ded87b2997",
+          "cases": [
+            "texts.suzy-zgike-valsi-nupre.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-nupre.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-lameris",
+      "title": "“Proud Mary”\n  \nCreedence Clearwater Revival\n  \nla’e lu “la merisnoijgiras.” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/lameris.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-lameris.html",
+      "html_sha256": "5a4f4676bfd2dc336b091945d238e9db246943559199adb68585a8f98c447b25",
+      "extracted": "suzy-zgike-valsi-lameris.txt",
+      "extracted_sha256": "9e64c78a4fa10f66a134996b8525a636c908c37c86fbcecabdafded94a406d12",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "5dea0d1769992369e280ba343d25b76e5970929ad2cdb3c6ac934f0ee8c7ff4e",
+          "cases": [
+            "texts.suzy-zgike-valsi-lameris.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-lameris.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-kolaurgau",
+      "title": "“Pump Up the Jam”\n  \nTechnotronic\n  \nla’e lu “ko laurgau lo zgike” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/kolaurgau.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-kolaurgau.html",
+      "html_sha256": "f316117f5094d2d205e9a7dfc3a41c5f4f410cbea95e54cebb39f73283a8d890",
+      "extracted": "suzy-zgike-valsi-kolaurgau.txt",
+      "extracted_sha256": "d3d20d67b1dcd62bcd93632d38caaaff7c78cd6aca527aeac9c45e3be108a4a0",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          5,
+          6
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "5f1bb2673a38739559f75de9e03498895f4a3974568784c378cab6971483ba8f",
+          "cases": [
+            "texts.suzy-zgike-valsi-kolaurgau.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-kolaurgau.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-zgike-valsi-lebifmlo",
+      "title": "“The Windmills of Your Mind”\n  \nMichel Legrand\n  \nla’e lu “le bifmlo ro’edai” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/zgike-valsi/lebifmlo.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-zgike-valsi-lebifmlo.html",
+      "html_sha256": "9e0c652a3b9975280ab853e1c1bb72e0bcff03ea0faf9dd3559ccc1e5ad5363c",
+      "extracted": "suzy-zgike-valsi-lebifmlo.txt",
+      "extracted_sha256": "d3ac4adcf03f4a65b5679a4a85cbe70d6c68f2b83bb57e50569e0a28a1fe1c49",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "7a6ba84e1c1d3deb482f3182a1a00e43bcd86bfc501784a0db6d5d9c68248041",
+          "cases": [
+            "texts.suzy-zgike-valsi-lebifmlo.typography.cll-ebnf",
+            "texts.suzy-zgike-valsi-lebifmlo.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-karni-2026-08-31-coi-coi",
+      "title": "2026/8/31: coi coi",
+      "url": "https://suzypavlis.neocities.org/lojban/karni/2026-08-31-coi-coi.html",
+      "fetched": "2026-10-10",
+      "html": "suzy-karni-2026-08-31-coi-coi.html",
+      "html_sha256": "de4ff6f559e055c5fa4046e41dd2820b38714d563119333820477dbdc3c31e60",
+      "extracted": "suzy-karni-2026-08-31-coi-coi.txt",
+      "extracted_sha256": "ef1564edc8d04882a5bbba0729e28811c515916e43843962b53c5b525f6ea244",
+      "location": {
+        "chunk": "body",
+        "paragraphs": [
+          1,
+          2,
+          3
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup",
+              "description": "Convert phonemic smart apostrophes, marked stress, and digits. Replace editorial punctuation with spaces outside foreign quotations."
+            }
+          ],
+          "text_sha256": "a9cb3c1a3f5ae70f0fe244bc725e079e65ef0da878263ba86732b98fd1a5325c",
+          "cases": [
+            "texts.suzy-karni-2026-08-31-coi-coi.typography.cll-ebnf",
+            "texts.suzy-karni-2026-08-31-coi-coi.typography.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "suzy-banli-chapter-1",
+      "title": "la’e lu “le banli nalci bo since” li’u",
+      "url": "https://suzypavlis.neocities.org/lojban/lisri/banli",
+      "fetched": "2026-10-10",
+      "html": "suzy-banli-chapter-1.html",
+      "html_sha256": "0b23c841e664c958f89ec4a2fa84a8e6e8638d4c6d47417705f9f1c2aa3ff8cd",
+      "extracted": "suzy-banli-chapter-1.txt",
+      "extracted_sha256": "44bf15acca40b1f8f870ce31549bce4a06f5e19639aea58636872c374e40496b",
+      "location": {
+        "chunk": "chapter-1",
+        "heading": "ni’o ni’o pa mo’o",
+        "paragraphs": [
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "variants": [
+        {
+          "name": "typography",
+          "changes": [
+            {
+              "kind": "typography cleanup"
+            }
+          ],
+          "text_sha256": "02c5e29811ff387dbbf8f50eba721ce7983c3d13a6266489a31f7b87719b7cc2",
+          "cases": [
+            "texts.suzy-banli-chapter-1.typography.cll-ebnf",
+            "texts.suzy-banli-chapter-1.typography.bpfk"
+          ]
+        },
+        {
+          "name": "paragraph-repair",
+          "changes": [
+            {
+              "kind": "typography cleanup"
+            },
+            {
+              "before": "ni'o .i",
+              "after": "ni'o",
+              "count": 10
+            }
+          ],
+          "text_sha256": "c696c5fec2362e4e25dc68b8f3668796f1366e3f900e3c7f41c200de79c9146b",
+          "cases": [
+            "texts.suzy-banli-chapter-1.paragraph-repair.cll-ebnf",
+            "texts.suzy-banli-chapter-1.paragraph-repair.bpfk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pw-tlon-row-18",
+      "title": "Tlön, Uqbar, Orbis Tertius",
+      "url": "https://lojban.pw/en/texts/tlon-uqbar/",
+      "fetched": "2026-10-10",
+      "html": "pw-tlon-row-18.html",
+      "html_sha256": "e4c4d17e023753248ad167200824a80b8dda026549594db0b266a480530f9600",
+      "extracted": "pw-tlon-row-18.txt",
+      "extracted_sha256": "72fc8b02de98239a550e98945ebd9c4533a88a2e9d422c791ef62429e585242a",
+      "location": {
+        "column": "lojbo",
+        "rows": [
+          18
+        ]
+      },
+      "variants": [
+        {
+          "name": "original",
+          "changes": [],
+          "text_sha256": "72fc8b02de98239a550e98945ebd9c4533a88a2e9d422c791ef62429e585242a",
+          "cases": [
+            "texts.pw-tlon-row-18.original.cll-ebnf",
+            "texts.pw-tlon-row-18.original.bpfk"
+          ]
+        },
+        {
+          "name": "delimiter-repair",
+          "changes": [
+            {
+              "kind": "quotation repair",
+              "description": "Insert the opening zoi delimiter before Ucbar, Ookbar, and Oukbahr."
+            }
+          ],
+          "text_sha256": "f8e9dcc9e8b6460d8da5997b6b7b757cd3ad64485b04d286486cf45e554ddcb9",
+          "cases": [
+            "texts.pw-tlon-row-18.delimiter-repair.cll-ebnf",
+            "texts.pw-tlon-row-18.delimiter-repair.bpfk"
+          ]
+        }
+      ]
+    }
+  ],
+  "audit_grammar_commit": "6d705c316797b02983220780ecebb17636d1c5b7"
+}
