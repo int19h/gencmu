@@ -205,7 +205,7 @@ A chain cannot hold a capture, since a capture never stands inside braces (see "
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... \ s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
-- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` see a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
+- The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - That level has the tags of `x` in the chain, where `x` is one symbol, and none with the suffix, unless the rule writes tags.
 - Where `s` begins with an elidable optional `[+T]`, the two place `[+T]` differently. In the suffix, it starts the optional's content, so it has no constituent. In the chain, it follows `x`, and the rules of "Elided terminators" decide its constituent.
 
@@ -783,7 +783,7 @@ Two nested flagged occurrences over one span contribute twice, so two such occur
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries,.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 
@@ -863,7 +863,7 @@ An omission exists only when its test passes on this restoration value. A failed
 | `T∩S=∅` | `T ∉ S` | Empty |
 | `T∩S≠∅` | `T ∈ S` | Empty |
 
-Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+`, `++` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
+Here S is the evaluated tag set, and s is the evaluated canonical string. The same rules apply to `+` and identifier-tag literals. `[+T≠""]` never omits T, but accepts a written T with nonempty sound. `[+T⊇U]` cannot omit T when U differs from T, but a written token with both tags passes.
 
 Then the stage parses that input again. Each elidable optional is either restored or written. In the chosen parse's own reading, an optional that it left out is restored: it reads only its written-back terminator. Another reading can start an optional from a written-back terminator and read more after it, where the rest of the optional reads something.
 

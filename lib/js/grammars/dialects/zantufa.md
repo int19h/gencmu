@@ -107,9 +107,17 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
 
 ## Differences from Zantufa and CLL
 
-The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading. Patterns remove duplicate constructions while preserving their actual children and boundaries. Following-input conditions reserve words after the selected constituent. Ranked choices retain the stated category preferences.
+The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading.
 
-The dialect permits an unwritten TOI or SEhU to close early when a longer body prevents a complete reading. Ordinary late elision selects among complete readings. The [syntax comparison](../syntax/zantufa.md#early-closure) explains the three accepted departures and their written-terminator controls.
+A constituent is the text read by one rule. A pattern tests a constituent's tree. Patterns remove duplicate constructions while preserving their actual children and boundaries.
+
+A following-input condition tests words after a constituent. These conditions reserve words after the selected constituent.
+
+A ranked choice filters alternatives at one written position. Ranked choices retain the stated category preferences.
+
+Late elision ranks complete readings by omitted terminators. Fewer omissions win at the first differing boundary.
+
+The dialect permits an unwritten TOI or SEhU to close early when a longer body prevents a complete reading. The [syntax comparison](../syntax/zantufa.md#early-closure) explains the three accepted departures and their written-terminator controls.
 
 CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The dialect extends that quotation boundary to every leading free modifier and to LUhEI. The [syntax document](../syntax/zantufa.md#differences-from-zantufa-19999) records this departure. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
 
