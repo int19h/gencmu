@@ -366,6 +366,8 @@ A term is a string, a set of strings, a tag set, a span or a tree pattern. A ran
 
 Guards in a row, `A ⟹ B ⟹ t`, are one list of conditions before the union, for the reason above. The reader groups them to the right: `A ⟹ (B ⟹ t)`.
 
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The generic `call` production reads this function name. The reader requires exactly one bare capture, including `$`. It rejects `without-elision(from($x))` and directs the author to `from(without-elision($x))`.
+
 A property is not a tag set, but the grammar reads one in a term, so that the reader can refuse it by name. A bare name in a term is a tag literal when it begins with a capital. Otherwise it names a rule or a classifier, which only a function's argument can do. A constant, such as `$SU-STOPS`, stands for its value. The reader tells the two apart and gives each term its type (`../../docs/engine.md`, §9, §10).
 
 ```jbogenbau

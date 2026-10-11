@@ -1,0 +1,38 @@
+{
+  "description": "Ranked lexical frames keep different close observations of an earlier public capture separate (engine §4 and §6.1).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $p(prefix) ($x(a) ≻ $x(b))\n%conditions matches(without-elision($p), rival-prefix) ⟹ matches(without-elision($x), rival-a), ¬matches(without-elision($p), rival-prefix) ⟹ matches(without-elision($x), rival-b)\n%rule prefix t | u\n%rule t Q [+T]\n%rule u Q [+U]\n%rule a X [+V]\n%rule b X [+W] [+W]\n%rule rival-prefix Q [+T]\n%rule rival-a X [+V]\n%rule rival-b X [+W] [+W]",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "prefix",
+            "children": [
+              {
+                "rule": "t"
+              }
+            ]
+          },
+          {
+            "rule": "a"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 [
   {
-    "description": "A maximal member on a directive other than elidable (engine §9).",
+    "description": "A maximal member on a directive other than elidable (engine \u00a79).",
     "directive": {
       "name": "ambiguity-resolution",
       "args": [
@@ -15,7 +15,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is false (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal member whose value is false (engine \u00a79). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -30,7 +30,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is the string true (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal member whose value is the string true (engine \u00a79). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -45,7 +45,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is null (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal member whose value is null (engine \u00a79). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -60,7 +60,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal member whose value is the number 1, which is not true, also in a language where 1 equals true (engine §9). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal member whose value is the number 1, which is not true, also in a language where 1 equals true (engine \u00a79). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -75,7 +75,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal elidable directive with no arguments, as %elidable maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal elidable directive with no arguments, as %elidable maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [],
@@ -88,7 +88,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal elidable directive whose argument is maximal, as %elidable maximal ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal elidable directive whose argument is maximal, as %elidable maximal ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -103,7 +103,7 @@
     "malformed": true
   },
   {
-    "description": "A plain elidable directive whose argument is maximal, as %elidable ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A plain elidable directive whose argument is maximal, as %elidable ~maximal gives (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -117,7 +117,7 @@
     "malformed": true
   },
   {
-    "description": "A maximal elidable directive with an unknown member. A library ignores a member of a directive that it does not know, and checks the members that it knows (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine §9).",
+    "description": "A maximal elidable directive with an unknown member. A library ignores a member of a directive that it does not know, and checks the members that it knows (docs/output.md). A directive named elidable is malformed, since %elidable is no directive (engine \u00a79).",
     "directive": {
       "name": "elidable",
       "args": [
@@ -133,7 +133,7 @@
     "malformed": true
   },
   {
-    "description": "An unknown member does not excuse a malformed known member: maximal on ambiguity-resolution stays malformed (docs/output.md, engine §9).",
+    "description": "An unknown member does not excuse a malformed known member: maximal on ambiguity-resolution stays malformed (docs/output.md, engine \u00a79).",
     "directive": {
       "name": "ambiguity-resolution",
       "args": [
@@ -149,7 +149,7 @@
     "malformed": true
   },
   {
-    "description": "A features directive with a maximal member: no directive has one (engine §9, docs/output.md).",
+    "description": "A features directive with a maximal member: no directive has one (engine \u00a79, docs/output.md).",
     "directive": {
       "name": "features",
       "args": [
@@ -186,6 +186,293 @@
       "args": [
         "a",
         "b"
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span accepts one bare capture. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "from accepts a restored span. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "from",
+            "args": [
+              {
+                "call": "without-elision",
+                "args": [
+                  {
+                    "capture": ""
+                  }
+                ]
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A restored span rejects an empty argument list. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": []
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span rejects two captures. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "capture": ""
+              },
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span rejects a string. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span rejects from as its argument. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "call": "from",
+                "args": [
+                  {
+                    "capture": ""
+                  }
+                ]
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span rejects another restoration as its argument. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "call": "without-elision",
+                "args": [
+                  {
+                    "capture": ""
+                  }
+                ]
+              }
+            ]
+          },
+          "rule": "text"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A restored span rejects a capture with an extra member. Engine \u00a79.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "matches": {
+            "call": "without-elision",
+            "args": [
+              {
+                "capture": "",
+                "extra": true
+              }
+            ]
+          },
+          "rule": "text"
+        }
       ],
       "at": [
         1,

@@ -1,0 +1,18 @@
+{
+  "description": "Ordinary and aligned requests over equal words keep different answers (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions matches($x, rival), ¬matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival X [+U]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

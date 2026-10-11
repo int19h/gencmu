@@ -520,6 +520,7 @@ export type Production = {
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
+    sourcePrivate?: Set<string>;
     contextual?: boolean;
     rankedDeferred?: Condition[];
     parentTags?: Term;
@@ -622,6 +623,7 @@ export type Captured = {
     end: number;
     tags: number;
     structure: number;
+    observation: import("./close-observations.js").CloseObservation | null;
     id: number;
 } | null;
 export type Edge = {
@@ -648,6 +650,8 @@ export type TermValue = {
     set: Set<string>;
 };
 export type SpanValue = {
+    observation?: import("./close-observations.js").CloseObservation | null;
+    aligned?: AlignedSpan;
     structure?: number;
     patterns?: import("./patterns.js").PatternMachine | null;
     start: number;
@@ -672,6 +676,13 @@ export type SpanValue = {
      * it
      */
     exact?: [number, number];
+};
+export type AlignedSpan = {
+    observation: import("./close-observations.js").CloseObservation;
+    candidateEnd: number;
+    matchEnd: number;
+    contextEnd: number;
+    view: ReturnType<typeof import("./restoration.js").restoreTokens>;
 };
 export type Scope = {
     capture: (name: string) => SpanValue;
@@ -1124,6 +1135,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
+ * @property {Set<string>} [sourcePrivate]
  * @property {boolean} [contextual]
  * @property {Condition[]} [rankedDeferred]
  * @property {Term} [parentTags]
@@ -1188,7 +1200,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * tag set, after the parts before it. A context makes each sequence once,
  * with its number (engine §4). `depth` counts the parts, and `jump` is an
  * earlier sequence that a search for a part can skip to.
- * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, id: number} | null} Captured
+ * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
  */
 /**
  * How an item was built.
@@ -1205,6 +1217,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A span a term denotes, with the tags of the captured part when it is a
  * whole capture.
  * @typedef {object} SpanValue
+ * @property {import("./close-observations.js").CloseObservation|null} [observation]
+ * @property {AlignedSpan} [aligned]
  * @property {number} [structure]
  * @property {import("./patterns.js").PatternMachine | null} [patterns]
  * @property {number} start
@@ -1220,6 +1234,15 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   behind it: one original token for head and last, and from the first
  *   original token of the span for tail, from and after; only faults read
  *   it
+ */
+/**
+ * A restored span keeps its candidate observation and original context.
+ * @typedef {object} AlignedSpan
+ * @property {import("./close-observations.js").CloseObservation} observation
+ * @property {number} candidateEnd
+ * @property {number} matchEnd
+ * @property {number} contextEnd
+ * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
  */
 /**
  * Where a term looks up its captures.

@@ -19,6 +19,9 @@ from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference,
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
+from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed
+from ._model import Restoration
+from ._restored import empty_source
 
 SEED = (-1, 0, 0, 0)
 """The edge of a predicted item: (predecessor, kind, a, b), where kind is 0
@@ -96,7 +99,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure")
 
     def __init__(
         self,
@@ -107,6 +110,7 @@ class Bound:
         whole: tuple[int, int, int | Callable[[], Walk] | None] | None,
         machine: PatternMachine | None = None,
         structure: int = 0,
+        close_structure: int = 0,
     ) -> None:
         self.production = production
         self.caps = caps
@@ -115,6 +119,7 @@ class Bound:
         self.whole = whole
         self.machine = machine
         self.structure = structure
+        self.close_structure = close_structure
         self.found: dict[str, tuple[int, ...] | None] = {}
         self.all: list[tuple[int, ...]] | None = None
         self.searched = 0
@@ -168,6 +173,18 @@ class Bound:
             return 0
         part = self.caps[slot]
         return part[3] if len(part) > 3 else 0
+
+    def close_observation(self, name: str) -> int:
+        if name == WHOLE:
+            return self.close_structure
+        position = self.production.captures.get(name)
+        if position is None:
+            frame = self.production.lexical
+            part = frame.captures.get(name) if frame else None
+        else:
+            slot = self.production.slots[position]
+            part = self.caps[slot] if 0 <= slot < len(self.caps) else None
+        return part[4] if part and len(part) > 4 else 0
 
 
 NO_CAPS = Caps(None, None)
@@ -228,6 +245,9 @@ class Forest:
     machine: PatternMachine | None = None
     prefix: list[int] = field(default_factory=list)
     strict: list[bool] = field(default_factory=list)
+    close_structure: list[int] = field(default_factory=list)
+    close_prefix: list[int] = field(default_factory=list)
+    close_machine: CloseMachine | None = None
 
 
 @dataclass
@@ -330,12 +350,18 @@ class StageContext:
     project: list[int] | None = None
     observed: StageContext | None = None
     machine: PatternMachine | None = field(init=False, default=None)
+    close_rules: frozenset[int] = field(init=False, default=frozenset())
+    closes: CloseMachine | None = field(init=False, default=None)
+    aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
+    qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
         self.sounds = [None] * len(self.tokens)
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
+        self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
+        self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
 
     def carries(self, terminal: str, tag_id: int) -> bool:
         """Whether a tag set holds a character tag of a range or a property,
@@ -459,7 +485,10 @@ class StageContext:
         their derivations (engine §4, nested parses): what matches and tags
         read. A walk, which runs the nested parse where its answer is not
         yet known."""
+        self.require_inactive(rule, start, end)
         key = self.nested_key(rule, start, end)
+        if self.closes is not None:
+            key = key, frozenset(self.running)
         found = self.memo.get(key)
         if found is None:
             yield self.answer(rule, start, end, key, False)
@@ -471,12 +500,70 @@ class StageContext:
         parses as rule: whether a completed item of the rule with an
         eligible proof tree begins at the span's start, in any set (engine
         §4). A walk, as for :meth:`nested`."""
+        self.require_inactive(rule, start, end)
         key = self.nested_key(rule, start, end)
+        if self.closes is not None:
+            key = key, frozenset(self.running)
         found = self.begins_memo.get(key)
         if found is None:
             yield self.answer(rule, start, end, key, True)
             found = self.begins_memo[key]
         return found
+
+    def require_inactive(self, rule, start, end):
+        if (rule, start, end) in self.running:
+            raise _GrammarFault(
+                f"a condition asks whether its own span parses as {rule} from inside the parse of that span as {rule}: "
+                f"the grammar defines {rule} in terms of itself over the same text"
+            )
+
+    def aligned(self, rule: str, span: RestoredSpan, prefix: bool) -> Walk:
+        """Filter original eligible proofs with one captured observation."""
+        self.require_inactive(rule, span.start, span.context_end)
+        closes = self.closes
+        assert closes is not None
+        if span.observation == closes.INVALID:
+            return NestedAnswer(False, EMPTY)
+        ancestry = frozenset(self.running)
+        key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
+               closes.semantic(span.observation), ancestry)
+        found = self.aligned_memo.get(key)
+        if found is not None:
+            return found
+        request = rule, span.start, span.context_end
+        self.running.add(request)
+        try:
+            raw_key = rule, span.start, span.context_end, ancestry
+            qualified = self.qualified_memo.get(raw_key)
+            if qualified is None:
+                number = self.lowered.rule_ids.get(rule)
+                if number is None:
+                    raise _GrammarFault(f"{rule} is not a rule of this stage")
+                forest = yield Parser(self, span.start, span.context_end).walk(number)
+                candidates = [item for item in range(len(forest.prod))
+                              if item in forest.tag and forest.origin[item] == 0
+                              and forest.lowered.productions[forest.prod[item]].lhs == number
+                              and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)]
+                qualified = forest, eligible(forest, candidates, self, span.start)
+                self.qualified_memo[raw_key] = qualified
+            forest, candidates = qualified
+            tags = Gathered()
+            accepted = False
+            for item in candidates:
+                end = span.start + forest.end[item]
+                if end > span.end or not prefix and end != span.end:
+                    continue
+                boundary = min(span.captured_end, end)
+                candidate = closes.through(span.observation, boundary)
+                witness = closes.through(forest.close_structure[item], boundary)
+                if candidate is not None and candidate == witness:
+                    accepted = True
+                    tags.add(self.tagtab.get(forest.tag[item]))
+            found = NestedAnswer(accepted, tags.value())
+            self.aligned_memo[key] = found
+            return found
+        finally:
+            self.running.discard(request)
 
     def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool) -> Walk:
         """Parses tokens start..end alone as rule, and remembers the answer
@@ -515,7 +602,7 @@ class StageContext:
         witnesses = [
             item
             for item, (prod, dot, origin) in enumerate(zip(forest.prod, forest.dot, forest.origin))
-            if origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
+            if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs)
         ]
         # Only an item with an eligible proof tree counts (engine §4).
         self.begins_memo[key] = bool(eligible(forest, witnesses, self, start))
@@ -554,12 +641,12 @@ class Evaluator:
         # §7.3, §7.5). None elsewhere.
         self.project = project
 
-    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], Walk] | None] | None = None, structure: int = 0) -> Bound:
+    def bind(self, production: Production, caps: Caps, whole: tuple[int, int, int | Callable[[], Walk] | None] | None = None, structure: int = 0, close_structure: int = 0) -> Bound:
         """The captures of an item, and ``$`` when ``whole`` gives the
         constituent's span and tag set (``None`` while its tag set is being
         computed, when no term may read it). Each capture is found when it
         is first read, not all of them at once."""
-        return Bound(production, caps, self.base, self.project, whole, self.context.machine, structure)
+        return Bound(production, caps, self.base, self.project, whole, self.context.machine, structure, close_structure)
 
     def _span(self, dom: Any, bound: Bound) -> Walk:
         if isinstance(dom, dict):
@@ -569,15 +656,25 @@ class Evaluator:
                     raise _GrammarFault(f"${dom['capture']} is not captured here")
                 return found
             name = dom.get("call")
+            if name == "without-elision":
+                capture = dom["args"][0]["capture"]
+                start, end, _ = yield self._span(dom["args"][0], bound)
+                observation = bound.close_observation(capture)
+                if observation == CloseMachine.INVALID:
+                    raise InvalidObservation()
+                return RestoredSpan(start, end, end, self.end, observation)
             if name in ("head", "tail", "last", "from", "after"):
                 args = dom.get("args", [])
                 if len(args) != 1:
                     raise _GrammarFault(f"{name}() takes one span")
-                start, end, _ = yield self._span(args[0], bound)
+                span = yield self._span(args[0], bound)
+                start, end, _ = span
                 # To the end of the input of the parse that evaluates the
                 # condition: the stage's, or a nested parse's span (engine
                 # §10).
                 if name == "from":
+                    if isinstance(span, RestoredSpan):
+                        return replace(span, end=self.end)
                     return (start, self.end, None)
                 if name == "after":
                     return (end, self.end, None)
@@ -676,7 +773,10 @@ class Evaluator:
                 table = self.context.lowered.classifiers.get(args[1]["classifier"])
                 return table.get(key, EMPTY) if table is not None else EMPTY
             if name == "tags" and len(args) == 2:
-                start, end, _ = yield self._span(args[0], bound)
+                span = yield self._span(args[0], bound)
+                if isinstance(span, RestoredSpan):
+                    return (yield self.context.aligned(args[1]["rule"], span, False)).tags
+                start, end, _ = span
                 return (yield self.context.nested(args[1]["rule"], start, end)).tags
             span = yield self._span(args[0], bound)
             if name == "phonemes":
@@ -726,10 +826,16 @@ class Evaluator:
                 return inside if op == "⊆" else not inside
             raise _GrammarFault(f"an unknown comparison {op}")
         if "matches" in dom:
-            start, end, _ = yield self._span(dom["matches"], bound)
+            span = yield self._span(dom["matches"], bound)
+            if isinstance(span, RestoredSpan):
+                return (yield self.context.aligned(dom["rule"], span, False)).accepted
+            start, end, _ = span
             return (yield self.context.nested(dom["rule"], start, end)).accepted
         if "begins" in dom:
-            start, end, _ = yield self._span(dom["begins"], bound)
+            span = yield self._span(dom["begins"], bound)
+            if isinstance(span, RestoredSpan):
+                return (yield self.context.aligned(dom["rule"], span, True)).accepted
+            start, end, _ = span
             return (yield self.context.begins(dom["rule"], start, end))
         if "initial" in dom:
             # Where the input of the parse that reads the condition begins:
@@ -836,9 +942,14 @@ class Parser:
         caps: list[Caps] = []
         prefixes: list[int] = []
         structures: list[int] = []
+        close_prefixes: list[int] = []
+        close_structures: list[int] = []
         machine = context.machine
+        closes = context.closes
+        def original(position):
+            return project[position] if project is not None else base + position
         from ._ranked_frame import Frames
-        frames = Frames(lowered,machine) if ranked_groups else None
+        frames = Frames(lowered, machine, closes, original) if ranked_groups else None
         def prediction_key(rule,frame=None):
             return (rule,frame.id if frame else 0) if frames is not None else rule
         elidable_heads = {p.lhs:p.elided for p in productions if p.elided is not None} if machine is not None else {}
@@ -894,9 +1005,35 @@ class Parser:
             sound = test.sound if test.op == "=" else ""
             return test.holds(sound, frozenset((production.elided,)))
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0) -> None:
+        def close_record(terminal, position, sound=None):
+            boundary = original(position)
+            source = observed if observed is not None else context
+            return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), sound))
+
+        def completed_closes(production, position, start, at, prefix):
+            if closes is None or production.lhs not in context.close_rules or position != len(production.rhs):
+                return 0
+            if production.elided is not None:
+                test = production.elided_test
+                return close_record(production.elided, start, test.sound if test is not None and test.op == '=' else None)
+            if production.helper:
+                return prefix
+            return closes.complete(prefix, production.lhs, original(start), original(at))
+
+        def block(production, start, at, frame, outermost=False):
+            group = frame.seal_group if outermost else production.ranked
+            entry = frame.seal_entry if outermost else frame.close_entry
+            first = frame.seal_start if outermost else start
+            return Block((group.rule, group.source.document, group.source.at, group.alternative, group.path),
+                         original(first), original(at), entry)
+
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0) -> None:
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
+            if closes is not None:
+                close_prefix = closes.trim(close_prefix, original(start), original(at))
+                close_structure = completed_closes(productions[production], position, start, at, close_prefix)
+                key += close_prefix, close_structure
             found = sets[at].get(key)
             if found is None:
                 found = len(prod)
@@ -908,6 +1045,9 @@ class Parser:
                 caps.append(captured)
                 prefixes.append(prefix)
                 structures.append(structure)
+                if closes is not None:
+                    close_prefixes.append(close_prefix)
+                    close_structures.append(close_structure)
                 edges.append([edge])
                 if edge != SEED:
                     _testing.count("packed_edges")
@@ -938,27 +1078,31 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p,dot[item],origin[item],prefixes[item],caps[item],rule,any(edge[1]==RESTORE for edge in edges[item]))
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item])
 
         def candidate(p,frame):
             return frames.production(p,frame) if frames is not None else p
 
-        def bound_for(production,captured,whole=None,structure=0):
+        def bound_for(production, captured, whole=None, structure=0, close_structure=0):
             frame = production.lexical
             if frame is not None and whole is not None:
-                _,at,own = whole
+                start, at, own = whole
+                if closes is not None and frame.root.lhs in context.close_rules and frame.seal_group is not None:
+                    sealed = closes.seal(close_structure, block(production, start, at, frame, True))
+                    close_structure = closes.concat(frame.seal_close_prefix, sealed)
+                    close_structure = closes.complete(close_structure, frame.root.lhs, original(frame.origin), original(at))
                 if own is not None:
                     memo = []
                     def parent_tag():
                         if not memo:
-                            hidden = evaluator.bind(production,captured,(frame.origin,at,tagtab.empty),structure)
+                            hidden = evaluator.bind(production, captured, (frame.origin, at, tagtab.empty), structure, close_structure)
                             memo.append(tagtab.intern(_as_set((yield evaluator.walk_value(production.parent_tags,hidden)))))
                         return memo[0]
                     whole = (frame.origin,at,parent_tag)
                 else:
                     whole = (frame.origin,at,tagtab.empty)
                 structure = machine.node(frame.root.rule_name,machine.concat(frame.seal_prefix,machine.sealed()))
-            return evaluator.bind(production,captured,whole,structure)
+            return evaluator.bind(production, captured, whole, structure, close_structure)
 
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
@@ -967,13 +1111,13 @@ class Parser:
                 return captured[production.slots[0]][2]
             return tagtab.empty
 
-        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Walk:
+        def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Walk:
             """The tag set of a completed item from its production's tag
             term, which can ask nested parses (engine §4)."""
-            bound = bound_for(production, captured, (start, at, None), structure)
+            bound = bound_for(production, captured, (start, at, None), structure, close_structure)
             return tagtab.intern(_as_set((yield evaluator.walk_value(production.tags_term, bound))))
 
-        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0) -> Callable[[], Walk]:
+        def lazy_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Callable[[], Walk]:
             """The walk of the tag set of a completing item, computed on
             first use (engine §4)."""
             memo: list[int] = []
@@ -983,7 +1127,7 @@ class Parser:
                     if production.tags_term is None:
                         memo.append(constituent_tag(production, captured))
                     else:
-                        memo.append((yield term_tag(production, captured, start, at, structure)))
+                        memo.append((yield term_tag(production, captured, start, at, structure, close_structure)))
                 return memo[0]
 
             return tag
@@ -1028,12 +1172,28 @@ class Parser:
                         return None
             part_structure = 0
             prefix = 0
+            close_prefix = 0
+            part_closes = 0
             if machine is not None:
                 part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
                 symbol = production.rhs[position]
                 exported = machine.sealed() if not production.terminal[position] and symbol in lowered.ranked_helpers else part_structure
                 prefix = machine.concat(prefixes[item], exported)
                 part = (*part[:3], part_structure)
+            if closes is not None:
+                if edge[1] == 2:
+                    child = edge[2]
+                    part_closes = close_structures[child]
+                    symbol = production.rhs[position]
+                    if production.lhs in context.close_rules and not production.terminal[position] and symbol in lowered.ranked_helpers:
+                        child_production = productions[prod[child]]
+                        part_closes = closes.seal(part_closes, block(child_production, origin[child], end[child], child_production.lexical))
+                elif recon and synthetic[edge[2]]:
+                    part_closes = close_record(edge[3], edge[2], tokens[edge[2]].phonemes)
+                if production.lhs in context.close_rules:
+                    close_prefix = closes.concat(close_prefixes[item], part_closes)
+                    close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
+                part = (*part[:3], part_structure, part_closes)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1043,8 +1203,8 @@ class Parser:
                 captured = found
             conditions = production.conds_at.get(position)
             if conditions:
-                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix)
-            add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix)
+                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix, close_prefix)
+            add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix, close_prefix)
             return None
 
         def checked(
@@ -1057,6 +1217,7 @@ class Parser:
             strict_step: bool,
             conditions: list[Any],
             prefix: int,
+            close_prefix: int,
         ) -> Walk:
             """The conditions that an advance makes ready, in written order,
             and then the item, if they all hold. Once the constituent is
@@ -1064,13 +1225,17 @@ class Parser:
             condition reads them (engine §4)."""
             if production.whole_ready and position + 1 == len(production.rhs):
                 structure = completed_structure(production, position + 1, prefix)
-                bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure)), structure)
+                close_structure = completed_closes(production, position + 1, start, at, close_prefix)
+                bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure, close_structure)), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
-            for condition in conditions:
-                if not (yield evaluator.walk_condition(condition, bound)):
-                    return
-            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix)
+            try:
+                for condition in conditions:
+                    if not (yield evaluator.walk_condition(condition, bound)):
+                        return
+            except InvalidObservation:
+                return
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -1088,11 +1253,15 @@ class Parser:
             # Its tag term runs only where a condition reads $'s tags (engine
             # §4).
             structure = completed_structure(production, 0, 0)
-            whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure)) if not production.rhs else None
-            bound = bound_for(production, NO_CAPS, whole, structure)
-            for condition in production.conds_predict:
-                if not (yield evaluator.walk_condition(condition, bound)):
-                    return False
+            close_structure = completed_closes(production, 0, j, j, 0)
+            whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure, close_structure)) if not production.rhs else None
+            bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
+            try:
+                for condition in production.conds_predict:
+                    if not (yield evaluator.walk_condition(condition, bound)):
+                        return False
+            except InvalidObservation:
+                return False
             return True
 
         def restore(number: int, j: int) -> None:
@@ -1238,7 +1407,10 @@ class Parser:
                 if production.tags_term is None:
                     tag[item] = constituent_tag(production, caps[item])
                 else:
-                    tag[item] = yield term_tag(production, caps[item], start, j, structures[item])
+                    try:
+                        tag[item] = yield term_tag(production, caps[item], start, j, structures[item], close_structures[item] if closes is not None else 0)
+                    except InvalidObservation:
+                        continue
                 lhs = production.lhs
                 part = (start, j, tag[item])
                 if start == j:
@@ -1304,7 +1476,7 @@ class Parser:
         roots = [
             item
             for item in final.values()
-            if origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
+            if item in tag and origin[item] == 0 and productions[prod[item]].lhs == start_rule and dot[item] == len(productions[prod[item]].rhs)
         ]
         expected: dict[str, set[str]] = {}
         here = tokens[base + furthest].tags if furthest < n else {}
@@ -1327,7 +1499,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [])
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes)
 
 
 def reading_last(lowered: Lowered) -> list[int]:

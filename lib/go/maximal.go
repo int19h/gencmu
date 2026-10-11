@@ -174,7 +174,7 @@ func (mx *maximal) forbidsIn(rule, start, end int32, t *symTest, lexical *ranked
 	if !ok {
 		furthest = -1
 		for _, sym := range mx.contextual[key.completion] {
-			if (t == nil || mx.rec.symbolTest(t, capVal{sym.start, sym.end, sym.tags.id, sym.structure}, false)) && sym.end > furthest {
+			if (t == nil || mx.rec.symbolTest(t, capVal{sym.start, sym.end, sym.tags.id, sym.structure, sym.closes}, false)) && sym.end > furthest {
 				furthest = sym.end
 			}
 		}

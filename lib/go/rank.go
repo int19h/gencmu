@@ -35,6 +35,7 @@ const (
 // (a part: the derivation of an item's children so far).
 type dn struct {
 	structure  int
+	closes     int
 	kind       uint8
 	tok        int32 // read: the token, relative to the recognizer's base
 	term       int32
@@ -92,6 +93,9 @@ func closeNode(p *production, start, end int32, tags *tagset, kids *dn, structur
 	n := &dn{kind: dClose, prod: p, start: start, end: end, tags: tags, a: kids}
 	if len(structure) > 0 {
 		n.structure = structure[0]
+	}
+	if len(structure) > 1 {
+		n.closes = structure[1]
 	}
 	vis, whole := count{}, countOne
 	if !p.transparent {
@@ -1137,8 +1141,8 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 		}
 		c := v.it
 		for _, x := range v.e.cands {
-			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure)}
-			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure) }, pastInf)
+			n := &cand{d: closeNode(c.prod, s.start, s.end, s.tags, x.d, s.structure, s.closes)}
+			rk.inherit(n, x, count{}, func(t *dn) *dn { return closeNode(c.prod, s.start, s.end, s.tags, t, s.structure, s.closes) }, pastInf)
 			cands = append(cands, n)
 		}
 	}

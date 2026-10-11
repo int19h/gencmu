@@ -1,0 +1,22 @@
+{
+  "description": "Reconstructed captures exclude repeated named rules over one original span despite distinct synthetic spans (engine §4 and §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a X [+T]\n%rule b X [+T] [+U]\n%rule c $x(r)\n%conditions matches(without-elision($x), rival)\n%rule r r T | X\n%rule rival X [+T]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

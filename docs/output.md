@@ -139,14 +139,14 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 ```
-{"format":22,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
+{"format":24,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONSTANT...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}
 ```
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 22 supports ordered ranked expressions, stage selectors, pattern values, tree comparisons, rule flags, braces, and elidable optional markers. All six tests are valid on elidable terminators.
+DOM format 24 supports `without-elision` spans, ordered ranked expressions, stage selectors, pattern values, tree comparisons, rule flags, braces, and elidable optional markers. All six tests are valid on elidable terminators.
 
-Format 22 applies to grammar DOMs, bootstrap envelopes, and cache envelopes.
+Format 24 applies to grammar DOMs, bootstrap envelopes, and cache envelopes. Parse-result format 11 stays unchanged.
 
 A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
@@ -187,6 +187,16 @@ A term is `{"pattern":PATTERN}`, `{"string":"s"}`, `{"tag":"KOhA"}`, `{"range":[
 `const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form.
 
 An argument is a span or a term. For `tags`, `matches` and `begins`, an argument can also be a rule name, `{"rule":"brivla-scan"}`. For `classify`, the second argument is a classifier's name, `{"classifier":"lexicon"}`, and the first is a term whose type is a string. A span is `{"capture":"x"}`, `{"capture":""}` for `$`, or `{"call":"head","args":[SPAN]}`. `tail`, `last`, `from` and `after` have the same form as `head`.
+
+`without-elision` uses the same call form, but requires exactly one bare capture, including `{"capture":""}` for `$`. A span call cannot supply its argument. `from` can wrap the resulting span. The readers reject `without-elision(from($x))` and direct the author to `from(without-elision($x))`.
+
+For example, `matches(without-elision($m), sumti)` uses this condition DOM:
+
+```json
+{"matches":{"call":"without-elision","args":[{"capture":"m"}]},"rule":"sumti"}
+```
+
+The extended prefix uses `{"call":"from","args":[{"call":"without-elision","args":[{"capture":"m"}]}]}` as its `begins` span. The condition variants stay `matches` and `begins`. The DOM contains no restoration records or ranked seals.
 
 A condition is one of these forms:
 
@@ -290,7 +300,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":22,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":24,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

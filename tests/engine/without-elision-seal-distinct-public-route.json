@@ -1,0 +1,32 @@
+{
+  "grammar": "%rule text Q $x(choice)\n%conditions \u00acmatches(without-elision($x), choice)\n%rule choice (a & b) (c \u227b d)\n%rule a X\n%conditions \u00acinitial($)\n%rule b X\n%conditions initial($)\n%rule c Y [+T]\n%rule d Y [+U]",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ],
+      "phonemes": "q"
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "A seal entry distinguishes the earlier public control route."
+}

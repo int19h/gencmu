@@ -648,6 +648,11 @@ func (b *domBuilder) finishCall(nameNode *Node, args []*domTerm, inCondition boo
 		return &domTerm{Kind: tmCall, Str: name, Items: args}
 	}
 	switch name {
+	case "without-elision":
+		shape(len(args) == 1)
+		if args[0].Kind != tmCapture {
+			b.fail(nameNode, "without-elision() requires a bare capture. Use from(without-elision($x)) for an extended span.")
+		}
 	case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
 		shape(len(args) == 1 && span(0))
 	case "tags":

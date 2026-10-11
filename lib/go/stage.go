@@ -15,8 +15,10 @@ type parseState struct {
 	lineStarts []int
 	// nested holds the answers of nested parses, and inProgress those now
 	// running (terms.go).
-	nested     map[nestedKey]*nestedResult
-	inProgress map[spanKey]bool
+	nested        map[nestedKey]*nestedResult
+	inProgress    map[spanKey]bool
+	queryContext  int
+	queryContexts map[activeQueryParent]int
 	// ranges holds the tag set of each range a term has read, made once
 	// (engine §10).
 	ranges map[[2]string]*tagset
@@ -66,12 +68,14 @@ func (ps *parseState) characterTokens() []Token {
 }
 
 type stageRun struct {
-	patternMachines map[*lowered]*patternMachine
-	ps              *parseState
-	name            string
-	grammar         *stageGrammar
-	toks            []Token
-	tagsets         []*tagset
+	closeArenas      map[*lowered]*closeArena
+	qualifiedQueries map[qualifiedQueryKey][]qualifiedProof
+	patternMachines  map[*lowered]*patternMachine
+	ps               *parseState
+	name             string
+	grammar          *stageGrammar
+	toks             []Token
+	tagsets          []*tagset
 	// inputStart and inputEnd are where the input of the recognition now
 	// running begins and ends; outside one, the stage's input.
 	inputStart, inputEnd int

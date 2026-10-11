@@ -172,13 +172,16 @@ Each library's runner finds these places in the same way, and `places.json` hold
 
 Each entry of its `substitutions` gives a text, a `find`, a `replace`, the number of places of `find` and the expected result. The result is the text after the replacement, or `null` where `find` stands nowhere. `tests/quoted-allow.txt` names the lines of its entries by phrases, as "Quoted texts" says.
 
-## Malformed directives: `dom-malformed.json`
+## Malformed DOMs: `dom-malformed.json`
 
 ```
-[{"description": "...", "directive": DIRECTIVE, "malformed": true}, ...]
+[{"description": "...", "directive": DIRECTIVE, "malformed": true},
+ {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item is one directive of a DOM (`docs/output.md`). A library puts it alone in an otherwise empty DOM of the current format. It tests the DOM as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true. A library that refuses a malformed precompiled DOM reads the document instead, so the check is not visible through a parse. That is why these cases test the check directly.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses the current format. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+
+A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
 ## Growth cases: `growth.json`
 
@@ -236,6 +239,22 @@ Each item bounds how often a step or term evaluates its parts when it starts man
 The library joins `item` for each i from 0 to `count` − 1 with `joiner`. It puts `head` before them and `tail` after them. It then appends `rule` once per i. In `item` and `rule`, `{i}` stands for i.
 
 It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
+
+## Close growth cases: `without-elision-growth.json`
+
+A nullable rule accepts an empty span. These cases bound close storage when a nullable rule repeats one shared child twice.
+
+A close node stores an omitted terminator, a ranked seal, or a shared concatenation. A ranked seal records an uninspected ranked group.
+
+`case` names the engine fixture that defines the family. `depths` gives the rule depths that each library tests.
+
+`nodesPerDepth` and `slack` set the bound `nodesPerDepth*(depth+1)+slack`. Every library stops a growth case when close node creation passes this bound.
+
+An aligned witness is a query proof with matching closes.
+
+The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation.
+
+`unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
 
 ## Result mutants: `result-mutants.json`
 

@@ -354,6 +354,7 @@ fn merge(a: &[u64], b: &[u64]) -> Bits {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
+    observation: u32,
     count: u8,
     first: Bits,
     last: Bits,
@@ -390,6 +391,7 @@ pub(crate) struct Machine {
     state_ids: FxMap<State, u32>,
     transitions: FxMap<String, u32>,
     pub empty: u32,
+    pub observations: Option<crate::restoration::Observations>,
 }
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
@@ -430,6 +432,7 @@ impl Machine {
             state_ids: FxMap::default(),
             transitions: FxMap::default(),
             empty: 0,
+            observations: None,
         };
         for p in roots {
             m.compile(p);
@@ -437,6 +440,7 @@ impl Machine {
         let zero = vec![0; m.predicates.len().div_ceil(64)];
         let relations = m.machines.iter().map(|n| n.epsilon.clone()).collect();
         m.empty = m.intern(State {
+            observation: 0,
             count: 0,
             first: zero.clone(),
             last: zero.clone(),
@@ -581,6 +585,7 @@ impl Machine {
             })
             .collect();
         let id = self.intern(State {
+            observation: 0,
             count: 1,
             first: bits.clone(),
             last: bits.clone(),
@@ -600,7 +605,12 @@ impl Machine {
         }
         let a = &self.states[left as usize];
         let b = &self.states[right as usize];
+        let observation = match &mut self.observations {
+            Some(observations) => observations.join(a.observation, b.observation),
+            None => 0,
+        };
         let s = State {
+            observation,
             count: 2.min(a.count + b.count),
             first: if a.count > 0 { a.first.clone() } else { b.first.clone() },
             last: if b.count > 0 { b.last.clone() } else { a.last.clone() },
@@ -675,6 +685,7 @@ impl Machine {
         };
         let zero = vec![0; bits.len()];
         let state = State {
+            observation: s.observation,
             count: if empty { 0 } else { 1 },
             first: if empty { zero.clone() } else { bits.clone() },
             last: if empty { zero.clone() } else { bits.clone() },
@@ -687,6 +698,29 @@ impl Machine {
         crate::work::count(crate::work::Work::StructuralTransitions, 1);
         self.transitions.insert(key, id);
         id
+    }
+    pub(crate) fn observation(&self, state: u32) -> u32 {
+        self.states[state as usize].observation
+    }
+    pub(crate) fn observing(&mut self, state: u32, observation: u32) -> u32 {
+        if self.states[state as usize].observation == observation {
+            return state;
+        }
+        let mut state = self.states[state as usize].clone();
+        state.observation = observation;
+        self.intern(state)
+    }
+    pub(crate) fn normalized_observation(&self, state: u32) -> u32 {
+        self.observations.as_ref().map_or(0, |o| o.normalized(self.observation(state)))
+    }
+    pub(crate) fn structural(&mut self, state: u32) -> u32 {
+        self.observing(state, 0)
+    }
+    pub(crate) fn block(&mut self, block: crate::restoration::Block, child: u32) -> u32 {
+        let observation = self.observation(child);
+        let state = self.sealed();
+        let observation = self.observations.as_mut().map_or(0, |o| o.block(block, observation));
+        self.observing(state, observation)
     }
     pub(crate) fn matches(&self, state: u32, p: &Pattern) -> bool {
         let id = self.ids[&pattern_key(p)];

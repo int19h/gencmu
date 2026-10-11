@@ -21,6 +21,7 @@ func TestDOMMalformed(t *testing.T) {
 	var cases []struct {
 		Description string          `json:"description"`
 		Directive   json.RawMessage `json:"directive"`
+		Rule        json.RawMessage `json:"rule"`
 		Malformed   bool            `json:"malformed"`
 	}
 	// Each directive is kept as written, so that a malformed one reaches
@@ -32,7 +33,11 @@ func TestDOMMalformed(t *testing.T) {
 		t.Fatal("no cases")
 	}
 	for _, c := range cases {
-		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[],"directives":[` + string(c.Directive) + `],"constants":[],"classifiers":[],"implications":[]}`
+		rules, directives := "[]", "["+string(c.Directive)+"]"
+		if len(c.Rule) != 0 {
+			rules, directives = "["+string(c.Rule)+"]", "[]"
+		}
+		dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":` + rules + `,"directives":` + directives + `,"constants":[],"classifiers":[],"implications":[]}`
 		_, err := decodeDOM(json.RawMessage(dom), bundled.uni)
 		if (err != nil) != c.Malformed {
 			t.Errorf("%s\n%s: refused %v", c.Description, c.Directive, err)

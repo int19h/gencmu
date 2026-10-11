@@ -1,0 +1,10 @@
+{
+  "description": "An empty ranked block remains an opaque observation (engine §4 and §10).",
+  "grammar": "%rule text $x(choice)\n%conditions matches(without-elision($x), choice), ¬matches(without-elision($x), unrelated)\n%rule choice ε ≻ empty\n%rule empty ε\n%rule unrelated ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

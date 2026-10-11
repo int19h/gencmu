@@ -1,0 +1,23 @@
+{
+  "description": "A bare synthetic read retains its own projected close in a reconstruction capture (engine §4 and §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a X [+T]\n%rule b X [+T] [+U]\n%rule c $x(body)\n%conditions matches(without-elision($x), rival)\n%rule body X T\n%rule rival X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

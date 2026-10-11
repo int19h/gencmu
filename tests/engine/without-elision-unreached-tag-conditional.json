@@ -1,0 +1,17 @@
+{
+  "description": "A false tag antecedent does not evaluate the restored query in its consequent (engine §4 and §10).",
+  "grammar": "%rule text $x(X)\n%conditions ~recursive ⊆ tags($x, q)\n%rule q $y(r)\n%tags tags($y) ∪ (text($) = \"wrong\" ⟹ tags(without-elision($y), rival))\n%rule r r [+U] <~recursive> | X <∅>\n%rule rival X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
