@@ -14,5 +14,18 @@
     "cycle-context-wrappers.json",
     "late-elision-exponential-count.json",
     "late-elision-exponential-equal.json"
-  ]
+  ],
+  "rankedSibling": {
+    "case": "engine/without-elision-undemanded-ranked-sibling.json",
+    "depths": [
+      4,
+      6,
+      8,
+      10,
+      16,
+      64,
+      256
+    ],
+    "maxCloseNodes": 0
+  }
 }
