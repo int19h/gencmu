@@ -245,8 +245,7 @@ impl Admission {
             }
             let Sym::N(rule) = p.syms[item.dot as usize - 1] else { continue };
             let Some(group_id) = g.ranked.slots.get(&rule) else { continue };
-            let mut edge = 0;
-            for (previous, cap, option) in slot_links(g, chart, end, item) {
+            for (edge, (previous, cap, option)) in slot_links(g, chart, end, item).into_iter().enumerate() {
                 let pp = &g.prods[previous.prod as usize];
                 let prefix = written_frame(g, chart, previous, cap.start);
                 let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
@@ -255,14 +254,10 @@ impl Admission {
                     groups.push(vec![]);
                     groups.len() - 1
                 });
-                let copies = 1;
-                for offset in 0..copies {
-                    let candidate = SlotCandidate { node, edge: edge + offset, label: format!("{option:020}"), group };
-                    groups[group].push(candidate.clone());
-                    at.entry(node).or_default().push(candidate);
-                    stats.candidate_edges += 1;
-                }
-                edge += copies;
+                let candidate = SlotCandidate { node, edge, label: format!("{option:020}"), group };
+                groups[group].push(candidate.clone());
+                at.entry(node).or_default().push(candidate);
+                stats.candidate_edges += 1;
                 let _ = pp;
             }
         }
