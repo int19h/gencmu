@@ -94,7 +94,7 @@ class Frames:
         inside = bool(p.ranked or outer and outer.inside)
         seal_prefix = outer.seal_prefix if inside and outer else prefix
         frame = Frame(len(self.frames)+1,key,captures,present,root,named_origin,prefix,seal_prefix,inside,(outer.known_private if outer else set()) | p.private_names)
-        if self.closes is not None:
+        if self.closes is not None and p.lhs in self.lowered.close_rules:
             frame.close_prefix = self.closes.concat(outer.close_prefix, close_prefix) if outer else close_prefix
             frame.seal_close_prefix = outer.seal_close_prefix if inside and outer else frame.close_prefix
             frame.close_entry = self.common_entry(p, dot, origin, prefix, caps, outer, frame.close_prefix)

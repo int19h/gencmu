@@ -12,7 +12,7 @@ from gencmu._closes import Block, CloseMachine, Sequences
 from gencmu._earley import Parser, StageContext
 from gencmu._model import Restoration
 
-from .shared import case_tokens, load_case_dialect, run_case
+from .shared import case_tokens, load_case_dialect, parse_case, run_case
 
 
 def tokens(*tags):
@@ -147,6 +147,36 @@ class WithoutElision(unittest.TestCase):
         for small, large in zip(*sizes):
             self.assertLessEqual(large, 6 * small, sizes)
 
+
+    def test_an_unrelated_ranked_sibling_creates_no_close_nodes(self):
+        shared_root = Path(__file__).resolve().parents[3] / "tests"
+        shared = json.loads((shared_root / "without-elision-growth.json").read_text())["rankedSibling"]
+        fixture = json.loads((shared_root / shared["case"]).read_text())
+        original_count = _testing.count
+        for depth in shared["depths"]:
+            grammar = "\n".join(fixture["grammar"].splitlines()[:7]).replace("r10", f"r{depth}")
+            grammar += "".join(f"\n%rule r{i} r{i-1} r{i-1} | [+V]" for i in range(1, depth + 1))
+            results = []
+            for aligned in (False, True):
+                case = {**fixture, "grammar": grammar if aligned else grammar.replace("without-elision($x)", "$x")}
+                dialect, error = load_case_dialect(case)
+                self.assertIsNone(error)
+                def bounded_count(name):
+                    original_count(name)
+                    if name == "close_sequence_nodes":
+                        self.assertLessEqual(_testing.work[name], shared["maxCloseNodes"])
+                _testing.work = {}
+                try:
+                    with patch.object(_testing, "count", bounded_count):
+                        value, result, error = parse_case(dialect, case)
+                    self.assertIsNone(error)
+                    self.assertTrue(value["ok"], value)
+                    self.assertEqual(_testing.work.get("close_sequence_nodes", 0), shared["maxCloseNodes"])
+                    results.append(value)
+                finally:
+                    _testing.work = None
+            self.assertEqual(results[0], results[1])
+            print(f"ranked sibling depth {depth}: 0 close nodes")
 
     def test_shared_doubling_bound_and_unused_queries(self):
         shared_root = Path(__file__).resolve().parents[3] / "tests"

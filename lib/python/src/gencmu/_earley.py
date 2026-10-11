@@ -1087,7 +1087,7 @@ class Parser:
             frame = production.lexical
             if frame is not None and whole is not None:
                 start, at, own = whole
-                if closes is not None and frame.seal_group is not None:
+                if closes is not None and frame.root.lhs in context.close_rules and frame.seal_group is not None:
                     sealed = closes.seal(close_structure, block(production, start, at, frame, True))
                     close_structure = closes.concat(frame.seal_close_prefix, sealed)
                     close_structure = closes.complete(close_structure, frame.root.lhs, original(frame.origin), original(at))
@@ -1185,13 +1185,14 @@ class Parser:
                     child = edge[2]
                     part_closes = close_structures[child]
                     symbol = production.rhs[position]
-                    if not production.terminal[position] and symbol in lowered.ranked_helpers:
+                    if production.lhs in context.close_rules and not production.terminal[position] and symbol in lowered.ranked_helpers:
                         child_production = productions[prod[child]]
                         part_closes = closes.seal(part_closes, block(child_production, origin[child], end[child], child_production.lexical))
                 elif recon and synthetic[edge[2]]:
                     part_closes = close_record(edge[3], edge[2], tokens[edge[2]].phonemes)
-                close_prefix = closes.concat(close_prefixes[item], part_closes)
-                close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
+                if production.lhs in context.close_rules:
+                    close_prefix = closes.concat(close_prefixes[item], part_closes)
+                    close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
                 part = (*part[:3], part_structure, part_closes)
             captured = caps[item]
             if production.slots[position] >= 0:
