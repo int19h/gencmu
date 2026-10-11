@@ -241,6 +241,10 @@ func TestBundledCacheSameStages(t *testing.T) {
 				t.Fatal(err)
 			}
 			l.noCache = noCache
+			if !noCache {
+				// A cache miss fails because this loader cannot read notation.
+				l.reader = nil
+			}
 			if loaded[i], err = l.dialect(name); err != nil {
 				t.Fatalf("%s (cache bypassed: %v): %v", name, noCache, err)
 			}
