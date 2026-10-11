@@ -410,7 +410,9 @@ impl Chart {
         let original = |at: u32| base + project.map_or(at, |p| p[at as usize]) as usize;
         let restoration_entry = self.machine.as_ref().and_then(|machine| {
             let mut m = machine.borrow_mut();
-            m.observations.as_ref()?;
+            if !m.observations.as_ref()?.wanted(p.rule) {
+                return None;
+            }
             let captures = captures
                 .iter()
                 .filter(|(name, _)| !known.contains(*name))
@@ -2147,6 +2149,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if production.cap_at[item.dot as usize].is_some() { chart.extend_caps(item.caps, cap) } else { item.caps };
         let prefix = self.shared.machine.as_ref().map_or(0, |m| {
             let mut m = m.borrow_mut();
+            let observing = m.observations.as_ref().is_some_and(|o| o.wanted(production.rule));
             let ranked =
                 matches!(production.syms[item.dot as usize],Sym::N(rule) if g.ranked.slots.contains_key(&rule));
             let child = if ranked {
@@ -2155,7 +2158,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     _ => unreachable!(),
                 };
                 let lexical = chart.lexical_frame(chart.expected_lexical(item, cap.start));
-                match lexical.and_then(|f| f.restoration_entry) {
+                match lexical.filter(|_| observing).and_then(|f| f.restoration_entry) {
                     Some(entry) => {
                         let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
                         m.block(
@@ -2170,11 +2173,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     None => m.sealed(),
                 }
-            } else {
+            } else if observing {
                 cap.structure
+            } else {
+                m.structural(cap.structure)
             };
-            let prefix = m.concat(item.prefix, child);
-            if m.observations.as_ref().is_some_and(|o| o.wanted(g.prods[item.prod as usize].rule)) {
+            let previous = if observing { item.prefix } else { m.structural(item.prefix) };
+            let prefix = m.concat(previous, child);
+            if observing {
                 let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
                 let observation = m.observation(prefix);
                 let observation = m.observations.as_mut().unwrap().complete(

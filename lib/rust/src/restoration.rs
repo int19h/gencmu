@@ -640,6 +640,47 @@ mod tests {
     }
 
     #[test]
+    fn an_unrelated_ranked_sibling_creates_no_close_nodes() {
+        use crate::work::{self, Work};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests");
+        let growth =
+            crate::json::parse(&std::fs::read_to_string(root.join("without-elision-growth.json")).unwrap()).unwrap();
+        let shared = growth.get("rankedSibling").unwrap();
+        let fixture = crate::json::parse(
+            &std::fs::read_to_string(root.join(shared.get("case").unwrap().as_str().unwrap())).unwrap(),
+        )
+        .unwrap();
+        let template = fixture.get("grammar").unwrap().as_str().unwrap();
+        let budget = shared.get("maxCloseNodes").unwrap().as_int().unwrap() as u64;
+        for depth in shared.get("depths").unwrap().as_array().unwrap() {
+            let depth = depth.as_int().unwrap() as usize;
+            let mut rules =
+                template.lines().take(7).collect::<Vec<_>>().join("\n").replace("r10", &format!("r{depth}"));
+            for i in 1..=depth {
+                rules += &format!("\n%rule r{i} r{} r{} | [+V]", i - 1, i - 1);
+            }
+            let mut results = Vec::new();
+            let mut items = Vec::new();
+            for aligned in [false, true] {
+                let grammar = if aligned { rules.clone() } else { rules.replace("without-elision($x)", "$x") };
+                let source = format!("```jbogenbau\n%stage main\n{grammar}\n```\n");
+                let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
+                work::reset();
+                work::budget(Work::CloseSequences, budget);
+                let result = dialect.parse_tokens(&[], &crate::ParseOptions::default()).unwrap();
+                assert!(result.ok, "depth {depth}, aligned {aligned}: {:?}", result.error);
+                assert_eq!(work::counted(Work::CloseSequences), budget);
+                results.push(crate::to_json(&result));
+                items.push(work::counted(Work::Items));
+                work::reset();
+            }
+            assert_eq!(results[0], results[1], "depth {depth}");
+            assert_eq!(items[0], items[1], "depth {depth}");
+            eprintln!("ranked sibling depth {depth}: {} items, 0 close nodes", items[1]);
+        }
+    }
+
+    #[test]
     fn rope_comparison_is_exact_with_colliding_fingerprints() {
         #[derive(Clone, PartialEq, Eq)]
         struct Collision(u8);
