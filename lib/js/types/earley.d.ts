@@ -67,6 +67,7 @@ export declare function terminalObservation(context: ParseContext, terminal: str
 export declare class ParseContext {
     lowered: LoweredGrammar;
     patterns: PatternMachine | null;
+    closeRules: Set<string>;
     /** @type {CloseObservations|null} */
     closes: CloseObservations | null;
     /** @type {Map<number,ReturnType<typeof restoreTokens>>} */

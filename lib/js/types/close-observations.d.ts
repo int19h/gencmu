@@ -16,26 +16,58 @@ export type CloseObservation = {
     rules: ReadonlySet<string>;
     valid: boolean;
 };
+export type SequenceNode = {
+    left: number;
+    right: number;
+    event: number;
+    size: bigint;
+    hash: bigint;
+    power: bigint;
+    height: number;
+    min: number;
+    max: number;
+};
 /**
- * @typedef {{kind: "close", terminal: string, at: number, source: [number, number], sound?: string}
- *   | {kind: "block", key: string, start: number, end: number}} CloseEvent
+ * @typedef {{left:number,right:number,event:number,size:bigint,hash:bigint,power:bigint,
+ *   height:number,min:number,max:number}} SequenceNode
  */
-/**
- * @typedef {{id: number, sequence: number, rules: ReadonlySet<string>, valid: boolean}} CloseObservation
- */
+declare class Sequences {
+    events: CloseEvent[];
+    counted: boolean;
+    mask: bigint;
+    /** @type {SequenceNode[]} */
+    nodes: SequenceNode[];
+    /** @type {Map<string,number>} */ ids: Map<string, number>;
+    /** @type {Map<string,number[]>} */ buckets: Map<string, number[]>;
+    /** @type {Map<string,number|null>} */ prefixes: Map<string, number | null>;
+    /** @param {CloseEvent[]} events @param {boolean} counted @param {bigint} mask */
+    constructor(events: CloseEvent[], counted: boolean, mask: bigint);
+    /** @param {number} a @param {number} b @returns {boolean} */
+    equal(a: number, b: number): boolean;
+    /** @param {string} key @param {SequenceNode} node @returns {number} */
+    intern(key: string, node: SequenceNode): number;
+    /** @param {number} event @returns {number} */
+    leaf(event: number): number;
+    /** @param {number} left @param {number} right @returns {number} */
+    concat(left: number, right: number): number;
+    /** @param {number} id @returns {IterableIterator<CloseEvent>} */
+    values(id: number): IterableIterator<CloseEvent>;
+    /** @param {number} id @param {number} end @returns {number|null} */
+    through(id: number, end: number): number | null;
+}
 export declare class CloseObservations {
     /** @type {CloseEvent[]} */ events: CloseEvent[];
     /** @type {Map<string,number>} */ eventIds: Map<string, number>;
-    /** @type {{parent:number,event:number}[]} */ sequences: {
-        parent: number;
-        event: number;
-    }[];
-    /** @type {Map<string,number>} */ sequenceIds: Map<string, number>;
+    raw: Sequences;
+    sequences: SequenceNode[];
+    /** @type {CloseEvent[]} */ normalEvents: CloseEvent[];
+    /** @type {Map<string,number>} */ normalEventIds: Map<string, number>;
+    normal: Sequences;
     /** @type {CloseObservation[]} */ states: CloseObservation[];
     /** @type {Map<string,CloseObservation>} */ stateIds: Map<string, CloseObservation>;
     /** @type {Map<string,CloseObservation>} */ products: Map<string, CloseObservation>;
     /** @type {Map<string,[number,number]>} */ ruleSpans: Map<string, [number, number]>;
-    /** @type {Map<string,number>} */ alignmentIds: Map<string, number>;
+    alignmentIds: Map<string, number>;
     /** @type {Map<number,number>} */ sequenceAlignmentIds: Map<number, number>;
     empty: CloseObservation;
     invalid: {
@@ -44,7 +76,8 @@ export declare class CloseObservations {
         rules: Set<any>;
         valid: boolean;
     };
-    constructor();
+    /** @param {bigint} [mask] */
+    constructor(mask?: bigint);
     /** @param {number} sequence @param {ReadonlySet<string>} rules @returns {CloseObservation} */
     intern(sequence: number, rules: ReadonlySet<string>): CloseObservation;
     /** @param {number} parent @param {CloseEvent} event @returns {number} */
@@ -63,11 +96,19 @@ export declare class CloseObservations {
     aligned(candidate: CloseObservation, witness: CloseObservation, through: number): boolean;
     /** @param {CloseObservation} observation @returns {number} */
     identity(observation: CloseObservation): number;
-    /** @param {CloseObservation} state @param {number} through @returns {string|null} */
-    through(state: CloseObservation, through: number): string | null;
+    /** @param {CloseObservation} state @param {number} through @returns {number|null} */
+    through(state: CloseObservation, through: number): number | null;
 }
 /**
  * @param {unknown} value
  * @returns {boolean}
  */
 export declare function needsCloseObservations(value: unknown): boolean;
+/**
+ * Finds captures and witnesses that reachable queries can observe. Unused
+ * rules do not activate observations, and unrelated siblings stay ordinary.
+ * @param {import("./types.js").LoweredGrammar} lowered
+ * @returns {Set<string>}
+ */
+export declare function closeDemands(lowered: import("./types.js").LoweredGrammar): Set<string>;
+export {};

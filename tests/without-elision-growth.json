@@ -1,0 +1,18 @@
+{
+  "case": "engine/without-elision-shared-double-closes.json",
+  "depths": [
+    4,
+    8,
+    12,
+    16,
+    100
+  ],
+  "nodesPerDepth": 16,
+  "slack": 32,
+  "unusedCases": [
+    "cycle-context-cyclic-wrappers.json",
+    "cycle-context-wrappers.json",
+    "late-elision-exponential-count.json",
+    "late-elision-exponential-equal.json"
+  ]
+}

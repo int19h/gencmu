@@ -240,6 +240,22 @@ The library joins `item` for each i from 0 to `count` − 1 with `joiner`. It pu
 
 It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
 
+## Close growth cases: `without-elision-growth.json`
+
+A nullable rule accepts an empty span. These cases bound close storage when a nullable rule repeats one shared child twice.
+
+A close node stores an omitted terminator, a ranked seal, or a shared concatenation. A ranked seal records an uninspected ranked group.
+
+`case` names the engine fixture that defines the family. `depths` gives the rule depths that each library tests.
+
+`nodesPerDepth` and `slack` set the bound `nodesPerDepth*(depth+1)+slack`. Every library stops a growth case when close node creation passes this bound.
+
+An aligned witness is a query proof with matching closes.
+
+The runners replace `r16` with the selected deepest rule and regenerate each doubled rule. Each runner also demands that rule as an aligned witness, so the bound exercises close concatenation.
+
+`unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
+
 ## Result mutants: `result-mutants.json`
 
 ```
