@@ -597,15 +597,13 @@ Every ranking rule composes over the packed forest. The packed forest is the sha
 
 An edge of an item is one step by which the recognizer makes it. A start edge predicts an item with its dot at the start, and it combines nothing. A read edge advances an item over a token that its next terminal reads. A completion edge advances an item over a completed item of its next symbol. A read or completion edge has two children: the item before the step, and the token or completed item that the step reads.
 
-The context of a child records its use in a derivation. Its eligibility and cycle contexts apply under every ranking rule:
+The context of a child records its use in a derivation. Its cycle context applies under every ranking rule.
 
-- The eligibility context records permitted omissions for that use. Written-terminator priority (§4) decides whether an omission is permitted. The context keeps each permitted omission with the eligible fixed prefix that allows it.
+A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
 
-- The cycle context of the child. A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
+Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
 
-  Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
-
-A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item, eligibility and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
+A summary describes the derivations of one item in one context. So an implementation keeps one summary for each combination of item and cycle context that some edge needs. The cycle context is reduced as above. This reduction removes context differences caused by ancestors outside the child's cyclic group. Different ancestor sets within that group can still need different summaries. Two summaries of one item can differ, and a summary keyed by the item alone can lose a reading.
 
 For example, take `text → b | a`, `a → b` and `b → a | A`, over the token `A`. The input has two derivations that are not cyclic, through `text → b` and through `text → a`. With equal rule profiles, they tie under every stage rule. Beneath `b` over the same span, `a` has no derivation that counts, since `a → b` repeats `b`. Directly under `text`, `a` has one, so a summary of `a` that ignores its context loses a reading of the root.
 
@@ -615,7 +613,7 @@ Under every ranking rule, the verdict needs the total, the number of admitted el
 
 The implementation can keep the total in each summary, or compute it apart with the same rules. Either way, it computes the total before it drops any losing edge. A ranking of the best derivations alone cannot give the total.
 
-A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same eligibility and cycle contexts. The total remains separate from the count of best derivations.
+A rule profile composes by addition. An edge adds its children's rule profiles and its own completed flagged occurrence, if any. Adding a common rule profile preserves comparison and equality. Each summary retains its greatest rule profile and every edge that attains it, with the same cycle context. The total remains separate from the count of best derivations.
 
 For `greedy` and `lazy`, the action summaries of this section run over the forest of greatest rule profiles. For `late-elision`, each summary compares one key, the pair of its rule profile and elision vector. Compare the pair by its rule profile first, with the greater rule profile preferred. Within an equal rule profile, prefer the lesser elision vector. The count of preferred derivations and the retained edges follow this pair. Diagnostic selection uses no lean over the retained forest.
 
@@ -633,7 +631,7 @@ The best derivations form a smaller forest. For each summary, the implementation
 
 A vector has N + 1 components. So a sparse vector, or a shared sequence of elisions, keeps the cost of each addition and comparison small.
 
-Structural state forms part of each summary's item identity. Eligibility and same-span cycle contexts remain separate. A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
+Structural state forms part of each summary's item identity. Ranked admission keeps eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Existing rule profiles and elision vectors compose within each full state and context.
 
 For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
 
