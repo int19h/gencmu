@@ -280,7 +280,9 @@ A tree pattern tests a constructed constituent without recognizing its words aga
 
 All constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 
-The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations. Summary contexts retain eligibility and same-span cycle exclusion. A structural-state change does not bypass rule-and-span cycle exclusion.
+The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations.
+
+Ranking summaries retain their cycle context. Ranked admission keeps eligibility and cycle contexts separate. A structural-state change does not bypass rule-and-span cycle exclusion.
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern sound remains empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its canonical restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing sound or tags.
 
@@ -306,11 +308,11 @@ The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1
 
 Reconstruction first locates the restored chosen derivation before filtering. Filtering compares spans that include restored terminators. It ranks admitted readings by projected profiles without a stage directive. Filtering can exclude the restored derivation and cause an `elision-only` ambiguity. The error reports that derivation first and the best admitted competitor second. Only its absence before filtering reports `elision-witness-lost` ([engine §7](engine.md#7-elision-only)).
 
-Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks fragments, ME, whole MOI constructions, MAhO, and MOhE. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
+Experimental ranks NUhI bodies, shared ME operands, and mekso-MOI before SE conversion. Zantufa ranks whole MOI constructions, MAhO, and MOhE. Its fragments and ME operands use ordinary alternatives with aligned category conditions. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
 
 The ranked choices need no wrapper rules. The rule `me-unit` names the shared experimental ME construction. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture.
 
-Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported, so the fragment keeps its readable compound name `terms-vau`.
+Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported. The fragment keeps `terms-vau` for its capture and `fragment-terms` for its aligned category query.
 
 ## Pipelines
 
@@ -458,9 +460,7 @@ A condition can ask whether a span parses as a rule, with `matches`, `begins` or
 
 So every nested query follows written-terminator priority (engine §4). A nested reading cannot leave out an elidable optional where the same construct can read that whole optional as written. The query answers from the proof trees that remain. Several such trees are an ordinary success, never a tie. No option turns this priority off.
 
-In Zantufa, `cy to roi toi klama` keeps `roi` inside the letter's written parenthesis. Conditions inspect the candidate's actual boundaries. They do not reparse that letter with an empty parenthesis to invent an outside ROI.
-
-In the experimental dialect, `mi klama na to broda toi` has the same problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
+In the experimental dialect, `mi klama na to broda toi` illustrates this boundary problem. The nested parse of a condition reads `na to broda` as a negated selbri, with `broda` taken from inside the parenthesis. With priority, the brackets output is `(mi [klama {na (to broda toi)}])`. camxes-exp also puts `broda` inside the parenthesis after `na`, and it closes `na` with an elided `ku`.
 
 The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
@@ -488,7 +488,7 @@ A constituent is the text read by one grammar rule. A candidate is one construct
 
 TO, SEI, and XOI bodies compete as ordinary constituents. Late elision selects complete readings with fewer omissions at the first differing boundary. A longer body usually wins when it leaves a complete reading. Written terminators retain their ordinary grammatical force.
 
-Zantufa uses patterns to remove duplicate constructions without changing the candidate's internal boundaries. Its following-input conditions reserve words after the selected constituent. Its [syntax comparison](../grammars/syntax/zantufa.md#early-closure) records the three early-close departures and their written-terminator controls.
+Zantufa uses patterns and aligned category queries to remove duplicate constructions without moving the candidate's closes. Its following-input conditions reserve words after the selected constituent. In `cy to roi toi klama`, the aligned tag query keeps ROI inside the letter's written parenthesis. It cannot invent an outside ROI by moving TOI. Its [syntax comparison](../grammars/syntax/zantufa.md#early-closure) records the three early-close departures and their written-terminator controls.
 
 ### Where an elided terminator can fall
 
@@ -533,9 +533,11 @@ The Zantufa grammar states its attachment conventions as rules, derived from its
 - A free modifier nests in the nearest open slot. The rule stands on `free`, not on each slot. So the dialect keeps its departure from CLL 19.6 in `mi klama pamai le zarci .e remai le zdani`.
 - A sumti connection comes before a term connection.
 - An operator run is read whole, and the operand after it is read wherever one follows.
-- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. A bridi-tail that a further `gi` follows does not count, because the reference's runs of `gik` read as far as they can.
+- A gek before bridi-tails begins a bridi-tail, not a connection of sentences. In `mi ge klama gi cadzu`, it begins a forethought tanru unit inside the bridi-tail. The sentence condition tests the actual branches. It excludes a forethought sentence only when every branch has the bridi-tail form.
 
-Other conditions state the reference's ordered choices where the ranking leaves a tie. A gek tanru unit comes before the forms with `se`, `fa` and `na'e`. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag. A `ke` group of terms comes before a `ke` sumti.
+Other conditions exclude SE and NAhE conversions that duplicate an actual bare gek unit. FA cannot begin a gek and has no such exclusion. A `cei` run nests to the right. The tenses and modals before `ke` and a gek-bridi-tail are one tag.
+
+Written KEhE selects one bare grouped sumti. Omitted KEhE selects the corresponding grouped terms. Patterns test the actual body and closer.
 
 The vocative follows the reference. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of an address reads as far as it can, so `doi djan klama` is one vocative with the address `djan klama`. The dialect also keeps an odd reading of the reference. In `pe'usai doi xod ko jmina fi lo kamjikca lisri`, the vocative `pe'u` takes `ko` as its address, so `jmina` has no first place.
 

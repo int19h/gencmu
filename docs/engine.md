@@ -650,9 +650,9 @@ Every ranking rule composes over the packed forest. The packed forest is the sha
 
 An edge of an item is one step by which the recognizer makes it. A start edge predicts an item with its dot at the start, and it combines nothing. A read edge advances an item over a token that its next terminal reads. A completion edge advances an item over a completed item of its next symbol. A read or completion edge has two children: the item before the step, and the token or completed item that the step reads.
 
-The context of a child records its use in a derivation. Its cycle context applies under every ranking rule.
+A cycle context records ancestor rules over the same span. The context of a child is its cycle context under every ranking rule.
 
-A child cannot use a rule over the span of a constituent of that rule above it, or the derivation is cyclic (§4). The rules above a child over its own span are its cycle context.
+A child cannot reuse an ancestor rule over its own span, or the derivation is cyclic (§4).
 
 Only a rule that can complete again below the child over that span matters. Such a rule is reached from the child's rule through constituents over the same span, and it reaches that rule back in the same way. Such rules form the cyclic group of the child's rule. An implementation can leave every other rule out of the context. Two contexts that differ only in rules that it leaves out give the same summary.
 
@@ -690,7 +690,7 @@ For k independent Boolean observations, a product can contain up to `2^k` states
 
 ### 6.1 Ranked admission before ranking
 
-Retain the raw chart, completion tables, and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
+Retain the raw chart and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
 A prefix context records state before a ranked group. An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
 
@@ -701,7 +701,7 @@ A prefix context records state before a ranked group. An admission instance is o
 | Entry | Enclosing named invocation origin and control route to the helper entry. |
 | Prefix | Complete common prefix recognition state at entry. |
 | Span | Actual group start and end positions. |
-| Eligibility | Written-terminator priority and normalized continuation guards. |
+| Eligibility | Written-terminator priority. |
 | Cycles | Existing enclosing named-rule context for relevant spans. |
 | Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 

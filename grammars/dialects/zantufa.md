@@ -107,13 +107,15 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
 
 ## Differences from Zantufa and CLL
 
-The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match. A tie has more than one winning reading.
+The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect does not copy a rejection that comes only from a PEG committing to its first match.
 
 A constituent is the text read by one rule. A pattern tests a constituent's tree. Patterns remove duplicate constructions while preserving their actual children and boundaries.
 
 A following-input condition tests words after a constituent. These conditions reserve words after the selected constituent.
 
-A ranked choice filters alternatives at one written position. Ranked choices retain the stated category preferences.
+An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, and term-initial tags. The category witness cannot shorten the constituent's modifiers.
+
+A ranked choice filters alternatives at one written position. The MOI construction takes priority over SE and NAhE conversion. MAhO takes a mathematical expression before a predicate or argument. MOhE takes a predicate before an argument.
 
 Late elision ranks complete readings by omitted terminators. Fewer omissions win at the first differing boundary.
 

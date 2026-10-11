@@ -4,13 +4,15 @@ The syntax stage is the second stage of the notation dialect, `../dialects/notat
 
 The stage builds the tree from which a library reads the grammar's rules and directives. Its rule names matter to that reader: the table in `../../docs/engine.md`, §9, says what each named constituent becomes. `../../docs/notation.md` explains the notation for authors.
 
-The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`. It tags `...` with `~ellipsis` and `..` with `~double-dot`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
+The tokens arrive with tags. A tag marks a token by name, phoneme or character. The lexical stage tags a token `~identifier`, `~string`, `~tag`, `~phoneme`, `~character`, `~property`, `~capture`, `~constant` or `~guard`. It tags a keyword that the notation knows with its own identifier, such as `~keyword-rule` for `%rule`. It tags `...` with `~ellipsis`, `..` with `~double-dot`, and `@(` with `~pattern-open`. Any other symbol is one character, which keeps its character tag, such as `'|'`, `'{'` or `'\\'`.
 
 ## Choosing among parses
 
 Every rule and directive begins with a keyword, and a keyword begins nothing else. So where one ends is never in doubt.
 
-Inside one, no list can end in two places either. A separated list has a separator that begins no item. Some lists have no separator. They are a text's statements, a directive's operands, a classifier's entries and its keys, the guards of an entry or an alternative, a sequence's primaries and an item's attachments. In each of these, no token that can continue an item can also begin the next one. Guards end before a key or an expression, and keys before `∈` or `∉`.
+Inside one, no list can end in two places either. A separated list has a separator that begins no item. Some lists have no separator.
+
+These include statements, directive operands, classifier entries and keys. They also include guards on entries or alternatives, sequence primaries, and item attachments. In each of these, no token that can continue an item can also begin the next one. Guards end before a key or an expression, and keys before `∈` or `∉`.
 
 The guards of a guarded term need one more step. Each item is an any-of and `⟹`, and the union after the last one can begin as another item does. But only another guard reads a `⟹` outside parentheses. So in `$a ⟹ $b ⟹ ~x`, the list cannot end after `$a ⟹`, since the union cannot read the second `⟹`. So the greedy reading has nothing to settle anywhere, and every list can be flat braces.
 
