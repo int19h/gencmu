@@ -524,6 +524,8 @@ export type Production = {
     rankedDeferred?: Condition[];
     parentTags?: Term;
     lexicalFrame?: any;
+    closeRequested?: boolean;
+    observesCloses?: boolean;
     baseProduction?: Production;
     writtenTags?: Term[];
     writtenTagClauses?: {
@@ -1133,6 +1135,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Condition[]} [rankedDeferred]
  * @property {Term} [parentTags]
  * @property {any} [lexicalFrame]
+ * @property {boolean} [closeRequested]
+ * @property {boolean} [observesCloses]
  * @property {Production} [baseProduction]
  * @property {Term[]} [writtenTags]
  * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]

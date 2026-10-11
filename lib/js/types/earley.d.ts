@@ -20,6 +20,7 @@ export type Chart = {
      */
     furthest: number;
     context: ParseContext;
+    closeRequested?: boolean;
 };
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
@@ -37,6 +38,7 @@ export type Chart = {
  *   making it: a set the recognizer never reached is empty
  * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
+ * @property {boolean} [closeRequested]
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */

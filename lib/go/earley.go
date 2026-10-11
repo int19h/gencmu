@@ -174,17 +174,19 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
-	lexical    *rankedFrame
-	option     int
-	structure  int
-	closes     int
-	rule       int32
-	start, end int32
-	tags       *tagset
-	items      []*item
+	closeRequested bool
+	lexical        *rankedFrame
+	option         int
+	structure      int
+	closes         int
+	rule           int32
+	start, end     int32
+	tags           *tagset
+	items          []*item
 }
 
 type symKey struct {
+	requested          bool
 	lexical            *rankedFrame
 	option             int
 	rule, origin, tags int32
@@ -213,6 +215,9 @@ const (
 )
 
 type recognizer struct {
+	closeRequested    bool
+	closeVariants     map[closeVariantKey]*production
+	closeDemands      map[*production]closeDemand
 	closes            *closeArena
 	rankedFrames      map[string]*rankedFrame
 	rankedProductions map[rankedProductionKey]*production
@@ -294,22 +299,23 @@ const (
 // A copy of the whole struct into the heap would cost a write barrier for
 // every pointer it holds, at every step.
 type step struct {
-	lexical *rankedFrame
-	kind    int
-	it      *item
-	k       int
-	rule    int32
-	strict  bool
-	empties bool
-	next    int
-	cv      capVal
-	l       link
-	list    []*symNode
-	origin  int32
-	c       *symNode
-	ts      *tagset
-	empty   bool
-	count   int
+	closeRequested bool
+	lexical        *rankedFrame
+	kind           int
+	it             *item
+	k              int
+	rule           int32
+	strict         bool
+	empties        bool
+	next           int
+	cv             capVal
+	l              link
+	list           []*symNode
+	origin         int32
+	c              *symNode
+	ts             *tagset
+	empty          bool
+	count          int
 }
 
 func (r *recognizer) set(k int) *eset {
@@ -339,8 +345,8 @@ func (r *recognizer) loop(start int32) {
 func (r *recognizer) begin(start int32) {
 	r.preparePatterns()
 	r.closes = r.run.closeArena(r.g)
-	if r.beginPredict(r.set(0), start, false) {
-		r.step = step{kind: stepPredict, rule: start}
+	if r.beginPredict(r.set(0), start, false, r.closeRequested) {
+		r.step = step{kind: stepPredict, rule: start, closeRequested: r.closeRequested}
 	}
 }
 
@@ -366,7 +372,7 @@ func (r *recognizer) resume() *nestedQuery {
 				return q
 			}
 			if st.empties {
-				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[rankedPrediction{st.rule, st.lexical}], 0
+				st.kind, st.list, st.next = stepEmpties, r.sets[st.k].empties[rankedPrediction{st.closeRequested, st.rule, st.lexical}], 0
 			} else {
 				r.step.kind = stepNext
 			}
@@ -385,7 +391,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepWaiters:
 			// The waiters are those there were at completion. An advance
 			// adds none, so the list keeps them while the step halts.
-			waiters := r.sets[st.origin].waiting[rankedPrediction{st.rule, st.lexical}]
+			waiters := r.sets[st.origin].waiting[rankedPrediction{st.closeRequested, st.rule, st.lexical}]
 			for ; st.next < st.count; st.next++ {
 				w := waiters[st.next]
 				if st.empty && r.heldBack(w) {
@@ -461,12 +467,12 @@ func (r *recognizer) observed(a, b int32) (int, int) {
 //
 // beginPredict records the prediction of a rule in a set, and says whether
 // it adds anything there.
-func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, frames ...*rankedFrame) bool {
+func (r *recognizer) beginPredict(s *eset, rule int32, strict bool, requested bool, frames ...*rankedFrame) bool {
 	var lexical *rankedFrame
 	if len(frames) > 0 {
 		lexical = frames[0]
 	}
-	key := rankedPrediction{rule, lexical}
+	key := rankedPrediction{requested, rule, lexical}
 	before := s.predicted[key]
 	if before == predOrdinary || (before == predStrict && strict) {
 		return false
@@ -492,7 +498,7 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 	}
 	prods := r.g.rules[st.rule].prods
 	for ; st.next < len(prods); st.next++ {
-		p := r.rankedProduction(prods[st.next], st.lexical)
+		p := r.closeProduction(r.rankedProduction(prods[st.next], st.lexical), st.closeRequested)
 		if !r.pending {
 			if p.restoration() && !r.omissionAllowed(p) {
 				continue
@@ -741,7 +747,8 @@ func (r *recognizer) process(k int, it *item) bool {
 			return false
 		}
 		lexical := r.rankedEntry(it, sym.id)
-		key := rankedPrediction{sym.id, lexical}
+		requested := r.requestsChild(p, int(it.dot), k)
+		key := rankedPrediction{requested, sym.id, lexical}
 		if !again {
 			if s.waiting == nil {
 				s.waiting = map[rankedPrediction][]*item{}
@@ -751,9 +758,10 @@ func (r *recognizer) process(k int, it *item) bool {
 		// A strict item predicts its next symbol strictly where no symbol
 		// after it can read (§7.4).
 		held := r.heldBack(it)
-		if r.beginPredict(s, sym.id, held, lexical) {
+		if r.beginPredict(s, sym.id, held, requested, lexical) {
 			st := &r.step
 			st.lexical = lexical
+			st.closeRequested = requested
 			st.kind, st.it, st.k, st.rule, st.strict, st.empties, st.next = stepPredict, it, k, sym.id, held, !held, 0
 			return true
 		}
@@ -803,14 +811,14 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes}
+	key := symKey{requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -819,11 +827,12 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		if s.empties == nil {
 			s.empties = map[rankedPrediction][]*symNode{}
 		}
-		s.empties[rankedPrediction{p.lhs, p.lexical}] = append(s.empties[rankedPrediction{p.lhs, p.lexical}], c)
+		s.empties[rankedPrediction{p.closeRequested, p.lhs, p.lexical}] = append(s.empties[rankedPrediction{p.closeRequested, p.lhs, p.lexical}], c)
 	}
-	count := len(r.sets[it.origin].waiting[rankedPrediction{p.lhs, p.lexical}])
+	count := len(r.sets[it.origin].waiting[rankedPrediction{p.closeRequested, p.lhs, p.lexical}])
 	st := &r.step
 	st.lexical = p.lexical
+	st.closeRequested = p.closeRequested
 	st.kind, st.k, st.origin, st.rule, st.c, st.ts = stepWaiters, k, it.origin, p.lhs, c, ts
 	st.empty, st.count, st.next = int(it.origin) == k, count, 0
 	return nil
@@ -857,14 +866,14 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
 			return nil
 		}
-		if r.observesCloses(p.lhs) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
+		if r.observesCloses(p) && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
 			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
 		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
 		key.dot++
-		if r.observesCloses(p.lhs) {
+		if r.observesCloses(p) {
 			child := cv.closes
 			a, b := r.observed(it.origin, int32(k))
 			_, oldEnd := r.observed(it.origin, it.set)
@@ -974,7 +983,7 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			copy.parent = true
 			whole = &copy
 		}
-		if r.observesCloses(lexical.root.lhs) {
+		if r.observesCloses(lexical.root) {
 			a, b := r.observed(parentOrigin, end)
 			x, y := r.observed(lexical.origin, origin)
 			u, v := r.observed(origin, end)
@@ -1049,7 +1058,7 @@ func (r *recognizer) accepted(start int32) []*symNode {
 	}
 	var out []*symNode
 	for key, c := range r.sets[r.n].syms {
-		if key.rule == start && key.origin == 0 {
+		if key.rule == start && key.origin == 0 && key.requested == r.closeRequested {
 			out = append(out, c)
 		}
 	}
@@ -1064,7 +1073,7 @@ func (r *recognizer) begun(start int32) bool {
 	var items []*item
 	for _, s := range r.sets {
 		for key, c := range s.syms {
-			if key.rule == start && key.origin == 0 {
+			if key.rule == start && key.origin == 0 && key.requested == r.closeRequested {
 				items = append(items, c.items...)
 			}
 		}

@@ -884,6 +884,8 @@ class Production:
     base_id: int | None = field(default=None,repr=False,compare=False)
     lexical: Any = field(default=None,repr=False,compare=False)
     ranked: Any = field(default=None,repr=False,compare=False)
+    close_requested: bool = field(default=False, repr=False, compare=False)
+    observes_closes: bool = field(default=False, repr=False, compare=False)
     option: int = -1
     contextual: bool = False
     private_names: set = field(default_factory=set,repr=False,compare=False)
@@ -941,6 +943,7 @@ class Lowered:
     implications_by_tag: dict[str, list[int]] | None = None
 
     close_rules: frozenset[int] | None = None
+    close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
 

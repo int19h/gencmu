@@ -337,3 +337,54 @@ func TestWithoutElisionRopeGroupingAndSharedDepth(t *testing.T) {
 		t.Fatalf("shared doubling stored %d nodes", len(m.links))
 	}
 }
+
+func TestWithoutElisionCallerScope(t *testing.T) {
+	data, err := os.ReadFile("../../tests/without-elision-growth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	type bounds struct {
+		Case           string `json:"case"`
+		Lengths        []int  `json:"lengths"`
+		MaxCloseNodes  int64  `json:"maxCloseNodes"`
+		MaxCloseStates int64  `json:"maxCloseStates"`
+		ItemsPerUnit   int64  `json:"itemsPerUnit"`
+		Slack          int64  `json:"slack"`
+	}
+	var growth struct {
+		CallerScope      bounds `json:"callerScope"`
+		ImpossiblePrefix bounds `json:"impossiblePrefix"`
+	}
+	if err = unmarshalJSON(data, &growth); err != nil {
+		t.Fatal(err)
+	}
+	for _, shared := range []bounds{growth.CallerScope, growth.ImpossiblePrefix} {
+		fixture := loadCase(t, filepath.Join("../../tests", shared.Case))
+		d, err := caseDialect(fixture, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, length := range shared.Lengths {
+			c := *fixture
+			text := "x" + strings.Repeat("a", length)
+			c.Input = &text
+			w := &workCounts{}
+			w.closeLinks.under = &workCount{}
+			w.closeLinks.under.n.Store(shared.MaxCloseNodes)
+			w.closeStates.under = &workCount{}
+			w.closeStates.under.n.Store(shared.MaxCloseStates)
+			w.items.under = &workCount{}
+			w.items.under.n.Store(shared.ItemsPerUnit*int64(length) + shared.Slack)
+			countWorkIn(w, func() {
+				result, err := runCase(d, &c, &c.Options)
+				if err != nil || result.OK || result.Error == nil || result.Error.Kind != "ambiguous" {
+					t.Fatalf("caller scope: %v, %+v", err, result)
+				}
+			})
+			if shared.MaxCloseNodes > 0 && w.closeStates.Load() == 0 {
+				t.Fatal("no close observations")
+			}
+			t.Logf("%d units: %d items, %d states, %d sequences", length, w.items.Load(), w.closeStates.Load(), w.closeLinks.Load())
+		}
+	}
+}

@@ -22,6 +22,8 @@ type slotMetadata struct {
 }
 
 type production struct {
+	closeRequested bool
+	observesCloses bool
 	base           *production
 	lexical        *rankedFrame
 	ranked         *rankedGroup

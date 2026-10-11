@@ -6,6 +6,7 @@ export declare class RankedAdmission {
             setAt: (position: number) => import("./earley.js").ChartSet;
             furthest: number;
             context: import("./earley.js").ParseContext;
+            closeRequested?: boolean;
             sets: {
                 position: number;
                 index: Map<number | string, import("./earley.js").Item>;

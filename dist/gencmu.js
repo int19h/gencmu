@@ -1772,6 +1772,107 @@
     return wanted;
   }
 
+  /** @typedef {{whole:boolean, parts:Set<number>, queries:Map<number,Set<string>|null>}} LocalCloseDemand */
+  /** @type {WeakMap<import("./types.js").Production,LocalCloseDemand>} */
+  const localDemands = new WeakMap();
+
+  /**
+   * Only a caller that consumes an observation asks its child to retain it.
+   * A private whole capture also needs the enclosing written alternative.
+   * @param {import("./types.js").Production} production
+   * @returns {LocalCloseDemand}
+   */
+  function localCloseDemand(production) {
+    const base = production.baseProduction ?? production;
+    const old = localDemands.get(base);
+    if (old) return old;
+    const result = {whole:false, parts:new Set(), queries:new Map()};
+    const stack = [base.conditions, base.tags, base.emit, base.rankedDeferred,
+      base.parentTags, base.writtenTagClauses, base.source?.clauses.conditions];
+    const seen = new Set();
+    while (stack.length) {
+      const node = /** @type {any} */ (stack.pop());
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      const value = node.matches ?? node.begins;
+      const aligned = value?.call === "from" ? value.args[0] : value;
+      if (aligned?.call === "without-elision" && typeof node.rule === "string") {
+        const part = base.captures.find(capture => capture.name === aligned.args[0].capture);
+        if (part) {
+          result.parts.add(part.index);
+          if (!result.queries.has(part.index)) result.queries.set(part.index,new Set());
+          result.queries.get(part.index)?.add(node.rule);
+          continue;
+        }
+      }
+      if (node.call === "without-elision") {
+        const name = node.args[0].capture;
+        if (name === "") result.whole = true;
+        else {
+          const part = base.captures.find(capture => capture.name === name);
+          if (part) {
+            result.parts.add(part.index);
+            result.queries.set(part.index,null);
+          }
+        }
+      }
+      for (const value of Object.values(node)) stack.push(value);
+    }
+    localDemands.set(base, result);
+    return result;
+  }
+
+  /** @typedef {{nullable:boolean, leadingClose:boolean, first:Set<import("./types.js").GrammarSymbol>}} QueryPrefix */
+  /** @type {WeakMap<import("./types.js").LoweredGrammar,Map<string,QueryPrefix>>} */
+  const prefixes = new WeakMap();
+
+  /**
+   * Conditions can only reduce these possible prefixes. A leading omission
+   * or an empty capture prevents this shortcut from discarding observations.
+   * @param {import("./types.js").LoweredGrammar} grammar
+   * @returns {Map<string,QueryPrefix>}
+   */
+  function queryPrefixes(grammar) {
+    const old = prefixes.get(grammar);
+    if (old) return old;
+    const table = new Map([...grammar.byLhs.keys()].map(name =>
+      [name,{nullable:false,leadingClose:false,first:new Set()}]));
+    /** @type {Map<string,Set<import("./types.js").Production>>} */
+    const dependents = new Map();
+    for (const production of grammar.productions) {
+      for (const symbol of production.rhs) if (!symbol.terminal) {
+        if (!dependents.has(symbol.name)) dependents.set(symbol.name,new Set());
+        dependents.get(symbol.name)?.add(production);
+      }
+    }
+    const pending = grammar.productions.slice(), queued = new Set(pending);
+    while (pending.length) {
+      const production = /** @type {import("./types.js").Production} */ (pending.pop());
+      queued.delete(production);
+      const here = /** @type {QueryPrefix} */ (table.get(production.lhs));
+      const before = here.first.size;
+      const wasEmpty = here.nullable, wasClose = here.leadingClose;
+      if (production.rhs.length === 0 && production.elided !== null) here.leadingClose = true;
+      let empty = true;
+      for (const symbol of production.rhs) {
+        if (symbol.terminal) { here.first.add(symbol); empty = false; break; }
+        const child = /** @type {QueryPrefix} */ (table.get(symbol.name));
+        for (const terminal of child.first) here.first.add(terminal);
+        here.leadingClose ||= child.leadingClose;
+        if (!child.nullable) { empty = false; break; }
+      }
+      here.nullable ||= empty;
+      if (before !== here.first.size || wasEmpty !== here.nullable || wasClose !== here.leadingClose) {
+        for (const dependent of dependents.get(production.lhs) ?? []) if (!queued.has(dependent)) {
+          queued.add(dependent);
+          pending.push(dependent);
+        }
+      }
+    }
+    prefixes.set(grammar,table);
+    return table;
+  }
+
   // ---- patterns.js
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
@@ -6585,6 +6686,7 @@
    *   making it: a set the recognizer never reached is empty
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
+   * @property {boolean} [closeRequested]
    */
 
   // Interns tag sets, so that an item names a captured part's tags by number.
@@ -6720,7 +6822,7 @@
    */
   function restoredClose(context, production, position) {
     const machine = context.closes;
-    if (!machine || !context.closeRules.has(production.lhs)) return null;
+    if (!machine || !production.observesCloses) return null;
     if (context.synthetic?.[position]) {
       return terminalObservation(context, /** @type {string} */ (production.elided), position);
     }
@@ -6880,7 +6982,7 @@
    */
   function closeStep(context, production, dot, origin, previous, child, end) {
     const machine = context.closes;
-    if (!machine || !context.closeRules.has(production.lhs)) return null;
+    if (!machine || !production.observesCloses) return null;
     let prefix = previous?.observationPrefix ?? machine.empty;
     if (previous && child) {
       prefix = machine.concat(prefix, /** @type {CloseObservation} */ (closeChild(context, previous, child)));
@@ -7343,7 +7445,7 @@
       for (const set of chart.sets) {
         if (!set || set.position > constraint.matchEnd) continue;
         if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       const qualified = eligibleWitnesses(chart, witnesses);
       const aligned = qualified.filter(item => item.observation && context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
@@ -7360,7 +7462,7 @@
       const witnesses = [];
       for (const set of chart.sets) {
         if (set === undefined) continue;
-        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       answer = eligibleWitnesses(chart, witnesses).length > 0;
     } else {
@@ -7419,15 +7521,53 @@
     const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
     const width = end - start + 1;
+    // Ordinary and observed uses share the grammar, but have different
+    // prediction and completion identities. Otherwise a demand inside a
+    // parenthesis also splits unrelated paragraphs into all close sequences.
+    /** @type {Map<string,Production>} */
+    const variants = new Map();
+    /** @param {Production} production @param {boolean} requested @returns {Production} */
+    const variant = (production, requested) => {
+      if (!context.closes) return production;
+      const key = `${production.id}/${production.lexicalFrame?.id ?? -1}/${requested}`;
+      let found = variants.get(key);
+      if (found) return found;
+      found = {...production, baseProduction:production.baseProduction ?? production,
+        closeRequested:requested,
+        observesCloses:requested || localCloseDemand(production).whole};
+      variants.set(key, found);
+      return found;
+    };
+    const prefixTable = context.closes ? queryPrefixes(lowered) : null;
+    /** @param {Item} item @returns {boolean} */
+    const requestChild = item => {
+      if (!context.closes) return false;
+      if (item.production.observesCloses) return true;
+      const demand = localCloseDemand(item.production);
+      if (!demand.parts.has(item.dot)) return false;
+      const rules = demand.queries.get(item.dot);
+      const child = prefixTable?.get(item.production.rhs[item.dot].name);
+      const token = tokens[item.end];
+      if (!rules || !child || child.nullable || child.leadingClose || !token || context.recon) return true;
+      for (const rule of rules) {
+        const prefix = prefixTable?.get(rule);
+        if (!prefix || prefix.nullable) return true;
+        for (const terminal of prefix.first) if (reads(context,terminal,token)) return true;
+      }
+      return false;
+    };
+    /** @param {string} name @param {any} frame @param {boolean|undefined} requested */
+    const demandKey = (name, frame, requested) =>
+      (frame ? `${name}/${frame.id}` : name) + (requested ? "/observed" : "");
     const lexical = lowered.ranked?.groups.length ? rankedFrameTable(context) : null;
     /** @param {Item} item */
     const waitingKey = item => {
       const name = item.production.rhs[item.dot].name;
       const frame = lexical?.entry(item,name);
-      return frame ? `${name}/${frame.id}` : name;
+      return demandKey(name,frame,requestChild(item));
     };
     /** @param {Production} production */
-    const completionKey = production => production.lexicalFrame ? `${production.lhs}/${production.lexicalFrame.id}` : production.lhs;
+    const completionKey = production => demandKey(production.lhs,production.lexicalFrame,production.closeRequested);
 
     // The reconstruction mode of engine §7.4, or the old contract's
     // mandatory optionals (a fault); null for the ordinary mode of §4.
@@ -7446,6 +7586,7 @@
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
+      if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
@@ -7547,6 +7688,7 @@
       const target = setAt(position + 1);
       const structure = omittedState(context, production.elided);
       let key = itemKey((production.id * dots) * width + position - start, null);
+      if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
       const observation = restoredClose(context,production,position);
@@ -7578,6 +7720,7 @@
     /** @type {ChartSet} */
     let predictSet = /** @type {any} */ (null);
     let predictName = "";
+    let predictCloses = false;
     let predictStrict = false;
     /** @type {any} */
     let predictFrame = null;
@@ -7587,9 +7730,9 @@
     let predictSkipped = false;
 
     // Begins the prediction of a rule in a set: false when it adds nothing.
-    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any) => boolean} */
-    const beginPredict = (set, name, strict = false, frame = null) => {
-      const key = frame ? `${name}/${frame.id}` : name;
+    /** @type {(set: ChartSet, name: string, strict?: boolean, frame?: any, requested?: boolean) => boolean} */
+    const beginPredict = (set, name, strict = false, frame = null, requested = false) => {
+      const key = demandKey(name,frame,requested);
       // A rule's productions are the same at every prediction in one set:
       // predicting them again would only rebuild items that already exist. A
       // strict prediction (engine §7.4) leaves some out, so an ordinary one
@@ -7600,6 +7743,7 @@
       if (before === false || (before === true && (strict || fault("F32:predict")))) return false;
       set.predicted.set(key, strict);
       predictFrame = frame;
+      predictCloses = requested;
       predictSet = set;
       predictName = name;
       predictStrict = strict;
@@ -7624,7 +7768,7 @@
       const next = set.position < end ? tokens[set.position] : null;
       for (; predictIndex < productions.length; predictIndex++) {
         const base = productions[predictIndex];
-        const production = predictFrame ? /** @type {NonNullable<typeof lexical>} */ (lexical).production(base,predictFrame) : base;
+        const production = variant(predictFrame ? /** @type {NonNullable<typeof lexical>} */ (lexical).production(base,predictFrame) : base, predictCloses);
         if (production.helper && production.elided !== null && production.rhs.length === 0 && !fault("omission:skip") && !omissionAllowed(production)) continue;
         // In the reconstruction mode, the empty production of an elidable
         // optional is its restoration, and it never derives the empty
@@ -7786,7 +7930,7 @@
     let strict = false;
     /** @type {Pending | null} */
     let halted = null;
-    beginPredict(setAt(start), rule);
+    beginPredict(setAt(start), rule,false,null,!!query?.aligned);
 
     /** @type {Run} */
     const run = {
@@ -7868,7 +8012,7 @@
               } else if (!symbol.terminal) {
                 // A strict item predicts its next symbol strictly where no
                 // symbol after it can read (engine §7.4).
-                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null) ? PREDICT : EMPTIES;
+                kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null,requestChild(taken)) ? PREDICT : EMPTIES;
                 if (kind === EMPTIES) next = -1;
               } else if (at < end && (symbol.characters === undefined ? tokens[at].tags.has(symbol.name) : carries(context.unicode, symbol.characters, tokens[at].tags))) {
                 // The written routes of an elidable optional (engine §7.4):
@@ -7950,7 +8094,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context };
+          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned };
         }
         step = kind;
         item = entry;
@@ -8357,7 +8501,7 @@
    */
   function rootItems(chart, rule) {
     return chart.setAt(chart.end).items.filter((item) =>
-      item.complete && item.origin === chart.start && item.production.lhs === rule);
+      item.complete && item.origin === chart.start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested);
   }
 
   /**
@@ -15934,6 +16078,8 @@
    * @property {Condition[]} [rankedDeferred]
    * @property {Term} [parentTags]
    * @property {any} [lexicalFrame]
+   * @property {boolean} [closeRequested]
+   * @property {boolean} [observesCloses]
    * @property {Production} [baseProduction]
    * @property {Term[]} [writtenTags]
    * @property {{alternative: Term | null, definition: Term | null}} [writtenTagClauses]

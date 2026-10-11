@@ -721,7 +721,7 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 	tags := map[*item]*tagset{}
 	for _, set := range rec.sets {
 		for key, c := range set.syms {
-			if key.rule == rec.query.start && key.origin == 0 {
+			if key.rule == rec.query.start && key.origin == 0 && key.requested {
 				items = append(items, c.items...)
 				for _, it := range c.items {
 					tags[it] = c.tags
@@ -758,7 +758,7 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 // with its rule as the start rule, in the ordinary mode (§7.6).
 func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 	a, b := q.at.a, q.at.b
-	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, w: run.walk()}
+	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk()}
 	r.begin(q.start)
 	return r
 }

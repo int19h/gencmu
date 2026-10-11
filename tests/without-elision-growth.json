@@ -27,5 +27,35 @@
       256
     ],
     "maxCloseNodes": 0
+  },
+  "callerScope": {
+    "case": "engine/without-elision-caller-scope.json",
+    "lengths": [
+      4,
+      8,
+      12,
+      16,
+      32,
+      64
+    ],
+    "maxCloseNodes": 8,
+    "maxCloseStates": 16,
+    "itemsPerUnit": 24,
+    "slack": 64
+  },
+  "impossiblePrefix": {
+    "case": "engine/without-elision-impossible-prefix.json",
+    "lengths": [
+      4,
+      8,
+      12,
+      16,
+      32,
+      64
+    ],
+    "maxCloseNodes": 0,
+    "maxCloseStates": 4,
+    "itemsPerUnit": 24,
+    "slack": 64
   }
 }

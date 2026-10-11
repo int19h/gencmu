@@ -323,3 +323,88 @@ def needed(lowered: Any) -> frozenset[int]:
                     pending.append(symbol)
     lowered.close_rules = frozenset(wanted)
     return lowered.close_rules
+
+
+def local_demand(production):
+    """Find observations consumed here, rather than by another caller."""
+    whole, positions, queries = False, set(), {}
+    stack = [production.conds_predict, production.conds_at,
+             production.tags_term, production.emit, production.parent_tags]
+    if production.slot is not None:
+        # Deferred option gates can consume earlier public captures.
+        # A private whole capture also names the written alternative.
+        source = production.slot.source
+        stack.extend((source.conditions, source.tags, source.rule_tags))
+    seen = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, (dict, list, tuple)) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, dict):
+            value = node.get("matches", node.get("begins"))
+            aligned = value["args"][0] if isinstance(value, dict) and value.get("call") == "from" else value
+            if isinstance(aligned, dict) and aligned.get("call") == "without-elision" and "rule" in node:
+                name = aligned["args"][0]["capture"]
+                if name in production.captures:
+                    position = production.captures[name]
+                    positions.add(position)
+                    if position not in queries:
+                        queries[position] = set()
+                    if queries[position] is not None:
+                        queries[position].add(node["rule"])
+                    continue
+            if node.get("call") == "without-elision":
+                name = node["args"][0]["capture"]
+                if name == "":
+                    whole = True
+                elif name in production.captures:
+                    position = production.captures[name]
+                    positions.add(position)
+                    queries[position] = None
+            stack.extend(node.values())
+        else:
+            stack.extend(node)
+    return whole, frozenset(positions), queries
+
+
+def query_prefixes(lowered):
+    """Overestimate first tokens, empty proofs, and leading omissions."""
+    if lowered.close_prefixes is not None:
+        return lowered.close_prefixes
+    table = [[False, False, set()] for _ in lowered.rule_names]
+    dependents = [set() for _ in lowered.rule_names]
+    for number, production in enumerate(lowered.productions):
+        for symbol, terminal in zip(production.rhs, production.terminal):
+            if not terminal:
+                dependents[symbol].add(number)
+    pending = list(range(len(lowered.productions)))
+    queued = set(pending)
+    while pending:
+        number = pending.pop()
+        queued.remove(number)
+        production = lowered.productions[number]
+        here = table[production.lhs]
+        before = here[0], here[1], len(here[2])
+        if not production.rhs and production.elided is not None:
+            here[1] = True
+        empty = True
+        for symbol, terminal in zip(production.rhs, production.terminal):
+            if terminal:
+                here[2].add(symbol)
+                empty = False
+                break
+            child = table[symbol]
+            here[2].update(child[2])
+            here[1] |= child[1]
+            if not child[0]:
+                empty = False
+                break
+        here[0] |= empty
+        if before != (here[0], here[1], len(here[2])):
+            for dependent in dependents[production.lhs]:
+                if dependent not in queued:
+                    queued.add(dependent)
+                    pending.append(dependent)
+    lowered.close_prefixes = table
+    return table

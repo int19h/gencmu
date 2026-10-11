@@ -78,6 +78,8 @@ pub(crate) enum Work {
     /// The clauses that stitching substitutes constants in and checks.
     Stitched,
     /// The classes of a key that resolving a classifier compares with.
+    /// Interned restoration observations, including cycle footprints.
+    CloseStates,
     CloseSequences,
     Classified,
 }

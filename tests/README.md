@@ -256,6 +256,14 @@ The runners replace `r16` with the selected deepest rule and regenerate each dou
 
 `unusedCases` names ordinary fixtures that receive an unreachable facility rule. These fixtures must keep their expected results and allocate no close observations.
 
+An observed capture retains close information for a query. A caller is a rule that uses another rule.
+
+`callerScope` bounds an ordinary repetition beside an observed capture. The observed rule can reach that repetition through a parenthesis. Its demand must not split the ordinary caller into different close sequences.
+
+`impossiblePrefix` bounds a capture whose first token cannot start its aligned witness. The capture cannot be empty or begin with an omission. It needs no close sequences because every possible witness fails before their comparison.
+
+Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNodes` bounds close sequence nodes. `maxCloseStates` bounds close observation states. `itemsPerUnit` and `slack` bound chart items by `itemsPerUnit*length+slack`. Each library stops before its first count past a bound.
+
 ## Result mutants: `result-mutants.json`
 
 ```
