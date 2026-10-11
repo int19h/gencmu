@@ -172,13 +172,16 @@ Each library's runner finds these places in the same way, and `places.json` hold
 
 Each entry of its `substitutions` gives a text, a `find`, a `replace`, the number of places of `find` and the expected result. The result is the text after the replacement, or `null` where `find` stands nowhere. `tests/quoted-allow.txt` names the lines of its entries by phrases, as "Quoted texts" says.
 
-## Malformed directives: `dom-malformed.json`
+## Malformed DOMs: `dom-malformed.json`
 
 ```
-[{"description": "...", "directive": DIRECTIVE, "malformed": true}, ...]
+[{"description": "...", "directive": DIRECTIVE, "malformed": true},
+ {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item is one directive of a DOM (`docs/output.md`). A library puts it alone in an otherwise empty DOM of the current format. It tests the DOM as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true. A library that refuses a malformed precompiled DOM reads the document instead, so the check is not visible through a parse. That is why these cases test the check directly.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses the current format. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+
+A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
 ## Growth cases: `growth.json`
 

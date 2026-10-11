@@ -1,0 +1,26 @@
+{
+  "description": "A restored span accepts one named capture. Engine \u00a79 and \u00a710.",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions matches(without-elision($x), r)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 24,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "matches": {
+                "call": "without-elision",
+                "args": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              },
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

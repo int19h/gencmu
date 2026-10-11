@@ -2325,7 +2325,7 @@
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
   /** @import { Step } from "./trampoline.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
   const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
   // The directives of the notation (engine §9).
@@ -2337,7 +2337,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 22;
+  const DOM_FORMAT = 24;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -2466,7 +2466,7 @@
     return Array.isArray(value) && value.length === 2 && value.every((n) => Number.isInteger(n));
   }
 
-  const DOM_SPANS = new Set(["head", "tail", "last", "from", "after"]);
+  const DOM_SPANS = new Set(["head", "tail", "last", "from", "after", "without-elision"]);
 
   /**
    * Whether a term is a span: a capture, or head, tail or last of one.
@@ -2754,6 +2754,7 @@
           let ok;
           if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
           else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
+          else if (call === "without-elision") ok = args.length === 1 && isDomObject(args[0]) && typeof args[0].capture === "string";
           else if (call === "split") ok = args.length === 2 && args.every((arg) => !isRule(arg) && !isClassifier(arg) && !isDomSpan(arg));
           else if (call === "tag") ok = args.length === 1 && !isRule(args[0]) && !isClassifier(args[0]) && !isDomSpan(args[0]);
           else if (call === "classify") ok = args.length === 2 && !isRule(args[0]) && !isClassifier(args[0]) && !isDomSpan(args[0]) && isClassifier(args[1]);
@@ -13837,10 +13838,14 @@
       let ok;
       if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
       else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
+      else if (name === "without-elision") ok = args.length === 1 && "capture" in args[0];
       else if (name === "split") ok = args.length === 2 && args.every(isString);
       else if (name === "tag") ok = args.length === 1 && isString(args[0]);
       else if (name === "classify") ok = args.length === 2 && isString(args[0]) && isRule(args[1]);
       else ok = args.length === 1 && isSpan(args[0]);
+      if (!ok && name === "without-elision" && args.length === 1 && "call" in args[0] && args[0].call === "from") {
+        fail("without-elision takes one bare capture: write from(without-elision($x))", node);
+      }
       if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
       // The second argument of classify names a classifier, not a rule
       // (engine §9).
@@ -14003,7 +14008,7 @@
    * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property"} OperandKind
    */
 
-  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "matches", "begins", "initial"]);
+  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
 
 
   /**
@@ -14023,12 +14028,13 @@
   const CONSTANT_IN_BODY = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'";
 
   // The functions whose value is a span.
-  const SPANS = new Set(["head", "tail", "last", "from", "after"]);
+  const SPANS = new Set(["head", "tail", "last", "from", "after", "without-elision"]);
 
   /** @type {Record<string, string>} */
   const SIGNATURES = {
     phonemes: "one span", text: "one span", words: "one span", classes: "one span",
     head: "one span", tail: "one span", last: "one span", from: "one span", after: "one span", initial: "one span",
+    "without-elision": "one bare capture, including $",
     split: "two strings", tag: "one string", tags: "a span, and optionally a rule", classify: "a string and a classifier's name", matches: "a span and a rule", begins: "a span and a rule",
   };
 

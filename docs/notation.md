@@ -524,7 +524,7 @@ A condition term has five types: a span, a string, a set of strings, a tag set o
 
 The first type is the span, a sequence of tokens. A capture `$x` is a span, the tokens that the captured part covers, and `$` is the tokens that the whole constituent covers. `head($x)` is its first token, `tail($x)` the rest, and `last($x)` the last.
 
-`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A condition can parse a span with `matches`, `begins` or `tags(span, rule)` (see below). In such a parse, the input is that span, so `from` and `after` stop at its end. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
+`from($x)` is the tokens from the start of `$x` to the end of the input. `after($x)` is the tokens after `$x`, to the end of the input. These two reach past the constituent, to the text that follows it. A condition can parse a span with `matches`, `begins` or `tags(span, rule)` (see below). In an ordinary nested parse, the input is that span, so `from` and `after` stop at its end. A span is only an argument of a function, such as `tags($x)`, and never a value of its own.
 
 The second type is the string. `phonemes(span)` is the canonical sound of a span. That is the phonemes of its tokens, joined, in lower case and without commas. So `phonemes()` ignores stress and syllable breaks. It keeps every pause, and adds none between the tokens.
 
@@ -569,7 +569,7 @@ The predicates are:
 - `begins(span, rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
 - `initial(span)` holds when the span begins where the parser's input begins.
 
-`matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
+For an ordinary span, `matches` and `tags(span, rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬matches($f, lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
 
@@ -591,6 +591,41 @@ The word forms of the BPFK (a Lojban committee for language definitions), the `b
 %conditions
   initial($)
 ```
+
+`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes.
+
+An elision is an omitted terminator. A close is one omission at an input boundary. A candidate is one constructed reading. A witness is a reading that satisfies a query. Aligned readings keep the same ordered closes at shared boundaries.
+
+The argument must be one bare capture, including `$` for the completed enclosing constituent. `without-elision(from($x))` is an error. The extended form is `from(without-elision($x))`.
+
+The span keeps the captured words and the candidate's closes. It restores each close as a synthetic token, a token with explicit restoration provenance. Original tokens keep their fields and identity. Morphology does not run again. Caller-owned omissions contribute no close, even at the captured endpoint.
+
+`matches(without-elision($x), R)` asks for an aligned witness over the complete capture. `begins(without-elision($x), R)` permits a witness that ends within the capture. `begins(from(without-elision($x)), R)` also permits a witness that ends after the capture. Following words remain raw input and permit ordinary omissions after the captured endpoint.
+
+Inside the shared stretch, the witness cannot add, drop, move, or reorder closes. At its end, a prefix must match the complete group of closes at that boundary. A restored terminator cannot supply a bare terminal read. The witness must qualify on the original input before ranked admission. Its conditions and written-terminator priority can inspect following words beyond the capture.
+
+A seal hides the content of a ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
+
+`from` preserves the restoration view, including through repeated calls. Other span functions first project to original tokens and return ordinary spans. `after(without-elision($x))` therefore reads the raw suffix. `head`, `tail`, and `last` expose original tokens. `text`, `phonemes`, `initial`, and one-argument `tags` also observe original tokens. The restored span carries no constituent tags. Two-argument `tags` unions the tags of its aligned whole witnesses.
+
+For example, these rules hold an omitted BOI fixed:
+
+```jbogenbau
+%rule text
+  $x(candidate)
+%conditions
+  matches(without-elision($x), rival)
+
+%rule candidate
+  LETTER [+BOI]
+
+%rule rival
+  LETTER [+BOI]
+```
+
+On one LETTER token with text `my`, the candidate omits BOI at its end. The restored view contains the original `my` token followed by a synthetic BOI token. The rival omits the same BOI at the same boundary, so the query holds. Changing the rival to `LETTER BOI` makes the query fail. The restored token cannot create a required written BOI on the original input.
+
+An ordinary nested query inside an aligned witness reads its original projected span with ordinary query rules. An explicit nested `without-elision($y)` fixes the witness's own captured closes. It restores no token twice. Recursive queries keep the existing grammar error across query forms and restoration views. Engine §4 gives the exact bounds, proof rules, and cache identity.
 
 ## Tags
 

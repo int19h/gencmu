@@ -1,0 +1,10 @@
+{
+  "description": "A restored span rejects from as its argument and names the supported composition. Engine \u00a79.",
+  "document": "```jbogenbau\n%rule a $x(B) %conditions matches(without-elision(from($x)), r)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 35
+    }
+  }
+}
