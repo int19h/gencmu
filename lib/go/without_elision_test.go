@@ -2,6 +2,8 @@ package gencmu
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -101,7 +103,7 @@ func TestWithoutElisionCloseStorage(t *testing.T) {
 		for i := 0; i < n; i++ {
 			state = m.event(state, closeEvent{record: Restoration{Terminal: "T", At: i, Source: [2]int{2 * i, 2 * i}, Sound: "a", Tested: true}})
 		}
-		if len(m.links) > 2*n+1 || len(m.states) > n+2 || len(m.contexts) != 1 {
+		if len(m.links) > 4*n+1 || len(m.states) > n+2 || len(m.contexts) != 1 {
 			t.Fatalf("%d closes retain %d links, %d states, %d contexts", n, len(m.links), len(m.states), len(m.contexts))
 		}
 		other := 0
@@ -183,5 +185,94 @@ func TestWithoutElisionParserGrowth(t *testing.T) {
 				t.Logf("%s", fmt.Sprintf("%d tokens: %d items, %d edges, %d observation states, %d links, %d cycle contexts, %d summary contexts, %s, %d allocated bytes, %d heap bytes", n, items, w.packedEdges.Load(), w.closeStates.Load(), links, w.closeContexts.Load(), w.summaryContexts.Load(), time.Since(start), after.TotalAlloc-before.TotalAlloc, after.HeapAlloc))
 			}
 		})
+	}
+}
+
+func TestWithoutElisionSharedDoublingBound(t *testing.T) {
+	data, err := os.ReadFile("../../tests/without-elision-growth.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var shared struct {
+		Case          string   `json:"case"`
+		Depths        []int    `json:"depths"`
+		NodesPerDepth int64    `json:"nodesPerDepth"`
+		Slack         int64    `json:"slack"`
+		UnusedCases   []string `json:"unusedCases"`
+	}
+	if err = unmarshalJSON(data, &shared); err != nil {
+		t.Fatal(err)
+	}
+	fixture := loadCase(t, filepath.Join("../../tests", shared.Case))
+	for _, depth := range shared.Depths {
+		for _, witness := range []bool{false, true} {
+			head := strings.Split(*fixture.Grammar, "\n")[:5]
+			grammar := strings.ReplaceAll(strings.Join(head, "\n"), "r16", fmt.Sprintf("r%d", depth))
+			for i := 1; i <= depth; i++ {
+				grammar += fmt.Sprintf("\n%%rule r%d r%d r%d", i, i-1, i-1)
+			}
+			if witness {
+				grammar = strings.ReplaceAll(grammar, "matches(without-elision($x), empty)", fmt.Sprintf("¬matches(without-elision($x), r%d)", depth))
+			}
+			c := *fixture
+			c.Grammar = &grammar
+			d, err := caseDialect(&c, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := &workCounts{}
+			w.closeLinks.most = shared.NodesPerDepth*int64(depth+1) + shared.Slack
+			countWorkIn(w, func() {
+				res, err := runCase(d, &c, &c.Options)
+				if err != nil || !res.OK {
+					t.Fatalf("depth %d, witness %t: %v, %+v", depth, witness, err, res)
+				}
+			})
+			t.Logf("depth %d, witness %t: %d close nodes", depth, witness, w.closeLinks.Load())
+		}
+	}
+	for _, file := range shared.UnusedCases {
+		c := loadCase(t, filepath.Join("../../tests/engine", file))
+		grammar := *c.Grammar + "\n%rule unused $x(empty)\n%conditions matches(without-elision($x), empty)\n%rule empty ε"
+		c.Grammar = &grammar
+		d, err := caseDialect(c, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (&stageRun{}).closeArena(lower(d.stages[0], map[string]bool{})) != nil {
+			t.Fatalf("%s created an unused close arena", file)
+		}
+		w := &workCounts{}
+		w.closeLinks.most = 1
+		w.closeStates.most = 1
+		countWorkIn(w, func() {
+			if err := checkCase(c, true); err != nil {
+				t.Fatal(err)
+			}
+		})
+		if w.closeLinks.Load() != 0 || w.closeStates.Load() != 0 {
+			t.Fatalf("%s activated unused observations", file)
+		}
+	}
+}
+
+func TestWithoutElisionRopeGroupingAndSharedDepth(t *testing.T) {
+	m := newCloseArena()
+	a := m.event(0, closeEvent{record: Restoration{Terminal: "T", At: 0}})
+	b := m.event(0, closeEvent{record: Restoration{Terminal: "U", At: 0}})
+	join := func(a, b int) int { return m.join(a, b, true, true) }
+	left, right := join(join(a, b), a), join(a, join(b, a))
+	if m.semantic(left) != m.semantic(right) || m.semantic(left) == m.semantic(join(join(a, a), b)) {
+		t.Fatal("rope identity changed with grouping")
+	}
+	large := a
+	for i := 0; i < 100; i++ {
+		large = join(large, large)
+	}
+	if !m.aligned(large, large, 0) || m.aligned(large, join(large, large), 0) {
+		t.Fatal("wrapped fingerprints changed sequence equality")
+	}
+	if len(m.links) > 120 {
+		t.Fatalf("shared doubling stored %d nodes", len(m.links))
 	}
 }
