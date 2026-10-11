@@ -423,7 +423,6 @@ class Summaries:
             return found
         _, item, context = key
         forest = self.forest
-        scope = forest.slot_scopes[item] if hasattr(forest,"slot_scopes") else None
         start, end = forest.origin[item], forest.end[item]
         found = []
         for index, (pred, kind, a, b) in enumerate(forest.edges[item]):

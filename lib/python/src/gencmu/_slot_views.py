@@ -68,7 +68,6 @@ def helper_forest(raw, names, marks):
         edges,indices = [],[]
 
         def append(edge,index):
-            number = len(edges)
             edges.append(edge)
             indices.append(index)
         for index,(previous,kind,child,extra) in enumerate(raw.edges[original]):

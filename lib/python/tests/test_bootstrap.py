@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import json
 import unittest
+from unittest.mock import patch
 
 import gencmu
 from gencmu._dialect import DOM_FORMAT, Dom, _bundled_root, _Loader, _resources, bundled_text, read_document
@@ -86,7 +87,9 @@ class Compiled(unittest.TestCase):
                 self.assertTrue(cached.compiled)
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
                 uncached.dom = fresh_dom  # type: ignore[method-assign]
-                a, b = cached.load(path), uncached.load(path)
+                with patch.object(cached.reader, 'read', side_effect=AssertionError('compiled grammar cache was bypassed')), patch.object(cached.reader.doms, 'get', side_effect=AssertionError('compiled grammar cache was bypassed')):
+                    a = cached.load(path)
+                b = uncached.load(path)
                 self.assertEqual(b.stage_names, a.stage_names)
                 self.assertEqual(b.grammars, a.grammars)
                 self.assertEqual((b.features, b.declared), (a.features, a.declared))
