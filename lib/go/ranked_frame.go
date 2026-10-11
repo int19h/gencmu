@@ -16,6 +16,12 @@ type rankedFrame struct {
 	root               *production
 	origin             int32
 	prefix, sealPrefix int
+	closes             int
+	closeRoute         string
+	sealCloses         int
+	sealOrigin         int32
+	sealGroup          *rankedGroup
+	sealEntry          *rankedFrame
 	inside             bool
 }
 type rankedProductionKey struct {
@@ -202,7 +208,12 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	caps := r.caps(&it.itemKey)
 	for i := 0; i < int(it.dot); i++ {
 		if n := p.capName[i]; n != "" && p.capSlot[i] >= 0 {
-			captures = append(captures, fmt.Sprintf("%q/%v", n, caps.at(p.capSlot[i])))
+			cv := caps.at(p.capSlot[i])
+			sequence := 0
+			if r.closes != nil {
+				sequence = r.closes.semantic(cv.closes)
+			}
+			captures = append(captures, fmt.Sprintf("%q/%d/%d/%d/%d/%d", n, cv.start, cv.end, cv.tags, cv.structure, sequence))
 		}
 	}
 	lexical := ""
@@ -213,7 +224,29 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	if p.helper {
 		path = r.g.writtenHelpers[p.lhs]
 	}
-	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, captures, lexical, it.restores, p.rankedBindings)
+	sequence := 0
+	if r.closes != nil {
+		sequence = r.closes.semantic(it.closes)
+	}
+	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
+}
+
+func (r *recognizer) closeEntryRoute(it *item) string {
+	p := it.prod
+	var out strings.Builder
+	fmt.Fprintf(&out, "%q/%v/%q/", p.ruleName, p.at, r.g.writtenHelpers[p.lhs])
+	for i, s := range p.rhs[:it.dot] {
+		role := ""
+		if s.term {
+			role = r.g.terminals[s.id]
+		} else if path, ok := r.g.writtenHelpers[s.id]; ok {
+			role = path
+		} else {
+			role = r.g.rules[s.id].name
+		}
+		fmt.Fprintf(&out, "%t:%q:%q/", s.term, role, rankedTestKey(p.testAt(i)))
+	}
+	return out.String()
 }
 func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	p0 := r.g.rules[rule].prods
@@ -224,14 +257,15 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	if outer != nil && p.lhs == rule {
 		return outer
 	}
-	key := r.rankedPrefix(it)
+	key := fmt.Sprintf("%s/%d/%d/%d", r.rankedPrefix(it), it.closes, it.cap0.closes, it.more)
 	if r.rankedFrames == nil {
 		r.rankedFrames = map[string]*rankedFrame{}
 	}
 	if old := r.rankedFrames[key]; old != nil {
 		return old
 	}
-	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), key: key, captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix}
+	f := &rankedFrame{id: int32(len(r.rankedFrames) + 1), key: key, captures: map[string]capVal{}, present: map[string]bool{}, knownPrivate: map[string]bool{}, root: p, origin: it.origin, prefix: it.prefix, sealPrefix: it.prefix, closes: it.closes}
+	f.closeRoute = r.closeEntryRoute(it)
 	if outer != nil {
 		for n, c := range outer.captures {
 			f.captures[n] = c
@@ -243,7 +277,14 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 			f.present[n] = true
 		}
 		f.root, f.origin = outer.root, outer.origin
+		f.closeRoute = outer.closeRoute + f.closeRoute
 		f.prefix = r.machine.concat(outer.prefix, it.prefix)
+		if r.closes != nil {
+			a, b := r.observed(f.origin, it.set)
+			x, y := r.observed(outer.origin, it.origin)
+			u, v := r.observed(it.origin, it.set)
+			f.closes = r.closes.join(outer.closes, it.closes, x == a && y == b, u == a && v == b)
+		}
 	}
 	for n := range p.privateNames {
 		f.knownPrivate[n] = true
@@ -261,8 +302,14 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	}
 	f.inside = p.ranked != nil || outer != nil && outer.inside
 	f.sealPrefix = f.prefix
+	f.sealCloses, f.sealOrigin = f.closes, it.set
+	f.sealGroup, f.sealEntry = r.g.rankedHelpers[rule], f
 	if f.inside && outer != nil {
 		f.sealPrefix = outer.sealPrefix
+		if outer.sealGroup != nil {
+			f.sealCloses, f.sealOrigin = outer.sealCloses, outer.sealOrigin
+			f.sealGroup, f.sealEntry = outer.sealGroup, outer.sealEntry
+		}
 	}
 	r.rankedFrames[key] = f
 	return f

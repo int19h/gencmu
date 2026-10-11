@@ -10,6 +10,7 @@ type capVal struct {
 	start, end int32
 	tags       int32
 	structure  int
+	closes     int
 }
 
 // itemKey is an item's identity. A captured part's span and tags are part
@@ -24,6 +25,7 @@ type itemKey struct {
 	cap0              capVal
 	more              int32
 	prefix, structure int
+	closes            int
 }
 
 // capStep is the sequence of the capture slots after the first, extended
@@ -175,6 +177,7 @@ type symNode struct {
 	lexical    *rankedFrame
 	option     int
 	structure  int
+	closes     int
 	rule       int32
 	start, end int32
 	tags       *tagset
@@ -186,6 +189,7 @@ type symKey struct {
 	option             int
 	rule, origin, tags int32
 	structure          int
+	closes             int
 }
 
 type eset struct {
@@ -209,6 +213,7 @@ const (
 )
 
 type recognizer struct {
+	closes            *closeArena
 	rankedFrames      map[string]*rankedFrame
 	rankedProductions map[rankedProductionKey]*production
 	machine           *patternMachine
@@ -333,6 +338,7 @@ func (r *recognizer) loop(start int32) {
 // begin readies a recognition to predict its start rule in set 0.
 func (r *recognizer) begin(start int32) {
 	r.preparePatterns()
+	r.closes = r.run.closeArena(r.g)
 	if r.beginPredict(r.set(0), start, false) {
 		r.step = step{kind: stepPredict, rule: start}
 	}
@@ -367,7 +373,7 @@ func (r *recognizer) resume() *nestedQuery {
 		case stepEmpties:
 			for ; st.next < len(st.list); st.next++ {
 				c := st.list[st.next]
-				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
+				if q := r.advance(st.it, st.k, capVal{c.start, c.end, c.tags.id, c.structure, c.closes}, link{prev: st.it, sym: c}, st.it.strict); q != nil {
 					return q
 				}
 			}
@@ -385,7 +391,7 @@ func (r *recognizer) resume() *nestedQuery {
 				if st.empty && r.heldBack(w) {
 					continue
 				}
-				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
+				if q := r.advance(w, st.k, capVal{st.c.start, st.c.end, st.ts.id, st.c.structure, st.c.closes}, link{prev: w, sym: st.c}, st.empty && w.strict); q != nil {
 					return q
 				}
 			}
@@ -507,7 +513,9 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 			return q
 		}
 		if ok {
-			r.add(k, itemKey{prod: p, origin: int32(k)}, link{}, false, strict)
+			key := itemKey{prod: p, origin: int32(k)}
+			r.finishCloses(&key, int32(k))
+			r.add(k, key, link{}, false, strict)
 		}
 	}
 	return nil
@@ -531,6 +539,7 @@ func (r *recognizer) restore(k int, p *production) {
 	}
 	key := itemKey{prod: p, origin: int32(k)}
 	r.finishStructure(&key)
+	r.finishCloses(&key, int32(k+1))
 	s := r.set(k + 1)
 	if s.index[key] != nil {
 		return
@@ -574,13 +583,14 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		}
 		var caps itemCaps
 		var tags *lazyTags
-		key := itemKey{prod: p}
+		key := itemKey{prod: p, origin: int32(k)}
 		r.finishStructure(&key)
+		r.finishCloses(&key, int32(k))
 		if len(p.rhs) == 0 {
 			// The tag term runs only where a condition reads $'s tags (§4).
-			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure)
+			tags = r.lazyTags(p, caps, int32(k), int32(k), key.structure, key.closes)
 		}
-		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure))
+		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes))
 		r.pending, r.condAt = true, 0
 		countCondition()
 		r.w.cond(r.ev, p.predictConds[0])
@@ -590,9 +600,9 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			return false, q
 		}
 		r.condAt++
-		if !r.w.b || r.condAt == len(p.predictConds) {
+		if !r.w.b || r.w.invalidObservation || r.condAt == len(p.predictConds) {
 			r.pending, r.ev = false, nil
-			return r.w.b, nil
+			return r.w.b && !r.w.invalidObservation, nil
 		}
 		countCondition()
 		r.w.cond(r.ev, p.predictConds[r.condAt])
@@ -724,7 +734,7 @@ func (r *recognizer) process(k int, it *item) bool {
 					}
 					st := &r.step
 					st.kind, st.it, st.k, st.strict = stepTerminal, it, k+1, strict
-					st.cv, st.l = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(p, int(it.dot), k, sym.id)}, link{prev: it, tok: int32(k), term: sym.id}
+					st.cv, st.l = capVal{int32(k), int32(k + 1), tags, r.terminalStructure(p, int(it.dot), k, sym.id), r.terminalCloses(k, r.g.terminals[sym.id])}, link{prev: it, tok: int32(k), term: sym.id}
 					return true
 				}
 			}
@@ -773,12 +783,16 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	case p.tags != nil:
 		if !r.pending {
 			r.pending = true
-			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil, it.structure)), p.tags)
+			r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(&it.itemKey), it.origin, int32(k), nil, it.structure, it.closes)), p.tags)
 		}
 		if q := r.w.resume(); q != nil {
 			return q
 		}
 		r.pending = false
+		if r.w.invalidObservation {
+			r.step.kind = stepNext
+			return nil
+		}
 		ts = toSet(r.w.v)
 	case p.implicit:
 		ts = in.all[r.caps(&it.itemKey).at(p.capSlot[0]).tags]
@@ -789,14 +803,14 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure}
+	key := symKey{lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{lexical: p.lexical, option: option, structure: it.structure, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -843,10 +857,21 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		if t := p.testAt(pos); t != nil && !r.symbolTest(t, cv, l.sym == nil) {
 			return nil
 		}
+		if r.closes != nil && l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
+			cv.closes = r.closes.seal(cv.closes, r.blockEvent(l.sym))
+		}
 		if slot := p.capSlot[pos]; slot >= 0 {
 			r.setCap(&key, slot, cv)
 		}
 		key.dot++
+		if r.closes != nil {
+			child := cv.closes
+			a, b := r.observed(it.origin, int32(k))
+			_, oldEnd := r.observed(it.origin, it.set)
+			x, y := r.observed(cv.start, cv.end)
+			key.closes = r.closes.join(it.closes, child, oldEnd == b, x == a && y == b)
+			r.finishCloses(&key, int32(k))
+		}
 		if r.machine != nil {
 			structure := cv.structure
 			if sym := p.rhs[pos]; !sym.term && (r.g.rankedHelpers[sym.id] != nil) {
@@ -880,16 +905,16 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			// condition reads them (§4).
 			caps := r.caps(&key)
 			if c.whole && whole == nil {
-				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure)
+				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure)), c.cond)
+			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)), c.cond)
 		}
 		resuming = false
 		if q := r.w.resume(); q != nil {
 			r.adv = advancing{active: true, key: key, i: i, whole: whole}
 			return q
 		}
-		if !r.w.b {
+		if !r.w.b || r.w.invalidObservation {
 			return nil
 		}
 	}
@@ -931,8 +956,12 @@ func (r *recognizer) tokenTest(t *symTest, k int) bool {
 // when a term cannot read them (§9).
 func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32, whole *lazyTags, structure ...int) func(string) (spanVal, bool) {
 	state := 0
+	closes := 0
 	if len(structure) > 0 {
 		state = structure[0]
+	}
+	if len(structure) > 1 {
+		closes = structure[1]
 	}
 	parentOrigin := origin
 	if lexical := p.lexical; lexical != nil {
@@ -944,6 +973,24 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			copy := *whole
 			copy.parent = true
 			whole = &copy
+		}
+		if r.closes != nil {
+			a, b := r.observed(parentOrigin, end)
+			x, y := r.observed(lexical.origin, origin)
+			u, v := r.observed(origin, end)
+			closes = r.closes.join(lexical.closes, closes, x == a && y == b, u == a && v == b)
+			if lexical.sealGroup != nil && (p.ranked != nil || lexical.inside) {
+				block := &symNode{lexical: lexical.sealEntry, start: lexical.sealOrigin, end: end}
+				event := r.blockEvent(block)
+				event.block = lexical.sealGroup
+				closes = r.closes.seal(closes, event)
+				_, prefixEnd := r.observed(parentOrigin, lexical.sealOrigin)
+				blockStart, _ := r.observed(lexical.sealOrigin, end)
+				closes = r.closes.join(lexical.sealCloses, closes, prefixEnd == b, blockStart == a)
+			}
+			if !lexical.root.helper && (r.recon != nil || r.g.rules[lexical.root.lhs].scc >= 0) {
+				closes = r.closes.named(closes, lexical.root.lhs)
+			}
 		}
 	}
 	// In the check of elision-only, every observation reads the projected
@@ -961,14 +1008,14 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			if p.lexical != nil && whole == nil {
 				tags = r.run.ps.in.empty()
 			}
-			return spanVal{a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state}, true
+			return spanVal{a: a, b: b, whole: whole != nil || p.lexical != nil, tags: tags, lazy: whole, machine: r.machine, structure: state, arena: r.closes, closes: closes}, true
 		}
 		slot, ok := p.slotOf[name]
 		if !ok {
 			if p.lexical != nil {
 				if cv, found := p.lexical.captures[name]; found {
 					a, b := r.observed(cv.start, cv.end)
-					return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure}, true
+					return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 				}
 			}
 			return spanVal{}, false
@@ -985,14 +1032,14 @@ func (r *recognizer) captureFunc(p *production, caps itemCaps, origin, end int32
 			searched += steps + 1
 		}
 		a, b := r.observed(cv.start, cv.end)
-		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure}, true
+		return spanVal{a: a, b: b, whole: true, tags: r.run.ps.in.all[cv.tags], machine: r.machine, structure: cv.structure, arena: r.closes, closes: cv.closes}, true
 	}
 }
 
 // lazyTags is the constituent tags of a completing item, which the walk
 // that first reads them computes, and the same set after that (§4).
-func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32, structure int) *lazyTags {
-	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end, structure: structure}
+func (r *recognizer) lazyTags(p *production, caps itemCaps, origin, end int32, structure, closes int) *lazyTags {
+	return &lazyTags{r: r, p: p, caps: caps, origin: origin, end: end, structure: structure, closes: closes}
 }
 
 // accepted lists the completed start-rule constituents over the whole input.
