@@ -41,7 +41,7 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 [The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively.
 
-The word stage gives both tags to quoted words and each whole quoted unit.
+The word stage marks individually quoted words and delimiters with `word`. It marks a quote body emitted as one token with `quoted-text`.
 
 A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
@@ -361,7 +361,7 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
 
 Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tense or modal with its sumti, or a sumti. It can also be a briga'i form (`noi'a` with a selbri, or a bare `na`), or a forethought connection of terms. A sumti takes priority over a forethought term over the same words.
 
-A tag with a sumti argument has its own alternative. GI cannot follow that actual tag because the tag and GI begin a gek. The bare-tag route excludes a following free modifier, tag unit, selbri, forethought bridi-tail, or BO. Thus `mi pe pu ba broda` remains rejected, and `mi pe pu ku ba broda` retains its written boundary.
+A tag with a sumti argument has its own alternative. GI cannot follow that actual tag because the tag and GI begin a gek. The argument cannot start an aligned tag unit, so `mi klama pu my roi` keeps one tag run. Alignment retains the argument's omitted terminators, so `pu cy to roi klama` keeps its long parenthesis. The bare-tag route excludes a following free modifier, tag unit, selbri, forethought bridi-tail, or BO. Thus `mi pe pu ba broda` remains rejected, and `mi pe pu ku ba broda` retains its written boundary.
 
 The condition `¬begins(after($t), free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
@@ -419,12 +419,13 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 %rule tag-term
   (* tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
                       / (FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1) (sumti / KU_elidible) *)
-  | $a(tag) sumti
+  | $a(tag) $s(sumti)
   | fa-jai sumti
   | $t(tag) [+KU #]
   | $f(fa-jai) [+KU #]
 %conditions
   ¬begins(after($a), gi-word),
+  ¬begins(from(without-elision($s)), tcita-selci),
   ¬begins(after($t), gi-word),
   ¬begins(after($t), free),
   ¬begins(after($t), tcita-selci),
@@ -474,7 +475,7 @@ A connective before a sumti or relative clause remains available for sumti synta
 
 `$JOIK-EK-OP` covers a joik-ek and its SE-converted operator form. The operator rule lifts SE outside its connective, so the pattern needs both shapes. Thus `by se jo'u cy cu klama` keeps its connected sumti. SE applied to an arithmetic operator receives no exemption.
 
-The conditions on `sumti-1` and `sumti-2` state this. Each says that no further link follows the whole run of sumti. The run is a rule of its own, which the condition captures, since a list in braces is never captured. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
+The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping before another link. Each says that no further link follows the whole run of sumti. The run is a rule of its own, which the condition captures, since a list in braces is never captured. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
 
 ```jbogenbau
 
@@ -1075,18 +1076,33 @@ In `coi poi broda klama`, Zantufa's relative clause reads the tanru `broda klama
 
 In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an operand as a forethought mekso. So in `li fu'a pa su'i re pi'i`, it reads `su'i re` as one operand of `pi'i`. Here `su'i` is an operator of the reverse Polish mekso itself, as in *The Complete Lojban Language* (CLL).
 
-The aligned category conditions preserve the candidate's modifiers while the surrounding mathematical expression continues. These four mathematical constructions remain complete:
+An aligned reservation can miss a competing category that needs an extra omitted terminator inside the shared span. In `ke my .e gy ke'e`, the reference reads `my` and `.e gy` as mathematical operands. The second operand omits KUhE. A connected sumti in KE needs no KUhE, so the readings do not align. Late elision selects that sumti because it omits fewer terminators.
+
+These fifteen descriptions contain that KE group as an inner connected sumti. Zantufa instead takes the first KE group as a quantifier.
 
 ```text
-my xi re su'i pa re prami
-my xi re my su'i gy prami
-my to mi toi su'i pa re prami
-my to mi toi my su'i gy prami
+le ke my .e gy ke'e broda
+lo ke my .e gy ke'e my roi prenu
+lo ke my .e gy ke'e pa roi prenu
+lo ke my .e gy ke'e ke my .e gy ke'e prenu
+lo ke my .e gy ke'e my moi prenu
+lo ke my .e gy ke'e vei my ve'o prenu
+lo ke my .e gy ke'e pe'o su'i my gy prenu
+lo ke my .e gy ke'e fu'a my gy su'i prenu
+lo ke my .e gy ke'e me my me'u prenu
+lo ke my .e gy ke'e my .e prenu
+lo ke my .e gy ke'e ny ma'o my prenu
+lo ke my .e gy ke'e mo'e my prenu
+lo ke my .e gy ke'e ke my ke'e .e gy prenu
+lo ke my .e gy ke'e ro my poi broda prenu
+lo ke my .e gy ke'e pa my .e gy prenu
 ```
 
-In `ke my ke'e roi klama`, the term-initial condition reserves the grouped letters and ROI for a tag. This dialect accepts that sentence.
+With a second connected KE group, this dialect keeps `prenu` inside the description, while Zantufa places it outside. The relative-clause and `pa my .e gy` examples also change later attachments. Written `ku'e` after `.e gy` gives Zantufa's quantifier reading, as in `le ke my .e gy ku'e ke'e broda`.
 
-In `broda na'e my na'e me my`, a sumti prefix reserves the competing mathematical category. This dialect rejects the incomplete surrounding construction.
+In `ke my .e gy ke'e roi klama`, this dialect reads a grouped sumti followed by a bare ROI tag on `klama`. Zantufa uses the whole KE expression with ROI as one tag. The corresponding written control, `ke my .e gy ku'e ke'e roi klama`, is accepted here but rejected by Zantufa.
+
+[Issue #183](https://github.com/int19h/gencmu/issues/183) tracks a general rule for competing categories with extra internal closes. Exact alignment retains these sixteen departures until that rule replaces it.
 
 ### Early closure
 
@@ -1150,7 +1166,7 @@ The sentence pattern preserves the actual branch boundaries. It removes a duplic
 
 `term-2` distinguishes grouped terms from grouped sumti by their actual body and KEhE boundary. Written KEhE selects one bare sumti. Omitted KEhE selects the corresponding bare group of terms.
 
-`tag-term` applies its following-selbri restriction only to the bare-tag route. Its sumti route retains the selected argument and tests GI after the actual tag. The following-free condition keeps the tag's selected modifiers inside it.
+`tag-term` applies its following-selbri restriction only to the bare-tag route. Its sumti route retains the selected argument and tests GI after the actual tag. An aligned tag-unit reservation prevents the argument from splitting a tense or modal run. Thus `mi klama pu my roi` agrees with Zantufa on one tag containing `pu` and `my roi`. The following-free condition keeps the tag's selected modifiers inside it.
 
 #### Selbri and tanru
 
@@ -1163,6 +1179,19 @@ The sentence pattern preserves the actual branch boundaries. It removes a duplic
 `selbri-1` takes one optional CEI link because its following selbri already reads all later links. The reference repeats `(CEI_clause selbri)*`. Repeating that link here duplicates the same right-nested reading and gives equal elisions.
 
 #### Mekso and connectives
+
+The aligned category conditions preserve the candidate's modifiers while the surrounding mathematical expression continues. These four terms fragments agree with Zantufa. Each contains a quantified sumti whose quantifier includes the complete mathematical expression and whose described predicate is `prami`.
+
+```text
+my xi re su'i pa re prami
+my xi re my su'i gy prami
+my to mi toi su'i pa re prami
+my to mi toi my su'i gy prami
+```
+
+In `ke my ke'e roi klama`, the term-initial condition reserves the grouped letters and ROI for a tag. Both grammars accept this sentence with that tag.
+
+In `broda na'e my na'e me my`, an aligned sumti prefix reserves the sumti category and excludes the competing quantifier. Both grammars reject the incomplete surrounding construction.
 
 `mex-forethought` does not translate two parts of the reference's rule. Its lookahead `!(lerfu_string BOI_elidible)` never fails before an operator, because no operator begins with a lerfu word. And its `mex_forethought?` after `mex_2+` adds nothing, because `mex_2+` already reads a forethought mekso as one of its parts.
 

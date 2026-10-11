@@ -504,9 +504,11 @@ Every proof edge stays within its observation state. Equal states still permit d
 
 Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `without-elision`, and their dependencies, need these observations. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
 
-An observed caller retains the close groups that a capture needs. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
+A caller consumes a constituent in a rule occurrence. An observed caller retains its item's closes for `without-elision`. A capture or an enclosing observed caller can demand those closes. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
 
-An implementation can test possible first terminals before it retains a capture's close sequences. If no witness can begin at that token, the capture needs no close observation. This shortcut requires a nonempty capture with no possible leading omission. An empty witness prevents the shortcut. Conditions can reduce the possible prefixes, so this test ignores them. The query still uses its original context and written-terminator priority.
+An implementation can test possible first terminals before it retains a capture's close sequences. If no witness can begin at that token, the capture's own query needs no close observation. An enclosing observed capture still needs every close inside that capture.
+
+This shortcut requires a nonempty capture with no possible leading omission. An empty witness prevents the shortcut. Conditions can reduce the possible prefixes, so this test ignores them. The query still uses its original context and written-terminator priority.
 
 A ranked group contributes one opaque block outside its options. The block identifies its written occurrence, original span, and common entry observations. It excludes the option index, private captures, private closes, and proof identity. Wrappers and outside captures retain the block. Empty completed options also supply a block.
 
