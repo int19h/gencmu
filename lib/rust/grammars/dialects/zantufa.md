@@ -107,13 +107,13 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
 
 ## Differences from Zantufa and CLL
 
-The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. Category reservations follow the reference wherever the omitted terminators align. Outside those reservations, the dialect can accept texts that the PEG rejects through commitment.
+The dialect's policy is the experimental dialect's ([`experimental.md`](experimental.md)): Zantufa 1.9999 is the baseline of the dialect, not its limit. The dialect keeps the reference's choice of grammatical category wherever both readings omit the same terminators. Outside those reservations, the dialect can accept texts that the PEG rejects through commitment.
 
 A constituent is the text read by one rule. A pattern tests a constituent's tree. Patterns remove duplicate constructions while preserving their actual children and boundaries.
 
 A following-input condition tests words after a constituent. These conditions reserve words after the selected constituent.
 
-An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, term-initial tags, and arguments after tense or modal runs. The category witness cannot shorten the constituent's modifiers.
+An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, term-initial tags, and arguments after tense or modal runs. The competing reading that satisfies the query cannot shorten the constituent's modifiers.
 
 A ranked choice filters alternatives at one written position. The MOI construction takes priority over SE and NAhE conversion. MAhO takes a mathematical expression before a predicate or argument. MOhE takes a predicate before an argument.
 

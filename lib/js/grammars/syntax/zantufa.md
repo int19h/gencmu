@@ -55,7 +55,7 @@ A witness is a reading that satisfies a query. A whole query uses `matches(witho
 
 A query can elide terminators under written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final late-elision winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
 
-TO contains text, and SEI and XOI contain statements. Their bodies compete with surrounding constituents by ordinary late elision. SOI belongs to SEI and also requires a statement.
+TO contains text, and SEI and XOI contain statements. Their bodies compete with surrounding constituents by ordinary late elision. The word `soi` is SEI and also requires a statement.
 
 An unwritten `toi` or `se'u` can close a body early when the longer body prevents a complete reading. An empty TO body remains possible. An empty SEI or XOI statement remains invalid.
 
@@ -257,7 +257,7 @@ A sentence is terms, an optional `cu` and a bridi-tail, or a forethought connect
 
 A gek before bridi-tails begins a bridi-tail, not a forethought connection of sentences. So in `mi ge klama gi cadzu`, the gek is part of the bridi-tail after `mi`. There it begins a forethought tanru unit, `ge klama gi cadzu`. The condition on the second alternative of `sentence` states this. The condition prevents the forethought sentence alternative from competing with this complete bridi-tail.
 
-The sentence pattern removes the forethought alternative only when every actual branch is a bridi-tail. Leading terms, CU, or another sentence constructor prevents this match. Thus `ge broda gi brode gi brodi gi cu brodo` retains its forethought sentence reading.
+The sentence pattern removes the forethought alternative only when every actual branch is a bridi-tail. Terms or CU at the start of a branch, or another sentence constructor in a branch, prevents this match. Thus `ge broda gi brode gi brodi gi cu brodo` retains its forethought sentence reading.
 
 The outer connective level reads a tag and written CU directly. Without CU, its following bridi-tail must begin with actual KE. The inner level excludes that actual KE prefix, including KE after a tag. A written KEhE around a bare selbri selects the tanru construction. An omitted KEhE around the same body selects the grouped bridi-tail.
 
@@ -1078,7 +1078,7 @@ In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an
 
 An aligned reservation can miss a competing category that needs an extra omitted terminator inside the shared span. In `ke my .e gy ke'e`, the reference reads `my` and `.e gy` as mathematical operands. The second operand omits KUhE. A connected sumti in KE needs no KUhE, so the readings do not align. Late elision selects that sumti because it omits fewer terminators.
 
-The class is a KE mekso group whose later operand is an unmarked forethought connective, where the group stands at a description prefix or a term-initial tag. This dialect reads such a group as an inner connected sumti. Zantufa reads it as a quantifier or tag. Some examples:
+The class is a KE mekso group whose later operand is an unmarked forethought connective. The group stands at a description prefix or a term-initial tag. This dialect reads such a group as an inner connected sumti. Zantufa reads it as a quantifier or tag. Some examples:
 
 ```text
 le ke my .e gy ke'e broda
@@ -1089,7 +1089,7 @@ lo ke my .e gy ke'e ke my .e gy ke'e prenu
 lo ke my .e gy ke'e ro my poi broda prenu
 ```
 
-With a second connected KE group, this dialect keeps `prenu` inside the description, while Zantufa places it outside. The relative-clause and `pa my .e gy` examples also change later attachments. Written `ku'e` after `.e gy` gives Zantufa's quantifier reading, as in `le ke my .e gy ku'e ke'e broda`.
+With a second connected KE group, this dialect keeps `prenu` inside the description, while Zantufa places it outside. The relative-clause example also changes later attachments. Written `ku'e` after `.e gy` gives Zantufa's quantifier reading, as in `le ke my .e gy ku'e ke'e broda`.
 
 In `ke my .e gy ke'e roi klama`, this dialect reads a grouped sumti followed by a bare ROI tag on `klama`. Zantufa uses the whole KE expression with ROI as one tag. The corresponding written control, `ke my .e gy ku'e ke'e roi klama`, is accepted here but rejected by Zantufa.
 
@@ -1109,7 +1109,7 @@ Consider this text:
 .u'i nypyry cu cusku lesedu'u le xindo cu cusku lesedu'u le kisto soi xy cu ca sarji le terpa sonci
 ```
 
-Here `soi` is SEI and introduces a statement. Its statement ends after `le terpa`. The word `sonci` supplies the predicate of the innermost `du'u`. The PEG includes `sonci` in the description inside SOI and leaves that `du'u` without a predicate.
+Here `soi` is SEI and introduces a statement. Its statement ends after `le terpa`. The word `sonci` supplies the predicate of the innermost `du'u`. The PEG includes `sonci` in the description inside the `soi` clause and leaves that `du'u` without a predicate.
 
 A written `toi` or `se'u` states the boundary directly. Placing it after the PEG's complete body keeps that body's words inside and preserves each failure above. Placing it at the earlier boundary states the accepted reading explicitly. The early controls are `me to toi ny my`, TOI immediately after the branch's TO, and SEhU between `terpa` and `sonci`.
 

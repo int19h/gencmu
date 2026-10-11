@@ -24,7 +24,7 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 Grammar DOM format 25 supports `without-elision($x)` in grammar conditions. All four libraries accept that span function through their ordinary grammar loaders. The function requires no parse configuration switch. A library rejects a bootstrap with another format and skips a cached DOM with another format. Parse-result format 11 stays unchanged.
 
-Retired optional members are malformed.
+An `optional` with a `maximal` member is malformed, as `docs/output.md` says.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
