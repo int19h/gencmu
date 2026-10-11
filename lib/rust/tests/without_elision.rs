@@ -7,7 +7,7 @@ fn shared_aligned_queries() {
         .into_iter()
         .filter(|p| p.file_name().unwrap().to_string_lossy().starts_with("without-elision-"))
         .collect();
-    assert_eq!(files.len(), 90);
+    assert_eq!(files.len(), 95);
     let mut failures = Vec::new();
     for file in files {
         let text = std::fs::read_to_string(&file).unwrap();

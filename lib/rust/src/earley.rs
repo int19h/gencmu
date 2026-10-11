@@ -1296,53 +1296,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 term(t, &mut roots);
             }
         }
-        fn span_uses(span: &Span) -> bool {
-            match span {
-                Span::WithoutElision(_) => true,
-                Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => span_uses(s),
-                _ => false,
-            }
-        }
-        fn term_uses(t: &LTerm) -> bool {
-            match t {
-                LTerm::Text(s) | LTerm::Phonemes(s) | LTerm::Tags(s) | LTerm::TagsRule(s, _) | LTerm::Classes(s) => {
-                    span_uses(s)
-                }
-                LTerm::If(c, t) => cond_uses(c) || term_uses(t),
-                LTerm::Union(ts) | LTerm::Inter(ts) => ts.iter().any(term_uses),
-                LTerm::Diff(a, b) | LTerm::Split(a, b) => term_uses(a) || term_uses(b),
-                LTerm::TagOf(t) | LTerm::Classify(t, _) => term_uses(t),
-                _ => false,
-            }
-        }
-        fn cond_uses(c: &LCond) -> bool {
-            match c {
-                LCond::Matches(s, _) | LCond::Begins(s, _) | LCond::Initial(s) | LCond::Tree(s, _, _) => span_uses(s),
-                LCond::Cmp(_, a, b) => term_uses(a) || term_uses(b),
-                LCond::Not(c) => cond_uses(c),
-                LCond::Any(cs) | LCond::All(cs) => cs.iter().any(cond_uses),
-                LCond::If(a, b) => cond_uses(a) || cond_uses(b),
-            }
-        }
-        let observes = self.g.prods.iter().any(|p| {
-            let emission = match &p.emit {
-                crate::lower::LEmit::This(terms) => terms.iter().flatten().any(term_uses),
-                crate::lower::LEmit::Items(items) => {
-                    items.iter().any(|item| matches!(item,crate::lower::LEmitItem::Cap(_,Some(t),_,_) if term_uses(t)))
-                }
-                _ => false,
-            };
-            p.conds.iter().any(|(c, _)| cond_uses(c)) || p.tags.as_ref().is_some_and(term_uses) || emission
-        }) || self.g.ranked.plans.values().any(|p| {
-            p.conditions.iter().flatten().any(|(c, _)| cond_uses(c)) || p.whole_tags.as_ref().is_some_and(term_uses)
-        });
+        let close_rules = crate::restoration::demanded(self.g);
+        let observes = !close_rules.is_empty();
         self.shared.machine = if roots.is_empty() && self.g.ranked.slots.is_empty() && !observes {
             None
         } else {
             {
                 let mut machine = Machine::new(&roots);
                 if observes {
-                    machine.observations = Some(crate::restoration::Observations::new());
+                    let mut observations = crate::restoration::Observations::new();
+                    observations.rules = Some(close_rules);
+                    machine.observations = Some(observations);
                 }
                 Some(Rc::new(RefCell::new(machine)))
             }
@@ -1374,7 +1338,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             } else {
                 m.node(Some(&rule.name), item.prefix, None)
             };
-            if m.observations.is_some() {
+            if m.observations.as_ref().is_some_and(|o| o.wanted(p.rule)) {
                 let original = |at: usize| self.recon.map_or(at, |r| r.project[at] as usize);
                 let start = original(item.origin as usize);
                 let end = original(set);
@@ -1415,7 +1379,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let parent = &self.g.rules[rule as usize].name;
         let mut m = machine.borrow_mut();
         frame.parent_structure = m.node(Some(parent), frame.parent_structure, None);
-        if m.observations.is_none() {
+        if !m.observations.as_ref().is_some_and(|o| o.wanted(rule)) {
             return;
         }
         let original = |at: u32| base + frame.project.map_or(at, |p| p[at as usize]) as usize;
@@ -1584,9 +1548,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let limit = witnesses.partition_point(|w| w.end <= a.match_end);
         let start = if request.begins { 0 } else { witnesses.partition_point(|w| w.end < a.match_end) };
         let witnesses = &witnesses[start..limit];
-        let m = self.shared.machine.as_ref().unwrap().borrow();
-        let observations = m.observations.as_ref().unwrap();
-        let aligned = |w: &&QualifiedWitness| observations.aligns(a.observation, w.observation, a.fixed_end.min(w.end));
+        let mut m = self.shared.machine.as_ref().unwrap().borrow_mut();
+        let observations = m.observations.as_mut().unwrap();
+        let mut aligned =
+            |w: &&QualifiedWitness| observations.aligns(a.observation, w.observation, a.fixed_end.min(w.end));
         if request.begins {
             let accepted = witnesses.iter().any(|w| aligned(&w));
             self.shared.begins.insert(request.key, accepted);
@@ -2209,7 +2174,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 cap.structure
             };
             let prefix = m.concat(item.prefix, child);
-            if m.observations.is_some() {
+            if m.observations.as_ref().is_some_and(|o| o.wanted(g.prods[item.prod as usize].rule)) {
                 let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
                 let observation = m.observation(prefix);
                 let observation = m.observations.as_mut().unwrap().complete(
