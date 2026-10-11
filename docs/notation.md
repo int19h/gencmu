@@ -598,15 +598,21 @@ An elision is an omitted terminator. A close is one omission at an input boundar
 
 The argument must be one bare capture, including `$` for the completed enclosing constituent. `without-elision(from($x))` is an error. The extended form is `from(without-elision($x))`.
 
-The span keeps the captured words and the candidate's closes. It restores each close as a synthetic token, a token with explicit restoration provenance. Original tokens keep their fields and identity. Morphology does not run again. Caller-owned omissions contribute no close, even at the captured endpoint.
+A synthetic token is a token inserted for restoration. Each such token records its omitted terminal and original boundary.
+
+The span keeps the captured words and the candidate's closes. It restores each close as a synthetic token. Original tokens keep their fields and identity. Morphology does not run again. Caller-owned omissions contribute no close, even at the captured endpoint.
 
 `matches(without-elision($x), R)` asks for an aligned witness over the complete capture. `begins(without-elision($x), R)` permits a witness that ends within the capture. `begins(from(without-elision($x)), R)` also permits a witness that ends after the capture. Following words remain raw input and permit ordinary omissions after the captured endpoint.
 
 Inside the shared stretch, the witness cannot add, drop, move, or reorder closes. At its end, a prefix must match the complete group of closes at that boundary. A restored terminator cannot supply a bare terminal read. The witness must qualify on the original input before ranked admission. Its conditions and written-terminator priority can inspect following words beyond the capture.
 
-A seal hides the content of a ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
+A seal hides the content of a ranked group. Common entry observations describe state before the ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
 
-`from` preserves the restoration view, including through repeated calls. Other span functions first project to original tokens and return ordinary spans. `after(without-elision($x))` therefore reads the raw suffix. `head`, `tail`, and `last` expose original tokens. `text`, `phonemes`, `initial`, and one-argument `tags` also observe original tokens. The restored span carries no constituent tags. Two-argument `tags` unions the tags of its aligned whole witnesses.
+Projection maps restored positions back to original input positions.
+
+`from` preserves the restoration view, including through repeated calls. Other span functions first project to original tokens and return ordinary spans. `after(without-elision($x))` therefore reads the raw suffix. `head`, `tail`, and `last` expose original tokens.
+
+`text`, `phonemes`, `initial`, and one-argument `tags` also observe original tokens. The restored span carries no constituent tags. Two-argument `tags` unions the tags of its aligned whole witnesses.
 
 For example, these rules hold an omitted BOI fixed:
 

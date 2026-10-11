@@ -280,15 +280,17 @@ The parser is an Earley recognizer, a parser for any context-free grammar, over 
 
 An item has a production, dot position, origin, structural prefix state, and demanded restoration observations (§4.1). Each capture before the dot retains its span, tags, structural state, and demanded close observation. Completed items retain the corresponding observations of their constituent. Two items merge only when all these values agree. Their proof edges remain distinct.
 
-Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Captures then add items only where their spans can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
+Fix a production, dot position, origin, input position and structural prefix state. Fix every captured part's tag set and structural state. Fix every demanded restoration observation too.
+
+Captures then add items only where their spans can vary. For example, with `t → $l(t) $r(t) | A`, a completed item over one span exists once for each position where `$l` can end. Without the captures, it exists once.
 
 Captured spans increase the item count, and the notation sets no limit on the number of captures. A captured part's span before the dot is part of an item's identity. So items that differ only in where a captured part began or ended are not merged. Neither are the summaries of §6 and the states of eligibility above that are kept for each item.
 
-Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets and structural states can multiply the items again.
+Take one production, dot position, origin and input position. Each captured part before the dot can multiply the number of its items by the number of its possible spans. Let N be the length of the input. The factor is up to N + 1 for each end of the part that nothing else fixes. The origin, the input position or a neighboring captured part can fix an end. Its tag sets, structural states, and demanded restoration observations can multiply the items again.
 
-A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. Where a clause only needs the whole constituent, `$` costs nothing, since the origin and the position fix it.
+A capture of a terminal, or of a part whose length is fixed, costs little, since its start fixes its end. A capture of a rule that can end in many places, such as a list, costs the most. The span of `$` needs no extra coordinates. Its demanded restoration observations can still distinguish items.
 
-No memo depends on the number of captures. The memo of nested queries (below) is keyed by the query's kind, rule and span or content, never by captures. Only the identity of items, and what is keyed by items, grows with them.
+A memo stores answers for reuse. Ordinary query keys use the query kind, rule, and span or content. Aligned query keys also retain the restoration constraints specified below. Capture names alone do not distinguish answers.
 
 A terminal `T` matches a token whose tags contain `T`. A range matches a token that carries at least one character tag of the range. A property matches a token that carries a character tag whose scalar value has the property. Either one matches such a token once, with one reading, however many of its tags qualify.
 
@@ -332,19 +334,19 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. A nested parse is one recognition over the span's tokens alone, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
+`matches(span, rule)`, `begins(span, rule)` and `tags(span, rule)` each run a nested parse. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
 A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
 A proof tree is eligible when none of its omissions is forbidden (below).
 
-A query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read these eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
+An ordinary query that the check of §7 starts reads the projected span in the stage's input. It uses this lowered grammar in its ordinary mode (§7.6). Its chart is every item, partial or completed, that this recognition holds after it ends. The three functions read these eligible proof trees before ranked admission (§6.1) or ranking. Their structural observations still use the sealed leaves of §4.1:
 
 - `matches` holds when a completed item of `rule` spans the tokens and has an eligible proof tree.
 - `begins` holds when a completed item of `rule` has its origin at the span's start, in any set, and has an eligible proof tree. So it covers a prefix of the span, the empty prefix included.
 - `tags` is the union of the tag sets of the completed items of `rule` that span the tokens and have an eligible proof tree.
 
-A proof tree is finite, and it does not depend on the order in which the recognizer finds items. A rule can occur again over the same span within it. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
+A proof tree is finite, and it does not depend on the order in which the recognizer finds items. In an ordinary query without restoration constraints, a rule can occur again over the same span within its proof tree. This differs on purpose from the derivations that a stage counts and ranks (below, and §6), which exclude such a repetition. An item with no finite proof tree from predicted items has none, so a cycle alone gives none.
 
 An implementation can rebuild the advances from completed spans, as it can for a stage's derivations (below). Such a rebuilding keeps the captures, and it applies the symbol tests again to the actual candidate. It never evaluates a condition again.
 
@@ -397,7 +399,9 @@ The match bound limits a completed witness. The context bound limits input visib
 
 `matches(without-elision($x), R)` and `tags(without-elision($x), R)` require a witness of R from `a` to `b`. The latter unions those witnesses' own tags. `begins(without-elision($x), R)` permits any end `c` through `b`. `from` extends the match window through N without changing the restoration observation. Thus `begins(from(without-elision($x)), R)` permits any end `c` through N. A whole query on that extended window requires end N.
 
-Compare candidate and witness close groups through `min(b,c)`, including both boundaries. Every group must have the same terminals in the same order. Equal omission counts alone are insufficient. The witness cannot add, remove, move, or reorder a close in that interval. A prefix cannot end between records of one close group. An empty prefix compares the complete initial group. An extra omission at exactly `b` disagrees, even when the witness later consumes suffix tokens.
+Compare candidate and witness close groups through `min(b,c)`, including both boundaries. Every group must have the same terminals in the same order. Equal omission counts alone are insufficient. The witness cannot add, remove, move, or reorder a close in that interval.
+
+A prefix cannot end between records of one close group. An empty prefix compares the complete initial group. An extra omission at exactly `b` disagrees, even when the witness later consumes suffix tokens.
 
 After original position `b`, an extended witness follows ordinary omission rules. It can read real written terminators in the raw suffix. Those tokens retain written status. The candidate supplies no restoration records after `b`.
 
@@ -424,7 +428,7 @@ The active-query identity remains the requested rule and projected context inter
 
 An ordinary query reads the tokens of its span alone. A `matches` over a span does not look past the span's end, even where a written terminator stands after it. So the keys of the memo (below) fit its answer.
 
-`begins` is one recognition over the whole span, not a separate parse of each prefix. The reason is that the conditions inside `rule` see the end of the span as the end of their input. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
+`begins` is one recognition over the whole span, not a separate parse of each prefix. Conditions see the query's context end. For an ordinary span, that end equals the span end. A recognizer can stop at a set that holds no item, since no later set can then hold one. Otherwise it reads as far as it can. An error of the grammar that it meets is an error, even after `rule` completed once.
 
 For ordinary spans, an implementation can remember answers for the whole parse of a stage in a memo. A memo stores answers from earlier nested parses. This is recommended, but not required. Two queries can share an answer when the nested parse observes the same things in both. That is, the two queries are of the same kind and ask about the same rule. They also have the same span or the same content.
 
@@ -885,7 +889,7 @@ A query is about a rule and a span of O. For the recursive-query rule of §4, `m
 
 The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
 
-An explicit `without-elision` starts an aligned query under §4. It fixes the current reconstruction candidate's projected closes, rather than inheriting the outer reconstruction script. Active-query errors still use the shared stack and projected original context. The mapped original witness preserves its candidate closes and query answers.
+A query over an explicit `without-elision` span follows the aligned rules of §4. It fixes the current reconstruction candidate's projected closes, rather than inheriting the outer reconstruction script. Active-query errors still use the shared stack and projected original context. The mapped original witness preserves its candidate closes and query answers.
 
 `tags(s, R)` is the union of the tags of the query's eligible readings (§4). `tags($x)`, with no rule, is the capture's own constituent tags. The two do not stand in for each other.
 
@@ -1212,7 +1216,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A string in an `=` or `≠` test that no canonical sound (§5) can be is an error, reported at the string. That is a string with a comma, or with a code point that the simple lowercase mapping changes. So `LE="La"` and `LE="l,a"` are errors. The loader makes sure that a string constant there is a canonical sound too (§2).
 - A test's operand that is not a closed term (§10) is an error, reported at the first part that is not closed. So a capture, `$`, a guarded term and a call of `phonemes`, `text`, `tags`, `classes` or `classify` are errors there.
 - A test's operand of the wrong type is an error, reported at the operand. The operand of `=` and `≠` is a string, and that of the other four tests is a tag set. So `LE⊇"la"` and `LE=~la` are errors.
-- A function that does not exist is an error, and so is one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `without-elision` takes exactly one bare capture, including `$`. Reject `without-elision(from($x))` and direct the author to `from(without-elision($x))`. Capture-use analysis and private readiness follow captures through nested span calls. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
+- A function that does not exist is an error, and so is one called with the wrong arguments. `phonemes`, `text`, `classes`, `head`, `tail`, `last`, `from` and `after` take one span. `split` takes two strings, and `tag` takes one string. `tags` takes a span and optionally a rule name. `matches` and `begins` take a span and a rule name, and `initial` takes one span. `classify` takes a string and a classifier's name.
+
+  `without-elision` takes exactly one bare capture, including `$`. Reject `without-elision(from($x))` and direct the author to `from(without-elision($x))`. Capture-use analysis and private readiness follow captures through nested span calls.
 
   In these signatures, a span is a capture or a valid call of a span function (§10). A string is a term whose type is string (§10). The reader reports a call with the wrong arguments at the call. So a bare name in an argument that takes no name, as in `classify(lex, "mi")`, is reported at `classify`, not at the name.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
