@@ -1,0 +1,33 @@
+{
+  "description": "An enclosing guard retains its ordinary prefix and hides the ranked group closes (engine §4 and §6.1).",
+  "grammar": "%rule text Q (a ≻ b)\n%conditions ¬matches(without-elision($), rival)\n%rule a X [+T]\n%rule b X [+U]\n%rule rival Q X [+T]",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "Q"
+          },
+          {
+            "rule": "a"
+          }
+        ]
+      }
+    }
+  }
+}

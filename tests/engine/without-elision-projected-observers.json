@@ -1,0 +1,32 @@
+{
+  "description": "The restored view exposes original text, phonemes, tags, and token endpoints (engine §4 and §10).",
+  "grammar": "%rule text Q $x(candidate) Y\n%conditions text(without-elision($x)) = \"x\", phonemes(without-elision($x)) = \"x\", tags(without-elision($x)) = X, ¬initial(without-elision($x)), text(head(without-elision($x))) = \"x\", text(last(without-elision($x))) = \"x\", text(tail(without-elision($x))) = \"\", matches(after(without-elision($x)), following)\n%rule candidate X [+T] <~private>\n%rule following Y",
+  "tokens": [
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ],
+      "phonemes": "q"
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

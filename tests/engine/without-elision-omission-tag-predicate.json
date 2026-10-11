@@ -1,0 +1,18 @@
+{
+  "description": "A rival omission keeps the terminator tag for its own test (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival X [+T⊇T]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

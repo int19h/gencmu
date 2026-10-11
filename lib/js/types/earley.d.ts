@@ -1,6 +1,9 @@
 import { PatternMachine } from "./patterns.js";
+import { CloseObservations } from "./close-observations.js";
+import { restoreTokens } from "./restoration.js";
 import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
+import type { CloseObservation } from "./close-observations.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -20,6 +23,7 @@ export type Chart = {
 };
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+ * @import { CloseEvent, CloseObservation } from "./close-observations.js"
  * @import { Token } from "./tokens.js"
  * @import { UnicodeTable } from "./unicode.js"
  */
@@ -53,9 +57,20 @@ export declare class TagInterner {
 }
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
+/**
+ * @param {ParseContext} context
+ * @param {string} terminal
+ * @param {number} at
+ * @returns {CloseObservation|null}
+ */
+export declare function terminalObservation(context: ParseContext, terminal: string, at: number): CloseObservation | null;
 export declare class ParseContext {
     lowered: LoweredGrammar;
     patterns: PatternMachine | null;
+    /** @type {CloseObservations|null} */
+    closes: CloseObservations | null;
+    /** @type {Map<number,ReturnType<typeof restoreTokens>>} */
+    restoredViews: Map<number, ReturnType<typeof restoreTokens>>;
     tokens: Token[];
     /** Where each run of the tokens lies in the text (engine §1). */
     sources: Sources;
@@ -201,6 +216,10 @@ export declare class Item {
     slots: Captured;
     prefix: number;
     structure: number;
+    /** @type {CloseObservation|null} */
+    observationPrefix: CloseObservation | null;
+    /** @type {CloseObservation|null} */
+    observation: CloseObservation | null;
     tagId: number;
     end: number;
     previous: Item | null;
@@ -275,6 +294,8 @@ declare class Pending {
     at: [number, number] | null;
     key: string;
     unseen: boolean;
+    /** @type {import("./types.js").AlignedSpan|null} */
+    aligned: import("./types.js").AlignedSpan | null;
     /**
      * What the halted evaluation has left to do, the innermost part first.
      * Each frame takes the value of the part inside it and gives its own,
@@ -400,12 +421,15 @@ export declare function rootItems(chart: Chart, rule: string): Item[];
 export type StepScope = {
     scope: ChartScope | null;
     structure: number;
+    observation: CloseObservation | null;
 };
 /** @implements {Scope} */
 declare class ChartScope implements Scope {
     context: ParseContext;
     production: Production;
     structure: number;
+    observation: CloseObservation | null;
+    invalidRestoration: boolean;
     slots: Captured;
     origin: number;
     end: number;
@@ -426,8 +450,9 @@ declare class ChartScope implements Scope {
      * @param {number} origin
      * @param {number} end
      * @param {number} structure
+     * @param {CloseObservation|null} [observation]
      */
-    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number);
+    constructor(context: ParseContext, production: Production, slots: Captured, origin: number, end: number, structure: number, observation?: CloseObservation | null);
     /**
      * The constituent's tags, from its production's tag term, evaluated at
      * most once, or HALT where the term halts for a nested parse.

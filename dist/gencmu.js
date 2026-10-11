@@ -136,6 +136,8 @@
   /**
    * The counts of `hooks.work`.
    * @typedef {object} WorkCounts
+   * @property {number} closeStates shared close and cycle summaries interned
+   * @property {number} closeSequences shared close sequence links interned
    * @property {number} structuralStates finite structural states interned
    * @property {number} structuralTransitions structural transitions computed
    * @property {number} packedEdges distinct packed forest edges
@@ -191,10 +193,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "checks" | "scanned" | "candidates" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "checks", "scanned", "candidates", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "soundSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -1413,6 +1415,194 @@
     return null;
   }
 
+  // ---- close-observations.js
+  // Shared close observations for aligned queries. The chart keeps summaries
+  // of proofs, not completed trees. A cyclic summary remains available to
+  // ordinary query eligibility, but cannot supply an aligned observation.
+
+
+
+  /**
+   * @typedef {{kind: "close", terminal: string, at: number, source: [number, number], sound?: string}
+   *   | {kind: "block", key: string, start: number, end: number}} CloseEvent
+   */
+  /**
+   * @typedef {{id: number, sequence: number, rules: ReadonlySet<string>, valid: boolean}} CloseObservation
+   */
+
+  class CloseObservations {
+    constructor() {
+      /** @type {CloseEvent[]} */ this.events = [];
+      /** @type {Map<string,number>} */ this.eventIds = new Map();
+      /** @type {{parent:number,event:number}[]} */ this.sequences = [{ parent: 0, event: -1 }];
+      /** @type {Map<string,number>} */ this.sequenceIds = new Map();
+      /** @type {CloseObservation[]} */ this.states = [];
+      /** @type {Map<string,CloseObservation>} */ this.stateIds = new Map();
+      /** @type {Map<string,CloseObservation>} */ this.products = new Map();
+      /** @type {Map<string,[number,number]>} */ this.ruleSpans = new Map();
+      /** @type {Map<string,number>} */ this.alignmentIds = new Map();
+      /** @type {Map<number,number>} */ this.sequenceAlignmentIds = new Map([[0, 0]]);
+      this.empty = this.intern(0, new Set());
+      this.invalid = { id: 1, sequence: 0, rules: new Set(), valid: false };
+      this.states.push(this.invalid);
+    }
+
+    /** @param {number} sequence @param {ReadonlySet<string>} rules @returns {CloseObservation} */
+    intern(sequence, rules) {
+      const key = `${sequence}/${JSON.stringify([...rules].sort())}`;
+      const old = this.stateIds.get(key);
+      if (old) return old;
+      const state = { id: this.states.length, sequence, rules, valid: true };
+      this.states.push(state);
+      this.stateIds.set(key, state);
+      if (hooks.work) countWork(hooks.work, "closeStates");
+      return state;
+    }
+
+    /** @param {number} parent @param {CloseEvent} event @returns {number} */
+    append(parent, event) {
+      const eventKey = JSON.stringify(event);
+      let id = this.eventIds.get(eventKey);
+      if (id === undefined) {
+        id = this.events.length;
+        this.events.push(event);
+        this.eventIds.set(eventKey, id);
+      }
+      const key = `${parent}/${id}`;
+      const old = this.sequenceIds.get(key);
+      if (old !== undefined) return old;
+      const sequence = this.sequences.length;
+      this.sequences.push({ parent, event: id });
+      this.sequenceIds.set(key, sequence);
+      if (hooks.work) countWork(hooks.work, "closeSequences");
+      return sequence;
+    }
+
+    /** @param {number} sequence @returns {CloseEvent[]} */
+    list(sequence) {
+      // Keep only the shared links. A flattened prefix list is temporary.
+      const result = [];
+      for (let at = sequence; at !== 0; at = this.sequences[at].parent) {
+        result.push(this.events[this.sequences[at].event]);
+      }
+      result.reverse();
+      return result;
+    }
+
+    /** @param {CloseObservation} left @param {CloseObservation} right @returns {CloseObservation} */
+    concat(left, right) {
+      if (!left.valid || !right.valid) return this.invalid;
+      const key = `${left.id}/${right.id}`;
+      const old = this.products.get(key);
+      if (old) return old;
+      let sequence = left.sequence === 0 ? right.sequence : left.sequence;
+      if (left.sequence !== 0 && right.sequence !== 0) {
+        for (const event of this.list(right.sequence)) {
+          sequence = this.append(sequence, event);
+        }
+      }
+      const rules = new Set(left.rules);
+      for (const rule of right.rules) rules.add(rule);
+      const result = this.intern(sequence, rules);
+      this.products.set(key, result);
+      return result;
+    }
+
+    /** @param {CloseEvent} event @param {ReadonlySet<string>} [rules] @returns {CloseObservation} */
+    event(event, rules = this.empty.rules) {
+      return this.intern(this.append(0, event), rules);
+    }
+
+    /** @param {CloseObservation} inner @param {string} rule @param {number} start @param {number} end @returns {CloseObservation} */
+    closeRule(inner, rule, start, end) {
+      if (!inner.valid) return inner;
+      const occurrence = JSON.stringify([rule, start, end]);
+      this.ruleSpans.set(occurrence, [start, end]);
+      if (inner.rules.has(occurrence)) return this.invalid;
+      const rules = new Set(inner.rules);
+      rules.add(occurrence);
+      return this.intern(inner.sequence, rules);
+    }
+
+    /** @param {CloseObservation} inner @param {number} start @param {number} end @returns {CloseObservation} */
+    trim(inner, start, end) {
+      // A future ancestor contains this interval. Only a descendant over the
+      // complete interval can repeat that ancestor's rule and span.
+      if (!inner.valid) return inner;
+      const rules = new Set([...inner.rules].filter(rule => {
+        const span = this.ruleSpans.get(rule);
+        return span?.[0] === start && span[1] === end;
+      }));
+      return rules.size === inner.rules.size ? inner : this.intern(inner.sequence, rules);
+    }
+
+    /** @param {CloseObservation} candidate @param {CloseObservation} witness @param {number} through @returns {boolean} */
+    aligned(candidate, witness, through) {
+      if (!candidate.valid || !witness.valid) return false;
+      const left = this.through(candidate, through);
+      const right = this.through(witness, through);
+      return left !== null && right !== null && left === right;
+    }
+
+    /** @param {CloseObservation} observation @returns {number} */
+    identity(observation) {
+      if (!observation.valid) return -1;
+      const pending = [];
+      let sequence = observation.sequence;
+      while (!this.sequenceAlignmentIds.has(sequence)) {
+        pending.push(sequence);
+        sequence = this.sequences[sequence].parent;
+      }
+      let parent = /** @type {number} */ (this.sequenceAlignmentIds.get(sequence));
+      for (let at = pending.length - 1; at >= 0; at--) {
+        const link = pending[at];
+        const event = this.events[this.sequences[link].event];
+        const key = JSON.stringify(event.kind === "close"
+          ? [parent, event.terminal, event.at]
+          : [parent, "block", event.key, event.start, event.end]);
+        let id = this.alignmentIds.get(key);
+        if (id === undefined) {
+          id = this.alignmentIds.size + 1;
+          this.alignmentIds.set(key, id);
+        }
+        this.sequenceAlignmentIds.set(link, id);
+        parent = id;
+      }
+      return parent;
+    }
+
+    /** @param {CloseObservation} state @param {number} through @returns {string|null} */
+    through(state, through) {
+      const events = [];
+      for (const event of this.list(state.sequence)) {
+        if (event.kind === "close") {
+          if (event.at <= through) events.push([event.terminal, event.at]);
+        } else {
+          if (event.start < through && through < event.end) return null;
+          if (event.end <= through) events.push(["block", event.key, event.start, event.end]);
+        }
+      }
+      return JSON.stringify(events);
+    }
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function needsCloseObservations(value) {
+    const stack = [value];
+    const seen = new Set();
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node || typeof node !== "object" || seen.has(node)) continue;
+      seen.add(node);
+      if (/** @type {any} */ (node).call === "without-elision") return true;
+      for (const child of Object.values(node)) stack.push(child);
+    }
+    return false;
+  }
+
   // ---- patterns.js
   // Finite observations of structural trees (engine §4.1). A helper carries
   // a sequence monoid: its relations concatenate without retaining trees.
@@ -1863,6 +2053,48 @@
    */
   function codePoints(text) {
     return [...text];
+  }
+
+  // ---- restoration.js
+  // Tokens and source projection shared by elision-only and restored spans.
+
+
+
+  /** @typedef {{terminal: string, at: number, source: [number, number], sound?: string}} RestorationRecord */
+
+  /**
+   * @param {import("./tokens.js").Token[]} tokens
+   * @param {RestorationRecord[]} records
+   * @param {number[]} [order]
+   * @param {boolean} [emptySourceIsSynthetic]
+   */
+  function restoreTokens(tokens, records, order = records.map((_, index) => index), emptySourceIsSynthetic = false) {
+    /** @type {import("./tokens.js").Token[]} */ const restored = [];
+    /** @type {boolean[]} */ const synthetic = [];
+    /** @type {number[]} */ const originalAt = [];
+    /** @type {number[]} */ const recordAt = new Array(records.length);
+    /** @type {(number|undefined)[]} */ const recordOf = [];
+    let next = 0;
+    for (let at = 0; at <= tokens.length; at++) {
+      while (next < order.length && records[order[next]].at === at) {
+        const index = order[next++];
+        const record = records[index];
+        recordAt[index] = restored.length;
+        recordOf.push(index);
+        synthetic.push(true);
+        restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], record.source, "", record.sound ?? null, undefined));
+      }
+      if (at < tokens.length) {
+        originalAt.push(restored.length);
+        recordOf.push(undefined);
+        const token = tokens[at];
+        synthetic.push(emptySourceIsSynthetic && token.source[0] === token.source[1]);
+        restored.push(token);
+      }
+    }
+    const project = [0];
+    for (const flag of synthetic) project.push(project[project.length - 1] + (flag ? 0 : 1));
+    return { restored, synthetic, originalAt, recordAt, recordOf, project };
   }
 
   // ---- eligible.js
@@ -4666,9 +4898,9 @@
       const captures = [];
       for (let part = item.slots; part; part = part.parent) {
         const name = item.production.captures[part.index].name;
-        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure]);
+        if (!name.startsWith('\u0000')) captures.push([name,part.start,part.end,part.tags,part.structure,part.observation?.id]);
       }
-      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings];
+      return [written(item.production),item.origin,item.production.rhs.slice(0,item.dot).map(symbol),item.production.rhs.slice(item.dot).map(symbol),item.prefix,captures.reverse(),item.restores,item.production.rankedBindings,item.observationPrefix?.id];
     };
     return {
       contextual,
@@ -4693,8 +4925,15 @@
         const prefix = outer && context.patterns ? context.patterns.concat(outer.prefix,item.prefix) : item.prefix;
         const inside = !!outer?.inside || !!item.production.rankedGroup;
         const sealPrefix = inside && outer ? outer.sealPrefix : prefix;
+        const observationPrefix = context.closes
+          ? context.closes.concat(outer?.observationPrefix ?? context.closes.empty,item.observationPrefix ?? context.closes.empty)
+          : null;
+        const sealObservationPrefix = inside && outer ? outer.sealObservationPrefix : observationPrefix;
+        const sealGroup = inside && outer ? outer.sealGroup : context.lowered.ranked.groups.find((/** @type {any} */ group) => group.helper === name) ?? null;
+        const sealEntry = inside && outer ? outer.sealEntry : item;
         const knownPrivate = new Set([...outer?.knownPrivate ?? [],...item.production.rankedPrivate]);
-        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate};
+        const frame = {id:next++,key,captures,root,namedOrigin,prefix,inside,sealPrefix,present,knownPrivate,
+          observationPrefix,sealObservationPrefix,sealGroup,sealEntry};
         frames.set(key,frame);
         return frame;
       },
@@ -6226,8 +6465,11 @@
 
 
 
+
+
   /**
    * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
+   * @import { CloseEvent, CloseObservation } from "./close-observations.js"
    * @import { Token } from "./tokens.js"
    * @import { UnicodeTable } from "./unicode.js"
    */
@@ -6360,6 +6602,201 @@
     return { prefix, structure };
   }
 
+  /**
+   * @param {ParseContext} context
+   * @param {number} position
+   * @returns {number}
+   */
+  function originalPosition(context, position) {
+    return context.recon ? context.recon.project[position] : position;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {number} position
+   * @returns {CloseObservation|null}
+   */
+  function restoredClose(context, production, position) {
+    const machine = context.closes;
+    if (!machine) return null;
+    if (context.synthetic?.[position]) {
+      return terminalObservation(context, /** @type {string} */ (production.elided), position);
+    }
+    const observed = context.recon?.observed ?? context;
+    const at = originalPosition(context, position);
+    const sourceAt = at > 0 ? observed.tokens[at - 1].source[1] : observed.tokens[0]?.source[0] ?? 0;
+    /** @type {CloseEvent} */
+    const event = {
+      kind: "close",
+      terminal: /** @type {string} */ (production.elided),
+      at,
+      source: [sourceAt, sourceAt],
+    };
+    if (production.elidedTest?.op === "=" && production.elidedTest.sound !== undefined) {
+      event.sound = production.elidedTest.sound;
+    }
+    return machine.event(event);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {string} terminal
+   * @param {number} at
+   * @returns {CloseObservation|null}
+   */
+  function terminalObservation(context, terminal, at) {
+    const machine = context.closes;
+    if (!machine) return null;
+    if (!context.synthetic?.[at]) return machine.empty;
+    const token = context.tokens[at];
+    /** @type {CloseEvent} */
+    const event = { kind: "close", terminal, at: originalPosition(context, at), source: token.source };
+    if (token.phonemes !== null) event.sound = token.phonemes;
+    return machine.event(event);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {number} state
+   * @returns {string|null}
+   */
+  function structuralKey(context, state) {
+    if (!context.patterns || state < 0) return null;
+    return JSON.stringify(context.patterns.states[state], (_, value) => typeof value === "bigint" ? value.toString() : value);
+  }
+
+  /** @type {WeakMap<import("./ranked.js").RankedGroup,Set<string>>} */
+  const blockPrivateCaptures = new WeakMap();
+
+  /**
+   * @param {import("./ranked.js").RankedGroup} group
+   * @returns {Set<string>}
+   */
+  function privateCapturesOf(group) {
+    const old = blockPrivateCaptures.get(group);
+    if (old) return old;
+    const names = new Set();
+    const pending = [group.expr];
+    while (pending.length) {
+      const node = pending.pop();
+      if (!node || typeof node !== "object") continue;
+      if (typeof node.capture === "string") names.add(node.capture);
+      for (const child of Object.values(node)) {
+        if (Array.isArray(child)) for (const item of child) pending.push(item);
+        else if (child && typeof child === "object") pending.push(child);
+      }
+    }
+    blockPrivateCaptures.set(group, names);
+    return names;
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @returns {unknown[]}
+   */
+  function writtenPrefixKey(context, production) {
+    return [production.owner, production.source?.at,
+      production.writtenExpression ? context.lowered.ranked.paths.get(production.writtenExpression) : null];
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {GrammarSymbol} symbol
+   * @returns {unknown[]}
+   */
+  function prefixSymbolKey(context, symbol) {
+    const production = context.lowered.byLhs.get(symbol.name)?.[0];
+    return [production?.helper ? writtenPrefixKey(context, production) : symbol.name,
+      symbol.terminal, symbol.test];
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Item} before
+   * @param {{origin:number,end:number}} child
+   * @param {import("./ranked.js").RankedGroup} group
+   * @returns {string}
+   */
+  function blockEntryKey(context, before, child, group) {
+    const captures = [];
+    const privateNames = privateCapturesOf(group);
+    const bound = new Map(before.production.lexicalFrame?.captures ?? []);
+    for (let part = before.slots; part; part = part.parent) {
+      const name = before.production.captures[part.index].name;
+      bound.set(name, part);
+    }
+    for (const [name, part] of [...bound].sort(([left], [right]) => compareCodePoints(left, right))) {
+      if (name.startsWith("\u0000") || privateNames.has(name)) continue;
+      const closes = part.observation && context.closes
+        ? context.closes.identity(part.observation) : null;
+      captures.push([name, originalPosition(context, part.start), originalPosition(context, part.end),
+        tagKey(context.interner.get(part.tags)), structuralKey(context, part.structure), closes]);
+    }
+    const frame = before.production.lexicalFrame;
+    const prefix = frame && context.patterns ? context.patterns.concat(frame.prefix, before.prefix) : before.prefix;
+    const closePrefix = frame && context.closes
+      ? context.closes.concat(frame.observationPrefix ?? context.closes.empty, before.observationPrefix ?? context.closes.empty)
+      : before.observationPrefix;
+    // The written group and original entry observations survive across runs.
+    // Runtime frame IDs and the selected option do not enter this key.
+    return JSON.stringify([group.site, originalPosition(context, child.origin), originalPosition(context, child.end),
+      originalPosition(context, frame?.namedOrigin ?? before.origin), writtenPrefixKey(context, before.production),
+      before.production.rhs.slice(0, before.dot).map(symbol => prefixSymbolKey(context, symbol)),
+      structuralKey(context, prefix), captures, closePrefix && context.closes ? context.closes.identity(closePrefix) : null]);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Item} before
+   * @param {Item} child
+   * @returns {CloseObservation|null}
+   */
+  function closeChild(context, before, child) {
+    const machine = context.closes;
+    if (!machine) return null;
+    const contribution = child.observation ?? machine.empty;
+    const group = before.production.rhs[before.dot].slot;
+    if (!group || !contribution.valid) return contribution;
+    return machine.event({
+      kind: "block",
+      key: blockEntryKey(context, before, child, group),
+      start: originalPosition(context, child.origin),
+      end: originalPosition(context, child.end),
+    }, contribution.rules);
+  }
+
+  /**
+   * @param {ParseContext} context
+   * @param {Production} production
+   * @param {number} dot
+   * @param {number} origin
+   * @param {Item|null} previous
+   * @param {Item|null} child
+   * @param {number} end
+   * @returns {{prefix:CloseObservation,observation:CloseObservation}|null}
+   */
+  function closeStep(context, production, dot, origin, previous, child, end) {
+    const machine = context.closes;
+    if (!machine) return null;
+    let prefix = previous?.observationPrefix ?? machine.empty;
+    if (previous && child) {
+      prefix = machine.concat(prefix, /** @type {CloseObservation} */ (closeChild(context, previous, child)));
+    } else if (previous && context.synthetic?.[end - 1]) {
+      prefix = machine.concat(prefix, /** @type {CloseObservation} */ (terminalObservation(context, production.rhs[dot - 1].name, end - 1)));
+    }
+    prefix = machine.trim(prefix, originalPosition(context, origin), originalPosition(context, end));
+    let observation = prefix;
+    if (dot === production.rhs.length) {
+      if (production.helper && production.rhs.length === 0 && production.elided !== null) {
+        observation = /** @type {CloseObservation} */ (restoredClose(context, production, end));
+      }
+      if (!production.helper) observation = machine.closeRule(observation, production.lhs, originalPosition(context, origin), originalPosition(context, end));
+    }
+    return { prefix, observation };
+  }
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -6375,6 +6812,10 @@
       this.lowered = lowered;
       const patterns = demandedPatterns(lowered.productions);
       this.patterns = patterns.length ? new PatternMachine(patterns) : null;
+      /** @type {CloseObservations|null} */
+      this.closes = needsCloseObservations(lowered.productions) ? new CloseObservations() : null;
+      /** @type {Map<number,ReturnType<typeof restoreTokens>>} */
+      this.restoredViews = new Map();
       this.tokens = tokens;
       /** Where each run of the tokens lies in the text (engine §1). */
       this.sources = new Sources(tokens);
@@ -6491,6 +6932,10 @@
       this.slots = slots;
       this.prefix = -1;
       this.structure = -1;
+      /** @type {CloseObservation|null} */
+      this.observationPrefix = null;
+      /** @type {CloseObservation|null} */
+      this.observation = null;
       this.tagId = -1;
       this.end = -1;
       this.previous = previous;
@@ -6586,6 +7031,8 @@
       this.at = at;
       this.key = key;
       this.unseen = unseen;
+      /** @type {import("./types.js").AlignedSpan|null} */
+      this.aligned = null;
       /**
        * What the halted evaluation has left to do, the innermost part first.
        * Each frame takes the value of the part inside it and gives its own,
@@ -6788,7 +7235,22 @@
     const { context, kind, rule, start } = query;
     /** @type {boolean | TagSet} */
     let answer;
-    if (kind === "matches") {
+    if (query.aligned) {
+      const constraint = query.aligned;
+      const witnesses = [];
+      for (const set of chart.sets) {
+        if (!set || set.position > constraint.matchEnd) continue;
+        if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
+        for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule) witnesses.push(item);
+      }
+      const qualified = eligibleWitnesses(chart,witnesses,testHolds);
+      const aligned = qualified.filter(item => item.observation && context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+      if (kind === "tags") {
+        const tags = new TagUnion();
+        for (const item of aligned) tags.add(context.interner.get(item.tagId));
+        answer = tags.result();
+      } else answer = aligned.length !== 0;
+    } else   if (kind === "matches") {
       answer = eligibleWitnesses(chart, rootItems(chart, rule), testHolds).length > 0;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
@@ -6880,9 +7342,11 @@
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
+      const close = closeStep(context,production,dot,origin,previous,child,set.position);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
+      if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
@@ -6934,6 +7398,8 @@
       item = new Item(production, dot, origin, slots, previous, child);
       item.prefix = projected.prefix;
       item.structure = projected.structure;
+      item.observationPrefix = close?.prefix ?? null;
+      item.observation = close?.observation ?? null;
       item.strict = strict;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = set.position;
@@ -6981,6 +7447,8 @@
       let key = itemKey((production.id * dots) * width + position - start, null);
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${context.patterns.empty}/${structure}`;
+      const observation = restoredClose(context,production,position);
+      if (observation) key = `${key}/c${context.closes?.empty.id}/${observation.id}`;
       // A restoration whose item exists is another way to build it. Each
       // lookup counts, so that a search slower than the index fails a budget.
       if (hooks.work) countWork(hooks.work, "edgeChecks");
@@ -6988,6 +7456,8 @@
       const item = new Item(production, 0, position, null, null, null);
       item.prefix = context.patterns?.empty ?? -1;
       item.structure = structure;
+      item.observationPrefix = context.closes?.empty ?? null;
+      item.observation = observation;
       item.restores = true;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = position + 1;
@@ -7067,7 +7537,7 @@
         // One scope for the step, which evaluates the tag term at most once
         // (engine §4).
         /** @type {StepScope} */
-        const step = { scope: null, structure: structuralStep(context, production, 0, null, null, set.position).structure };
+        const step = { scope: null, structure: structuralStep(context, production, 0, null, null, set.position).structure, observation: closeStep(context,production,0,set.position,null,null,set.position)?.observation ?? null };
         // The tag term comes after the conditions (engine §4), unless a
         // fault evaluates it first (order:tags).
         if (production.rhs.length === 0 && fault("order:tags", "predict")) {
@@ -7113,6 +7583,7 @@
           value = found;
         }
       }
+      if (step.scope?.invalidRestoration) return;
       add(set, production, 0, set.position, null, null, null, value, strict && !fault("F16", "item"));
     };
 
@@ -7141,11 +7612,11 @@
         // production that inherits from the terminal (F7:capture).
         const tags = child ? child.tagId
           : context.interner.intern(synthetic !== null && synthetic[from] && !rawObservations(context) && !fault("F7:capture") ? tagSet() : tokens[from].tags);
-        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from));
+        slots = captureAfter(context, slots, captureIndex, from, to, tags, child ? child.structure : terminalState(context, production, item.dot, from), child ? closeChild(context,item,child) : terminalObservation(context,production.rhs[item.dot].name,from));
       }
       if (hooks.work) countWork(hooks.work, "captureLookups");
       /** @type {StepScope} */
-      const step = { scope: null, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure };
+      const step = { scope: null, structure: structuralStep(context, production, item.dot + 1, item, child, to).structure, observation: closeStep(context,production,item.dot+1,item.origin,item,child,to)?.observation ?? null };
       if (item.dot + 1 === production.rhs.length && fault("order:tags", "advance")) {
         if (completeTags(context, production, slots, item.origin, to, step) === HALT) {
           return pause(() => advanceFrom(item, to, slots, step, PART_CONDITIONS, null));
@@ -7180,6 +7651,7 @@
           value = found;
         }
       }
+      if (step.scope?.invalidRestoration) return null;
       return { dot: item.dot + 1, slots, tagId: value };
     };
 
@@ -7718,10 +8190,11 @@
    * @param {number} end
    * @param {number} tags
    * @param {number} structure
+   * @param {CloseObservation|null} observation
    * @returns {Captured}
    */
-  function captureAfter(context, parent, index, start, end, tags, structure) {
-    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure;
+  function captureAfter(context, parent, index, start, end, tags, structure, observation) {
+    const key = (parent === null ? "" : parent.id) + ":" + index + ":" + start + ":" + end + ":" + tags + ":" + structure + ":" + (observation?.id ?? "");
     let found = context.captured.get(key);
     if (!found) {
       // The jumps of a skew-binary list: a sequence jumps to its parent's
@@ -7732,7 +8205,7 @@
       const skip = parent !== null && parent.jump !== null &&
         parent.depth - parent.jump.depth === parent.jump.depth - (parent.jump.jump === null ? 0 : parent.jump.jump.depth);
       const jump = skip ? /** @type {NonNullable<Captured>} */ (/** @type {NonNullable<Captured>} */ (parent).jump).jump : parent;
-      found = { parent, jump, depth, index, start, end, tags, structure, id: context.captured.size };
+      found = { parent, jump, depth, index, start, end, tags, structure, observation, id: context.captured.size };
       context.captured.set(key, found);
       if (hooks.work) countWork(hooks.work, "captures");
     }
@@ -7829,10 +8302,10 @@
       if (hooks.work) countWork(hooks.work, "conditions");
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
-      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure);
+      const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
       const held = holds(scope.observing, condition, scope);
-      if (held === HALT) return pause((/** @type {boolean} */ value) => value ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
-      if (!held) return condition;
+      if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
+      if (!held || scope.invalidRestoration) return condition;
     }
     return null;
   }
@@ -7848,7 +8321,7 @@
    * @returns {number | Halt}
    */
   function completeTags(context, production, slots, origin, end, step) {
-    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure);
+    const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
     const tags = scope.constituent();
     if (tags === HALT) return pause((/** @type {TagSet} */ value) => context.interner.intern(value));
     return context.interner.intern(tags);
@@ -7859,7 +8332,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null, structure: number}} StepScope
+   * @typedef {{scope: ChartScope | null, structure: number, observation: CloseObservation|null}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -7890,11 +8363,14 @@
      * @param {number} origin
      * @param {number} end
      * @param {number} structure
+     * @param {CloseObservation|null} [observation]
      */
-    constructor(context, production, slots, origin, end, structure) {
+    constructor(context, production, slots, origin, end, structure, observation = null) {
       this.context = context;
       this.production = production;
       this.structure = structure;
+      this.observation = observation;
+      this.invalidRestoration = false;
       this.slots = slots;
       this.origin = origin;
       this.end = end;
@@ -7933,18 +8409,31 @@
     capture(name) {
       // `$` is the whole constituent, whose tags are read only once it is
       // complete, by a condition or an emission (engine §4).
-      if (name === "" && this.production.lexicalFrame) {
+      if (name === "" && this.production.lexicalFrame && !this.production.lexicalFrame.parentWhole) {
         const frame = this.production.lexicalFrame;
         const machine = this.context.patterns;
         const prefix = machine ? machine.concat(frame.sealPrefix,machine.seal) : -1;
         const structure = machine ? machine.node(frame.root.lhs,prefix) : -1;
-        const parent = new ChartScope(this.context,{...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure);
-        return {structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
+        let observation = this.observation;
+        const closes = this.context.closes;
+        if (closes && observation?.valid && frame.sealGroup && frame.sealEntry) {
+          const group = frame.sealGroup;
+          const entry = frame.sealEntry;
+          const block = closes.event({kind:"block",key:blockEntryKey(this.context,entry,
+            {origin:entry.end,end:this.end},group),
+            start:originalPosition(this.context,entry.end),end:originalPosition(this.context,this.end)},observation.rules);
+          observation = closes.concat(frame.sealObservationPrefix ?? closes.empty,block);
+          observation = closes.closeRule(observation,frame.root.lhs,
+            originalPosition(this.context,frame.namedOrigin),originalPosition(this.context,this.end));
+        }
+        const parent = new ChartScope(this.context,{...frame.root,tags:this.production.parentTags,lexicalFrame:{...frame,parentWhole:true}},null,frame.namedOrigin,this.end,structure,observation);
+        return {observation,structure,patterns:machine,start:frame.namedOrigin,end:this.end,space:this.space,
           get tags() {return /** @type {TagSet} */ (parent.constituent());}};
       }
       if (name === "") {
         const scope = this;
         return {
+          observation: this.observation,
           structure: this.structure,
           patterns: this.context.patterns,
           start: this.origin,
@@ -7961,7 +8450,7 @@
       // about twice at most.
       if ((!this.production.captureSlot.has(name) || this.production.lexicalFrame?.parentWhole) && this.production.lexicalFrame?.captures.has(name)) {
         const found = this.production.lexicalFrame.captures.get(name);
-        return {structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
+        return {observation:found.observation,structure:found.structure,patterns:this.context.patterns,start:found.start,end:found.end,tags:this.context.interner.get(found.tags),space:this.space};
       }
       const last = /** @type {NonNullable<Captured>} */ (this.slots);
       const index = captureIndex(this.production, name);
@@ -7975,12 +8464,50 @@
       let found;
       if (this.parts !== null) found = this.parts[index];
       else found = capturedPart(last, index, this);
-      return { structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
+      return { observation:found.observation, structure: found.structure, patterns: this.context.patterns, start: found.start, end: found.end, tags: this.context.interner.get(found.tags), space: this.space };
     }
   }
 
   // A span value: [start, end) of the stage's tokens, and the tags of the
   // captured constituent if it is a whole capture.
+  /**
+   * Materializes a restored token view only when an observer requests it.
+   * Aligned recognition uses the close observation directly.
+   * @param {ParseContext} context
+   * @param {CloseObservation} observation
+   * @returns {ReturnType<typeof restoreTokens>}
+   */
+  function restoredView(context, observation) {
+    const cached = context.restoredViews.get(observation.sequence);
+    if (cached) return cached;
+    const machine = /** @type {CloseObservations} */ (context.closes);
+    const records = machine.list(observation.sequence).flatMap(event => event.kind === "close"
+      ? [{ terminal: event.terminal, at: event.at, source: event.source,
+        ...(event.sound === undefined ? {} : { sound: event.sound }) }] : []);
+    const view = restoreTokens(context.tokens, records);
+    context.restoredViews.set(observation.sequence, view);
+    return view;
+  }
+
+  /**
+   * Keeps query bounds and lazy token provenance in one shared span value.
+   * @param {ParseContext} context
+   * @param {CloseObservation} observation
+   * @param {number} candidateEnd
+   * @param {number} contextEnd
+   * @param {number} [matchEnd]
+   * @returns {import("./types.js").AlignedSpan}
+   */
+  function alignedSpan(context, observation, candidateEnd, contextEnd, matchEnd = candidateEnd) {
+    return {
+      observation,
+      candidateEnd,
+      contextEnd,
+      matchEnd,
+      get view() { return restoredView(context, observation); },
+    };
+  }
+
   /**
    * @param {ParseContext} context
    * @param {Argument} span
@@ -7990,6 +8517,18 @@
   function spanOf(context, span, scope) {
     if (hooks.work) countWork(hooks.work, "visits");
     if ("capture" in span) return scope.capture(span.capture);
+    if ("call" in span && span.call === "without-elision") {
+      const captured = scope.capture(/** @type {{capture:string}} */ (span.args[0]).capture);
+      const inner = projectedArgument(captured,scope,span.call);
+      const machine = context.closes;
+      if (!machine || !captured.observation) throw new GencmuError("grammar","a restored span lacks its captured close observation");
+      const observation = captured.observation;
+      if (!observation.valid && "invalidRestoration" in scope) scope.invalidRestoration = true;
+      const r = reconstructionOf(scope);
+      const contextEnd = r ? originalPosition(r,r.inputEnd) : context.inputEnd;
+      return { start: inner.start, end: inner.end,
+        aligned: alignedSpan(context, observation, inner.end, contextEnd) };
+    }
     if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
       // In the check, the projection comes first, then the function (engine
       // §7.5), unless a fault applies the function first (F1).
@@ -8009,6 +8548,13 @@
     }
     if ("call" in span && (span.call === "from" || span.call === "after")) {
       const argument = spanOf(context, span.args[0], scope);
+      if (argument.aligned) {
+        const aligned = argument.aligned;
+        return span.call === "from"
+          ? { start: argument.start, end: aligned.contextEnd,
+            aligned: alignedSpan(context, aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd) }
+          : {start:argument.end,end:aligned.contextEnd};
+      }
       const first = functionFirst(argument, scope, span.call);
       if (first) return first;
       const inner = projectedArgument(argument, scope, span.call);
@@ -8203,9 +8749,10 @@
    * @param {ParseContext} context
    * @param {SpanValue} span
    * @param {Scope} scope
-   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, fromCheck: boolean}}
+   * @returns {{context: ParseContext, start: number, end: number, key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan}}
    */
   function queryTarget(context, span, scope) {
+    if (span.aligned) return {context,start:span.start,end:span.aligned.contextEnd,key:null,fromCheck:reconstructionOf(scope) !== null,aligned:span.aligned};
     const r = reconstructionOf(scope);
     if (r === null) return { context, start: span.start, end: span.end, key: null, fromCheck: false };
     const recon = /** @type {Reconstruction} */ (r.recon);
@@ -8717,20 +9264,23 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean} | null} target
+   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} target
    *   where a query of the check came from
    * @returns {boolean | TagSet | Halt}
    */
   function nested(context, kind, rule, start, end, target) {
     const at = target === null ? null : target.key;
-    // A fault keys a long query of the check by its span in R (F21).
-    const key = at !== null && end - start > CONTENT_KEY_LIMIT
-      ? JSON.stringify(["at", kind, rule, at[0], at[1]])
-      : nestedKey(context, kind, rule, start, end);
+    const aligned = target?.aligned;
+    if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
+    const key = aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,context.closes?.identity(aligned.observation)])
+      : at !== null && end - start > CONTENT_KEY_LIMIT
+        ? JSON.stringify(["at", kind, rule, at[0], at[1]])
+        : nestedKey(context, kind, rule, start, end);
     const known = context.nested.get(key);
     if (known !== undefined) return known;
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
+    halting.aligned = aligned ?? null;
     return HALT;
   }
 
@@ -8739,7 +9289,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedMatches(context, rule, start, end, target = null) {
@@ -8754,7 +9304,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {boolean | Halt}
    */
   function nestedBegins(context, rule, start, end, target = null) {
@@ -8766,7 +9316,7 @@
    * @param {string} rule
    * @param {number} start
    * @param {number} end
-   * @param {{key: [number, number] | null, fromCheck: boolean} | null} [target]
+   * @param {{key: [number, number] | null, fromCheck: boolean, aligned?: import("./types.js").AlignedSpan} | null} [target]
    * @returns {TagSet | Halt}
    */
   function nestedTags(context, rule, start, end, target = null) {
@@ -8813,7 +9363,7 @@
     for (const rule of set.skipped) {
       for (const production of context.lowered.byLhs.get(rule) || []) {
         if (!lookaheadSkips(context, production, next)) continue;
-        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure }));
+        const failed = settled(() => failedCondition(context, production, -1, null, position, position, { scope: null, structure: structuralStep(context, production, 0, null, null, position).structure, observation: closeStep(context,production,0,position,null,null,position)?.observation ?? null }));
         if (failed) continue;
         note(writtenSymbol(production.rhs[0]), production.owner);
       }
@@ -11720,6 +12270,7 @@
 
 
 
+
   /**
    * @import { Action, Derivation, DerivationRule, ElidedNode, EmitItem, ResultNode, Scope, Span, StageReport, TagSet } from "./types.js"
    * @import { Grammar } from "./grammar.js"
@@ -11946,44 +12497,9 @@
           index = end;
         }
       }
-      // R: the stage's input with one synthetic token before the input token
-      // at each record's position, or at the end. A synthetic token's
-      // recognition tags are its terminal, and its recognition sound is its
-      // saved sound. Its provenance, kept apart, is what marks it (engine
-      // §7.2), unless a fault tells it by an empty source (F12).
-      /** @type {Token[]} */
-      const restored = [];
-      /** @type {boolean[]} */
-      const synthetic = [];
-      /** @type {number[]} */
-      const originalAt = [];
-      /** @type {number[]} */
-      const recordAt = new Array(records.length);
-      /** @type {(number | undefined)[]} */
-      const recordOf = [];
-      let next = 0;
-      for (let index = 0; index <= tokens.length; index++) {
-        while (next < order.length && records[order[next]].at === index) {
-          const record = records[order[next++]];
-          recordAt[order[next - 1]] = restored.length;
-          recordOf.push(order[next - 1]);
-          synthetic.push(true);
-          restored.push(new Token(tagSet([record.terminal]), [restored.length, restored.length], [record.source[0], record.source[1]], "", record.sound ?? null, undefined));
-        }
-        if (index < tokens.length) {
-          const token = tokens[index];
-          originalAt.push(restored.length);
-          recordOf.push(undefined);
-          synthetic.push(fault("F12") && token.source[0] === token.source[1]);
-          restored.push(token);
-        }
-      }
-      // π: the number of original tokens before each position of R (engine
-      // §7.3).
-      /** @type {number[]} */
-      const project = [0];
-      for (let index = 0; index < restored.length; index++) project.push(project[index] + (synthetic[index] ? 0 : 1));
+      const {restored,synthetic,originalAt,recordAt,recordOf,project} = restoreTokens(tokens,records,order,fault("F12"));
       const r = new ParseContext(lowered, restored, main.sourceText, main.unicode, main.interner);
+      r.closes = main.closes;
       r.mode = old ? "mandatory" : "reconstruction";
       r.synthetic = synthetic;
       r.recon = { observed: main, project, raw: old, faulty: new Map() };
@@ -12413,11 +12929,16 @@
     }
     /** @param {string} name */
     capture(name) {
-      if (name === "") return { structure: this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
+      if (name === "") return { observation: this.node.item.observation, structure: this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
       const production = this.node.production;
       const capture = production.captures[/** @type {number} */ (production.captureSlot.get(name))];
       const child = this.node.children[capture.index];
-      return { structure: "read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure, patterns: this.context.patterns, start: child.start, end: child.end, tags: nodeTags(child, this.context) };
+      let captured = this.node.item.slots;
+      while (captured && captured.index !== production.captureSlot.get(name)) captured = captured.parent;
+      const observation = captured?.observation ?? ("read" in child
+        ? terminalObservation(this.context,child.read.terminal,child.start)
+        : child.item.observation);
+      return { observation, structure: "read" in child ? structuralRead(this.context, child.read.terminal, child.start) : child.item.structure, patterns: this.context.patterns, start: child.start, end: child.end, tags: nodeTags(child, this.context) };
     }
   }
 
@@ -15528,6 +16049,7 @@
    * @property {Expr} [writtenExpression]
    * @property {import("./ranked.js").RankedGroup} [rankedGroup]
    * @property {number} [rankedOption]
+   * @property {Set<string>} [sourcePrivate]
    * @property {boolean} [contextual]
    * @property {Condition[]} [rankedDeferred]
    * @property {Term} [parentTags]
@@ -15596,7 +16118,7 @@
    * tag set, after the parts before it. A context makes each sequence once,
    * with its number (engine §4). `depth` counts the parts, and `jump` is an
    * earlier sequence that a search for a part can skip to.
-   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, id: number} | null} Captured
+   * @typedef {{parent: Captured, jump: Captured, depth: number, index: number, start: number, end: number, tags: number, structure: number, observation: import("./close-observations.js").CloseObservation|null, id: number} | null} Captured
    */
 
   /**
@@ -15616,6 +16138,8 @@
    * A span a term denotes, with the tags of the captured part when it is a
    * whole capture.
    * @typedef {object} SpanValue
+   * @property {import("./close-observations.js").CloseObservation|null} [observation]
+   * @property {AlignedSpan} [aligned]
    * @property {number} [structure]
    * @property {import("./patterns.js").PatternMachine | null} [patterns]
    * @property {number} start
@@ -15631,6 +16155,16 @@
    *   behind it: one original token for head and last, and from the first
    *   original token of the span for tail, from and after; only faults read
    *   it
+   */
+
+  /**
+   * A restored span keeps its candidate observation and original context.
+   * @typedef {object} AlignedSpan
+   * @property {import("./close-observations.js").CloseObservation} observation
+   * @property {number} candidateEnd
+   * @property {number} matchEnd
+   * @property {number} contextEnd
+   * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
    */
 
   /**

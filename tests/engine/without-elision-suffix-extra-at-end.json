@@ -1,0 +1,25 @@
+{
+  "description": "A new omission at the capture end remains forbidden before a suffix token (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate) Y\n%conditions ¬begins(from(without-elision($x)), rival)\n%rule candidate X [+T]\n%rule rival X [+T] [+U] Y",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ],
+      "phonemes": "y"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "description": "The aligned tag query unions every eligible witness with the same closes (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions tags(without-elision($x), rival) = ~a ∪ ~b\n%rule candidate X [+T]\n%rule rival X [+T] <~a> | X [+T] <~b> | X [+U] <~wrong>",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

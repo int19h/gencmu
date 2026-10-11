@@ -1,0 +1,22 @@
+{
+  "description": "A changed close script cannot conceal recursion over the same original context (engine §4 and §10).",
+  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival $y(body)\n%conditions matches(without-elision($y), rival)\n%rule body X [+T] [+U]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ],
+      "phonemes": "x"
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    }
+  }
+}

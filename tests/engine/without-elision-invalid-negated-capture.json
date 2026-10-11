@@ -1,0 +1,17 @@
+{
+  "description": "Negating a reached aligned query cannot admit a cyclic captured observation (engine §4 and §10).",
+  "grammar": "%rule text $x(X)\n%conditions tags($x, q) = ∅\n%rule q $y(r)\n%conditions ¬matches(without-elision($y), rival)\n%rule r r [+U] <~recursive> | X <∅>\n%rule rival X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

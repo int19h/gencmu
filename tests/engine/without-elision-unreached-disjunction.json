@@ -1,0 +1,17 @@
+{
+  "description": "An unreached restored query does not exclude ordinary finite recursive proofs (engine §4 and §10).",
+  "grammar": "%rule text $x(X)\n%conditions ~recursive ⊆ tags($x, q)\n%rule q $y(r)\n%conditions text($) = \"x\" ∨ matches(without-elision($y), rival)\n%rule r r [+U] <~recursive> | X <∅>\n%rule rival X",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
