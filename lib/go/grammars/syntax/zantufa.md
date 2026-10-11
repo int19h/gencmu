@@ -1078,31 +1078,22 @@ In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an
 
 An aligned reservation can miss a competing category that needs an extra omitted terminator inside the shared span. In `ke my .e gy ke'e`, the reference reads `my` and `.e gy` as mathematical operands. The second operand omits KUhE. A connected sumti in KE needs no KUhE, so the readings do not align. Late elision selects that sumti because it omits fewer terminators.
 
-These fifteen descriptions contain that KE group as an inner connected sumti. Zantufa instead takes the first KE group as a quantifier.
+The class is a KE mekso group whose later operand is an unmarked forethought connective, where the group stands at a description prefix or a term-initial tag. This dialect reads such a group as an inner connected sumti. Zantufa reads it as a quantifier or tag. Some examples:
 
 ```text
 le ke my .e gy ke'e broda
-lo ke my .e gy ke'e my roi prenu
+le ke my jo'u gy ke'e broda
+le ke ny .e my .e gy ke'e broda
 lo ke my .e gy ke'e pa roi prenu
 lo ke my .e gy ke'e ke my .e gy ke'e prenu
-lo ke my .e gy ke'e my moi prenu
-lo ke my .e gy ke'e vei my ve'o prenu
-lo ke my .e gy ke'e pe'o su'i my gy prenu
-lo ke my .e gy ke'e fu'a my gy su'i prenu
-lo ke my .e gy ke'e me my me'u prenu
-lo ke my .e gy ke'e my .e prenu
-lo ke my .e gy ke'e ny ma'o my prenu
-lo ke my .e gy ke'e mo'e my prenu
-lo ke my .e gy ke'e ke my ke'e .e gy prenu
 lo ke my .e gy ke'e ro my poi broda prenu
-lo ke my .e gy ke'e pa my .e gy prenu
 ```
 
 With a second connected KE group, this dialect keeps `prenu` inside the description, while Zantufa places it outside. The relative-clause and `pa my .e gy` examples also change later attachments. Written `ku'e` after `.e gy` gives Zantufa's quantifier reading, as in `le ke my .e gy ku'e ke'e broda`.
 
 In `ke my .e gy ke'e roi klama`, this dialect reads a grouped sumti followed by a bare ROI tag on `klama`. Zantufa uses the whole KE expression with ROI as one tag. The corresponding written control, `ke my .e gy ku'e ke'e roi klama`, is accepted here but rejected by Zantufa.
 
-[Issue #183](https://github.com/int19h/gencmu/issues/183) tracks a general rule for competing categories with extra internal closes. Exact alignment retains these sixteen departures until that rule replaces it.
+[Issue #183](https://github.com/int19h/gencmu/issues/183) tracks a general rule for competing categories with extra internal closes, which would give this class Zantufa's reading.
 
 ### Early closure
 
