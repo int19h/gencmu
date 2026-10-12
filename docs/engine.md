@@ -1626,6 +1626,8 @@ A scalar range endpoint decodes as a string term and must resolve to exactly one
 
 Pattern constructors use the authoritative table above. Readers retain the grouping boundaries specified in `docs/output.md`.
 
+Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
+
 Readers reject missing parts, unknown members and invalid arities. Tests require terminal atoms and ordinary closed operands. Captures, guards, emissions, tags, elision markers and chain repetitions cannot occur in patterns. Repeat bodies cannot match only empty sequences.
 
 Sibling ellipses cannot serve as repeat items or separators. Supplied DOMs obey the same restrictions. Stage resolution includes every pattern in replaced definitions.
