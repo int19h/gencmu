@@ -2,7 +2,7 @@
 
 This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document.
 
-The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fourth stage.
+The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
 
 A token is one unit that a stage reads or emits. This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 

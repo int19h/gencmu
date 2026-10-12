@@ -88,7 +88,7 @@ A run that divides into words divides in one way only. The word forms of each fa
 <p><img src="../../docs/diagrams/words/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
-The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. An unread run of the phoneme stage keeps its phonemes, `?`, and its label, which is its text.
+The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value concatenates normalized phoneme values, while its image concatenates their written images. A `zoi` delimiter compares with that value exactly as with the same phonemes read as words. The token's text retains what the author wrote.
 
@@ -212,7 +212,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 
 ## Words
 
-A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `classify(phonemes($c), lexicon)` looks the cmavo's sound up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
+A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's normalized value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
 
 ```jbogenbau
 %rule source-word

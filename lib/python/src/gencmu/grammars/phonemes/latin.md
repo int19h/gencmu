@@ -241,19 +241,16 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images still spell the number word.
 
-A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
-`period-with-commas` reads one period with optional commas on either side. The `items` condition uses this shape instead of normalizing a source string. Thus a comma beside a decimal period does not turn it into a pause.
+The `items` condition compares the pause span's original source text with `.`. Commas remain in that text, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
 
 ```jbogenbau
 %redefine-rule items
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches(digit) ∨ ¬$p.matches(period-with-commas) ∨ ¬$r.first-token.matches(digit)
-
-%rule period-with-commas
-  [commas] "." [commas]
+  ¬$i.last-token.matches(digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches(digit)
 
 %extend-rule non-vowel
   digit
@@ -325,9 +322,8 @@ A period between two digits is the decimal point, `pi`. `items` says that no pau
   $ :: ∅ := "p", ε :: ∅ := "i"
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/period-with-commas.svg" alt="Railroad diagram of the rule period-with-commas"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
