@@ -373,7 +373,7 @@ A constant starts with `$` and a capitalized user name. A capture starts with `$
 
 Outside include paths, strings interpolate only string constants. A dollar sign starting neither `$$` nor `$(` is a document error, including a final lone dollar sign. In a redefinition, `$(X)` follows the same immediately preceding self-definition rule as `$X`.
 
-An include path is literal text in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
+An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use ordinary string decoding. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
 
 ```jbogenbau
 %const $ACCENTED "a$(_0301)"
