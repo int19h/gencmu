@@ -4,7 +4,7 @@ This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) di
 
 The rules follow *The Complete Lojban Language* (CLL). A cmavo is a particle, a short structure word. A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
 
-The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `cmavo-warning`. A tag marks a token by name, phoneme or character.
+The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y` and `ky'a` ([cll.md](cll.md)). The forms stage gives each such word the tag `Cmavo-Warning`. A tag marks a token by an identifier.
 
 This stage reads the word under the warning `y-cmavo`. The stage always reads the word. A feature is a named switch that the grammars test. A caller who turns on the feature `y-cmavo` gets a warning for each such word.
 
@@ -20,7 +20,7 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 <p><img src="../../docs/diagrams/words/cll-stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>
 </details>
 
-A name that `bu` takes needs a pause on both sides of it in the source (CLL[^cll-s17-4]). The forms stage requires a pause or the end of the text after every name, as CLL requires.[^cll-s4-9] It tags the first word of each run `run-initial`. A run is a stretch with no internal pause.
+A name that `bu` takes needs a pause on both sides of it in the source (CLL[^cll-s17-4]). The forms stage requires a pause or the end of the text after every name, as CLL requires.[^cll-s4-9] It tags the first word of each run `Run-Initial`. A run is a stretch with no internal pause.
 
 In CLL, a name that is not the first word of its run follows `la`, `lai`, `la'i` or `doi` directly, with no pause before it. So the name must be the first word of its run. Thus `ladjan.bu` and `ladjan.mi si bu` are no texts, and `la.djan.bu` is `la` and a letteral.
 

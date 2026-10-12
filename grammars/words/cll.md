@@ -2,7 +2,7 @@
 
 This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
-This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
+This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -21,12 +21,12 @@ C denotes a consonant. V denotes one of `a e i o u`, never `y`. A diphthong comb
 
 The forms stage joins two words without a pause only if the numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] allow it. It reads these tags on the word before and the word after:
 
-- `onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
-- `continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
-- `open-stress`: The word is a brivla whose stress is not marked. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `uncounted`, one with no counted syllable, can follow it without a pause.
-- `cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
-- `name-intro` and `name-onset`: `name-intro` marks `la`, `lai`, `la'i` and `doi`, and `name-onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
-- `initial-stress` and `final-stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `final-stress` and a following word with `initial-stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `stress-guard` (rule 5).[^cll-s4-9]
+- `Onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
+- `Continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
+- `Open-Stress`: The word is a brivla whose stress is not marked. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `Uncounted`, one with no counted syllable, can follow it without a pause.
+- `Cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
+- `Name-Intro` and `Name-Onset`: `Name-Intro` marks `la`, `lai`, `la'i` and `doi`, and `Name-Onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
+- `Initial-Stress` and `Final-Stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `Final-Stress` and a following word with `Initial-Stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `Stress-Guard` (rule 5).[^cll-s4-9]
 
 ## Cmavo
 
@@ -36,7 +36,7 @@ The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A co
 
 A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe.[^cll-s17-2] The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
-A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `cmavo-warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the word stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
+A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the word stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
 
 A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital. Its first or last syllable is stressed if its first or last unit has a capital vowel.
 
@@ -150,7 +150,7 @@ These rules spell each vowel with an `any-` rule, which matches either the plain
 
 A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel other than `y`, and it has a consonant pair among its first five letters, not counting `y` and the apostrophe. Gismu and lujvo always have one.
 
-`brivla-scan` of [shapes.md](shapes.md) finds where the stress of a brivla is. A brivla whose stress is marked has every capital vowel in its penultimate counted syllable. A word can follow it with no pause. A brivla with no capital vowel is `open-stress`. A capital `Y` never stands in a brivla, because no rule below reads one.
+`brivla-scan` of [shapes.md](shapes.md) finds where the stress of a brivla is. A brivla whose stress is marked has every capital vowel in its penultimate counted syllable. A word can follow it with no pause. A brivla with no capital vowel is `Open-Stress`. A capital `Y` never stands in a brivla, because no rule below reads one.
 
 ```jbogenbau
 %rule brivla-shape
@@ -471,7 +471,7 @@ A name is a nonempty run of letters that ends in a consonant (CLL[^cll-s4-8]), s
 
 A name cannot contain `la`, `lai` or `doi` at its start or after a vowel or `y`. The reason is that a name after one of those words can follow it without a pause. So `.laplas.` and `.ilanas.` are not names, but `.nederlants.` is one. A comma removes no letter, so `.do,is.` is no name either.
 
-Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor `continued`. The grammar tags a name that begins with a consonant `name-onset`. Its first syllable is stressed if its first nucleus has a capital vowel. If no vowel is a capital, the stress falls where [shapes.md](shapes.md) says, which can be the first syllable. `.djan.` has one syllable, and it is stressed.
+Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor `Continued`. The grammar tags a name that begins with a consonant `Name-Onset`. Its first syllable is stressed if its first nucleus has a capital vowel. If no vowel is a capital, the stress falls where [shapes.md](shapes.md) says, which can be the first syllable. `.djan.` has one syllable, and it is stressed.
 
 ```jbogenbau
 %rule cmevla-shape

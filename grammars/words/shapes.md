@@ -517,12 +517,12 @@ A brivla is a predicate word. It is stressed on its penultimate counted syllable
 
 `brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
 
-- `s0`, `s1` and `s2` track the marked nucleus. `s0` holds before the scan reads a capital vowel, and `s1` after the one marked nucleus. `s2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus, or a second counted nucleus after the marked one, leaves no `s` tag.
-- `n0`, `n1`, `n2` and `n3`, for no counted nucleus, one, two, and three or more
-- `first-marked`, when the first counted nucleus is the marked one
-- `single-end`, when the last letter read is a vowel that is a nucleus by itself
+- `S0`, `S1` and `S2` track the marked nucleus. `S0` holds before the scan reads a capital vowel, and `S1` after the one marked nucleus. `S2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus, or a second counted nucleus after the marked one, leaves no `s` tag.
+- `N0`, `N1`, `N2` and `N3`, for no counted nucleus, one, two, and three or more
+- `First-Marked`, when the first counted nucleus is the marked one
+- `Single-End`, when the last letter read is a vowel that is a nucleus by itself
 
-So a brivla with marked stress has `s2`, and one without any capital vowel has `s0` and at least `n2`. [cll.md](cll.md) applies these tests.
+So a brivla with marked stress has `S2`, and one without any capital vowel has `S0` and at least `N2`. [cll.md](cll.md) applies these tests.
 
 ```jbogenbau
 %rule brivla-scan
@@ -567,10 +567,10 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
 
 A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
 
-- `n0` to `n3` and `single-end`, as above
-- `v0` before the scan reads a nucleus, and `v1` after the first nucleus
-- `first-counted`, when the first nucleus is counted, and `first-marked`, when it has a capital vowel
-- `any-marked`, when some nucleus has a capital vowel
+- `N0` to `N3` and `Single-End`, as above
+- `V0` before the scan reads a nucleus, and `V1` after the first nucleus
+- `First-Counted`, when the first nucleus is counted, and `First-Marked`, when it has a capital vowel
+- `Any-Marked`, when some nucleus has a capital vowel
 
 The forms stage uses the stress on the first syllable of a name, for the pause rule of CLL[^cll-s4-2] between two stressed syllables. That is where `la` or `doi` comes before a name with no pause.
 

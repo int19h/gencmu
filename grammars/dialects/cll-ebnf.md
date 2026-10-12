@@ -67,7 +67,7 @@ This stage maps stressed vowel values to lowercase and the syllable comma value 
   %include "../words/lexicon-cll.md"
   ```
 
-The stage receives phonemes. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o. A tag marks a token by name, phoneme or character.
+The stage receives normalized phoneme values, images and tags. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o. A tag marks a token by an identifier.
 
 If a run divides into no words, the stage hands the run on as one unread token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 
