@@ -83,7 +83,9 @@ The engine inventory has no other name. `_lu` and `_Letter` are document errors.
 
 ### Engine-tag provenance
 
-A grammar cannot introduce an engine tag. The function `lit` finds engine tags supplied by literals rather than forwarded input. The loader applies it to each complete tag term after constant binding. It does not reject an intermediate term whose enclosing filter removes its literals.
+A grammar cannot introduce an engine tag. The function `lit` finds engine tags supplied by literals rather than forwarded input. During reading, the reader applies `lit` to each complete `::` clause of a rule header, alternative, or emission item. It does not reject an intermediate term whose enclosing filter removes its literals.
+
+Conditions, tag tests, and patterns only read tags, so `lit` does not apply to their tag-set terms. Constants and `%implies` follow their separate literal bans below. A constant reference gives `lit = ∅` regardless of its value, so binding cannot change this check.
 
 | Term | `lit` result |
 | --- | --- |
@@ -95,7 +97,7 @@ A grammar cannot introduce an engine tag. The function `lit` finds engine tags s
 | `a ∖ b` | `lit(a)` |
 | `A ⟹ t` | `lit(t)` |
 
-A forwarded term reads stored input or queried tags, such as `$c.tags` or `$.tags(r)`. Guards do not affect `lit`, and difference ignores its right operand. A tag term with nonempty `lit` is a document error at the first engine-tag literal that `lit` keeps.
+A forwarded term reads stored input or queried tags, such as `$c.tags` or `$.tags(r)`. Guards do not affect `lit`, and difference ignores its right operand. A tag clause with nonempty `lit` is a document error at the first engine-tag literal that `lit` keeps.
 
 For error positions, each literal carries its source occurrence beside its tag name. Union keeps occurrences from both operands. Intersection keeps occurrences from both operands only for names present in both `lit` sets. Difference keeps only the left operand's occurrences, and a guard keeps only its result's occurrences. The first retained occurrence in written order determines the error.
 
@@ -153,7 +155,7 @@ A constant in a value test must resolve to a string (§9). The requirements of �
 
 A constant belongs to its stage, as a rule does. A document in several stages or dialects takes the values of each. The DOM of a document holds its definitions and its references to constants, never their values (§8).
 
-Each error of a constant is an error of the document. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition. The loader reports errors from the two deferred capture checks of §9 at the rule's definition. It reports every other error at the reference to the constant.
+Each error of a constant is an error of the document. Reader errors follow §9.3, including engine-tag literals outside patterns. The loader reports a second `%const`, a `%redefine-const` of nothing and a change of type at the constant's definition. The loader reports errors from the two deferred capture checks of §9 at the rule's definition. It reports every other error that it finds at the reference to the constant.
 
 A stage also has classifiers. A classifier maps a string to a tag set, the string's classes (§10). An item `%classifier NAME` (`classifier`) names a classifier of the stage and lists entries for it. `NAME` is a name (§9) that begins with `a` to `z`. Several items can name one classifier, and together they make it. So a second item of one name is no error, unlike a second `%rule`.
 
@@ -1290,7 +1292,7 @@ A document can hold several errors. The reader reports one, and every reader cho
 3. Repeated capture names are checked after the whole alternative expression, before that alternative's clauses. The rule below defines this check.
 4. Each alternative supplies guards, an expression, then tag, value, and image clauses. Header clauses already precede these under step 2. Conditions follow the complete body, then emission or erasure. Whole-definition errors follow all local construct errors.
 
-   Each clause has its own errors. Examples are tags made of the constituent's own tags, a comparison whose sides do not fit, and `$` beside another item of an emission. Such an error stands at the clause, or at the part of it that is wrong. These errors come in the order of the text. The checks of the whole definition below come last, and they stand at the definition.
+   Each clause has its own errors. Examples are tags made of the constituent's own tags and a comparison whose sides do not fit. Such an error stands at the clause, or at the part of it that is wrong. These errors come in the order of the text. The checks of the whole definition below come last, and they stand at the definition.
 5. The bound on nesting is 256 compound nodes. After the reader reads every item without an error, the loader makes sure that the whole DOM meets this bound. So every other error of reading comes before it, in any item. That includes an error inside the deep part, and one in a later item. Among the items too deep, the first decides, as the paragraph of that error says.
 
    A reader has no other bound on nesting. Parentheses can nest without limit, since they make no node. A reader reads a document of any depth to this check.
@@ -1339,7 +1341,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.
 - An engine tag name outside §1's inventory is a document error at its token. Long aliases and wrong-case names are invalid.
-- A tag term with nonempty `lit` is a document error at the first retained engine-tag literal (§1).
+- The reader applies `lit` to rule-header, alternative, and emission-item tag clauses (§1). Nonempty `lit` is an error at the first retained engine-tag literal.
 - A range in a term or condition is a document error. Property conditions instead read stored tag membership.
 - A value-test operand must resolve to a string. Any scalar string is legal, including capitals and commas. No engine normalization or canonical-value restriction applies.
 - Value tests require a string literal or string constant. Tag tests require signed tag names or tag-set constants. A capture, input method, or guarded term is invalid in either operand.
@@ -1352,6 +1354,8 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the six string methods and string atoms of §11.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
+- An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal.
+- An engine tag on either side of `%implies` is an error at that tag.
 - A side of an implication that is not a closed term is an error, reported in the same way. A side whose type is not a tag set is an error too, reported at the side.
 - A classifier's name that does not begin with `a` to `z` is an error, reported at the name. `.classify` cannot name it, since a bare name with a capital is a tag.
 - A warning on a classifier's entry is an error, reported at the warning. An entry takes gates only.
@@ -1360,14 +1364,14 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A term or a condition whose types do not agree, as §10 gives them, is an error. So `"a" ∈ $x.tags` and `$x.value = A` are errors, and so is `∅ = ∅`, whose kind nothing gives. The reader reports the error at the smallest construct whose parts disagree. That construct is a union with its differences, an intersection, a guarded term, a method, or a comparison. Otherwise, it is the whole tag term of a clause or an item, or the whole value of a constant.
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
-- A capture or span converts to its input value only when a string is required, after method selection. It cannot convert to tags, sets, or patterns.
+- After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule is only the rule argument of `.tags`, `.matches`, or `.begins`, and a classifier only that of `.classify`.
 - `.matches`, `.begins`, or `.starts-input` as a value term is an error.
 - An `&` of more than 16 items is an error.
 - An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, and `method`. In a condition, they are `any`, `all`, `not`, `if`, `method`, and a comparison.
 
   The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` or `{ }` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
-- A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input.
+- A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
 - A bare range or property is not an emission item. Capture its matched symbol or insert with `ε` and explicit clauses.
@@ -1434,13 +1438,13 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features` directive whose operands the reader refuses.
 - It has a `maximal` member on a directive. No directive has that member.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
-- It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag term with nonempty `lit` (§1).
+- It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag clause with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
 - Its wildcard is not `wildcard:true`, or it uses a property constructor instead of a stored engine-tag reference.
 - It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.
 - Its constant value is not closed, or its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
-- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`, or whose class is not a name that begins with `A` to `Z`.
+- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
 - It has an implication whose sides are not closed terms of type tag set.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
