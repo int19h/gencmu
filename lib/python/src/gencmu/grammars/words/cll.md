@@ -120,7 +120,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   $u.matches(stress-mark)
 
 %rule name-intro-cmavo
-  "l" any-a | "l" any-a any-i | "l" any-a "'" any-i | "d" any-o any-i
+  "l" "a" | "l" "a" "i" | "l" "a" "'" "i" | "d" "o" "i"
 ```
 
 <details><summary>Railroad diagrams of the 18 rules from <code>cmavo-shape</code> to <code>name-intro-cmavo</code></summary>
@@ -144,7 +144,7 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 <p><img src="../../docs/diagrams/words/cll/name-intro-cmavo.svg" alt="Railroad diagram of the rule name-intro-cmavo"></p>
 </details>
 
-These rules spell each vowel with an `any-` rule, which matches either the plain or the stressed phoneme. The lexicon needs no such rule, since it looks a cmavo up by its canonical sound, in which a stressed vowel is plain.
+These rules read lowercase vowel values with or without `Stressed`. The lexicon looks a cmavo up by its normalized value, so a stressed vowel finds the same entry as a plain vowel.
 
 ## Brivla
 
@@ -501,7 +501,7 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
   | [any-letters] name-vowel la-or-doi [any-letters]
 
 %rule la-or-doi
-  "l" any-a | "d" any-o [Syllable-Break] any-i
+  "l" "a" | "d" "o" [Syllable-Break] "i"
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>cmevla-shape</code> to <code>la-or-doi</code></summary>
@@ -519,9 +519,9 @@ A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). P
 
 Only a borrowing, a name or hesitation can hold a comma between two vowels. A cmavo, a gismu or a lujvo cannot. A word with such a comma must also be a word of the same class when its commas are removed and its capitals lowered. So `ma,i` and `ba,irgau` are no words, because `mai` is a cmavo and `bairgau` is a lujvo. `zda,i` is no word either, because `zdai` is none.
 
-A run with such a word divides into no words, and the forms stage hands it on as one unread token ([forms.md](forms.md)). The word stage rejects that run unless it is inside a foreign quote or after `fa'o`.
+A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([forms.md](forms.md)). The word stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
-The comma rules read `Syllable-Break`, because the normalized comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` keep their existing optional boundary reads. `has-comma` still finds a comma through its tag.
+The comma rules read `Syllable-Break`, because the normalized comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` and `lujvo-after-cvv` read a comma before the `i` or `u` that ends a first CVV rafsi. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
@@ -533,13 +533,13 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 ```jbogenbau
 %rule falling-vowels
-  falling-diphthong | any-a Syllable-Break any-i | any-e Syllable-Break any-i | any-o Syllable-Break any-i | any-a Syllable-Break any-u
+  falling-diphthong | "a" Syllable-Break "i" | "e" Syllable-Break "i" | "o" Syllable-Break "i" | "a" Syllable-Break "u"
 
 %rule rising-vowels
   rising-diphthong | i-or-u Syllable-Break vowel
 
 %rule falling-i
-  [Syllable-Break] any-i
+  [Syllable-Break] "i"
 
 %rule one-syllable
   [consonants] syllable-vowels

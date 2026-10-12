@@ -61,7 +61,7 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 The stage hands the form on as one token, tagged `Rafsi-Form`, and the word stage makes the quote. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. Where no such form follows, `ra'oi` is an ordinary word, as in Zantufa's `si_word`, so `ra'oi bu` is a letter word. The word stage rejects `ra'oi do`.
 
-A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a word can be space, which the stage tags `opener-space` below. The constant `$TEXT-OPENERS` lists these classes. The word stage defines the same constant, because a constant belongs to its stage ([zantufa-stream.md](zantufa-stream.md)).
+A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a word can be space, which the stage tags `Opener-Space` below. The constant `$TEXT-OPENERS` lists these classes. The word stage defines the same constant, because a constant belongs to its stage ([zantufa-stream.md](zantufa-stream.md)).
 
 ```jbogenbau
 %const $TEXT-OPENERS
@@ -81,11 +81,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ $p.tags ∨ ¬$r.matches(rahoi-rest),
   RAhOI ⊆ $q.tags
 
-%extend-rule word-run
-  ::
-  $s.tags
+%extend-rule word-run :: $s.tags
   | run-words<RAhOI> $s:rahoi-rest
-
 
 %redefine-rule run-words
   | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
@@ -204,7 +201,7 @@ Before BU, the forms stage separates the final y from the hesitation prefix. The
 
 A hesitation that begins a run is space. Each hesitation that directly follows a space continues it, up to the next other word, as `initial_spaces` reads it. The stage tags these `Spacing` ([zantufa-stream.md](zantufa-stream.md)).
 
-The stage tags `opener-space` a hesitation directly after a text opener, and each one after it. A text opener is a word of LU, TO or LUhEI, such as `lu`. Such a hesitation is space where the opener opens a text of its own, whose `intro_null` reads space. It is not space where the opener is itself quoted. Only the word stage knows which.
+The stage gives `Opener-Space` to a hesitation directly after a text opener, and each one after it. A text opener is a word of LU, TO or LUhEI, such as `lu`. Such a hesitation is space where the opener opens a text of its own, whose `intro_null` reads space. It is not space where the opener is itself quoted. Only the word stage knows which.
 
 ```jbogenbau
 %rule joined-hesitation

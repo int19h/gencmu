@@ -15,9 +15,9 @@ Most conventions here admit spellings that latin-strict.md rejects. Two change h
 
 A punctuation character is a pause when no letter, vowel or apostrophe rule reads it, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
 
-Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. It names the characters that are no letter, mark, digit or whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
+Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#images-and-verbatim-text) defines for verbatim images.
+A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#verbatim-text) defines for verbatim images.
 
 Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
 
@@ -180,8 +180,8 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 %emits
   ε :: ∅ := "'", $v
 
-%rule folded-vowel
-  "A" :: ∅ := "a" | "E" :: ∅ := "e" | "I" :: ∅ := "i" | "O" :: ∅ := "o" | "U" :: ∅ := "u" | "Y" :: ∅ := "y"
+%rule folded-vowel :: ∅
+  | "A" := "a" | "E" := "e" | "I" := "i" | "O" := "o" | "U" := "u" | "Y" := "y"
 %emits
   $
 ```
@@ -207,19 +207,19 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
 
 ```jbogenbau
-%extend-rule plain-vowel
-  | "ĭ" :: ∅ := "i" | "Ĭ" :: ∅ := "i" | "i" glide-mark :: ∅ := "i" | "I" glide-mark :: ∅ := "i"
-  | "ŭ" :: ∅ := "u" | "Ŭ" :: ∅ := "u" | "u" glide-mark :: ∅ := "u" | "U" glide-mark :: ∅ := "u"
+%extend-rule plain-vowel :: ∅
+  | ("ĭ" | "Ĭ" | "i" glide-mark | "I" glide-mark) := "i"
+  | ("ŭ" | "Ŭ" | "u" glide-mark | "U" glide-mark) := "u"
 %emits
   $
 
-%extend-rule stressed-vowel
-  | "á" :: Stressed := "A" | "à" :: Stressed := "A" | "Á" :: Stressed := "A" | "À" :: Stressed := "A" | "a" stress-mark :: Stressed := "A" | "A" stress-mark :: Stressed := "A"
-  | "é" :: Stressed := "E" | "è" :: Stressed := "E" | "É" :: Stressed := "E" | "È" :: Stressed := "E" | "e" stress-mark :: Stressed := "E" | "E" stress-mark :: Stressed := "E"
-  | "í" :: Stressed := "I" | "ì" :: Stressed := "I" | "Í" :: Stressed := "I" | "Ì" :: Stressed := "I" | "i" stress-mark :: Stressed := "I" | "I" stress-mark :: Stressed := "I"
-  | "ó" :: Stressed := "O" | "ò" :: Stressed := "O" | "Ó" :: Stressed := "O" | "Ò" :: Stressed := "O" | "o" stress-mark :: Stressed := "O" | "O" stress-mark :: Stressed := "O"
-  | "ú" :: Stressed := "U" | "ù" :: Stressed := "U" | "Ú" :: Stressed := "U" | "Ù" :: Stressed := "U" | "u" stress-mark :: Stressed := "U" | "U" stress-mark :: Stressed := "U"
-  | "ý" :: Stressed := "Y" | "ỳ" :: Stressed := "Y" | "Ý" :: Stressed := "Y" | "Ỳ" :: Stressed := "Y" | "y" stress-mark :: Stressed := "Y" | "Y" stress-mark :: Stressed := "Y"
+%extend-rule stressed-vowel :: Stressed
+  | ("á" | "à" | "Á" | "À" | "a" stress-mark | "A" stress-mark) := "A"
+  | ("é" | "è" | "É" | "È" | "e" stress-mark | "E" stress-mark) := "E"
+  | ("í" | "ì" | "Í" | "Ì" | "i" stress-mark | "I" stress-mark) := "I"
+  | ("ó" | "ò" | "Ó" | "Ò" | "o" stress-mark | "O" stress-mark) := "O"
+  | ("ú" | "ù" | "Ú" | "Ù" | "u" stress-mark | "U" stress-mark) := "U"
+  | ("ý" | "ỳ" | "Ý" | "Ỳ" | "y" stress-mark | "Y" stress-mark) := "Y"
 %emits
   $
 
@@ -239,7 +239,7 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ## Digits
 
-Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images still spell the number word.
+Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images spell the number word.
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 

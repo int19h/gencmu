@@ -28,7 +28,7 @@ import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
 import { sourceIncludeEdges } from "./grammar-sources.js";
-import { includeLinks } from "./links.js";
+import { includeLinks, headingAnchors, localAnchorProblems } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -219,6 +219,20 @@ if (parserMissing && check) {
   }
   if (unlinked.length) {
     console.error(unlinked.join("\n"));
+    process.exit(1);
+  }
+  const anchors = new Map();
+  const readAnchors = (relative) => {
+    if (!anchors.has(relative)) {
+      const file = path.join(root, relative);
+      anchors.set(relative, fs.existsSync(file) ? headingAnchors(fs.readFileSync(file, "utf8")) : null);
+    }
+    return anchors.get(relative);
+  };
+  const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
+    localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors));
+  if (missingAnchors.length) {
+    console.error(missingAnchors.join("\n"));
     process.exit(1);
   }
   // The packages' copies of grammars/ are checked as grammars/, which

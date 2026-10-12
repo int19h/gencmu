@@ -65,11 +65,8 @@ A leading indicator run also stays in the stream at the start of the whole text.
 An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
 
 ```jbogenbau
-%rule item
-  ::
-  $w.tags
+%rule item :: $w.tags
   | [$b:bahe-run] $w:unit [$a:indicator-run]
-
 %conditions
   $a ⟹ $w.classes ∩ $QUOTE-OPENERS = ∅
 %emits
@@ -102,55 +99,40 @@ A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text.
 
 An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.
 
-The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The label of `ui` is `ui` in both.
+The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
 
 ```jbogenbau
 %rule indicator-run
   | [fuhe] indicator | [fuhe] attitudinal-nai
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
 
-%rule indicator
-  ::
-  $i.tags
+%rule indicator :: $i.tags
   | [$b:bahe-run] $i:Word
-
 %conditions
   Indicator ⊆ $i.tags,
   FUhE ⊈ $i.classes
 %emits
   ($b) $i
 
-%rule fuhe
-  ::
-  $i.tags
+%rule fuhe :: $i.tags
   | [$b:bahe-run] $i:Word
-
 %conditions
   FUhE ⊆ $i.classes
 %emits
   ($b) $i
 
-%rule attitudinal-nai
-  ::
-  $u.tags
+%rule attitudinal-nai :: $u.tags
   | [$b:bahe-run] $u:attitudinal $n:nai
-
 %emits
   ($b) $u ($n)
 
-%rule attitudinal
-  ::
-  $i.tags
+%rule attitudinal :: $i.tags
   | $i:Word
-
 %conditions
   $i.classes ∩ (UI ∪ CAI) ≠ ∅
 
-%rule nai
-  ::
-  $m.tags
+%rule nai :: $m.tags
   | [$b:bahe-run] $m:Word<NAI>
-
 %emits
   ($b) $m
 ```

@@ -155,7 +155,8 @@ function scanBody(chars, start) {
  * The lines of a layout of `symbols`, each indented by `indent`. The layout
  * has the fewest lines that hold at most `limit` code points. For that number
  * of lines, it takes the split whose longest line is shortest. One line has
- * no leading `|`, and every line of several begins with `| `.
+ * no leading `|` unless a header clause precedes it. Every line of several
+ * begins with `| `.
  *
  * A symbol keeps its own line breaks, and the lines after its first stay as
  * written. The next symbol continues its last line. A symbol that does not fit
@@ -164,9 +165,10 @@ function scanBody(chars, start) {
  * @param {string[]} symbols
  * @param {string} indent
  * @param {number} [limit]
+ * @param {boolean} [leadingBar] whether a header clause precedes the body
  * @returns {string[]}
  */
-export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
+export function suggestLayout(symbols, indent, limit = LINE_LIMIT, leadingBar = false) {
   const width = (/** @type {string} */ s) => [...s].length;
   const parts = symbols.map((symbol) => symbol.split("\n"));
   const n = symbols.length;
@@ -182,7 +184,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
     }
     return lines;
   };
-  const one = linesOf(0, n, indent);
+  const one = linesOf(0, n, indent + (leadingBar ? "| " : ""));
   if (one.length === 1 && width(one[0]) <= limit) return one;
   // cost[i][j - i - 1]: what a line of the layout of symbols i to j - 1
   // counts toward the longest line, for each j up to the last such line
@@ -316,7 +318,7 @@ export function suggestLayout(symbols, indent, limit = LINE_LIMIT) {
 export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
   const lines = splitLines(markdown);
   /** @type {string[]} */
-  const problems = [];
+  const problems = clauseLayoutProblems(markdown, dom, path);
   for (const { rule, keyword, line, indent, symbols } of eligibleRules(markdown, dom, path)) {
     // How many symbols occupy each line of the body.
     /** @type {Map<number, number>} */
@@ -328,11 +330,69 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
     }
     if (bodyLines.length < 2 || [...occupants.values()].some((count) => count !== 1)) continue;
-    const suggestion = suggestLayout(symbols.map((symbol) => symbol.text), indent, limit);
+    const header = rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined;
+    const suggestion = suggestLayout(symbols.map((symbol) => symbol.text), indent, limit, header);
     // When no two adjacent symbols fit on one line, one per line is the only
     // layout. A suggestion with fewer lines puts two symbols on one line.
     if (suggestion.length < bodyLines.length) {
       problems.push(`${path}:${line}: ${keyword} ${rule.name} puts one symbol on each of its ${bodyLines.length} lines; write:\n${suggestion.join("\n")}`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * Header clauses and blank layout in grammar blocks, outside opaque tokens.
+ * @param {string} markdown
+ * @param {{rules: any[]}} dom
+ * @param {string} path
+ * @returns {string[]}
+ */
+function clauseLayoutProblems(markdown, dom, path) {
+  const { text, positions } = extractGrammarText(markdown, path);
+  const chars = [...text];
+  const lines = splitLines(markdown);
+  const codeLines = new Set(positions.map(([line]) => line));
+  const opaqueLines = new Set();
+  const visible = new Map();
+  let comment = 0;
+  let string = false;
+  for (let i = 0; i < chars.length; i++) {
+    const line = positions[i][0];
+    const c = chars[i];
+    if (comment) {
+      opaqueLines.add(line);
+      if (c === "(" && chars[i + 1] === "*") { comment++; i++; }
+      else if (c === "*" && chars[i + 1] === ")") { comment--; i++; }
+    } else if (string) {
+      opaqueLines.add(line);
+      if (c === '"') string = false;
+    } else if (c === "(" && chars[i + 1] === "*") {
+      opaqueLines.add(line);
+      comment++; i++;
+    } else if (c === '"') {
+      opaqueLines.add(line);
+      string = true;
+    } else if (c !== "\n" && c !== "\r") {
+      visible.set(line, (visible.get(line) ?? "") + c);
+    }
+  }
+  const problems = [];
+  for (const rule of dom.rules) {
+    if (rule.tags === undefined) continue;
+    const line = rule.at[0];
+    const header = visible.get(line) ?? "";
+    if (!header.includes("::") || /::\s*$/.test(header)) {
+      problems.push(`${path}:${line}: put the common tag clause on the definition header`);
+    }
+  }
+  for (const line of codeLines) {
+    if (opaqueLines.has(line)) continue;
+    if (lines[line - 1].trim() === "" && codeLines.has(line - 1) && !opaqueLines.has(line - 1) && lines[line - 2].trim() === "") {
+      problems.push(`${path}:${line}: leave at most one blank line between grammar items`);
+    }
+    if (/^\s*%(?:conditions|emits|erased)\b/.test(visible.get(line) ?? "") && codeLines.has(line - 1) && !opaqueLines.has(line - 1) && lines[line - 2].trim() === "") {
+      problems.push(`${path}:${line}: remove the blank line before the definition clause`);
     }
   }
   return problems;

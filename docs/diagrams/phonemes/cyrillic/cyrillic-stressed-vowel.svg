@@ -17,14 +17,16 @@
 <g class="rule"><rect x="132" y="68" width="109" height="24" rx="0"/><text x="186.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
 <path d="M241 80H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Е&quot;</text></g>
-<path d="M82 148H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Э&quot;</text></g>
-<path d="M82 182H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Є&quot;</text></g>
-<path d="M82 216H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 148h20"/>
+<g class="terminal"><rect x="60" y="136" width="42" height="24" rx="12"/><text x="81" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Е&quot;</text></g>
+<path d="M102 148H122"/>
+<path d="M40 148a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="170" width="42" height="24" rx="12"/><text x="81" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Э&quot;</text></g>
+<path d="M102 182H102a10 10 0 0 0 10 -10V158a10 10 0 0 1 10 -10"/>
+<path d="M40 148a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="204" width="42" height="24" rx="12"/><text x="81" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Є&quot;</text></g>
+<path d="M102 216H102a10 10 0 0 0 10 -10V158a10 10 0 0 1 10 -10"/>
+<path d="M122 148H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
 <path d="M40 250h20"/>
 <g class="terminal"><rect x="60" y="238" width="42" height="24" rx="12"/><text x="81" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;е&quot;</text></g>
@@ -96,14 +98,16 @@
 <g class="rule"><rect x="132" y="782" width="109" height="24" rx="0"/><text x="186.5" y="799" textLength="92.4" lengthAdjust="spacingAndGlyphs">stress-mark</text></g>
 <path d="M241 794H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V852a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="850" width="42" height="24" rx="12"/><text x="61" y="867" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ъ&quot;</text></g>
-<path d="M82 862H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="884" width="42" height="24" rx="12"/><text x="61" y="901" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ы&quot;</text></g>
-<path d="M82 896H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="918" width="42" height="24" rx="12"/><text x="61" y="935" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ә&quot;</text></g>
-<path d="M82 930H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 862h20"/>
+<g class="terminal"><rect x="60" y="850" width="42" height="24" rx="12"/><text x="81" y="867" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ъ&quot;</text></g>
+<path d="M102 862H122"/>
+<path d="M40 862a10 10 0 0 1 10 10V886a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="884" width="42" height="24" rx="12"/><text x="81" y="901" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ы&quot;</text></g>
+<path d="M102 896H102a10 10 0 0 0 10 -10V872a10 10 0 0 1 10 -10"/>
+<path d="M40 862a10 10 0 0 1 10 10V920a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="918" width="42" height="24" rx="12"/><text x="81" y="935" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ә&quot;</text></g>
+<path d="M102 930H102a10 10 0 0 0 10 -10V872a10 10 0 0 1 10 -10"/>
+<path d="M122 862H241a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V954a10 10 0 0 0 10 10"/>
 <path d="M40 964h20"/>
 <g class="terminal"><rect x="60" y="952" width="42" height="24" rx="12"/><text x="81" y="969" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ъ&quot;</text></g>

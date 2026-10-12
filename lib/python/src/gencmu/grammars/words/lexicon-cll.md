@@ -4,9 +4,9 @@ This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebn
 
 This lexicon holds the cmavo of *The Complete Lojban Language* (CLL) with their selma'o. Each entry uses the class from the CLL dictionary. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
 
-The lexicon below is a classifier. Each of its entries lists words and gives them one class, as `"mi" "do" ∈ KOhA` does. The forms stage looks a cmavo up with `$c.value.classify(lexicon)`, and tags the cmavo with its classes. A tag marks a token by an identifier. The lexicon writes each word as its canonical sound, in lower case, with `'` for the apostrophe. Cmavo stress is free, so a stressed vowel finds the same word as a plain one.
+The lexicon below is a classifier. Each of its entries lists words and gives them one class, as `"mi" "do" ∈ KOhA` does. The forms stage looks a cmavo up with `$c.value.classify(lexicon)`, and tags the cmavo with its classes. A tag marks a token by an identifier. The lexicon writes each word as its normalized value, in lower case, with `'` for the apostrophe. Cmavo stress is free, so a stressed vowel finds the same word as a plain one.
 
-If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The syntax grammar's `Indicator` and `indicators` rules read the words of UI, CAI, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `Indicator`. The indicator stage uses this mark to attach indicators to the preceding word, under CLL's non-formal `Word` rule.
+If a word has several classes, it carries them all, and the syntax stage reads it under each class. No word of CLL has more than one. The entries stand in the order of their classes. The syntax grammar's `indicator` and `indicators` rules read the words of UI, CAI, DAhO, FUhO and FUhE. The implication after the entries marks each of these words `Indicator`. The indicator stage uses this mark to attach indicators to the preceding word, under CLL's non-formal `word` rule.
 
 The forms stage reads a run of `y` as hesitation and never looks it up in this classifier.
 

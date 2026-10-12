@@ -17,7 +17,61 @@
           "name": "phonemes"
         },
         {
-          "name": "normalize"
+          "name": "normalize",
+          "output": [
+            {},
+            {
+              "tags": [],
+              "value": "o",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {},
+            {
+              "tags": [],
+              "value": "i",
+              "span": [
+                3,
+                4
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {},
+            {},
+            {
+              "tags": [],
+              "value": "a",
+              "span": [
+                6,
+                7
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "tags": [],
+              "value": "i",
+              "span": [
+                7,
+                8
+              ],
+              "source": [
+                7,
+                8
+              ]
+            }
+          ]
         },
         {
           "name": "forms",
@@ -291,8 +345,9 @@
                                                     "tags": [],
                                                     "children": [
                                                       {
-                                                        "kind": "rule",
-                                                        "rule": "any-o",
+                                                        "kind": "token",
+                                                        "terminal": "\"o\"",
+                                                        "token": 1,
                                                         "span": [
                                                           1,
                                                           2
@@ -300,22 +355,6 @@
                                                         "source": [
                                                           1,
                                                           2
-                                                        ],
-                                                        "tags": [],
-                                                        "children": [
-                                                          {
-                                                            "kind": "token",
-                                                            "terminal": "\"o\"",
-                                                            "token": 1,
-                                                            "span": [
-                                                              1,
-                                                              2
-                                                            ],
-                                                            "source": [
-                                                              1,
-                                                              2
-                                                            ]
-                                                          }
                                                         ]
                                                       }
                                                     ]
@@ -347,8 +386,9 @@
                                                     "tags": [],
                                                     "children": [
                                                       {
-                                                        "kind": "rule",
-                                                        "rule": "any-i",
+                                                        "kind": "token",
+                                                        "terminal": "\"i\"",
+                                                        "token": 3,
                                                         "span": [
                                                           3,
                                                           4
@@ -356,22 +396,6 @@
                                                         "source": [
                                                           3,
                                                           4
-                                                        ],
-                                                        "tags": [],
-                                                        "children": [
-                                                          {
-                                                            "kind": "token",
-                                                            "terminal": "\"i\"",
-                                                            "token": 3,
-                                                            "span": [
-                                                              3,
-                                                              4
-                                                            ],
-                                                            "source": [
-                                                              3,
-                                                              4
-                                                            ]
-                                                          }
                                                         ]
                                                       }
                                                     ]
@@ -496,8 +520,9 @@
                                                                         "tags": [],
                                                                         "children": [
                                                                           {
-                                                                            "kind": "rule",
-                                                                            "rule": "any-a",
+                                                                            "kind": "token",
+                                                                            "terminal": "\"a\"",
+                                                                            "token": 6,
                                                                             "span": [
                                                                               6,
                                                                               7
@@ -505,27 +530,12 @@
                                                                             "source": [
                                                                               6,
                                                                               7
-                                                                            ],
-                                                                            "tags": [],
-                                                                            "children": [
-                                                                              {
-                                                                                "kind": "token",
-                                                                                "terminal": "\"a\"",
-                                                                                "token": 6,
-                                                                                "span": [
-                                                                                  6,
-                                                                                  7
-                                                                                ],
-                                                                                "source": [
-                                                                                  6,
-                                                                                  7
-                                                                                ]
-                                                                              }
                                                                             ]
                                                                           },
                                                                           {
-                                                                            "kind": "rule",
-                                                                            "rule": "any-i",
+                                                                            "kind": "token",
+                                                                            "terminal": "\"i\"",
+                                                                            "token": 7,
                                                                             "span": [
                                                                               7,
                                                                               8
@@ -533,22 +543,6 @@
                                                                             "source": [
                                                                               7,
                                                                               8
-                                                                            ],
-                                                                            "tags": [],
-                                                                            "children": [
-                                                                              {
-                                                                                "kind": "token",
-                                                                                "terminal": "\"i\"",
-                                                                                "token": 7,
-                                                                                "span": [
-                                                                                  7,
-                                                                                  8
-                                                                                ],
-                                                                                "source": [
-                                                                                  7,
-                                                                                  8
-                                                                                ]
-                                                                              }
                                                                             ]
                                                                           }
                                                                         ]

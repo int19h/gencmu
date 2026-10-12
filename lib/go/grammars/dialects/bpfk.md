@@ -55,7 +55,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
 
 ## Stage 2: normalize
 
-This stage maps stressed vowel values to lowercase and the syllable comma value to empty. It preserves their images and tags. Forms therefore reads stress and syllable boundaries through tags instead of capital or comma values.
+This stage maps stressed vowel values to lowercase and preserves their images and tags. Forms reads stress through `Stressed`. The shared normalization document also maps syllable comma values to empty. Here `latin.md` reads every comma as nothing, so only the stress mappings apply.
 
 ```jbogenbau
 %stage normalize
@@ -118,7 +118,7 @@ This stage maps stressed vowel values to lowercase and the syllable comma value 
   %include "../syntax/cll.md"
   ```
 
-The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-5-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
+The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-6-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only

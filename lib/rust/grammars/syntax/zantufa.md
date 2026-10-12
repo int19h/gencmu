@@ -49,9 +49,9 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 The stage does not declare `elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
-`without-elision($x)` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Aligned readings have the same ordered closes at shared boundaries.
+`$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Aligned readings have the same ordered closes at shared boundaries.
 
-A witness is a reading that satisfies a query. A whole query uses `matches(without-elision($x), R)`. An extended prefix uses `begins(from(without-elision($x)), R)` and can read beyond the capture. Both forms keep following original words available to the witness's conditions.
+A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.matches(r)`. An extended prefix uses `$x.without-elision.onward.begins(r)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
 
 A query can elide terminators under written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final late-elision winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
 
@@ -363,7 +363,7 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
 
 A tag with a sumti argument has its own alternative. GI cannot follow that actual tag because the tag and GI begin a gek. The argument cannot start an aligned tag unit, so `mi klama pu my roi` keeps one tag run. Alignment retains the argument's omitted terminators, so `pu cy to roi klama` keeps its long parenthesis. The bare-tag route excludes a following free modifier, tag unit, selbri, forethought bridi-tail, or BO. Thus `mi pe pu ba broda` remains rejected, and `mi pe pu ku ba broda` retains its written boundary.
 
-The condition `¬begins(after($t), free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
+The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
 A term-initial sumti cannot start an aligned tag. The extended prefix can read a following ROI, so `cy roi` remains a tag. This restriction applies at the term's start, rather than to every letter inside a sumti. Thus `ro my roi klama` retains the quantified sumti `ro my`.
 

@@ -16,24 +16,24 @@ The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings 
 - The palochka `ӏ` as a period
 
 ```jbogenbau
-%rule cyrillic-consonant
-  | "б" :: ∅ := "b" | "Б" :: ∅ := "b"
-  | "ш" :: ∅ := "c" | "Ш" :: ∅ := "c" | "щ" :: ∅ := "c" | "Щ" :: ∅ := "c"
-  | "д" :: ∅ := "d" | "Д" :: ∅ := "d"
-  | "ф" :: ∅ := "f" | "Ф" :: ∅ := "f"
-  | "г" :: ∅ := "g" | "Г" :: ∅ := "g" | "ґ" :: ∅ := "g" | "Ґ" :: ∅ := "g"
-  | "ж" :: ∅ := "j" | "Ж" :: ∅ := "j"
-  | "к" :: ∅ := "k" | "К" :: ∅ := "k"
-  | "л" :: ∅ := "l" | "Л" :: ∅ := "l"
-  | "м" :: ∅ := "m" | "М" :: ∅ := "m"
-  | "н" :: ∅ := "n" | "Н" :: ∅ := "n"
-  | "п" :: ∅ := "p" | "П" :: ∅ := "p"
-  | "р" :: ∅ := "r" | "Р" :: ∅ := "r"
-  | "с" :: ∅ := "s" | "С" :: ∅ := "s"
-  | "т" :: ∅ := "t" | "Т" :: ∅ := "t"
-  | "в" :: ∅ := "v" | "В" :: ∅ := "v"
-  | "х" :: ∅ := "x" | "Х" :: ∅ := "x"
-  | "з" :: ∅ := "z" | "З" :: ∅ := "z"
+%rule cyrillic-consonant :: ∅
+  | ("б" | "Б") := "b"
+  | ("ш" | "Ш" | "щ" | "Щ") := "c"
+  | ("д" | "Д") := "d"
+  | ("ф" | "Ф") := "f"
+  | ("г" | "Г" | "ґ" | "Ґ") := "g"
+  | ("ж" | "Ж") := "j"
+  | ("к" | "К") := "k"
+  | ("л" | "Л") := "l"
+  | ("м" | "М") := "m"
+  | ("н" | "Н") := "n"
+  | ("п" | "П") := "p"
+  | ("р" | "Р") := "r"
+  | ("с" | "С") := "s"
+  | ("т" | "Т") := "t"
+  | ("в" | "В") := "v"
+  | ("х" | "Х") := "x"
+  | ("з" | "З") := "z"
 %emits
   $
 
@@ -61,36 +61,36 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
 ```jbogenbau
 %rule cyrillic-plain-vowel
   | "а" :: Syllabic := "a"
-  | "е" :: Syllabic := "e" | "э" :: Syllabic := "e" | "є" :: Syllabic := "e"
-  | "и" :: Syllabic := "i" | "і" :: Syllabic := "i"
+  | ("е" | "э" | "є") :: Syllabic := "e"
+  | ("и" | "і") :: Syllabic := "i"
   | "о" :: Syllabic := "o"
   | "у" :: Syllabic := "u"
-  | "ъ" :: Syllabic := "y" | "ы" :: Syllabic := "y" | "ә" :: Syllabic := "y"
-  | "й" :: ∅ := "i" | "Й" :: ∅ := "i" | "ј" :: ∅ := "i" | "Ј" :: ∅ := "i"
-  | "ў" :: ∅ := "u" | "Ў" :: ∅ := "u"
+  | ("ъ" | "ы" | "ә") :: Syllabic := "y"
+  | ("й" | "Й" | "ј" | "Ј") :: ∅ := "i"
+  | ("ў" | "Ў") :: ∅ := "u"
 %emits
   $
 
-%rule cyrillic-stressed-vowel
-  | "А" :: Stressed ∪ Syllabic := "A" | ("а" | "А") stress-mark :: Stressed ∪ Syllabic := "A"
-  | "Е" :: Stressed ∪ Syllabic := "E" | "Э" :: Stressed ∪ Syllabic := "E" | "Є" :: Stressed ∪ Syllabic := "E"
-  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic := "E"
-  | "И" :: Stressed ∪ Syllabic := "I" | "І" :: Stressed ∪ Syllabic := "I" | ("и" | "і" | "И" | "І") stress-mark :: Stressed ∪ Syllabic := "I"
-  | "О" :: Stressed ∪ Syllabic := "O" | ("о" | "О") stress-mark :: Stressed ∪ Syllabic := "O"
-  | "У" :: Stressed ∪ Syllabic := "U" | ("у" | "У") stress-mark :: Stressed ∪ Syllabic := "U"
-  | "Ъ" :: Stressed ∪ Syllabic := "Y" | "Ы" :: Stressed ∪ Syllabic := "Y" | "Ә" :: Stressed ∪ Syllabic := "Y"
-  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "Y"
+%rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
+  | "А" := "A" | ("а" | "А") stress-mark := "A"
+  | ("Е" | "Э" | "Є") := "E"
+  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "E"
+  | "И" := "I" | "І" := "I" | ("и" | "і" | "И" | "І") stress-mark := "I"
+  | "О" := "O" | ("о" | "О") stress-mark := "O"
+  | "У" := "U" | ("у" | "У") stress-mark := "U"
+  | ("Ъ" | "Ы" | "Ә") := "Y"
+  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "Y"
 %emits
   $
 
 %rule cyrillic-folded-vowel
   | "А" :: Syllabic := "a"
-  | "Е" :: Syllabic := "e" | "Э" :: Syllabic := "e" | "Є" :: Syllabic := "e"
-  | "И" :: Syllabic := "i" | "І" :: Syllabic := "i"
+  | ("Е" | "Э" | "Є") :: Syllabic := "e"
+  | ("И" | "І") :: Syllabic := "i"
   | "О" :: Syllabic := "o"
   | "У" :: Syllabic := "u"
-  | "Ъ" :: Syllabic := "y" | "Ы" :: Syllabic := "y" | "Ә" :: Syllabic := "y"
-  | "Й" :: ∅ := "i" | "Ј" :: ∅ := "i"
+  | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
+  | ("Й" | "Ј") :: ∅ := "i"
   | "Ў" :: ∅ := "u"
 %emits
   $

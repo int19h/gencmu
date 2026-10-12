@@ -5,45 +5,53 @@
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;А&quot;</text></g>
-<path d="M82 46H102"/>
+<path d="M82 46H142"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Е&quot;</text></g>
-<path d="M82 80H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Э&quot;</text></g>
-<path d="M82 114H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Є&quot;</text></g>
-<path d="M82 148H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 80h20"/>
+<g class="terminal"><rect x="60" y="68" width="42" height="24" rx="12"/><text x="81" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Е&quot;</text></g>
+<path d="M102 80H122"/>
+<path d="M40 80a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="102" width="42" height="24" rx="12"/><text x="81" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Э&quot;</text></g>
+<path d="M102 114H102a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M40 80a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="136" width="42" height="24" rx="12"/><text x="81" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Є&quot;</text></g>
+<path d="M102 148H102a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
+<path d="M122 80H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;И&quot;</text></g>
-<path d="M82 182H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;І&quot;</text></g>
-<path d="M82 216H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 182h20"/>
+<g class="terminal"><rect x="60" y="170" width="42" height="24" rx="12"/><text x="81" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;И&quot;</text></g>
+<path d="M102 182H122"/>
+<path d="M40 182a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="204" width="42" height="24" rx="12"/><text x="81" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;І&quot;</text></g>
+<path d="M102 216H102a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
+<path d="M122 182H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="238" width="42" height="24" rx="12"/><text x="61" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;О&quot;</text></g>
-<path d="M82 250H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M82 250H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="272" width="42" height="24" rx="12"/><text x="61" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;У&quot;</text></g>
-<path d="M82 284H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M82 284H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="306" width="42" height="24" rx="12"/><text x="61" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ъ&quot;</text></g>
-<path d="M82 318H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="340" width="42" height="24" rx="12"/><text x="61" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ы&quot;</text></g>
-<path d="M82 352H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="374" width="42" height="24" rx="12"/><text x="61" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ә&quot;</text></g>
-<path d="M82 386H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 318h20"/>
+<g class="terminal"><rect x="60" y="306" width="42" height="24" rx="12"/><text x="81" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ъ&quot;</text></g>
+<path d="M102 318H122"/>
+<path d="M40 318a10 10 0 0 1 10 10V342a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="340" width="42" height="24" rx="12"/><text x="81" y="357" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ы&quot;</text></g>
+<path d="M102 352H102a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M40 318a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="374" width="42" height="24" rx="12"/><text x="81" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ә&quot;</text></g>
+<path d="M102 386H102a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
+<path d="M122 318H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="408" width="42" height="24" rx="12"/><text x="61" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Й&quot;</text></g>
-<path d="M82 420H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="442" width="42" height="24" rx="12"/><text x="61" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ј&quot;</text></g>
-<path d="M82 454H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M40 420h20"/>
+<g class="terminal"><rect x="60" y="408" width="42" height="24" rx="12"/><text x="81" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Й&quot;</text></g>
+<path d="M102 420H122"/>
+<path d="M40 420a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="60" y="442" width="42" height="24" rx="12"/><text x="81" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ј&quot;</text></g>
+<path d="M102 454H102a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
+<path d="M122 420H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="476" width="42" height="24" rx="12"/><text x="61" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ў&quot;</text></g>
-<path d="M82 488H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M102 46h6m0 -8v16m4 -16v16"/>
+<path d="M82 488H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M142 46h6m0 -8v16m4 -16v16"/>
 </svg>

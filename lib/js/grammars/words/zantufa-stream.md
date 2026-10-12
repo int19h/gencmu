@@ -36,7 +36,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker quote-gap $f:Rafsi-Form :: $m.tags
+  $m:rahoi-marker quote-spacing $f:Rafsi-Form :: $m.tags
 %emits
   $m, $f :: Quoted-Text
 
@@ -52,7 +52,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. So does every dialect, which compares them by their canonical sound ([the word stream](stream.md)). So the dialect needs only the marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. Every dialect compares their normalized values ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
 %redefine-rule zoi-marker
@@ -78,7 +78,6 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every
   ¬$h.onward.begins(y-bu-word),
   (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨ Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
 %erased
-
 
 %rule y-letter-ahead
   y-bu-word | Hesitation y-letter-ahead
@@ -140,7 +139,6 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
 %rule opener-spaces
   $h:opener-space-token [opener-spaces]
 %erased
-
 
 %rule opener-space-token
   (* initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space *)
@@ -204,7 +202,7 @@ The shared BU constructor also takes a bare marker when no quote begins there. Z
 
 Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
 
-The constructor uses the shared `compound-gap` recipe so that surviving pauses contribute one space around erased regions. The lookahead still uses `skipped`, because it tests recognition and runs no string recipes.
+The constructor uses the shared `compound-gap` recipe so that surviving pauses contribute one space around erased regions. The lookahead uses `skipped`, because it tests recognition and runs no string recipes.
 
 The lookahead skips erased regions before BU. Thus `su mi si bu` forms the letteral of SU. Without a following BU, SU erases the whole preceding text. NIhO, LU, TUhE, and TO do not stop it.
 

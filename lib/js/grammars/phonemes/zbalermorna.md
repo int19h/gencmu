@@ -17,24 +17,10 @@ The code points are those of the private-use block of the font. This document wr
 The first rules below read the consonant radicals. U+ED89 is the radical for the period, and U+ED8A is the apostrophe. U+ED9A is the comma. U+ED8C, U+ED99 and U+ED9B also map to a comma.
 
 ```jbogenbau
-%extend-rule consonant
-  | $_ED80 :: ∅ := "p"
-  | $_ED81 :: ∅ := "t"
-  | $_ED82 :: ∅ := "k"
-  | $_ED83 :: ∅ := "f"
-  | $_ED90 :: ∅ := "b"
-  | $_ED91 :: ∅ := "d"
-  | $_ED92 :: ∅ := "g"
-  | $_ED93 :: ∅ := "v"
-  | $_ED84 :: ∅ := "l"
-  | $_ED85 :: ∅ := "s"
-  | $_ED86 :: ∅ := "c"
-  | $_ED87 :: ∅ := "m"
-  | $_ED94 :: ∅ := "r"
-  | $_ED95 :: ∅ := "z"
-  | $_ED96 :: ∅ := "j"
-  | $_ED97 :: ∅ := "n"
-  | $_ED88 :: ∅ := "x"
+%extend-rule consonant :: ∅
+  | $_ED80 := "p" | $_ED81 := "t" | $_ED82 := "k" | $_ED83 := "f" | $_ED90 := "b" | $_ED91 := "d"
+  | $_ED92 := "g" | $_ED93 := "v" | $_ED84 := "l" | $_ED85 := "s" | $_ED86 := "c" | $_ED87 := "m"
+  | $_ED94 := "r" | $_ED95 := "z" | $_ED96 := "j" | $_ED97 := "n" | $_ED88 := "x"
 %emits
   $
 
@@ -68,23 +54,23 @@ The shorthand stands where a non-vowel stands, because the apostrophe closes the
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `non-lojban-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
 ```jbogenbau
-%extend-rule plain-vowel
-  | $_EDA0 :: ∅ := "a" | $_EDB0 :: ∅ := "a"
-  | $_EDA1 :: ∅ := "e" | $_EDB1 :: ∅ := "e"
-  | $_EDA2 :: ∅ := "i" | $_EDB2 :: ∅ := "i" | $_EDAA :: ∅ := "i"
-  | $_EDA3 :: ∅ := "o" | $_EDB3 :: ∅ := "o"
-  | $_EDA4 :: ∅ := "u" | $_EDB4 :: ∅ := "u" | $_EDAB :: ∅ := "u"
-  | $_EDA5 :: ∅ := "y" | $_EDB5 :: ∅ := "y"
+%extend-rule plain-vowel :: ∅
+  | ($_EDA0 | $_EDB0) := "a"
+  | ($_EDA1 | $_EDB1) := "e"
+  | ($_EDA2 | $_EDB2 | $_EDAA) := "i"
+  | ($_EDA3 | $_EDB3) := "o"
+  | ($_EDA4 | $_EDB4 | $_EDAB) := "u"
+  | ($_EDA5 | $_EDB5) := "y"
 %emits
   $
 
-%extend-rule stressed-vowel
-  | $_EDA0 zbalermorna-stress :: Stressed := "A" | $_EDB0 zbalermorna-stress :: Stressed := "A"
-  | $_EDA1 zbalermorna-stress :: Stressed := "E" | $_EDB1 zbalermorna-stress :: Stressed := "E"
-  | $_EDA2 zbalermorna-stress :: Stressed := "I" | $_EDB2 zbalermorna-stress :: Stressed := "I"
-  | $_EDA3 zbalermorna-stress :: Stressed := "O" | $_EDB3 zbalermorna-stress :: Stressed := "O"
-  | $_EDA4 zbalermorna-stress :: Stressed := "U" | $_EDB4 zbalermorna-stress :: Stressed := "U"
-  | $_EDA5 zbalermorna-stress :: Stressed := "Y" | $_EDB5 zbalermorna-stress :: Stressed := "Y"
+%extend-rule stressed-vowel :: Stressed
+  | ($_EDA0 | $_EDB0) zbalermorna-stress := "A"
+  | ($_EDA1 | $_EDB1) zbalermorna-stress := "E"
+  | ($_EDA2 | $_EDB2) zbalermorna-stress := "I"
+  | ($_EDA3 | $_EDB3) zbalermorna-stress := "O"
+  | ($_EDA4 | $_EDB4) zbalermorna-stress := "U"
+  | ($_EDA5 | $_EDB5) zbalermorna-stress := "Y"
 %emits
   $
 
@@ -160,7 +146,6 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 %rule zbalermorna-marked-vowel :: $v.tags := $v.emitted.value :- $v.emitted.image
   | zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
-
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel

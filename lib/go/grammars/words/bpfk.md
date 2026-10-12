@@ -24,9 +24,9 @@ C denotes a consonant. V denotes `a`, `e`, `i`, `o`, or `u`.
 
 A PEG reads the text from left to right. When an alternative fails, the PEG goes back to where that alternative began and tries the next one. But once a choice or a repetition succeeds, a later failure never reopens it. A PEG differs from a jbogenbau grammar in three ways, and each has a fixed translation:
 
-1. A choice `A / B` tries `A` first. It tries `B` only if `A` does not begin at that point. Here the choice is two alternatives, and the second has the condition that the first does not begin where the second begins: `¬begins(from($b), a)`.
+1. A choice `A / B` tries `A` first. It tries `B` only if `A` does not begin at that point. Here the choice is two alternatives, and the second has the condition that the first does not begin where the second begins: `¬$b.onward.begins(a)`.
 2. A repetition `A*` reads `A` for as long as it can, and stops only where `A` does not begin. Here it is a rule of its own, such as `unstressed-syllables`. The rule has two alternatives: `A` followed by the rule, or `nothing` where `A` does not begin. An optional `A?` is a rule such as `h-opt`, with the alternatives `A`, or `nothing` where `A` does not begin.
-3. A lookahead `&A` or `!A` tests whether `A` begins at a point, and reads nothing. Here it is a condition `begins(from($x), a)` or `begins(after($x), a)`, which looks at the text from the start or from the end of the part `$x`. A lookahead can look past the end of the word, into the words after it, but no further than the next pause.
+3. A lookahead `&A` or `!A` tests whether `A` begins at a point, and reads nothing. Here it is a condition `$x.onward.begins(a)` or `$x.following-tokens.begins(a)`, which looks at the text from the start or from the end of the part `$x`. A lookahead can look past the end of the word, into the words after it, but no further than the next pause.
 
 So each rule here derives exactly what the PEG rule reads, at exactly the points where the PEG rule begins, and in one way only. The rules that the PEG uses only in lookaheads are the one exception. The second case below explains why only their starting points matter.
 
@@ -848,7 +848,7 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
 
 ## Letters
 
-A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it still finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
+A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
 
 ```jbogenbau
 %rule a                       (* a <- comma* [aA] *)

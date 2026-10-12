@@ -45,7 +45,7 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
 
 ## Stage 2: normalize
 
-This stage maps stressed vowel values to lowercase and the syllable comma value to empty. It preserves their images and tags. Forms therefore reads stress and syllable boundaries through tags instead of capital or comma values.
+This stage maps stressed vowel values to lowercase and preserves their images and tags. Forms reads stress through `Stressed`. The shared normalization document also maps syllable comma values to empty. Here `latin.md` reads every comma as nothing, so only the stress mappings apply.
 
 ```jbogenbau
 %stage normalize

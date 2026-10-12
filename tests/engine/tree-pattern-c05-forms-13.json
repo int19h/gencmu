@@ -17,7 +17,52 @@
           "name": "phonemes"
         },
         {
-          "name": "normalize"
+          "name": "normalize",
+          "output": [
+            {},
+            {
+              "tags": [
+                "Stressed"
+              ],
+              "value": "a",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "tags": [
+                "Stressed"
+              ],
+              "value": "i",
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {},
+            {},
+            {
+              "tags": [],
+              "value": "i",
+              "span": [
+                5,
+                6
+              ],
+              "source": [
+                5,
+                6
+              ]
+            }
+          ]
         },
         {
           "name": "forms",
@@ -302,8 +347,9 @@
                                                     ],
                                                     "children": [
                                                       {
-                                                        "kind": "rule",
-                                                        "rule": "any-a",
+                                                        "kind": "token",
+                                                        "terminal": "\"a\"",
+                                                        "token": 1,
                                                         "span": [
                                                           1,
                                                           2
@@ -311,24 +357,6 @@
                                                         "source": [
                                                           1,
                                                           2
-                                                        ],
-                                                        "tags": [
-                                                          "Stressed"
-                                                        ],
-                                                        "children": [
-                                                          {
-                                                            "kind": "token",
-                                                            "terminal": "\"a\"",
-                                                            "token": 1,
-                                                            "span": [
-                                                              1,
-                                                              2
-                                                            ],
-                                                            "source": [
-                                                              1,
-                                                              2
-                                                            ]
-                                                          }
                                                         ]
                                                       }
                                                     ]
@@ -362,8 +390,9 @@
                                                         ],
                                                         "children": [
                                                           {
-                                                            "kind": "rule",
-                                                            "rule": "any-i",
+                                                            "kind": "token",
+                                                            "terminal": "\"i\"",
+                                                            "token": 2,
                                                             "span": [
                                                               2,
                                                               3
@@ -371,24 +400,6 @@
                                                             "source": [
                                                               2,
                                                               3
-                                                            ],
-                                                            "tags": [
-                                                              "Stressed"
-                                                            ],
-                                                            "children": [
-                                                              {
-                                                                "kind": "token",
-                                                                "terminal": "\"i\"",
-                                                                "token": 2,
-                                                                "span": [
-                                                                  2,
-                                                                  3
-                                                                ],
-                                                                "source": [
-                                                                  2,
-                                                                  3
-                                                                ]
-                                                              }
                                                             ]
                                                           }
                                                         ]
@@ -474,8 +485,9 @@
                                                                 "tags": [],
                                                                 "children": [
                                                                   {
-                                                                    "kind": "rule",
-                                                                    "rule": "any-i",
+                                                                    "kind": "token",
+                                                                    "terminal": "\"i\"",
+                                                                    "token": 5,
                                                                     "span": [
                                                                       5,
                                                                       6
@@ -483,22 +495,6 @@
                                                                     "source": [
                                                                       5,
                                                                       6
-                                                                    ],
-                                                                    "tags": [],
-                                                                    "children": [
-                                                                      {
-                                                                        "kind": "token",
-                                                                        "terminal": "\"i\"",
-                                                                        "token": 5,
-                                                                        "span": [
-                                                                          5,
-                                                                          6
-                                                                        ],
-                                                                        "source": [
-                                                                          5,
-                                                                          6
-                                                                        ]
-                                                                      }
                                                                     ]
                                                                   }
                                                                 ]

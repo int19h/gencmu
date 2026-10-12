@@ -30,11 +30,11 @@ Outside a quote, the earlier stages hand on some cmavo as tokens of their own. E
 
 CLL writes repetition as `x ...`, and the notation writes it with braces. CLL's notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
-Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x \ s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
+Where CLL writes `x [s x] ...` and no grouping is at stake, this grammar writes `{x / s}`. That is a list of `x` separated by `s`. These read the same words as the printed rules. Where the grouping matters, the next paragraph says what the rule writes instead.
 
 CLL's notation note 7 gives `...` left grouping.[^cll-s21-1] A list in flat braces shows no grouping in the tree: its items are children of the rule that writes it. Where the grouping changes the reading, as for logical connectives and tanru, this grammar says so in the rule.
 
-A left chain, `{... x \ s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the source of its grouping. A right chain, `{x ... \ s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`.
+A left chain, `{... x / s}`, groups from the left, and each level of it is a node of its rule. Where the repeated part is irregular, the rule is written with left recursion instead, which groups in the same way. Each such rule cites the source of its grouping. A right chain, `{x ... / s}`, groups from the right, as the `bo` forms do. Juxtaposition binds tighter than `&`.
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. Footnotes link to the CLL sources.
 
@@ -179,7 +179,7 @@ In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. I
 - A free modifier stands between the gihek and `ke`, as in `mi broda gi'e to do toi ke brode ke'e`. The `ke` form has no slot there. `bridi-tail-1-final` reads this case with `{free}`, which requires at least one free modifier.
 - The tail has two runs of tail terms. Its own VAU is written, and separate outer terms follow, as in `mi broda gi'e ke brode ke'e vau do`. Another example is `mi broda gi'e ke brode ke'e vau le le brodi brodo ku`. The group has only one run of tail terms after KEhE. `$KE-TAIL-WITH-VAU` tests the actual `tail-terms` child against `$WRITTEN-VAU`. That pattern requires a written VAU leaf after optional terms.
 
-  The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf sound empty.
+  The condition also requires nonempty outer tail terms. The corpus case `adhoc.syntax.gihek-ke-group-tail-term-vau` pins this boundary. In `mi broda gi'e ke brode ke'e do vau`, the plain parse omits its own VAU after `do`. Its next tail terms contain the written VAU, which cannot satisfy the pattern on the earlier child. Reconstruction keeps the omitted leaf value empty.
 
 A `gek-sentence` joins two subsentences in forethought. The gek can contain a tense, as in `pu gi A gi B`. `gek-sentence` allows `ke` around a gek-sentence, with an optional tag before that `ke`. It also allows optional `na` before a gek-sentence.[^cll-s14-10]
 
@@ -220,7 +220,6 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 %rule bridi-tail-3
   | selbri tail-terms
   | gek-sentence
-
 
 %rule gek-sentence
   | gek subsentence gik subsentence tail-terms

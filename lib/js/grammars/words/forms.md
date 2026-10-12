@@ -25,9 +25,9 @@ The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold w
 
 A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
-A run is a sequence of words, or it is unread. An unread run is one that the pipeline did not read as words, and it carries the tag `FOREIGN`. A run is unread when the phoneme stage already left it unread, because it has a character that no script reads. A run of phonemes that divides into no words is also unread.
+A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-An unread run is not an error here. The word stage decides whether an unread run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects an unread run ([stream.md](stream.md)). So this stage never rejects a text.
+A foreign run is not an error here. The word stage decides whether a foreign run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects an foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -88,7 +88,7 @@ A run that divides into words divides in one way only. The word forms of each fa
 <p><img src="../../docs/diagrams/words/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
-The stage covers every input token. It passes pauses and the unread runs of the phoneme stage through, and combines phonemes into words or unread runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
+The stage covers every input token. It passes pauses and the foreign runs of the phoneme stage through, and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value concatenates normalized phoneme values, while its image concatenates their written images. A `zoi` delimiter compares with that value exactly as with the same phonemes read as words. The token's text retains what the author wrote.
 
@@ -159,11 +159,8 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %emits
   $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
-%rule split-first-y
-  ::
-  $.tags(source-word)
+%rule split-first-y :: $.tags(source-word)
   | $p:y-prefix $y:y-atom
-
 %conditions
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
@@ -171,11 +168,8 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $p :: $.tags(source-word) ∪ Run-Initial,
   $y :: $.tags(source-word) ∪ Spacing ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
-%rule split-later-y
-  ::
-  $.tags(source-word)
+%rule split-later-y :: $.tags(source-word)
   | $p:y-prefix $y:y-atom
-
 %conditions
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
@@ -243,7 +237,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 <p><img src="../../docs/diagrams/words/forms/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 </details>
 
-A `y` here has value `y`, with or without `Stressed`. `any-y` therefore needs one terminal. `y-atom` and `y-run` read the empty-valued comma through `Syllable-Break`. `nonpause-phoneme` uses lowercase vowel values and the same boundary tag, so normalization does not remove a readable token.
+A `y` here has value `y`, with or without `Stressed`. `any-y` therefore needs one terminal. `y-atom` and `y-run` read the empty-valued comma through `Syllable-Break`. `nonpause-phoneme` uses lowercase vowel values and the same boundary tag, so the comma token stays readable through its tag although its value is empty.
 
 ```jbogenbau
 %rule any-y

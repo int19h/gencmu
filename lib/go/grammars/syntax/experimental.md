@@ -300,17 +300,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
-%rule term-bo-link
-  ::
-  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+%rule term-bo-link :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | term-connective [stag] BO # $u:term-3
 
-
-%rule term-link
-  ::
-  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+%rule term-link :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | $c:term-connective $g:term-bo-group
-
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -327,7 +321,6 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   joik # | jek # | ek # | VUhU #
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
-
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -371,17 +364,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
-%rule listed-term-bo-link
-  ::
-  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+%rule listed-term-bo-link :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | term-connective [stag] BO # $u:listed-term-3
 
-
-%rule listed-term-link
-  ::
-  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+%rule listed-term-link :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | $c:term-connective $g:listed-term-bo-group
-
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -511,7 +498,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their sound. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their values. The new sumti are these:
 
 - `na'e` and `lu'u` surround a sumti, without `bo`.
 - `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
@@ -539,11 +526,8 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | sumti-2
   | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
-%redefine-rule sumti-2
-  ::
-  $EXTENSIBLE-END
+%redefine-rule sumti-2 :: $EXTENSIBLE-END
   | {... sumti-3 / sumti-connective}
-
 
 %redefine-rule sumti-3
   {sumti-4 ... / sumti-connective [stag] BO #}
@@ -876,7 +860,7 @@ A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, 
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
-The rules name the two words by their sound, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the sound but not the class.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
 ```jbogenbau
 %redefine-rule joik

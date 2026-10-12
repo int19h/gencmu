@@ -2,7 +2,7 @@
 
 This dialect is Lojban as *The Complete Lojban Language* (CLL) describes it. The dialect reads the printed CLL grammar[^cll-c21] and its word forms.[^cll-c3][^cll-c4] A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The dialect gives each cmavo the selma'o of the book's dictionary.
 
-The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. The dialect accepts a text that the repaired grammar admits, subject to ["Stage 5: syntax"](#stage-5-syntax). When ranking selects one of several parses, `elision-only` restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the grammar does not rank below that parse makes the original text an error.
+The printed grammar is normative here, with the repairs that [the CLL grammar](../syntax/cll.md) lists. The dialect accepts a text that the repaired grammar admits, subject to ["Stage 6: syntax"](#stage-6-syntax). When ranking selects one of several parses, `elision-only` restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the grammar does not rank below that parse makes the original text an error.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted.
 
@@ -69,7 +69,7 @@ This stage maps stressed vowel values to lowercase and the syllable comma value 
 
 The stage receives normalized phoneme values, images and tags. A run is a stretch with no internal pause. The stage hands on the source words of each run. It gives each word a tag for its class and, for a cmavo, a tag for its selma'o. A tag marks a token by an identifier.
 
-If a run divides into no words, the stage hands the run on as one unread token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
+If a run divides into no words, the stage hands the run on as one foreign token. The word forms divide a run into words in at most one way, so the choice among parses never decides where a word ends.
 
 ## Stage 4: words
 
@@ -86,7 +86,7 @@ If a run divides into no words, the stage hands the run on as one unread token. 
   %include "../words/cll-stream.md"
   ```
 
-The stage receives the source words and hands on the words of the text. It rejects an unread run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
+The stage receives the source words and hands on the words of the text. It rejects an foreign run, except in a foreign quote or after `fa'o`. For the magic words, the stage is lazy: it ends each constituent as early as the grammar allows. So each magic word acts on what exists when the stage reads it.
 
 The warning `y-cmavo` reports a cmavo that uses `y` as a vowel beyond the forms that CLL gives, such as `ka'y`. The feature `sa-su` controls `sa` and `su`. The libraries turn this feature on for a text only when the text needs it.
 

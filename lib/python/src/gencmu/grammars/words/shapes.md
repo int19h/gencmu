@@ -426,47 +426,32 @@ Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin 
 
 ## Vowels
 
-A vowel of a word form has one of the lowercase values `a e i o u`, with either stress tag. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
+A vowel of a word form has one of the lowercase values `a e i o u`, with or without `Stressed`. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-A vowel letter reads its lowercase value with either stress tag, since the stress of a cmavo is free (CLL[^cll-s3-9]). `any-a` through `any-u` therefore use one value each. `capital-vowel` tests `Stressed` on those values, and `capital-letter` also tests stressed `y`. [forms.md](forms.md) reads `any-y` with either stress tag.
+A vowel letter reads its lowercase value with or without `Stressed`, since the stress of a cmavo is free (CLL[^cll-s3-9]). `capital-vowel` tests `Stressed` on `vowel`, and `capital-letter` also tests stressed `y`. [forms.md](forms.md) reads `any-y` with or without `Stressed`.
 
-`any-letter`, `brivla-item` and `name-item` read syllable boundaries through `Syllable-Break`. This keeps the syllable scans tied to written commas after normalization empties their values. `brivla-item` reads an unstressed `y`, while `name-item` keeps the existing stress policy for names.
+`any-letter`, `brivla-item` and `name-item` read syllable boundaries through `Syllable-Break`. This keeps the syllable scans tied to written commas after normalization empties their values. `brivla-item` reads an unstressed `y`, while `name-item` reads `y` with or without `Stressed`.
 
 ```jbogenbau
 %rule vowel
-  any-a | any-e | any-i | any-o | any-u
-
-%rule any-a
-  "a"
-
-%rule any-e
-  "e"
-
-%rule any-i
-  "i"
-
-%rule any-o
-  "o"
-
-%rule any-u
-  "u"
+  "a" | "e" | "i" | "o" | "u"
 
 %rule capital-vowel
-  "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
+  vowel<Stressed>
 
 %rule capital-letter
-  capital-vowel | "y"<Stressed>
+  name-vowel<Stressed>
 
 %rule i-or-u
-  any-i | any-u
+  "i" | "u"
 
 %rule e-or-o
-  any-e | any-o
+  "e" | "o"
 
 %rule falling-diphthong
-  any-a any-i | any-e any-i | any-o any-i | any-a any-u
+  "a" "i" | "e" "i" | "o" "i" | "a" "u"
 
 %rule rising-diphthong
   i-or-u vowel
@@ -487,13 +472,8 @@ A vowel letter reads its lowercase value with either stress tag, since the stres
   [any-letters] capital-letter [any-letters]
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>vowel</code> to <code>stress-mark</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>vowel</code> to <code>stress-mark</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/vowel.svg" alt="Railroad diagram of the rule vowel"></p>
-<p><img src="../../docs/diagrams/words/shapes/any-a.svg" alt="Railroad diagram of the rule any-a"></p>
-<p><img src="../../docs/diagrams/words/shapes/any-e.svg" alt="Railroad diagram of the rule any-e"></p>
-<p><img src="../../docs/diagrams/words/shapes/any-i.svg" alt="Railroad diagram of the rule any-i"></p>
-<p><img src="../../docs/diagrams/words/shapes/any-o.svg" alt="Railroad diagram of the rule any-o"></p>
-<p><img src="../../docs/diagrams/words/shapes/any-u.svg" alt="Railroad diagram of the rule any-u"></p>
 <p><img src="../../docs/diagrams/words/shapes/capital-vowel.svg" alt="Railroad diagram of the rule capital-vowel"></p>
 <p><img src="../../docs/diagrams/words/shapes/capital-letter.svg" alt="Railroad diagram of the rule capital-letter"></p>
 <p><img src="../../docs/diagrams/words/shapes/i-or-u.svg" alt="Railroad diagram of the rule i-or-u"></p>
@@ -517,7 +497,7 @@ A brivla is a predicate word. It is stressed on its penultimate counted syllable
 
 `brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
 
-- `S0`, `S1` and `S2` track the marked nucleus. `S0` holds before the scan reads a capital vowel, and `S1` after the one marked nucleus. `S2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus, or a second counted nucleus after the marked one, leaves no `s` tag.
+- `S0`, `S1` and `S2` track the marked nucleus. `S0` holds before the scan reads a capital vowel, and `S1` after the one marked nucleus. `S2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus removes all three tags. A second counted nucleus after the marked one does too.
 - `N0`, `N1`, `N2` and `N3`, for no counted nucleus, one, two, and three or more
 - `First-Marked`, when the first counted nucleus is the marked one
 - `Single-End`, when the last letter read is a vowel that is a nucleus by itself
@@ -547,8 +527,8 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
   Single-End ⊈ $s.tags
     ∨ ¬$j.first-token.matches(vowel)
     ∨ ¬$s.last-token.matches(i-or-u)
-      ∧ (¬$s.last-token.matches(any-a) ∨ ¬$j.first-token.matches(i-or-u))
-      ∧ (¬$s.last-token.matches(e-or-o) ∨ ¬$j.first-token.matches(any-i))
+      ∧ ($s.last-token.value ≠ "a" ∨ ¬$j.first-token.matches(i-or-u))
+      ∧ (¬$s.last-token.matches(e-or-o) ∨ $j.first-token.value ≠ "i")
 
 %rule brivla-item
   | consonant | "y"<¬Stressed> | "'" | Syllable-Break
@@ -599,8 +579,8 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
   Single-End ⊈ $s.tags
     ∨ ¬$j.first-token.matches(name-vowel)
     ∨ ¬$s.last-token.matches(i-or-u)
-      ∧ (¬$s.last-token.matches(any-a) ∨ ¬$j.first-token.matches(i-or-u))
-      ∧ (¬$s.last-token.matches(e-or-o) ∨ ¬$j.first-token.matches(any-i))
+      ∧ ($s.last-token.value ≠ "a" ∨ ¬$j.first-token.matches(i-or-u))
+      ∧ (¬$s.last-token.matches(e-or-o) ∨ $j.first-token.value ≠ "i")
 
 %rule name-item
   | consonant | "'" | Syllable-Break
