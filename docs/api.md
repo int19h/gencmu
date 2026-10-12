@@ -12,7 +12,7 @@ A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
-A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space and no lowercase mapping (engine §1).
+A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space (engine §1).
 
 The path of an `%include` resolves against the document that holds it, with `.` and `..` normalized (engine §13). A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. A library reads a document through the notation (the grammar of grammar documents) only when `compiled.json` has no entry for it that matches. An entry matches when it has the same text hash, the same bootstrap hash and the same DOM format.
 
@@ -22,7 +22,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 25 supports `without-elision($x)` in grammar conditions. All four libraries accept that span function through their ordinary grammar loaders. The function requires no parse configuration switch. A library rejects a bootstrap with another format and skips a cached DOM with another format. Parse-result format 11 stays unchanged.
+Grammar DOM format 26 supports token strings, recipes, stored engine tags, and method expressions. Parse-result format 12 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+
+The compatibility boundary is the format number and the notation contract. Callers supply format-26 DOMs or grammar text in the specified notation. Callers do not supply phoneme tags, character tags, or normalization instructions to the engine. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 An `optional` with a `maximal` member is malformed, as `docs/output.md` says.
 
@@ -60,7 +62,7 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 
 ### The result
 
-Parse-result format 11 reports the restored chosen derivation first in an elision-only error.
+Parse-result format 12 reports the restored chosen derivation first in an elision-only error.
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
@@ -68,7 +70,9 @@ The result has the fields of `docs/output.md`, in the data types of the language
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-A stage has its name, its input and output tokens, its verdict, and for a tie its witness. A tied stage has no output tokens, and its two readings are in the result's error. A token has its text, its phonemes, its label, its tags, its span and its source range. An inserted token also names the rule that inserted it. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name, because dialect pipelines define their order. A tied stage has no output tokens, and its two readings are in the result's error.
+
+A token has text, value, image, tags, span, and source. Both strings always exist. An image can include text outside the source without changing `text`. An `ε` emission token also names its inserting rule and has empty source text. A token also has its attachments, `before` and `after`, two lists of tokens (engine §11). An attached token has no span.
 
 A node has its kind (`rule`, `token` or `elided`), its rule or terminal, its span and source range, its tags and its children. A token node also has the index of the token that it read. Tags are a set of tags, each a string in its canonical spelling (engine §1). Source positions count Unicode code points, whatever the string indexing of the language is. Spans and token indices count tokens of the relevant stage.
 
@@ -80,7 +84,7 @@ Every library writes the canonical JSON of a result as text, in the key order th
 
 ### Tokens for tests and tools
 
-Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This uses the `tokens` argument in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. A token that the caller supplies has its text as its label (engine §5).
+Some entry points exist for tests and tools. They are outside the common API, and each language spells them its own way. Each library can feed pre-built tokens to the first stage in place of the characters of a text. This uses the `tokens` argument in JavaScript, `Dialect.parse_tokens(tokens, text, ...)` in Python, `(*Dialect).ParseTokens(text, tokens, options)` in Go, and `Dialect::parse_tokens(tokens, options)` in Rust. Both strings on a supplied token default independently to its text (engine §1).
 
 In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11).
 
@@ -88,7 +92,15 @@ Its span counts tokens of the stage before, not code points, so it has no upper 
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
-A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, a caller's token whose attachments are not empty is a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
+A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, nonempty attachments on a caller token cause a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
+
+The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no tags and applies no normalization. The caller can supply stored engine tags to represent earlier grammar stages.
+
+All supplied string fields must contain scalar values. Invalid strings, tag names, source ranges, spans, or attachments cause a usage error before parsing. Tags follow engine §1, including its reserved engine inventory. The input object is not an output recipe and stores both strings directly.
+
+Rust `InputToken` exposes optional `value` and `image` alongside its text and tags. JavaScript and Python use the fields `value` and `image`. Go uses `Value` and `Image`, with absence represented independently from an explicit empty string. Each language's input form must preserve that distinction.
+
+For example, a supplied token with `text:"A"`, `value:"a"`, and `image:"A"` compares as `a` and displays as `A`. A supplied normalized comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_Lu` or any other engine tag unless the caller supplies it.
 
 Each library copies the caller's tokens before it parses them, and it leaves the caller's objects unchanged.
 
