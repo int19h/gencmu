@@ -269,13 +269,13 @@ var domRules = map[string]bool{
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
-	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
+	"string": true, "tag": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"opaque-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
+	"emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
-	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
+	"presence": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true, "range": true, "property": true,
@@ -618,6 +618,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
 	r := &domRule{Name: b.text(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
+	if !classifierName.MatchString(r.Name) && r.Name != "#" {
+		b.fail(b.only(n, "rule-name"), "a rule name starts lowercase")
+	}
 	switch b.text(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -644,9 +647,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
-	if !classifierName.MatchString(r.Name) && r.Name != "#" {
-		b.fail(b.only(n, "rule-name"), "a rule name starts lowercase")
-	}
 	if p := one(n, "tags-clause"); p != nil {
 		r.Tags = b.constituentTags(p)
 	}
@@ -801,44 +801,6 @@ func firstOfRule(n *Node, name string) *Node {
 	return nil
 }
 
-// readRange reads a range's two ends, each a character tag in its canonical
-// spelling; its start must not be above its end (engine §1, §9).
-func (b *domBuilder) readRange(n *Node) [2]string {
-	var ends []string
-	for _, c := range b.some(n, "character", 2)[:2] {
-		ends = append(ends, b.tagOf(b.token(c)))
-	}
-	r := [2]string{ends[0], ends[1]}
-	if msg := rangeProblem(r, b.uni); msg != "" {
-		b.fail(n, "%s", msg)
-	}
-	return r
-}
-
-// readProperty reads a property's name: its token is '\p{Name}', with a
-// name of engine §1.
-func (b *domBuilder) readProperty(n *Node) string {
-	written := b.text(n)
-	if !strings.HasPrefix(written, `'\p{`) || !strings.HasSuffix(written, "}'") || strings.Count(written, "}") != 1 {
-		b.fail(n, `a property is written '\p{Name}'`)
-	}
-	name := written[4 : len(written)-2]
-	if msg := propertyProblem(name); msg != "" {
-		b.fail(n, "%s", msg)
-	}
-	return name
-}
-
-// decode decodes a string or a character tag token (engine §9). A string
-// escapes its double quote, and a character tag its quote.
-func (b *domBuilder) decode(n *Node) string {
-	t := b.stringTerm(n)
-	if t.Kind != tmString {
-		b.fail(n, "this operand requires a literal string")
-	}
-	return t.Str
-}
-
 func (b *domBuilder) tagOf(n *Node) string {
 	name := b.text(n)
 	if !isTag(name, b.uni) {
@@ -859,12 +821,6 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 	}
 	ty, problem := b.typeOf(t)
 	return problem == "" && (ty == tyString || ty == tyAny || ty == tySpan)
-}
-
-// notationFunctions are the functions of the notation (§10).
-var notationFunctions = map[string]bool{
-	"value": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "classify": true, "first-token": true, "tokens-after-first": true,
-	"last-token": true, "onward": true, "after": true, "without-elision": true, "matches": true, "begins": true, "initial": true,
 }
 
 // typeOf is a term's type, or why its parts do not agree, through the

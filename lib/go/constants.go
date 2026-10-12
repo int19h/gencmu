@@ -1,8 +1,6 @@
 package gencmu
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -239,8 +237,6 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 		return &constValue{ty: tyString, s: t.Str}, nil
 	case tmTag:
 		return &constValue{ty: tyTags, names: []string{t.Str}}, nil
-	case tmRange:
-		return &constValue{ty: tyTags, names: in.fromList(rangeTags(t.Range, g.uni.isMark)).names}, nil
 	case tmEmptySet:
 		if len(expected) > 0 && expected[0] == tyPattern {
 			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
@@ -322,15 +318,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 				return nil, g.faultError(doc, t.Items[1], item, "split has an empty delimiter")
 			}
 			return &constValue{ty: tyStrings, names: in.fromList(splitString(s, delimiter)).names}, nil
-		case "tag":
-			name, err := str(t.Items[0])
-			if err != nil {
-				return nil, err
-			}
-			if !isName(name) {
-				return nil, g.faultError(doc, t.Items[0], item, fmt.Sprintf("tag(%s): the string is not a name", strconv.Quote(name)))
-			}
-			return &constValue{ty: tyTags, names: []string{name}}, nil
+
 		}
 	}
 	return nil, g.constError(doc, item, "a constant's value is not a closed term")
@@ -351,6 +339,9 @@ func (g *stageGrammar) resolveConstants() *Error {
 			if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
 				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
+		}
+		if err := g.validateStringUses(u.doc, u.rule); err != nil {
+			return err
 		}
 		if f := ruleTypeFault(u.rule, types); f != nil {
 			return g.faultError(u.doc, f.node, u.rule.At, f.problem)
@@ -390,7 +381,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 		for _, a := range u.rule.Alternatives {
 			for _, t := range testsIn(a.Expr) {
 				refs := constRefs(t.Value)
-				if !isSoundTest(t.Op) || len(refs) == 0 {
+				if !isValueTest(t.Op) || len(refs) == 0 {
 					continue
 				}
 				v, err := g.evaluateClosed(u.doc, t.Value, u.rule.At)
@@ -414,9 +405,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 			if call.Str == "split" && seen == "" {
 				return g.constError(u.doc, arg.At, "split has an empty delimiter")
 			}
-			if call.Str == "tag" && !isName(seen) {
-				return g.constError(u.doc, arg.At, "tag(%s): the string is not a name", strconv.Quote(seen))
-			}
+
 		}
 	}
 
@@ -427,6 +416,8 @@ func (g *stageGrammar) resolveConstants() *Error {
 	for _, rule := range g.rules {
 		for _, a := range rule.alts {
 			a.ruleTags = r.term(a.ruleTags)
+			a.ruleValue = r.term(a.ruleValue)
+			a.ruleImage = r.term(a.ruleImage)
 			a.emit = r.emit(a.emit)
 			a.conds = r.condList(a.conds)
 			if tags := r.term(a.alt.Tags); tags != a.alt.Tags {
@@ -434,10 +425,18 @@ func (g *stageGrammar) resolveConstants() *Error {
 				if !ok {
 					copied := *a.alt
 					copied.Tags = tags
+					copied.Value = r.term(copied.Value)
+					copied.Image = r.term(copied.Image)
 					alt = &copied
 					r.alts[a.alt] = alt
 				}
 				a.alt = alt
+			}
+			if a.alt.Value != nil || a.alt.Image != nil {
+				copy := *a.alt
+				copy.Value = r.term(copy.Value)
+				copy.Image = r.term(copy.Image)
+				a.alt = &copy
 			}
 		}
 	}
@@ -453,7 +452,7 @@ func closedCalls(rule *domRule) []*domTerm {
 		if t == nil {
 			return
 		}
-		if t.Kind == tmCall && (t.Str == "split" || t.Str == "tag") {
+		if t.Kind == tmCall && t.Str == "split" {
 			found = append(found, t)
 		}
 		if t.Cond != nil {
@@ -523,6 +522,8 @@ func newResolver(constants map[string]*stageConst, uni *unicodeTable) *resolver 
 func (r *resolver) rule(rule *domRule) *domRule {
 	copied := *rule
 	copied.Tags = r.term(rule.Tags)
+	copied.Value = r.term(rule.Value)
+	copied.Image = r.term(rule.Image)
 	copied.Conditions = r.condList(rule.Conditions)
 	copied.Emit = r.emit(rule.Emit)
 	copied.Alternatives = make([]*domAlt, len(rule.Alternatives))
@@ -572,7 +573,11 @@ func (r *resolver) term(t *domTerm) *domTerm {
 	}
 	copied := *t
 	if t.Kind == tmConst {
-		copied.value = r.constants[t.Str].value
+		if scalar, ok := engineScalar(t.Str); ok {
+			copied.value = &constValue{ty: tyString, s: scalar}
+		} else {
+			copied.value = r.constants[t.Str].value
+		}
 		if copied.value.ty == tyPattern {
 			copied.Kind = tmPattern
 			copied.Pattern = copied.value.pattern
@@ -663,9 +668,12 @@ func (r *resolver) emit(e *domEmit) *domEmit {
 	items := make([]*domEmitItem, len(e.Items))
 	for i, it := range e.Items {
 		items[i] = it
-		if tags := r.term(it.Tags); tags != it.Tags {
+		tags, value, image := r.term(it.Tags), r.term(it.Value), r.term(it.Image)
+		if tags != it.Tags || value != it.Value || image != it.Image {
 			copied := *it
 			copied.Tags = tags
+			copied.Value = value
+			copied.Image = image
 			items[i] = &copied
 			changed = true
 		}

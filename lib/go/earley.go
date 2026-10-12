@@ -818,7 +818,7 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 		}
 		ts = toSet(r.w.v)
 	case p.implicit:
-		ts = in.all[r.caps(&it.itemKey).at(p.capSlot[0]).tags]
+		ts = in.all[r.caps(&it.itemKey).at(p.capSlot[p.inheritIndex]).tags]
 	default:
 		ts = in.empty()
 	}

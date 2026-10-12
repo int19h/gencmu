@@ -85,8 +85,6 @@ type exprFrame struct {
 	inWhole bool
 	pass    bool
 	capture string
-	test    *domExpr
-	operand *Node
 	marked  bool
 	elide   *domExpr
 	repeat  *domExpr
@@ -109,27 +107,6 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		e := &domExpr{Kind: exCapture, Name: f.capture, Inner: in.(*domExpr)}
 		b.captureNodes[e] = n
 		return give(e)
-	case f.test != nil:
-		b.closedFor = ""
-		value := in.(*domTerm)
-		ty, problem := b.typeOf(value)
-		if problem == "" {
-			problem = testTypeProblem(f.test.Op, ty)
-		}
-		if problem != "" {
-			b.fail(f.operand, "%s", problem)
-		}
-		if isSoundTest(f.test.Op) && value.Kind == tmString {
-			if msg := soundProblem(value.Str, b.uni); msg != "" {
-				at := firstOfRule(f.operand, "string")
-				if at == nil {
-					at = f.operand
-				}
-				b.fail(at, "%s", msg)
-			}
-		}
-		f.test.Value = value
-		return give(f.test)
 	case f.elide != nil:
 		if f.marked {
 			b.marked--
@@ -573,102 +550,6 @@ func (f *valueFrame) resume(b *domBuilder, in any) readStep {
 	}
 	t := in.(*domTerm)
 	return give(t)
-}
-
-// callFrame reads a call in a term, or, in a condition, matches(), begins()
-// or initial().
-type callFrame struct {
-	n           *Node
-	inCondition bool
-	started     bool
-	name        *Node
-	arguments   []*Node
-	args        []*domTerm
-}
-
-func (f *callFrame) resume(b *domBuilder, in any) readStep {
-	if !f.started {
-		f.started = true
-		f.name = b.token(f.n)
-		name := b.text(f.name)
-		// A closed term calls only split and tag, the closed functions (§9,
-		// §10).
-		if b.closedFor != "" && name != "split" && name != "tag" {
-			if !notationFunctions[name] {
-				b.fail(f.name, "%s() is not a function of the notation", name)
-			}
-			if name == "classify" {
-				b.fail(f.name, "%s is a closed term, and classify() depends on the features", b.closedFor)
-			}
-			b.fail(f.name, "%s is a closed term, and %s() is not closed", b.closedFor, name)
-		}
-		f.arguments = ofRule(f.n, "argument")
-	} else {
-		f.args = append(f.args, in.(*domTerm))
-	}
-	if len(f.args) < len(f.arguments) {
-		return ask(&termFrame{n: b.only(f.arguments[len(f.args)], "union"), argument: true})
-	}
-	return give(b.finishCall(f.name, f.args, f.inCondition))
-}
-
-// finishCall checks a call's arguments against its function's signature.
-func (b *domBuilder) finishCall(nameNode *Node, args []*domTerm, inCondition bool) *domTerm {
-	name := b.text(nameNode)
-	shape := func(ok bool) {
-		if !ok {
-			b.fail(nameNode, "%s() is not called with the arguments it takes", name)
-		}
-	}
-	span := func(i int) bool { return i < len(args) && isSpanTerm(args[i]) }
-	rule := func(i int) bool { return i < len(args) && args[i].Kind == tmRule }
-	// A bare name in another slot is a call with the wrong arguments, so
-	// the error is the call's, as for any other signature (§9).
-	for i, a := range args {
-		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins" || name == "classify")) {
-			b.fail(nameNode, "a bare name is an argument only as the rule of tags(), matches() or begins(), or the classifier of classify()")
-		}
-	}
-	if inCondition {
-		switch name {
-		case "matches", "begins":
-			shape(len(args) == 2 && span(0) && rule(1))
-		case "initial":
-			shape(len(args) == 1 && span(0))
-		default:
-			b.fail(nameNode, "a condition calls only matches(), begins() or initial(); %s() is a term", name)
-		}
-		return &domTerm{Kind: tmCall, Str: name, Items: args}
-	}
-	switch name {
-	case "without-elision":
-		shape(len(args) == 1)
-		if args[0].Kind != tmCapture {
-			b.fail(nameNode, "without-elision() requires a bare capture. Use from(without-elision($x)) for an extended span.")
-		}
-	case "value", "source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
-		shape(len(args) == 1 && span(0))
-	case "tags":
-		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
-	case "split":
-		shape(len(args) == 2 && b.isStringTerm(args[0]) && b.isStringTerm(args[1]))
-	case "tag":
-		shape(len(args) == 1 && b.isStringTerm(args[0]))
-	case "classify":
-		// A string, and a bare name, which names a classifier and not a
-		// rule (§9).
-		shape(len(args) == 2 && b.isStringTerm(args[0]) && rule(1))
-		return &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{args[0], {Kind: tmClassifier, Str: args[1].Str}}}
-	case "matches", "begins", "initial":
-		b.fail(nameNode, "%s() is a condition, not a term", name)
-	default:
-		b.fail(nameNode, "%s() is not a function of the notation", name)
-	}
-	// An empty delimiter or a tag's name that the reader sees (§9).
-	if msg := literalCallProblem(name, args); msg != "" {
-		b.fail(nameNode, "%s", msg)
-	}
-	return &domTerm{Kind: tmCall, Str: name, Items: args}
 }
 
 // implicationFrame reads its any-ofs in order, and after them the

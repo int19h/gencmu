@@ -170,7 +170,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	// The records, in the order of the tree's leaves (§7.2).
 	var records []Restoration
 	for _, n := range elidedNodes(tree) {
-		records = append(records, Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Sound: n.sound, Tested: n.tested})
+		records = append(records, Restoration{Terminal: n.Terminal, At: n.Span[0], Source: n.Source, Value: n.sound, Tested: n.tested})
 	}
 	// R: O with one synthetic token before the token at each record's
 	// position, or at the end. Records at one position keep their order.
@@ -183,9 +183,9 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 		for next < len(records) && records[next].At == i {
 			r := records[next]
 			recordAt[next] = len(toks)
-			toks = append(toks, Token{Tags: []string{r.Terminal}, Phonemes: r.Sound, Span: [2]int{i, i}, Source: r.Source})
+			toks = append(toks, Token{Tags: []string{r.Terminal}, Value: r.Value, Span: [2]int{i, i}, Source: r.Source})
 			rc.tagsets = append(rc.tagsets, in.single(r.Terminal))
-			rc.sounds = append(rc.sounds, run.ps.uni.canonical(r.Sound))
+			rc.sounds = append(rc.sounds, r.Value)
 			rc.synthetic = append(rc.synthetic, true)
 			rc.original = append(rc.original, -1)
 			rc.record = append(rc.record, next)
@@ -332,7 +332,11 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 					// record's source.
 					rec := records[rc.record[k]]
 					p := rc.project[k]
-					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source, sound: rec.Sound, tested: rec.Tested}
+					*n = Node{Kind: KindElided, Terminal: rec.Terminal, Span: [2]int{p, p}, Source: rec.Source, sound: rec.Value, tested: rec.Tested}
+					if rec.Tested {
+						value := rec.Value
+						n.Value = &value
+					}
 				} else {
 					i := rc.original[k]
 					n.Token, n.Span, n.Source = i, [2]int{i, i + 1}, run.toks[i].Source

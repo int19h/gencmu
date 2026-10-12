@@ -14,7 +14,7 @@ import (
 func TestWithoutElisionEmission(t *testing.T) {
 	grammar := "%rule text $x(candidate)\n%emits $x<tags(without-elision($x), rival)>\n%rule candidate X [+T]\n%rule rival X [+T] <~aligned>"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
-	res, err := d.ParseTokens("x", []Token{{Text: "x", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
+	res, err := d.parseStoredTokens("x", []Token{{Text: "x", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
 	if err != nil || !res.OK || len(res.Stages[0].Output) != 1 {
 		t.Fatalf("emission: %v, %+v", err, res)
 	}
@@ -27,23 +27,23 @@ func TestWithoutElisionOriginalEmptySource(t *testing.T) {
 	grammar := "%rule text $x(candidate) Y\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T=\"a\"]\n%rule rival X [+T=\"b\"]\n%conditions text($) = \"\", phonemes($) = \"a\", initial($), begins(after($), suffix)\n%rule suffix Y"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
 	tokens := []Token{
-		{Text: "", Phonemes: "a", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 0}},
+		{Text: "", Value: "a", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 0}},
 		{Text: "y", Tags: []string{"Y"}, Span: [2]int{1, 2}, Source: [2]int{0, 1}},
 	}
-	res, err := d.ParseTokens("y", tokens, ParseOptions{})
+	res, err := d.parseStoredTokens("y", tokens, ParseOptions{})
 	if err != nil || !res.OK || res.Tree.Children[0].Span != [2]int{0, 1} {
 		t.Fatalf("an original empty-source token lost its observations: %v, %+v", err, res)
 	}
 }
 
-func TestWithoutElisionCommonEntrySound(t *testing.T) {
+func TestWithoutElisionCommonEntryValue(t *testing.T) {
 	grammar := "%rule text Q $x(choice)\n%conditions matches(without-elision($x), choice)\n%rule choice $p(prefix) (a ≻ b)\n%rule prefix t | u\n%rule t X [+T=\"a\"]\n%conditions ¬initial($)\n%rule u X [+T=\"b\"]\n%conditions initial($)\n%rule a Y [+U]\n%rule b Y [+V]"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
 	tokens := []Token{}
 	for i, tag := range []string{"Q", "X", "Y"} {
 		tokens = append(tokens, Token{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}})
 	}
-	res, err := d.ParseTokens("q x y", tokens, ParseOptions{})
+	res, err := d.parseStoredTokens("q x y", tokens, ParseOptions{})
 	if err != nil || !res.OK || res.Tree.Children[1].Children[0].Children[0].Rule != "t" {
 		t.Fatalf("saved sound changed common entry equality: %v, %+v", err, res)
 	}
@@ -56,7 +56,7 @@ func TestWithoutElisionNestedWholeSeal(t *testing.T) {
 	for i, tag := range []string{"Q", "X", "Y"} {
 		tokens = append(tokens, Token{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}})
 	}
-	res, err := d.ParseTokens("q x y", tokens, ParseOptions{})
+	res, err := d.parseStoredTokens("q x y", tokens, ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("nested whole seal: %v, %+v", err, res)
 	}
@@ -102,14 +102,14 @@ func TestWithoutElisionCloseStorage(t *testing.T) {
 		m := newCloseArena()
 		state := 0
 		for i := 0; i < n; i++ {
-			state = m.event(state, closeEvent{record: Restoration{Terminal: "T", At: i, Source: [2]int{2 * i, 2 * i}, Sound: "a", Tested: true}})
+			state = m.event(state, closeEvent{record: Restoration{Terminal: "T", At: i, Source: [2]int{2 * i, 2 * i}, Value: "a", Tested: true}})
 		}
 		if len(m.links) > 4*n+1 || len(m.states) > n+2 || len(m.contexts) != 1 {
 			t.Fatalf("%d closes retain %d links, %d states, %d contexts", n, len(m.links), len(m.states), len(m.contexts))
 		}
 		other := 0
 		for i := 0; i < n; i++ {
-			other = m.event(other, closeEvent{record: Restoration{Terminal: "T", At: i, Sound: "b", Tested: true}})
+			other = m.event(other, closeEvent{record: Restoration{Terminal: "T", At: i, Value: "b", Tested: true}})
 		}
 		if m.semantic(state) != m.semantic(other) || !m.aligned(state, other, n) {
 			t.Fatal("equal closes with different restoration sound failed to share their semantic sequence")
@@ -165,7 +165,7 @@ func TestWithoutElisionParserGrowth(t *testing.T) {
 				start := time.Now()
 				w := &workCounts{}
 				countWorkIn(w, func() {
-					res, err := d.ParseTokens(strings.TrimSpace(strings.Repeat("x ", n)), tokens, ParseOptions{})
+					res, err := d.parseStoredTokens(strings.TrimSpace(strings.Repeat("x ", n)), tokens, ParseOptions{})
 					if err != nil || !res.OK {
 						t.Fatalf("%s, %d tokens: %v, %+v", name, n, err, res)
 					}

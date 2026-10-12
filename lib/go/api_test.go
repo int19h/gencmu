@@ -183,7 +183,7 @@ func TestParseOptions(t *testing.T) {
 		t.Fatalf("an empty Until does not run every stage: %v %+v", err, res)
 	}
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
-	res, err = d.ParseTokens("a", toks, ParseOptions{Until: "one"})
+	res, err = d.parseStoredTokens("a", toks, ParseOptions{Until: "one"})
 	if err != nil || res.OK {
 		t.Fatalf("pre-built tokens tagged A are not characters: %+v", res)
 	}
@@ -198,14 +198,14 @@ func boolPtr(b bool) *bool { return &b }
 func TestLoweringFault(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text c\n%rule c {... A} | f? B"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
-	res, err := d.ParseTokens("a", toks, ParseOptions{Features: []string{"f"}})
+	res, err := d.parseStoredTokens("a", toks, ParseOptions{Features: []string{"f"}})
 	if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Stage != "main" || res.Stages[0].Verdict != "" || res.Tree != nil {
 		t.Fatalf("expected a grammar error as the result: %v %+v", err, res)
 	}
 	if !strings.HasPrefix(res.Error.Message, "g.md:6:1: c is a chain") {
 		t.Fatalf("the message does not begin with the definition: %q", res.Error.Message)
 	}
-	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
+	if res, err := d.parseStoredTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("without f the chain is alone in its rule: %v %+v", err, res)
 	}
 }
@@ -232,7 +232,7 @@ func TestLoweringFaultOrder(t *testing.T) {
 		// empty item of an earlier rule.
 		{[]string{"f"}, "a.md:4:1: c is a chain"},
 	} {
-		res, err := d.ParseTokens("a", toks, ParseOptions{Features: c.features})
+		res, err := d.parseStoredTokens("a", toks, ParseOptions{Features: c.features})
 		if err != nil || res.OK || res.Error.Kind != ErrorGrammar || res.Error.Token != nil || res.Error.Line != 0 {
 			t.Fatalf("%v: expected a grammar error with no position: %v %+v", c.features, err, res)
 		}
@@ -243,7 +243,7 @@ func TestLoweringFaultOrder(t *testing.T) {
 	// In one rule, a chain beside another alternative comes before an
 	// empty item of its own braces.
 	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text r\n%rule r {... [A]} | B"))
-	res, err := d.ParseTokens("a", toks, ParseOptions{})
+	res, err := d.parseStoredTokens("a", toks, ParseOptions{})
 	if err != nil || res.OK || !strings.HasPrefix(res.Error.Message, "g.md:6:1: r is a chain") {
 		t.Fatalf("expected the chain first: %v %+v", err, res.Error)
 	}
@@ -417,22 +417,22 @@ func TestBracketsDepth(t *testing.T) {
 
 // Brackets show each token by its label (docs/output.md, "Brackets"). A
 // token that a caller supplies has its text as its label, whatever its
-// phonemes or its Label say, and keeps its phonemes (engine §5, docs/api.md).
+// phonemes or its Image say, and keeps its phonemes (engine §5, docs/api.md).
 // ParseTokens leaves the caller's tokens as they are.
-func TestBracketsLabel(t *testing.T) {
+func TestBracketsImage(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A A"))
-	toks := []Token{{Text: "x", Tags: []string{"A"}, Phonemes: "a.b", Label: "z", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Phonemes: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
-	res, err := d.ParseTokens("xy", toks, ParseOptions{})
+	toks := []Token{{Text: "x", Tags: []string{"A"}, Value: "a.b", Image: "z", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Value: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	res, err := d.parseStoredTokens("xy", toks, ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
 	if b := Brackets(res, BracketOptions{}); b != "(x y)" {
 		t.Fatalf("brackets %q", b)
 	}
-	if in := res.Stages[0].Input[0]; in.Phonemes != "a.b" || in.Label != "x" {
-		t.Fatalf("the token's phonemes are %q and its label %q", in.Phonemes, in.Label)
+	if in := res.Stages[0].Input[0]; in.Value != "a.b" || in.Image != "x" {
+		t.Fatalf("the token's phonemes are %q and its label %q", in.Value, in.Image)
 	}
-	if toks[0].Label != "z" || toks[1].Label != "" {
+	if toks[0].Image != "z" || toks[1].Image != "" {
 		t.Fatalf("the caller's tokens changed: %+v", toks)
 	}
 }
@@ -442,8 +442,8 @@ func TestBracketsLabel(t *testing.T) {
 // {"a", "b c"}.
 func TestSplitKeepsSpaces(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%const $RUNS \".\"\n%rule text $x(A) $y(A)\n%conditions split(phonemes($x), $RUNS) ≠ split(phonemes($y), \".\"), \"a b\" ∈ split(phonemes($x), $RUNS), \"a\" ∉ split(phonemes($x), \".\")"))
-	toks := []Token{{Text: "x", Tags: []string{"A"}, Phonemes: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Phonemes: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
-	if res, err := d.ParseTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
+	toks := []Token{{Text: "x", Tags: []string{"A"}, Value: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Value: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
+	if res, err := d.parseStoredTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
 }
@@ -838,7 +838,7 @@ func TestParseTokensOutOfRange(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text 'a'\n%emits $"))
 	for _, src := range [][2]int{{100, 101}, {1, 0}, {-1, 0}, {0, 2}} {
 		toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: src}}
-		res, err := d.ParseTokens("a", toks, ParseOptions{})
+		res, err := d.parseStoredTokens("a", toks, ParseOptions{})
 		var e *Error
 		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
 			t.Fatalf("source %v: expected a usage error, got %v %v", src, res, err)
@@ -850,7 +850,7 @@ func TestParseTokensOutOfRange(t *testing.T) {
 	// A span counts tokens, not code points, so only its order is checked.
 	for _, span := range [][2]int{{-1, 0}, {1, 0}} {
 		toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: span, Source: [2]int{0, 1}}}
-		res, err := d.ParseTokens("a", toks, ParseOptions{})
+		res, err := d.parseStoredTokens("a", toks, ParseOptions{})
 		var e *Error
 		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
 			t.Fatalf("span %v: expected a usage error, got %v %v", span, res, err)
@@ -860,7 +860,7 @@ func TestParseTokensOutOfRange(t *testing.T) {
 		}
 	}
 	toks := []Token{{Text: "a", Tags: []string{"'a'"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
-	if res, err := d.ParseTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
+	if res, err := d.parseStoredTokens("a", toks, ParseOptions{}); err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
 }
@@ -882,7 +882,7 @@ func TestParseTokensOutOfOrder(t *testing.T) {
 			{Text: "x", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: c.x},
 			{Text: "y", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: c.y},
 		}
-		res, err := d.ParseTokens(c.text, toks, ParseOptions{})
+		res, err := d.parseStoredTokens(c.text, toks, ParseOptions{})
 		if err != nil || !res.OK {
 			t.Fatalf("sources %v and %v: %v %+v", c.x, c.y, err, res)
 		}
@@ -912,7 +912,7 @@ func TestInvalidUTF8(t *testing.T) {
 			if res, err := d.Parse(text, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
 				t.Errorf("%s over %q: expected a usage error, got %v %v", rule, text, res, err)
 			}
-			if res, err := d.ParseTokens(text, nil, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
+			if res, err := d.parseStoredTokens(text, nil, ParseOptions{NoAutoFeatures: true}); res != nil || !isUsage(err) {
 				t.Errorf("%s over %q with tokens: expected a usage error, got %v %v", rule, text, res, err)
 			}
 		}
@@ -1028,11 +1028,11 @@ func TestEmptyCharacterTag(t *testing.T) {
 // a constituent emits, on a token over an opaque part and on an inserted
 // one, a token with no tags, and a condition that asks about its own span.
 func TestGrammarFaultHasNoPosition(t *testing.T) {
-	const twoPhonemes = "stage main: an emitted token has two phoneme tags"
+	const twoValue = "stage main: an emitted token has two phoneme tags"
 	for _, c := range []struct{ grammar, message string }{
-		{"%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoPhonemes},
-		{"%rule text [{word}]\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", twoPhonemes},
-		{"%implies /e/ ⟹ /o/\n%rule text [{word}]\n%rule word $w(W)\n%emits\n  $w, /e/", twoPhonemes},
+		{"%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $", twoValue},
+		{"%rule text [{word}]\n%rule word $w(W) </e/ ∪ /o/>\n%emits\n  $\n%opaque", twoValue},
+		{"%implies /e/ ⟹ /o/\n%rule text [{word}]\n%rule word $w(W)\n%emits\n  $w, /e/", twoValue},
 		{"%rule text $a(W) %emits $a <tags($a) ∩ Z>", "stage main: text emits a token with no tags"},
 		{"%rule text $a(x) %conditions ¬matches($a, text)\n%rule x W",
 			"stage main: a condition asks whether its own span parses as text, which defines text in terms of itself over the same text"},
@@ -1043,7 +1043,7 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.grammar, err)
 		}
-		res, err := d.ParseTokens("x", []Token{{Text: "x", Tags: []string{"W"}, Phonemes: "x", Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
+		res, err := d.parseStoredTokens("x", []Token{{Text: "x", Tags: []string{"W"}, Value: "x", Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
 		if err != nil {
 			t.Fatalf("%s: %v", c.grammar, err)
 		}
@@ -1069,14 +1069,14 @@ func TestCallerAttachments(t *testing.T) {
 		{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, After: inner},
 		{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Before: inner},
 	} {
-		res, err := d.ParseTokens("a", []Token{tok}, ParseOptions{})
+		res, err := d.parseStoredTokens("a", []Token{tok}, ParseOptions{})
 		var e *Error
 		if res != nil || !errors.As(err, &e) || e.Kind != ErrorUsage {
 			t.Fatalf("expected a usage error, got %v %v", res, err)
 		}
 	}
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}, Before: []Token{}, After: []Token{}}}
-	res, err := d.ParseTokens("a", toks, ParseOptions{})
+	res, err := d.parseStoredTokens("a", toks, ParseOptions{})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -1175,7 +1175,7 @@ func hasTag(token Token, tag string) bool {
 // words/stream.md: the body of an empty zoi quote is an empty opaque part.
 // So it sounds ?, and a letter word over the quote keeps the ?, with no pause
 // after it, since the one pause between the delimiters comes first.
-func TestEmptyZoiBodySoundsOpaque(t *testing.T) {
+func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
@@ -1187,11 +1187,11 @@ func TestEmptyZoiBodySoundsOpaque(t *testing.T) {
 			break
 		}
 	}
-	if body == nil || body.Phonemes != "?" || body.InsertedBy != "" {
+	if body == nil || body.Value != "?" || body.InsertedBy != "" {
 		t.Fatalf("the body of zoi gy gy: %+v", body)
 	}
-	if letter := stageOutput(t, d, "zoi gy gy bu", "words")[0]; letter.Phonemes != "zoi.gy.?gy.bu" {
-		t.Fatalf("zoi gy gy bu sounds %q", letter.Phonemes)
+	if letter := stageOutput(t, d, "zoi gy gy bu", "words")[0]; letter.Value != "zoi.gy.?gy.bu" {
+		t.Fatalf("zoi gy gy bu sounds %q", letter.Value)
 	}
 }
 
@@ -1207,8 +1207,8 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 		t.Fatalf("the vowel: %q %v", vowel.Text, vowel.Source)
 	}
 	word := stageOutput(t, d, text, "forms")[0]
-	if word.Text != text || word.Source != [2]int{0, 3} || word.Phonemes != "u'i" {
-		t.Fatalf("the word: %q %v %q", word.Text, word.Source, word.Phonemes)
+	if word.Text != text || word.Source != [2]int{0, 3} || word.Value != "u'i" {
+		t.Fatalf("the word: %q %v %q", word.Text, word.Source, word.Value)
 	}
 }
 
@@ -1221,12 +1221,12 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 		t.Fatal(err)
 	}
 	letters := stageOutput(t, d, "cyky", "forms")
-	if len(letters) != 2 || letters[0].Label != "cy" || letters[1].Label != "ky" {
+	if len(letters) != 2 || letters[0].Image != "cy" || letters[1].Image != "ky" {
 		t.Fatalf("the letters: %+v", letters)
 	}
 	for _, letter := range letters {
 		if !hasTag(letter, "cy") || hasTag(letter, "continued") {
-			t.Fatalf("%s has the tags %v", letter.Label, letter.Tags)
+			t.Fatalf("%s has the tags %v", letter.Image, letter.Tags)
 		}
 	}
 }
@@ -1261,7 +1261,7 @@ func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 			}
 			var labels []string
 			for _, token := range stage.Output {
-				labels = append(labels, token.Label)
+				labels = append(labels, token.Image)
 			}
 			if strings.Join(labels, " ") != strings.Join(c.labels, " ") {
 				t.Fatalf("%s: the labels are %v", c.text, labels)
@@ -1377,7 +1377,7 @@ func TestLoweredBounded(t *testing.T) {
 func TestCallerTokensShareNothing(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A"))
 	tokens := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
-	res, err := d.ParseTokens("a", tokens, ParseOptions{NoAutoFeatures: true})
+	res, err := d.parseStoredTokens("a", tokens, ParseOptions{NoAutoFeatures: true})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -1440,7 +1440,7 @@ func TestMarshalWitnessLost(t *testing.T) {
 		Message: "the main stage could not reconstruct its chosen derivation for elision-only",
 		Chosen:  chosen,
 		Completion: []Restoration{
-			{Terminal: "T", At: 1, Source: [2]int{1, 1}, Sound: "ta", Tested: true},
+			{Terminal: "T", At: 1, Source: [2]int{1, 1}, Value: "ta", Tested: true},
 			{Terminal: "U", At: 1, Source: [2]int{1, 1}},
 		},
 	}}

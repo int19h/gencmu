@@ -56,6 +56,28 @@ func patternTestTarget(p *domPattern) bool {
 	return n.Kind == "terminal" || n.Kind == "constant" || n.Kind == "literal" || n.Kind == "range" || n.Kind == "wildcard"
 }
 
+func patternLeafMatches(p *domPattern, terminal, value string, tags *tagset) bool {
+	for p.Kind == "test" {
+		if p.Op == "tags" {
+			for _, r := range p.Requirements {
+				stack := []*domTerm{r.Value}
+				for len(stack) > 0 {
+					t := stack[len(stack)-1]
+					stack = stack[:len(stack)-1]
+					if t.Kind == tmTag && tags.has(t.Str) == r.Negated {
+						return false
+					}
+					stack = append(stack, t.Items...)
+				}
+			}
+		} else if (value == p.Value.Str) != (p.Op == "=") {
+			return false
+		}
+		p = p.Items[0]
+	}
+	return p.Kind == "terminal" && terminal == p.Name
+}
+
 func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	var tests []*Node
 	for _, p := range ruleParts(n) {
@@ -339,7 +361,7 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 }
 
 func (b *domBuilder) recipe(n *Node) *domTerm {
-	r := &domTerm{Kind: tmConcat}
+	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
 		first := b.toks[atom.Span[0]].Text
 		if first == "(" || first == "∪" || first == "∩" {

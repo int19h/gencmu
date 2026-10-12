@@ -3,7 +3,7 @@ package gencmu
 import (
 	"fmt"
 	"regexp"
-	"strconv"
+	"unicode/utf8"
 )
 
 // The DOM of a grammar document, when it did not come from reading the
@@ -139,7 +139,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 				if g.Kind != FeatureGate && (g.Kind != FeatureWarning || g.Negated) {
 					c.fail("a malformed guard")
 				}
-				if !domName.MatchString(g.Feature) {
+				if !nameSyntaxFeature.MatchString(g.Feature) {
 					c.fail("a malformed guard: a guard's feature is a name")
 				}
 			}
@@ -234,7 +234,7 @@ func entryProblem(e *domEntry, uni *unicodeTable) string {
 		if g.Kind != FeatureGate {
 			return "a malformed entry of a classifier: an entry takes gates only, not a warning"
 		}
-		if !domName.MatchString(g.Feature) {
+		if !nameSyntaxFeature.MatchString(g.Feature) {
 			return "a malformed entry of a classifier: a gate's feature is a name"
 		}
 	}
@@ -411,7 +411,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a malformed test")
 			return
 		}
-		if !isTestable(e.Inner) && !(isSoundTest(e.Op) && e.Inner != nil && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
+		if !isTestable(e.Inner) && !(isValueTest(e.Op) && e.Inner != nil && e.Inner.Kind == exTest && e.Inner.Op == "tags" && isTestable(e.Inner.Inner)) {
 			c.fail("a test follows only a reference other than # or a terminal")
 			return
 		}
@@ -883,7 +883,7 @@ func testValueFault(op string, value *domTerm, uni *unicodeTable) *typeFault {
 	if problem := testTypeProblem(op, ty); problem != "" {
 		return &typeFault{problem, value}
 	}
-	if isSoundTest(op) && value.Kind == tmString {
+	if isValueTest(op) && value.Kind == tmString {
 		if problem := soundProblem(value.Str, uni); problem != "" {
 			return &typeFault{problem, value}
 		}
@@ -895,7 +895,7 @@ func testValueFault(op string, value *domTerm, uni *unicodeTable) *typeFault {
 // or "": a sound test's is a string, and a tag test's a tag set.
 func testTypeProblem(op string, ty termType) string {
 	expected, name := tyTags, "a tag set"
-	if isSoundTest(op) {
+	if isValueTest(op) {
 		expected, name = tyString, "a string"
 	}
 	if problem := expectedProblem(ty, expected); problem != "" {
@@ -940,9 +940,6 @@ func literalCallProblem(call string, args []*domTerm) string {
 	if s, ok := literal(1); call == "split" && ok && s == "" {
 		return "split has an empty delimiter"
 	}
-	if s, ok := literal(0); call == "tag" && ok && !isName(s) {
-		return fmt.Sprintf("tag(%s): the string is not a name", strconv.Quote(s))
-	}
 	return ""
 }
 
@@ -958,7 +955,11 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		return
 	}
 	switch t.Kind {
-	case tmString, tmCapture, tmEmptySet:
+	case tmString:
+		if !utf8.ValidString(t.Str) {
+			c.fail("a string is not valid UTF-8")
+		}
+	case tmCapture, tmEmptySet:
 	case tmInterpolate, tmConcat:
 		if len(t.Items) == 0 {
 			c.fail("an empty string expression")
@@ -982,7 +983,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			if msg := testTypeProblem(p.Op, ty); msg != "" {
 				return msg
 			}
-			if isSoundTest(p.Op) && p.Value.Kind == tmString {
+			if isValueTest(p.Op) && p.Value.Kind == tmString {
 				return soundProblem(p.Value.Str, c.uni)
 			}
 			return ""
@@ -1027,14 +1028,14 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		switch t.Str {
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
-		case "value", "image", "source-text", "classes", "verbatim-text", "emitted", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
+		case "value", "image", "source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
-		case "split", "tag":
+		case "split":
 			// Its arguments are values, whose types are checked with the
 			// rule's (engine §10).
-			ok = len(args) == map[string]int{"split": 2, "tag": 1}[t.Str]
+			ok = len(args) == 2
 			for _, a := range args {
 				ok = ok && a != nil && !isRule(a) && !isClassifier(a)
 			}
@@ -1141,6 +1142,9 @@ func (c *domChecker) condition(d *domCond, depth int) {
 // that readsOwnTags walks only a well-formed term.
 func (c *domChecker) constituentTags(t *domTerm) {
 	c.term(t, 0, false)
+	if len(literalEngineTags(t)) > 0 {
+		c.fail("a tag clause introduces an engine tag")
+	}
 	if t != nil && c.problem == nil && readsOwnTags(t) {
 		c.fail("a constituent's tags made of its own")
 	}
@@ -1176,9 +1180,6 @@ func readsOwnTags(t *domTerm) bool {
 		}
 		switch p.t.Kind {
 		case tmCapture:
-			if p.t.Str == "" {
-				return true
-			}
 		case tmIf, tmUnion, tmIntersection, tmDifference:
 			stack = append(stack, p.children()...)
 		case tmCall:
@@ -1240,6 +1241,9 @@ func (c *domChecker) emission(e *domEmit) {
 			c.fail("attachments on an item that is not a named capture")
 			return
 		}
+		if len(literalEngineTags(it.Tags)) > 0 {
+			c.fail("an item tag clause introduces an engine tag")
+		}
 		c.term(it.Tags, 0, false)
 		c.recipe(it.Value)
 		c.recipe(it.Image)
@@ -1293,7 +1297,7 @@ type typeFault struct {
 func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
 
 // callStrings says what the functions that take strings take.
-var callStrings = map[string]string{"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
+var callStrings = map[string]string{"split": "two strings", "classify": "a string and a classifier's name"}
 
 // callType is the type of the value a function gives.
 func callType(name string) termType {
@@ -1302,7 +1306,7 @@ func callType(name string) termType {
 		return tyString
 	case "split":
 		return tyStrings
-	case "tags", "classes", "tag", "classify":
+	case "tags", "classes", "classify":
 		return tyTags
 	}
 	return tySpan
@@ -1517,7 +1521,8 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 				return
 			}
 			if p.Kind == "constant" {
-				if msg := expectedProblem(ct.of(p.Name), tyPattern); msg != "" {
+				if ty := ct.of(p.Name); ty != tyString && ty != tyPattern && ty != tyAny {
+					msg := "a pattern atom requires a string or pattern constant"
 					fault = &typeFault{msg, &domTerm{Kind: tmConst, Str: p.Name, At: p.At}}
 				}
 			}
@@ -1577,7 +1582,7 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 			if f != nil {
 				return 0, f
 			}
-			if t.Str == "split" || t.Str == "tag" || t.Str == "classify" {
+			if t.Str == "split" || t.Str == "classify" {
 				if problem := expectedProblem(ty, tyString); problem != "" {
 					return 0, &typeFault{t.Str + " takes " + callStrings[t.Str] + ": " + problem, t}
 				}
@@ -1769,7 +1774,7 @@ func openPart(t *domTerm) *domTerm {
 	case tmCapture, tmIf:
 		return t
 	case tmCall:
-		if t.Str != "split" && t.Str != "tag" {
+		if t.Str != "split" {
 			return t
 		}
 	case tmPattern:
@@ -1830,15 +1835,40 @@ func constRefs(nodes ...any) []*domTerm {
 			// alternative's tests and tags, the emission and the
 			// conditions.
 			term(x.Tags)
+			term(x.Value)
+			term(x.Image)
 			for _, a := range x.Alternatives {
+				stack := []*domExpr{a.Expr}
+				for len(stack) > 0 {
+					e := stack[len(stack)-1]
+					stack = stack[:len(stack)-1]
+					if e == nil {
+						continue
+					}
+					if e.Kind == exLiteral {
+						term(e.Value)
+					}
+					for _, end := range e.Ends {
+						term(end)
+					}
+					for _, r := range e.Requirements {
+						term(r.Value)
+					}
+					stack = append(stack, e.Inner, e.Sep)
+					stack = append(stack, e.Items...)
+				}
 				for _, t := range testsIn(a.Expr) {
 					term(t.Value)
 				}
 				term(a.Tags)
+				term(a.Value)
+				term(a.Image)
 			}
 			if x.Emit != nil {
 				for _, it := range x.Emit.Items {
 					term(it.Tags)
+					term(it.Value)
+					term(it.Image)
 				}
 			}
 			for _, c := range x.Conditions {

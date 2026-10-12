@@ -27,7 +27,7 @@ func TestRankedLinearForest(t *testing.T) {
 			tokens[i] = Token{Text: text, Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 		}
 		var stats []slotStatistics
-		res, err := d.ParseTokens(strings.Repeat("xy", n), tokens, ParseOptions{NoAutoFeatures: true, private: &privateOptions{slotAdmission: func(s slotStatistics) { stats = append(stats, s) }}})
+		res, err := d.parseStoredTokens(strings.Repeat("xy", n), tokens, ParseOptions{NoAutoFeatures: true, private: &privateOptions{slotAdmission: func(s slotStatistics) { stats = append(stats, s) }}})
 		if err != nil || res.Stages[0].Verdict != VerdictUnique || len(stats) == 0 || stats[0].groups != n || stats[0].candidateEdges != 2*n || stats[0].retainedEdges != n {
 			t.Fatalf("%d: %v %+v", n, err, stats)
 		}

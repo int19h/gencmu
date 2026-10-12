@@ -316,7 +316,7 @@ func TestTagsQueryEligibleOnce(t *testing.T) {
 	// A search for each tag set would pass this budget at the second.
 	w := countWork(t)
 	w.eligibilityRuns.most = 1
-	res, err := d.ParseTokens("a b", toks, ParseOptions{})
+	res, err := d.parseStoredTokens("a b", toks, ParseOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

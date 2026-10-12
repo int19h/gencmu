@@ -5,7 +5,60 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
+
+type resolvedRequirement struct {
+	name    string
+	negated bool
+}
+
+// decodeJSONString preserves an unpaired surrogate as invalid UTF-8.
+// Go can then reject the supplied string at its API boundary (§1).
+func decodeJSONString(raw []byte) (string, error) {
+	var decoded string
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return "", err
+	}
+	if !strings.Contains(string(raw), `\u`) {
+		return decoded, nil
+	}
+	var b strings.Builder
+	for i := 1; i < len(raw)-1; {
+		if raw[i] != '\\' {
+			b.WriteByte(raw[i])
+			i++
+			continue
+		}
+		if raw[i+1] != 'u' {
+			var s string
+			if err := json.Unmarshal(append(append([]byte{'"'}, raw[i:i+2]...), '"'), &s); err != nil {
+				return "", err
+			}
+			b.WriteString(s)
+			i += 2
+			continue
+		}
+		v, _ := strconv.ParseUint(string(raw[i+2:i+6]), 16, 16)
+		i += 6
+		c := rune(v)
+		if c >= 0xD800 && c <= 0xDBFF && i+6 <= len(raw)-1 && raw[i] == '\\' && raw[i+1] == 'u' {
+			w, _ := strconv.ParseUint(string(raw[i+2:i+6]), 16, 16)
+			if w >= 0xDC00 && w <= 0xDFFF {
+				c = utf16.DecodeRune(c, rune(w))
+				i += 6
+			}
+		}
+		if c >= 0xD800 && c <= 0xDFFF {
+			b.WriteByte(byte(0xE0 | (c >> 12)))
+			b.WriteByte(byte(0x80 | ((c >> 6) & 0x3F)))
+			b.WriteByte(byte(0x80 | (c & 0x3F)))
+		} else {
+			b.WriteRune(c)
+		}
+	}
+	return b.String(), nil
+}
 
 // Methods keep their receiver in Items[0] internally. The DOM writes it
 // separately, as engine §9 requires.

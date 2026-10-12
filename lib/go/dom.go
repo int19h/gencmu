@@ -69,7 +69,6 @@ type domRule struct {
 	Alternatives     []*domAlt
 	Emit             *domEmit
 	Conditions       []*domCond
-	Opaque           bool // %opaque: its constituents are opaque parts, which sound ? and show their text (engine §11)
 	Erased           bool
 	At               [2]int
 }
@@ -133,12 +132,12 @@ type tagRequirement struct {
 
 // testOps are the comparators of a test in a body (engine §2): the two
 // sound tests and the four tag tests.
-var testOps = map[string]bool{"=": true, "≠": true, "⊇": true, "⊉": true, "∩=∅": true, "∩≠∅": true}
+var testOps = map[string]bool{"=": true, "≠": true, "tags": true}
 
-// isSoundTest says whether a test's comparator is a sound test, whose
+// isValueTest says whether a test's comparator is a sound test, whose
 // value is a string, rather than a tag test, whose value is a tag set
 // (engine §2).
-func isSoundTest(op string) bool {
+func isValueTest(op string) bool {
 	return op == "=" || op == "≠"
 }
 
@@ -1124,8 +1123,14 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		}
 		e := &domExpr{Kind: exTest, Op: op, Inner: inner}
 		if op == "tags" {
+			if o["value"] != nil {
+				return nil, fmt.Errorf("a tag test has no value member")
+			}
 			e.Requirements, err = decodeRequirements(o["requirements"], depth+1)
 		} else {
+			if o["requirements"] != nil {
+				return nil, fmt.Errorf("a value test has no requirement member")
+			}
 			e.Value, err = decodeTermAt(o["value"], depth+1)
 		}
 		return e, err

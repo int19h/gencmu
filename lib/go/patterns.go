@@ -167,6 +167,26 @@ func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, 
 		return nil, fmt.Errorf("a malformed pattern")
 	}
 	p := &domPattern{}
+	for _, kind := range []string{"literal", "range", "wildcard"} {
+		if raw, ok := o[kind]; ok {
+			p.Kind = kind
+			p.At, err = decodePosition(o["at"])
+			if err != nil {
+				return nil, err
+			}
+			switch kind {
+			case "literal":
+				p.Value, err = decodeTermAt(raw, depth+1)
+			case "range":
+				p.Ends, err = decodeStringRange(raw, depth+1)
+			case "wildcard":
+				if !isTrue(raw) {
+					err = fmt.Errorf("wildcard must be true")
+				}
+			}
+			return p, err
+		}
+	}
 	for _, k := range []string{"name", "terminal", "constant"} {
 		if v, ok := o[k]; ok {
 			p.Kind = k
@@ -528,7 +548,7 @@ func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
 }
 func patternLeafTest(p *domPattern, sound string, tags *tagset) bool {
 	v := p.Value
-	if isSoundTest(p.Op) {
+	if isValueTest(p.Op) {
 		return (sound == v.Str) == (p.Op == "=")
 	}
 
@@ -578,7 +598,7 @@ func (m *patternMachine) node(name string, children int, terminal, sound string,
 		case "terminal":
 			holds = tags != nil && terminal == p.Name
 		case "test":
-			holds = tags != nil && terminal == p.Items[0].Name && patternLeafTest(p, sound, tags)
+			holds = tags != nil && patternLeafMatches(p, terminal, sound, tags)
 		case "children":
 			n := m.machines[pr.machine]
 			holds = s.relations[pr.machine][n.start].Bit(n.end) != 0
@@ -804,8 +824,24 @@ func patternLiteral(v *constValue) *domTerm {
 	return &domTerm{Kind: tmUnion, Items: items}
 }
 func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int) (*domPattern, *Error) {
+	if p.Kind == "test" {
+		base := p
+		for base.Kind == "test" {
+			base = base.Items[0]
+		}
+		if base.Kind == "constant" && g.constants[base.Name].value.ty != tyString {
+			return nil, g.constError(doc, base.At, "a tested pattern constant must resolve to a string")
+		}
+	}
 	if p.Kind == "constant" {
-		return g.constants[p.Name].value.pattern, nil
+		v := g.constants[p.Name].value
+		if v.ty == tyPattern {
+			return v.pattern, nil
+		}
+		if v.ty == tyString {
+			return &domPattern{Kind: "terminal", Name: stringTerminal(v.s, g.uni), At: p.At}, nil
+		}
+		return nil, g.constError(doc, p.At, "a pattern atom requires a string or pattern")
 	}
 	n := *p
 	n.Items = make([]*domPattern, len(p.Items))
@@ -816,12 +852,43 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		}
 		n.Items[i] = v
 	}
-	if p.Kind == "test" {
+	if p.Kind == "literal" {
 		v, err := g.evaluateClosed(doc, p.Value, at)
 		if err != nil {
 			return nil, err
 		}
-		if isSoundTest(p.Op) {
+		n.Kind, n.Name, n.Value = "terminal", stringTerminal(v.s, g.uni), nil
+	}
+	if p.Kind == "wildcard" {
+		n.Kind, n.Name = "terminal", "_"
+	}
+	if p.Kind == "range" {
+		var ends [2]string
+		for i, t := range p.Ends {
+			v, err := g.evaluateClosed(doc, t, at)
+			if err != nil {
+				return nil, err
+			}
+			ends[i] = v.s
+		}
+		n.Kind, n.Name = "terminal", stringTerminal(ends[0], g.uni)+".."+stringTerminal(ends[1], g.uni)
+	}
+	if p.Kind == "test" && p.Op == "tags" {
+		n.Requirements = nil
+		for _, r := range p.Requirements {
+			v, err := g.evaluateClosed(doc, r.Value, at)
+			if err != nil {
+				return nil, err
+			}
+			n.Requirements = append(n.Requirements, tagRequirement{Negated: r.Negated, Value: patternLiteral(v)})
+		}
+	}
+	if p.Kind == "test" && p.Op != "tags" {
+		v, err := g.evaluateClosed(doc, p.Value, at)
+		if err != nil {
+			return nil, err
+		}
+		if isValueTest(p.Op) {
 			if msg := soundProblem(v.s, g.uni); msg != "" {
 				return nil, g.faultError(doc, p.Value, at, msg)
 			}
@@ -847,23 +914,12 @@ func (r *resolver) patternValue(t *domTerm) *domPattern {
 	}
 }
 func (r *resolver) pattern(p *domPattern) *domPattern {
-	if p.Kind == "constant" {
-		return r.constants[p.Name].value.pattern
+	g := &stageGrammar{constants: r.constants, uni: r.uni}
+	n, err := g.resolvePatternValue("", p, [2]int{})
+	if err != nil {
+		panic(err)
 	}
-	n := *p
-	n.Items = make([]*domPattern, len(p.Items))
-	for i, c := range p.Items {
-		n.Items[i] = r.pattern(c)
-	}
-	if p.Kind == "test" {
-		g := &stageGrammar{constants: r.constants, uni: r.uni}
-		v, err := g.evaluateClosed("", p.Value, [2]int{})
-		if err != nil {
-			panic(err)
-		}
-		n.Value = patternLiteral(v)
-	}
-	return &n
+	return n
 }
 
 func (r *recognizer) preparePatterns() {

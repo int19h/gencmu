@@ -66,7 +66,7 @@ func (ps *parseState) characterTokens() []Token {
 		if ps.uni.isWhiteSpace(c) {
 			tags = append(tags, "_White_Space")
 		}
-		toks[i] = Token{Text: string(c), Value: string(c), Image: string(c), Label: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+		toks[i] = Token{Text: string(c), Value: string(c), Image: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 	}
 	return toks
 }
@@ -180,6 +180,17 @@ func (run *stageRun) testHolds(t *symTest, a, b int, tags *tagset) bool {
 // testHoldsOf says whether a test holds of a symbol whose canonical sound
 // is the string that soundIs accepts, and whose own tags are tags (§4).
 func testHoldsOf(t *symTest, soundIs func(string) bool, tags *tagset) bool {
+	if t.other != nil && !testHoldsOf(t.other, soundIs, tags) {
+		return false
+	}
+	if t.op == "tags" {
+		for _, r := range t.requirements {
+			if tags.has(r.name) == r.negated {
+				return false
+			}
+		}
+		return true
+	}
 	switch t.op {
 	case "=", "≠":
 		return soundIs(t.sound) == (t.op == "=")
@@ -404,9 +415,9 @@ func writtenSymbol(name string, t *symTest) string {
 	return name + t.written
 }
 
-// elidedSound is the string of an elided terminator's = test, which a
+// elidedValue is the string of an elided terminator's = test, which a
 // restored token sounds like (§7), or "".
-func elidedSound(t *symTest) string {
+func elidedValue(t *symTest) string {
 	if t == nil || t.op != "=" {
 		return ""
 	}

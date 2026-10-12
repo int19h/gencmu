@@ -42,9 +42,10 @@ func elidableHelpers(g *lowered) ([]bool, bool) {
 
 // Where an elidable optional comes next after an item.
 const (
-	nextNone        = iota // no elidable optional comes next
-	nextAlone              // one comes next, and it has no constituent
-	nextConstituent        // one comes next, after the node of its constituent Y
+	nextNone            = iota // no elidable optional comes next
+	nextAlone                  // one comes next, and it has no constituent
+	nextConstituent            // one comes next, after the node of its constituent Y
+	nextLogicalOptional        // the preceding optional expanded captures in place
 )
 
 // eligibility holds the states of the items that some queried items rest on.
@@ -85,6 +86,9 @@ func (e *eligibility) next(it *item) int {
 	d := int(it.dot)
 	if d >= len(rhs) || rhs[d].term || !e.helpers[rhs[d].id] {
 		return nextNone
+	}
+	if it.prod.precedingLogicalOptional(d) != nil {
+		return nextLogicalOptional
 	}
 	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs) {
 		return nextAlone
@@ -182,6 +186,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 			}
 		}
 	}
+	logical := newLogicalPriority(r, reads)
 	n := len(e.order)
 	next := make([]int, n)
 	for i, it := range e.order {
@@ -234,6 +239,14 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 						if end, ok := further[b]; !ok || end < it.set {
 							p = true
 						}
+					}
+				}
+			}
+			if a && next[x] == nextLogicalOptional {
+				for _, prefix := range logical.prefixes(it) {
+					if E[e.index[prefix]] && logical.permits(it, prefix) {
+						p = true
+						break
 					}
 				}
 			}

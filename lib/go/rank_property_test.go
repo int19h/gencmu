@@ -679,7 +679,7 @@ func TestRankingProperty(t *testing.T) {
 			if r.Intn(10) >= 6 {
 				sounds[i] = "y"
 			}
-			toks[i] = Token{Text: "x", Phonemes: sounds[i], Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+			toks[i] = Token{Text: "x", Value: sounds[i], Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 			texts = append(texts, "x")
 			tagMaps[i] = tags
 		}

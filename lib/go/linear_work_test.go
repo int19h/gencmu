@@ -16,15 +16,15 @@ func silentRun(t *testing.T, n int) *stageRun {
 	for i := range toks {
 		toks[i] = Token{Text: "x", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 	}
-	toks[n-1].Phonemes = "a"
+	toks[n-1].Value = "a"
 	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
 	return ps.newRun("main", d.stages[0], toks)
 }
 
-// TestSilentSoundWork: a sound test and phonemes() over a span of tokens
+// TestSilentValueWork: a sound test and phonemes() over a span of tokens
 // without phonemes skip them, so their work is bounded by the sound, not by
 // the span (engine §4, §5).
-func TestSilentSoundWork(t *testing.T) {
+func TestSilentValueWork(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		run := silentRun(t, n)
 		// A walk of the silent tokens would cost n at each of n starts.
@@ -156,7 +156,7 @@ func TestEmissionLinear(t *testing.T) {
 		}
 		text := strings.TrimSpace(strings.Repeat("a ", n))
 		parse := func() {
-			res, err := d.ParseTokens(text, toks, ParseOptions{})
+			res, err := d.parseStoredTokens(text, toks, ParseOptions{})
 			if err != nil || !res.OK || len(res.Stages[0].Output) != 4*n {
 				t.Fatalf("%d captures: %v", n, err)
 			}

@@ -279,7 +279,7 @@ func (run *stageRun) closeArena(g *lowered) *closeArena {
 func (r *recognizer) closeRecord(terminal string, at int, test *symTest) Restoration {
 	record := Restoration{Terminal: terminal, At: at, Source: r.run.emptySource(at)}
 	if test != nil && test.op == "=" {
-		record.Sound, record.Tested = test.sound, true
+		record.Value, record.Tested = test.sound, true
 	}
 	return record
 }

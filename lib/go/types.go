@@ -17,14 +17,22 @@ type Token struct {
 	Text       string
 	Value      string
 	Image      string
-	Phonemes   string
-	Label      string
 	Tags       []string
 	Span       [2]int
 	Source     [2]int
 	InsertedBy string
 	Before     []Token
 	After      []Token
+}
+
+// InputToken supplies stored strings before the first grammar stage.
+// A nil string pointer uses Text. A non-nil pointer preserves an empty string.
+type InputToken struct {
+	Text          string
+	Value, Image  *string
+	Tags          []string
+	Span, Source  [2]int
+	Before, After []InputToken
 }
 
 // Node kinds.
@@ -46,6 +54,7 @@ type Node struct {
 	Span     [2]int
 	Source   [2]int
 	Tags     []string
+	Value    *string
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
 	// has one, which elision-only gives the restored token as its phonemes
@@ -136,7 +145,7 @@ type Restoration struct {
 	Terminal string
 	At       int
 	Source   [2]int
-	Sound    string
+	Value    string
 	// Tested says that the terminator has an = test, so Sound is its
 	// saved sound and the output shows it, even where it is empty.
 	Tested bool

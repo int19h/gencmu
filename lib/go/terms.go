@@ -284,7 +284,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure, lz.closes)), nil, term)
 		return true
 	case p.implicit && !lz.parent:
-		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
+		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[p.inheritIndex]).tags]
 	default:
 		lz.tags = r.run.ps.in.empty()
 	}
@@ -295,6 +295,13 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	ev, t := f.ev, f.t
 	in := ev.in()
 	switch t.Kind {
+	case tmInterpolate:
+		v, err := ev.g.stage.evaluateClosed("", t, [2]int{})
+		if err != nil {
+			panic(&parseFailure{message: err.Message})
+		}
+		w.endTerm(value{kind: vString, s: v.s})
+		return nil
 	case tmCapture:
 		w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t))})
 		return nil
@@ -303,15 +310,6 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		return nil
 	case tmTag:
 		w.endSet(in.single(t.Str))
-		return nil
-	case tmRange:
-		ps := ev.run.ps
-		set := ps.ranges[t.Range]
-		if set == nil {
-			set = in.fromList(rangeTags(t.Range, ps.uni.isMark))
-			ps.ranges[t.Range] = set
-		}
-		w.endSet(set)
 		return nil
 	case tmEmptySet:
 		w.endSet(in.empty())
@@ -402,18 +400,6 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 				}
 				w.endSet(in.fromList(splitString(f.v.s, delimiter)))
 			}
-			return nil
-		case "tag":
-			if f.at == 0 {
-				f.at = 1
-				w.push(ev, nil, t.Items[0])
-				return nil
-			}
-			name := toStr(w.v)
-			if !isName(name) {
-				panic(&parseFailure{message: "tag(" + strconv.Quote(name) + "): the string is not a name"})
-			}
-			w.endSet(in.single(name))
 			return nil
 		case "tags":
 			if f.at == 0 {
@@ -912,7 +898,8 @@ func (run *stageRun) spanContent(s spanVal) string {
 		}
 		t := &run.toks[i]
 		field(t.Text)
-		field(t.Phonemes)
+		field(t.Value)
+		field(t.Image)
 		field(run.tagsets[i].key)
 		// Where the token begins and ends in that text, which text() of a
 		// part of the span reads.
