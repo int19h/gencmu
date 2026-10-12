@@ -33,9 +33,15 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, `_White_Space`, or `_Any`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, combining marks, and private-use scalars. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks, and private-use scalars. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
-A nonspacing mark has general category Mn in the configured Unicode table. U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
+A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
+
+A private-use scalar lies in three fixed ranges. These are U+E000 to U+F8FF, U+F0000 to U+FFFFD, and U+100000 to U+10FFFD. Neither predicate depends on the configured Unicode table.
+
+A nonspacing mark has general category Mn in the configured Unicode table. Other mark categories and combining classes do not require escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
+
+U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
 
 Stage zero is named `input`. It supplies one token for each scalar `c` at position `i`. `span` and `source` are `[i,i+1)`, and `text`, `value`, and `image` are `c`. Its stored tags are its general category, major category, `_Any`, and applicable `_White_Space`. Stage zero is implicit and adds no executed grammar-stage result.
 
@@ -107,7 +113,9 @@ A stage also has constants. A constant is a named value that terms and condition
 
 An item states a constant in one of two ways. `%const $NAME t` (`define`) defines the constant. It is an error if a constant of that name was defined before it in the stage. `%redefine-const $NAME t` (`redefine`) redefines the constant value. It is an error if no constant of that name was defined before it in the stage.
 
-`t` is a closed term (§10). Every constant reference binds to its name's final definition in the stitched stage. Other names can refer forward. Inside `%redefine-const $X t`, `$X` binds to X's immediately preceding definition. This lexical exception applies inside nested patterns, but never through another referenced constant.
+`t` is a closed term (§10). Every user constant reference binds to its name's final definition in the stitched stage. Other names can refer forward. Inside `%redefine-const $X t`, `$X` binds to X's immediately preceding definition. This lexical exception applies inside nested patterns, but never through another referenced constant.
+
+Engine scalar references from §9.1 resolve directly to their scalar strings. They need no declaration and never enter the user constant version graph. Declarations cannot use their names. This rule covers references in bodies, patterns, recipes, ranges, and interpolation.
 
 Each declaration creates an immutable version `(name, declaration-index)`. A redefinition records its predecessor. After stitching, the loader records each name's final version. It resolves self-references in a redefinition to its predecessor and all other references to final versions. These resolved edges never change during evaluation.
 
@@ -115,7 +123,7 @@ The loader builds a directed graph of dependencies between versions. It rejects 
 
 A predecessor remains an expression, not a snapshot of earlier values. Its other references use final definitions. Thus after `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`. Redefining A as `$B ∪ C` instead creates a cycle between final A and B.
 
-After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. A constant that the stage never defines is an error there. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
+After the loader stitches the stage, it makes sure that each rule definition that holds a constant meets the requirements of this section. An undefined user constant is an error there. Valid engine scalar constants remain predefined strings. The types of the terms, conditions and tests that hold constants must agree (§9, §10).
 
 A constant in a value test must resolve to a string (§9). The requirements of §9 that depend on the value of a constant apply there too. The loader applies these requirements to every definition of the stage. That includes a definition that a later `%redefine-rule` replaces, although its alternatives are then gone.
 
@@ -1044,7 +1052,7 @@ A dollar sign starting neither interpolation nor `$$` is a lexical document erro
 
 Whitespace and comments separate tokens but add no grammar node. Punctuation separates adjacent names. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
-Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, combining mark, or private-use scalar uses engine-constant interpolation. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, or private-use scalar uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins their canonical string literals with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1350,7 +1358,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has a tag or tag-terminal `ref` outside the identifier rules of §1, or an engine tag introduction without forwarded provenance.
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
 - Its wildcard is not `wildcard:true`, or it uses a property constructor instead of a stored engine-tag reference.
-- It has a constant definition or a `const` term whose name is not a name that begins with `A` to `Z`.
+- It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.
 - Its constant value is not closed, or its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
 - It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`, or whose class is not a name that begins with `A` to `Z`.

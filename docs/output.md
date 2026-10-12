@@ -222,6 +222,8 @@ Terms have these forms:
 
 `STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
 
+Engine constants resolve directly as scalar strings outside the user constant version graph (engine §2).
+
 `const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
