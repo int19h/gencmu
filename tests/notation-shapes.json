@@ -347,6 +347,13 @@
       "(q [t r])",
       "(q s)",
       "rejected"
+    ],
+    "directive-method": [
+      "rejected",
+      "rejected",
+      "(q [t r])",
+      "(q s)",
+      "rejected"
     ]
   },
   "extraParts": [

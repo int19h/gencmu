@@ -1,0 +1,10 @@
+{
+  "description": "N29 reads directive names as separate operands and excludes include paths from method receivers and ranges. Syntax errors precede reader errors.",
+  "document": "```jbogenbau\n%include \"a.md\".x\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

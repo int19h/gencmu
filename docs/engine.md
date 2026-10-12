@@ -1193,7 +1193,15 @@ pattern-path = ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
 directive = directive-name {directive-argument}
 directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
                | "%include" | "%features" | "%ambiguity-resolution"
-directive-argument = term-atom | include-path | "#" | "_"
+directive-argument = argument-word | argument-string | argument-tag | argument-term
+argument-word = name
+argument-string = string-literal | include-path
+argument-tag = engine-tag-token | range
+argument-term = directive-method | capture-reference | constant-reference | "∅"
+              | pattern-literal | "(" term ")" | "#" | "_"
+directive-method = directive-receiver method-selector {method-selector}
+directive-receiver = tag | lowercase-name | string-literal | constant-reference | range
+                   | capture-reference | "∅" | pattern-literal | "(" term ")"
 constant-definition = ("%const" | "%redefine-const") constant-reference term
 classifier = "%classifier" name {classifier-entry}
 classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name | engine-tag-token)
@@ -1238,7 +1246,13 @@ Recognition admits captures of groups, optionals, repeats, empty expressions, an
 
 Recognition admits arbitrary test operands, grouped terms included, so the reader can report an invalid operand at that operand. Pattern names can carry repeated or reversed tests too. Recognition also admits ranges in terms, nonclosed constant values and implications, and methods with invalid names, receivers, or arguments. Section 9.3 imposes their type and position rules.
 
-Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment. Directive recognition admits every term atom, include paths, `#`, and `_`. It does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1. Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
+Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment.
+
+Directive recognition reads each name as its own operand. It admits methods, references, grouped terms, patterns, ranges, include paths, `#`, and `_`. It admits no bare tag run as one operand or method receiver. A grouped term can still be a receiver.
+
+An include path is not a method receiver. It does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1.
+
+Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
 
 Empty flags or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees supplied by another bootstrap. Property terminals have no lexical form and do not enter this recognition grammar.
 
@@ -1298,7 +1312,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `argument-word` | One name token | Name string |
 | `argument-string` | One quoted operand | Only the first `%include` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
-| `argument-term` | One term atom, `#`, or `_` | Invalid operand for validation at the directive |
+| `argument-term` | One directive method, reference, empty set, pattern, grouped term, `#`, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` | Unresolved STRINGTERM |

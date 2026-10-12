@@ -232,7 +232,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   Constant
 
 %rule string
-  String | Include-Path
+  String
 
 %rule implication
   {any-of / "⟹"}
@@ -315,7 +315,10 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   Engine-Tag≠"_" | range
 
 %rule argument-term
-  method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
+  directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
+
+%rule directive-method
+  (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 
 %rule constant-definition
   constant-definer constant-reference term
@@ -345,7 +348,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   KW-IMPLIES union "⟹" union
 ```
 
-<details><summary>Railroad diagrams of the 111 rules from <code>text</code> to <code>implication-declaration</code></summary>
+<details><summary>Railroad diagrams of the 112 rules from <code>text</code> to <code>implication-declaration</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/notation/syntax/statement.svg" alt="Railroad diagram of the rule statement"></p>
 <p><img src="../../docs/diagrams/notation/syntax/rule.svg" alt="Railroad diagram of the rule rule"></p>
@@ -448,6 +451,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
 <p><img src="../../docs/diagrams/notation/syntax/argument-string.svg" alt="Railroad diagram of the rule argument-string"></p>
 <p><img src="../../docs/diagrams/notation/syntax/argument-tag.svg" alt="Railroad diagram of the rule argument-tag"></p>
 <p><img src="../../docs/diagrams/notation/syntax/argument-term.svg" alt="Railroad diagram of the rule argument-term"></p>
+<p><img src="../../docs/diagrams/notation/syntax/directive-method.svg" alt="Railroad diagram of the rule directive-method"></p>
 <p><img src="../../docs/diagrams/notation/syntax/constant-definition.svg" alt="Railroad diagram of the rule constant-definition"></p>
 <p><img src="../../docs/diagrams/notation/syntax/constant-definer.svg" alt="Railroad diagram of the rule constant-definer"></p>
 <p><img src="../../docs/diagrams/notation/syntax/classifier.svg" alt="Railroad diagram of the rule classifier"></p>

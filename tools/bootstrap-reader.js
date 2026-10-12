@@ -333,9 +333,9 @@ class Parser {
     while (this.peek() && !this.kindAt().startsWith("%") && this.kindAt() !== "keyword") {
       const at = this.index;
       if (this.is("identifier") && !this.is(".", 1)) children.push(this.leaf("argument-word"));
-      else if ((this.is("string") || this.is("include-path")) && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("argument-string"));
+      else if (this.is("include-path") || this.is("string") && !this.is(".", 1) && !this.is("..", 1)) children.push(this.leaf("argument-string"));
       else if (this.is("#") || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
-      else children.push(this.node("argument-term", at, [(yield this.termAtom())]));
+      else children.push(this.node("argument-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
     }
     return this.node("directive", start, children);
   }
@@ -713,7 +713,7 @@ class Parser {
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
       case "@": base = yield this.patternLiteral(); break;
-      case "string": case "include-path": base = this.leaf("string"); break;
+      case "string": base = this.leaf("string"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().text));
