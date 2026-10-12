@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readDocument } from "./bootstrap-reader.js";
+import fs from "node:fs";
+import { Loader } from "../lib/js/src/dialect.js";
 
 const read = (source) => readDocument(`\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`, "case.md");
 
@@ -85,3 +87,72 @@ test("ranked syntax diagnostics follow the failing token and group", () => {
     return true;
   });
 });
+
+test("the bootstrap and engine readers agree on the notation documents", () => {
+  const loader = notationLoader();
+  for (const file of ["notation/lexical.md", "notation/syntax.md", "dialects/notation.md"]) {
+    const text = fs.readFileSync(new URL(`../grammars/${file}`, import.meta.url), "utf8");
+    assert.deepEqual(loader.readDocument(text, file), readDocument(text, file), file);
+  }
+});
+
+test("both readers admit every new family of written forms", () => {
+  const loader = notationLoader();
+  for (const source of [
+    "%features Cbm Other", '%include "a$b.md"',
+    '%rule r "a"..$_007A', '%rule r _<¬_Lu>≠"x"',
+    '%rule r := "v" :- "i" | "a" %emits',
+    '%rule r := $.emitted.image :- "x" | _ %emits',
+    '%rule r A %emits ε :: ∅ := "x"',
+    '%rule r $a:A $b:B %emits ($a) $b :- $b.image',
+    '%rule r $x:A %conditions $x.value = "X,Y", $x.image ≠ ""',
+    '%rule r $x:A %conditions $x.without-elision.onward.begins(next)',
+    '%rule r $x:A %conditions $x ≅ @A<B>="x"',
+    '%rule r $x:A %conditions $x ≅ @(A B)',
+    '%rule r $x:A %conditions $x ≅ @(A @(B C))',
+    '%const $S "a$(_0301)$$"', '%const $S "x".split("y")',
+    '%classifier words "a" "$(KEY)" ∈ AB', '%implies A B ⟹ C D',
+    '%rule r :: ($x ⟹ _Lu) ∩ $x.tags | $x:A',
+    '%rule r A %erased', '%rule r (A ≻ B) #',
+  ]) {
+    const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
+    assert.deepEqual(loader.readDocument(document, "case.md"), readDocument(document, "case.md"), source);
+  }
+});
+
+test("both readers reject invalid forms at the same specified position", () => {
+  const loader = notationLoader();
+  for (const source of [
+    "%rule r $X:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
+    "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const $_0041 "x"',
+    '%rule r A := ∪ "a"', '%include "a.md" "b$c.md"',
+    '%rule r $x:A %conditions $x ≅ @(sumti="x")',
+    '%rule r $x:A %conditions $x ≅ @(sumti<B><C>)',
+    '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
+    "%rule r A<$_0041>", "%rule r :: _Lu | A", "%rule r :: ∩ Word BY | A",
+    "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
+    '%include "a$b".value', '%rule r $x:A := ($x).value',
+    '%rule r $x:A %conditions $x.unknown = "x"',
+    '%rule r "a$b"', '%rule r "a\\b"', "%bad A %prefer r A",
+    "%rule r A ≻", "%rule r A ≻ B | C", "%rule r A | B ≻ C",
+  ]) {
+    const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
+    const errorOf = (reader) => {
+      let error;
+      assert.throws(() => reader(document, "case.md"), (found) => {
+        error = { kind: found.kind, ...found.where };
+        return true;
+      }, source);
+      return error;
+    };
+    assert.deepEqual(errorOf(loader.readDocument.bind(loader)), errorOf(readDocument), source);
+  }
+});
+
+function notationLoader() {
+  return new Loader((file) => {
+    if (file === "compiled.json") return undefined;
+    const path = new URL(`../grammars/${file}`, import.meta.url);
+    return fs.existsSync(path) ? fs.readFileSync(path, "utf8") : undefined;
+  });
+}

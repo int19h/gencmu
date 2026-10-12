@@ -24,7 +24,7 @@ export const LINE_LIMIT = 100;
  * @returns {boolean}
  */
 export function isSingleSymbol(expr) {
-  return typeof expr.ref === "string" || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
+  return typeof expr.ref === "string" || "literal" in expr || "wildcard" in expr || "terminal" in expr || "range" in expr || "property" in expr || "test" in expr || expr.empty === true;
 }
 
 /**
@@ -86,7 +86,7 @@ export function eligibleRules(markdown, dom, path) {
  */
 function scanBody(chars, start) {
   const isSpace = (/** @type {string | undefined} */ c) => c !== undefined && /\p{White_Space}/u.test(c);
-  const isNameChar = (/** @type {string | undefined} */ c) => c !== undefined && /[A-Za-z0-9-]/.test(c);
+  const isNameChar = (/** @type {string | undefined} */ c) => c !== undefined && /[A-Za-z0-9_-]/.test(c);
   let i = start + 1;
   while (isNameChar(chars[i])) i++;
   /** @type {(at: number) => number} */
@@ -110,7 +110,7 @@ function scanBody(chars, start) {
   let depth = 0;
   for (;;) {
     i = skipLayout(i);
-    if (i >= chars.length || (depth === 0 && chars[i] === "%")) break;
+    if (i >= chars.length || (depth === 0 && (chars[i] === "%" || chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])))) break;
     if (depth === 0 && chars[i] === "|") {
       if (current) alternatives.push(current);
       current = null;
@@ -119,13 +119,11 @@ function scanBody(chars, start) {
     }
     const from = i;
     const c = chars[i];
-    if (c === "'" || c === "\"") {
+    if (c === "\"") {
       // A character tag, a property or a string, with its escapes.
       i++;
-      while (i < chars.length && chars[i] !== c) i += chars[i] === "\\" ? 2 : 1;
+      while (i < chars.length && chars[i] !== c) i++;
       i++;
-    } else if (c === "/") {
-      i += 3;
     } else {
       if (c === "(" || c === "[" || c === "<") depth++;
       else if (c === ")" || c === "]" || c === ">") depth--;

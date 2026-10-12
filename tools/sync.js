@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
+import { sourceIncludeEdges } from "./grammar-sources.js";
 import { includeLinks } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
@@ -43,6 +44,9 @@ const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/gra
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
 const stale = [];
+// This phase migrates the notation. Language grammar execution resumes after their migration.
+const notationDocument = file => file.startsWith("notation/") || file === "dialects/notation.md";
+const includeEdges = sourceIncludeEdges(root);
 
 function write(relative, content) {
   const file = path.join(root, relative);
@@ -129,14 +133,14 @@ const reader = loaderWith(bootstrapText);
 /** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
 const read = new Map();
 for (const file of grammarFiles()) {
-  if (!file.endsWith(".md")) continue;
+  if (!file.endsWith(".md") || !notationDocument(file)) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
 }
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each dialect that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => notationDocument(file) && file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
 for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
@@ -169,7 +173,7 @@ if (strays.length) {
 const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
 for (const file of grammarFiles()) {
-  if (!file.endsWith(".md")) continue;
+  if (!file.endsWith(".md") || !notationDocument(file)) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
@@ -208,7 +212,8 @@ if (parserMissing && check) {
   console.warn(`the Markdown of the documents is not checked: ${parserMissing}`);
 } else {
   const unlinked = [];
-  for (const [file, { dom }] of Object.entries(documents)) {
+  for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
+    const dom = includeEdges.get(file);
     const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
       if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
@@ -231,7 +236,7 @@ if (parserMissing && check) {
     process.exit(1);
   }
   // The DOMs and the dialects of the sources, as this run reads them.
-  const unpinned = quotedTextProblems(root, { loader: loaderWith(bootstrapText), doms: new Map(Object.entries(documents).map(([file, { dom }]) => [file, dom])) });
+  const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));
     process.exit(1);
@@ -250,7 +255,7 @@ const existing = (relative) => {
   return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
 };
 for (const relative of existing(DIAGRAMS)) {
-  if (diagrams.has(relative)) continue;
+  if (!relative.startsWith(`${DIAGRAMS}/notation/`) || diagrams.has(relative)) continue;
   stale.push(relative);
   if (check) continue;
   fs.unlinkSync(path.join(root, relative));

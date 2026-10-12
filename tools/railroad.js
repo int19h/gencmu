@@ -396,9 +396,12 @@ export function repeat(item, separator, note) {
  * @returns {string}
  */
 function symbolText(expr) {
+  if (expr.test) return symbolText(expr.expr) + testText(expr);
+  if (expr.literal) return formatTerm(expr.literal);
+  if (expr.wildcard) return "_";
   if (typeof expr.ref === "string") return expr.ref;
   if ("terminal" in expr) return /^[a-z]/.test(expr.terminal) ? `~${expr.terminal}` : expr.terminal;
-  if ("range" in expr) return `${expr.range[0]}..${expr.range[1]}`;
+  if ("range" in expr) return expr.range.map(formatTerm).join("..");
   if ("property" in expr) return `'\\p{${expr.property}}'`;
   throw new Error(`not a symbol: ${JSON.stringify(expr)}`);
 }
@@ -409,7 +412,7 @@ function symbolText(expr) {
  * "Names and terminals").
  * @param {any} expr
  */
-const isTerminal = (expr) => typeof expr.ref !== "string" || /^[A-Z]/.test(expr.ref);
+const isTerminal = (expr) => expr.test ? isTerminal(expr.expr) : typeof expr.ref !== "string" || /^[A-Z_]/.test(expr.ref);
 
 /**
  * A test as the notation writes it after its symbol, such as `="la"` or
@@ -418,6 +421,7 @@ const isTerminal = (expr) => typeof expr.ref !== "string" || /^[A-Z]/.test(expr.
  * @returns {string}
  */
 export function testText(expr) {
+  if (expr.test === "tags") return "<" + expr.requirements.map(requirement => (requirement.negated ? "¬" : "") + formatTerm(requirement.value)).join(" ") + ">";
   const value = formatTerm(expr.value);
   const set = ["union", "intersection", "difference", "if"].some((key) => key in expr.value) ? `(${value})` : value;
   if (expr.test === "∩=∅" || expr.test === "∩≠∅") return `∩${set}${expr.test.slice(1)}`;

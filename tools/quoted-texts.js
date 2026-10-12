@@ -746,7 +746,7 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  *   and UNCHECKED
  * @returns {string[]}
  */
-export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED } = {}) {
+export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED, runCases = true } = {}) {
   // The loader of the sources, made when first needed.
   const sources = { readDocument: (/** @type {string} */ markdown, /** @type {string} */ file) => sourcesLoader().readDocument(markdown, file) };
   const sourcesLoader = () => (loader ??= sourceLoader(base));
@@ -859,7 +859,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
           if (!c) problem = `${place}: no case has the id ${id}`;
           else if (role !== "words" && !holds(c, text)) problem = `${place}: neither the text nor the words of ${id} hold \`${text}\``;
           else {
-            const why = roleProblem(c, role, text, loaded, sourcesLoader());
+            const why = runCases ? roleProblem(c, role, text, loaded, sourcesLoader()) : role === "reject" && c.expect !== "reject" ? "the stored case accepts the text" : null;
             if (why) problem = `${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : role === "words" ? "words" : `one ${role}`}: ${why}`;
           }
           judged.set(key, problem);

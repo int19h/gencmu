@@ -29,7 +29,7 @@
   //   the synthetic tokens' tags inside the exact span of R behind a span to
   //   the union of its tokens' tags.
   // - "F26:lost" loses an error of the grammar that the check meets, and
-  //   "F26:relabel" reports it as elision-witness-lost, which the runner
+  //   "F26:reimage" reports it as elision-witness-lost, which the runner
   //   invariant of tests/README.md fails.
   // - "F27:order" reverses the records at one position, and "F27:bare" shows
   //   a read of a synthetic token as a token.
@@ -61,7 +61,7 @@
   // finds only some cycles gives the same public result, because the
   // recursion meets the same rule and span one level deeper, and only the
   // message differs, which no pattern pins. The switch ends the recursion at
-  // a bound, with an error that is not the library's, and faults.json labels
+  // a bound, with an error that is not the library's, and faults.json images
   // that catch "bound".
   //
   // A fault with several sites names the site where it is checked, and
@@ -153,7 +153,7 @@
    * @property {number} visits the nodes of conditions and terms that an
    *   evaluation visits, each counted before it is evaluated, also where the
    *   evaluation halts for a nested parse
-   * @property {number} soundSteps the tokens that a sound test or phonemes()
+   * @property {number} soundSteps the tokens that a sound test or value()
    *   visits
    * @property {number} tags the tags that a union of tag sets or an entry of
    *   a classifier adds to a set or copies, and those that an intersection,
@@ -246,6 +246,28 @@
   /** @import { TagSet } from "./types.js" */
 
 
+
+  /**
+   * The canonical diagnostic spelling of a scalar string (engine §9.1).
+   * @param {string} value
+   * @param {{isMark(code: number): boolean}} unicode
+   * @returns {string}
+   */
+  function stringName(value, unicode) {
+    let written = '"';
+    for (const character of value) {
+      const code = /** @type {number} */ (character.codePointAt(0));
+      if (character === "$") written += "$$";
+      else if (character === '"' || character === "\\" || code <= 0x1f ||
+          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) ||
+          (code >= 0xe000 && code <= 0xf8ff) ||
+          (code >= 0xf0000 && code <= 0xffffd) ||
+          (code >= 0x100000 && code <= 0x10fffd)) {
+        written += `$(_${code.toString(16).toUpperCase().padStart(4, "0")})`;
+      } else written += character;
+    }
+    return written + '"';
+  }
 
   /**
    * @param {Iterable<string>} [tags]
@@ -665,8 +687,8 @@
    * A token in the result JSON.
    * @typedef {object} TokenJson
    * @property {string} text
-   * @property {string} phonemes
-   * @property {string} label
+   * @property {string} value
+   * @property {string} image
    * @property {string[]} tags
    * @property {Span} [span] absent for an attached token
    * @property {Span} source
@@ -759,8 +781,8 @@
       /** @type {TokenJson} */
       const result = {
         text: current.text,
-        phonemes: current.phonemes || "",
-        label: current.label,
+        value: current.value || "",
+        image: current.image,
         tags: sortedTags(current.tags),
         ...("span" in current ? { span: /** @type {Span} */ ([current.span[0], current.span[1]]) } : {}),
         source: [current.source[0], current.source[1]],
@@ -890,15 +912,15 @@
     return json;
   }
 
-  // The tokens a node reads, for its labels.
+  // The tokens a node reads, for its images.
   /**
    * @param {import("./types.js").TokenNode} node
    * @param {Token[]} tokens
    * @returns {string}
    */
   function leafLabel(node, tokens) {
-    // Every rendering shows a token by its label (docs/output.md).
-    return tokens[node.token].label;
+    // Every rendering shows a token by its image (docs/output.md).
+    return tokens[node.token].image;
   }
 
   /**
@@ -914,7 +936,7 @@
   /**
    * A token's attachments on one line, for the token tables: `◂ ` before a
    * before-attachment and `▸ ` before an after-attachment, each with its
-   * classes and its label, and its own attachments after it in parentheses.
+   * classes and its image, and its own attachments after it in parentheses.
    * The empty string for a token with none.
    * @param {AttachedToken} token
    * @returns {string}
@@ -938,7 +960,7 @@
       if (inner !== null) {
         const [mark, attachment] = top.entries[top.next - 1];
         const classes = classesOf(attachment);
-        top.parts.push(mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.label) + (inner ? ` (${inner})` : ""));
+        top.parts.push(mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(attachment.image) + (inner ? ` (${inner})` : ""));
         inner = null;
       }
       if (top.next < top.entries.length) {
@@ -953,7 +975,7 @@
   }
 
   /**
-   * Whether a token or any of its attachments has a label with a line break.
+   * Whether a token or any of its attachments has a image with a line break.
    * @param {AttachedToken} token
    * @returns {boolean}
    */
@@ -961,7 +983,7 @@
     // An explicit stack, since attachments can nest as deep as a text is long.
     const stack = [token];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
-      if (/[\n\r]/.test(current.label)) return true;
+      if (/[\n\r]/.test(current.image)) return true;
       for (const attachment of current.before) stack.push(attachment);
       for (const attachment of current.after) stack.push(attachment);
     }
@@ -994,17 +1016,17 @@
    */
   function nodeBrackets(root, tokens, options = {}) {
     // A token with attachments is a group of its before-attachments, its
-    // label and its after-attachments, each rendered the same way.
+    // image and its after-attachments, each rendered the same way.
     /** @type {(token: AttachedToken) => Flat} */
     const tokenFlat = (token) => withAttachments(token, (current) => {
-      if (current.before.length === 0 && current.after.length === 0) return { value: { leaf: current.label }, fill: () => {} };
+      if (current.before.length === 0 && current.after.length === 0) return { value: { leaf: current.image }, fill: () => {} };
       /** @type {Flat[]} */
       const group = [];
       return {
         value: { group },
         fill: (before, after) => {
           for (const flat of before) group.push(flat);
-          group.push({ leaf: current.label });
+          group.push({ leaf: current.image });
           for (const flat of after) group.push(flat);
         },
       };
@@ -1076,7 +1098,7 @@
 
   /**
    * The tree rendering of any tree over the tokens its nodes index. `text` is
-   * the text that the tokens' sources index. Without it, only the labels
+   * the text that the tokens' sources index. Without it, only the images
    * decide whether a rule's tokens fit on its line.
    * @param {ResultNode} root
    * @param {Token[]} tokens
@@ -1088,7 +1110,7 @@
     const lines = [];
     root = withoutHollowNodes(root);
     const characters = text === undefined ? undefined : [...text];
-    // Whether a summary of tokens stays on one line: no label holds a line
+    // Whether a summary of tokens stays on one line: no image holds a line
     // break, and, when the text is known, no line break, `\n` or `\r`, lies
     // between the least start and the greatest end of their sources, which
     // need not be in text order (engine §1, docs/output.md).
@@ -1112,14 +1134,14 @@
       return true;
     };
     /** @type {(node: ResultNode) => string} */
-    const label = (node) => {
+    const image = (node) => {
       if (node.kind === "token") return `${node.terminal} ${JSON.stringify(leafLabel(node, tokens))}`;
       if (node.kind === "elided") return `⟨${node.terminal}⟩`;
       return node.rule;
     };
     // A token's attachments, each on a line of its own under it: `◂ ` before a
     // before-attachment and `▸ ` before an after-attachment, with its classes
-    // and its label, and its own attachments under it (docs/output.md).
+    // and its image, and its own attachments under it (docs/output.md).
     // An explicit stack, since attachments can nest as deep as a text is long.
     /** @type {(token: AttachedToken, indent: number) => void} */
     const attachmentLines = (token, indent) => {
@@ -1133,7 +1155,7 @@
       pushAttachments(token, indent);
       for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
         const classes = classesOf(task.attachment);
-        lines.push(" ".repeat(task.indent) + task.mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(task.attachment.label));
+        lines.push(" ".repeat(task.indent) + task.mark + (classes.length ? classes.join(" ∪ ") + " " : "") + JSON.stringify(task.attachment.image));
         pushAttachments(task.attachment, task.indent + 2);
       }
     };
@@ -1141,11 +1163,11 @@
     const stack = [{ node: root, indent: 0 }];
     for (let task = stack.pop(); task !== undefined; task = stack.pop()) {
       const { node, indent } = task;
-      const chain = [label(node)];
+      const chain = [image(node)];
       let current = node;
       while (current.kind === "rule" && current.children.length === 1 && current.children[0].kind === "rule") {
         current = current.children[0];
-        chain.push(label(current));
+        chain.push(image(current));
       }
       let line = " ".repeat(indent) + chain.join(" › ");
       // A rule with only tokens below it, all on one line of source, is one
@@ -1173,7 +1195,7 @@
   function displayValue(result) {
     if (!result.tree) return null;
     const tokens = finalInput(result);
-    // An attachment: its classes, its label and its own attachments, each
+    // An attachment: its classes, its image and its own attachments, each
     // list left out when it is empty (docs/output.md).
     // Built with an explicit stack, since attachments can nest as deep as a
     // text is long.
@@ -1185,16 +1207,16 @@
     /** @type {(leaf: import("./types.js").TokenNode) => DisplayValue} */
     const tokenValue = (leaf) => {
       const token = tokens[leaf.token];
-      if (token.before.length === 0 && token.after.length === 0) return { [leaf.terminal]: token.label };
+      if (token.before.length === 0 && token.after.length === 0) return { [leaf.terminal]: token.image };
       return withAttachments(token, (current) => {
         if (current === token) {
           /** @type {DisplayValue} */
-          const value = { terminal: leaf.terminal, label: token.label };
+          const value = { terminal: leaf.terminal, image: token.image };
           return { value, fill: takesAttachments(value) };
         }
         const classes = classesOf(current);
         /** @type {DisplayValue} */
-        const value = { ...(classes.length ? { classes } : {}), label: current.label };
+        const value = { ...(classes.length ? { classes } : {}), image: current.image };
         return { value, fill: takesAttachments(value) };
       });
     };
@@ -1361,7 +1383,7 @@
    * @property {{kind: string, reason: string | undefined}} [error] an
    *   ambiguous error's kind and reason
    * @property {string[]} [ties] the stages whose verdict is a tie
-   * @property {string[]} [words] the labels of the words stage's output
+   * @property {string[]} [words] the images of the words stage's output
    * @property {string} [brackets] the tree of an accepted text, with elided
    *   terminators hidden
    */
@@ -1384,7 +1406,7 @@
     const ties = result.stages.filter((stage) => stage.verdict === "tie").map((stage) => stage.name);
     if (ties.length) got.ties = ties;
     const words = result.stages.find((stage) => stage.name === "words");
-    if (words && words.output) got.words = words.output.map((token) => token.label);
+    if (words && words.output) got.words = words.output.map((token) => token.image);
     if (result.ok) got.brackets = toBrackets(result);
     return got;
   }
@@ -1896,7 +1918,7 @@
     if (!node || typeof node !== 'object') return [];
     if (node.union || node.intersection || node.difference) return node.union ?? node.intersection ?? node.difference;
     if (node.sequence) return node.sequence;
-    if (node.test) return [node.expr, node.value];
+    if (node.test) return [node.expr];
     return ['pattern','children','node','optional','repeat','separator'].flatMap(key => key in node ? [node[key]] : []);
   }
 
@@ -1942,11 +1964,23 @@
       } else if (exact(['name','at']) || exact(['terminal','at']) || exact(['constant','at'])) {
         const key = 'name' in n ? 'name' : 'terminal' in n ? 'terminal' : 'constant';
         if (typeof n[key] !== 'string' || !Array.isArray(n.at) || n.at.length !== 2 || !n.at.every(Number.isInteger)) return 'a malformed pattern atom';
-        if (key === 'name' && n.name !== '#' && !/^[a-z][A-Za-z0-9-]*$/.test(n.name)) return 'a malformed pattern rule name';
-        if (key !== 'name' && !/^[A-Z][A-Za-z0-9-]*$/.test(n[key])) return 'a malformed pattern terminal or constant';
-      } else if (exact(['test','value','expr'])) {
-        if (!n.expr || !('terminal' in n.expr) || !['=','≠','⊇','⊉','∩=∅','∩≠∅'].includes(n.test)) return 'a pattern test requires one terminal atom';
-        const fault = testFault(n); if (fault) return fault;
+        if (key === 'name' && n.name !== '#' && !/^[a-z][A-Za-z0-9_-]*$/.test(n.name)) return 'a malformed pattern rule name';
+        if (key !== 'name' && !/^(?:[A-Z][A-Za-z0-9_-]*|_[A-Za-z0-9_]*)$/.test(n[key])) return 'a malformed pattern terminal or constant';
+      } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
+        if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every(Number.isInteger)) return 'a malformed pattern position';
+        if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
+        if ('literal' in n && (!n.literal || !['string', 'const', 'interpolate'].some(key => key in n.literal))) return 'a malformed pattern literal';
+        if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
+      } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
+        const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant'].some(key => key in value);
+        if (n.test === 'tags') {
+          if (!base(n.expr) || !Array.isArray(n.requirements)) return 'a pattern tag test requires a terminal atom';
+          for (const requirement of n.requirements) {
+            if (!requirement || Object.keys(requirement).length !== 2 || typeof requirement.negated !== 'boolean' || !requirement.value || !('tag' in requirement.value || 'const' in requirement.value)) return 'a malformed pattern requirement';
+          }
+        } else if (!['=', '≠'].includes(n.test) || !(base(n.expr) || n.expr?.test === 'tags' && base(n.expr.expr))) return 'a pattern value test requires a terminal atom';
+        const fault = testFault(n);
+        if (fault) return fault;
         push(n.expr);
       } else if (exact(['children'])) push(n.children,true);
       else if (exact(['path','pattern'])) {
@@ -2162,6 +2196,7 @@
 
 
 
+
   /** @import { TagSet, Span } from "./types.js" */
   /** @import { UnicodeTable } from "./unicode.js" */
 
@@ -2182,20 +2217,20 @@
      * @param {Span} span the tokens of the stage before it this token covers
      * @param {Span} source the code points of the text it covers
      * @param {string} text the text it covers, as written
-     * @param {string | null} phonemes what it sounds like
+     * @param {string | null} value what it sounds like
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
-     * @param {string} [label] what it shows to people (engine §5): by default
+     * @param {string} [image] what it shows to people (engine §5): by default
      *   its text, as for a character token or one that a caller supplies
      */
-    constructor(tags, span, source, text, phonemes, insertedBy, label = text) {
+    constructor(tags, span, source, text, value, insertedBy, image = text) {
       this.tags = tags;
       this.span = span;
       this.source = source;
       this.text = text;
-      this.phonemes = phonemes;
+      this.value = value ?? text;
       this.insertedBy = insertedBy;
-      this.label = label;
+      this.image = image;
       /**
        * The tokens attached before this one (engine §11), none by default.
        * @type {AttachedToken[]}
@@ -2305,12 +2340,15 @@
    * @returns {Token[]}
    */
   function characterTokens(text, unicode) {
+    if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
     const tokens = [];
     let index = 0;
     for (const character of text) {
       const code = /** @type {number} */ (character.codePointAt(0));
-      const tags = tagSet([characterTag(code, unicode)]);
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, null, undefined));
+      const category = unicode.category(code);
+      const tags = tagSet([`_${category}`, `_${category[0]}`]);
+      if (unicode.isWhiteSpace(code)) tags.add("_White_Space");
+      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, character, undefined));
       index++;
     }
     return tokens;
@@ -2365,6 +2403,67 @@
     const project = [0];
     for (const flag of synthetic) project.push(project[project.length - 1] + (flag ? 0 : 1));
     return { restored, synthetic, originalAt, recordAt, recordOf, project };
+  }
+
+  // ---- methods.js
+  // Receiver-first method signatures (engine §10).
+
+  const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision"]);
+  const QUERY_METHODS = new Set(["matches", "begins", "starts-input"]);
+  const INPUT_STRINGS = new Set(["value", "image", "source-text"]);
+  const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
+
+  /**
+   * @param {string} name
+   * @param {any} receiver
+   * @param {any[]} args
+   * @param {string} type
+   * @param {string[]} argumentTypes
+   * @param {boolean} [recipe]
+   * @returns {string | null}
+   */
+  function methodProblem(name, receiver, args, type, argumentTypes, recipe = false) {
+    if (!METHODS.has(name)) return `unknown method ${name}`;
+    const span = type === "span";
+    const string = type === "string" || type === "any" || span;
+    const rule = (/** @type {number} */ index) => args[index] && typeof args[index].rule === "string";
+    if (name === "without-elision") {
+      if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
+        return "without-elision requires a bare capture: write $x.without-elision.onward";
+      }
+    } else if (SPAN_METHODS.has(name)) {
+      if (!span || args.length) return `${name} requires a span and no arguments`;
+    } else if (name === "matches" || name === "begins") {
+      if (!span || args.length !== 1 || !rule(0)) return `${name} requires a span and one rule name`;
+    } else if (name === "starts-input") {
+      if (!span || args.length) return "starts-input requires a span and no arguments";
+    } else if (name === "tags") {
+      if (!span || args.length > 1 || (args.length === 1 && !rule(0))) return "tags requires a span and optionally one rule name";
+    } else if (name === "classes") {
+      if (!span || args.length) return "classes requires a span and no arguments";
+    } else if (name === "split") {
+      if (!string || args.length !== 1 || !["string", "span", "any"].includes(argumentTypes[0])) return "split requires a string and one string delimiter";
+      if (args[0].string === "") return "split has an empty delimiter";
+    } else if (name === "classify") {
+      if (!string || args.length !== 1 || typeof args[0].classifier !== "string") return "classify requires a string and one classifier name";
+    } else if (name === "emitted") {
+      if (!recipe || args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return "emitted requires a bare capture in a recipe";
+    } else if (name === "verbatim-text") {
+      if (!recipe || !span || args.length) return "verbatim-text requires a capture in a recipe";
+    } else if (!span && !(recipe && type === "emitted" && (name === "value" || name === "image"))) {
+      return `${name} requires a span`;
+    } else if (args.length) return `${name} takes no arguments`;
+    return null;
+  }
+
+  /** @param {string} name @returns {string} */
+  function methodType(name) {
+    if (SPAN_METHODS.has(name)) return "span";
+    if (QUERY_METHODS.has(name)) return "condition";
+    if (name === "emitted") return "emitted";
+    if (name === "split") return "strings";
+    if (name === "tags" || name === "classes" || name === "classify") return "tags";
+    return "string";
   }
 
   // ---- eligible.js
@@ -2574,7 +2673,7 @@
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
     "Sm", "Sc", "Sk", "So", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn",
   ];
-  const PROPERTY_NAMES = new Set([...CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Any"]);
+  const PROPERTY_NAMES = new Set([...CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space"]);
 
   class UnicodeTable {
     /** @param {string} text the contents of unicode.txt */
@@ -2762,32 +2861,34 @@
 
 
 
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
   /** @import { Step } from "./trampoline.js" */
 
-  const DOM_FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
+  const DOM_FUNCTIONS = new Set(["value", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
   const DOM_COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈", "≅", "≇"]);
-  const DOM_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
+  const DOM_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/;
   // The directives of the notation (engine §9).
   const DIRECTIVE_NAMES = new Set(["ambiguity-resolution", "stage", "extend-stage", "redefine-stage", "include", "features"]);
   // A capture's name is all lower case (engine §9).
-  const CAPTURE_NAME = /^[a-z][a-z0-9-]*$/;
+  const CAPTURE_NAME = /^[a-z][a-z0-9_-]*$/;
   // The nesting the notation allows (engine §9): deeper than any grammar a
   // person writes, and shallow enough for the recursive walks over a DOM.
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 25;
+  const DOM_FORMAT = 26;
   // A constant's name, without its `$`, begins with a capital (engine §2).
-  const CONSTANT_NAME = /^[A-Z][A-Za-z0-9-]*$/;
+  const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
   // capital (engine §2, §9).
-  const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9-]*$/;
-  const CLASS_NAME = /^[A-Z][A-Za-z0-9-]*$/;
+  const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
+  const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
+  const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
   // The comparators of a test in a body (engine §2): the two sound tests and
   // the four tag tests.
-  const TEST_OPS = new Set(["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"]);
+  const TEST_OPS = new Set(["=", "≠", "tags"]);
 
   /**
    * Whether a test's comparator is a sound test, whose value is a string,
@@ -2809,8 +2910,6 @@
    * @returns {string | null}
    */
   function soundProblem(sound, unicode) {
-    if (sound.includes(",")) return `the string ${JSON.stringify(sound)} holds a comma, which no canonical sound holds`;
-    if (unicode && unicode.lowercase(sound) !== sound) return `the string ${JSON.stringify(sound)} is not in lower case, which every canonical sound is`;
     return null;
   }
 
@@ -2860,9 +2959,16 @@
    */
   function rangeProblem(range, unicode) {
     if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
-    const codes = range.map((end) => (typeof end === "string" ? characterOfTag(end, unicode) : null));
-    if (codes[0] === null || codes[1] === null) return "a range's ends are two character tags";
-    if (codes[0] > codes[1]) return `the range ${range[0]}..${range[1]} starts above its end`;
+    const strings = range.map(end => {
+      if (isDomObject(end) && typeof end.string === "string") return end.string;
+      if (isDomObject(end) && typeof end.const === "string" && /^_[0-9A-F]{4,6}$/.test(end.const)) {
+        const code = parseInt(end.const.slice(1), 16);
+        if (code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) return String.fromCodePoint(code);
+      }
+      return null;
+    });
+    if (strings.some(value => value !== null && [...value].length !== 1)) return "a range endpoint is one scalar";
+    if (strings.every(value => value !== null) && /** @type {number} */ (strings[0]?.codePointAt(0)) > /** @type {number} */ (strings[1]?.codePointAt(0))) return "a range starts above its end";
     return null;
   }
 
@@ -2953,305 +3059,240 @@
    * @returns {string | null}
    */
   function domProblem(dom, unicode, deferEmission = false) {
-    if (!isDomObject(dom) || dom.format !== DOM_FORMAT || !Array.isArray(dom.rules) || !Array.isArray(dom.directives) || !Array.isArray(dom.constants) ||
-        !Array.isArray(dom.classifiers) || !Array.isArray(dom.implications)) return `not a DOM of format ${DOM_FORMAT}`;
-    for (const directive of dom.directives) {
-      if (!isDomObject(directive) || typeof directive.name !== "string" || !Array.isArray(directive.args) ||
-          !directive.args.every((arg) => typeof arg === "string") || !isDomPosition(directive.at)) return "a malformed directive";
-      // No directive has a maximal member; %elidable is not a directive.
-      if ("maximal" in directive || !DIRECTIVE_NAMES.has(directive.name) ||
-          (directive.name === "ambiguity-resolution" && directive.args.includes("maximal"))) return "a malformed directive";
-      // The operands the notation's syntax allows these directives (engine §9).
-      const args = /** @type {string[]} */ (directive.args);
-      if ((["stage", "extend-stage", "redefine-stage"].includes(directive.name) && !(args.length === 1 && DOM_NAME.test(args[0]))) ||
-          (directive.name === "include" && args.length !== 1) ||
-          (directive.name === "features" && !(args.length > 0 && args.every((arg) => DOM_NAME.test(arg))))) return "a malformed directive";
-    }
-    // `whole` marks an alternative's whole expression, where a chain may
-    // stand, and `sealed` a place inside braces or an elidable optional,
-    // where no capture stands.
-    /** @type {{kind: string, value: unknown, depth: number, whole?: boolean, sealed?: boolean}[]} */
+    /** @type {(value: unknown) => value is Record<string, any>} */
+    const object = isDomObject;
+    if (!object(dom) || dom.format !== DOM_FORMAT || !["rules", "directives", "constants", "classifiers", "implications"].every(key => Array.isArray(dom[key]))) return `not a DOM of format ${DOM_FORMAT}`;
+    /** @type {(value: any) => boolean} */
+    const position = value => isDomPosition(value) && value.every((/** @type {number} */ n) => n >= 1);
+    /** @type {(value: any, fields: string[]) => boolean} */
+    const exact = (value, fields) => object(value) && Object.keys(value).every(key => fields.includes(key));
+    /** @type {(value: any) => boolean} */
+    const stringTerm = value => object(value) && ["string", "const", "interpolate"].some(key => key in value);
+    /** @type {(value: any) => boolean} */
+    const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && PROPERTY_NAMES.has(value.slice(1))));
+    /** @type {(value: any) => boolean} */
+    const constant = value => typeof value === "string" && (CONSTANT_NAME.test(value) || (/^_[0-9A-F]{4,6}$/.test(value) && parseInt(value.slice(1), 16) <= 0x10ffff && !(parseInt(value.slice(1), 16) >= 0xd800 && parseInt(value.slice(1), 16) <= 0xdfff)));
+    /** @type {(values: any) => boolean} */
+    const guards = values => Array.isArray(values) && values.every((/** @type {any} */ guard) => exact(guard, ["feature", "kind", "negated"]) && Object.keys(guard).length === 3 && FEATURE_NAME.test(guard.feature) && typeof guard.negated === "boolean" && (guard.kind === "gate" || guard.kind === "warning" && !guard.negated));
+    /** @type {any[]} */
     const pending = [];
-    // The expressions of the alternatives, whose capture names are checked
-    // per production once their shape is.
-    /** @type {unknown[]} */
-    const expressions = [];
-    // The tested symbols, whose values are checked once the nesting is
-    // bounded.
-    /** @type {Record<string, any>[]} */
-    const tests = [];
-    // A constant's definition: its name, its op, its position and a value
-    // that is a closed term (engine §2, §10).
-    for (const constant of dom.constants) {
-      if (!isDomObject(constant) || typeof constant.name !== "string" || !CONSTANT_NAME.test(constant.name) ||
-          (constant.op !== "define" && constant.op !== "redefine") || !isDomPosition(constant.at) || !("value" in constant) ||
-          Object.keys(constant).length !== 4) return "a malformed constant";
-      pending.push({ kind: "term", value: constant.value, depth: 0 });
-    }
-    // A classifier: its name, and entries of gates, canonical keys, an
-    // operator and a class (engine §2, §9).
-    for (const classifier of dom.classifiers) {
-      if (!isDomObject(classifier) || typeof classifier.name !== "string" || !CLASSIFIER_NAME.test(classifier.name) ||
-          !Array.isArray(classifier.entries) || !isDomPosition(classifier.at) || Object.keys(classifier).length !== 3) return "a malformed classifier";
-      for (const entry of classifier.entries) {
-        if (!isDomObject(entry) || Object.keys(entry).length !== 5 || !isDomPosition(entry.at) || (entry.op !== "∈" && entry.op !== "∉") ||
-            typeof entry.class !== "string" || !CLASS_NAME.test(entry.class) || !Array.isArray(entry.guards) ||
-            !entry.guards.every((guard) => isDomObject(guard) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && DOM_NAME.test(guard.feature) &&
-              guard.kind === "gate" && typeof guard.negated === "boolean") ||
-            !Array.isArray(entry.keys) || entry.keys.length === 0 ||
-            !entry.keys.every((key) => typeof key === "string" && soundProblem(key, unicode) === null)) return "a malformed entry of a classifier";
-      }
-    }
-    // An implication: two closed terms whose type is a tag set, checked once
-    // the nesting is bounded (engine §2, §9).
-    for (const implication of dom.implications) {
-      if (!isDomObject(implication) || Object.keys(implication).length !== 3 || !("if" in implication) || !("then" in implication) ||
-          !isDomPosition(implication.at)) return "a malformed implication";
-      pending.push({ kind: "term", value: implication.if, depth: 0 });
-      pending.push({ kind: "term", value: implication.then, depth: 0 });
-    }
-    for (const rule of dom.rules) {
-      if (!isDomObject(rule) || typeof rule.name !== "string" || !(DOM_NAME.test(rule.name) || rule.name === "#") || !["define", "redefine", "extend"].includes(/** @type {string} */ (rule.op)) ||
-          !Array.isArray(rule.flags) || rule.flags.length > 1 || !rule.flags.every((flag) => flag === "leftmost-longest") ||
-          (rule.op === "extend" && rule.flags.length !== 0) || !Array.isArray(rule.alternatives) || rule.alternatives.length === 0 || !Array.isArray(rule.conditions) || !isDomPosition(rule.at) ||
-          (rule.opaque !== undefined && rule.opaque !== true)) {
-        return "a malformed rule";
-      }
-      if (rule.tags !== undefined) pending.push({ kind: "constituent-tags", value: rule.tags, depth: 0 });
-      if (rule.emit !== undefined) pending.push({ kind: "emission", value: rule.emit, depth: 0 });
-      for (const condition of rule.conditions) pending.push({ kind: "condition", value: condition, depth: 0 });
-      for (const alternative of rule.alternatives) {
-        if (!isDomObject(alternative) || !Array.isArray(alternative.guards) ||
-            !alternative.guards.every((guard) => isDomObject(guard) && Object.keys(guard).length === 3 && typeof guard.feature === "string" && DOM_NAME.test(guard.feature) && typeof guard.negated === "boolean" &&
-              (guard.kind === "gate" || (guard.kind === "warning" && guard.negated === false)))) {
-          return "a malformed alternative";
-        }
-        // Depth counts the compound nodes above a node (engine §9): the
-        // items of a top-level sequence are below one, the sequence.
-        pending.push({ kind: "expr", value: alternative.expr, depth: 0, whole: true });
-        expressions.push(alternative.expr);
-        if (alternative.tags !== undefined) pending.push({ kind: "constituent-tags", value: alternative.tags, depth: 0 });
-      }
-    }
-    for (let task = pending.pop(); task !== undefined; task = pending.pop()) {
-      if (hooks.work) countWork(hooks.work, "walkSteps");
-      const { kind, value, depth } = task;
-      // A function's argument is a term where a span may stand.
-      const argument = kind === "argument";
-      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
-      if (!isDomObject(value)) return `a malformed ${kind}`;
-      const next = depth + 1;
-      /** @type {(kind: string, value: unknown) => void} */
-      const push = (childKind, child) => pending.push({ kind: childKind, value: child, depth: next });
-      /** @type {(list: unknown, least: number, most?: number) => boolean} */
-      const list = (items, least, most = Infinity) => Array.isArray(items) && items.length >= least && items.length <= most;
-      // An expression has exactly the members of one form (docs/output.md).
-      if (kind === "expr" && !hasOneForm(value, EXPRESSION_FORMS)) return "ranked" in value ? "ranked-choice-syntax: A ranked expression has only its ranked array." : "a malformed expression";
-      // A place inside braces or an elidable optional holds no capture, at
-      // any depth (engine §3.5).
-      /** @type {(child: unknown, sealed?: boolean) => void} */
-      const pushExpr = (child, sealed = false) => pending.push({ kind: "expr", value: child, depth: next, sealed: task.sealed || sealed });
-      if (kind === "expr") {
-        if ("range" in value || "property" in value) {
-          if (!isCharacterClass(value, unicode)) return "a malformed expression";
-        } else if ("choice" in value || "ranked" in value || "seq" in value) {
-          const items = value.choice ?? value.ranked ?? value.seq;
-          if (!list(items, 2)) return "ranked" in value ? "ranked-choice-syntax: A ranked expression requires at least two operands." : "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (items)) pushExpr(item);
-        } else if ("and" in value) {
-          if (!list(value.and, 2, 16)) return "a malformed expression";
-          for (const item of /** @type {unknown[]} */ (value.and)) pushExpr(item);
-        } else if ("repeat" in value) {
-          // A chain is the whole expression of its alternative (engine §9),
-          // and its direction is left or right. A separator counts on from
-          // the depth of its repeat, as the item does.
-          if ("chain" in value && (!task.whole || (value.chain !== "left" && value.chain !== "right"))) return "a malformed expression";
-          pushExpr(value.repeat, true);
-          if ("separator" in value) pushExpr(value.separator, true);
-        } else if ("optional" in value) {
-          // An elidable optional is marked true;
-          // its expression begins with its terminal (engine §3.8, §9).
-          if (("elidable" in value && value.elidable !== true)) return "a malformed expression";
-          if (value.elidable === true && elidableHead(value.optional) === null) return "a malformed elidable optional";
-          pushExpr(value.optional, value.elidable === true);
-        } else if ("capture" in value) {
-          // A capture wraps one symbol: a reference, a terminal, a range, a
-          // property or a tested one of these, and stands anywhere but in
-          // braces or an elidable optional (engine §3.5, §9).
-          if (task.sealed) return "a capture inside braces or an elidable optional";
-          const inner = value.expr;
-          if (typeof value.capture !== "string" || !CAPTURE_NAME.test(value.capture) || !isDomObject(inner) ||
-              !["ref", "terminal", "range", "property", "test"].some((member) => member in inner)) return "a malformed capture";
-          pushExpr(inner);
-        } else if ("test" in value) {
-          // A compound node (engine §9) over one symbol; its value counts on
-          // from its depth, and is checked once the nesting is bounded.
-          if (typeof value.test !== "string" || !TEST_OPS.has(value.test)) return "a malformed test";
-          if (!isTestable(value.expr, unicode)) return "a test follows only a reference other than # or a terminal";
-          pushExpr(value.expr);
-          push("term", value.value);
-          tests.push(value);
-        } else if (!((typeof value.ref === "string" && (DOM_NAME.test(value.ref) || value.ref === "#")) || isTag(value.terminal, unicode) || value.empty === true)) {
-          // A reference is a name or `#` (engine §9).
-          return "a malformed expression";
-        }
-      } else if (kind === "constituent-tags") {
-        // A constituent's tags cannot be made of its own (engine §9).
-        if (readsOwnTags(value)) return "a constituent's tags made of its own";
-        pending.push({ kind: "term", value, depth });
-      } else if (kind === "emission") {
-        // The reader's rules (engine §9): $ only with $, a capture listed once,
-        // no tags on an inserted tag; no items at all is `ε`. Attachments are
-        // lists of named captures, present only when not empty, and only on a
-        // named capture.
-        if (!list(value.items, 0) || Object.keys(value).length !== 1) return "a malformed emission";
-        const items = /** @type {unknown[]} */ (value.items);
-        const known = (/** @type {string} */ key) => key === "capture" || key === "insert" || key === "tags" || key === "before" || key === "after";
-        if (!items.every((item) => isDomObject(item) && (typeof item.capture === "string") !== (typeof item.insert === "string") && Object.keys(item).every(known))) return "a malformed emission";
-        // An inserted item is one tag (engine §9).
-        if (!items.every((item) => /** @type {Record<string, unknown>} */ (item).insert === undefined || isTag(/** @type {Record<string, unknown>} */ (item).insert, unicode))) return "a malformed emission";
-        const records = /** @type {Record<string, unknown>[]} */ (items);
-        const whole = records.filter((item) => item.capture === "");
-        if (whole.length && whole.length !== records.length) return "a malformed emission";
-        for (const item of records) {
-          for (const side of [item.before, item.after]) {
-            if (side === undefined) continue;
-            if (typeof item.capture !== "string" || item.capture === "" || !list(side, 1) ||
-                !(/** @type {unknown[]} */ (side)).every((name) => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed emission";
-          }
-        }
-        const captures = records.flatMap((item) => (typeof item.capture === "string" && item.capture !== ""
-          ? [item.capture, ...(/** @type {string[]} */ (item.before ?? [])), ...(/** @type {string[]} */ (item.after ?? []))] : []));
-        if (new Set(captures).size !== captures.length) return "a malformed emission";
-        for (const item of records) {
-          if (item.tags === undefined) continue;
-          if (typeof item.insert === "string") return "a malformed emission";
-          if (isDomObject(item.tags) && item.tags.emptySet === true) return "a malformed emission";
-          // An emission is not a compound node (engine §9): its items' tag
-          // terms stand at its own depth.
-          pending.push({ kind: "term", value: item.tags, depth });
-        }
-      } else if (kind === "pattern" || kind === "pattern-part") {
-        // Bound every nested pattern and operand before recursive typing.
-        if (depth > DOM_MAX_DEPTH) return "nested too deeply";
-        if (kind === "pattern") {
-          const problem = patternProblem(value, () => null);
-          if (problem) return problem;
-        }
-        if ("test" in value) { tests.push(value); push("term",value.value);push("pattern-part",value.expr); }
-        else for (const child of patternParts(value)) push("pattern-part",child);
-      } else if (kind === "condition") {
-        // A condition has exactly the members of one form (docs/output.md).
-        if (!hasOneForm(value, CONDITION_FORMS)) return "a malformed condition";
-        if ("any" in value || "all" in value) {
-          const items = value.any ?? value.all;
-          if (!list(items, 2)) return "a malformed condition";
-          for (const item of /** @type {unknown[]} */ (items)) push("condition", item);
-        } else if ("not" in value) {
-          push("condition", value.not);
-        } else if ("captured" in value) {
-          if (typeof value.captured !== "string" || Object.keys(value).length !== 1) return "a malformed condition";
-        } else if ("if" in value) {
-          if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed condition";
-          push("condition", value.if);
-          push("condition", value.then);
-        } else if ("matches" in value || "begins" in value) {
-          const span = "matches" in value ? value.matches : value.begins;
-          if (typeof value.rule !== "string" || !isDomSpan(span) || ("matches" in value && "begins" in value)) return "a malformed condition";
-          pending.push({ kind: "argument", value: span, depth: next });
-        } else if ("initial" in value) {
-          if (Object.keys(value).length !== 1 || !isDomSpan(value.initial)) return "a malformed condition";
-          pending.push({ kind: "argument", value: value.initial, depth: next });
-        } else {
-          if (typeof value.op !== "string" || !DOM_COMPARATORS.has(value.op)) return "a malformed condition";
-          if ((value.op === "≅" || value.op === "≇") && (!isDomObject(value.left) || typeof value.left.capture !== "string" || Object.keys(value.left).length !== 1)) return "a tree comparison requires a bare capture";
-          push(value.op === "≅" || value.op === "≇" ? "argument" : "term", value.left);
-          push("term", value.right);
-        }
-      } else {
-        // A term has exactly the members of one form (docs/output.md). So a
-        // node that joins two forms, such as {"tag":…,"string":…}, is refused
-        // before it is read, and no library reads it one way where another
-        // reads it another way.
-        if (!hasOneForm(value, TERM_FORMS)) return "a malformed term";
-        if ("pattern" in value) {
-          push("pattern", value.pattern);
-        } else if ("if" in value) {
-          if (Object.keys(value).length !== 2 || !("then" in value)) return "a malformed term";
-          push("condition", value.if);
-          push("term", value.then);
-        } else if ("union" in value || "intersection" in value || "difference" in value) {
-          const items = value.union ?? value.intersection ?? value.difference;
-          if (!list(items, 2, "difference" in value ? 2 : Infinity)) return "a malformed term";
-          for (const item of /** @type {unknown[]} */ (items)) push("term", item);
-        } else if ("call" in value) {
-          // The reader's signatures (engine §9), with a span where one is due.
-          const args = /** @type {unknown[]} */ (Array.isArray(value.args) ? value.args : []);
-          const isRule = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.rule === "string" && Object.keys(arg).length === 1;
-          const isClassifier = (/** @type {unknown} */ arg) => isDomObject(arg) && typeof arg.classifier === "string" &&
-            CLASSIFIER_NAME.test(arg.classifier) && Object.keys(arg).length === 1;
-          const call = value.call;
-          let ok;
-          if (typeof call !== "string" || !DOM_FUNCTIONS.has(call) || call === "matches" || call === "begins" || call === "initial") ok = false;
-          else if (call === "tags") ok = (args.length === 1 && isDomSpan(args[0])) || (args.length === 2 && isDomSpan(args[0]) && isRule(args[1]));
-          else if (call === "without-elision") ok = args.length === 1 && isDomObject(args[0]) && typeof args[0].capture === "string";
-          else if (call === "split") ok = args.length === 2 && args.every((arg) => !isRule(arg) && !isClassifier(arg) && !isDomSpan(arg));
-          else if (call === "tag") ok = args.length === 1 && !isRule(args[0]) && !isClassifier(args[0]) && !isDomSpan(args[0]);
-          else if (call === "classify") ok = args.length === 2 && !isRule(args[0]) && !isClassifier(args[0]) && !isDomSpan(args[0]) && isClassifier(args[1]);
-          else ok = args.length === 1 && isDomSpan(args[0]);
-          if (!ok || (!argument && DOM_SPANS.has(/** @type {string} */ (call)))) return "a malformed term";
-          const seen = literalCallProblem(/** @type {string} */ (call), args);
-          if (seen) return seen;
-          for (const arg of args) if (!isRule(arg) && !isClassifier(arg)) pending.push({ kind: "argument", value: arg, depth: next });
-        } else if (!(typeof value.string === "string" || isTag(value.tag, unicode) || value.emptySet === true || typeof value.capture === "string" ||
-            ("range" in value && rangeProblem(value.range, unicode) === null) ||
-            (typeof value.const === "string" && CONSTANT_NAME.test(value.const) && isDomPosition(value.at)))) {
-          return "a malformed term";
-        }
-      }
-    }
-    // A definition the reader would refuse (engine §9), and terms and
-    // conditions whose types do not agree (engine §10).
-    // A capture name stands at most once in each production (engine §3.5).
-    for (const expr of expressions) {
-      if (duplicateCaptures(expr).length > 0) return "a capture name used twice in one production";
-    }
-    for (const rule of /** @type {any[]} */ (dom.rules)) {
-      const problem = definitionProblem(rule, deferEmission) || ruleTypeProblem(rule);
-      if (problem) return problem;
-    }
-    // The walks below recurse, so they run only once the nesting is bounded.
-    for (const constant of /** @type {any[]} */ (dom.constants)) {
-      if (openPart(constant.value) !== null) return "a constant's value is not a closed term";
-    }
-    for (const implication of /** @type {any[]} */ (dom.implications)) {
-      for (const side of [implication.if, implication.then]) {
-        if (openPart(side) !== null) return "a side of an implication is not a closed term";
-        const found = termType(side);
-        if ("problem" in found) return found.problem;
-        const problem = expectedProblem(found.type, "tags");
-        if (problem) return `a side of an implication is a tag set: ${problem}`;
-      }
-    }
-    for (const test of tests) {
-      const fault = testValueFault(test.test, test.value, unicode);
-      if (fault) return fault.problem;
-    }
-    for (const constant of /** @type {any[]} */ (dom.constants)) {
-      const problem = valueTypeProblem(constant.value, constant.op === "redefine");
-      if (problem) return problem;
-    }
-    // The order of a document's items is the order of their positions, so no
-    // two items share one (engine §9).
+    /** @type {(kind: string, value: any, depth?: number, context?: any) => void} */
+    const push = (kind, value, depth = 0, context = {}) => pending.push({ kind, value, depth, ...context });
     const positions = new Set();
-    for (const item of [.../** @type {{at: [number, number]}[]} */ (dom.rules), .../** @type {{at: [number, number]}[]} */ (dom.directives),
-      .../** @type {{at: [number, number]}[]} */ (dom.constants), .../** @type {{at: [number, number]}[]} */ (dom.classifiers),
-      .../** @type {{at: [number, number]}[]} */ (dom.implications)]) {
+    for (const item of [...dom.rules, ...dom.directives, ...dom.constants, ...dom.classifiers, ...dom.implications]) {
+      if (!object(item) || !position(item.at)) return "a malformed declaration position";
       const key = `${item.at[0]}:${item.at[1]}`;
       if (positions.has(key)) return "two items at one position";
       positions.add(key);
     }
+    for (const directive of dom.directives) {
+      const { name, args } = directive;
+      if (!DIRECTIVE_NAMES.has(name) || "maximal" in directive || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
+      if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
+      if (name === "include" && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
+      if (name === "ambiguity-resolution" && !(args.length >= 1 && args.length <= 2 && ["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) return "a malformed directive";
+    }
+    for (const definition of dom.constants) {
+      if (!exact(definition, ["name", "op", "value", "at"]) || !CONSTANT_NAME.test(definition.name) || !["define", "redefine"].includes(definition.op)) return "a malformed constant";
+      push("term", definition.value);
+    }
+    for (const classifier of dom.classifiers) {
+      if (!exact(classifier, ["name", "entries", "at"]) || !(typeof classifier.name === "string" && CLASSIFIER_NAME.test(classifier.name)) || !Array.isArray(classifier.entries)) return "a malformed classifier";
+      for (const entry of classifier.entries) {
+        if (!exact(entry, ["guards", "keys", "op", "class", "at"]) || !position(entry.at) || !guards(entry.guards) || entry.guards.some((/** @type {any} */ guard) => guard.kind !== "gate") || !CLASS_NAME.test(entry.class) || !["∈", "∉"].includes(entry.op) || !Array.isArray(entry.keys) || !entry.keys.length) return "a malformed classifier entry";
+        for (const key of entry.keys) { if (!stringTerm(key)) return "a malformed classifier key"; push("term", key); }
+      }
+    }
+    for (const implication of dom.implications) {
+      if (!exact(implication, ["if", "then", "at"])) return "a malformed implication";
+      push("term", implication.if); push("term", implication.then);
+    }
+    for (const rule of dom.rules) {
+      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(rule.name === "#" || typeof rule.name === "string" && CLASSIFIER_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => flag !== "leftmost-longest") || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
+      if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true });
+      if (rule.value !== undefined) push("recipe", rule.value);
+      if (rule.image !== undefined) push("recipe", rule.image);
+      if (rule.emit !== undefined) push("emission", rule.emit);
+      for (const condition of rule.conditions) push("condition", condition);
+      for (const alternative of rule.alternatives) {
+        if (!exact(alternative, ["guards", "expr", "tags", "value", "image"]) || !guards(alternative.guards)) return "a malformed alternative";
+        push("expr", alternative.expr, 0, { whole: true });
+        if (alternative.tags !== undefined) push("tags", alternative.tags, 0, { constituent: true });
+        for (const channel of ["value", "image"]) if (alternative[channel] !== undefined) { if (rule.erased) return "a recipe beside erasure"; push("recipe", alternative[channel]); }
+      }
+    }
+    /** @type {(value: any) => boolean} */
+    const base = value => object(value) && ((typeof value.ref === "string" && value.ref !== "#") || "literal" in value || "range" in value || value.wildcard === true);
+    /** @type {(value: any) => boolean} */
+    const target = value => base(value) || object(value) && value.test === "tags" && base(value.expr);
+    for (let task = pending.pop(); task; task = pending.pop()) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      const { kind, value, depth } = task;
+      if (depth > DOM_MAX_DEPTH) return "nested too deeply";
+      if (!object(value)) return `a malformed ${kind}`;
+      /** @type {(kind: string, value: any, context?: any) => void} */
+    const child = (kind, value, context = {}) => push(kind, value, depth + 1, context);
+      const fields = Object.keys(value);
+      if (kind === "expr") {
+        if (value.test) {
+          if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
+          child("expr", value.expr, { sealed: task.sealed });
+          if (value.test === "tags") {
+            if (!Array.isArray(value.requirements)) return "a malformed tag test";
+            for (const requirement of value.requirements) {
+              if (!exact(requirement, ["negated", "value"]) || fields.length === 0 || typeof requirement.negated !== "boolean" || !object(requirement.value) || !("tag" in requirement.value || "const" in requirement.value)) return "a malformed requirement";
+              child("term", requirement.value);
+            }
+          } else { if (!stringTerm(value.value)) return "a malformed value test"; child("term", value.value); }
+        } else if ("capture" in value) {
+          if (!exact(value, ["capture", "expr"]) || !(typeof value.capture === "string" && CAPTURE_NAME.test(value.capture)) || task.sealed || !(target(value.expr) || ["=", "≠"].includes(value.expr?.test) && target(value.expr.expr) || value.expr?.ref === "#")) return "a malformed capture";
+          child("expr", value.expr, { sealed: task.sealed });
+        } else if (["seq", "choice", "ranked", "and"].some(key => key in value)) {
+          const key = fields[0];
+          if (fields.length !== 1 || !Array.isArray(value[key]) || value[key].length < 2 || key === "and" && value[key].length > 16) return key === "ranked" ? "ranked-choice-syntax: a ranked expression requires two options" : "a malformed expression";
+          for (const item of value[key]) child("expr", item, { sealed: task.sealed });
+        } else if ("optional" in value) {
+          if (!exact(value, ["optional", "elidable"]) || "elidable" in value && (value.elidable !== true || !elidableHead(value.optional))) return "a malformed optional";
+          child("expr", value.optional, { sealed: task.sealed || value.elidable });
+        } else if ("repeat" in value) {
+          if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
+          child("expr", value.repeat, { sealed: true });
+          if ("separator" in value) child("expr", value.separator, { sealed: true });
+        } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; child("term", value.literal); }
+        else if ("range" in value) {
+          if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
+          for (const end of value.range) child("term", end);
+          const problem = rangeProblem(value.range, unicode); if (problem) return problem;
+        } else if ("ref" in value) { if (fields.length !== 1 || !(value.ref === "#" || CLASSIFIER_NAME.test(value.ref) || tag(value.ref))) return "a malformed reference"; }
+        else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
+      } else if (kind === "tags") {
+        if (task.constituent && readsOwnTags(value)) return "a constituent reads its own tags";
+        if (engineLiterals(value).size) return "a tag clause introduces an engine tag";
+        push("term", value, depth);
+      } else if (kind === "emission") {
+        if (fields.length !== 1 || !Array.isArray(value.items) || !value.items.length) return "a malformed emission";
+        const names = [];
+        for (const item of value.items) {
+          if (!exact(item, ["capture", "insert", "tags", "value", "image", "before", "after"]) || (typeof item.capture === "string") === (item.insert === true) || "insert" in item && item.insert !== true || typeof item.capture === "string" && item.capture !== "" && !CAPTURE_NAME.test(item.capture)) return "a malformed emission item";
+          if (item.capture) names.push(item.capture);
+          for (const side of ["before", "after"]) if (side in item) {
+            if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every(name => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed attachment";
+            names.push(...item[side]);
+          }
+          if (item.tags !== undefined) push("tags", item.tags, depth);
+          for (const channel of ["value", "image"]) if (item[channel] !== undefined) push("recipe", item[channel], depth);
+        }
+        if (new Set(names).size !== names.length) return "an emission lists a capture twice";
+      } else if (kind === "recipe") {
+        if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
+        for (const atom of value.concat) {
+          if (!stringTerm(atom)) {
+            if (!object(atom) || !["value", "image", "source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
+            const receiver = atom.receiver;
+            if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return "a malformed recipe receiver";
+          }
+          child("term", atom, { recipe: true });
+        }
+      } else if (kind === "condition") {
+        if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]])) return "a malformed condition";
+        if (value.method) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
+        else if (value.op) {
+          if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
+          child("term", value.left); child("term", value.right);
+        } else if ("captured" in value) { if (typeof value.captured !== "string" || value.captured !== "" && !CAPTURE_NAME.test(value.captured)) return "a malformed presence"; }
+        else if (value.not) child("condition", value.not);
+        else if (value.if) { child("condition", value.if); child("condition", value.then); }
+        else {
+          const values = value.any ?? value.all;
+          if (!Array.isArray(values) || values.length < 2) return "a malformed connective";
+          for (const condition of values) child("condition", condition);
+        }
+      } else if (kind === "pattern") {
+        const problem = patternProblem(value, () => null); if (problem) return problem;
+        for (const item of patternParts(value)) child("pattern-part", item);
+      } else if (kind === "pattern-part") {
+        if (value.test === "tags") for (const requirement of value.requirements) child("term", requirement.value);
+        else if (value.test) child("term", value.value);
+        if (value.literal) child("term", value.literal);
+        if (value.range) for (const endpoint of value.range) child("term", endpoint);
+        for (const item of patternParts(value)) if (item !== value.value) child("pattern-part", item);
+      } else {
+        if (!hasOneForm(value, [["string"], ["interpolate"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
+        if ("string" in value) { if (typeof value.string !== "string" || /[\uD800-\uDFFF]/u.test(value.string)) return "a malformed scalar string"; }
+        else if (value.tag) { if (!tag(value.tag)) return "a malformed tag"; }
+        else if (value.const) { if (!constant(value.const) || !position(value.at)) return "a malformed constant reference"; }
+        else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
+        else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
+        else if (value.method) {
+          if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          child("term", value.receiver, { recipe: task.recipe });
+          for (const arg of value.args) {
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins"].includes(value.method) || !CLASSIFIER_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
+            else child("term", arg);
+          }
+        } else if (value.interpolate) {
+          if (!Array.isArray(value.interpolate) || !value.interpolate.length || !value.interpolate.every(item => object(item) && ("string" in item || "const" in item))) return "a malformed interpolation";
+          for (const segment of value.interpolate) child("term", segment);
+        } else if (value.pattern) child("pattern", value.pattern);
+        else if (value.if) { child("condition", value.if); child("term", value.then); }
+        else {
+          const items = value.union ?? value.intersection ?? value.difference;
+          if (!Array.isArray(items) || items.length < 2 || value.difference && items.length !== 2) return "a malformed set operation";
+          for (const item of items) child("term", item);
+        }
+      }
+    }
+    for (const rule of dom.rules) {
+      if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length)) return "a duplicate capture";
+      const problem = definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
+    }
+    for (const definition of dom.constants) {
+      if (openPart(definition.value)) return "a constant is not closed";
+      if (hasEngineLiteral(definition.value)) return "a constant contains an engine-tag literal";
+      const problem = valueTypeProblem(definition.value, definition.op === "redefine"); if (problem) return problem;
+    }
+    for (const implication of dom.implications) for (const side of [implication.if, implication.then]) {
+      if (openPart(side)) return "an implication is not closed";
+      if (hasEngineLiteral(side)) return "an implication contains an engine-tag literal";
+      const found = termType(side); if ("problem" in found) return found.problem;
+      const problem = expectedProblem(found.type, "tags"); if (problem) return problem;
+    }
     return null;
+  }
+
+  /** @param {any} term @returns {Set<string>} */
+  function engineLiterals(term) {
+    return run(literalNames(term));
+  }
+
+  /** @param {any} term @returns {Generator<Step, Set<string>, any>} */
+  function* literalNames(term) {
+    if (!term || typeof term !== "object") return new Set();
+    if (typeof term.tag === "string" && term.tag.startsWith("_")) return new Set([term.tag]);
+    if (term.if) return yield literalNames(term.then);
+    if (term.difference) return yield literalNames(term.difference[0]);
+    const operands = term.union ?? term.intersection;
+    if (!operands) return new Set();
+    /** @type {Set<string>[]} */
+    const sets = [];
+    for (const operand of operands) sets.push(yield literalNames(operand));
+    if (term.union) return new Set(sets.flatMap(set => [...set]));
+    return new Set([...sets[0]].filter(name => sets.every(set => set.has(name))));
+  }
+
+  /** @param {any} term @returns {boolean} */
+  function hasEngineLiteral(term) {
+    const pending = [term];
+    while (pending.length) {
+      const value = pending.pop();
+      if (!value || typeof value !== "object") continue;
+      if (typeof value.tag === "string" && value.tag.startsWith("_")) return true;
+      if (value.pattern) continue;
+      for (const child of Object.values(value)) if (child && typeof child === "object") pending.push(child);
+    }
+    return false;
   }
 
   /**
@@ -3286,7 +3327,7 @@
   /**
    * Whether a term, or a condition inside one, reads the tags of `$`, the
    * constituent whose tags it may be defining: `$` as a value, `tags($)` or
-   * `classes($)`. A span argument such as `phonemes($)` reads tokens, not tags.
+   * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
    * The DOM's shape need not have been checked: anything malformed reads
    * nothing, and the check of its shape refuses it.
    * @param {unknown} node
@@ -3300,7 +3341,12 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       const current = stack.pop();
       if (!isDomObject(current)) continue;
-      if (current.capture === "" && Object.keys(current).length === 1) return true;
+      if (typeof current.method === "string") {
+        if ((current.method === "tags" || current.method === "classes") && /** @type {any} */ (current).args.length === 0 && /** @type {any} */ (current).receiver.capture === "") return true;
+        if (current.method === "tags" || QUERY_METHODS.has(current.method)) continue;
+        stack.push(/** @type {any} */ (current).receiver, .../** @type {any} */ (current).args);
+        continue;
+      }
       if (typeof current.call === "string") {
         if (!Array.isArray(current.args)) continue;
         if ((current.call === "tags" || current.call === "classes") && current.args.length === 1) {
@@ -4064,9 +4110,12 @@
     if (!isDomObject(head)) return null;
     /** @type {(node: any) => boolean} */
     const isTerminal = (node) => isDomObject(node) && Object.keys(node).length === 1 &&
-      ((typeof node.ref === "string" && /^[A-Z][A-Za-z0-9-]*$/.test(node.ref)) || (typeof node.terminal === "string" && DOM_NAME.test(node.terminal)));
+      ((typeof node.ref === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(node.ref)) || (typeof node.terminal === "string" && DOM_NAME.test(node.terminal)));
     if (isTerminal(head)) return head;
-    if (TEST_OPS.has(/** @type {string} */ (head.test)) && isTerminal(head.expr)) return head;
+    /** @type {any} */
+    let base = head;
+    while (base.test) base = base.expr;
+    if (isTerminal(base)) return head;
     return null;
   }
 
@@ -4115,7 +4164,7 @@
     // A definition with no clause has nothing to check about its captures,
     // and its productions, whose number can be exponential, are not listed.
     if (rule.tags === undefined && rule.conditions.length === 0 && rule.emit === undefined &&
-        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined)) return null;
+        rule.alternatives.every((/** @type {any} */ alternative) => alternative.tags === undefined && alternative.value === undefined && alternative.image === undefined) && rule.value === undefined && rule.image === undefined) return null;
     // Each production of each alternative, with the captures it reads
     // (engine §3.5, §9); productions that read the same captures in the same
     // order are one.
@@ -4147,7 +4196,7 @@
     const items = rule.emit ? rule.emit.items : [];
     // A constituent that does not count is never an opaque part (engine §9).
     if (rule.opaque && rule.emit && items.length === 0) return `${rule.name} is opaque and emits ε`;
-    const clauses = [rule.tags, ...rule.conditions, ...rule.alternatives.map((/** @type {any} */ a) => a.tags), ...items];
+    const clauses = [rule.tags, rule.value, rule.image, ...rule.conditions, ...rule.alternatives.flatMap((/** @type {any} */ a) => [a.tags, a.value, a.image]), ...items];
     // An emission item mentions its own capture and its attachments,
     // whatever else it says.
     const named = items.flatMap((/** @type {any} */ item) => (typeof item.capture === "string" ? [item.capture, ...attachmentsOf(item)] : []));
@@ -4269,7 +4318,7 @@
    * A term's type: a string, a set of strings, a tag set, a span, a set
    * whose kind nothing has given yet, such as `∅`, or, for a constant that
    * the reader cannot know, any type but a span (engine §9).
-   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any"} TermType
+   * @typedef {"string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition"} TermType
    */
 
   /**
@@ -4281,7 +4330,7 @@
   const SET_KINDS = new Set(["strings", "tags", "pattern", "set"]);
   /** @type {Record<string, string>} */
   const CALL_STRINGS = { split: "two strings", tag: "one string", classify: "a string and a classifier's name" };
-  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value" };
+  const TYPE_NAMES = { string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", pattern: "a pattern", set: "a set", any: "a value", emitted: "an emitted pair", condition: "a condition" };
   /** @type {ConstantTypes} */
   const UNKNOWN_CONSTANTS = () => "any";
 
@@ -4291,7 +4340,7 @@
    * @returns {TermType}
    */
   function callType(call) {
-    if (call === "phonemes" || call === "text") return "string";
+    if (call === "value" || call === "text") return "string";
     if (call === "split") return "strings";
     if (call === "tags" || call === "classes" || call === "tag" || call === "classify") return "tags";
     return "span";
@@ -4330,7 +4379,8 @@
       return expectedProblem(right, "pattern");
     }
     if (left === "pattern" || right === "pattern") return `${op} cannot compare pattern values`;
-    if (left === "span" || right === "span") return "a span is not a value: tags($x) is the tag set of $x";
+    if (left === "span") left = "string";
+    if (right === "span") right = "string";
     if (op === "∈" || op === "∉") {
       if (left !== "string" && left !== "any") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
       if (right !== "strings" && right !== "set" && right !== "any") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
@@ -4359,7 +4409,8 @@
    */
   function expectedProblem(type, expected) {
     if (type === expected || type === "any" || (type === "set" && (expected === "tags" || expected === "pattern"))) return null;
-    if (type === "span") return "a span is not a value: tags($x) is the tag set of $x";
+    if (type === "span" && expected === "string") return null;
+    if (type === "span") return "a span cannot convert to this value type";
     return `${TYPE_NAMES[expected]} is needed here, not ${TYPE_NAMES[type]}`;
   }
 
@@ -4444,10 +4495,34 @@
       return {type:"pattern"};
     }
     if (typeof term.string === "string") return { type: "string" };
+    if (Array.isArray(term.interpolate) || Array.isArray(term.concat)) {
+      for (const part of term.interpolate ?? term.concat) {
+        const found = yield typing(part, constants);
+        if ("problem" in found) return found;
+        const wrong = expectedProblem(found.type, "string");
+        if (wrong) return { problem: wrong, node: term };
+      }
+      return { type: "string" };
+    }
+    if (typeof term.method === "string") {
+      const receiver = yield typing(term.receiver, constants);
+      if ("problem" in receiver) return receiver;
+      const types = [];
+      for (const arg of term.args) {
+        if (arg.rule || arg.classifier) types.push("name");
+        else {
+          const found = yield typing(arg, constants);
+          if ("problem" in found) return found;
+          types.push(found.type);
+        }
+      }
+      const problem = methodProblem(term.method, term.receiver, term.args, receiver.type, types, true);
+      return problem ? { problem, node: term } : { type: /** @type {TermType} */ (methodType(term.method)) };
+    }
     if (typeof term.tag === "string" || "range" in term) return { type: "tags" };
     if (term.emptySet === true) return { type: "set" };
     if (typeof term.capture === "string") return { type: "span" };
-    if (typeof term.const === "string") return { type: constants(term.const) };
+    if (typeof term.const === "string") return { type: term.const.startsWith("_") ? "string" : constants(term.const) };
     for (const [key, operator] of [["union", "∪"], ["intersection", "∩"], ["difference", "∖"]]) {
       if (!Array.isArray(term[key])) continue;
       /** @type {TermType[]} */
@@ -4516,6 +4591,11 @@
    * @returns {Generator<Step, TypeFault | null, any>}
    */
   function* conditionTypingOnce(condition, constants) {
+    if (condition.method) {
+      const found = yield typing(condition, constants);
+      if ("problem" in found) return found;
+      return found.type === "condition" ? null : { problem: "a condition requires a query method", node: condition };
+    }
     if (Array.isArray(condition.any) || Array.isArray(condition.all)) {
       for (const item of condition.any ?? condition.all) {
         const fault = yield conditionTyping(item, constants);
@@ -4583,10 +4663,13 @@
     // test (engine §9, §10).
     for (const alternative of rule.alternatives) {
       for (const test of testsIn(alternative.expr)) {
-        const found = termType(test.value, constants);
-        if ("problem" in found) return found;
-        const problem = expectedProblem(found.type, isSoundTest(test.test) ? "string" : "tags");
-        if (problem) return { problem: `${test.test} tests ${isSoundTest(test.test) ? "a string" : "a tag set"}: ${problem}`, node: test.value };
+        const operands = test.test === "tags" ? /** @type {any} */ (test).requirements.map((/** @type {any} */ requirement) => requirement.value) : [test.value];
+        for (const value of operands) {
+          const found = termType(value, constants);
+          if ("problem" in found) return found;
+          const problem = expectedProblem(found.type, test.test === "tags" ? "tags" : "string");
+          if (problem) return { problem, node: value };
+        }
       }
     }
     return null;
@@ -4673,11 +4756,14 @@
       if ("capture" in current || "if" in current) return current;
       /** @type {unknown[]} */
       let items = [];
-      if (typeof current.call === "string") {
+      if (typeof current.method === "string") {
+        if (current.method !== "split") return current;
+        items = [current.receiver, .../** @type {any} */ (current).args];
+      } else if (typeof current.call === "string") {
         if (current.call !== "split" && current.call !== "tag") return current;
         items = Array.isArray(current.args) ? current.args : [];
       } else {
-        const key = ["union", "intersection", "difference"].find((name) => Array.isArray(current[name]));
+        const key = ["union", "intersection", "difference", "interpolate"].find((name) => Array.isArray(current[name]));
         if (key) items = /** @type {unknown[]} */ (current[key]);
       }
       for (let index = items.length - 1; index >= 0; index--) stack.push(items[index]);
@@ -5443,7 +5529,7 @@
       const sides = [];
       for (const side of [implication.if, implication.then]) {
         for (const reference of constantsIn(side)) {
-          if (!this.constants.has(reference.const)) {
+          if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) {
             throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
           }
         }
@@ -5532,6 +5618,7 @@
       for (const version of this.constantVersions) {
         version.dependencies = [];
         for (const reference of constantsIn(version.value)) {
+          if (reference.const.startsWith("_")) continue;
           const target = reference.const === version.name && version.op === "redefine"
             ? version.previous : this.finalConstants.get(reference.const);
           if (!target) throw this.documentError(version.path, reference.at,
@@ -5641,10 +5728,11 @@
         return "string" in value ? value.string : "";
       };
       if ("string" in term) return { string: term.string };
+      if ("interpolate" in term) return { string: term.interpolate.map(string).join("") };
       if ("tag" in term) return { set: tagSet([term.tag]) };
       if ("range" in term) return { set: rangeTags(term.range, this.unicode) };
       if ("emptySet" in term) return expected === "pattern" ? { pattern: { difference: [{ children: { siblings: true } }, { children: { siblings: true } }] } } : { set: tagSet() };
-      if ("const" in term) return lookup(term.const);
+      if ("const" in term) return term.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(term.const.slice(1), 16)) } : lookup(term.const);
       if ("pattern" in term) return { pattern: resolvePattern(term.pattern, lookup, (value, test) => {
         const evaluated = this.evaluateClosed(path, value, item, lookup);
         if (isSoundTest(test.test)) {
@@ -5714,7 +5802,7 @@
       const types = (name) => /** @type {StageConstant} */ (this.constants.get(name)).type;
       for (const { path, rule } of this.constantUsers) {
         for (const reference of constantsIn(rule)) {
-          if (!this.constants.has(reference.const)) {
+          if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) {
             throw this.documentError(path, reference.at, `$${reference.const} is not defined in stage ${this.stageName}`);
           }
         }
@@ -5776,7 +5864,7 @@
     /**
      * A test of a body with its value, from the constants' final values
      * (engine §2, §4).
-     * @param {{test: TestOp, value: Term}} test
+     * @param {{test: TestOp, value?: Term, requirements?: import("./types.js").Requirement[]}} test
      * @param {string} path
      * @param {ErrorLocation} at
      * @returns {SymbolTest}
@@ -5784,9 +5872,20 @@
     symbolTest(test, path, at) {
       let found = this.tests.get(test);
       if (!found) {
-        const value = this.evaluateClosed(path, test.value, [at.line ?? 0, at.column ?? 0]);
-        const written = writtenTest(test.test, /** @type {{string:string}|{set:Set<string>}} */ (value));
-        found = "string" in value ? { op: test.test, sound: value.string, written } : { op: test.test, tags: "set" in value ? value.set : tagSet(), written };
+        if (test.test === "tags") {
+          const positive = new Set();
+          const negative = new Set();
+          for (const requirement of /** @type {import("./types.js").Requirement[]} */ (test.requirements)) {
+            const value = this.evaluateClosed(path, requirement.value, [at.line ?? 0, at.column ?? 0]);
+            for (const name of /** @type {{set: TagSet}} */ (value).set) (requirement.negated ? negative : positive).add(name);
+          }
+          const names = [...new Set([...positive, ...negative])].sort(compareCodePoints);
+          const written = "<" + names.flatMap(name => [...(positive.has(name) ? [name] : []), ...(negative.has(name) ? ["¬" + name] : [])]).join(" ") + ">";
+          found = { op: "tags", positive, negative, written };
+        } else {
+          const value = /** @type {{string: string}} */ (this.evaluateClosed(path, /** @type {Term} */ (test.value), [at.line ?? 0, at.column ?? 0]));
+          found = { op: test.test, sound: value.string, written: test.test + stringName(value.string, this.unicode) };
+        }
         this.tests.set(test, found);
       }
       return found;
@@ -5918,7 +6017,7 @@
     return false;
   }
 
-  const TYPE_PHRASES = { pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", set: "a set", any: "a value" };
+  const TYPE_PHRASES = { pattern: "a pattern", string: "a string", strings: "a set of strings", tags: "a tag set", span: "a span", emitted: "an emitted pair", condition: "a condition", set: "a set", any: "a value" };
 
   /**
    * A copy of a clause in which every reference to a constant holds the
@@ -5933,7 +6032,7 @@
     const record = /** @type {Record<string, unknown>} */ (node);
     if (typeof record.const === "string") {
       /** @type {ConstantTerm} */
-      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: /** @type {StageConstant} */ (constants.get(record.const)).value };
+      const reference = { const: record.const, at: /** @type {[number, number]} */ (record.at), value: record.const.startsWith("_") ? { string: String.fromCodePoint(parseInt(record.const.slice(1), 16)) } : /** @type {StageConstant} */ (constants.get(record.const)).value };
       copyRankedLocation(record,reference);
       return reference;
     }
@@ -5972,7 +6071,7 @@
    */
   function isTerminalName(name) {
     const first = name.codePointAt(0);
-    return first !== undefined && first >= 0x41 && first <= 0x5a;
+    return name.startsWith("_") || (first !== undefined && first >= 0x41 && first <= 0x5a);
   }
 
   /**
@@ -6262,7 +6361,7 @@
             elidedTest: helper.elidedTest,
             captures,
             conditions: [],
-            tags: single ? { call: "tags", args: [{ capture: captures[0].name }] } : null,
+            tags: single ? { method: "tags", receiver: { capture: captures[0].name }, args: [] } : null,
             emit: null,
             opaque: false,
             warnings: [],
@@ -6311,7 +6410,7 @@
           captures.push({ name: "\u0000child", index: 0 });
           names.add("\u0000child");
         }
-        tags = { call: "tags", args: [{ capture: captures[0].name }] };
+        tags = { method: "tags", receiver: { capture: captures[0].name }, args: [] };
       }
       // Each capture's position, looked up once for every variable of every
       // condition.
@@ -6468,15 +6567,28 @@
         // helper (engine §3).
         const inner = this.expand(expr.expr, where);
         const test = this.grammar.symbolTest(expr, where.rule.document, where.rule.at);
-        return [[{ symbol: { ...inner[0][0].symbol, test } }]];
+        const previous = inner[0][0].symbol.test;
+        const combined = previous ? { ...test, inner: previous, written: previous.written + test.written } : test;
+        return [[{ symbol: { ...inner[0][0].symbol, test: combined } }]];
       }
       if ("ref" in expr) return [[{ symbol: { name: expr.ref, terminal: isTerminalName(expr.ref) } }]];
       if ("terminal" in expr) return [[{ symbol: { name: expr.terminal, terminal: true } }]];
       // A range or a property is a terminal whose name is its written form,
       // and which matches by its characters rather than by a tag (engine §4).
+      if ("literal" in expr) {
+        const value = this.grammar.evaluateClosed(where.rule.document, expr.literal, [where.rule.at.line ?? 0, where.rule.at.column ?? 0]);
+        if (!("string" in value)) throw loweringError(where.alternative.at, "a literal requires a string");
+        return [[{ symbol: { name: stringName(value.string, this.grammar.unicode), terminal: true, literal: value.string } }]];
+      }
+      if ("wildcard" in expr) return [[{ symbol: { name: "_", terminal: true, wildcard: true } }]];
       if ("range" in expr) {
-        const characters = { from: codeOfCharacterTag(expr.range[0]), to: codeOfCharacterTag(expr.range[1]) };
-        return [[{ symbol: { name: rangeName(expr.range), terminal: true, characters } }]];
+        const values = expr.range.map(end => this.grammar.evaluateClosed(where.rule.document, end, [where.rule.at.line ?? 0, where.rule.at.column ?? 0]));
+        if (values.some(value => !("string" in value) || [...value.string].length !== 1)) throw loweringError(where.alternative.at, "a range endpoint requires one scalar");
+        const strings = values.map(value => /** @type {{string: string}} */ (value).string);
+        const characters = { from: /** @type {number} */ (strings[0].codePointAt(0)), to: /** @type {number} */ (strings[1].codePointAt(0)) };
+        if (characters.from > characters.to) throw loweringError(where.alternative.at, "a range starts above its end");
+        const name = strings.map(value => stringName(value, this.grammar.unicode)).join("..");
+        return [[{ symbol: { name, terminal: true, characters } }]];
       }
       if ("property" in expr) return [[{ symbol: { name: propertyName(expr.property), terminal: true, characters: { property: expr.property } } }]];
       if ("capture" in expr) {
@@ -6657,6 +6769,7 @@
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -6855,7 +6968,7 @@
     const token = context.tokens[at];
     /** @type {CloseEvent} */
     const event = { kind: "close", terminal, at: originalPosition(context, at), source: token.source };
-    if (token.phonemes !== null) event.sound = token.phonemes;
+    if (token.value !== null) event.sound = token.value;
     return machine.event(event);
   }
 
@@ -7052,8 +7165,8 @@
       /** Whether the check of engine §7 is running over this context's input. */
       this.checking = false;
       /**
-       * Each token's phonemes in canonical form, for the sound tests of
-       * symbols and for phonemes(), computed when one first looks at the
+       * Each token's value in canonical form, for the sound tests of
+       * symbols and for value(), computed when one first looks at the
        * token (engine §4, §5).
        * @type {(string | undefined)[]}
        */
@@ -8014,7 +8127,7 @@
                 // symbol after it can read (engine §7.4).
                 kind = beginPredict(set, symbol.name, mode === "reconstruction" && taken.strict && !readsLater(taken), lexical?.entry(taken,symbol.name) ?? null,requestChild(taken)) ? PREDICT : EMPTIES;
                 if (kind === EMPTIES) next = -1;
-              } else if (at < end && (symbol.characters === undefined ? tokens[at].tags.has(symbol.name) : carries(context.unicode, symbol.characters, tokens[at].tags))) {
+              } else if (at < end && reads(context, symbol, tokens[at])) {
                 // The written routes of an elidable optional (engine §7.4):
                 // from an original token, or from a synthetic one, after
                 // which the rest of the optional must read, so the item after
@@ -8300,6 +8413,12 @@
    * @returns {boolean}
    */
   function testHolds(context, test, from, to, tags) {
+    if (test.inner && !testHolds(context, test.inner, from, to, tags)) return false;
+    if (test.op === "tags") {
+      for (const tag of /** @type {TagSet} */ (test.positive)) if (!tags.has(tag)) return false;
+      for (const tag of /** @type {TagSet} */ (test.negative)) if (tags.has(tag)) return false;
+      return true;
+    }
     switch (test.op) {
       case "=":
       case "≠":
@@ -8323,7 +8442,7 @@
 
   /**
    * Whether the tokens [from, to) sound like a string: their canonical sound
-   * is exactly it (engine §4, §5). A token with no phonemes adds nothing.
+   * is exactly it (engine §4, §5). A token with no value adds nothing.
    * @param {ParseContext} context
    * @param {string} sound
    * @param {number} from
@@ -8364,7 +8483,7 @@
   }
 
   /**
-   * A token's phonemes in canonical form (engine §5), remembered for the
+   * A token's value in canonical form (engine §5), remembered for the
    * parse. The lowercase mapping and the removal of commas act on each code
    * point alone, so the canonical sound of a span is its tokens' joined.
    * @param {ParseContext} context
@@ -8373,7 +8492,7 @@
    */
   function canonicalSound(context, index) {
     let sound = context.sounds[index];
-    if (sound === undefined) sound = context.sounds[index] = context.unicode.canonical(context.tokens[index].phonemes || "");
+    if (sound === undefined) sound = context.sounds[index] = context.tokens[index].value;
     return sound;
   }
 
@@ -8399,7 +8518,16 @@
    * @returns {boolean}
    */
   function reads(context, symbol, token) {
-    return symbol.characters === undefined ? token.tags.has(symbol.name) : carries(context.unicode, symbol.characters, token.tags);
+    if (symbol.wildcard) return true;
+    if (symbol.literal !== undefined) return token.value === symbol.literal;
+    if (symbol.characters) {
+      const characters = [...token.value];
+      if (characters.length !== 1) return false;
+      const code = /** @type {number} */ (characters[0].codePointAt(0));
+      const range = /** @type {{from: number, to: number}} */ (symbol.characters);
+      return code >= range.from && code <= range.to;
+    }
+    return token.tags.has(symbol.name);
   }
 
   /**
@@ -8763,9 +8891,9 @@
   function spanOf(context, span, scope) {
     if (hooks.work) countWork(hooks.work, "visits");
     if ("capture" in span) return scope.capture(span.capture);
-    if ("call" in span && span.call === "without-elision") {
-      const captured = scope.capture(/** @type {{capture:string}} */ (span.args[0]).capture);
-      const inner = projectedArgument(captured,scope,span.call);
+    if ("method" in span && span.method === "without-elision") {
+      const captured = scope.capture(/** @type {{capture:string}} */ (span.receiver).capture);
+      const inner = projectedArgument(captured,scope,span.method);
       const machine = context.closes;
       if (!machine || !captured.observation) throw new GencmuError("grammar","a restored span lacks its captured close observation");
       const observation = captured.observation;
@@ -8775,44 +8903,44 @@
       return { start: inner.start, end: inner.end,
         aligned: alignedSpan(context, observation, inner.end, contextEnd) };
     }
-    if ("call" in span && (span.call === "head" || span.call === "tail" || span.call === "last")) {
+    if ("method" in span && (span.method === "first-token" || span.method === "tokens-after-first" || span.method === "last-token")) {
       // In the check, the projection comes first, then the function (engine
       // §7.5), unless a fault applies the function first (F1).
-      const argument = spanOf(context, span.args[0], scope);
-      const first = functionFirst(argument, scope, span.call);
+      const argument = spanOf(context, span.receiver, scope);
+      const first = functionFirst(argument, scope, span.method);
       if (first) return first;
-      const inner = projectedArgument(argument, scope, span.call);
+      const inner = projectedArgument(argument, scope, span.method);
       const { start, end, space } = inner;
       /** @type {SpanValue} */
       let result;
-      if (span.call === "head") result = { start, end: Math.min(start + 1, end), space };
-      else if (span.call === "tail") result = { start: Math.min(start + 1, end), end, space };
+      if (span.method === "first-token") result = { start, end: Math.min(start + 1, end), space };
+      else if (span.method === "tokens-after-first") result = { start: Math.min(start + 1, end), end, space };
       else result = { start: Math.max(end - 1, start), end, space };
-      if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.call);
-      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
+      if (inner.reconstructed) result.reconstructed = reconstructedPart(scope, inner.reconstructed, span.method);
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.method);
       return result;
     }
-    if ("call" in span && (span.call === "from" || span.call === "after")) {
-      const argument = spanOf(context, span.args[0], scope);
+    if ("method" in span && (span.method === "onward" || span.method === "following-tokens")) {
+      const argument = spanOf(context, span.receiver, scope);
       if (argument.aligned) {
         const aligned = argument.aligned;
-        return span.call === "from"
+        return span.method === "onward"
           ? { start: argument.start, end: aligned.contextEnd,
             aligned: alignedSpan(context, aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd) }
           : {start:argument.end,end:aligned.contextEnd};
       }
-      const first = functionFirst(argument, scope, span.call);
+      const first = functionFirst(argument, scope, span.method);
       if (first) return first;
-      const inner = projectedArgument(argument, scope, span.call);
+      const inner = projectedArgument(argument, scope, span.method);
       const r = reconstructionOf(scope);
       const end = inner.space === "raw" ? /** @type {ParseContext} */ (r).inputEnd : context.inputEnd;
       /** @type {SpanValue} */
-      const result = { start: span.call === "from" ? inner.start : inner.end, end, space: inner.space };
+      const result = { start: span.method === "onward" ? inner.start : inner.end, end, space: inner.space };
       if (inner.reconstructed) {
         const [a, b] = inner.reconstructed;
-        result.reconstructed = [span.call === "from" ? a : b, /** @type {ParseContext} */ (r).inputEnd];
+        result.reconstructed = [span.method === "onward" ? a : b, /** @type {ParseContext} */ (r).inputEnd];
       }
-      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.call);
+      if (inner.exact) result.exact = exactPart(scope, inner.exact, span.method);
       return result;
     }
     throw new GencmuError("grammar", `expected a span, found ${JSON.stringify(span)}`);
@@ -8878,10 +9006,10 @@
     const [a, b] = behind;
     /** @type {[number, number]} */
     let part;
-    if (call === "head") part = [a, Math.min(a + 1, b)];
-    else if (call === "tail") part = [Math.min(a + 1, b), b];
-    else if (call === "last") part = [Math.max(b - 1, a), b];
-    else if (call === "from") part = [a, r.inputEnd];
+    if (call === "first-token") part = [a, Math.min(a + 1, b)];
+    else if (call === "tokens-after-first") part = [Math.min(a + 1, b), b];
+    else if (call === "last-token") part = [Math.max(b - 1, a), b];
+    else if (call === "onward") part = [a, r.inputEnd];
     else part = [b, r.inputEnd];
     const project = /** @type {Reconstruction} */ (r.recon).project;
     return { start: project[part[0]], end: project[part[1]], reconstructed: part, exact: part };
@@ -8906,21 +9034,21 @@
       while (at < limit && synthetic[at]) at++;
       return at;
     };
-    if (call === "last") {
+    if (call === "last-token") {
       let at = b - 1;
       while (at >= a && synthetic[at]) at--;
       return at >= a ? [at, at + 1] : [b, b];
     }
-    if (call === "head") {
+    if (call === "first-token") {
       const at = original(a, b);
       return at < b ? [at, at + 1] : [b, b];
     }
-    if (call === "tail") {
+    if (call === "tokens-after-first") {
       const first = original(a, b);
       return [first < b ? original(first + 1, b) : b, b];
     }
     const end = r.inputEnd;
-    return [original(call === "from" ? a : b, end), end];
+    return [original(call === "onward" ? a : b, end), end];
   }
 
   /**
@@ -8937,14 +9065,14 @@
     const r = /** @type {ParseContext} */ (reconstructionOf(scope));
     const synthetic = /** @type {boolean[]} */ (r.synthetic);
     const [a, b] = span;
-    if (call === "last") {
+    if (call === "last-token") {
       let at = b - 1;
       while (at >= a && synthetic[at]) at--;
       return [Math.max(at, a), b];
     }
     let at = a;
     while (at < b && synthetic[at]) at++;
-    return call === "head" ? [a, Math.min(at + 1, b)] : [Math.min(at + 1, b), b];
+    return call === "first-token" ? [a, Math.min(at + 1, b)] : [Math.min(at + 1, b), b];
   }
 
   /**
@@ -9098,69 +9226,67 @@
     if ("union" in term) return unionFrom(context, term.union, 0, new TagUnion(), scope);
     if ("intersection" in term) return setsFrom(context, term.intersection, 0, [], scope, intersectionOf);
     if ("difference" in term) return setsFrom(context, term.difference, 0, [], scope, differenceOf);
-    if ("call" in term) {
+    if ("capture" in term || "method" in term && SPAN_METHODS.has(term.method)) {
+      const where = observe(context, spanOf(context, term, scope), scope, "value");
+      return { string: where.context.tokens.slice(where.start, where.end).map(token => token.value).join("") };
+    }
+    if ("interpolate" in term) return interpolateFrom(context, term.interpolate, 0, "", scope);
+    if ("method" in term) {
+      const receiver = term.receiver;
       const args = term.args;
-      switch (term.call) {
-        case "phonemes": {
-          // The canonical sound (engine §5).
-          const where = observe(context, spanOf(context, args[0], scope), scope, "phonemes");
-          let sound = "";
-          for (let index = nextSounding(where.context, where.start); index < where.end; index = nextSounding(where.context, index + 1)) {
-            sound += canonicalSound(where.context, index);
-          }
-          return { string: sound };
+      switch (term.method) {
+        case "value": case "image": {
+          const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
+          return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
         }
-        case "text": {
-          const where = observe(context, spanOf(context, args[0], scope), scope, "text");
+        case "source-text": {
+          const where = observe(context, spanOf(context, receiver, scope), scope, "source-text");
           return { string: textOf(where.context, where.start, where.end) };
         }
         case "split": {
-          // A set of strings (engine §10); an empty delimiter that only a
-          // parse sees is an error of the grammar.
-          // A frame is made only where a part halts, which a string never
-          // does in a grammar that loads.
-          const string = evaluate(context, args[0], scope);
-          if (string === HALT) return pause((/** @type {TermValue} */ found) => splitBy(context, asString(found), args[1], scope));
-          return splitBy(context, asString(string), args[1], scope);
+          const value = evaluate(context, receiver, scope);
+          if (value === HALT) return pause(found => splitBy(context, asString(found), args[0], scope));
+          return splitBy(context, asString(value), args[0], scope);
         }
-        case "tag": {
-          const name = evaluate(context, args[0], scope);
-          if (name === HALT) return pause((/** @type {TermValue} */ found) => tagNamed(asString(found)));
-          return tagNamed(asString(name));
+        case "classify": {
+          const value = evaluate(context, receiver, scope);
+          const name = /** @type {{classifier: string}} */ (args[0]).classifier;
+          if (value === HALT) return pause(found => classified(context, name, asString(found)));
+          return classified(context, name, asString(value));
         }
         case "tags": {
-          const span = spanOf(context, args[0], scope);
-          if (args.length === 2) {
+          const span = spanOf(context, receiver, scope);
+          if (args.length) {
             const target = queryTarget(context, span, scope);
-            const tags = nestedTags(target.context, ruleName(args[1]), target.start, target.end, target);
+            const tags = nestedTags(target.context, ruleName(args[0]), target.start, target.end, target);
             return tags === HALT ? pause(asSetValue) : { set: tags };
           }
-          if ("capture" in args[0]) {
-            // The tags of `$` are its tag term's, which can halt.
+          if ("capture" in receiver) {
             const tags = /** @type {TagSet | Halt} */ (span.tags);
             return tags === HALT ? pause(asSetValue) : { set: tags };
           }
           return { set: observedTokenTags(observe(context, span, scope, "tags"), scope) };
         }
-        case "classify": {
-          // The classes that the classifier gives the string, for the
-          // features of the parse, or none for an unknown key (engine §10).
-          const key = evaluate(context, args[0], scope);
-          const name = /** @type {{classifier: string}} */ (args[1]).classifier;
-          if (key === HALT) return pause((/** @type {TermValue} */ found) => classified(context, name, asString(found)));
-          return classified(context, name, asString(key));
-        }
         case "classes": {
-          const span = spanOf(context, args[0], scope);
-          if (!("capture" in args[0])) return classesAmong(observedTokenTags(observe(context, span, scope, "classes"), scope));
+          const span = spanOf(context, receiver, scope);
+          if (!("capture" in receiver)) return classesAmong(observedTokenTags(observe(context, span, scope, "classes"), scope));
           const tags = /** @type {TagSet | Halt} */ (span.tags);
           return tags === HALT ? pause(classesAmong) : classesAmong(tags);
         }
-        default:
-          throw new GencmuError("grammar", `unknown function ${term.call}`);
+        default: throw new GencmuError("grammar", `unknown method ${term.method}`);
       }
     }
     throw new GencmuError("grammar", `unknown term ${JSON.stringify(term)}`);
+  }
+
+  /** @param {ParseContext} context @param {Argument[]} parts @param {number} at @param {string} value @param {Scope} scope @returns {TermValue | Halt} */
+  function interpolateFrom(context, parts, at, value, scope) {
+    for (; at < parts.length; at++) {
+      const found = evaluate(context, parts[at], scope);
+      if (found === HALT) return pause(result => interpolateFrom(context, parts, at + 1, value + asString(result), scope));
+      value += asString(found);
+    }
+    return { string: value };
   }
 
   /**
@@ -9182,7 +9308,8 @@
     for (const tag of tags) {
       if (hooks.work) countWork(hooks.work, "tags");
       const first = tag.charCodeAt(0);
-      if (first >= 0x41 && first <= 0x5a) result.add(tag);
+      const last = tag.charCodeAt(tag.length - 1);
+      if (first >= 0x41 && first <= 0x5a && last >= 0x41 && last <= 0x5a) result.add(tag);
     }
     return { set: result };
   }
@@ -9351,18 +9478,16 @@
     }
     // A presence test is decided when the grammar is lowered (engine §3.6).
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
-    if ("matches" in condition) {
-      const target = queryTarget(context, spanOf(context, condition.matches, scope), scope);
-      return nestedMatches(target.context, condition.rule, target.start, target.end, target);
-    }
-    if ("begins" in condition) {
-      const target = queryTarget(context, spanOf(context, condition.begins, scope), scope);
-      return nestedBegins(target.context, condition.rule, target.start, target.end, target);
-    }
-    // Where the input of the parse that reads the condition begins (engine §10).
-    if ("initial" in condition) {
-      const where = observe(context, spanOf(context, condition.initial, scope), scope, "initial");
-      return where.start === where.context.inputStart;
+    if ("method" in condition) {
+      const span = spanOf(context, condition.receiver, scope);
+      if (condition.method === "starts-input") {
+        const where = observe(context, span, scope, "starts-input");
+        return where.start === where.context.inputStart;
+      }
+      const target = queryTarget(context, span, scope);
+      const rule = ruleName(condition.args[0]);
+      if (condition.method === "matches") return nestedMatches(target.context, rule, target.start, target.end, target);
+      return nestedBegins(target.context, rule, target.start, target.end, target);
     }
     const comparison = condition;
     if (comparison.op === "≅" || comparison.op === "≇") {
@@ -9482,14 +9607,14 @@
   function nestedKey(context, kind, rule, start, end) {
     if (end - start > CONTENT_KEY_LIMIT) return JSON.stringify(["at", kind, rule, start, end]);
     // The text over the span's source (engine §1), and each token's tags,
-    // text, phonemes, and where it begins and ends in that text, which text()
+    // text, value, and where it begins and ends in that text, which text()
     // of a part of the span reads.
     const [low, high] = start < end ? context.sources.of(start, end) : [0, 0];
     /** @type {(string | number)[]} */
     const key = ["of", kind, rule, context.sourceText.slice(low, high).join("")];
     for (let index = start; index < end; index++) {
       const token = context.tokens[index];
-      key.push(tagKey(token.tags), token.text, token.phonemes || "", token.source[0] - low, token.source[1] - low);
+      key.push(tagKey(token.tags), token.text, token.value, token.image, token.source[0] - low, token.source[1] - low);
     }
     return JSON.stringify(key);
   }
@@ -9939,10 +10064,10 @@
         blocks.push(`${stage.name}: no tokens (${stage.error ? stage.error.kind : "not run"})`);
         continue;
       }
-      const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.phonemes || ""), quoted(token.label),
+      const rows = stage.output.map((token, index) => [String(index), quoted(token.text), quoted(token.value || ""), quoted(token.image),
         `${token.span[0]}-${token.span[1]}`, `${token.source[0]}-${token.source[1]}`, tagList(token.tags) + (token.insertedBy ? `  (inserted by ${token.insertedBy})` : "") +
           (attachmentText(token) ? `  (attached: ${attachmentText(token)})` : "")]);
-      const header = ["#", "text", "phonemes", "label", "span", "source", "tags"];
+      const header = ["#", "text", "value", "image", "span", "source", "tags"];
       // The widest cell of each column, in a loop: a stage can hand on more
       // tokens than a call takes arguments.
       const widths = header.map((title) => [...title].length);
@@ -10023,9 +10148,7 @@
       if ("not" in condition) return { parts: [asCondition(condition.not)], combine: ([inner]) => `¬(${inner})` };
       if ("captured" in condition) return leaf(`$${condition.captured}`);
       if ("if" in condition) return { parts: [asCondition(condition.if), asCondition(/** @type {Condition} */ (condition.then))], combine: ([left, right]) => `(${left} ⟹ ${right})` };
-      if ("matches" in condition) return { parts: [asTerm(condition.matches)], combine: ([span]) => `matches(${span}, ${condition.rule})` };
-      if ("begins" in condition) return { parts: [asTerm(condition.begins)], combine: ([span]) => `begins(${span}, ${condition.rule})` };
-      if ("initial" in condition) return { parts: [asTerm(condition.initial)], combine: ([span]) => `initial(${span})` };
+      if ("method" in condition) return notationShape({ term: condition });
       return { parts: [asTerm(condition.left), asTerm(condition.right)], combine: ([left, right]) => `${left} ${condition.op} ${right}` };
     }
     const term = notation.term;
@@ -10054,6 +10177,8 @@
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
     if ("call" in term) return { parts: term.args.map(asTerm), combine: (texts) => `${term.call}(${texts.join(", ")})` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(", ")})` : ""}` };
+    if ("interpolate" in term) return leaf(quoted(term.interpolate.map(part => "string" in part ? part.string.replaceAll("$", "$$") : `$(${part.const})`).join("")));
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     return leaf(`$${term.capture}`);
   }
@@ -10261,7 +10386,7 @@
 
   /**
    * Which rules could sound inside an emitted token, where what they read is
-   * part of the token's phonemes unless it does not count (engine §5): those
+   * part of the token's value unless it does not count (engine §5): those
    * under a part emitted as a token whose tags do not name its phoneme, and
    * all that lies under them but what emits `ε`.
    * @param {Map<string, StitchedAlternative[]>} alternativesByRule
@@ -10298,7 +10423,7 @@
       }
     }
     // Inside a token, everything counts but what emits `ε`, whatever any
-    // token under it says of its own phonemes.
+    // token under it says of its own value.
     for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
       for (const alternative of alternativesByRule.get(name) || []) {
         const emit = alternative.clauses.emit;
@@ -10311,7 +10436,7 @@
 
   /**
    * Whether a tag term certainly holds a phoneme tag, which fixes the
-   * phonemes of a token it tags (engine §5).
+   * value of a token it tags (engine §5).
    * @param {Term | undefined} term
    * @returns {boolean}
    */
@@ -12472,7 +12597,7 @@
           // while emitting does: no output, the rest kept (engine §7.7).
           if (error instanceof GencmuError) {
             // A fault loses the error (F26:lost), and another reports it as
-            // a lost witness (F26:relabel).
+            // a lost witness (F26:reimage).
             if (fault("F26:lost")) return report;
             report.output = null;
             report.error = fault("F26:relabel")
@@ -13032,7 +13157,7 @@
   }
 
   /**
-   * A join of the phonemes or of the labels of a token's parts (engine §5): a
+   * A join of the value or of the images of a token's parts (engine §5): a
    * part with an empty string is left out, of each run of adjacent pause parts
    * only the first is kept, and a pause part at either end is left out. Pauses
    * are counted by part, so a part keeps its own periods and spaces.
@@ -13041,26 +13166,14 @@
     constructor() {
       /** @type {string[]} */
       this.pieces = [];
-      this.pause = false;
     }
-    /**
-     * @param {string} piece
-     * @param {boolean} pause whether the part is a pause part
-     */
-    add(piece, pause) {
-      if (piece === "") return;
-      if (pause && (this.pieces.length === 0 || this.pause)) return;
-      this.pieces.push(piece);
-      this.pause = pause;
-    }
+    /** @param {string} piece @param {boolean} pause */
+    add(piece, pause) { this.pieces.push(piece); }
     /** @returns {string} */
-    result() {
-      if (this.pause) this.pieces.pop();
-      return this.pieces.join("");
-    }
+    result() { return this.pieces.join(""); }
   }
 
-  // What a node says and shows: the phonemes and the labels of its parts,
+  // What a node says and shows: the value and the images of its parts,
   // joined (engine §5, §11). A part is a read input token or an opaque part.
   // Nothing inside a constituent that does not count is a part, and the walk
   // does not enter an opaque part.
@@ -13068,30 +13181,30 @@
    * @param {Derivation} node
    * @param {ParseContext} context
    * @param {Map<Derivation, OpaquePart>} opaque
-   * @returns {{phonemes: string, label: string}}
+   * @returns {{value: string, image: string}}
    */
   function spoken(node, context, opaque) {
-    const phonemes = new Join();
-    const label = new Join();
+    const value = new Join();
+    const image = new Join();
     const stack = [node];
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if ("read" in current) {
         const token = context.tokens[current.read.token];
-        const sound = token.phonemes || "";
-        phonemes.add(sound, sound === ".");
-        label.add(token.label, sound === ".");
+        const sound = token.value || "";
+        value.add(sound, sound === ".");
+        image.add(token.image, sound === ".");
         continue;
       }
       if (countsForNothing(current.production)) continue;
       const part = opaque.get(current);
       if (part) {
-        phonemes.add("?", false);
-        label.add(part.text, false);
+        value.add("?", false);
+        image.add(part.text, false);
         continue;
       }
       for (let index = current.children.length - 1; index >= 0; index--) stack.push(current.children[index]);
     }
-    return { phonemes: phonemes.result(), label: label.result() };
+    return { value: value.result(), image: image.result() };
   }
 
   /**
@@ -13105,13 +13218,13 @@
   }
 
   /**
-   * The phonemes and the label of a phoneme tag `/p/` (engine §5): `p` and
-   * `p`, but a space for the label of the pause.
+   * The value and the image of a phoneme tag `/p/` (engine §5): `p` and
+   * `p`, but a space for the image of the pause.
    * @param {string} phoneme
-   * @returns {{phonemes: string, label: string}}
+   * @returns {{value: string, image: string}}
    */
   function sounded(phoneme) {
-    return { phonemes: phoneme, label: phoneme === "." ? " " : phoneme };
+    return { value: phoneme, image: phoneme === "." ? " " : phoneme };
   }
 
   /**
@@ -13134,7 +13247,7 @@
    */
   function makeToken(node, explicit, emitter) {
     const { context, opaque } = emitter;
-    // The stage's implications apply before the phonemes and the label
+    // The stage's implications apply before the value and the image
     // (engine §11).
     const tags = implied(explicit, context.lowered.implications);
     // Two phoneme tags are an error on any token (engine §5).
@@ -13143,9 +13256,9 @@
     const part = opaque.get(node);
     const source = part ? part.source : sourceOf(context.sources, node.start, node.end);
     const text = part ? part.text : context.sourceText.slice(source[0], source[1]).join("");
-    // A phoneme tag decides the sound and the label, over `?` (engine §5).
+    // A phoneme tag decides the sound and the image, over `?` (engine §5).
     const said = phoneme !== null ? sounded(phoneme) : spoken(node, context, opaque);
-    const token = new Token(tags, [node.start, node.end], source, text, said.phonemes, undefined, said.label);
+    const token = new Token(tags, [node.start, node.end], source, text, said.value, undefined, said.image);
     // The parts decide the attachments too, after the phoneme tags are
     // checked (engine §11).
     const from = emitter.forwards ? forwarded(node, context, opaque) : null;
@@ -13233,11 +13346,11 @@
     const tokens = context.tokens;
     const position = at > node.start ? tokens[at - 1].source[1] : sourceOf(context.sources, node.start, node.end)[0];
     const tags = implied(tagSet([tag]), context.lowered.implications);
-    // An inserted token has no parts: a phoneme tag gives its phonemes and its
-    // label, or both are empty (engine §5).
+    // An inserted token has no parts: a phoneme tag gives its value and its
+    // image, or both are empty (engine §5).
     const phoneme = phonemeTag(tags);
-    const said = phoneme !== null ? sounded(phoneme) : { phonemes: "", label: "" };
-    return new Token(tags, [at, at], [position, position], "", said.phonemes, owner, said.label);
+    const said = phoneme !== null ? sounded(phoneme) : { value: "", image: "" };
+    return new Token(tags, [at, at], [position, position], "", said.value, owner, said.image);
   }
 
   /**
@@ -13371,7 +13484,7 @@
       if (clause.items.length === 0) continue;
       if (clause.items[0].capture === "") {
         // One token covering the constituent per `$`: a digit that is two
-        // phonemes is emitted as two tokens over the same character.
+        // value is emitted as two tokens over the same character.
         for (const item of clause.items) put(makeToken(node, valueTags(item, nodeTags(node, context)), emitter));
         continue;
       }
@@ -13484,6 +13597,7 @@
 
 
 
+
   /**
    * @import { Step } from "./trampoline.js"
    * @import { Argument, Comparator, Condition, DomAlternative, DomClassifier, DomConstant, DomDirective, DomEntry, DomImplication, DomRule, EmitItem, Emission, Expr, GrammarDom, Position, ResultNode, RuleNode, Term } from "./types.js"
@@ -13570,8 +13684,8 @@
       if (found.length !== 1 || !kinds.has(/** @type {RuleNode} */ (found[0]).rule)) return lacks(node, `single part of these: ${[...kinds].join(", ")}`);
       return /** @type {RuleNode} */ (found[0]);
     };
-    /** @type {(node: ResultNode) => string | undefined} */
-    const ruleOf = (node) => (node.kind === "rule" ? node.rule : undefined);
+    /** @type {(node: ResultNode) => string} */
+    const ruleOf = (node) => (node.kind === "rule" ? node.rule : "");
     // The first node of a rule at or below a node, in the order written.
     /** @type {(node: ResultNode, name: string) => ResultNode | null} */
     const firstOfRule = (node, name) => {
@@ -13608,11 +13722,13 @@
     // capture stands.
     let braces = 0;
     let marked = 0;
+    let recipeContext = false;
+    const tagSources = new Map();
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
         const name = text(token(item)).slice(1);
-        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag");
+        const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
         if (name === "ambiguity-resolution" && operands.some((child) => text(token(child)) === "maximal")) {
@@ -13624,7 +13740,7 @@
           // literal is its name.
           args: operands.map((child) => {
             if (ruleOf(child) === "argument-word") return text(token(child));
-            if (ruleOf(child) === "argument-string") return decode(token(child));
+            if (ruleOf(child) === "argument-string") return text(token(child)).slice(1, -1);
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           }),
@@ -13640,7 +13756,9 @@
         implications.push(run(readImplicationDeclaration(item)));
       }
     }
-    return { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
+    const dom = { format: DOM_FORMAT, rules, directives, constants, classifiers, implications };
+    flattenGroups(dom);
+    return dom;
 
     /**
      * A `%classifier` item: its name, which begins with a lower-case letter,
@@ -13671,16 +13789,15 @@
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
-        const key = decode(token(keyNode));
-        const wrong = soundProblem(key, unicode);
-        if (wrong) fail(`a key is a canonical sound: ${wrong}`, keyNode);
+        const key = decode(token(only(keyNode, "string")));
+
         return key;
       });
       const op = /** @type {"∈" | "∉"} */ (text(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
       const written = text(token(classNode));
       const name = written.startsWith("~") ? written.slice(1) : written;
-      if (!isCapital(name)) fail(`${written} is not a class: a class is an identifier tag that begins with a capital`, classNode);
+      if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${written} is not a class: a class starts and ends with a capital`, classNode);
       return { guards, keys, op, class: name, at: at(node) };
     }
 
@@ -13714,6 +13831,7 @@
     function* readConstant(node) {
       const keyword = text(token(only(node, "constant-definer")));
       const name = text(token(only(node, "constant-reference"))).slice(1);
+      if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("an engine constant cannot be declared", only(node, "constant-reference"));
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
       const value = /** @type {Term} */ (yield readTerm(valueNode));
@@ -13732,6 +13850,7 @@
       const keyword = text(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
       const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      if (rule.name !== "#" && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name begins with a lowercase letter", only(node, "rule-name"));
       const flags = one(node, "rule-flags");
       rule.flags = [];
       if (flags) {
@@ -13743,16 +13862,14 @@
           rule.flags.push(name);
         }
       }
-      // The parts of a definition are read in the order written: the body,
-      // then its clauses in their fixed order, and the checks of the whole
-      // definition last (engine §9).
-      /** @type {DomAlternative[]} */
-      const alternatives = [];
-      const body = only(node, "body");
-      const ranked = one(body, "ranked-alternative");
-      for (const alternative of ranked ? [ranked] : some(body, "alternative")) alternatives.push(yield readAlternative(alternative));
       const tagsClause = one(node, "tags-clause");
       const tags = tagsClause ? /** @type {Term} */ (yield readConstituentTags(tagsClause)) : undefined;
+      const channels = yield readChannels(node);
+      /** @type {DomAlternative[]} */
+      const alternatives = [];
+      const body = one(node, "body") || only(node, "headed-body");
+      const ranked = one(body, "ranked-alternative");
+      for (const alternative of ranked ? [ranked] : some(body, "alternative")) alternatives.push(yield readAlternative(alternative));
       // Each condition of the list is one condition, applying where its
       // captures are (engine §3.6).
       const conditionsClause = one(node, "conditions-clause");
@@ -13762,10 +13879,11 @@
       const emits = one(node, "emits-clause");
       const emit = emits ? /** @type {Emission} */ (yield readEmission(emits)) : undefined;
       if (tags) rule.tags = tags;
+      Object.assign(rule, channels);
       rule.alternatives = alternatives;
       if (emit) rule.emit = emit;
       rule.conditions = conditions;
-      if (one(node, "opaque-clause")) rule.opaque = true;
+      if (one(node, "erased-clause")) rule.erased = true;
       rule.at = at(node);
       flattenGroups(rule);
       const problem = definitionProblem(rule, deferEmission);
@@ -13800,6 +13918,7 @@
       }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = yield readConstituentTags(tags);
+      Object.assign(alternative, yield readChannels(node));
       return alternative;
     }
 
@@ -13877,13 +13996,14 @@
       const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
       const head = primary ? knownOf(primary, PRIMARIES) : undefined;
       /** @type {(symbol: RuleNode) => boolean} */
-      const isTerminal = (symbol) => ruleOf(symbol) === "tag" || (ruleOf(symbol) === "reference" && /^[A-Z]/.test(text(token(symbol))));
+      const isTerminal = (symbol) => ["tag", "reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(text(token(symbol)));
       if (!head) fail(form, node);
       const symbol = /** @type {RuleNode} */ (head);
       if (ruleOf(symbol) === "tested") {
-        if (!isTerminal(knownOf(only(symbol, "primary"), PRIMARIES))) fail(form, node);
-        const testNode = only(symbol, "test");
-        const comparator = parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join("");
+        const wrapper = one(symbol, "primary");
+        const base = wrapper ? knownOf(wrapper, PRIMARIES) : parts(symbol).find(child => child.kind === "rule" && PRIMARIES.has(child.rule));
+        if (!base || !isTerminal(/** @type {RuleNode} */ (base))) fail(form, node);
+
       } else if (!isTerminal(symbol)) {
         fail(form, node);
       }
@@ -13931,37 +14051,21 @@
     function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
         case "reference": return { ref: text(token(node)) };
-        case "tag": case "character": case "phoneme": return { terminal: tagOf(token(node)) };
-        case "range": return { range: readRange(node) };
-        case "property": return { property: readProperty(token(node)) };
+        case "tag": return { ref: tagOf(token(node)) };
+        case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
+        case "wildcard": token(node); return { wildcard: true };
+        case "range": return { range: yield readRange(node) };
         case "tested": {
-          // A reference other than # or a terminal, and one test on its own
-          // span (engine §2, §9). The syntax grammar reads a test after any
-          // primary, so that the reader can name the reason.
-          const testNode = only(node, "test");
-          const symbol = knownOf(only(node, "primary"), PRIMARIES);
-          const kind = ruleOf(symbol);
-          if (kind === "constant-reference") fail(CONSTANT_IN_BODY, symbol);
-          if (!["reference", "tag", "character", "phoneme", "range", "property"].includes(/** @type {string} */ (kind)) ||
-              (kind === "reference" && text(token(symbol)) === "#")) {
-            fail("a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test", testNode);
-          }
-          const expr = /** @type {import("./types.js").TestedSymbol} */ (yield readPrimary(symbol));
-          // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or
-          // `∩` and `=∅` or `≠∅` around the operand.
-          const test = /** @type {import("./types.js").TestOp} */ (parts(testNode).flatMap((child) => (child.kind === "token" ? [text(child)] : [])).join(""));
-          const operand = only(testNode, "test-operand");
-          closedFor = "a test's operand";
-          const value = /** @type {Term} */ (yield readTerm(operand));
-          closedFor = null;
-          const found = termType(value);
-          const problem = "problem" in found ? found.problem : expectedProblem(found.type, isSoundTest(test) ? "string" : "tags");
-          if (problem) fail(`${test} tests ${isSoundTest(test) ? "a string" : "a tag set"}: ${problem}`, operand);
-          if (isSoundTest(test) && "string" in value) {
-            const wrong = soundProblem(value.string, unicode);
-            if (wrong) fail(wrong, firstOfRule(operand, "string") || operand);
-          }
-          return { test, value, expr };
+          const tests = parts(node).filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
+          if (!tests.length) lacks(node, "test");
+          const wrapper = one(node, "primary");
+          const symbol = wrapper ? knownOf(wrapper, PRIMARIES) : parts(node).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(node, "base primary");
+          checkTestOrder(tests, ["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)) && !(ruleOf(symbol) === "reference" && text(token(symbol)) === "#"));
+          const converted = [];
+          for (const test of tests) converted.push(yield readTest(test));
+          let expr = yield readPrimary(symbol);
+          for (const test of converted) expr = { ...test, expr };
+          return expr;
         }
         case "capture": {
           if (braces > 0) fail("a capture cannot stand inside braces, whose parts repeat: name the list as a rule, and capture that", node);
@@ -13971,9 +14075,9 @@
           if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
           if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
-          const kind = ruleOf(wrapped);
-          if (kind === "constant-reference") fail(CONSTANT_IN_BODY, wrapped);
-          if (!["reference", "tag", "character", "phoneme", "range", "property", "tested"].includes(/** @type {string} */ (kind))) fail("a capture wraps one symbol", node);
+          const target = one(wrapped, "primary");
+          const base = ruleOf(wrapped) === "tested" ? target ? knownOf(target, PRIMARIES) : parts(wrapped).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(wrapped, "base primary") : wrapped;
+          if (!["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
           const name = text(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
@@ -13994,56 +14098,118 @@
      * @returns {Generator<Step, Emission, any>}
      */
     function* readEmission(node) {
-      // `%emits ε` emits nothing, and the constituent does not count.
-      if (parts(node).some((child) => tokenText(child) === "ε")) return { items: [] };
-      /** @type {EmitItem[]} */
+      const itemNodes = ofRule(node, "emit-item");
+      if (!itemNodes.length) {
+        /** @type {any} */
+        const item = { capture: "" };
+        const tags = one(node, "emit-tags");
+        if (tags) item.tags = yield readTagTerm(only(tags, "term"));
+        Object.assign(item, yield readChannels(node));
+        return { items: [item] };
+      }
       const items = [];
-      for (const itemNode of some(node, "emit-item")) {
-        const target = symbolPart(only(itemNode, "emit-target"));
-        const kind = target.kind === "rule" ? target.rule : target.terminal;
-        /** @type {EmitItem} */
-        let item = {};
-        if (kind === "capture") item = { capture: text(target).slice(1) };
-        else if (kind === "tag" || kind === "character" || kind === "phoneme") item = { insert: tagOf(target) };
-        else if (kind === "identifier" && isCapital(text(target))) item = { insert: text(target) };
-        else if (kind === "identifier") fail(`${text(target)} names a rule; an inserted tag is a tag literal, such as ~${text(target)}`, itemNode);
-        else if (kind === "range" || kind === "property") fail("an inserted item is one tag, not a range or a property", itemNode);
-        else fail("expected a capture or a tag after %emits", itemNode);
+      for (const itemNode of itemNodes) {
+        const targetNode = only(itemNode, "emit-target");
+        const target = symbolPart(targetNode);
+        const written = target.kind === "token" ? text(target) : "";
+        if (written !== "ε" && !written.startsWith("$")) fail("an emission target is a capture or ε", targetNode);
+        /** @type {any} */
+        const item = written === "ε" ? { insert: true } : { capture: written.slice(1) };
+        const before = ofRule(itemNode, "emit-before").flatMap(readAttachment);
+        const after = ofRule(itemNode, "emit-after").flatMap(readAttachment);
+        if ((before.length || after.length) && !item.capture) fail("only a named capture carries attachments", itemNode);
         const tags = one(itemNode, "emit-tags");
-        if (tags && item.insert !== undefined) fail("an inserted tag takes no tags of its own", itemNode);
-        if (tags) {
-          item.tags = /** @type {Term} */ (yield readTagTerm(only(tags, "term")));
-          if ("emptySet" in item.tags) fail("<∅> emits a token no terminal can read; %emits ε emits nothing", itemNode);
-        }
-        // Attachments: named captures in parentheses, before the item and
-        // after it, carried only by a named capture (engine §9, §11).
-        const before = ofRule(itemNode, "emit-before").map(readAttachment);
-        const after = ofRule(itemNode, "emit-after").map(readAttachment);
-        if ((before.length || after.length) && item.capture === undefined) fail("an inserted tag carries no attachments", itemNode);
-        if ((before.length || after.length) && item.capture === "") fail("$ carries no attachments; name a capture", itemNode);
+        if (tags) item.tags = yield readTagTerm(only(tags, "term"));
+        Object.assign(item, yield readChannels(itemNode));
         if (before.length) item.before = before;
         if (after.length) item.after = after;
         items.push(item);
       }
-      if (items.some((item) => item.capture === "") && !items.every((item) => item.capture === "")) {
-        fail("$ goes with no item but another $", node);
-      }
-      // A capture stands once in an emission, as an item or as an attachment.
-      const named = items.flatMap((item) => (item.capture !== undefined && item.capture !== "" ? [item.capture, ...(item.before || []), ...(item.after || [])] : []));
+      const named = items.flatMap(item => [item.capture, ...(item.before || []), ...(item.after || [])].filter(name => name));
       if (new Set(named).size !== named.length) fail("%emits lists a capture twice", node);
       return { items };
     }
 
-    /**
-     * An attachment's capture, by its name without `$`: never `$` itself.
-     * @param {RuleNode} node
-     * @returns {string}
-     */
+    /** @param {RuleNode} node @returns {string[]} */
     function readAttachment(node) {
-      const capture = parts(node).find((child) => child.kind === "token" && text(child).startsWith("$"));
-      const name = capture ? text(capture).slice(1) : "";
-      if (name === "") fail("an attachment holds a named capture, not $", node);
-      return name;
+      return some(node, "capture-reference").map(child => {
+        const name = text(token(child)).slice(1);
+        if (!name) fail("an attachment holds a named capture, not $", node);
+        return name;
+      });
+    }
+
+    /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
+    function* readChannels(node) {
+      /** @type {Record<string, any>} */
+      const result = {};
+      for (const channel of ["value", "image"]) {
+        const clause = one(node, `${channel}-clause`);
+        if (clause) result[channel] = yield readRecipe(only(clause, "recipe"));
+      }
+      return result;
+    }
+
+    /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
+    function* readRecipe(node) {
+      const concat = [];
+      for (const atom of some(node, "recipe-atom")) {
+        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.text))) fail("a recipe atom has no grouping or arguments", atom);
+        let current = only(atom, "term");
+        for (const kind of ["term", "union", "intersection", "term-atom"]) {
+          if (ruleOf(current) !== kind) fail("a recipe requires a closed string atom", atom);
+          const children = parts(current);
+          if (children.some(child => child.kind === "token")) fail("a recipe atom has no operator or grouping", atom);
+          const nodes = children.filter(child => child.kind === "rule");
+          if (nodes.length !== 1) fail("a recipe requires one string atom", atom);
+          current = nodes[0];
+        }
+        if (!["string", "constant-reference", "method"].includes(ruleOf(current))) fail("a recipe requires a string or captured string method", atom);
+        recipeContext = true;
+        const term = yield readTerm(current);
+        recipeContext = false;
+        if (term.method) {
+          const receiver = term.receiver;
+          const input = ["value", "image", "source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
+          const emitted = ["value", "image"].includes(term.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
+          if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
+        }
+        concat.push(term);
+      }
+      return { concat };
+    }
+
+    /** @param {ResultNode[]} tests @param {boolean} allowed */
+    function checkTestOrder(tests, allowed) {
+      const seen = new Set();
+      for (const test of tests) {
+        const kind = ruleOf(test);
+        if (!allowed || seen.has(kind) || (kind === "tag-test" && seen.has("value-test"))) fail("this target or test order is invalid", test);
+        seen.add(kind);
+      }
+    }
+
+    /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
+    function* readTest(node) {
+      if (ruleOf(node) === "tag-test") {
+        const requirements = [];
+        for (const requirement of ofRule(node, "tag-requirement")) {
+          const operand = only(requirement, "test-operand");
+          const inner = knownOf(operand, ATOMS);
+          if (!["tag", "constant-reference"].includes(ruleOf(inner))) fail("a tag requirement is a tag or tag-set constant", operand);
+          const value = yield readTerm(inner);
+          const type = termType(value);
+          const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
+          if (problem) fail(problem, operand);
+          requirements.push({ negated: parts(requirement).some(child => tokenText(child) === "¬"), value });
+        }
+        return { test: "tags", requirements };
+      }
+      const comparator = text(token(only(node, "test")));
+      const operand = only(node, "test-operand");
+      const inner = knownOf(operand, ATOMS);
+      if (!["string", "constant-reference"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
+      return { test: comparator, value: yield readTerm(inner) };
     }
 
     /**
@@ -14069,7 +14235,26 @@
       const found = termType(term);
       const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
       if (problem) fail(problem, node);
+      const retained = yield literalTerms(term);
+      if (retained.length) {
+        const first = retained.map((/** @type {object} */ value) => tagSources.get(value)).filter(Boolean).sort((/** @type {ResultNode} */ a, /** @type {ResultNode} */ b) => firstToken(a) - firstToken(b))[0];
+        fail("a tag clause cannot introduce an engine tag", first || node);
+      }
       return term;
+    }
+
+    /** @param {any} term @returns {Generator<Step, any[], any>} */
+    function* literalTerms(term) {
+      if (term.tag?.startsWith("_")) return [term];
+      if (term.if) return yield literalTerms(term.then);
+      if (term.difference) return yield literalTerms(term.difference[0]);
+      const values = term.union ?? term.intersection;
+      if (!values) return [];
+      const parts = [];
+      for (const value of values) parts.push(yield literalTerms(value));
+      if (term.union) return parts.flat();
+      const names = parts.map(values => new Set(values.map((/** @type {any} */ value) => value.tag)));
+      return parts.flat().filter(value => names.every(set => set.has(value.tag)));
     }
 
     /**
@@ -14153,15 +14338,10 @@
         }
         case "negation":
           return { not: yield readCondition(only(inner, "condition")) };
-        case "call": {
-          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
-          const [span, rule] = call.args;
-          if (call.call === "initial" && call.args.length === 1 && !("rule" in span) && !("classifier" in span)) return { initial: span };
-          if ((call.call !== "matches" && call.call !== "begins") || call.args.length !== 2 || !("rule" in rule) || "rule" in span || "classifier" in span) {
-            return fail("a condition calls only matches(span, rule), begins(span, rule) or initial(span)", inner);
-          }
-          if (call.call === "begins") return { begins: span, rule: rule.rule };
-          return { matches: span, rule: rule.rule };
+        case "method": {
+          const method = yield readMethod(inner);
+          if (!QUERY_METHODS.has(method.method)) fail("a condition requires a query method", inner);
+          return method;
         }
         default:
           return fail(`unexpected ${ruleOf(inner)}`, inner);
@@ -14248,24 +14428,40 @@
       }
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
         const inner = knownOf(node, ATOMS);
-        if (ruleOf(inner) === "call") {
-          const call = /** @type {{call: string, args: Argument[]}} */ (yield readCall(inner));
-          if (!argument && SPANS.has(call.call)) fail(`${call.call} gives a span, which is not a value`, inner);
-          if (call.call === "matches" || call.call === "begins" || call.call === "initial") fail(`${call.call} is a condition, not a term`, inner);
-          return call;
+        if (ruleOf(inner) === "method") {
+          const method = yield readMethod(inner);
+          if (QUERY_METHODS.has(method.method)) fail("a query method is a condition, not a term", inner);
+          return method;
         }
         return yield readTerm(inner, argument);
       }
       switch (ruleOf(node)) {
         case "pattern-literal": {
-          const pattern = asPattern(yield readPattern(only(node,"pattern-union")));
+          const before = closedFor;
+          closedFor = null;
+          const pattern = asPattern(yield readPattern(one(node, "pattern-union") || only(node, "pattern-atom")));
+          closedFor = before;
           const problem = patternProblem(pattern, () => null);
           if (problem) fail(problem,node);
           return {pattern};
         }
-        case "string": return { string: decode(token(node)) };
-        case "tag": case "character": case "phoneme": return { tag: tagOf(token(node)) };
-        case "range": return { range: readRange(node) };
+        case "string": return decode(token(node));
+        case "tag": {
+          const tag = tagOf(token(node));
+          if (closedFor && tag.startsWith("_")) fail(`${closedFor} cannot contain an engine-tag literal`, node);
+          const term = { tag };
+          tagSources.set(term, node);
+          return term;
+        }
+        case "tag-run": {
+          const start = node.span[0];
+          const end = node.span[1];
+          if (["∩", "∖"].includes(tokens[start - 1]?.text) || ["∩", "∖"].includes(tokens[end]?.text)) fail("a tag run beside ∩ or ∖ requires parentheses", node);
+          const union = [];
+          for (const tag of some(node, "tag", 2)) union.push(yield readTerm(tag));
+          return { union };
+        }
+        case "range": return fail("a range is a terminal, not a term", node);
         case "property": return fail("a property is not a tag set, and stands only as a terminal in a body", node);
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
@@ -14276,12 +14472,19 @@
           return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
         }
         case "empty-set": return { emptySet: true };
-        case "call": return yield readCall(node);
-        case "constant-reference": return { const: text(token(node)).slice(1), at: at(node) };
+        case "method": return yield readMethod(node);
+        case "constant-reference": {
+          const name = text(token(node)).slice(1);
+          if (name.startsWith("_")) {
+            const code = parseInt(name.slice(1), 16);
+            if (!/^_[0-9A-F]{4,6}$/.test(name) || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) fail("an engine constant requires a scalar in uppercase hexadecimal", node);
+          } else if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user constant begins with a capital", node);
+          return { const: name, at: at(node) };
+        }
         case "capture-reference": {
           const capture = text(token(node)).slice(1);
           if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
-          if (!argument) fail(`a span is not a value: tags($${capture}) is the tag set of $${capture}`, node);
+
           return { capture };
         }
         default: return fail(`unexpected ${ruleOf(node)}`, node);
@@ -14318,29 +14521,29 @@
         const child=parts(node)[0];if(!child)return lacks(node,'pattern item');
         return child.kind==='token'&&text(child)==='⋯'?{siblings:true}:yield readPattern(child);
       }
-      if(kind==='pattern-atom') {
-        const inner=parts(node);
-        const first=inner[0];if(!first)return lacks(node,'pattern atom');
-        if(first.kind==='token') {
-          const name=text(first);
-          if(name==='(')return yield readPattern(only(node,'pattern-union'));
-          const expr=isCapital(name)?{terminal:name,at:at(first)}:{name,at:at(first)};
-          const testNode=one(node,'test');
-          if(!testNode)return {node:expr};
-          if(!isCapital(name))return fail('a pattern test requires one terminal atom',testNode);
-          const test=parts(testNode).filter(n=>n.kind==='token').map(n=>text(n)).join('');
-          const operand=only(testNode,'test-operand');
-          const before=closedFor;closedFor="a test's operand";
-          const value=yield readTerm(operand);closedFor=before;
-          const found=termType(value);
-          const problem='problem' in found?found.problem:expectedProblem(found.type,isSoundTest(test)?'string':'tags');
-          if(problem)fail(problem,operand);
-          if(isSoundTest(test)&&'string' in value) { const wrong=soundProblem(value.string,unicode);if(wrong)fail(wrong,operand); }
-          return {node:{test,value,expr}};
-        }
-        if(ruleOf(first)==='constant-reference')return {node:{constant:text(token(first)).slice(1),at:at(first)}};
-        if(ruleOf(first)==='pattern-literal')return {node:asPattern(yield readPattern(only(first,'pattern-union')))};
-        return lacks(node,'pattern atom');
+      if (kind === "pattern-atom") {
+        const inner = parts(node);
+        const first = inner[0];
+        if (!first) return lacks(node, "pattern atom");
+        if (first.kind === "token" && text(first) === "(") return yield readPattern(only(node, "pattern-union"));
+        if (ruleOf(first) === "pattern-literal") return { node: asPattern(yield readPattern(one(first, "pattern-union") || only(first, "pattern-atom"))) };
+        let expr;
+        if (first.kind === "token") {
+          const name = text(first);
+          expr = isCapital(name) || name.startsWith("_") ? { terminal: tagOf(first), at: at(first) } : { name, at: at(first) };
+        } else if (ruleOf(first) === "tag") expr = { terminal: tagOf(token(first)), at: at(first) };
+        else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
+        else if (ruleOf(first) === "string-terminal") expr = { literal: yield readTerm(knownOf(first, new Set(["string", "constant-reference"]))), at: at(first) };
+        else if (ruleOf(first) === "range") expr = { range: yield readRange(first), at: at(first) };
+        else if (ruleOf(first) === "wildcard") expr = { wildcard: true, at: at(first) };
+        else if (ruleOf(first) === "constant-reference") {
+          const value = yield readTerm(first);
+          expr = value.const.startsWith("_") ? { literal: value, at: at(first) } : { constant: value.const, at: at(first) };
+        } else return lacks(node, "pattern atom");
+        const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
+        checkTestOrder(tests, !expr.name);
+        for (const test of tests) expr = { ...(yield readTest(test)), expr };
+        return { node: expr };
       }
       if(kind==='pattern-brackets')return {optional:yield readPattern(only(node,'pattern-union'))};
       if(kind==='pattern-repeat') {
@@ -14360,126 +14563,89 @@
      * @param {ResultNode} node
      * @returns {Generator<Step, {call: string, args: Argument[]}, any>}
      */
-    function* readCall(node) {
-      const name = text(token(node));
-      if (!FUNCTIONS.has(name)) fail(`unknown function ${name}`, node);
-      if (closedFor && name === "classify") fail(`${closedFor} is a closed term, and classify depends on the features`, node);
-      if (closedFor && name !== "split" && name !== "tag") fail(`${closedFor} is a closed term, and ${name} reads a span`, node);
-      /** @type {Argument[]} */
-      /** @type {Argument[]} */
-      const args = [];
-      for (const argument of ofRule(node, "argument")) args.push(yield readTerm(only(argument, "union"), true));
-      /** @type {(argument: Argument | undefined) => boolean} */
-      const isSpan = (argument) => argument !== undefined && ("capture" in argument || ("call" in argument && SPANS.has(argument.call)));
-      /** @type {(argument: Argument | undefined) => boolean} */
-      const isRule = (argument) => argument !== undefined && "rule" in argument;
-      /** @type {(argument: Argument | undefined) => boolean} */
-      const isString = (argument) => {
-        if (argument === undefined || "rule" in argument) return false;
-        const found = termType(argument);
-        // A constant's type is known only when the loader stitches the stage.
-        return "type" in found && (found.type === "string" || found.type === "any");
-      };
-      let ok;
-      if (name === "tags") ok = (args.length === 1 && isSpan(args[0])) || (args.length === 2 && isSpan(args[0]) && isRule(args[1]));
-      else if (name === "matches" || name === "begins") ok = args.length === 2 && isSpan(args[0]) && isRule(args[1]);
-      else if (name === "without-elision") ok = args.length === 1 && "capture" in args[0];
-      else if (name === "split") ok = args.length === 2 && args.every(isString);
-      else if (name === "tag") ok = args.length === 1 && isString(args[0]);
-      else if (name === "classify") ok = args.length === 2 && isString(args[0]) && isRule(args[1]);
-      else ok = args.length === 1 && isSpan(args[0]);
-      if (!ok && name === "without-elision" && args.length === 1 && "call" in args[0] && args[0].call === "from") {
-        fail("without-elision takes one bare capture: write from(without-elision($x))", node);
-      }
-      if (!ok) fail(`${name} takes ${SIGNATURES[name]}`, node);
-      // The second argument of classify names a classifier, not a rule
-      // (engine §9).
-      if (name === "classify") return { call: name, args: [args[0], { classifier: /** @type {{rule: string}} */ (args[1]).rule }] };
-      // A rule stands only as the second argument.
-      if (args.some((argument, index) => "rule" in argument && index !== 1)) fail(`${name} takes ${SIGNATURES[name]}`, node);
-      // An empty delimiter or a tag's name that the reader sees (engine §9).
-      const seen = literalCallProblem(name, args);
-      if (seen) fail(seen, node);
-      return { call: name, args };
-    }
-
-    /**
-     * @param {ResultNode} tokenNode
-     * @returns {string}
-     */
-    function decode(tokenNode) {
-      const written = text(tokenNode);
-      // A string escapes its double quote, and a character tag its quote.
-      const quote = written[0];
-      const spelled = [...written].slice(1, -1);
-      let result = "";
-      for (let index = 0; index < spelled.length; index++) {
-        if (spelled[index] !== "\\") {
-          result += spelled[index];
-          continue;
-        }
-        const next = spelled[++index];
-        if (next === "\\" || next === quote) result += next;
-        else if (next === "u" && spelled[index + 1] === "{") {
-          let end = index + 2;
-          let hex = "";
-          while (end < spelled.length && spelled[end] !== "}") hex += spelled[end++];
-          // One to six hexadecimal digits of a Unicode scalar value (engine §9).
-          const value = parseInt(hex, 16);
-          if (end >= spelled.length || !/^[0-9A-Fa-f]{1,6}$/.test(hex) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
-            fail("a bad \\u{...} escape", tokenNode);
+    function* readMethod(node) {
+      let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
+      for (const selector of some(node, "method-selector")) {
+        const name = text(token(only(selector, "method-name")));
+        const args = [];
+        const argumentsNode = one(selector, "arguments");
+        if (argumentsNode) for (const argument of some(argumentsNode, "argument")) args.push(yield readTerm(only(argument, "term"), true));
+        if (name === "classify" && args.length === 1 && args[0].rule) args[0] = { classifier: args[0].rule };
+        const found = termType(receiver);
+        if ("problem" in found) fail(found.problem, node);
+        const types = [];
+        for (const arg of args) {
+          if (arg.rule || arg.classifier) types.push("name");
+          else {
+            const type = termType(arg);
+            if ("problem" in type) fail(type.problem, node);
+            types.push(type.type);
           }
-          result += String.fromCodePoint(value);
+        }
+        const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
+        if (problem) fail(problem, node);
+        if (closedFor && (name !== "split" || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
+        receiver = { method: name, receiver, args };
+      }
+      return receiver;
+    }
+
+    /** @param {ResultNode} tokenNode @returns {any} */
+    function decode(tokenNode) {
+      const spelled = [...text(tokenNode)].slice(1, -1);
+      const segments = [];
+      let literal = "";
+      for (let index = 0; index < spelled.length; index++) {
+        if (spelled[index] !== "$") literal += spelled[index];
+        else if (spelled[index + 1] === "$") { literal += "$"; index++; }
+        else {
+          if (literal) { segments.push({ string: literal }); literal = ""; }
+          let end = index + 2;
+          while (spelled[end] !== ")") end++;
+          const name = spelled.slice(index + 2, end).join("");
+          const [line, column] = at(tokenNode);
+          const before = spelled.slice(0, index);
+          let referenceLine = line;
+          let referenceColumn = column + 1;
+          for (let i = 0; i < before.length; i++) {
+            if (before[i] === "\r" || before[i] === "\n") {
+              if (before[i] === "\r" && before[i + 1] === "\n") i++;
+              referenceLine++; referenceColumn = 1;
+            } else referenceColumn++;
+          }
+          if (name.startsWith("_")) {
+            const value = parseInt(name.slice(1), 16);
+            if (!/^_[0-9A-F]{4,6}$/.test(name) || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
+              throw new GencmuError("grammar", `${path}:${referenceLine}:${referenceColumn}: an invalid interpolated engine constant`, { document: path, line: referenceLine, column: referenceColumn });
+            }
+          }
+          segments.push({ const: name, at: [referenceLine, referenceColumn] });
           index = end;
-        } else {
-          fail(`an unknown escape \\${next || ""}`, tokenNode);
         }
       }
-      return result;
+      if (!segments.length) return { string: literal };
+      if (literal) segments.push({ string: literal });
+      return { interpolate: segments };
     }
 
-    /**
-     * The tag of a tag literal `~name`, a character tag or a phoneme tag
-     * token: a character tag in its canonical spelling (engine §1, §9).
-     * @param {ResultNode} tokenNode
-     * @returns {string}
-     */
+    /** @param {ResultNode} tokenNode @returns {string} */
     function tagOf(tokenNode) {
-      const written = text(tokenNode);
-      if (written.startsWith("~")) return written.slice(1);
-      if (written.startsWith("/")) return written;
-      const decoded = [...decode(tokenNode)];
-      if (decoded.length !== 1) fail("a character tag holds exactly one character", tokenNode);
-      return characterTag(/** @type {number} */ (decoded[0].codePointAt(0)), unicode);
-    }
-
-    /**
-     * A range's two ends, each a character tag in its canonical spelling; its
-     * start must not be above its end (engine §1, §9).
-     * @param {ResultNode} node
-     * @returns {[string, string]}
-     */
-    function readRange(node) {
-      const ends = some(node, "character", 2).slice(0, 2).map((end) => tagOf(token(end)));
-      /** @type {[string, string]} */
-      const range = [ends[0], ends[1]];
-      const problem = rangeProblem(range, unicode);
-      if (problem) fail(problem, node);
-      return range;
-    }
-
-    /**
-     * A property's name: its token is `'\p{Name}'`, with a name of engine §1.
-     * @param {ResultNode} tokenNode
-     * @returns {string}
-     */
-    function readProperty(tokenNode) {
-      const match = /^'\\p\{([^}]*)\}'$/.exec(text(tokenNode));
-      if (!match) fail("a property is written '\\p{Name}'", tokenNode);
-      const name = /** @type {RegExpExecArray} */ (match)[1];
-      const problem = propertyProblem(name);
-      if (problem) fail(problem, tokenNode);
+      const name = text(tokenNode);
+      if (name.startsWith("_") && !PROPERTY_NAMES.has(name.slice(1))) fail("an unknown engine tag", tokenNode);
+      if (!name.startsWith("_") && !/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user tag begins with a capital", tokenNode);
       return name;
+    }
+
+    /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
+    function* readRange(node) {
+      const found = parts(node).filter(child => ["string", "constant-reference"].includes(ruleOf(child)));
+      if (found.length < 2) lacks(node, "two string operands");
+      const range = [];
+      for (const end of found.slice(0, 2)) range.push(yield readTerm(end));
+      const scalars = range.map(term => typeof term.string === "string" ? term.string : term.const?.startsWith("_") ? String.fromCodePoint(parseInt(term.const.slice(1), 16)) : null);
+      if (scalars.some(value => value !== null && [...value].length !== 1)) fail("a range endpoint is one scalar", node);
+      if (scalars.every(value => value !== null) && scalars[0].codePointAt(0) > scalars[1].codePointAt(0)) fail("a range starts above its end", node);
+      return range;
     }
 
     /**
@@ -14490,10 +14656,7 @@
     function operandKind(node) {
       if (ruleOf(node) === "argument-string") return "string";
       if (ruleOf(node) === "argument-word") return isCapital(text(token(node))) ? "class" : "name";
-      const first = symbolPart(node);
-      if (ruleOf(first) === "range" || ruleOf(first) === "property") return /** @type {OperandKind} */ (ruleOf(first));
-      const written = text(first);
-      return written.startsWith("~") ? "tag" : written.startsWith("/") ? "phoneme" : "character";
+      return "tag";
     }
   }
 
@@ -14516,7 +14679,7 @@
       }
       if (current === null || typeof current !== "object") continue;
       const node = /** @type {Record<string, unknown>} */ (current);
-      for (const key of ["any", "all"]) {
+      for (const key of ["any", "all", "union"]) {
         const items = node[key];
         if (!Array.isArray(items)) continue;
         /** @type {unknown[]} */
@@ -14553,7 +14716,7 @@
    * @typedef {"name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property"} OperandKind
    */
 
-  const FUNCTIONS = new Set(["phonemes", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
+  const FUNCTIONS = new Set(["value", "text", "split", "tag", "tags", "classes", "classify", "head", "tail", "last", "from", "after", "without-elision", "matches", "begins", "initial"]);
 
 
   /**
@@ -14577,7 +14740,7 @@
 
   /** @type {Record<string, string>} */
   const SIGNATURES = {
-    phonemes: "one span", text: "one span", words: "one span", classes: "one span",
+    value: "one span", text: "one span", words: "one span", classes: "one span",
     head: "one span", tail: "one span", last: "one span", from: "one span", after: "one span", initial: "one span",
     "without-elision": "one bare capture, including $",
     split: "two strings", tag: "one string", tags: "a span, and optionally a rule", classify: "a string and a classifier's name", matches: "a span and a rule", begins: "a span and a rule",
@@ -14585,24 +14748,18 @@
 
   // What a primary, a condition, a term and a term atom hold: the one rule
   // among their parts is one of these (engine §9).
-  const PRIMARIES = new Set(["reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"]);
-  const CONDITIONS = new Set(["tree-comparison", "comparison", "call", "negation", "presence", "implication"]);
+  const PRIMARIES = new Set(["reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
+  const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
-  const ATOMS = new Set(["pattern-literal", "string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference"]);
-  // The items of a document (engine §9).
+  const ATOMS = new Set(["pattern-literal", "string", "tag", "tag-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
   const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
-
-  // The rules of the notation's syntax grammar that the reader knows (engine
-  // §9). Every other rule is a wrapper, and the reader reads its parts in its
-  // place.
-  const NAMED = new Set(["tree-comparison", "tree-comparator", "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
-    "directive", "argument-word", "argument-string", "rule", "definer", "rule-flags", "rule-flag", "rule-name", "body", "alternative", "ranked-alternative", "ranked-choice", "guard", "alternative-tags",
-    "conjunction", "sequence", "primary", "repetition", "reference", "string", "phoneme", "tested", "test", "test-operand", "capture", "group", "optional",
-    "choice", "empty", "tags-clause", "conditions-clause", "emits-clause", "opaque-clause", "emit-item", "emit-target", "emit-tags", "emit-before", "emit-after",
-    "implication", "any-of", "all-of", "condition", "comparison", "comparator", "negation", "presence",
-    "term", "guarded-term", "union", "intersection", "term-atom", "tag", "character", "name", "empty-set", "call", "argument",
-    "capture-reference", "argument-tag", "range", "property", "constant-definition", "constant-definer", "constant-reference",
-    "classifier", "classifier-name", "classifier-entry", "classifier-key", "classifier-operator", "classifier-class", "implication-declaration",
+  const NAMED = new Set([
+    ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
+    "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
+    "constant-definer", "definer", "rule-name", "rule-flags", "rule-flag", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
+    "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
+    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "intersection", "any-of", "all-of", "condition", "comparator", "tree-comparator",
+    "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
 
   /**
@@ -15092,13 +15249,9 @@
      * @returns {GrammarDom}
      */
     readDocument(markdown, path, deferEmission = false) {
+      if (loneSurrogate(markdown) !== null) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
       const { text, positions } = extractGrammarText(markdown, path);
       const run = this.notation.parse(text, { features: new Set() });
-      const retired = run.stages[0]?.output?.find(token => token.text === "%prefer");
-      if (retired) {
-        const [line,column] = positions[retired.source[0]] ?? [1,1];
-        throw new GencmuError("grammar", `${path}:${line}:${column}: unknown directive %prefer; use an inline ranked choice (a ≻ b).`, {document:path,line,column});
-      }
       /** @type {(token: Token) => import("./types.js").Position} */
       const positionOf = (token) => positions[token.source[0]] || positions[positions.length - 1] || [1, 1];
       if (!run.ok) {
@@ -15233,7 +15386,7 @@
       if (surrogate !== null) {
         throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
       }
-      // A token that the caller supplies has its text as its label (engine §5).
+      // A token that the caller supplies has its text as its image (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
       // each token, its tags and its positions, so the caller's objects stay
@@ -15257,7 +15410,7 @@
           }
         });
         options = { ...options, tokens: options.tokens.map((token) =>
-          new Token(new Set(token.tags), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.phonemes, token.insertedBy)) };
+          new Token(new Set(token.tags), [token.span[0], token.span[1]], [token.source[0], token.source[1]], token.text, token.value, token.insertedBy)) };
       }
       // The features on are the pipeline's, with the caller's added and the
       // caller's turned off removed (engine §13).
@@ -15921,6 +16074,7 @@
    * @property {DomAlternative[]} alternatives
    * @property {Emission} [emit]
    * @property {Condition[]} conditions
+   * @property {true} [erased]
    * @property {true} [opaque]
    * @property {Position} at
    */
@@ -15959,18 +16113,18 @@
    * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
    *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
    *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
-   *   | {range: [string, string]} | {property: string}
-   *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
+   *   | {range: [Term, Term]} | {property: string} | {literal: Term} | {wildcard: true}
+   *   | {test: TestOp, value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true}} Expr
    */
 
   /**
    * The comparator of a test in a body (engine §2).
-   * @typedef {"=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅"} TestOp
+   * @typedef {"tags" | "=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅"} TestOp
    */
 
   /**
    * What a test follows: a reference other than `#`, or a terminal.
-   * @typedef {{ref: string} | {terminal: string} | {range: [string, string]} | {property: string}} TestedSymbol
+   * @typedef {{ref: string} | {terminal: string} | {range: [Term, Term]} | {property: string} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
    */
 
   /**
@@ -15997,8 +16151,8 @@
 
   /**
    * A condition.
-   * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
-   *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {begins: Term, rule: string} | {initial: Term}
+   * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
+   *   | {if: Condition, then: Condition}
    *   | {op: Comparator, left: Term, right: Term}} Condition
    */
 
@@ -16006,7 +16160,7 @@
    * A term of a condition or a tags clause: a string, a tag literal, the
    * empty set, a set expression, a guarded term, a call, or a span, which
    * only a call's argument can be (engine §10).
-   * @typedef {{pattern: Pattern} | {string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+   * @typedef {{method: string, receiver: Term, args: Argument[]} | {interpolate: ({string: string} | ConstantTerm)[]} | {pattern: Pattern} | {string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
    *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
    */
 
@@ -16031,6 +16185,8 @@
    * @property {boolean} terminal
    * @property {SymbolTest} [test] the test on the symbol's own span; not part
    *   of the terminal's identity (engine §4)
+   * @property {string} [literal]
+   * @property {true} [wildcard]
    * @property {CharacterClass} [characters] for a range or a property, the
    *   characters it matches; its name is then its written form (engine §4)
    */
@@ -16039,10 +16195,19 @@
    * A test of a lowered symbol, with its value: a string for a sound test and
    * a tag set for a tag test, and the test as an expected list writes it
    * (docs/output.md).
+   * @typedef {object} Requirement
+   * @property {boolean} negated
+   * @property {Term} value
+   */
+
+  /**
    * @typedef {object} SymbolTest
    * @property {TestOp} op
    * @property {string} [sound]
    * @property {TagSet} [tags]
+   * @property {TagSet} [positive]
+   * @property {TagSet} [negative]
+   * @property {SymbolTest} [inner]
    * @property {string} written
    */
 

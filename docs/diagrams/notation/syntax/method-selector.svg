@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="447" height="78" viewBox="0 0 447 78" role="img" aria-label="Railroad diagram of the rule method-selector">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="126" lengthAdjust="spacingAndGlyphs">method-selector</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<g class="terminal"><rect x="20" y="44" width="42" height="24" rx="12"/><text x="41" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;.&quot;</text></g>
+<path d="M62 56h10"/>
+<g class="rule"><rect x="72" y="44" width="109" height="24" rx="0"/><text x="126.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">method-name</text></g>
+<path d="M181 56h10"/>
+<path d="M191 56h20"/>
+<g class="terminal"><rect x="211" y="44" width="42" height="24" rx="12"/><text x="232" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;(&quot;</text></g>
+<path d="M253 56h10"/>
+<g class="rule"><rect x="263" y="44" width="92" height="24" rx="0"/><text x="309" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">arguments</text></g>
+<path d="M355 56h10"/>
+<g class="terminal"><rect x="365" y="44" width="42" height="24" rx="12"/><text x="386" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;)&quot;</text></g>
+<path d="M407 56H427"/>
+<path d="M191 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H407a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M427 56h6m0 -8v16m4 -16v16"/>
+</svg>

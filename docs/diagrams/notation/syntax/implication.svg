@@ -7,7 +7,7 @@
 <g class="rule"><rect x="40" y="34" width="67" height="24" rx="0"/><text x="73.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">any-of</text></g>
 <path d="M107 46H127"/>
 <path d="M107 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H94.5"/>
-<g class="terminal"><rect x="52.5" y="68" width="42" height="24" rx="12"/><text x="73.5" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'⟹'</text></g>
+<g class="terminal"><rect x="52.5" y="68" width="42" height="24" rx="12"/><text x="73.5" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;⟹&quot;</text></g>
 <path d="M52.5 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M127 46h6m0 -8v16m4 -16v16"/>
 </svg>

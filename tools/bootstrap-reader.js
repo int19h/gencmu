@@ -368,7 +368,10 @@ class Parser {
       const at = this.index;
       const entry = [];
       while (this.is("guard")) entry.push(this.leaf("guard"));
-      do entry.push(this.is("string") ? this.leaf("classifier-key") : this.fail("expected a key"));
+      do {
+        const keyAt = this.index;
+        entry.push(this.is("string") ? this.node("classifier-key", keyAt, [this.leaf("string")]) : this.fail("expected a key"));
+      }
       while (this.is("string"));
       entry.push(this.is("∈") || this.is("∉") ? this.leaf("classifier-operator") : this.fail("expected ∈ or ∉"));
       entry.push(this.is("identifier") || this.is("tag") ? this.leaf("classifier-class") : this.fail("expected a class"));
@@ -502,11 +505,11 @@ class Parser {
   // `A="a"="b"` is a test on a tested primary (syntax.md).
   *primary() {
     const start = this.index;
-    if (this.is("capture")) return this.node("primary", start, [this.node("capture", start, [this.tok(), this.expect(":"), (yield this.primary())])]);
+    if (this.is("capture") || this.is("constant") && this.is(":", 1)) return this.node("primary", start, [this.node("capture", start, [this.tok(), this.expect(":"), (yield this.primary())])]);
     const base = this.node("primary", start, [(yield this.symbol())]);
     const tests = [];
     while (TEST_COMPARATORS.has(this.kindAt())) tests.push((yield this.test()));
-    return tests.length ? this.node("primary", start, [this.node("tested", start, [base, ...tests])]) : base;
+    return tests.length ? this.node("primary", start, [this.node("tested", start, [base.children[0], ...tests])]) : base;
   }
 
   *symbol() {
@@ -580,7 +583,7 @@ class Parser {
     const children = [];
     while (this.is("(")) children.push(this.attachment("emit-before"));
     const at = this.index;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) children.push(this.node("emit-target", at, [(yield this.range())]));
+    if (this.is("string") || this.is("constant")) children.push(this.node("emit-target", at, [(yield this.range())]));
     else if (["capture", "identifier", "tag", "ε"].includes(this.kindAt())) children.push(this.node("emit-target", at, [this.tok()]));
     else this.fail("expected an emission target");
     while (this.is("(")) children.push(this.attachment("emit-after"));
@@ -710,7 +713,7 @@ class Parser {
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
       case "@": base = yield this.patternLiteral(); break;
-      case "string": base = this.leaf("string"); break;
+      case "string": case "include-path": base = this.leaf("string"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().text));
@@ -826,6 +829,7 @@ class Parser {
  * @param {string} path
  */
 export function readDocument(markdown, path) {
+  if (/[\uD800-\uDFFF]/u.test(markdown)) throw new GencmuError("usage", `${path}: the document contains a lone surrogate`, { document: path });
   const { text, positions } = extractGrammarText(markdown, path);
   let tokens;
   let tree;

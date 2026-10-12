@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Loader } from "../lib/js/src/node.js";
+import { extractGrammarText } from "../lib/js/src/markdown.js";
 
 /**
  * A loader of the grammar documents under `base`/grammars, with no
@@ -43,6 +44,61 @@ export function sourceDoms(base, loader) {
         doms.set(file, fs.existsSync(source) ? loader.readDocument(fs.readFileSync(source, "utf8"), file) : undefined);
       }
       return doms.get(file);
+    },
+  };
+}
+
+/**
+ * Read include edges while the language grammars await notation migration.
+ * This view supplies pipeline metadata, not grammar DOMs for execution.
+ * Quoted forms and comments cannot introduce an include edge.
+ * @param {string} base
+ * @returns {{get: (file: string) => any}}
+ */
+export function sourceIncludeEdges(base) {
+  const documents = new Map();
+  return {
+    get(file) {
+      if (documents.has(file)) return documents.get(file);
+      const source = path.join(base, "grammars", file);
+      if (!fs.existsSync(source)) return undefined;
+      const { text, positions } = extractGrammarText(fs.readFileSync(source, "utf8"), file);
+      const chars = [...text];
+      const directives = [];
+      const layout = (at) => {
+        for (;;) {
+          while (at < chars.length && /\s/u.test(chars[at])) at++;
+          if (chars[at] !== "(" || chars[at + 1] !== "*") return at;
+          at += 2;
+          while (at < chars.length && !(chars[at] === "*" && chars[at + 1] === ")")) at++;
+          at += 2;
+        }
+      };
+      for (let at = 0; at < chars.length;) {
+        at = layout(at);
+        if (chars[at] === "/" && chars[at + 2] === "/") { at += 3; continue; }
+        if (chars[at] === "'" || chars[at] === '"') {
+          const quote = chars[at++];
+          while (at < chars.length && chars[at] !== quote) at += chars[at] === "\\" ? 2 : 1;
+          at++;
+          continue;
+        }
+        if (chars.slice(at, at + 8).join("") !== "%include" || /[A-Za-z0-9_-]/.test(chars[at + 8] ?? "")) { at++; continue; }
+        const start = at;
+        at = layout(at + 8);
+        if (chars[at] !== '"') throw new Error(`${file}: an include requires a quoted path`);
+        const from = ++at;
+        while (at < chars.length && chars[at] !== '"') {
+          if (chars[at] === "\\") throw new Error(`${file}: an include path contains a backslash`);
+          at++;
+        }
+        if (at === chars.length) throw new Error(`${file}: an include path lacks its closing quote`);
+        directives.push({ name: "include", args: [chars.slice(from, at).join("")], at: positions[start] });
+        at++;
+      }
+      const result = { directives };
+      documents.set(file, result);
+      return result;
     },
   };
 }
