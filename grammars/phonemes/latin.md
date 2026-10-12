@@ -239,14 +239,21 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ## Digits
 
-Each digit emits the letters of its number word, so `2` is `re`. A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+Each digit emits the letters of its number word, so `2` is `re`. The first emission covers the character. The second is inserted at the end of that span, with empty source and text. It keeps the digit rule as `insertedBy` until normalization covers it. Their values and images still spell the number word.
+
+A period between two digits is the decimal point, `pi`. `items` says that no pause stands there, and the decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
+
+`period-with-commas` reads one period with optional commas on either side. The `items` condition uses this shape instead of normalizing a source string. Thus a comma beside a decimal period does not turn it into a pause.
 
 ```jbogenbau
 %redefine-rule items
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches(digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches(digit)
+  ¬$i.last-token.matches(digit) ∨ ¬$p.matches(period-with-commas) ∨ ¬$r.first-token.matches(digit)
+
+%rule period-with-commas
+  [commas] "." [commas]
 
 %extend-rule non-vowel
   digit
@@ -265,57 +272,57 @@ Each digit emits the letters of its number word, so `2` is `re`. A period betwee
 %rule digit-0
   "0"
 %emits
-  $ :: ∅ := "n", $ :: ∅ := "o"
+  $ :: ∅ := "n", ε :: ∅ := "o"
 
 %rule digit-1
   "1"
 %emits
-  $ :: ∅ := "p", $ :: ∅ := "a"
+  $ :: ∅ := "p", ε :: ∅ := "a"
 
 %rule digit-2
   "2"
 %emits
-  $ :: ∅ := "r", $ :: ∅ := "e"
+  $ :: ∅ := "r", ε :: ∅ := "e"
 
 %rule digit-3
   "3"
 %emits
-  $ :: ∅ := "c", $ :: ∅ := "i"
+  $ :: ∅ := "c", ε :: ∅ := "i"
 
 %rule digit-4
   "4"
 %emits
-  $ :: ∅ := "v", $ :: ∅ := "o"
+  $ :: ∅ := "v", ε :: ∅ := "o"
 
 %rule digit-5
   "5"
 %emits
-  $ :: ∅ := "m", $ :: ∅ := "u"
+  $ :: ∅ := "m", ε :: ∅ := "u"
 
 %rule digit-6
   "6"
 %emits
-  $ :: ∅ := "x", $ :: ∅ := "a"
+  $ :: ∅ := "x", ε :: ∅ := "a"
 
 %rule digit-7
   "7"
 %emits
-  $ :: ∅ := "z", $ :: ∅ := "e"
+  $ :: ∅ := "z", ε :: ∅ := "e"
 
 %rule digit-8
   "8"
 %emits
-  $ :: ∅ := "b", $ :: ∅ := "i"
+  $ :: ∅ := "b", ε :: ∅ := "i"
 
 %rule digit-9
   "9"
 %emits
-  $ :: ∅ := "s", $ :: ∅ := "o"
+  $ :: ∅ := "s", ε :: ∅ := "o"
 
 %rule decimal-point
   "."
 %emits
-  $ :: ∅ := "p", $ :: ∅ := "i"
+  $ :: ∅ := "p", ε :: ∅ := "i"
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>

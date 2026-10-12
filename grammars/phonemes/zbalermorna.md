@@ -57,7 +57,9 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
 </details>
 
-A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
+A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel.
+
+A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
 
 The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
@@ -110,22 +112,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-ai
   $_EDA6
 %emits
-  $ :: ∅ := "a", $ :: ∅ := "i"
+  $ :: ∅ := "a", ε :: ∅ := "i"
 
 %rule zbalermorna-ei
   $_EDA7
 %emits
-  $ :: ∅ := "e", $ :: ∅ := "i"
+  $ :: ∅ := "e", ε :: ∅ := "i"
 
 %rule zbalermorna-oi
   $_EDA8
 %emits
-  $ :: ∅ := "o", $ :: ∅ := "i"
+  $ :: ∅ := "o", ε :: ∅ := "i"
 
 %rule zbalermorna-au
   $_EDA9
 %emits
-  $ :: ∅ := "a", $ :: ∅ := "u"
+  $ :: ∅ := "a", ε :: ∅ := "u"
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
@@ -134,22 +136,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-stressed-ai
   $_EDA6 zbalermorna-stress
 %emits
-  $ :: Stressed := "A", $ :: ∅ := "i"
+  $ :: Stressed := "A", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-ei
   $_EDA7 zbalermorna-stress
 %emits
-  $ :: Stressed := "E", $ :: ∅ := "i"
+  $ :: Stressed := "E", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-oi
   $_EDA8 zbalermorna-stress
 %emits
-  $ :: Stressed := "O", $ :: ∅ := "i"
+  $ :: Stressed := "O", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-au
   $_EDA9 zbalermorna-stress
 %emits
-  $ :: Stressed := "A", $ :: ∅ := "u"
+  $ :: Stressed := "A", ε :: ∅ := "u"
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel
