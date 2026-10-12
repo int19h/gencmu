@@ -15,7 +15,6 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tags::character_tag;
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
@@ -357,11 +356,16 @@ impl Dialect {
             for (index, &c) in chars.iter().enumerate() {
                 // Its character tag and nothing else (§1).
                 let text = c.to_string();
-                let set = tags.set_of([character_tag(c, &unicode).as_str()]);
+                let category = unicode.category(c as u32);
+                let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
+                if unicode.is_white_space(c as u32) {
+                    names.push("_White_Space".into());
+                }
+                let set = tags.set_of(names.iter().map(String::as_str));
                 // A character token's label is its text (§5).
                 public.push(Token {
                     text: text.clone(),
-                    phonemes: None,
+                    phonemes: Some(text.clone()),
                     label: text.clone(),
                     tags: tags.to_set(set),
                     span: index..index + 1,
@@ -372,9 +376,9 @@ impl Dialect {
                 });
                 input.push(Tok {
                     label: text.clone(),
-                    text,
+                    text: text.clone(),
                     tags: set,
-                    phonemes: None,
+                    phonemes: Some(text),
                     source: (index, index + 1),
                     sound: Default::default(),
                     quiet: 0,

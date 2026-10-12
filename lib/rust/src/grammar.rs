@@ -145,6 +145,7 @@ impl StageGrammar {
                     continue;
                 }
                 for key in &entry.keys {
+                    let Term::Str(key) = key else { unreachable!("a bound classifier key is a string") };
                     let classes = table.entry(key.clone()).or_default();
                     // One lookup, where a scan of the key's classes was one
                     // step for each.
@@ -196,7 +197,7 @@ impl StageGrammar {
 pub(crate) const MAX_AND: usize = 16;
 
 pub(crate) fn is_terminal_name(name: &str) -> bool {
-    name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+    name.starts_with('_') || name.chars().next().is_some_and(|c| c.is_ascii_uppercase())
 }
 
 fn located(message: String, document: &str, at: (usize, usize)) -> Error {
@@ -269,7 +270,7 @@ pub(crate) fn stitch(
                     } else {
                         clauses.clone()
                     },
-                    opaque: rule.opaque,
+                    opaque: false,
                     document: document.clone(),
                     at: rule.at,
                 })
@@ -709,10 +710,28 @@ impl Constants<'_> {
             Term::Pattern(p) => p.map_values(
                 &|n, at| match &self.values[n].value {
                     Value::Pattern(p) => Ok(p.clone()),
-                    _ => Err(located("a pattern is needed here".into(), document, at)),
+                    Value::Str(s) => Ok(Pattern::Terminal(crate::tags::string_name(s, self.unicode), at)),
+                    _ => Err(located("a pattern or string is needed here".into(), document, at)),
                 },
                 &|v, op| {
                     let result = self.evaluate(v, document, item)?;
+                    if matches!(op, "literal" | "endpoint") {
+                        let Value::Str(value) = result else {
+                            return Err(located(
+                                "a string literal is required".into(),
+                                document,
+                                first_constant(v).unwrap_or(item),
+                            ));
+                        };
+                        if op == "endpoint" && value.chars().count() != 1 {
+                            return Err(located(
+                                "a range endpoint must be one scalar".into(),
+                                document,
+                                first_constant(v).unwrap_or(item),
+                            ));
+                        }
+                        return Ok(Term::Tag(crate::tags::string_name(&value, self.unicode)));
+                    }
                     if is_sound_test(op) {
                         if let Some(problem) = sound_problem(&result.clone().string(), self.unicode) {
                             return Err(located(problem.into(), document, first_constant(v).unwrap_or(item)));
@@ -754,7 +773,10 @@ impl Constants<'_> {
                 Value::Set((first..=last).filter_map(char::from_u32).map(|c| character_tag(c, self.unicode)).collect())
             }
             Term::EmptySet => Value::Set(BTreeSet::new()),
-            Term::Const(name, _) => self.values.get(name).expect("a constant defined before").value.clone(),
+            Term::Const(name, _) => match crate::dom::engine_scalar(name) {
+                Some(c) => Value::Str(c.to_string()),
+                None => self.values.get(name).expect("a constant defined before").value.clone(),
+            },
             Term::Union(items) => {
                 let mut out = BTreeSet::new();
                 for item in items {
@@ -987,7 +1009,7 @@ impl Constants<'_> {
                         let terms = clauses.tags.iter_mut().chain(clauses.emit.iter_mut().flatten().filter_map(
                             |item| match item {
                                 EmitItem::Capture(_, tags, ..) => tags.as_mut(),
-                                EmitItem::Insert(_) => None,
+                                EmitItem::Insert(..) => None,
                             },
                         ));
                         for term in terms {
@@ -1027,6 +1049,34 @@ impl Constants<'_> {
                             *value = self.evaluate(value, &alternative.document, alternative.at)?.term();
                             stack.push(inner);
                         }
+                        Expr::Literal(value) => {
+                            let value = self.evaluate(value, &alternative.document, alternative.at)?.string();
+                            *expr = Expr::Terminal(crate::tags::string_name(&value, self.unicode));
+                        }
+                        Expr::ScalarRange(left, right) => {
+                            let a = self.evaluate(left, &alternative.document, alternative.at)?.string();
+                            let b = self.evaluate(right, &alternative.document, alternative.at)?.string();
+                            let scalar = |s: &str| {
+                                let mut cs = s.chars();
+                                let c = cs.next()?;
+                                cs.next().is_none().then_some(c)
+                            };
+                            let (Some(a), Some(b)) = (scalar(&a), scalar(&b)) else {
+                                return Err(located(
+                                    "range endpoints must be single scalars".into(),
+                                    &alternative.document,
+                                    alternative.at,
+                                ));
+                            };
+                            if a > b {
+                                return Err(located(
+                                    "range starts above its end".into(),
+                                    &alternative.document,
+                                    alternative.at,
+                                ));
+                            }
+                            *expr = Expr::Range(character_tag(a, self.unicode), character_tag(b, self.unicode));
+                        }
                         Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
                     }
                 }
@@ -1041,7 +1091,7 @@ impl Constants<'_> {
         let terms = rule.tags.iter_mut().chain(rule.alternatives.iter_mut().filter_map(|a| a.tags.as_mut())).chain(
             rule.emit.iter_mut().flatten().filter_map(|item| match item {
                 EmitItem::Capture(_, tags, ..) => tags.as_mut(),
-                EmitItem::Insert(_) => None,
+                EmitItem::Insert(..) => None,
             }),
         );
         for term in terms {
@@ -1059,7 +1109,12 @@ impl Constants<'_> {
             return;
         }
         match term {
-            Term::Const(name, _) => *term = self.values[name.as_str()].value.term(),
+            Term::Const(name, _) => {
+                *term = match crate::dom::engine_scalar(name) {
+                    Some(c) => Term::Str(c.to_string()),
+                    None => self.values[name.as_str()].value.term(),
+                }
+            }
             Term::Union(items) | Term::Intersection(items) => {
                 items.iter_mut().for_each(|item| self.substitute_term(item));
             }
@@ -1232,7 +1287,12 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
                 check_rule(grammar, name)
             }
         }
-        Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => Ok(()),
+        Expr::Terminal(_)
+        | Expr::Literal(_)
+        | Expr::ScalarRange(..)
+        | Expr::Range(..)
+        | Expr::Property(_)
+        | Expr::Empty => Ok(()),
         // The reader, or the check of a DOM, has made sure that a capture
         // wraps one symbol (§9).
         Expr::Capture(_, inner) => check_expr(grammar, inner),

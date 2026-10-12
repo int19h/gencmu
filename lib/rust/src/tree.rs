@@ -343,7 +343,7 @@ enum Work<'g> {
     },
     /// An inserted token with one tag, at a token index, in a node.
     Insert {
-        tag: String,
+        tag: Option<&'g LTerm>,
         at: u32,
         node: u32,
     },
@@ -482,33 +482,26 @@ impl Join {
 /// parts, joined. A part is a read input token or an opaque part. Nothing
 /// inside a constituent that emits ε is a part, the node's own included,
 /// and the walk does not enter an opaque part.
-fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], opaque: &FxMap<u32, OpaquePart>, root: u32) -> (String, String) {
-    let mut phonemes = Join::default();
-    let mut label = Join::default();
+fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], _opaque: &FxMap<u32, OpaquePart>, root: u32) -> (String, String) {
+    let mut value = String::new();
+    let mut image = String::new();
     let mut stack = vec![root];
     while let Some(index) = stack.pop() {
         let node = &tree.nodes[index as usize];
         match node.kind {
             IKind::Read { tok, .. } => {
                 let token = &tokens[tok as usize];
-                let sound = token.phonemes.as_deref().unwrap_or("");
-                phonemes.add(sound, sound == ".");
-                label.add(&token.label, sound == ".");
+                value.push_str(token.phonemes.as_deref().unwrap_or(""));
+                image.push_str(&token.label);
             }
             IKind::Close { prod, .. } => {
-                if counts_for_nothing(g, prod) {
-                    continue;
+                if !counts_for_nothing(g, prod) {
+                    stack.extend(node.children.iter().rev());
                 }
-                if let Some(part) = opaque.get(&index) {
-                    phonemes.add("?", false);
-                    label.add(&part.text, false);
-                    continue;
-                }
-                stack.extend(node.children.iter().rev());
             }
         }
     }
-    (phonemes.result(), label.result())
+    (value, image)
 }
 
 /// The token that covers node `index` with the given tags (§5, §11).
@@ -841,7 +834,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                     // of the capture item listed next, or at
                                     // the constituent's end.
                                     let at = anchor.map_or(end, |slot| span_of(tree, child(slot)).0);
-                                    sequence.push(Work::Insert { tag: tag.clone(), at, node: index });
+                                    sequence.push(Work::Insert { tag: tag.as_ref(), at, node: index });
                                 }
                             }
                         }
@@ -904,7 +897,25 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 };
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
-                let set = recognizer.shared.tags.set_of([tag.as_str()]);
+                let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[node as usize].kind else {
+                    unreachable!()
+                };
+                let frame = Frame {
+                    lexical: None,
+                    parent_structure: u32::MAX,
+                    parent_tags: Cell::new(None),
+                    structure: tree.nodes[node as usize].structure,
+                    caps: Caps::All(caps),
+                    prod: *prod,
+                    origin: *start,
+                    end: *end,
+                    tags: Cell::new(Some(*tags)),
+                    project: None,
+                };
+                let set = match tag {
+                    Some(term) => item_tags(recognizer, term, &frame, tokens)?,
+                    None => 0,
+                };
                 let set = implications.implied(&mut recognizer.shared.tags, set);
                 // Two phoneme tags are an error here too, where an
                 // implication added one (§5). An inserted token has no

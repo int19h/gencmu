@@ -2,13 +2,18 @@
 //! produces, what `bootstrap.json` and `compiled.json` hold, and what
 //! stitching and lowering read.
 
+mod schema;
+pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Unicode) -> Option<&'static str> {
+    schema::problem(dom, unicode)
+}
+
 use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
 use crate::tags::{character_code, is_name, is_tag};
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 25;
+pub const DOM_FORMAT: i64 = 26;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -35,7 +40,7 @@ pub(crate) struct ClassifierDef {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Entry {
     pub guards: Vec<Guard>,
-    pub keys: Vec<String>,
+    pub keys: Vec<Term>,
     pub adds: bool,
     pub class: String,
     pub at: (usize, usize),
@@ -54,7 +59,8 @@ pub(crate) struct ImplicationDef {
 /// `z` (engine §2, §9).
 pub(crate) fn is_classifier_name(name: &str) -> bool {
     let mut chars = name.chars();
-    chars.next().is_some_and(|c| c.is_ascii_lowercase()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+    chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// A constant's definition (engine §2): `%const $NAME t`, or, when
@@ -72,7 +78,8 @@ pub(crate) struct ConstDef {
 /// begins with `A` to `Z` (engine §2).
 pub(crate) fn is_constant_name(name: &str) -> bool {
     let mut chars = name.chars();
-    chars.next().is_some_and(|c| c.is_ascii_uppercase()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+    chars.next().is_some_and(|c| c.is_ascii_uppercase())
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,12 +96,12 @@ pub(crate) struct RuleDef {
     pub op: Op,
     pub flags: Vec<String>,
     pub tags: Option<Term>,
+    pub strings: Channels,
     pub alternatives: Vec<Alternative>,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
-    /// `%opaque`: each constituent of the rule is an opaque part, which
-    /// sounds `?` and shows its text (engine §11).
-    pub opaque: bool,
+    /// `%erased` contributes no strings or emission parts (engine §11).
+    pub erased: bool,
     pub at: (usize, usize),
 }
 
@@ -124,6 +131,7 @@ pub(crate) struct Alternative {
     pub guards: Vec<Guard>,
     pub expr: Expr,
     pub tags: Option<Term>,
+    pub strings: Channels,
     pub ranked_locations: std::collections::BTreeMap<String, (usize, usize)>,
 }
 
@@ -140,6 +148,8 @@ pub(crate) enum Expr {
     Repeat(Box<Expr>, Option<Box<Expr>>, Option<Chain>),
     Ref(String),
     Terminal(String),
+    Literal(Term),
+    ScalarRange(Term, Term),
     /// A range `'a'..'z'`: its two ends, character tags in their canonical
     /// spelling, the start not above the end (engine §1).
     Range(String, String),
@@ -229,7 +239,7 @@ pub(crate) enum Cond {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum EmitItem {
     Capture(String, Option<Term>, Attachments),
-    Insert(String),
+    Insert(Option<Term>, Channels),
 }
 
 /// An emission item's attachment captures (§11): the names, without `$`,
@@ -238,6 +248,14 @@ pub(crate) enum EmitItem {
 pub(crate) struct Attachments {
     pub before: Vec<String>,
     pub after: Vec<String>,
+    pub strings: Channels,
+}
+
+/// The two recipes written on one owner. Each recipe is a concat term.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub(crate) struct Channels {
+    pub value: Option<Term>,
+    pub image: Option<Term>,
 }
 
 impl Attachments {
@@ -322,10 +340,7 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
                     .map(|entry| {
                         Ok(Entry {
                             guards: array(entry, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
-                            keys: array(entry, "keys")?
-                                .iter()
-                                .map(|key| key.as_str().map(str::to_string).ok_or_else(|| "a bad key".to_string()))
-                                .collect::<R<Vec<_>>>()?,
+                            keys: array(entry, "keys")?.iter().map(term_from_json).collect::<R<Vec<_>>>()?,
                             adds: string(entry, "op")? == "∈",
                             class: string(entry, "class")?,
                             at: position(entry)?,
@@ -362,6 +377,121 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
     Ok(Dom { rules, directives, constants, classifiers, implications })
 }
 
+pub(crate) fn requirements_from_json(value: &Json) -> R<Term> {
+    let items = array(value, "requirements")?
+        .iter()
+        .map(|requirement| {
+            let value = term_from_json(field(requirement, "value")?)?;
+            Ok(Arg::Term(if is_true(requirement.get("negated")) {
+                Term::Call("forbid".into(), vec![Arg::Term(value)])
+            } else {
+                value
+            }))
+        })
+        .collect::<R<Vec<_>>>()?;
+    Ok(Term::Call("requirements".into(), items))
+}
+
+pub(crate) fn is_engine_tag(name: &str) -> bool {
+    schema::engine_tag(name)
+}
+
+/// Engine literals retained by the complete tag clause, with occurrence
+/// indexes. A filter removes provenance as well as membership (engine §1).
+pub(crate) fn engine_literals(term: &Term) -> Vec<(String, usize)> {
+    let mut pending = vec![(term, false)];
+    let mut values: Vec<Vec<(String, usize)>> = Vec::new();
+    let mut occurrence = 0;
+    while let Some((term, ready)) = pending.pop() {
+        if !ready {
+            match term {
+                Term::Tag(name) if is_engine_tag(name) => {
+                    values.push(vec![(name.clone(), occurrence)]);
+                    occurrence += 1;
+                }
+                Term::Union(items) | Term::Intersection(items) => {
+                    pending.push((term, true));
+                    pending.extend(items.iter().rev().map(|item| (item, false)));
+                }
+                Term::Difference(left, right) => {
+                    pending.push((term, true));
+                    pending.push((right, false));
+                    pending.push((left, false));
+                }
+                Term::If(_, then) => pending.push((then, false)),
+                _ => values.push(Vec::new()),
+            }
+        } else {
+            match term {
+                Term::Union(items) => {
+                    let parts = values.split_off(values.len() - items.len());
+                    values.push(parts.into_iter().flatten().collect());
+                }
+                Term::Intersection(items) => {
+                    let parts = values.split_off(values.len() - items.len());
+                    let retained = parts
+                        .first()
+                        .into_iter()
+                        .flatten()
+                        .map(|(name, _)| name)
+                        .filter(|name| parts.iter().all(|part| part.iter().any(|(other, _)| other == *name)))
+                        .cloned()
+                        .collect::<FxSet<_>>();
+                    values.push(parts.into_iter().flatten().filter(|(name, _)| retained.contains(name)).collect());
+                }
+                Term::Difference(..) => {
+                    values.pop();
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+    values.pop().unwrap_or_default()
+}
+
+pub(crate) fn engine_scalar(name: &str) -> Option<char> {
+    let digits = name.strip_prefix('_')?;
+    if !(4..=6).contains(&digits.len()) || !digits.bytes().all(|c| c.is_ascii_digit() || (b'A'..=b'F').contains(&c)) {
+        return None;
+    }
+    u32::from_str_radix(digits, 16).ok().and_then(char::from_u32)
+}
+
+pub(crate) fn method_alias(name: &str) -> &str {
+    match name {
+        "value" => "phonemes",
+        "source-text" => "text",
+        "first-token" => "head",
+        "tokens-after-first" => "tail",
+        "last-token" => "last",
+        "onward" => "from",
+        "following-tokens" => "after",
+        "starts-input" => "initial",
+        _ => name,
+    }
+}
+
+fn method_spelling(name: &str) -> &str {
+    match name {
+        "phonemes" => "value",
+        "text" => "source-text",
+        "head" => "first-token",
+        "tail" => "tokens-after-first",
+        "last" => "last-token",
+        "from" => "onward",
+        "after" => "following-tokens",
+        "initial" => "starts-input",
+        _ => name,
+    }
+}
+
+fn channels_from_json(value: &Json) -> R<Channels> {
+    Ok(Channels {
+        value: value.get("value").map(term_from_json).transpose()?,
+        image: value.get("image").map(term_from_json).transpose()?,
+    })
+}
+
 fn guard_from_json(guard: &Json) -> R<Guard> {
     Ok(Guard {
         feature: string(guard, "feature")?,
@@ -390,6 +520,7 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
             .map(|flag| flag.as_str().map(str::to_string).ok_or_else(|| "a malformed rule flag".to_string()))
             .collect::<R<Vec<_>>>()?,
         tags: value.get("tags").map(term_from_json).transpose()?,
+        strings: channels_from_json(value)?,
         alternatives: array(value, "alternatives")?
             .iter()
             .map(|alternative| {
@@ -397,13 +528,14 @@ fn rule_from_json(value: &Json) -> R<RuleDef> {
                     guards: array(alternative, "guards")?.iter().map(guard_from_json).collect::<R<Vec<_>>>()?,
                     expr: expr_from_json(field(alternative, "expr")?)?,
                     tags: alternative.get("tags").map(term_from_json).transpose()?,
+                    strings: channels_from_json(alternative)?,
                     ranked_locations: Default::default(),
                 })
             })
             .collect::<R<Vec<_>>>()?,
         emit: value.get("emit").map(emit_from_json).transpose()?,
         conditions: array(value, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?,
-        opaque: is_true(value.get("opaque")),
+        erased: is_true(value.get("erased")),
         at: position(value)?,
     })
 }
@@ -421,7 +553,11 @@ fn expr_from_json(value: &Json) -> R<Expr> {
     if value.get("test").is_some() {
         return Ok(Expr::Tested(
             string(value, "test")?,
-            term_from_json(field(value, "value")?)?,
+            if string(value, "test")? == "tags" {
+                requirements_from_json(value)?
+            } else {
+                term_from_json(field(value, "value")?)?
+            },
             Box::new(expr_from_json(field(value, "expr")?)?),
         ));
     }
@@ -446,12 +582,12 @@ fn expr_from_json(value: &Json) -> R<Expr> {
             Expr::Repeat(Box::new(expr_from_json(field(value, "repeat")?)?), separator, chain)
         }
         "ref" => Expr::Ref(string(value, "ref")?),
-        "terminal" => Expr::Terminal(string(value, "terminal")?),
-        "range" => {
-            let (start, end) = range_from_json(value)?;
-            Expr::Range(start, end)
-        }
-        "property" => Expr::Property(string(value, "property")?),
+        "literal" => Expr::Literal(term_from_json(field(value, "literal")?)?),
+        "wildcard" => Expr::Property("Any".into()),
+        "range" => match array(value, "range")? {
+            [start, end] => Expr::ScalarRange(term_from_json(start)?, term_from_json(end)?),
+            _ => return Err("a range requires two string terms".into()),
+        },
         "capture" => Expr::Capture(string(value, "capture")?, Box::new(expr_from_json(field(value, "expr")?)?)),
         "empty" => Expr::Empty,
         other => return Err(format!("an unknown expression {other:?}")),
@@ -488,6 +624,20 @@ pub(crate) fn term_from_json(value: &Json) -> R<Term> {
         "if" => {
             Term::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(term_from_json(field(value, "then")?)?))
         }
+        "interpolate" | "concat" => {
+            Term::Call(first_key(value)?.into(), list(first_key(value)?)?.into_iter().map(Arg::Term).collect())
+        }
+        "method" => {
+            let mut args = vec![Arg::Term(term_from_json(field(value, "receiver")?)?)];
+            for arg in array(value, "args")? {
+                args.push(match (arg.get("rule"), arg.get("classifier")) {
+                    (Some(Json::Str(name)), _) => Arg::Rule(name.clone()),
+                    (_, Some(Json::Str(name))) => Arg::Classifier(name.clone()),
+                    _ => Arg::Term(term_from_json(arg)?),
+                });
+            }
+            Term::Call(method_alias(&string(value, "method")?).into(), args)
+        }
         "call" => Term::Call(
             string(value, "call")?,
             array(value, "args")?
@@ -510,6 +660,17 @@ fn cond_from_json(value: &Json) -> R<Cond> {
             term_from_json(field(value, "left")?)?,
             term_from_json(field(value, "right")?)?,
         ),
+        "method" => {
+            let name = string(value, "method")?;
+            let receiver = term_from_json(field(value, "receiver")?)?;
+            let args = array(value, "args")?;
+            match (name.as_str(), args) {
+                ("starts-input", []) => Cond::Initial(receiver),
+                ("matches", [arg]) => Cond::Matches(receiver, string(arg, "rule")?),
+                ("begins", [arg]) => Cond::Begins(receiver, string(arg, "rule")?),
+                _ => return Err("a malformed predicate method".into()),
+            }
+        }
         "matches" => Cond::Matches(term_from_json(field(value, "matches")?)?, string(value, "rule")?),
         "begins" => Cond::Begins(term_from_json(field(value, "begins")?)?, string(value, "rule")?),
         "initial" => Cond::Initial(term_from_json(field(value, "initial")?)?),
@@ -543,10 +704,14 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
                             .collect(),
                     }
                 };
-                let attachments = Attachments { before: names("before")?, after: names("after")? };
+                let attachments = Attachments {
+                    before: names("before")?,
+                    after: names("after")?,
+                    strings: channels_from_json(item)?,
+                };
                 Ok(EmitItem::Capture(name.clone(), tags, attachments))
-            } else if let Some(Json::Str(tag)) = item.get("insert") {
-                Ok(EmitItem::Insert(tag.clone()))
+            } else if is_true(item.get("insert")) {
+                Ok(EmitItem::Insert(tags, channels_from_json(item)?))
             } else {
                 Err("an unknown emission item".to_string())
             }
@@ -642,14 +807,15 @@ fn is_true(value: Option<&Json>) -> bool {
 }
 
 fn is_position(value: Option<&Json>) -> bool {
-    matches!(value.and_then(Json::as_array), Some([Json::Int(_), Json::Int(_)]))
+    matches!(value.and_then(Json::as_array), Some([Json::Int(line), Json::Int(column)]) if *line > 0 && *column > 0)
 }
 
 /// A rule's name: a name, or `#`, the free-modifier slot (engine §2).
 fn is_rule_name(name: &str) -> bool {
     let mut chars = name.chars();
     name == "#"
-        || chars.next().is_some_and(|c| c.is_ascii_alphabetic()) && chars.all(|c| c.is_ascii_alphanumeric() || c == '-')
+        || chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// `$`, the whole constituent, as a span or a term.
@@ -677,7 +843,7 @@ fn is_tag_json(value: Option<&Json>, unicode: &Unicode) -> bool {
 pub(crate) fn is_capture_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
-        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
 }
 
 fn is_rule_arg(value: &Json) -> bool {
@@ -698,7 +864,7 @@ fn is_value_arg(value: &Json) -> bool {
 
 /// The comparators of a test in a body (engine §2): the two sound tests
 /// and the four tag tests.
-pub(crate) const TEST_OPS: [&str; 6] = ["=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"];
+pub(crate) const TEST_OPS: [&str; 3] = ["=", "≠", "tags"];
 
 /// Whether a test's comparator is a sound test, whose value is a string,
 /// rather than a tag test, whose value is a tag set (engine §2).
@@ -726,14 +892,8 @@ pub(crate) fn test_type_problem(op: &str, ty: Type) -> Option<String> {
 /// What is wrong with the string of a sound test (engine §9), or `None`:
 /// one that no canonical sound can be, with a comma or a code point that
 /// the lowercase mapping would change.
-pub(crate) fn sound_problem(sound: &str, unicode: &Unicode) -> Option<&'static str> {
-    if sound.contains(',') {
-        Some("the string of a sound test holds a comma, which no canonical sound holds")
-    } else if unicode.lowercase(sound) != sound {
-        Some("the string of a sound test is not in lower case, which every canonical sound is")
-    } else {
-        None
-    }
+pub(crate) fn sound_problem(_: &str, _: &Unicode) -> Option<&'static str> {
+    None
 }
 
 /// What is wrong with a range (engine §1, §9), or `None`: its ends must be
@@ -791,20 +951,17 @@ fn is_testable_json(value: &Json, unicode: &Unicode) -> bool {
 /// of these, alone or first in a `seq`.
 fn elidable_head_json(expr: &Json) -> Option<&Json> {
     let head = match expr.get("seq").and_then(Json::as_array) {
-        Some(items) => items.first()?,
-        None => expr,
+        Some([head, ..]) => head,
+        _ => expr,
     };
-    let is_terminal = |node: &Json| match node.as_object() {
-        Some([(key, Json::Str(name))]) if key == "ref" => is_rule_name(name) && crate::grammar::is_terminal_name(name),
-        Some([(key, Json::Str(tag))]) if key == "terminal" => is_name(tag),
-        _ => false,
-    };
-    if is_terminal(head) {
-        return Some(head);
+    let mut base = head;
+    while base.get("test").and_then(Json::as_str).is_some_and(|op| TEST_OPS.contains(&op)) {
+        base = base.get("expr")?;
     }
-    (head.get("test").and_then(Json::as_str).is_some_and(|op| TEST_OPS.contains(&op))
-        && head.get("expr").is_some_and(is_terminal))
-    .then_some(head)
+    match base.get("ref").and_then(Json::as_str) {
+        Some(tag) if tag.starts_with(|c: char| c.is_ascii_uppercase()) => Some(head),
+        _ => None,
+    }
 }
 
 /// What is wrong with a test's value (engine §9), or `None`: it must be a
@@ -858,7 +1015,8 @@ enum Kind {
 /// reader enforces, so that no cache entry can change a result.
 /// The strings of sound tests are checked against `unicode`'s lowercase
 /// mapping, the one the match uses.
-pub(crate) fn dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
+#[allow(dead_code)]
+fn legacy_dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
     if !is_object(dom)
         || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
         || dom.get("rules").and_then(Json::as_array).is_none()
@@ -1606,7 +1764,7 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
                 if index > 0 {
                     out.push(',');
                 }
-                write_str(&mut out, key);
+                write_term(&mut out, key);
             }
             out.push_str(if entry.adds { "],\"op\":\"∈\",\"class\":" } else { "],\"op\":\"∉\",\"class\":" });
             write_str(&mut out, &entry.class);
@@ -1649,6 +1807,7 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         out.push_str(",\"tags\":");
         write_term(out, tags);
     }
+    write_channels(out, &rule.strings);
     out.push_str(",\"alternatives\":[");
     for (index, alternative) in rule.alternatives.iter().enumerate() {
         if index > 0 {
@@ -1667,6 +1826,7 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
             out.push_str(",\"tags\":");
             write_term(out, tags);
         }
+        write_channels(out, &alternative.strings);
         out.push('}');
     }
     out.push(']');
@@ -1684,6 +1844,7 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
                         out.push_str(",\"tags\":");
                         write_term(out, tags);
                     }
+                    write_channels(out, &attachments.strings);
                     for (key, names) in [("before", &attachments.before), ("after", &attachments.after)] {
                         if !names.is_empty() {
                             out.push_str(&format!(",\"{key}\":["));
@@ -1697,9 +1858,13 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
                         }
                     }
                 }
-                EmitItem::Insert(tag) => {
-                    out.push_str("{\"insert\":");
-                    write_str(out, tag);
+                EmitItem::Insert(tags, strings) => {
+                    out.push_str("{\"insert\":true");
+                    if let Some(tags) = tags {
+                        out.push_str(",\"tags\":");
+                        write_term(out, tags);
+                    }
+                    write_channels(out, strings);
                 }
             }
             out.push('}');
@@ -1714,10 +1879,19 @@ pub(crate) fn write_rule(out: &mut String, rule: &RuleDef) {
         write_cond(out, cond);
     }
     out.push(']');
-    if rule.opaque {
-        out.push_str(",\"opaque\":true");
+    if rule.erased {
+        out.push_str(",\"erased\":true");
     }
     out.push_str(&format!(",\"at\":[{},{}]}}", rule.at.0, rule.at.1));
+}
+
+fn write_channels(out: &mut String, channels: &Channels) {
+    for (name, recipe) in [("value", &channels.value), ("image", &channels.image)] {
+        if let Some(recipe) = recipe {
+            out.push_str(&format!(",\"{name}\":"));
+            write_term(out, recipe);
+        }
+    }
 }
 
 fn write_guard(out: &mut String, guard: &Guard) {
@@ -1780,12 +1954,20 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
             write_str(out, name);
             out.push('}');
         }
-        Expr::Range(start, end) => write_range(out, start, end),
-        Expr::Property(name) => {
-            out.push_str("{\"property\":");
-            write_str(out, name);
+        Expr::Literal(term) => {
+            out.push_str("{\"literal\":");
+            write_term(out, term);
             out.push('}');
         }
+        Expr::ScalarRange(start, end) => {
+            out.push_str("{\"range\":[");
+            write_term(out, start);
+            out.push(',');
+            write_term(out, end);
+            out.push_str("]}");
+        }
+        Expr::Range(start, end) => write_range(out, start, end),
+        Expr::Property(_) => out.push_str("{\"wildcard\":true}"),
         Expr::Capture(name, inner) => {
             out.push_str("{\"capture\":");
             write_str(out, name);
@@ -1796,8 +1978,13 @@ pub(crate) fn write_expr(out: &mut String, expr: &Expr) {
         Expr::Tested(op, value, inner) => {
             out.push_str("{\"test\":");
             write_str(out, op);
-            out.push_str(",\"value\":");
-            write_term(out, value);
+            if op == "tags" {
+                out.push_str(",\"requirements\":");
+                write_requirements(out, value);
+            } else {
+                out.push_str(",\"value\":");
+                write_term(out, value);
+            }
             out.push_str(",\"expr\":");
             write_expr(out, inner);
             out.push('}');
@@ -1860,30 +2047,57 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
             out.push('}');
         }
         Term::Call(name, args) => {
-            out.push_str("{\"call\":");
-            write_str(out, name);
-            out.push_str(",\"args\":[");
-            for (index, arg) in args.iter().enumerate() {
-                if index > 0 {
-                    out.push(',');
-                }
-                match arg {
-                    Arg::Term(term) => write_term(out, term),
-                    Arg::Rule(rule) => {
-                        out.push_str("{\"rule\":");
-                        write_str(out, rule);
-                        out.push('}');
+            if matches!(name.as_str(), "concat" | "interpolate") {
+                write_list(out, name, args, write_argument);
+            } else {
+                out.push_str("{\"method\":");
+                write_str(out, method_spelling(name));
+                out.push_str(",\"receiver\":");
+                write_argument(out, &args[0]);
+                out.push_str(",\"args\":[");
+                for (index, arg) in args[1..].iter().enumerate() {
+                    if index > 0 {
+                        out.push(',');
                     }
-                    Arg::Classifier(classifier) => {
-                        out.push_str("{\"classifier\":");
-                        write_str(out, classifier);
-                        out.push('}');
-                    }
+                    write_argument(out, arg);
                 }
+                out.push_str("]}");
             }
-            out.push_str("]}");
         }
     }
+}
+
+fn write_argument(out: &mut String, arg: &Arg) {
+    match arg {
+        Arg::Term(term) => write_term(out, term),
+        Arg::Rule(name) | Arg::Classifier(name) => {
+            out.push_str(if matches!(arg, Arg::Rule(_)) { "{\"rule\":" } else { "{\"classifier\":" });
+            write_str(out, name);
+            out.push('}');
+        }
+    }
+}
+
+pub(crate) fn write_requirements(out: &mut String, term: &Term) {
+    let Term::Call(_, args) = term else { unreachable!("a signed requirement list") };
+    out.push('[');
+    for (index, arg) in args.iter().enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        let Arg::Term(term) = arg else { unreachable!() };
+        let (negative, value) = match term {
+            Term::Call(name, args) if name == "forbid" => {
+                let Arg::Term(value) = &args[0] else { unreachable!() };
+                (true, value)
+            }
+            _ => (false, term),
+        };
+        out.push_str(if negative { "{\"negated\":true,\"value\":" } else { "{\"negated\":false,\"value\":" });
+        write_term(out, value);
+        out.push('}');
+    }
+    out.push(']');
 }
 
 pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
@@ -1897,25 +2111,11 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             write_term(out, right);
             out.push('}');
         }
-        Cond::Matches(span, rule) => {
-            out.push_str("{\"matches\":");
-            write_term(out, span);
-            out.push_str(",\"rule\":");
-            write_str(out, rule);
-            out.push('}');
+        Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
+            let name = if matches!(cond, Cond::Matches(..)) { "matches" } else { "begins" };
+            write_term(out, &Term::Call(name.into(), vec![Arg::Term(span.clone()), Arg::Rule(rule.clone())]));
         }
-        Cond::Begins(span, rule) => {
-            out.push_str("{\"begins\":");
-            write_term(out, span);
-            out.push_str(",\"rule\":");
-            write_str(out, rule);
-            out.push('}');
-        }
-        Cond::Initial(span) => {
-            out.push_str("{\"initial\":");
-            write_term(out, span);
-            out.push('}');
-        }
+        Cond::Initial(span) => write_term(out, &Term::Call("initial".into(), vec![Arg::Term(span.clone())])),
         Cond::Not(inner) => {
             out.push_str("{\"not\":");
             write_cond(out, inner);
@@ -2010,7 +2210,8 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>)
         match part {
             Nested::Term(term) => match term {
                 Term::Pattern(p) => p.constants(out),
-                Term::Const(name, at) => out.push((name, *at)),
+                Term::Const(name, at) if !name.starts_with('_') => out.push((name, *at)),
+                Term::Const(..) => {}
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
                 Term::Difference(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
                 Term::If(cond, then) => stack.extend([Nested::Term(then), Nested::Cond(cond)]),
@@ -2072,6 +2273,11 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Term(value), below));
                     stack.push((Nested::Expr(inner), below));
                 }
+                Expr::Literal(term) => stack.push((Nested::Term(term), depth)),
+                Expr::ScalarRange(a, b) => {
+                    stack.push((Nested::Term(a), depth));
+                    stack.push((Nested::Term(b), depth));
+                }
                 Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
             },
             Nested::Term(term) => match term {
@@ -2126,14 +2332,19 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
 pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
     let mut roots: Vec<Nested> = Vec::new();
     roots.extend(rule.tags.iter().map(Nested::Term));
+    roots.extend(rule.strings.value.iter().chain(&rule.strings.image).map(Nested::Term));
     for alternative in &rule.alternatives {
         roots.push(Nested::Expr(&alternative.expr));
         roots.extend(alternative.tags.iter().map(Nested::Term));
+        roots.extend(alternative.strings.value.iter().chain(&alternative.strings.image).map(Nested::Term));
     }
     for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(tags), _) = item {
-            roots.push(Nested::Term(tags));
-        }
+        let (tags, strings) = match item {
+            EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+            EmitItem::Insert(tags, strings) => (tags, strings),
+        };
+        roots.extend(tags.iter().map(Nested::Term));
+        roots.extend(strings.value.iter().chain(&strings.image).map(Nested::Term));
     }
     roots.extend(rule.conditions.iter().map(Nested::Cond));
     too_deep(roots)
@@ -2164,7 +2375,13 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
                 found.push((op.as_str(), value, inner.as_ref()));
                 stack.push(inner);
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
         }
     }
     found
@@ -2207,9 +2424,9 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "phonemes" | "text" => Type::String,
+        "phonemes" | "text" | "image" | "verbatim-text" | "concat" | "interpolate" => Type::String,
         "split" => Type::Strings,
-        "tags" | "classes" | "tag" | "classify" => Type::Tags,
+        "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
 }
@@ -2255,6 +2472,8 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
     if left == Type::Pattern || right == Type::Pattern {
         return Some("patterns use ≅ or ≇ for tree comparisons".into());
     }
+    let left = if matches!(op, "=" | "≠" | "∈" | "∉") && left == Type::Span { Type::String } else { left };
+    let right = if matches!(op, "=" | "≠") && right == Type::Span { Type::String } else { right };
     if left == Type::Span || right == Type::Span {
         return Some(SPAN_NOT_VALUE.to_string());
     }
@@ -2293,6 +2512,7 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
 /// given, and a constant of unknown type fits.
 pub(crate) fn expected_problem(ty: Type, expected: Type) -> Option<String> {
     if ty == expected
+        || ty == Type::Span && expected == Type::String
         || ty == Type::Any
         || (ty == Type::Set && matches!(expected, Type::Tags | Type::Pattern | Type::Strings))
     {
@@ -2332,7 +2552,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
         Term::Tag(_) | Term::Range(..) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
-        Term::Const(name, _) => Ok(constants(name)),
+        Term::Const(name, _) => Ok(if engine_scalar(name).is_some() { Type::String } else { constants(name) }),
         Term::Union(items) => joined(&mut items.iter(), "∪"),
         Term::Intersection(items) => joined(&mut items.iter(), "∩"),
         Term::Difference(left, right) => joined(&mut [left.as_ref(), right.as_ref()].into_iter(), "∖"),
@@ -2346,20 +2566,22 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
             }
         }
         Term::Call(call, args) => {
-            for arg in args {
+            for (index, arg) in args.iter().enumerate() {
                 if let Arg::Term(arg) = arg {
                     let ty = term_type_in(arg, constants)?;
-                    if call == "split" || call == "tag" || call == "classify" {
-                        if let Some(problem) = expected_problem(ty, Type::String) {
-                            let signature = match call.as_str() {
-                                "split" => "two strings",
-                                "tag" => "one string",
-                                _ => "a string and a classifier's name",
-                            };
-                            return Err(Fault::in_term(format!("{call} takes {signature}: {problem}"), term));
-                        }
+                    let expected = match call.as_str() {
+                        "split" | "classify" | "concat" | "interpolate" => Type::String,
+                        "requirements" | "forbid" => Type::Tags,
+                        _ if index == 0 => Type::Span,
+                        _ => continue,
+                    };
+                    if let Some(problem) = expected_problem(ty, expected) {
+                        return Err(Fault::in_term(format!(".{}: {problem}", method_spelling(call)), term));
                     }
                 }
+            }
+            if let Some(problem) = literal_call_problem(call, args) {
+                return Err(Fault::in_term(problem.into(), term));
             }
             Ok(call_type(call))
         }
@@ -2376,6 +2598,9 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
             cond_type_fault(antecedent, constants).or_else(|| cond_type_fault(consequent, constants))
         }
         Cond::Compare(op, left, right) => {
+            if matches!(op.as_str(), "≅" | "≇") && !matches!(left, Term::Capture(_)) {
+                return Some(Fault::in_cond("a tree comparison requires a bare capture".into(), cond));
+            }
             let left = match term_type_in(left, constants) {
                 Ok(ty) => ty,
                 Err(fault) => return Some(fault),
@@ -2386,7 +2611,11 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
             };
             comparison_problem(op, left, right).map(|problem| Fault::in_cond(problem, cond))
         }
-        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => None,
+        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => match term_type_in(span, constants) {
+            Err(fault) => Some(fault),
+            Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
+        },
+        Cond::Captured(_) => None,
     }
 }
 
@@ -2406,14 +2635,31 @@ pub(crate) fn rule_type_problem(rule: &RuleDef) -> Option<String> {
 /// smallest construct that disagrees, or `None`.
 pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Option<Fault> {
     let items = rule.emit.iter().flatten().filter_map(|item| match item {
-        EmitItem::Capture(_, tags, ..) => tags.as_ref(),
-        EmitItem::Insert(_) => None,
+        EmitItem::Capture(_, tags, ..) | EmitItem::Insert(tags, _) => tags.as_ref(),
     });
     rule.tags
         .iter()
         .chain(rule.alternatives.iter().filter_map(|alternative| alternative.tags.as_ref()))
         .chain(items)
         .find_map(|term| tag_term_fault(term, constants))
+        .or_else(|| {
+            rule.strings
+                .value
+                .iter()
+                .chain(&rule.strings.image)
+                .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
+                .chain(rule.emit.iter().flatten().flat_map(|item| {
+                    let strings = match item {
+                        EmitItem::Capture(_, _, a) => &a.strings,
+                        EmitItem::Insert(_, s) => s,
+                    };
+                    strings.value.iter().chain(&strings.image)
+                }))
+                .find_map(|term| match term_type_in(term, constants) {
+                    Err(fault) => Some(fault),
+                    Ok(ty) => expected_problem(ty, Type::String).map(|problem| Fault::in_term(problem, term)),
+                })
+        })
         .or_else(|| rule.conditions.iter().find_map(|cond| cond_type_fault(cond, constants)))
         .or_else(|| {
             // A test's value is a string for a sound test and a tag set for
@@ -2424,6 +2670,54 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                     Ok(ty) => test_type_problem(op, ty).map(|problem| Fault::in_term(problem, value)),
                 }
             })
+        })
+        .or_else(|| {
+            let mut pending: Vec<_> = rule.alternatives.iter().map(|a| &a.expr).collect();
+            while let Some(expr) = pending.pop() {
+                let terms: &[&Term] = match expr {
+                    Expr::Literal(t) => &[t],
+                    Expr::ScalarRange(a, b) => &[a, b],
+                    Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                        pending.extend(items);
+                        continue;
+                    }
+                    Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => {
+                        pending.push(inner);
+                        continue;
+                    }
+                    Expr::Repeat(item, separator, _) => {
+                        pending.push(item);
+                        pending.extend(separator.as_deref());
+                        continue;
+                    }
+                    _ => continue,
+                };
+                for term in terms {
+                    match term_type_in(term, constants) {
+                        Err(fault) => return Some(fault),
+                        Ok(ty) => {
+                            if let Some(problem) = expected_problem(ty, Type::String) {
+                                return Some(Fault::in_term(problem, term));
+                            }
+                        }
+                    }
+                }
+                if let Expr::ScalarRange(Term::Str(a), Term::Str(b)) = expr {
+                    let mut a_chars = a.chars();
+                    let mut b_chars = b.chars();
+                    let endpoints = (a_chars.next(), b_chars.next());
+                    if !matches!(endpoints, (Some(a), Some(b)) if a <= b)
+                        || a_chars.next().is_some()
+                        || b_chars.next().is_some()
+                    {
+                        return Some(Fault {
+                            problem: "a scalar range requires ordered single-scalar endpoints".into(),
+                            at: None,
+                        });
+                    }
+                }
+            }
+            None
         })
 }
 
@@ -2495,7 +2789,13 @@ impl Expr {
                 stack.push(Dropping::Term(std::mem::replace(value, Term::EmptySet)));
                 stack.push(Dropping::Expr(std::mem::replace(&mut **symbol, Expr::Empty)));
             }
-            Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+            Expr::Ref(_)
+            | Expr::Terminal(_)
+            | Expr::Literal(_)
+            | Expr::ScalarRange(..)
+            | Expr::Range(..)
+            | Expr::Property(_)
+            | Expr::Empty => {}
         }
     }
 }

@@ -1015,9 +1015,13 @@ pub(crate) fn duplicate_captures(expr: &Expr) -> Vec<usize> {
                     }
                     done.push(empty());
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {
-                    done.push(empty())
-                }
+                Expr::Ref(_)
+                | Expr::Terminal(_)
+                | Expr::Literal(_)
+                | Expr::ScalarRange(..)
+                | Expr::Range(..)
+                | Expr::Property(_)
+                | Expr::Empty => done.push(empty()),
             }
             continue;
         }
@@ -1196,7 +1200,13 @@ impl<'e> CaptureSequences<'e> {
                     stack.extend(separator.as_deref());
                     stack.push(item);
                 }
-                Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
+                Expr::Ref(_)
+                | Expr::Terminal(_)
+                | Expr::Literal(_)
+                | Expr::ScalarRange(..)
+                | Expr::Range(..)
+                | Expr::Property(_)
+                | Expr::Empty => {}
             }
         }
     }
@@ -1231,6 +1241,8 @@ impl<'e> CaptureSequences<'e> {
                     Expr::Tested(..)
                     | Expr::Ref(_)
                     | Expr::Terminal(_)
+                    | Expr::Literal(_)
+                    | Expr::ScalarRange(..)
                     | Expr::Range(..)
                     | Expr::Property(_)
                     | Expr::Empty => done.push(vec![Vec::new()]),
@@ -1303,7 +1315,11 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     if rule.tags.is_none()
         && rule.conditions.is_empty()
         && rule.emit.is_none()
-        && rule.alternatives.iter().all(|alternative| alternative.tags.is_none())
+        && rule.strings.value.is_none()
+        && rule.strings.image.is_none()
+        && rule.alternatives.iter().all(|alternative| {
+            alternative.tags.is_none() && alternative.strings.value.is_none() && alternative.strings.image.is_none()
+        })
     {
         return None;
     }
@@ -1356,9 +1372,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         name.is_empty() || everywhere.contains(name)
     };
     let items: &[EmitItem] = rule.emit.as_deref().unwrap_or(&[]);
-    // A constituent that does not count is never an opaque part (§9).
-    if rule.opaque && rule.emit.is_some() && items.is_empty() {
-        return Some(format!("{} is opaque and emits ε", rule.name));
+    if rule.erased
+        && (rule.emit.is_some()
+            || rule.strings.value.is_some()
+            || rule.strings.image.is_some()
+            || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
+    {
+        return Some(format!("{} is erased and has an emission or recipe", rule.name));
     }
 
     // A capture mentioned anywhere, presence tests included, that no
@@ -1383,7 +1403,25 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     term_presences(term, &mut mentioned);
                 }
             }
-            EmitItem::Insert(_) => {}
+            EmitItem::Insert(..) => {}
+        }
+    }
+    for recipe in rule
+        .strings
+        .value
+        .iter()
+        .chain(&rule.strings.image)
+        .chain(rule.alternatives.iter().flat_map(|a| a.strings.value.iter().chain(&a.strings.image)))
+    {
+        term_captures(recipe, &mut mentioned);
+    }
+    for item in items {
+        let strings = match item {
+            EmitItem::Capture(_, _, attachments) => &attachments.strings,
+            EmitItem::Insert(_, strings) => strings,
+        };
+        for recipe in strings.value.iter().chain(&strings.image) {
+            term_captures(recipe, &mut mentioned);
         }
     }
     if let Some(name) = mentioned.iter().find(|name| !any_has(name)) {
@@ -1396,7 +1434,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
     // The productions that have each capture. A condition that needs one
     // asks only those, and an inserted tag's anchor counts them.
     let mut holders: FxMap<&str, Vec<usize>> = FxMap::default();
-    if !rule.conditions.is_empty() || items.iter().any(|item| matches!(item, EmitItem::Insert(_))) {
+    if !rule.conditions.is_empty() || items.iter().any(|item| matches!(item, EmitItem::Insert(..))) {
         for (index, at) in positions.iter().enumerate() {
             for &name in at.keys() {
                 work::count(Work::Checked, 1);
@@ -1471,6 +1509,16 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 return Some(unguarded(missing));
             }
         }
+        let alternative = &rule.alternatives[*alternative];
+        let selected_value = alternative.strings.value.as_ref().or(rule.strings.value.as_ref());
+        let selected_image = alternative.strings.image.as_ref().or(rule.strings.image.as_ref()).or(selected_value);
+        for recipe in selected_value.into_iter().chain(selected_image) {
+            let mut used = Vec::new();
+            term_captures(recipe, &mut used);
+            if let Some(missing) = used.into_iter().find(|name| !has(name)) {
+                return Some(format!("a selected recipe of {} uses absent capture ${missing}", rule.name));
+            }
+        }
         if rule.emit.is_none() {
             continue;
         }
@@ -1481,7 +1529,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 .zip(item_waits.iter().copied())
                 .filter(|(item, _)| match item {
                     EmitItem::Capture(name, ..) => has(name),
-                    EmitItem::Insert(_) => true,
+                    EmitItem::Insert(..) => true,
                 })
                 .collect()
         } else {
@@ -1539,6 +1587,17 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
             return Some(format!("%emits of {} lists captures out of the order they stand in", rule.name));
         }
         for &(item, waits) in &present {
+            let strings = match item {
+                EmitItem::Capture(_, _, attachments) => &attachments.strings,
+                EmitItem::Insert(_, strings) => strings,
+            };
+            for recipe in strings.value.iter().chain(&strings.image) {
+                let mut used = Vec::new();
+                term_captures(recipe, &mut used);
+                if let Some(missing) = used.into_iter().find(|name| !has(name)) {
+                    return Some(format!("an item recipe of {} uses absent capture ${missing}", rule.name));
+                }
+            }
             if let EmitItem::Capture(_, Some(term), ..) = item {
                 if waits {
                     continue;
@@ -1562,7 +1621,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         }
     }
     for (item, anchor) in items.iter().zip(anchors) {
-        if !matches!(item, EmitItem::Insert(_)) {
+        if !matches!(item, EmitItem::Insert(..)) {
             continue;
         }
         if let Some(anchor) = anchor {

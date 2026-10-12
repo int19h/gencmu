@@ -277,8 +277,8 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         braces: Default::default(),
         marked: Default::default(),
         position: &position,
-        unicode: &notation.unicode,
         closed_for: Default::default(),
+        in_recipe: Default::default(),
     };
     let dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;

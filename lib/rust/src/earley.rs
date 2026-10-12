@@ -24,6 +24,7 @@ use crate::work::{self, Mutant, Work};
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Matcher {
     Tag(TagId),
+    Value(TagId),
     Characters(Characters),
 }
 
@@ -34,7 +35,10 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .zip(&g.characters)
         .map(|(name, characters)| match characters {
             Some(characters) => Matcher::Characters(*characters),
-            None => Matcher::Tag(tags.tag(name)),
+            None => match crate::tags::string_value(name) {
+                Some(value) => Matcher::Value(tags.tag(&value)),
+                None => Matcher::Tag(tags.tag(name)),
+            },
         })
         .collect()
 }
@@ -73,8 +77,8 @@ impl Tok {
     /// (§5). The lowercase mapping and the removal of commas act on each
     /// code point alone, so the canonical sound of a span is its tokens'
     /// joined.
-    pub(crate) fn sound(&self, unicode: &Unicode) -> &str {
-        self.sound.get_or_init(|| unicode.canonical(self.phonemes.as_deref().unwrap_or("")).into())
+    pub(crate) fn sound(&self, _unicode: &Unicode) -> &str {
+        self.sound.get_or_init(|| self.phonemes.as_deref().unwrap_or("").into())
     }
 }
 
@@ -735,10 +739,16 @@ impl<'a> Shared<'a> {
     /// Whether a terminal matches a token whose tags are `set` (§4). A
     /// range or a property matches once, however many of its tags qualify.
     #[inline]
-    pub(crate) fn reads(&self, matcher: Matcher, set: SetId) -> bool {
+    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
         match matcher {
-            Matcher::Tag(tag) => self.tags.contains(set, tag),
-            Matcher::Characters(characters) => self.carries(characters, set),
+            Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
+            Matcher::Value(value) => token.phonemes.as_deref().unwrap_or("") == self.tags.name(value),
+            Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
+            Matcher::Characters(Characters::Range(first, last)) => {
+                let mut chars = token.phonemes.as_deref().unwrap_or("").chars();
+                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
+            }
+            Matcher::Characters(characters) => self.carries(characters, token.tags),
         }
     }
 
@@ -1394,8 +1404,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         rules.iter().any(|rule| {
             let prefix = &self.shared.close_prefixes[*rule as usize];
-            prefix.nullable
-                || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], tokens[at].tags))
+            prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
         })
     }
     fn finish_structure(&self, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
@@ -1830,7 +1839,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             match production.syms[item.dot as usize] {
                 Sym::T(terminal) => {
                     let tokens = run.tokens;
-                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
+                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
                         // A terminal that reads a synthetic token captures
                         // no tags (§7.5).
                         let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
@@ -2145,7 +2154,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // the rejection report adds back the terminal it expected.
         if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), lowered.has_conds_at(0)) {
             let matcher = self.matchers[*terminal as usize];
-            if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
+            if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
                 if before.is_none() {
                     chart.sets[e].skipped.push(production);
                 }

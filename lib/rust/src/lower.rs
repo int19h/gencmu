@@ -109,7 +109,7 @@ pub(crate) enum LEmitItem {
     /// An inserted tag, anchored at the start of the first written part of
     /// the capture item listed next after it, or at the constituent's end
     /// if none is.
-    Insert(String, Option<u32>),
+    Insert(Option<LTerm>, Option<u32>),
 }
 
 #[derive(Debug, Clone)]
@@ -556,6 +556,10 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
+            Expr::Literal(Term::Str(value)) => {
+                vec![vec![(Sym::T(self.terminal(&format!("\"{value}\""), None)), None, None)]]
+            }
+            Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
             Expr::Seq(items) => {
                 let mut out = vec![Vec::new()];
                 for item in items {
@@ -697,7 +701,13 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
             holds_capture(item, include_ranked)
                 || separator.as_deref().is_some_and(|expr| holds_capture(expr, include_ranked))
         }
-        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,
+        Expr::Ref(_)
+        | Expr::Terminal(_)
+        | Expr::Literal(_)
+        | Expr::ScalarRange(..)
+        | Expr::Range(..)
+        | Expr::Property(_)
+        | Expr::Empty => false,
     }
 }
 
@@ -1273,7 +1283,7 @@ fn lower_mode(
                             .inspect(|_| work::count(Work::Walked, 1))
                             .filter(|item| match item {
                                 EmitItem::Capture(name, ..) => has(name),
-                                EmitItem::Insert(_) => true,
+                                EmitItem::Insert(..) => true,
                             })
                             .collect()
                     } else {
@@ -1290,6 +1300,7 @@ fn lower_mode(
                                         n.clone(),
                                         t.as_ref().map(|t| simplify_value(t, &has)),
                                         crate::dom::Attachments {
+                                            strings: Default::default(),
                                             before: a.before.iter().filter(|n| has(n)).cloned().collect(),
                                             after: a.after.iter().filter(|n| has(n)).cloned().collect(),
                                         },
@@ -1304,7 +1315,7 @@ fn lower_mode(
                     };
                     let whole = |item: &&EmitItem| match item {
                         EmitItem::Capture(name, ..) => name.is_empty(),
-                        EmitItem::Insert(_) => false,
+                        EmitItem::Insert(..) => false,
                     };
                     if items.is_empty() {
                         LEmit::Nothing
@@ -1349,7 +1360,7 @@ fn lower_mode(
                                         slots(&attachments.after),
                                     )
                                 }
-                                EmitItem::Insert(tag) => LEmitItem::Insert(tag.clone(), anchors[index]),
+                                EmitItem::Insert(tags, _) => LEmitItem::Insert(item_tags(tags), anchors[index]),
                             });
                         }
                         LEmit::Items(lowered)

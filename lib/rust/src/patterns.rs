@@ -6,6 +6,9 @@ use crate::json::{write_str, Json};
 pub(crate) enum Pattern {
     Name(String, (usize, usize)),
     Terminal(String, (usize, usize)),
+    Literal(Term, (usize, usize)),
+    Range(Term, Term, (usize, usize)),
+    Wildcard((usize, usize)),
     Constant(String, (usize, usize)),
     Test(String, Term, Box<Pattern>),
     Children(Children),
@@ -30,7 +33,7 @@ fn string(j: &Json, key: &str) -> Result<String, String> {
 }
 fn at(j: &Json) -> Result<(usize, usize), String> {
     match field(j, "at")?.as_array() {
-        Some([Json::Int(a), Json::Int(b)]) => Ok((*a as usize, *b as usize)),
+        Some([Json::Int(a), Json::Int(b)]) if *a > 0 && *b > 0 => Ok((*a as usize, *b as usize)),
         _ => Err("a malformed pattern atom".into()),
     }
 }
@@ -49,12 +52,26 @@ impl Pattern {
         if depth > 256 {
             return Err("nested too deeply".into());
         }
+        if exact(j, &["literal", "at"]) {
+            return Ok(Self::Literal(dom::term_from_json(field(j, "literal")?)?, at(j)?));
+        }
+        if exact(j, &["wildcard", "at"]) && j.get("wildcard") == Some(&Json::Bool(true)) {
+            return Ok(Self::Wildcard(at(j)?));
+        }
+        if exact(j, &["range", "at"]) {
+            let Some([left, right]) = field(j, "range")?.as_array() else {
+                return Err("a malformed pattern range".into());
+            };
+            return Ok(Self::Range(dom::term_from_json(left)?, dom::term_from_json(right)?, at(j)?));
+        }
         for key in ["name", "terminal", "constant"] {
             if exact(j, &[key, "at"]) {
                 let text = string(j, key)?;
                 let valid = if key == "name" {
                     text == "#"
                         || text.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && crate::tags::is_name(&text)
+                } else if key == "terminal" {
+                    dom::is_engine_tag(&text) || dom::is_constant_name(&text)
                 } else {
                     dom::is_constant_name(&text)
                 };
@@ -68,13 +85,19 @@ impl Pattern {
                 });
             }
         }
-        if exact(j, &["test", "value", "expr"]) {
+        if exact(j, &["test", "value", "expr"]) || exact(j, &["test", "requirements", "expr"]) {
             let op = string(j, "test")?;
             let expr = Self::read(field(j, "expr")?, depth + 1)?;
-            if !dom::TEST_OPS.contains(&op.as_str()) || !matches!(expr, Self::Terminal(..)) {
+            if !dom::TEST_OPS.contains(&op.as_str())
+                || !(matches!(
+                    expr,
+                    Self::Terminal(..) | Self::Constant(..) | Self::Literal(..) | Self::Range(..) | Self::Wildcard(..)
+                ) || matches!(&expr, Self::Test(op, _, _) if op == "tags") && matches!(op.as_str(), "=" | "≠"))
+            {
                 return Err("a pattern test requires one terminal atom".into());
             }
-            let value = dom::term_from_json(field(j, "value")?)?;
+            let value =
+                if op == "tags" { dom::requirements_from_json(j)? } else { dom::term_from_json(field(j, "value")?)? };
             return Ok(Self::Test(op, value, Box::new(expr)));
         }
         if exact(j, &["children"]) {
@@ -108,6 +131,19 @@ impl Pattern {
     }
     pub(crate) fn write(&self, out: &mut String) {
         match self {
+            Self::Literal(term, a) => {
+                out.push_str("{\"literal\":");
+                dom::write_term(out, term);
+                out.push_str(&format!(",\"at\":[{},{}]}}", a.0, a.1));
+            }
+            Self::Range(left, right, a) => {
+                out.push_str("{\"range\":[");
+                dom::write_term(out, left);
+                out.push(',');
+                dom::write_term(out, right);
+                out.push_str(&format!("],\"at\":[{},{}]}}", a.0, a.1));
+            }
+            Self::Wildcard(a) => out.push_str(&format!("{{\"wildcard\":true,\"at\":[{},{}]}}", a.0, a.1)),
             Self::Name(s, a) | Self::Terminal(s, a) | Self::Constant(s, a) => {
                 out.push('{');
                 write_str(
@@ -125,8 +161,13 @@ impl Pattern {
             Self::Test(op, value, expr) => {
                 out.push_str("{\"test\":");
                 write_str(out, op);
-                out.push_str(",\"value\":");
-                dom::write_term(out, value);
+                if op == "tags" {
+                    out.push_str(",\"requirements\":");
+                    dom::write_requirements(out, value);
+                } else {
+                    out.push_str(",\"value\":");
+                    dom::write_term(out, value);
+                }
                 out.push_str(",\"expr\":");
                 expr.write(out);
                 out.push('}');
@@ -164,8 +205,16 @@ impl Pattern {
     }
     pub(crate) fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
         match self {
+            Self::Literal(t, _) => dom::constants_in_term(t, out),
+            Self::Range(a, b, _) => {
+                dom::constants_in_term(a, out);
+                dom::constants_in_term(b, out);
+            }
             Self::Constant(n, a) => out.push((n, *a)),
-            Self::Test(_, v, _) => dom::constants_in_term(v, out),
+            Self::Test(_, v, p) => {
+                p.constants(out);
+                dom::constants_in_term(v, out);
+            }
             Self::Children(c) => c.constants(out),
             Self::Path(_, p) => p.constants(out),
             Self::Union(xs) | Self::Intersection(xs) => {
@@ -182,13 +231,41 @@ impl Pattern {
     }
     pub(crate) fn type_fault(&self, constants: dom::ConstantTypes) -> Option<dom::Fault> {
         match self {
-            Self::Constant(n, a) => dom::expected_problem(constants(n), dom::Type::Pattern)
-                .map(|problem| dom::Fault { problem, at: Some(*a) }),
-            Self::Test(op, v, _) => match dom::term_type_in(v, constants) {
+            Self::Constant(n, a) => (!matches!(constants(n), dom::Type::String | dom::Type::Pattern | dom::Type::Any))
+                .then(|| dom::Fault {
+                    problem: "a pattern atom requires a string or pattern constant".into(),
+                    at: Some(*a),
+                }),
+            Self::Literal(t, _) => match dom::term_type_in(t, constants) {
                 Err(f) => Some(f),
-                Ok(ty) => dom::test_type_problem(op, ty)
-                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
+                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
+                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
             },
+            Self::Range(a, b, _) => [a, b].into_iter().find_map(|t| match dom::term_type_in(t, constants) {
+                Err(f) => Some(f),
+                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
+                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
+            }),
+            Self::Test(op, v, p) => {
+                // A tested user constant is a terminal, never a predicate.
+                let mut base = p.as_ref();
+                while let Self::Test(_, _, inner) = base {
+                    base = inner;
+                }
+                if let Self::Constant(n, at) = base {
+                    if !matches!(constants(n), dom::Type::String | dom::Type::Any) {
+                        return Some(dom::Fault {
+                            problem: "a tested pattern atom requires a string constant".into(),
+                            at: Some(*at),
+                        });
+                    }
+                }
+                p.type_fault(constants).or_else(|| match dom::term_type_in(v, constants) {
+                    Err(f) => Some(f),
+                    Ok(ty) => dom::test_type_problem(op, ty)
+                        .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
+                })
+            }
             Self::Children(c) => c.type_fault(constants),
             Self::Path(_, p) => p.type_fault(constants),
             Self::Union(xs) | Self::Intersection(xs) => xs.iter().find_map(|p| p.type_fault(constants)),
@@ -312,7 +389,17 @@ impl Pattern {
     ) -> Result<Self, E> {
         Ok(match self {
             Self::Constant(n, a) => constant(n, *a)?,
-            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, n.clone()),
+            Self::Literal(t, a) => {
+                let Term::Tag(ref spelling) = value(t, "literal")? else { unreachable!("a bound literal spelling") };
+                Self::Terminal(spelling.clone(), *a)
+            }
+            Self::Range(a, b, at) => {
+                let Term::Tag(ref a) = value(a, "endpoint")? else { unreachable!() };
+                let Term::Tag(ref b) = value(b, "endpoint")? else { unreachable!() };
+                Self::Terminal(format!("{a}..{b}"), *at)
+            }
+            Self::Wildcard(a) => Self::Terminal("_".into(), *a),
+            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?)),
             Self::Children(c) => Self::Children(c.map_values(constant, value)?),
             Self::Path(p, n) => Self::Path(p.clone(), Box::new(n.map_values(constant, value)?)),
             Self::Union(xs) => Self::Union(xs.iter().map(|x| x.map_values(constant, value)).collect::<Result<_, _>>()?),
@@ -396,6 +483,9 @@ pub(crate) struct Machine {
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
         match p {
+            Pattern::Literal(t, _) => Pattern::Literal(t.clone(), (0, 0)),
+            Pattern::Range(a, b, _) => Pattern::Range(a.clone(), b.clone(), (0, 0)),
+            Pattern::Wildcard(_) => Pattern::Wildcard((0, 0)),
             Pattern::Name(s, _) => Pattern::Name(s.clone(), (0, 0)),
             Pattern::Terminal(s, _) => Pattern::Terminal(s.clone(), (0, 0)),
             Pattern::Constant(s, _) => Pattern::Constant(s.clone(), (0, 0)),
@@ -473,7 +563,9 @@ impl Machine {
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Intersection(xs) => Predicate::Intersection(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Difference(a, b) => Predicate::Difference(self.compile(a), self.compile(b)),
-            Pattern::Constant(..) => unreachable!("resolved pattern"),
+            Pattern::Constant(..) | Pattern::Literal(..) | Pattern::Range(..) | Pattern::Wildcard(..) => {
+                unreachable!("resolved pattern")
+            }
         };
         let id = self.predicates.len();
         self.predicates.push(pred);
