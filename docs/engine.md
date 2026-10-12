@@ -1222,7 +1222,7 @@ A method receiver retains a `term-atom` constructor. Explicit grouping and selec
 
 Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the base primary and every following test in written order. A source test never wraps another tested constructor or the capture binder. Tests after a binder belong to its target, including nested invalid captures. Supplied notation trees can still contain a test on a capture itself.
 
-Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions. `%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand uses ordinary string decoding. Other directive strings also use ordinary decoding before operand validation.
+Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions. `%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
 Thus `%include "a.md" "b$c.md"` fails lexically at `$`, column 19. With two well-formed quoted operands, the reader reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
@@ -1286,9 +1286,9 @@ Each declaration's `at` records its first token's line and column, counted from 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
-| `directive` | Keyword token, then argument parts in order | Read recognized operands, then validate every wrong operand at the directive. Produce keyword without `%` as `name`, argument values as `args`. |
+| `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. |
 | `argument-word` | One name token | Name string |
-| `argument-string` | One quoted operand | Include path without interpolation for `%include`. Other directives reject string operands at the directive. |
+| `argument-string` | One quoted operand | Only the first `%include` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
 | `argument-term` | One term atom, `#`, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
