@@ -1182,7 +1182,7 @@ pattern-path = ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
 directive = directive-name {directive-argument}
 directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
                | "%include" | "%features" | "%ambiguity-resolution"
-directive-argument = lowercase-name | string-literal | include-path | tag | range
+directive-argument = term-atom | include-path | "#" | "_"
 constant-definition = ("%const" | "%redefine-const") constant-reference term
 classifier = "%classifier" name {classifier-entry}
 classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name | engine-tag-token)
@@ -1198,7 +1198,7 @@ Recognition admits captures of groups, optionals, repeats, empty expressions, an
 
 Recognition admits arbitrary test operands, grouped terms included, so the reader can report an invalid operand at that operand. Pattern names can carry repeated or reversed tests too. Recognition also admits ranges in terms, nonclosed constant values and implications, and methods with invalid names, receivers, or arguments. Section 9.3 imposes their type and position rules.
 
-Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment. Directive recognition does not constrain operand counts or types. Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
+Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment. Directive recognition admits every term atom, include paths, `#`, and `_`. It does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1. Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
 
 Empty flags or method arguments, mixed choice operators, repeated clauses, and misplaced clauses fail syntax recognition. The syntax stage admits at most one optional marker and one chain marker, with neither marker in a separator. Section 9.3 also defines errors for additional markers in trees supplied by another bootstrap. Property terminals have no lexical form and do not enter this recognition grammar.
 
@@ -1252,10 +1252,11 @@ Each declaration's `at` records its first token's line and column, counted from 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
-| `directive` | Keyword token, then argument parts in order | Validate operand count and types at the directive. Produce keyword without `%` as `name`, argument values as `args`. |
+| `directive` | Keyword token, then argument parts in order | Read recognized operands, then validate every wrong operand at the directive. Produce keyword without `%` as `name`, argument values as `args`. |
 | `argument-word` | One name token | Name string |
 | `argument-string` | One quoted operand | Include path without interpolation for `%include`. Other directives reject string operands at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
+| `argument-term` | One term atom, `#`, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
 | `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
