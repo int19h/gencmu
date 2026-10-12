@@ -546,11 +546,13 @@ Each condition of the list applies to the productions that capture everything it
   | zoi-marker gap $open:word PAUSE $content:body PAUSE $close:word
   | empty-zoi-quote
 %conditions
-  $open.value = $close.value,
+  $open = $close,
   $open.value ∉ $content.value.split($PAUSE)
 ```
 
 Within one condition of the list, `∧` and `∨` join conditions, and `∧` binds tighter. `⟹` binds looser than both, and groups to the right. Parentheses group, and `¬` negates the condition after it. The parser evaluates a condition joined with `∧` only when it can evaluate all its parts. So two conditions about different parts are better as two items of the list. The parser then evaluates each one as early as it can.
+
+In `=` and `≠`, a capture or span converts to its input value on either or both sides. `$open = $close` therefore compares the two captured values. A capture compared with a tag set or string set remains a document error.
 
 Condition values include strings, string sets, tag sets, and patterns. Captures and ordinary or restored spans retain their distinct receiver types. Method selection precedes conversion of a capture or span to its input value where a string is required. Captures never convert to tags or patterns. A bare capture as a condition tests presence.
 

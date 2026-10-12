@@ -118,9 +118,11 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 `expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
 
-Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name and sign, positive first. Duplicate requirements of one sign collapse. Empty requirements spell `<>`. Canonical strings follow engine §9.
+Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
 
-Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, and `LE≠"lo"`.
+The spelling writes the terminal, then `<`, then requirements separated by one ASCII space, then `>`. A value test follows when present. No other space appears outside string literals. Empty requirements spell `<>`. Canonical strings follow engine §9.
+
+Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="s"`.
 
 ### Loading errors
 

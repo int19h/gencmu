@@ -1507,7 +1507,9 @@ A constant value is a closed term with string, string-set, tag-set or pattern ty
 
 `∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term, emission item or tag test also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
-`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. Any other pair is an error of the document. `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
+`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. In these comparisons, a capture or span converts to its input value after method selection, on either or both sides. Thus `$open = $close` compares their values, as does `$open.value = $close.value`. A capture compared with a tag set or string set remains a document error. Any other pair is an error of the document.
+
+`a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
 
 `s.matches(R)` holds when the span parses as `R`, and `s.begins(R)` when a prefix of it does, the empty prefix included. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 
