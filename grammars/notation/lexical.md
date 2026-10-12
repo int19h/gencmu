@@ -1,332 +1,193 @@
 # jbogenbau: from characters to tokens
 
-The lexical stage is the first stage of the notation dialect, `../dialects/notation.md`. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. The stage reads the text of a grammar document's `jbogenbau` blocks, one token per character.
+This stage reads one token per source character. Each token has its character as its value and image, and its stored engine tags.
 
-The stage hands the notation's tokens to the second stage, `syntax.md`. These tokens are names, strings, tag literals, phoneme tags, character tags, properties, captures, constants, guards, keywords and symbols. The stage drops what carries no meaning: the spaces between tokens, and the comments.
+The stage follows `../../docs/engine.md`, §9.1. It emits names, strings, captures, constants, guards, keywords, and punctuation. It discards whitespace and comments.
 
-`../../docs/notation.md` explains the notation. This document and `syntax.md` define it.
-
-A character reaches this grammar with one tag, its character tag, such as `'a'`. A tag marks a token by name, phoneme or character. The rules below read a character by that tag, by a range such as `'a'..'z'`, or by a Unicode property such as `'\p{White_Space}'`. Every token that this stage emits is one run of characters. So a token's text is exactly what the author wrote.
-
-## Choosing among readings
-
-A name is the longest run of name characters, and `...` is one symbol, not three periods or `..` and a period. That is the greedy reading: where one reading ends a token and another reads on, the one that reads on wins.
+The greedy ranking selects the longest complete piece. The conditions on names prevent a token from ending inside a name.
 
 ```jbogenbau
 %ambiguity-resolution greedy
-```
 
-## The text
-
-A text is any number of pieces, each a token or layout. The rule is written as left recursion, not as a list in braces. Each shorter text is then a constituent of its own, so the greedy reading above sees where each piece ends. A list in braces is not a constituent, so the ranking could not compare where its pieces end. The condition of `whole-name` already keeps a name from ending inside a run. A list in braces can hide token boundaries from this ranking.
-
-```jbogenbau
 %rule text
   ε | text piece
 
 %rule piece
-  | word | string | tag-literal | phoneme | character-tag | property
-  | capture | constant | guard | keyword | symbol | negation | layout
-```
+  word | string | engine-tag | capture-token | constant-token | guard | include | keyword | symbol | negation | layout
 
-<details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/text.svg" alt="Railroad diagram of the rule text"></p>
-<p><img src="../../docs/diagrams/notation/lexical/piece.svg" alt="Railroad diagram of the rule piece"></p>
-</details>
-
-## Names and tag literals
-
-A name is an ASCII letter followed by ASCII letters, digits and hyphens. Its first letter decides later whether it names a rule or a terminal. Here, every name is an `identifier`. A tag literal is `~` and a name, such as `~word`, and the stage tags it `tag`.
-
-The name in a token is a whole run of name characters, which `whole-name` reads. Its condition holds only where no name character follows. So no token ends inside a run, and `$ab?` is `$` and the guard `ab?`, never `$a` and `b?`. A run then starts one piece only. So the stage's work grows with the text's length, not with the square of a name's length.
-
-```jbogenbau
 %rule word
-  whole-name
-%tags
-  ~identifier
-%emits
-  $
-
-%rule tag-literal
-  '~' whole-name
-%tags
-  ~tag
-%emits
-  $
+  | lower-name :: Identifier Lowercase-Name
+  | upper-name :: Identifier Uppercase-Name
+%conditions ¬$.following-tokens.begins(name-character)
+%emits $
 
 %rule whole-name
   name
-%conditions
-  ¬begins(after($), name-character)
+%conditions ¬$.following-tokens.begins(name-character)
 
 %rule name
   letter | name name-character
 
-%rule lower-name
-  'a'..'z' | lower-name name-character
-
-%rule upper-name
-  'A'..'Z' | upper-name name-character
-
 %rule name-character
-  letter | digit | '-'
+  letter | digit | "-" | "_"
 
 %rule letter
-  'a'..'z' | 'A'..'Z'
+  "a".."z" | "A".."Z"
 
 %rule digit
-  '0'..'9'
-```
+  "0".."9"
 
-<details><summary>Railroad diagrams of the 9 rules from <code>word</code> to <code>digit</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
-<p><img src="../../docs/diagrams/notation/lexical/tag-literal.svg" alt="Railroad diagram of the rule tag-literal"></p>
-<p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/lower-name.svg" alt="Railroad diagram of the rule lower-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></p>
-<p><img src="../../docs/diagrams/notation/lexical/name-character.svg" alt="Railroad diagram of the rule name-character"></p>
-<p><img src="../../docs/diagrams/notation/lexical/letter.svg" alt="Railroad diagram of the rule letter"></p>
-<p><img src="../../docs/diagrams/notation/lexical/digit.svg" alt="Railroad diagram of the rule digit"></p>
-</details>
+%rule engine-tag
+  "_" [engine-name]
+%emits $ :: Engine-Tag
 
-## Strings, character tags, properties and phoneme tags
+%rule engine-name
+  engine-name-character | engine-name engine-name-character
+%conditions ¬$.following-tokens.begins(engine-name-character)
 
-The grammar author writes a string in straight double quotes. Inside it, a backslash escapes the next character. The second stage's reader decodes `\\`, `\"` and `\u{h…}`, and rejects any other escape (`../../docs/engine.md`, §9). So this stage only has to find where the string ends.
+%rule engine-name-character
+  letter | digit | "_"
 
-A character tag is written between single quotes, such as `'a'`, and its escapes are `\\`, `\'` and `\u{h…}`. The reader decodes it and makes sure that it holds exactly one character. So this stage finds its end in the same way. A phoneme tag is one character between slashes, `/a/`, and `/./` is the pause.
+%rule capture-token
+  "$$" | "$$" $n:lower-name
+%conditions ¬$n.following-tokens.begins(name-character)
+%emits $ :: Capture
 
-A property is a quote, `\p`, and anything up to the next quote that no backslash escapes, such as `'\p{L}'`. The stage tags it `property`. A character tag never begins with `\p`, so the two kinds of token never overlap. Later in either token, `\p` is an escape like any other. The stage finds the token's end, and the reader reports the malformed token at its opening quote. The reader makes sure that a property is `'\p{Name}'` with a name that the notation knows (`../../docs/engine.md`, §1, §9).
+%rule lower-name
+  "a".."z" | lower-name name-character
 
-```jbogenbau
-%rule string
-  '"' [{string-part}] '"'
-%tags
-  ~string
-%emits
-  $
+%rule upper-name
+  "A".."Z" | upper-name name-character
 
-%rule string-part
-  | $c(character)
-  | '\\' character
-%conditions
-  text($c) ≠ "\"",
-  text($c) ≠ "\\"
+%rule constant-token
+  | user-constant
+  | "$$" "_" [scalar-name]
+%emits $ :: Constant
 
-%rule character-tag
-  '\'' [character-tag-first [{character-tag-part}]] '\''
-%tags
-  ~character
-%emits
-  $
+%rule user-constant
+  "$$" upper-name
+%conditions ¬$.following-tokens.begins(name-character)
 
-%rule character-tag-first
-  | $c(character)
-  | '\\' $e(character)
-%conditions
-  text($c) ≠ "'",
-  text($c) ≠ "\\",
-  text($e) ≠ "p"
+%rule scalar-name
+  scalar-name-character | scalar-name scalar-name-character
 
-%rule character-tag-part
-  | $c(character)
-  | '\\' character
-%conditions
-  text($c) ≠ "'",
-  text($c) ≠ "\\"
-
-%rule property
-  '\'' '\\' 'p' [{character-tag-part}] '\''
-%tags
-  ~property
-%emits
-  $
-
-%rule phoneme
-  '/' character '/'
-%tags
-  ~phoneme
-%emits
-  $
-
-%rule character
-  '\p{Any}'
-```
-
-<details><summary>Railroad diagrams of the 8 rules from <code>string</code> to <code>character</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/string.svg" alt="Railroad diagram of the rule string"></p>
-<p><img src="../../docs/diagrams/notation/lexical/string-part.svg" alt="Railroad diagram of the rule string-part"></p>
-<p><img src="../../docs/diagrams/notation/lexical/character-tag.svg" alt="Railroad diagram of the rule character-tag"></p>
-<p><img src="../../docs/diagrams/notation/lexical/character-tag-first.svg" alt="Railroad diagram of the rule character-tag-first"></p>
-<p><img src="../../docs/diagrams/notation/lexical/character-tag-part.svg" alt="Railroad diagram of the rule character-tag-part"></p>
-<p><img src="../../docs/diagrams/notation/lexical/property.svg" alt="Railroad diagram of the rule property"></p>
-<p><img src="../../docs/diagrams/notation/lexical/phoneme.svg" alt="Railroad diagram of the rule phoneme"></p>
-<p><img src="../../docs/diagrams/notation/lexical/character.svg" alt="Railroad diagram of the rule character"></p>
-</details>
-
-## Captures, constants, guards and keywords
-
-A capture is `$` and a name that begins with a lower-case letter, or `$` alone for the whole constituent. A constant is `$` and a name that begins with a capital, such as `$SU-STOPS`. The stage tags it `constant`.
-
-A feature guard tests a feature. A feature is a named switch that the grammars test. A guard is either a gate or a warning. A gate is a name and `?`, with `¬` before it for a negated gate. A warning is a name and `!`.
-
-A `¬` directly before a guard belongs to the guard. Anywhere else, `¬` is a symbol of its own, which negates a condition. So the symbol `¬` is only read where no guard begins after it.
-
-```jbogenbau
-%rule capture
-  '$' | '$' $n(lower-name)
-%tags
-  ~capture
-%conditions
-  ¬begins(after($n), name-character)
-%emits
-  $
-
-%rule constant
-  '$' upper-name
-%tags
-  ~constant
-%conditions
-  ¬begins(after($), name-character)
-%emits
-  $
+%rule scalar-name-character
+  letter | digit
 
 %rule guard
-  | ['¬'] name '?'
-  | name '!'
-%tags
-  ~guard
-%emits
-  $
+  ["¬"] feature-name "?" | feature-name "!"
+%emits $ :: Guard
+
+%rule feature-name
+  letter | feature-name feature-character
+
+%rule feature-character
+  letter | digit | "-"
 
 %rule negation
-  '¬'
-%conditions
-  ¬begins(after($), guard)
-%emits
-  $
-```
+  "¬"
+%conditions ¬$.following-tokens.begins(guard)
+%emits $
 
-<details><summary>Railroad diagrams of <code>capture</code>, <code>constant</code>, <code>guard</code> and <code>negation</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/capture.svg" alt="Railroad diagram of the rule capture"></p>
-<p><img src="../../docs/diagrams/notation/lexical/constant.svg" alt="Railroad diagram of the rule constant"></p>
-<p><img src="../../docs/diagrams/notation/lexical/guard.svg" alt="Railroad diagram of the rule guard"></p>
-<p><img src="../../docs/diagrams/notation/lexical/negation.svg" alt="Railroad diagram of the rule negation"></p>
-</details>
+%rule string
+  $_0022 [{string-part}] $_0022
+%emits $ :: String
 
-A keyword is `%` and a name. The stage tags each keyword that the notation knows with its own identifier, such as `keyword-rule` for `%rule`. So the second stage names each keyword it knows and has no other. Any other `%` and name is one token tagged `keyword`, which the second stage never reads. So an unknown keyword is an error at that token. Each capture, constant, guard and keyword is one token, so the second stage sees `$first` as one thing.
+%rule string-part
+  $c:_ | "$$" "$$" | "$$" "(" interpolation-name ")"
+%conditions $c.value ≠ "$(_0022)", $c.value ≠ "$(_005C)", $c.value ≠ "$$"
 
-```jbogenbau
-%rule keyword
-  | '%' $rule(whole-name) <~keyword-rule>
-  | '%' $redefine-rule(whole-name) <~keyword-redefine-rule>
-  | '%' $extend-rule(whole-name) <~keyword-extend-rule>
-  | '%' $tags(whole-name) <~keyword-tags>
-  | '%' $conditions(whole-name) <~keyword-conditions>
-  | '%' $emits(whole-name) <~keyword-emits>
-  | '%' $opaque(whole-name) <~keyword-opaque>
-  | '%' $ambiguity-resolution(whole-name) <~keyword-ambiguity-resolution>
-  | '%' $stage(whole-name) <~keyword-stage>
-  | '%' $extend-stage(whole-name) <~keyword-extend-stage>
-  | '%' $redefine-stage(whole-name) <~keyword-redefine-stage>
-  | '%' $include(whole-name) <~keyword-include>
-  | '%' $features(whole-name) <~keyword-features>
-  | '%' $const(whole-name) <~keyword-const>
-  | '%' $redefine-const(whole-name) <~keyword-redefine-const>
-  | '%' $classifier(whole-name) <~keyword-classifier>
-  | '%' $implies(whole-name) <~keyword-implies>
-  | '%' $other(whole-name) <~keyword>
-%conditions
-  text($rule) = "rule",
-  text($redefine-rule) = "redefine-rule",
-  text($extend-rule) = "extend-rule",
-  text($tags) = "tags",
-  text($conditions) = "conditions",
-  text($emits) = "emits",
-  text($opaque) = "opaque",
-  text($ambiguity-resolution) = "ambiguity-resolution",
-  text($stage) = "stage",
-  text($extend-stage) = "extend-stage",
-  text($redefine-stage) = "redefine-stage",
-  text($include) = "include",
-  text($features) = "features",
-  text($const) = "const",
-  text($redefine-const) = "redefine-const",
-  text($classifier) = "classifier",
-  text($implies) = "implies",
-  text($other) ≠ "rule", text($other) ≠ "redefine-rule", text($other) ≠ "extend-rule",
-  text($other) ≠ "tags", text($other) ≠ "conditions", text($other) ≠ "emits",
-  text($other) ≠ "opaque", text($other) ≠ "ambiguity-resolution",
-  text($other) ≠ "stage", text($other) ≠ "extend-stage", text($other) ≠ "redefine-stage",
-  text($other) ≠ "include", text($other) ≠ "features",
-  text($other) ≠ "const", text($other) ≠ "redefine-const",
-  text($other) ≠ "classifier", text($other) ≠ "implies"
-%emits
-  $
-```
+%rule interpolation-name
+  upper-name | "_" scalar-name
 
-<details><summary>Railroad diagram of <code>keyword</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/keyword.svg" alt="Railroad diagram of the rule keyword"></p>
-</details>
+%rule include
+  $keyword:include-keyword [layout-run] $path:include-path
+%emits $keyword :: KW-INCLUDE, $path :: Include-Path
 
-## Symbols
+%rule include-keyword
+  "%" $n:whole-name
+%conditions $n.value = "include"
 
-`≻` stands only between options of a ranked choice.
+%rule include-path
+  $_0022 [{path-part}] $_0022
 
-Every other token is a symbol. A symbol of one character keeps the character tag of its one character, such as `'|'`. `⊇` and `⊉` stand only in a test in a body, such as `UI⊇~indicator`. Braces, `{` and `}`, hold a repetition, and a backslash, `\`, separates its item from its separator. A backslash inside a string, a character tag or a property belongs to that token, so it is a symbol only outside them.
+%rule path-part
+  $c:_
+%conditions $c.value ≠ "$(_0022)", $c.value ≠ "$(_005C)"
 
-The rule for `...`, the marker of a chain, tags it `ellipsis`, and `..`, which joins the two ends of a range, is `double-dot`. A `+` after a bracket marks an elidable optional. Each plus remains a separate token.
+%rule layout-run
+  layout | layout-run layout
 
-```jbogenbau
-%rule symbol
-  | '|' | '&' | '(' | ')' | '[' | ']' | '{' | '}' | '\\' | '+' | '<' | '>' | '#' | 'ε' | ',' | '∧' | '∨' | '⟹'
-  | '=' | '≠' | '∈' | '∉' | '⊆' | '⊈' | '⊇' | '⊉' | '∪' | '∩' | '∖' | '∅'
-  | '.' '.' '.' <~ellipsis>
-  | '.' '.' <~double-dot>
-  | '@' '(' <~pattern-open>
-  | '≅' | '≇' | '⋯' | '⋮' | '⋰' | '⋱'
-  | '≻'
-%emits
-  $
-```
-
-<details><summary>Railroad diagram of <code>symbol</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/symbol.svg" alt="Railroad diagram of the rule symbol"></p>
-</details>
-
-The compound token `@(` opens a tree pattern. The comparators `≅` and `≇` test a constructed constituent. `⋯` marks a sibling gap. `⋮`, `⋰` and `⋱` mark descendant, first-child and last-child paths. The six one-character symbols keep their character tags. The rule tags `@(` `pattern-open`.
-
-## Layout
-
-Spaces, tabs and line breaks separate tokens and mean nothing else. A comment runs from `(*` to the first `*)` after it and means nothing at all. The stage emits neither: the rules below have no `%emits`, and nothing under them has one.
-
-```jbogenbau
 %rule layout
-  space | comment
-
-%rule space
-  '\p{White_Space}'
+  _White_Space | comment
 
 %rule comment
-  '(' '*' [{comment-part}] stars ')'
+  "(" "*" [{comment-part}] stars ")"
 
 %rule comment-part
-  | $c(character)
-  | stars $d(character)
-%conditions
-  text($c) ≠ "*",
-  text($d) ≠ ")",
-  text($d) ≠ "*"
+  $c:_ | stars $d:_
+%conditions $c.value ≠ "*", $d.value ≠ ")", $d.value ≠ "*"
 
 %rule stars
-  '*' | stars '*'
-```
+  "*" | stars "*"
 
-<details><summary>Railroad diagrams of <code>layout</code>, <code>space</code>, <code>comment</code>, <code>comment-part</code> and <code>stars</code></summary>
-<p><img src="../../docs/diagrams/notation/lexical/layout.svg" alt="Railroad diagram of the rule layout"></p>
-<p><img src="../../docs/diagrams/notation/lexical/space.svg" alt="Railroad diagram of the rule space"></p>
-<p><img src="../../docs/diagrams/notation/lexical/comment.svg" alt="Railroad diagram of the rule comment"></p>
-<p><img src="../../docs/diagrams/notation/lexical/comment-part.svg" alt="Railroad diagram of the rule comment-part"></p>
-<p><img src="../../docs/diagrams/notation/lexical/stars.svg" alt="Railroad diagram of the rule stars"></p>
-</details>
+%rule keyword
+
+  | "%" $rule:whole-name :: KW-RULE
+  | "%" $redefine-rule:whole-name :: KW-REDEFINE-RULE
+  | "%" $extend-rule:whole-name :: KW-EXTEND-RULE
+  | "%" $conditions:whole-name :: KW-CONDITIONS
+  | "%" $emits:whole-name :: KW-EMITS
+  | "%" $erased:whole-name :: KW-ERASED
+  | "%" $ambiguity-resolution:whole-name :: KW-AMBIGUITY-RESOLUTION
+  | "%" $stage:whole-name :: KW-STAGE
+  | "%" $extend-stage:whole-name :: KW-EXTEND-STAGE
+  | "%" $redefine-stage:whole-name :: KW-REDEFINE-STAGE
+  | "%" $include:whole-name :: KW-INCLUDE
+  | "%" $features:whole-name :: KW-FEATURES
+  | "%" $const:whole-name :: KW-CONST
+  | "%" $redefine-const:whole-name :: KW-REDEFINE-CONST
+  | "%" $classifier:whole-name :: KW-CLASSIFIER
+  | "%" $implies:whole-name :: KW-IMPLIES
+  | "%" $other:whole-name :: Keyword
+%conditions
+  $rule.value = "rule",
+  $redefine-rule.value = "redefine-rule",
+  $extend-rule.value = "extend-rule",
+  $conditions.value = "conditions",
+  $emits.value = "emits",
+  $erased.value = "erased",
+  $ambiguity-resolution.value = "ambiguity-resolution",
+  $stage.value = "stage",
+  $extend-stage.value = "extend-stage",
+  $redefine-stage.value = "redefine-stage",
+  $include.value = "include",
+  $features.value = "features",
+  $const.value = "const",
+  $redefine-const.value = "redefine-const",
+  $classifier.value = "classifier",
+  $implies.value = "implies",
+  $other.value ≠ "rule",
+  $other.value ≠ "redefine-rule",
+  $other.value ≠ "extend-rule",
+  $other.value ≠ "conditions",
+  $other.value ≠ "emits",
+  $other.value ≠ "erased",
+  $other.value ≠ "ambiguity-resolution",
+  $other.value ≠ "stage",
+  $other.value ≠ "extend-stage",
+  $other.value ≠ "redefine-stage",
+  $other.value ≠ "include",
+  $other.value ≠ "features",
+  $other.value ≠ "const",
+  $other.value ≠ "redefine-const",
+  $other.value ≠ "classifier",
+  $other.value ≠ "implies"
+%emits $
+
+%rule symbol
+
+  | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | "," | "∧" | "∨" | "⟹" | "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "∪" | "∩" | "∖" | "∅" | "≅" | "≇" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
+  | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
+%emits $
+```
