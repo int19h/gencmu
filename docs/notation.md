@@ -586,7 +586,7 @@ The predicates are:
 
 - `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
 - `∈` and `∉` test whether a string is in a set of strings.
-- `⊆` and `⊈` test whether one set is in another of the same kind. So `Indicator ⊆ $i.tags` says that `$i` carries the mark `indicator`, and `Indicator ⊈ $i.tags` says that it does not.
+- `⊆` and `⊈` test whether one set is in another of the same kind. So `Indicator ⊆ $i.tags` says that `$i` carries the mark `Indicator`, and `Indicator ⊈ $i.tags` says that it does not.
 - `≅` holds when a bare capture, or `$`, matches a tree pattern (see "Tree patterns"). `≇` holds when it does not. Any other pair is an error.
 - `$x` holds when the production has the capture `x`.
 - `span.matches(rule)` holds when the span parses as the named rule.
@@ -942,7 +942,7 @@ The engine's canonical order (engine §6) orders the ambiguity diagnostics. Amon
 - If one reads and the other closes, the directive decides. `greedy` takes the one that reads, so a constituent ends as late as the grammar allows. `lazy` takes the one that closes, so a constituent ends as early as the grammar allows.
 - If both close different constituents, they are tied.
 
-Some closes are transparent to action comparison. A named production with one logical symbol has a transparent close. They are also the logical helpers that the notation creates for flat `{ }` and every plain `[ ]`, including captured optionals. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
+Some closes are transparent to action comparison. A named production with one logical symbol has a transparent close. The notation also creates transparent logical helpers for flat `{ }` and every plain `[ ]`, including captured optionals. So two parses that differ only in such a relabeling do not differ yet. The levels of a chain are constituents of its rule, so a level with more than one symbol is not transparent. Where `greedy` or `lazy` must see where each step of a list ends, the grammar writes a chain or explicit recursion, not flat braces.
 
 Transparency does not merge parses, though. Two parses that differ only there are still two parses. `greedy` and `lazy` tie them when their rule profiles are equal. `late-elision` also requires equal counts of elided terminators at every position. For example, `[[X]]` matches the empty text in two ways, and `[A] & [B]` in three.
 
@@ -1036,7 +1036,7 @@ The `experimental` and `zantufa` dialects do not declare `elision-only`. A calle
 
 ## Layout of the bundled grammars
 
-The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, a property, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
+The bundled grammars keep a layout convention for a rule with two or more alternatives that are each a single symbol. A single symbol is a reference, a terminal, a range, an engine tag, a tested symbol or `ε`. An alternative with a guard, or with tags of its own (see "Tags"), is not a single symbol. If such a rule has more than one line, it does not put exactly one symbol on each line. The exception is a rule in which no two adjacent symbols fit together on one line.
 
 No line of such a rule's body holds more than 100 characters, counted as Unicode code points. A symbol can run over several lines, and each of these lines counts. Apart from this, the author chooses the groups, such as the vowels on one line and the consonants on the next. `tools/sync.js --check` makes sure that the bundled grammars keep this convention. For a rule with one symbol per line, it suggests a layout, and keeps the line breaks inside each symbol.
 

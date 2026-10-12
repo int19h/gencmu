@@ -813,4 +813,4 @@ Read [Feature guards](notation.md#feature-guards) for gates, warnings, and featu
 
 Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
 
-Read [Corpus cases](../tests/README.md#corpus-cases) for expected results and shared tests.
+Read [Corpus cases](../tests/README.md#corpus-cases-corpusjsonl-and-coretxt) for expected results and shared tests.

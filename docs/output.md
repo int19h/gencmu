@@ -138,11 +138,17 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 
 ### A grammar DOM
 
-A grammar DOM is the parsed form of a grammar document. Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. Empty declaration arrays can be absent, except `rules`. Every declared item has `at:[line,column]`, counted from 1.
+A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
+
+Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. Empty declaration arrays can be absent, except `rules`. Every declared item has `at:[line,column]`, counted from 1.
+
+`format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
+
+DOM format 26 supports restored spans, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
 Format 26 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":26,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
-Each array preserves written order. Positions recover order across declaration kinds. Two declarations cannot share a position. DOMs store unresolved references and source positions, never stage-resolved constant or classifier values.
+A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
 
 A rule has this form, in canonical member order:
 
@@ -158,6 +164,8 @@ A rule has this form, in canonical member order:
 `alternatives` is nonempty. A rule name is lowercase or `#`.
 
 An alternative is `{"guards":[GUARD...],"expr":EXPR,"tags":TERM,"value":RECIPE,"image":RECIPE}`. Its three clause members are optional. `guards` is present even when empty. A guard is `{"feature":"cbm","kind":"gate","negated":false}` or `{"feature":"y-cmavo","kind":"warning","negated":false}`. A gate can have `negated:true`. A warning cannot.
+
+A guard's feature is a name, and a guard has no member but these three. The first guard spells `cbm?`, and its negated form spells `¬cbm?`. The second spells `y-cmavo!`.
 
 An expression has exactly one of these forms:
 
@@ -175,9 +183,15 @@ An expression has exactly one of these forms:
 {"empty":true}
 ```
 
-`seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16. `separator` is optional. `chain` is optional and is `left` or `right`. A chain is the complete alternative expression. Flat repeat counts one or more items and has no `min` member.
+An expression has no member but those of its one form.
+
+`seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
+
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
 
 A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`. Ranges and wildcard have no property or character-tag fields.
+
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member. Any `maximal` member makes an optional malformed, regardless of its value.
 
 `SYMBOL` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. A capture can also wrap one tested SYMBOL. Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside repeats or elidable optionals. Each expanded production binds a name at most once.
 
@@ -202,11 +216,21 @@ Terms have these forms:
 
 `STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
 
+`const` is a reference to a constant, by its name without `$`. Its `at` is the line and column of the reference, where the loader reports an error of the constant (engine §2). A term has no member but those of its one form. `difference` has exactly two parts, and `a ∖ b ∖ c` nests the first difference in the second.
+
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
 Rule arguments use `{"rule":"r"}`. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms.
 
-`.without-elision` requires a bare capture receiver. `.onward` can wrap its restored result. The DOM contains no runtime restoration records.
+`.without-elision` requires a bare capture receiver. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
+
+For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
+
+```json
+{"method":"matches","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"rule":"sumti"}]}
+```
+
+The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
 A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the six recipe string methods on a bare capture. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
@@ -229,19 +253,37 @@ Conditions have these forms:
 
 Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture on the left. A presence predicate uses `captured`, with an empty name for `$`.
 
+A condition has no member but those of its one form.
+
 An emission is `{"items":[ITEM...]}` with a nonempty array. An item is either `{"capture":"x"}` or `{"insert":true}`, followed by optional `tags`, `value`, `image`, `before`, and `after`. The empty capture name denotes `$`. Only named capture items accept nonempty attachment arrays. Each attachment array contains capture names without `$`, in written order. Empty attachment arrays are omitted.
 
 `%emits` without items creates `{"items":[{"capture":""}]}`. A clauses-only emission adds those clauses to that item. `%emits ε` creates `{"items":[{"insert":true}]}`. Erasure uses the separate rule member `erased:true`.
 
-A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. Its operation is `define` or `redefine`, and its value is closed. Engine constants cannot be declared. A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name starts lowercase and its entry array can be empty.
+A constant is `{"name":"SU-STOPS","op":"define","value":TERM,"at":[line,column]}`. Its operation is `define` or `redefine`, and its value is closed. `%const` defines, and `%redefine-const` redefines. The name has no `$`. The value can hold `const` terms but never a value that the loader gives them.
+
+Engine constants cannot be declared.
+
+A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
 An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals, with interpolation permitted. The operator is `∈` or `∉`. The class starts and ends with capitals and never starts with `_`.
 
-An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`. Both terms are closed tag sets and cannot mention engine tags. A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`.
+An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
+
+An implication is `{"if":TERM,"then":TERM,"at":[line,column]}`, for `%implies A ⟹ B`. `if` is `A`, and `then` is `B`. Both terms are closed tag sets and cannot mention engine tags.
+
+A classifier and an implication have no member but those shown.
+
+A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`.
 
 Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one literal path string. Features take at least one lowercase name. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
 
-Each form permits only its specified members. Directives additionally tolerate unknown members, but no `maximal` member. Unknown members never excuse an invalid known member. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
+A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name or, for `include`, the literal path string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`. The operand `maximal` in `args` is an error.
+
+A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
+
+`rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
+
+DOMs store unresolved references and source positions, never stage-resolved constant or classifier values. Source, cached, and supplied DOMs obey the same arity, type, capture, clause, and depth rules.
 
 ### Pattern values
 

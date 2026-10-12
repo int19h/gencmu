@@ -151,7 +151,7 @@ So an accidental override never passes silently, and a replacement says so where
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
-A stage can also name a value, such as a list of classes that several rules test. `%const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO` defines the constant, and `%redefine-const` gives it a additional value, which can use the preceding value. So a dialect extends a list in one place, and does not restate every rule that tests it. The loader gives each constant its value when it stitches a stage. So a document that several dialects include takes the values of each, and a cached DOM holds no value.
+A stage can also name a value, such as a list of classes that several rules test. `%const $SU-STOPS NIhO ∪ LU ∪ TUhE ∪ TO` defines the constant, and `%redefine-const` redefines its value, which can use the preceding value. So a dialect extends a list in one place, and does not restate every rule that tests it. The loader gives each constant its value when it stitches a stage. So a document that several dialects include takes the values of each, and a cached DOM holds no value.
 
 A stage can also give exact values their classes with a classifier, such as a lexicon. `%classifier lexicon` lists entries such as `"mi" "do" ∈ KOhA`, and `∉` removes a class. A gate can guard an entry, so a feature can change the class of a word. `$c.value.classify(lexicon)` gives the classes of the word `$c`. A classifier's value depends on the features, so a stage resolves it for the features of each parse.
 
@@ -374,7 +374,7 @@ An elidable optional permits an omitted closing word. A grammar marks each elida
 
 A marked optional has one form, with the terminator directly after the marker. A group there, even `[+(KU) #]`, is a document error. This gives one spelling for readers to inspect. A DOM does not preserve groups, so its reader tests only the normalized form. A wrong test on a terminator is also a document error.
 
-An omission has an elided node and contributes to its boundary's elision count. It stores no ended-constituent assignment. Elision-only reconstructs its defined routes and preserves the exact value saved by an equality test. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
+An omission has an elided node and contributes to its boundary's elision count. It stores no ended-constituent assignment. `elision-only` reconstructs its defined routes and preserves the exact value saved by an equality test. Query blockers instead read the preceding logical symbol, with plain optionals retained as helpers.
 
 A capture can stand anywhere except inside braces or inside an elidable optional. An alternative expands into productions, one per choice branch and subsequence of `&`. A plain optional with a capture expands into productions with and without the capture. A capture can therefore be present in some productions and absent in others.
 
