@@ -1175,7 +1175,9 @@ condition = comparison | tree-comparison | method-chain | capture-reference
 comparison = union comparator union
 comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈"
 tree-comparison = capture-reference ("≅" | "≇") union
-pattern-literal = "@(" pattern-union ")" | "@" pattern-atom
+pattern-literal = "@(" pattern-union ")" | "@" ungrouped-pattern-atom
+ungrouped-pattern-atom = (pattern-name | terminal | constant-reference) {symbol-test}
+                      | pattern-literal
 pattern-union = pattern-intersection {("∪" | "∖") pattern-intersection}
 pattern-intersection = pattern-sequence {"∩" pattern-sequence}
 pattern-sequence = pattern-item {pattern-item}
@@ -1206,6 +1208,7 @@ Recognition names describe productions. The following mapping specifies the name
 | `flags` and its names | `rule-flags` with `rule-flag` parts |
 | `captured` | `capture` with a binder token and `primary` |
 | `tested` | `tested` with an unwrapped base constructor and the written tests |
+| `ungrouped-pattern-atom` | Shorthand `pattern-atom`, excluding a plain grouped atom |
 | `ranked-body` | `ranked-alternative` with guards, `ranked-choice`, and clauses |
 | `conditions` | `conditions-clause` |
 | `%emits` output | `emits-clause` with emission parts |
