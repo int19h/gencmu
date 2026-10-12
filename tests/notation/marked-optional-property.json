@@ -1,5 +1,5 @@
 {
-  "description": "A property cannot be the terminator of a marked optional: an error at the [ (engine §9).",
+  "description": "A stored engine terminal cannot head a marked optional. Its head must be an ordinary identifier terminal, so the error stands at the opening bracket (engine §9.3).",
   "document": "```jbogenbau\n%rule a [ + _L ]\n```\n",
   "expect": {
     "error": {

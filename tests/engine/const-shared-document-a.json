@@ -1,5 +1,5 @@
 {
-  "description": "One document shared by two pipelines takes each pipeline's value of a constant: the loader gives constants their values when it stitches a stage, not in the document's DOM. With pa.md, $K is ~a (engine §2, §8). const-shared-document-b.json runs pb.md over the same documents.",
+  "description": "One document shared by two pipelines takes each pipeline's value of a constant: the loader gives constants their values when it stitches a stage, not in the document's DOM. With pa.md, $K is A (engine §2, §8). const-shared-document-b.json runs pb.md over the same documents.",
   "documents": {
     "pa.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"shared.md\"\n```\n",
     "pb.md": "```jbogenbau\n%stage main\n%include \"b.md\"\n%include \"shared.md\"\n```\n",

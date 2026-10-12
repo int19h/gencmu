@@ -1,5 +1,5 @@
 {
-  "description": "A capture's name is all lower case, not only its first letter (design §2, engine §9).",
+  "description": "A capture name contains no capital letters, even after its lowercase initial. The reader reports the bad name at the binder (engine §9.3).",
   "document": "```jbogenbau\n%rule a $aB:A\n```\n",
   "expect": {
     "error": {

@@ -1,5 +1,5 @@
 {
-  "description": "`~ab?` cannot be read as tokens. A tag literal's name is a whole run of name characters, so `~ab` leaves `?`, and `~` alone is no token. The error stands at the `?` (engine §9).",
+  "description": "An isolated ? after the identifier tokens is no lexical token. The error stands at that question mark (engine §9.1).",
   "document": "```jbogenbau\n%rule t A Ab ?\n```\n",
   "expect": {
     "error": {

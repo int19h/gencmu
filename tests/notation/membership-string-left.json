@@ -1,5 +1,5 @@
 {
-  "description": "The left side of ∈ and ∉ is a string, a quoted string or phonemes or text of something, and the right side a set of strings (engine §9, §10).",
+  "description": "Membership compares a string with a string set. Input .value or .source-text methods supply the left string, and .split supplies the right set (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B %conditions \"b\" ∈ $x.value.split(\".\"), $x.value ∈ $x.value.split(\".\"), $x.source-text ∉ $x.value.split(\".\")\n```\n",
   "expect": {
     "dom": {

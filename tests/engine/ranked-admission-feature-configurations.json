@@ -1,5 +1,5 @@
 {
-  "description": "Each parse admits only options whose named rules remain under its selected features.",
+  "description": "Each parse admits only options whose named rules remain under its selected features (engine §2.1 and §6.1).",
   "grammar": "%ambiguity-resolution late-elision\n%rule text ((a ≻ b) Z)\n%rule a high? (X Y)\n%rule b (X Y)",
   "parses": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Each repetition item permits an omitted terminator after its fixed terminal prefix.",
+  "description": "Each repetition item permits an omitted terminator after its fixed terminal prefix (engine §3.8 and §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x (B {([+T] y)})\n%rule y (C A)",
   "tokens": [
     {

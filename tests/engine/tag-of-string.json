@@ -1,5 +1,5 @@
 {
-  "description": "tag() of a string is the identifier tag of that name, as a set of one tag, in a tag term and in a condition (engine §10).",
+  "description": "A fixed classifier maps the source string KOhA to the written KOhA tag. The constituent tag clause and the condition observe that same classification (engine §2, §10).",
   "grammar": "%rule text $w:word %conditions KOhA ⊆ $w.tags, $w.source-text.classify(migration-tags) = KOhA\n\n%rule word $y:A :: $y.source-text.classify(migration-tags)\n%classifier migration-tags \"KOhA\" ∈ KOhA",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
+  "description": "Selected routes settle skipped captures while future ranked groups remain unknown (engine §2.1 and §6.1).",
   "grammar": "%rule text ((X {U / [(Y ≻ V)]}) ≻ (Z W))",
   "tokens": [
     {

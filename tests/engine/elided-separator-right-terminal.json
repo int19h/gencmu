@@ -1,5 +1,5 @@
 {
-  "description": "The right chain permits an omitted terminator after a terminal.",
+  "description": "The right chain permits an omitted terminator after a terminal (engine §3.8 and §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {A ... / ([+T] s)}\n%rule s (B S)",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "The backslash cannot stand first in braces, so {\\ s} is a syntax error at the backslash (engine §9).",
+  "description": "The separator slash cannot stand first in braces, so {\\ s} is a syntax error at the separator slash (engine §9).",
   "document": "```jbogenbau\n%rule a { / s }\n```\n",
   "expect": {
     "error": {

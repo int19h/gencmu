@@ -1,5 +1,5 @@
 {
-  "description": "Engine §§1 and 3.8 replace this phoneme spelling with an ordinary metadata tag, which can head an elidable optional.",
+  "description": "An ordinary Sound tag can head a marked optional. It remains an identifier terminal rather than a phoneme-terminal form (engine §3.8, §9.3).",
   "document": "```jbogenbau\n%rule a [ + Sound-0061-s ]\n```\n",
   "expect": {
     "dom": {

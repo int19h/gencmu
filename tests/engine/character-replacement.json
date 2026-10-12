@@ -1,5 +1,5 @@
 {
-  "description": "U+FFFD, the replacement character, is a character like any other. It is one tag, written itself or as \\u{FFFD}. That is so in a terminal, a tag term and an inserted tag. The output writes it as itself (engine §1, docs/output.md).",
+  "description": "U+FFFD is an ordinary scalar string, not a tag. A union of strings in the captured emission item's tag clause is a document error at that term (engine §9.3, §10).",
   "grammar": "%rule text ($x:c $y:\"�\" \"�\") %emits ε :: Char-FFFD-n, ε :: Char-FFFD-n, $x, $y :: (\"�\" ∪ \"�\")\n%rule c \"�\" :: (\"�\" ∪ \"�\")",
   "input": "���",
   "expect": {

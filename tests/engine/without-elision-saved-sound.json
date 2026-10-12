@@ -1,5 +1,5 @@
 {
-  "description": "Alignment ignores the saved equality sound of a restored terminator (engine §4 and §10).",
+  "description": "Alignment ignores the saved equality value of a restored terminator (engine §4 and §10).",
   "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T=\"a\"])\n%rule rival (X [+T=\"b\"])",
   "tokens": [
     {

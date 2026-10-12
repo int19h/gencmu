@@ -1,5 +1,5 @@
 {
-  "description": "A constant can reference a later definition. The stage binds that reference to its final value.",
+  "description": "A constant can reference a later definition. The stage binds that reference to its final value (engine §2).",
   "grammar": "%const $B ($A ∪ C)\n%const $A A\n%rule text X %conditions $B = (A ∪ C)\n",
   "tokens": [
     {

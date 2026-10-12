@@ -1,5 +1,5 @@
 {
-  "description": "Admission resolves the original tie, and the surviving best proof passes reconstruction.",
+  "description": "Admission resolves the original tie, and the surviving best proof passes reconstruction (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (((X [+U]) | (X [+T] [+U])) ≻ (X [+U]))",
   "tokens": [
     {

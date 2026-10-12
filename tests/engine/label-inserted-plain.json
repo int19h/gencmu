@@ -1,5 +1,5 @@
 {
-  "description": "An inserted token without a phoneme tag has empty phonemes and an empty label. A token over characters with no phoneme tag sounds like nothing, and its label is its text, since a character token's label is its text (engine §1, §5).",
+  "description": "An inserted item without recipes has empty value and image. Covering items over stage-zero characters concatenate their ordinary character strings (engine §1, §11.1, §11.2).",
   "grammar": "%rule text ($a:\"a\" $b:pair) %emits $a :: A, ε :: M, $b :: B\n\n%rule pair (\"b\" \"c\")",
   "input": "abc",
   "expect": {

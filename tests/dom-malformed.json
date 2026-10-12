@@ -233,7 +233,7 @@
     "malformed": false
   },
   {
-    "description": "from accepts a restored span. Engine §9.",
+    "description": "onward accepts a restored span. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -275,7 +275,7 @@
     "malformed": false
   },
   {
-    "description": "A restored span rejects an empty argument list. Engine §9.",
+    "description": "A restored span rejects an empty receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -310,7 +310,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects two captures. Engine §9.",
+    "description": "A restored span rejects an array of two captures as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -390,7 +390,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects from as its argument. Engine §9.",
+    "description": "A restored span rejects an onward span as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -432,7 +432,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects another restoration as its argument. Engine §9.",
+    "description": "A restored span rejects another restoration as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",

@@ -1,5 +1,5 @@
 {
-  "description": "A sound test compares with the lowercased phonemes, so a stressed word passes it (engine §4, §10).",
+  "description": "A value test keeps case distinctions. The token's lAi differs from lai, so recognition rejects instead of lowering the uppercase vowel (engine §4, §10).",
   "grammar": "%rule text (LE=\"lai\" B)",
   "tokens": [
     {

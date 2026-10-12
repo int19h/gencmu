@@ -1,5 +1,5 @@
 {
-  "description": "A character tag cannot be the terminator of a marked optional: an error at the [ (engine §9).",
+  "description": "A scalar-string terminal cannot head a marked optional. Its head must be an identifier terminal, so the error stands at the opening bracket (engine §9.3).",
   "document": "```jbogenbau\n%rule a [ + \"a\" ]\n```\n",
   "expect": {
     "error": {

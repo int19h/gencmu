@@ -1,5 +1,5 @@
 {
-  "description": "A range's identity is its written form with each end in its canonical spelling. So ends written with escapes, or in lower-case hexadecimal, give the same terminal, and a mark's end keeps its escape (engine §1, §4).",
+  "description": "A range's terminal identity uses canonical scalar-string endpoints. The canonical tree escapes combining-mark endpoints with engine scalar interpolation (engine §4, docs/output.md).",
   "grammar": "%rule text (\"a\"..\"z\" \"̀\"..\"ͯ\" \"x\"..\"z\")",
   "input": "b́y",
   "expect": {

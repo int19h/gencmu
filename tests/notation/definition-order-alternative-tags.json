@@ -1,5 +1,5 @@
 {
-  "description": "The alternatives are checked in order, each with its own tags after its expression: the first alternative's tags, at the <, come before the second alternative's duplicate name (engine §9).",
+  "description": "The first alternative reads its own tags in its tag clause. That clause error precedes the second alternative's repeated capture name (engine §9.3).",
   "document": "```jbogenbau\n%rule a A  :: $.tags| $x:B$x:C\n```\n",
   "expect": {
     "error": {

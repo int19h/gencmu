@@ -1,5 +1,5 @@
 {
-  "description": "An inserted item of %emits is one tag, so a range there is an error at the item (engine §9).",
+  "description": "A range cannot stand as an emission item. The syntax error is at its first string endpoint after the carrier (engine §9.2, §11.1).",
   "document": "```jbogenbau\n%rule a $b:B\n%emits $b, \"a\" .. \"z\"\n```\n",
   "expect": {
     "error": {

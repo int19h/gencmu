@@ -1,5 +1,5 @@
 {
-  "description": "begins(from($x), R) looks from the start of $x, past its end (engine §10).",
+  "description": "$x.onward.begins(R) looks from the start of $x, past its end (engine §10).",
   "grammar": "%rule text ($x:A B) %conditions $x.onward.begins(ab)\n%rule ab (A B)",
   "tokens": [
     {

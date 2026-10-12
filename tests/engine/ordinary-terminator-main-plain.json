@@ -1,5 +1,5 @@
 {
-  "description": "An ordinary omission permits the complete reading without reserving the preceding constituent.",
+  "description": "An ordinary omission permits the complete reading without reserving the preceding constituent (engine §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text (A body [+T] B)\n%rule body X | (X B)",
   "tokens": [
     {

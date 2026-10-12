@@ -1,5 +1,5 @@
 {
-  "description": "split() drops the empty pieces: those before a leading delimiter, after a trailing one and between two adjacent ones (engine §10).",
+  "description": ".split drops the empty pieces: those before a leading delimiter, after a trailing one and between two adjacent ones (engine §10).",
   "grammar": "%rule text $x:A %conditions $x.value.split(\".\") = \"a.b\".split(\".\"), \"\" ∉ $x.value.split(\".\")\n",
   "tokens": [
     {

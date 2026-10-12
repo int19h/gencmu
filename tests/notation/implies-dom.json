@@ -1,5 +1,5 @@
 {
-  "description": "%implies A ⟹ B is an implication with its two closed terms, which can hold constants and ranges (engine §9, docs/output.md).",
+  "description": "An implication takes two closed tag-set terms. A range in its left term is invalid, so this document fails at the range separator (engine §9.3, §10).",
   "document": "```jbogenbau\n%implies (UI ∪ $MORE) ⟹ Indicator\n%implies \"a\"..\"c\" ⟹ (Early ∪ Sound-0061-s)\n```\n",
   "expect": {
     "error": {

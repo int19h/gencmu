@@ -1,5 +1,5 @@
 {
-  "description": "A property is not a tag set, so it cannot stand in a tag term: the error is at the property (engine §9).",
+  "description": "An engine tag is a tag-set term, but the literal _L cannot introduce an engine tag through X ∪ _L. The error stands at that literal (engine §1, §9.3, §10).",
   "document": "```jbogenbau\n%rule a B  :: X ∪ _L\n```\n",
   "expect": {
     "error": {

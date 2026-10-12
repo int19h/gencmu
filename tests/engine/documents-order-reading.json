@@ -1,5 +1,5 @@
 {
-  "description": "The first document has a sound test with an invalid uppercase value. Its reading error precedes the second document capture error.",
+  "description": "An uppercase value test in the first document is valid. The second document's duplicate capture is the reading error, at its second binder (engine §9.3, §10).",
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule x [ + KU = \"K\" ]\n```\n",

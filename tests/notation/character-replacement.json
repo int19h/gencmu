@@ -1,5 +1,5 @@
 {
-  "description": "The DOM holds U+FFFD, the replacement character, as itself, whether it is written itself or as \\u{FFFD}. That is so in a terminal, a tag term and an inserted tag (engine §1, §9).",
+  "description": "U+FFFD is a scalar string rather than a tag. Combining its string terms with ∪ in an emission tag clause fails at that term (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule text ($x:c $y:\"�\" \"�\") %emits ε :: Char-FFFD-n, ε :: Char-FFFD-n, $x, $y :: (\"�\" ∪ \"�\")\n%rule c \"�\" :: (\"�\" ∪ \"�\")\n```\n",
   "expect": {
     "error": {

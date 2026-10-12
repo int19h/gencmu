@@ -1,5 +1,5 @@
 {
-  "description": "The reader accepts this pattern form. The notation stage constructs one reading.",
+  "description": "The reader accepts this pattern form. The notation stage constructs one reading (engine §9.3).",
   "document": "```jbogenbau\n%const $P @(⋮A)\n```\n",
   "expect": {
     "dom": {

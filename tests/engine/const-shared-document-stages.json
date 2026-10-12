@@ -1,5 +1,5 @@
 {
-  "description": "A constant belongs to its stage, so one document included in two stages takes each stage's value: $K is ~a in the first stage and ~b in the second (engine §2, §13).",
+  "description": "A constant belongs to its stage, so one document included in two stages takes each stage's value: $K is A in the first stage and B in the second (engine §2, §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%include \"first.md\"\n%include \"shared.md\"\n%stage second\n%include \"second.md\"\n%include \"shared.md\"\n```\n",
     "first.md": "```jbogenbau\n%ambiguity-resolution greedy\n%const $K A\n%rule thing _\n```\n",

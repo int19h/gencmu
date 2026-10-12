@@ -1,5 +1,5 @@
 {
-  "description": "An attachment capture whose part emits nothing gives no attachment: a bare terminal with no emission above it, and a part that emits ε (engine §11).",
+  "description": "An attachment capture whose part emits nothing gives no attachment: a bare terminal with no emission above it, and a part that is %erased (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:silent) | ($w:word $e:erased) %emits $w ($a) ($e)\n\n\n\n%rule word \"w\" :: W\n\n%rule silent \"i\"\n\n%rule erased \"e\" %erased\n\n\n\n```\n",

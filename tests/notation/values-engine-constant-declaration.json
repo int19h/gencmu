@@ -6,5 +6,5 @@
       "column": 8
     }
   },
-  "description": "An engine constant cannot be declared by a document (coordinator N23)."
+  "description": "An engine constant cannot be declared by a document. The reader rejects the declaration at its name (engine §9.3)."
 }

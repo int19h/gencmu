@@ -1,5 +1,5 @@
 {
-  "description": "Each production holds the carrier and the attachment on its own side: ($b(B) $w(W) | $w(W) $a(A)) with %emits ($b) $w ($a), where the rules a and b emit their tokens. On b w, w carries b before it (engine §3.5, §11).",
+  "description": "Each production holds the carrier and the attachment on its own side: ($b:B $w:W | $w:W $a:A) with %emits ($b) $w ($a), where the rules a and b emit their tokens. On b w, w carries b before it (engine §3.5, §11).",
   "grammar": "%rule text (($b:b $w:W) | ($w:W $a:a)) %emits ($b) $w ($a)\n\n%rule a A %emits $\n\n%rule b B %emits $\n",
   "tokens": [
     {

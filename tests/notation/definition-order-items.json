@@ -1,5 +1,5 @@
 {
-  "description": "The constant mixes incompatible types before the rule tests a noncanonical sound. The reader reports the constant error first (engine §9).",
+  "description": "The constant's union mixes a string and a tag set, so it fails first. The later uppercase value test is valid (engine §9.3, §10).",
   "document": "```jbogenbau\n%const $A \"a\" ∪ B\n%rule b [ + KU = \"K\" ]\n```\n",
   "expect": {
     "error": {

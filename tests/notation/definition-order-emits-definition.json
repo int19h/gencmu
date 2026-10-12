@@ -1,5 +1,5 @@
 {
-  "description": "A clause's own error comes before the checks of the whole definition: $ beside another item, at %emits, before $q, which no alternative captures (engine §9).",
+  "description": "A whole carrier beside a named item is well-formed DOM syntax. The unknown capture q fails at the definition before the loader analyzes emission overlap (engine §9.3).",
   "document": "```jbogenbau\n%rule a $x:A\n%conditions $q\n%emits $, $x\n```\n",
   "expect": {
     "error": {

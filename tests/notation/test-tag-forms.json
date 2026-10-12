@@ -1,5 +1,5 @@
 {
-  "description": "The four tag tests, ⊇, ⊉, ∩ with =∅ and ∩ with ≠∅, and a sound test with a constant. The operand is a tag literal, a constant, a term in parentheses, a range, ∅ or a string. Layout and comments can stand between a symbol and its test and inside the test (engine §2, §9).",
+  "description": "Signed requirements, constants and empty requirement lists are valid tag tests. A string range cannot supply a tag requirement, so this document fails at its first string operand (engine §9.2, §9.3).",
   "document": "```jbogenbau\n%rule text (A<B> w<¬$C> A<¬B ¬C> A<\"a\"..\"z\"> w<> Sound-0061-s<Sound-0061-s> \"x\"≠\"x\" X=$S)\n```\n",
   "expect": {
     "error": {

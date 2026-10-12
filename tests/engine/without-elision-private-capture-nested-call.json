@@ -1,5 +1,5 @@
 {
-  "description": "Private capture readiness follows the restored capture through from (engine §4 and §10).",
+  "description": "Private capture readiness follows the restored capture through .onward (engine §4 and §10).",
   "grammar": "%rule text (($x:a ≻ $x:b) Y) %conditions ¬($x.without-elision.onward.begins(rival))\n\n%rule a (X [+T])\n%rule b (X [+U])\n%rule rival (X [+T] Y)",
   "tokens": [
     {
