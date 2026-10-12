@@ -73,13 +73,16 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
 %rule spacing
-  [PAUSE] [hesitations [PAUSE]]
+  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
 
 %rule skipped
-  spacing [erasures spacing]
+  $s:spacing [$e:erasures $t:spacing]
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
 
 %rule erasures
-  erasure | erasures spacing erasure
+  | erasure :: ∅
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
 
 %rule erasure
   si-erasure | sa-su? sa-erasure
@@ -200,7 +203,7 @@ ZOhOI and MEhOI quote one raw run in the experimental dialect. After a pause, th
 
 In `zo'oi .y. bu`, the quote takes the raw y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged raw run in `zo'oi .yyy. bu`.
 
-The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
+The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by exact value. Normalization lowers stressed vowels and empties syllable comma values before this stage. Foreign values remain exact, so different foreign runs do not compare through a placeholder.
 
 The y letteral used as a delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
 
@@ -212,9 +215,13 @@ The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa
 
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 
-Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit an opaque body token. Pauses delimit the body and the closing run.
+Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit a body token with empty value and image. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
 
 A LOhU quote ends at the first LEhU. Its body reads Lojban words through the shared reader without executing operations. No magic word acts there, including BU, ZEI, and FAhO. An unread run makes the quote fail.
+
+`quiet-gap` reads hesitation without a surviving pause and emits no string. `pause-gap` reads the first surviving pause and gives the whole gap one space. `quote-spacing` also admits an empty gap at the quote edges. `lohu-stream` separates pause, quiet and absent gaps, so each gap has one reading. These rules never execute an eraser inside a quote.
+
+`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts. An outer body recipe stops descendant image evaluation, so recursive bodies claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -294,11 +301,8 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %erased
 
 
-%rule y-key
-  ::
-  ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value ≠ "ie'o" ⟹ $y.value.tag)
+%rule y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
   | $y:y-run
-
 
 %rule raw-close
   raw-run | raw-y-close
@@ -354,14 +358,13 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 <p><img src="../../docs/diagrams/words/stream/raw-y-base.svg" alt="Railroad diagram of the rule raw-y-base"></p>
 </details>
 
+The opening `y-key` uses fixed `Y-Key` for value `y` and `Ieho` for value `ie'o`. The forms stage separates the last opening y from preceding hesitation. `raw-y-key` uses the same tests but keeps every raw y value. A longer run gets neither key tag, so it cannot close the delimiter.
+
 The raw rule rejoins every piece of one y run. A drawn-out raw run retains its extra y sounds and cannot close a ybu delimiter. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation.
 
 ```jbogenbau
-%rule raw-y-key
-  ::
-  ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value ≠ "ie'o" ⟹ $y.value.tag)
+%rule raw-y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
   | $y:raw-y-base
-
 
 %rule raw-y-letter
   raw-y-base [PAUSE] bu-word
@@ -388,9 +391,21 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
 %conditions
   ZOI ⊆ $q.classes
 
-%rule lohu-quote
-  | $m:lohu-marker spacing lohu-stream spacing lehu-marker :: $m.tags
-  | $m:lohu-marker [PAUSE] lehu-marker :: $m.tags
+%rule quiet-gap
+  | hesitation
+  | quiet-gap hesitation
+
+%rule pause-gap := " "
+  | [quiet-gap] PAUSE [hesitations [PAUSE]]
+
+%rule quote-spacing
+  | ε
+  | quiet-gap
+  | pause-gap
+
+%rule lohu-quote :: $m.tags
+  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
+  | $m:lohu-marker quote-spacing lehu-marker
 
 %rule lohu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -407,12 +422,12 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   $ :: LEhU
 
 %rule lohu-stream
-  | lohu-element
-  | lohu-stream PAUSE lohu-element
-  | lohu-stream lohu-element
+  | lohu-word
+  | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word
+  | lohu-stream lohu-word
 
-%rule lohu-element
-  lohu-word | hesitation
+
 
 %rule lohu-word
   $w:read-word
@@ -425,17 +440,17 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   [PAUSE] | [PAUSE] hesitations PAUSE | [PAUSE] hesitations
 
 %rule hesitations
-  | hesitation
-  | hesitations PAUSE hesitation
-  | hesitations hesitation
+  | hesitation :: ∅
+  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
 
-%rule raw-tokens
-  any-token | raw-tokens any-token
+%rule raw-tokens :- $.verbatim-text
+  | any-token
+  | raw-tokens any-token
 
-
-%rule zohoi-payload
-  payload-token | zohoi-payload payload-token
-
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
 
 %rule any-token
   payload-token | PAUSE
@@ -474,13 +489,27 @@ The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU
 
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
-Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
+Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
+
+`Gap-Pause` means that a gap contains a surviving pause. `spacing` and `hesitations` introduce it, while `skipped` and `erasures` carry it across erased children. `compound-gap` and `spacing-gap` use complementary tag tests to contribute one space or no string. BU and ZEI use these rules instead of an engine pause join. This keeps unspaced `abu` unspaced and collapses surviving pause runs inside compounds.
 
 The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 
 ```jbogenbau
-%rule lerfu-word
-  $u:unit skipped bu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
+%rule compound-gap
+  | skipped<¬Gap-Pause>
+  | skipped<Gap-Pause> := " "
+
+%rule spacing-gap
+  | spacing<¬Gap-Pause>
+  | spacing<Gap-Pause> := " "
+
+%rule suppressed-gap := ""
+  | skipped
+
+%rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
+  | $u:unit<¬Trailing-Pause> compound-gap bu-word
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
 %emits
   $
 
@@ -489,11 +518,9 @@ The CLL dialect requires pauses around a direct name base of BU. It tests the so
 %conditions
   BU ⊆ $q.classes
 
-%rule zei-compound
-  ::
-  Word ∪ BRIVLA ∪ Fault ∩ $l.tags
-  | $l:unit skipped zei-word spacing $r:read-word
-
+%rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
+  | $l:unit<¬Trailing-Pause> compound-gap zei-word spacing-gap $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap zei-word spacing-gap $r:read-word
 %emits
   $
 
@@ -552,6 +579,10 @@ A reach is the stretch from a candidate unit to SA. Its tags keep classes of its
 In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
+
+`su-survivor` keeps its base's emitted strings when a compound covers the survivor. If its skipped tail has a surviving pause, it adds one space and introduces `Trailing-Pause`. `unit` forwards that mark. BU and ZEI suppress their next gap contribution when their left unit carries it, then end the mark. The suppressed gap keeps its structure and erasure ownership.
+
+The survivor has no emission clause, so a standalone survivor forwards only its base token. Its trailing recipe acts inside a covering compound. Thus `ni'o su bu` has one space, and `ni'o subu` retains the earlier surviving space.
 
 These examples show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
@@ -622,8 +653,11 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %const $SU-STOPS
   NIhO ∪ LU ∪ TUhE ∪ TO
 
-%rule su-survivor
-  sa-su? su-boundary? $b:unit skipped su-suffix :: $b.tags
+%rule su-survivor := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
 
