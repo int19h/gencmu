@@ -1281,7 +1281,7 @@ These valid forms restrict the recognition forms without replacing their grammar
 
 The remaining restrictions describe reader validity after recognition succeeds. Section 9.3 defines their rejection positions and priority.
 
-In the valid forms, a symbol reference excludes `#`. An untested `#` remains a primary and a capture target.
+In the valid forms, a symbol reference excludes `#`. An untested `#` remains a primary and a capture target. The capture base check also accepts `#` in a tested target. The `tested` constructor rejects any following test at that test.
 
 `item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. An empty tag test is legal and holds vacuously. An empty tag constant also supplies no requirements. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
 
@@ -1348,7 +1348,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
 | `test` | One `=` or `≠` token | Value comparator |
 | `test-operand` | One recognized operand | Require a string or string constant for a value test. Produce unresolved STRINGTERM. |
-| `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. Untested `#` is legal. |
+| `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base check accepts `#`. Its following tests fail at the test. |
 | `group` | One `choice` | Child expression |
 | `optional` | One `choice`, then `+` markers if present | `optional`, with `elidable:true` for one valid marker |
 | `repetition` | Choices, then markers. Read the first two choices. | First is `repeat`, second is `separator`. Marker before the item means left chain, after it means right chain. |
@@ -1505,7 +1505,9 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the lexical stage at `1`, column 24. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A rule name other than `#` that does not begin with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
-- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, tag terminal, string terminal, range, wildcard, or a tested form with one of these bases. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error. Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16.
+- A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, tag terminal, string terminal, range, wildcard, or a tested form with one of these bases. For this capture check, a rule reference includes `#`. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
+
+  Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16. `%rule r $x:#<A>` fails at `<`, column 13.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A body constant must resolve to a string terminal or scalar range endpoint. A tag-set or pattern constant in that position is a document error.
 - `$` cannot bind a symbol. A named lowercase capture uses `:` to bind one symbol, optionally tested.

@@ -113,7 +113,7 @@ test("both readers admit every new family of written forms", () => {
     '%const $S "a$(_0301)$$"', '%const $S "x".split("y")',
     '%classifier words "a" "$(KEY)" ∈ AB', '%implies A B ⟹ C D',
     '%rule r :: ($x ⟹ _Lu) ∩ $x.tags | $x:A',
-    '%rule r A %erased', '%rule r (A ≻ B) #',
+    '%rule r A %erased', '%rule r $x:#', '%rule r (A ≻ B) #',
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
     assert.deepEqual(loader.readDocument(document, "case.md"), readDocument(document, "case.md"), source);
@@ -133,7 +133,7 @@ test("both readers reject invalid forms at the same specified position", () => {
     "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',
     "%rule r $x:(A) %rule s A %emits _", '%rule r $x:(A) %classifier c "a" ∈ _',
     '%include "a.md".x', '%rule r $x:(A) %include "a.md".x', '%include "a.md".."b"',
-    "%stage Cbm Su", "%stage Cbm Su.value", "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
+    "%stage Cbm Su", "%stage Cbm Su.value", "%rule r $x:#<A>", '%rule r $x:#="a"', "%rule r $x:#<A><B>", "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
     '%include "a$b".value', '%rule r $x:A := ($x).value',
     '%rule r $x:A %conditions $x.unknown = "x"',
     '%rule r "a$b"', '%rule r "a\\b"', "%bad A %prefer r A",

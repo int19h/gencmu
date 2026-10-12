@@ -1,0 +1,10 @@
+{
+  "description": "N32 accepts # as a capture base. The tested constructor rejects the first test after # at that test.",
+  "document": "```jbogenbau\n%rule r $x:#=\"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

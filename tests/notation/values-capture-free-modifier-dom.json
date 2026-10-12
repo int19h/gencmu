@@ -1,0 +1,23 @@
+{
+  "description": "N32 keeps an untested # as a valid capture target.",
+  "document": "```jbogenbau\n%rule r $x:#\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "name": "r",
+          "alternatives": [
+            {
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "#"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
