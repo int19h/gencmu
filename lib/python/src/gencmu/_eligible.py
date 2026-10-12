@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 # What follows an item: no elidable optional, one with no constituent, or
 # one whose constituent is the item's last symbol (engine §4).
-NONE, ALONE, CONSTITUENT = 0, 1, 2
+NONE, ALONE, CONSTITUENT, OPTIONAL = 0, 1, 2, 3
 
 
 def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
@@ -109,18 +109,81 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
             if kind == 2 and further.get(pred, -1) < forest.end[item]:
                 further[pred] = forest.end[item]
 
-    def follows(item: int) -> int:
-        production = productions[prod[item]]
-        position = dot[item]
-        if position == len(production.rhs) or production.terminal[position] or production.rhs[position] not in helpers:
-            return NONE
-        if position == 0 or production.terminal[position - 1]:
-            return ALONE
-        if position == 1 and production.rhs[0] == production.lhs:
-            return ALONE
-        return CONSTITUENT
+    # Captured plain optionals have physical expansions, but remain one
+    # preceding nonterminal for priority. Record each boundary in the
+    # written structure, including starts inside nested optionals.
+    boundaries: dict[tuple[int, int], tuple[int, tuple | None]] = {}
+    for production in productions:
+        sequences = [(production.logical, True)]
+        while sequences:
+            sequence, top = sequences.pop()
+            previous = None
+            for node in sequence:
+                if node[0] == "optional":
+                    sequences.append((node[3], False))
+                else:
+                    position = node[1]
+                    if not production.terminal[position] and production.rhs[position] in helpers:
+                        what, group = ALONE, None
+                        if previous is not None and previous[0] == "optional":
+                            what, group = OPTIONAL, previous
+                        elif previous is not None and not production.terminal[previous[1]]:
+                            self_reference = top and previous == sequence[0] and production.rhs[previous[1]] == production.lhs
+                            if not self_reference:
+                                what = CONSTITUENT
+                        boundaries[production.id, position] = what, group
+                previous = node
 
-    after = {item: follows(item) for item in order}
+    def boundary(item: int):
+        return boundaries.get((prod[item], dot[item]), (NONE, None))
+
+    def prefixes(item: int, width: int, eligible_only: bool = False) -> set[int]:
+        """Rewind the selected helper route to its own fixed prefix."""
+        found = {item}
+        for _ in range(width):
+            earlier = set()
+            for current in found:
+                for pred, kind, child, _ in edges[current]:
+                    if kind not in (1, 2):
+                        continue
+                    if eligible_only:
+                        permits = pred in has_p if kind == 2 and omitted(child) else pred in has_e
+                        if not permits or (kind == 2 and child not in has_e):
+                            continue
+                    earlier.add(pred)
+            found = earlier
+        return found
+
+    def prefix_key(item: int, group: tuple):
+        """Unify only the routes of this optional at this fixed prefix."""
+        production = productions[prod[item]]
+        start, width, place = group[1], group[2], group[4]
+        stop = start + width
+        tests = production.tests or (None,) * len(production.rhs)
+        captured = tuple(
+            (name, forest.caps[item][production.slots[position]])
+            for name, position in sorted(production.captures.items())
+            if name != "\u0000" and position < start
+        )
+        return (
+            id(production.source), production.lhs, place,
+            production.rhs[:start], production.rhs[stop:],
+            production.terminal[:start], production.terminal[stop:],
+            tests[:start], tests[stop:], forest.origin[item], forest.end[item], captured,
+            forest.prefix[item] if forest.prefix else 0,
+            forest.close_prefix[item] if forest.close_prefix else 0,
+            id(production.lexical),
+        )
+
+    group_further: dict[tuple, int] = {}
+    for item in reads:
+        what, group = boundary(item)
+        if what == OPTIONAL:
+            for prefix in prefixes(item, group[2]):
+                key = prefix_key(prefix, group)
+                group_further[key] = max(group_further.get(key, -1), forest.end[item])
+
+    after = {item: boundary(item) for item in order}
 
     has_e: set[int] = set()
     has_p: set[int] = set()
@@ -128,7 +191,7 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
     while changed:
         changed = False
         for item in order:
-            what = after[item]
+            what, group = after[item]
             if item in has_e and (what == NONE or item in has_p):
                 continue
             e = p = False
@@ -150,6 +213,11 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
                     p = True
                 if p or what == NONE:
                     break
+            if e and what == OPTIONAL:
+                p = any(
+                    prefix in has_e and group_further.get(prefix_key(prefix, group), -1) < end
+                    for prefix in prefixes(item, group[2], eligible_only=True)
+                )
             if e and item not in has_e:
                 has_e.add(item)
                 changed = True

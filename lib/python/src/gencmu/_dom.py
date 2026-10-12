@@ -18,7 +18,7 @@ from ._types import (
     Memo as TypeMemo,
     constant_value_type,
     expected_problem,
-    is_sound_test,
+    is_value_test,
     joined_type,
     tag_term_problem,
     term_type,
@@ -28,11 +28,9 @@ from ._validate import (
     CAPTURE_NAME,
     CLASSIFIER_NAME,
     FORMAT,
-    Lowercase,
+    Marks,
     literal_call_problem,
-    property_problem,
     range_problem,
-    sound_problem,
     term_reads_own_tags,
 )
 
@@ -73,14 +71,13 @@ class DeferredDom(dict):
 class DomBuilder:
     """Reads the DOM off a document tree, rule by rule of the §9 table."""
 
-    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Lowercase, defer_emission: bool = False) -> None:
+    def __init__(self, tokens: list[Token], grammar_text: GrammarText, document: str, unicode: Marks, defer_emission: bool = False) -> None:
         self.defer_emission = defer_emission
         self.deferred_emissions = []
         self.tokens = tokens
         self.grammar_text = grammar_text
         self.document = document
-        # The lowercase mapping that the strings of sound tests are checked
-        # against (engine §5, §9).
+        # The configured categories control canonical terminal spellings.
         self.unicode = unicode
         # What the reader is reading as a closed term, a constant's value or
         # a test's operand, or None (engine §9, §10).
@@ -164,13 +161,6 @@ class DomBuilder:
             raise self.lacks(node, "token")
         return found
 
-    def symbol_part(self, node: Node) -> Node:
-        """The first part, a token, a range or a property."""
-        kids = self.kids(node)
-        if kids and (kids[0].kind == "token" or kids[0].rule in ("range", "property")):
-            return kids[0]
-        raise self.lacks(node, "token, range or property")
-
     def known_of(self, node: Node, kinds: frozenset[str]) -> Node:
         """The one rule among the parts, which must be one of ``kinds``."""
         found = [kid for kid in self.kids(node) if kid.kind == "rule"]
@@ -219,7 +209,7 @@ class DomBuilder:
         return {"name": name, "entries": entries, "at": list(self.position(node))}
 
     def entry(self, node: Node) -> Dom:
-        """An entry of a classifier: gates, canonical keys, ``∈`` or ``∉``,
+        """An entry of a classifier: gates, exact keys, ``∈`` or ``∉``,
         and a class (engine §2, §9)."""
         guards: list[Dom] = []
         keys: list[Dom] = []
@@ -293,20 +283,9 @@ class DomBuilder:
             raise self.fail(node, "the maximal operand is retired")
         return {"name": name, "args": args, "at": list(self.position(node))}
 
-    def operand(self, node: Node) -> str:
-        """A directive's operand: a name is its text, a string is decoded,
-        as a string of a rule is, and a tag literal is its tag."""
-        if node.rule == "argument-word":
-            return self.text(self.token(node))
-        if node.rule == "argument-string":
-            return self.decode(self.token(node))
-        # A range or a property has no tag; operand_problem has refused it.
-        return self.tag_of(self.symbol_part(node))
-
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
-        bare name, lower case or with a capital, ``string``, or ``tag``,
-        ``phoneme`` or ``character`` for a tag, or ``range`` or ``property``
+        bare name, lowercase or with a capital, or ``string``
         (engine §9)."""
         if node.rule == "argument-word":
             return "class" if _is_capital(self.text(self.token(node))) else "name"
@@ -363,7 +342,8 @@ class DomBuilder:
             elif "string" not in value and "const" not in value and "interpolate" not in value:
                 raise self.fail(atom, "a recipe atom requires a string")
             atoms.append(value)
-        return {"concat": atoms}
+        from ._recipes import Recipe
+        return Recipe(atoms, self.position(node))
 
     def rule(self, node: Node) -> Dom:
         """A definition: its keyword, its name, its alternatives and its
@@ -1128,9 +1108,8 @@ def flatten_groups(root: Any) -> None:
 
 def operand_problem(name: str, kinds: list[str]) -> str | None:
     """What is wrong with a directive's operands, each ``name`` or
-    ``class``, a bare name lower case or with a capital, ``string``,
-    ``tag``, ``phoneme`` or ``character``, or ``range`` or ``property``, or
-    None (engine §9)."""
+    ``class``, a bare name lowercase or with a capital, or ``string``
+    (engine §9)."""
     names = all(kind in ("name", "class") for kind in kinds)
 
     if name in ("stage", "extend-stage", "redefine-stage"):

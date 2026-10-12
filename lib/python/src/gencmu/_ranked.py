@@ -93,6 +93,9 @@ class RankedGroups:
             for term in (group.source.tags, group.source.rule_tags):
                 if term is not None and private(reads(term)):
                     self.fail(group, 'ranked-choice-export', 'A tag term cannot read a private ranked capture.', option=option, expression=term)
+            for recipe in (group.source.value, group.source.image, group.source.rule_value, group.source.rule_image):
+                if recipe is not None and private(reads(recipe)):
+                    self.fail(group, 'ranked-choice-export', 'A recipe cannot read a private ranked capture.', option=option, expression=recipe)
             if private(reads(group.source.emit)):
                 self.fail(group, 'ranked-choice-export', 'An emission item cannot read a private ranked capture.', option=option, expression=group.source.emit)
 
@@ -183,10 +186,10 @@ class RankedGroups:
                     inheritance.append(self.site(production.slot.source, self.paths.get(production.slot.path, '')))
                 source = production.slot.source
                 terms = production.slot.tags if production.helper else [term for term in (source.tags, source.rule_tags) if term is not None]
-                if any(not literal_empty(term) for term in terms) or not terms and len(production.rhs) == 1 and production.terminal[0]:
+                if any(not literal_empty(term) for term in terms) or not terms and production.inherited is not None and production.terminal[production.inherited]:
                     self.fail(group, 'ranked-choice-tags', 'A ranked choice must discard its returned tags or return provably empty tags.', option=selected_option, expression=group.expr, inheritance=inheritance)
-                if not terms and len(production.rhs) == 1 and not production.terminal[0]:
-                    child = production.rhs[0]
+                if not terms and production.inherited is not None and not production.terminal[production.inherited]:
+                    child = production.rhs[production.inherited]
                     if child in unsafe and child not in seen:
                         seen.add(child)
                         queue.append((child, inheritance, selected_option))
@@ -202,11 +205,11 @@ class RankedGroups:
             if terms:
                 if any(not literal_empty(term) for term in terms):
                     unsafe.add(production.lhs)
-            elif len(production.rhs) == 1:
-                if production.terminal[0]:
+            elif production.inherited is not None:
+                if production.terminal[production.inherited]:
                     unsafe.add(production.lhs)
                 else:
-                    users.setdefault(production.rhs[0], []).append(production)
+                    users.setdefault(production.rhs[production.inherited], []).append(production)
         pending = list(unsafe)
         for rule in pending:
             for parent in users.get(rule, ()):

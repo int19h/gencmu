@@ -15,7 +15,7 @@ from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string
+from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, is_name, split_string
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
@@ -328,19 +328,8 @@ class StageContext:
     count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
-    # Each token's phonemes in canonical form, for the sound tests of
-    # symbols and for phonemes(), computed when one first looks at the token
-    # (engine §4, §5).
-    sounds: list[str | None] = field(init=False)
-    # For each position, the first token from there on whose sound is not
-    # empty, so that a sound test skips tokens without phonemes at once.
-    # Made when a sound test first needs it.
+    # The next token with a nonempty stored value, made on first use.
     sounding: list[int] | None = field(init=False, default=None)
-    # Whether a range or a property matches a tag set, by the terminal's
-    # name and the set's number in the tag table (engine §4).
-    carried: dict[tuple[str, int], bool] = field(default_factory=dict)
-    # The tags of each range that a term holds, made once (engine §10).
-    range_sets: dict[tuple[str, str], Tags] = field(default_factory=dict)
     # On the context of the reconstructed input R of the check of engine §7,
     # and nowhere else: whether each token of R is synthetic, by its
     # provenance (engine §7.2); π, the number of original tokens before each
@@ -359,7 +348,6 @@ class StageContext:
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
-        self.sounds = [None] * len(self.tokens)
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
         self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
         self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
@@ -376,64 +364,48 @@ class StageContext:
             return token.value == wanted
         return len(token.value) == 1 and wanted[0] <= ord(token.value) <= wanted[1]
 
-    def range_tags(self, ends: list[str]) -> Tags:
-        """The character tags of a range in a term (engine §10)."""
-        key = (ends[0], ends[1])
-        found = self.range_sets.get(key)
-        if found is None:
-            found = self.range_sets[key] = range_tags(ends, self.unicode)
-        return found
-
-    def sound(self, index: int) -> str:
-        """A token's phonemes in canonical form (engine §5), remembered for
-        the parse. The lowercase mapping and the removal of commas act on
-        each code point alone, so the canonical sound of a span is its
-        tokens' joined."""
-        sound = self.sounds[index]
-        if sound is None:
-            sound = self.sounds[index] = self.tokens[index].value
-        return sound
+    def value(self, index: int) -> str:
+        """A token's stored value, without normalization (engine §1)."""
+        return self.tokens[index].value
 
     def test_holds(self, test: SymbolTest, start: int, end: int, tag_id: int) -> bool:
         """Whether a test holds of a symbol's own span, tokens start..end,
         and its own tags, the tag set numbered ``tag_id``: a token's for a
         terminal, the completed item's for a reference (engine §4). An empty
-        span sounds like the empty string."""
-        if test.sound is not None and test.prior is None:
-            return self.sound_is(test.sound, start, end) == (test.op == "=")
-        value = "".join(self.tokens[i].value for i in range(start, end)) if test.sound is not None else ""
+        span has the empty value."""
+        if test.value is not None and test.prior is None:
+            return self.value_is(test.value, start, end) == (test.op == "=")
+        value = "".join(self.tokens[i].value for i in range(start, end)) if test.value is not None else ""
         return test.holds(value, self.tagtab.get(tag_id))
 
-    def sound_is(self, sound: str, start: int, end: int) -> bool:
-        """Whether tokens start..end sound like a string: their canonical
-        sound is exactly it (engine §4, §5). A token with no phonemes adds
-        nothing."""
-        sounding = self.sounding_tokens()
+    def value_is(self, value: str, start: int, end: int) -> bool:
+        """Whether the stored values of tokens start..end join to a string."""
+        sounding = self.nonempty_tokens()
         # Each token read adds at least one code point, so the test costs
-        # the length of the sound, however many silent tokens the span has.
+        # the length of the value, however many silent tokens the span has.
         offset = 0
         index = sounding[start]
         while index < end:
-            part = self.sound(index)
-            if not sound.startswith(part, offset):
+            part = self.value(index)
+            if not value.startswith(part, offset):
                 return False
             offset += len(part)
             index = sounding[index + 1]
-        return offset == len(sound)
+        return offset == len(value)
 
-    def sounding_tokens(self) -> list[int]:
+    def nonempty_tokens(self) -> list[int]:
         """For each position, the first token from there on that sounds,
         made on first use."""
         sounding = self.sounding
         if sounding is None:
-            sounding = self.sounding = self.make_sounding()
+            sounding = self.sounding = self.make_nonempty()
         return sounding
 
-    def make_sounding(self) -> list[int]:
+    def make_nonempty(self) -> list[int]:
         count = len(self.tokens)
         sounding = [count] * (count + 1)
         for index in range(count - 1, -1, -1):
-            sounding[index] = index if self.sound(index) else sounding[index + 1]
+            sounding[index] = index if self.value(index) else sounding[index + 1]
         return sounding
 
     def span_text(self, start: int, end: int) -> str:
@@ -682,15 +654,15 @@ class Evaluator:
         return gathered.value()
 
     def input_value(self, start: int, end: int) -> str:
-        """The canonical sound of tokens start..end (engine §5)."""
-        # Only the tokens that sound are read, so that a long run of silent
+        """The stored values of tokens start..end, concatenated (engine §1)."""
+        # Only tokens with nonempty values are read, so that a long run of silent
         # tokens costs nothing to each of many calls over it.
         context = self.context
-        sounding = context.sounding_tokens()
+        sounding = context.nonempty_tokens()
         parts: list[str] = []
         index = sounding[start]
         while index < end:
-            parts.append(context.sound(index))
+            parts.append(context.value(index))
             index = sounding[index + 1]
         return "".join(parts)
 
@@ -715,8 +687,6 @@ class Evaluator:
             if "value" not in dom:
                 raise _GrammarFault(f"the constant ${dom['const']} has no value")
             return dom["value"]
-        if "range" in dom:
-            return self.context.range_tags(dom["range"])
         if "emptySet" in dom:
             return EMPTY
         if "if" in dom:
@@ -954,7 +924,7 @@ class Parser:
                     return True
                 for terminal in witness[2]:
                     tags = token_tags[base + at]
-                    if (context.carries(terminal, index) if terminal in lowered.characters
+                    if (context.carries(terminal, base + at) if terminal in lowered.characters
                             else terminal in tagtab.get(tags)):
                         return True
             return False
@@ -1002,26 +972,26 @@ class Parser:
                 return machine.empty
             original = base + token if not recon else project[token]
             source = context if not recon else observed
-            return machine.node(None, machine.empty, (terminal, source.sound(original), source.tokens[original].tags))
+            return machine.node(None, machine.empty, (terminal, source.value(original), source.tokens[original].tags))
 
         def omission_allowed(production: Production) -> bool:
             if _testing.fault("omission") or production.elided_test is None:
                 return True
             test = production.elided_test
-            sound = test.sound if test.op == "=" else ""
-            return test.holds(sound, frozenset((production.elided,)))
+            value = test.value if test.op == "=" else ""
+            return test.holds(value, frozenset((production.elided,)))
 
-        def close_record(terminal, position, sound=None):
+        def close_record(terminal, position, value=None):
             boundary = original(position)
             source = observed if observed is not None else context
-            return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), sound))
+            return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), value))
 
         def completed_closes(production, position, start, at, prefix):
             if closes is None or not production.observes_closes or position != len(production.rhs):
                 return 0
             if production.elided is not None:
                 test = production.elided_test
-                return close_record(production.elided, start, test.sound if test is not None and test.op == '=' else None)
+                return close_record(production.elided, start, test.value if test is not None and test.op == '=' else None)
             if production.helper:
                 return prefix
             return closes.complete(prefix, production.lhs, original(start), original(at))
@@ -1125,8 +1095,8 @@ class Parser:
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
             term (engine §4)."""
-            if len(production.rhs) == 1:
-                return captured[production.slots[0]][2]
+            if production.inherited is not None:
+                return captured[production.slots[production.inherited]][2]
             return tagtab.empty
 
         def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Walk:
@@ -1340,7 +1310,7 @@ class Parser:
                             number = p.id
                             if not p.conds_predict or (yield allowed(p, j)):
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
-                # A range or a property matches by the token's characters.
+                # A string, range, or wildcard matches the stored token value.
                 table = by_first_characters[rule]
                 if table:
                     token_tag = token_tags[base + j]
@@ -1463,8 +1433,8 @@ class Parser:
                 token_tag = token_tags[base + j]
                 if not recon:
                     for terminal, waiters in scanning[j].items():
-                        # A range or a property matches by the token's
-                        # characters, and never by a tag (engine §4).
+                        # A string, range, or wildcard reads the stored
+                        # value independently of tags (engine §4).
                         if carries(terminal, base + j) if characters and terminal in characters else terminal in token.tags:
                             for waiter in waiters:
                                 walk = advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))

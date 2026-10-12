@@ -19,13 +19,11 @@ class Token:
     """A token a stage reads or writes (engine §1).
 
     ``span`` is the range of the previous stage's tokens it covers, and
-    ``source`` the range of the original text, in code points. ``phonemes``
-    is ``None`` for a token that has none, such as a character, whose only
-    tag is its character tag.
+    ``source`` the range of the original text, in code points.
     ``inserted_by`` names the rule whose emission clause made a token with
-    an empty span. ``label`` is what the token shows to people (engine §5).
-    It defaults to the token's text, which is the label of a character
-    token and of a token that a caller supplies.
+    an empty span. ``value`` is the string that recognition reads.
+    ``image`` is the string that output shows. Each defaults independently
+    to ``text`` when the constructor receives ``None``.
     ``before`` and ``after`` are the token's attachments (engine §11):
     tokens that belong to it and that no later stage reads. A caller cannot
     supply them. An attached token has no span, so its ``span`` is
@@ -67,11 +65,11 @@ class Node:
     ``kind`` is ``"rule"``, ``"token"`` or ``"elided"``. A rule node has
     ``rule``, ``tags`` and ``children``; a token node has ``terminal`` and
     ``token``, the index of the stage-input token it read. That terminal is
-    a tag, or the written form of a range or a property, such as
-    ``'a'..'z'`` or ``'\\p{L}'`` (engine §4). An elided node
-    has ``terminal``, the terminator it stands for, and ``sound``, the
+    a tag, a canonical string or range, or the wildcard (engine §4).
+    An elided node
+    has ``terminal``, the terminator it stands for, and ``value``, the
     string of the terminator's ``=`` test if it has one, which elision-only's
-    restored token sounds like (engine §7) and the output does not show.
+    restored token stores (engine §7) and the output does not show.
     """
 
     kind: str
@@ -82,7 +80,7 @@ class Node:
     token: int | None = None
     tags: Tags | None = None
     children: list[Node] = field(default_factory=list)
-    sound: str | None = None
+    value: str | None = None
 
     # A tree nests as deep as a text is long, so equality and the
     # representation walk it with a list for a stack. They give what the
@@ -215,12 +213,12 @@ class ParseError:
 class Restoration:
     """A terminator that the check of elision-only wrote back (engine §7.9):
     its terminal, its position in the stage's input, the empty source of its
-    elided node, and the sound of a terminator with an ``=`` test."""
+    elided node, and the value of a terminator with an ``=`` test."""
 
     terminal: str
     at: int
     source: Range
-    sound: str | None = None
+    value: str | None = None
 
 
 @dataclass

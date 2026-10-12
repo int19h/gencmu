@@ -138,14 +138,18 @@ def pattern_key(root: Any) -> tuple[Any, ...]:
     return tuple(result)
 
 
-def leaf_test(node: Dom, sound: str, tags: frozenset[str]) -> bool:
-    value, op = node["value"], node["test"]
-    if op in ("=", "≠"):
-        return (sound == value["string"]) == (op == "=")
-    wanted = value.get("set", frozenset((value["tag"],)) if "tag" in value else frozenset())
-    if op in ("⊇", "⊉"):
-        return (wanted <= tags) == (op == "⊇")
-    return tags.isdisjoint(wanted) == (op == "∩=∅")
+def leaf_test(node: Dom, value: str, tags: frozenset[str]) -> bool:
+    if node["test"] == "tags":
+        return all(tags.isdisjoint(r["value"]["set"]) if r["negated"] else r["value"]["set"] <= tags for r in node["requirements"])
+    return (value == node["value"]["string"]) == (node["test"] == "=")
+
+
+def terminal_predicate(node: Dom, leaf) -> bool:
+    while "test" in node:
+        if not leaf_test(node, leaf[1], leaf[2]):
+            return False
+        node = node["expr"]
+    return leaf[0] == node["terminal"]
 
 
 class PatternMachine:
@@ -300,7 +304,7 @@ class PatternMachine:
             elif "terminal" in p:
                 holds = leaf is not None and leaf[0] == p["terminal"]
             elif "test" in p:
-                holds = leaf is not None and leaf[0] == p["expr"]["terminal"] and leaf_test(p, leaf[1], leaf[2])
+                holds = leaf is not None and terminal_predicate(p, leaf)
             elif "children" in p:
                 machine = self.machines[p["machine"]]
                 holds = bool(state[4][p["machine"]][machine["start"]] & (1 << machine["end"]))

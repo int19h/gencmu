@@ -11,7 +11,7 @@ from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
 from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem
 
 
-class Lowercase(Protocol):
+class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
@@ -98,7 +98,7 @@ def term_reads_own_tags(root: Any) -> bool:
     return False
 
 
-def range_problem(ends: Any, unicode: Lowercase) -> str | None:
+def range_problem(ends: Any, unicode: Marks) -> str | None:
     if not _items(ends, 2, 2):
         return "a range requires two string terms"
     values = [literal_string(end) for end in ends]
@@ -107,15 +107,6 @@ def range_problem(ends: Any, unicode: Lowercase) -> str | None:
     if all(value is not None for value in values) and values[0] > values[1]:
         return "a range starts above its end"
     return None
-
-
-def sound_problem(value: str, unicode: Lowercase | None) -> str | None:
-    # Value tests compare all scalar strings exactly.
-    return None
-
-
-def property_problem(value: Any) -> str:
-    return "property syntax is not part of DOM format 26"
 
 
 def literal_call_problem(name: str, args: list[Any]) -> str | None:
@@ -135,7 +126,7 @@ def _contains_engine(root: Any) -> bool:
     return False
 
 
-def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> str | None:
+def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
     try:
         return _dom_problem(dom, unicode, defer_emission)
     except (KeyError, IndexError, TypeError, ValueError):
@@ -143,7 +134,7 @@ def dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> s
         return "a malformed DOM"
 
 
-def _dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> str | None:
+def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
     arrays = ("rules", "directives", "constants", "classifiers", "implications")
     if not isinstance(dom, dict) or type(dom.get("format")) is not int or dom["format"] != FORMAT or any(not isinstance(dom.get(k), list) for k in arrays):
         return f"not a DOM of format {FORMAT}"
@@ -268,7 +259,7 @@ def _dom_problem(dom: Any, unicode: Lowercase, defer_emission: bool = False) -> 
     return None
 
 
-def _walk(pending: list, unicode: Lowercase) -> str | None:
+def _walk(pending: list, unicode: Marks) -> str | None:
     while pending:
         kind, node, depth, whole, sealed = pending.pop()
         if depth > MAX_DEPTH:
@@ -414,6 +405,27 @@ def _walk(pending: list, unicode: Lowercase) -> str | None:
             problem = pattern_problem(node["pattern"], initial_depth=below)
             if problem:
                 return problem
+            for atom, offset in walk_pattern(node["pattern"]):
+                atom_depth = below + offset
+                if "literal" in atom:
+                    pending.append(("string", atom["literal"], atom_depth, False, False))
+                elif "range" in atom:
+                    problem = range_problem(atom["range"], unicode)
+                    if problem:
+                        return problem
+                    pending.extend(("string", end, atom_depth, False, False) for end in atom["range"])
+                elif atom.get("test") == "tags":
+                    if not isinstance(atom["requirements"], list):
+                        return "a malformed pattern tag test"
+                    for requirement in atom["requirements"]:
+                        if not isinstance(requirement, dict) or set(requirement) != {"negated", "value"} or type(requirement["negated"]) is not bool:
+                            return "a malformed pattern tag requirement"
+                        operand = requirement["value"]
+                        if not isinstance(operand, dict) or not (set(operand) == {"tag"} or set(operand) == {"const", "at"}):
+                            return "a pattern tag test requires a tag or constant"
+                        pending.append(("tags", operand, atom_depth + 1, False, False))
+                elif "test" in atom:
+                    pending.append(("string", atom["value"], atom_depth + 1, False, False))
         elif any(k in node for k in ("union", "intersection", "difference")):
             key = next(k for k in ("union", "intersection", "difference") if k in node)
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):

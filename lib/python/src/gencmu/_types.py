@@ -37,8 +37,6 @@ reader knows none, and gives every constant the type ``any``."""
 _SET_KINDS = frozenset(["strings", "tags", "set", "pattern"])
 _NAMES = {"pattern":"a tree pattern","string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "capture": "a capture", "restored": "a restored span", "emitted": "an emitted pair", "predicate": "a predicate", "set": "a set", "any": "a value"}
 SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
-_CALL_STRINGS = {"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
-"""The calls whose arguments, but a classifier's name, are strings."""
 
 
 def type_name(kind: TermType) -> str:
@@ -153,21 +151,21 @@ def expected_problem(kind: TermType, expected: TermType) -> str | None:
     return f"{_NAMES[expected]} is needed here, not {_NAMES[kind]}"
 
 
-def is_sound_test(op: str) -> bool:
-    """Whether a test's comparator is a sound test, whose value is a string,
+def is_value_test(op: str) -> bool:
+    """Whether a test's comparator is a value test, whose value is a string,
     rather than a tag test, whose value is a tag set (engine §2)."""
     return op in ("=", "≠")
 
 
 def test_type_problem(op: str, kind: TermType) -> str | None:
     """Why a test's value of type ``kind`` does not fit its comparator, or
-    None: a string for a sound test, a tag set for a tag test (engine §9,
+    None: a string for a value test, a tag set for a tag test (engine §9,
     §10)."""
-    sound = is_sound_test(op)
-    problem = expected_problem(kind, "string" if sound else "tags")
+    value = is_value_test(op)
+    problem = expected_problem(kind, "string" if value else "tags")
     if problem is None:
         return None
-    return f"{op} tests {'a string' if sound else 'a tag set'}: {problem}"
+    return f"{op} tests {'a string' if value else 'a tag set'}: {problem}"
 
 
 def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
@@ -179,7 +177,7 @@ def term_type_fault(term: Any, constants: ConstantTypes = _unknown_constants, me
     return run(_term_typing(term, constants, {} if memo is None else memo))  # type: ignore[no-any-return]
 
 
-Memo = dict[int, tuple[Any, Any]]
+Memo = dict[Any, tuple[Any, Any]]
 """Types found, by the identity of the term or the condition, with the term
 or the condition, which keeps the identity from being reused."""
 
@@ -195,10 +193,26 @@ def _term_typing(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
 
 def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if "pattern" in term:
+        tested = set()
         for node, _ in walk_pattern(term["pattern"]):
+            if "test" in node:
+                base = node["expr"]
+                while "test" in base:
+                    base = base["expr"]
+                tested.add(id(base))
+        for node, _ in walk_pattern(term["pattern"]):
+            operands = [node["literal"]] if "literal" in node else node.get("range", [])
+            for operand in operands:
+                kind, fault = yield _term_typing(operand, constants, memo)
+                if fault is not None:
+                    return None, fault
+                problem = expected_problem(kind, "string")
+                if problem is not None:
+                    return None, (problem, operand)
             if "constant" in node:
                 kind = constants(node["constant"])
-                problem = None if kind in ("pattern", "string", "any") else "a pattern atom requires a string or pattern constant"
+                allowed = ("string", "any") if id(node) in tested else ("pattern", "string", "any")
+                problem = None if kind in allowed else "a tested constant requires a string" if id(node) in tested else "a pattern atom requires a string or pattern constant"
                 if problem is not None:
                     return None, (problem, {"const":node["constant"], "at":node["at"]})
             if "test" in node:
@@ -284,11 +298,11 @@ def condition_type_fault(condition: Any, constants: ConstantTypes = _unknown_con
 
 
 def _condition_typing(condition: Any, constants: ConstantTypes, memo: Memo) -> Walk:
-    found = memo.get(id(condition))
+    found = memo.get(("condition", id(condition)))
     if found is not None and found[0] is condition:
         return found[1]
     result = yield _condition_typing_once(condition, constants, memo)
-    memo[id(condition)] = (condition, result)
+    memo[("condition", id(condition))] = (condition, result)
     return result
 
 
@@ -370,6 +384,26 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
                 problem = test_type_problem(test["test"], kind)
                 if problem is not None:
                     return problem, value
+    # The reader knows the shape of string terminals and recipe atoms.
+    # Binding supplies the types of their user constants, including those
+    # in definitions that a later declaration replaces.
+    pending = [rule]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, list):
+            pending.extend(reversed(node))
+        elif isinstance(node, dict):
+            operands = node.get("concat", node.get("range", []))
+            if "literal" in node:
+                operands = [node["literal"]]
+            for operand in operands:
+                kind, fault = term_type_fault(operand, constants)
+                if fault is not None:
+                    return fault
+                problem = expected_problem(kind, "string")
+                if problem is not None:
+                    return problem, operand
+            pending.extend(reversed(list(node.values())))
     return None
 
 

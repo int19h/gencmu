@@ -108,7 +108,7 @@ class ErrorData:
 
 class _GrammarFault(Exception):
     """A defect of a grammar found while parsing: a nested parse asked about
-    its own span, two phoneme tags on one token, a term of the wrong
+    its own span, an empty runtime split delimiter, a term of the wrong
     type. It ends the parse with an error of kind ``grammar``, which has the
     stage and no position (engine §13)."""
 
