@@ -1128,7 +1128,7 @@ conjunction = ["&"] sequence {"&" sequence}
 sequence = primary {primary}
 primary = captured | tested | untested-primary
 captured = capture-reference ":" primary
-tested = primary symbol-test {symbol-test}
+tested = untested-primary symbol-test {symbol-test}
 untested-primary = reference | tag | string-terminal | range | "_"
                  | group | optional | repetition | "ε"
 reference = lowercase-name | "#"
@@ -1196,7 +1196,7 @@ classifier-key = string-literal
 implication-declaration = "%implies" union "⟹" union
 ```
 
-Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the base primary and every following test in written order.
+Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the base primary and every following test in written order. A source test never wraps another tested constructor or the capture binder. Tests after a binder belong to its target, including nested invalid captures. Supplied notation trees can still contain a test on a capture itself.
 
 Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions. `%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand uses ordinary string decoding. Other directive strings also use ordinary decoding before operand validation.
 
