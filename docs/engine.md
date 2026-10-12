@@ -1320,7 +1320,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, and `method`. In a condition, they are `any`, `all`, `not`, `if`, `method`, and a comparison.
 
   The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` or `{ }` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
-- A whole `$` carrier conflicts with a captured carrier that can consume input. Multiple `$` items require a structurally always-empty constituent. Inserted items do not overlap carrier input.
+- A whole `$` carrier conflicts with a captured carrier that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
 - A bare range or property is not an emission item. Capture its matched symbol or insert with `ε` and explicit clauses.
@@ -1350,6 +1350,22 @@ Each of the following is an error of the document too, and the reader reports it
 - A production for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that erases its constituent says so with `%erased`. So `A [$b:B]` with `%emits $b` is an error, because the production `A` emits nothing.
 
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
+
+Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
+
+The analysis ignores feature gates, conditions, and symbol tests. It therefore covers every feature configuration without proving that a consuming route can succeed. Erasure changes output ownership but never removes a possible input read. Recipes and emissions do not change the analysis.
+
+Initially, every string, range, wildcard, or tag terminal is consuming. `ε` is not consuming. A composite expression is consuming when any operand is consuming, including an optional body, repeat item, or repeat separator. Captures and groups use their contents. A rule reference is consuming when any alternative of that rule is consuming.
+
+Propagate consuming marks until none changes, starting with terminals alone. Recursive references without a reachable terminal remain unmarked. Recursion with a reachable terminal becomes consuming. This does not require a finite successful derivation. Thus `z → z` is unmarked, but `"a" z` is consuming even though its branch is unproductive.
+
+Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means unmarked by this analysis. An absent carrier drops before overlap comparison, while an inserted item has no input span.
+
+For each production, two whole carriers conflict if its expression is consuming. A whole carrier and named carrier conflict if that captured symbol is consuming. Distinct named carriers remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
+
+The loader reports a document error at the definition that supplies the emission. It visits final stitched rules, alternatives, and expanded productions in their established source order. Within a production, it compares surviving item pairs in written order. The first conflict determines the error. All preceding document and stitching errors retain their priority.
+
+For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The failed test does not legalize `%emits $, $x` over `$x:e`. A gated consuming branch has the same effect. An erased consuming child also remains consuming for this overlap test.
 
 A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
@@ -1647,7 +1663,7 @@ If a token has exactly one part, and that part is an input token with attachment
 
 A token combining an attached input token with any other counted input token causes a grammar error. Recipes cannot hide or merge their ownership. Exactly one counted input token can forward its attachments. The token's strings can still come from explicit recipes.
 
-Two emitted covering items cannot claim the same nonempty input span. This disjoint-span rule prevents duplicate attachment ownership. Multiple whole items are legal only over structurally always-empty constituents, which have no counted input token or inherited attachments.
+Two emitted covering items cannot claim the same nonempty input span. This disjoint-span rule prevents duplicate attachment ownership. Multiple whole items require a structurally always-empty production under §9.3's conservative overlap analysis. Such items cover no counted input token or inherited attachments.
 
 A covering token cannot identify attachment ownership across several counted input tokens. The stage tests this independently of tag and string overrides. No bundled dialect combines such parts. Source overlap alone does not establish shared input ownership.
 

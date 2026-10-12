@@ -798,7 +798,9 @@ Engine §11 defines the selected constituent dependencies.
 
 A recipe on an erased rule or erased alternative is a document error. A parent item over an erased capture emits a token with empty strings unless its item recipe supplies them. Its counted parts remain empty. An empty string recipe on a non-erased part never erases that part.
 
-Emission carriers cover disjoint input-token spans. Source overlap does not decide this rule. Two `$` items over a constituent that can consume input are an error. A `$` item beside a capture that can consume input is an error. Structurally always-empty carriers can coexist. `$` can stand beside inserted `ε` items.
+Emission carriers cover disjoint input-token spans. Source overlap does not decide this rule. Two `$` items over a constituent that can consume input are an error. A `$` item beside a capture that can consume input is an error. Structurally always-empty carriers can coexist.
+
+Engine §9.3 defines this conservative property across every feature configuration, ignoring conditions, tests, and erasure. `$` can stand beside inserted `ε` items.
 
 An inserted item anchors before the next named capture item's first present before-attachment or carrier. With no following named carrier, it anchors at the constituent's end. An absent next named carrier remains a document error. An absent attachment simply changes the anchor to the next present part. Engine §11 defines its empty source.
 
