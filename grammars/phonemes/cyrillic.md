@@ -17,33 +17,33 @@ The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings 
 
 ```jbogenbau
 %rule cyrillic-consonant
-  | 'б' </b/> | 'Б' </b/>
-  | 'ш' </c/> | 'Ш' </c/> | 'щ' </c/> | 'Щ' </c/>
-  | 'д' </d/> | 'Д' </d/>
-  | 'ф' </f/> | 'Ф' </f/>
-  | 'г' </g/> | 'Г' </g/> | 'ґ' </g/> | 'Ґ' </g/>
-  | 'ж' </j/> | 'Ж' </j/>
-  | 'к' </k/> | 'К' </k/>
-  | 'л' </l/> | 'Л' </l/>
-  | 'м' </m/> | 'М' </m/>
-  | 'н' </n/> | 'Н' </n/>
-  | 'п' </p/> | 'П' </p/>
-  | 'р' </r/> | 'Р' </r/>
-  | 'с' </s/> | 'С' </s/>
-  | 'т' </t/> | 'Т' </t/>
-  | 'в' </v/> | 'В' </v/>
-  | 'х' </x/> | 'Х' </x/>
-  | 'з' </z/> | 'З' </z/>
+  | "б" ::∅ := "b" | "Б" ::∅ := "b"
+  | "ш" ::∅ := "c" | "Ш" ::∅ := "c" | "щ" ::∅ := "c" | "Щ" ::∅ := "c"
+  | "д" ::∅ := "d" | "Д" ::∅ := "d"
+  | "ф" ::∅ := "f" | "Ф" ::∅ := "f"
+  | "г" ::∅ := "g" | "Г" ::∅ := "g" | "ґ" ::∅ := "g" | "Ґ" ::∅ := "g"
+  | "ж" ::∅ := "j" | "Ж" ::∅ := "j"
+  | "к" ::∅ := "k" | "К" ::∅ := "k"
+  | "л" ::∅ := "l" | "Л" ::∅ := "l"
+  | "м" ::∅ := "m" | "М" ::∅ := "m"
+  | "н" ::∅ := "n" | "Н" ::∅ := "n"
+  | "п" ::∅ := "p" | "П" ::∅ := "p"
+  | "р" ::∅ := "r" | "Р" ::∅ := "r"
+  | "с" ::∅ := "s" | "С" ::∅ := "s"
+  | "т" ::∅ := "t" | "Т" ::∅ := "t"
+  | "в" ::∅ := "v" | "В" ::∅ := "v"
+  | "х" ::∅ := "x" | "Х" ::∅ := "x"
+  | "з" ::∅ := "z" | "З" ::∅ := "z"
 %emits
   $
 
 %rule cyrillic-apostrophe
-  'һ' | 'Һ'
+  "һ" | "Һ"
 %emits
-  $ </'/>
+  $ ::∅ := "'"
 
 %rule cyrillic-period
-  'ӏ' | 'Ӏ'
+  "ӏ" | "Ӏ"
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>cyrillic-consonant</code> to <code>cyrillic-period</code></summary>
@@ -60,38 +60,38 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
 
 ```jbogenbau
 %rule cyrillic-plain-vowel
-  | 'а' </a/ ∪ ~syllabic>
-  | 'е' </e/ ∪ ~syllabic> | 'э' </e/ ∪ ~syllabic> | 'є' </e/ ∪ ~syllabic>
-  | 'и' </i/ ∪ ~syllabic> | 'і' </i/ ∪ ~syllabic>
-  | 'о' </o/ ∪ ~syllabic>
-  | 'у' </u/ ∪ ~syllabic>
-  | 'ъ' </y/ ∪ ~syllabic> | 'ы' </y/ ∪ ~syllabic> | 'ә' </y/ ∪ ~syllabic>
-  | 'й' </i/> | 'Й' </i/> | 'ј' </i/> | 'Ј' </i/>
-  | 'ў' </u/> | 'Ў' </u/>
+  | "а" ::  Syllabic := "a"
+  | "е" ::  Syllabic := "e" | "э" ::  Syllabic := "e" | "є" ::  Syllabic := "e"
+  | "и" ::  Syllabic := "i" | "і" ::  Syllabic := "i"
+  | "о" ::  Syllabic := "o"
+  | "у" ::  Syllabic := "u"
+  | "ъ" ::  Syllabic := "y" | "ы" ::  Syllabic := "y" | "ә" ::  Syllabic := "y"
+  | "й" ::∅ := "i" | "Й" ::∅ := "i" | "ј" ::∅ := "i" | "Ј" ::∅ := "i"
+  | "ў" ::∅ := "u" | "Ў" ::∅ := "u"
 %emits
   $
 
 %rule cyrillic-stressed-vowel
-  | 'А' </A/ ∪ ~syllabic> | ('а' | 'А') stress-mark </A/ ∪ ~syllabic>
-  | 'Е' </E/ ∪ ~syllabic> | 'Э' </E/ ∪ ~syllabic> | 'Є' </E/ ∪ ~syllabic>
-  | ('е' | 'э' | 'є' | 'Е' | 'Э' | 'Є') stress-mark </E/ ∪ ~syllabic>
-  | 'И' </I/ ∪ ~syllabic> | 'І' </I/ ∪ ~syllabic> | ('и' | 'і' | 'И' | 'І') stress-mark </I/ ∪ ~syllabic>
-  | 'О' </O/ ∪ ~syllabic> | ('о' | 'О') stress-mark </O/ ∪ ~syllabic>
-  | 'У' </U/ ∪ ~syllabic> | ('у' | 'У') stress-mark </U/ ∪ ~syllabic>
-  | 'Ъ' </Y/ ∪ ~syllabic> | 'Ы' </Y/ ∪ ~syllabic> | 'Ә' </Y/ ∪ ~syllabic>
-  | ('ъ' | 'ы' | 'ә' | 'Ъ' | 'Ы' | 'Ә') stress-mark </Y/ ∪ ~syllabic>
+  | "А" ::Stressed ∪ Syllabic := "A" | ("а" | "А") stress-mark ::Stressed ∪ Syllabic := "A"
+  | "Е" ::Stressed ∪ Syllabic := "E" | "Э" ::Stressed ∪ Syllabic := "E" | "Є" ::Stressed ∪ Syllabic := "E"
+  | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark ::Stressed ∪ Syllabic := "E"
+  | "И" ::Stressed ∪ Syllabic := "I" | "І" ::Stressed ∪ Syllabic := "I" | ("и" | "і" | "И" | "І") stress-mark ::Stressed ∪ Syllabic := "I"
+  | "О" ::Stressed ∪ Syllabic := "O" | ("о" | "О") stress-mark ::Stressed ∪ Syllabic := "O"
+  | "У" ::Stressed ∪ Syllabic := "U" | ("у" | "У") stress-mark ::Stressed ∪ Syllabic := "U"
+  | "Ъ" ::Stressed ∪ Syllabic := "Y" | "Ы" ::Stressed ∪ Syllabic := "Y" | "Ә" ::Stressed ∪ Syllabic := "Y"
+  | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark ::Stressed ∪ Syllabic := "Y"
 %emits
   $
 
 %rule cyrillic-folded-vowel
-  | 'А' </a/ ∪ ~syllabic>
-  | 'Е' </e/ ∪ ~syllabic> | 'Э' </e/ ∪ ~syllabic> | 'Є' </e/ ∪ ~syllabic>
-  | 'И' </i/ ∪ ~syllabic> | 'І' </i/ ∪ ~syllabic>
-  | 'О' </o/ ∪ ~syllabic>
-  | 'У' </u/ ∪ ~syllabic>
-  | 'Ъ' </y/ ∪ ~syllabic> | 'Ы' </y/ ∪ ~syllabic> | 'Ә' </y/ ∪ ~syllabic>
-  | 'Й' </i/> | 'Ј' </i/>
-  | 'Ў' </u/>
+  | "А" ::  Syllabic := "a"
+  | "Е" ::  Syllabic := "e" | "Э" ::  Syllabic := "e" | "Є" ::  Syllabic := "e"
+  | "И" ::  Syllabic := "i" | "І" ::  Syllabic := "i"
+  | "О" ::  Syllabic := "o"
+  | "У" ::  Syllabic := "u"
+  | "Ъ" ::  Syllabic := "y" | "Ы" ::  Syllabic := "y" | "Ә" ::  Syllabic := "y"
+  | "Й" ::∅ := "i" | "Ј" ::∅ := "i"
+  | "Ў" ::∅ := "u"
 %emits
   $
 ```

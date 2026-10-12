@@ -210,9 +210,9 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 %rule bridi-tail-1-final
   | bridi-tail-2
   | bridi-tail-1 gihek {free} bridi-tail-2 tail-terms
-  | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
+  | bridi-tail-1 gihek $t:bridi-tail-2 $v:tail-terms
 %conditions
-  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ text($v) ≠ "")
+  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
@@ -268,10 +268,10 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   {terms-1}
 
 %rule terms-1
-  {... terms-2 \ PEhE # joik-jek}
+  {... terms-2 / PEhE # joik-jek}
 
 %rule terms-2
-  {term \ CEhE #}
+  {term / CEhE #}
 
 %rule term
   sumti | (tag | FA #) (sumti | [+KU #]) | termset | tag termset | NA KU #
@@ -319,10 +319,10 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   sumti-2 [(ek | joik) [stag] KE # sumti [+KEhE #]]
 
 %rule sumti-2
-  {... sumti-3 \ joik-ek}
+  {... sumti-3 / joik-ek}
 
 %rule sumti-3
-  {sumti-4 ... \ (ek | joik) [stag] BO #}
+  {sumti-4 ... / (ek | joik) [stag] BO #}
 
 %rule sumti-4
   sumti-5 | gek sumti gik sumti-4
@@ -367,7 +367,7 @@ A relative clause attaches to a sumti and restricts or comments on it[^cll-c8]. 
 
 ```jbogenbau
 %rule relative-clauses
-  {relative-clause \ ZIhE #}
+  {relative-clause / ZIhE #}
 
 %rule relative-clause
   GOI # term [+GEhU #] | NOI # subsentence [+KUhO #]
@@ -431,13 +431,13 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
   | selbri-4 joik [stag] KE # selbri-3 [+KEhE #]
 
 %rule selbri-5
-  {selbri-6 ... \ (jek | joik) [stag] BO #}
+  {selbri-6 ... / (jek | joik) [stag] BO #}
 
 %rule selbri-6
   tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
-  {tanru-unit-1 \ CEI #}
+  {tanru-unit-1 / CEI #}
 
 %rule tanru-unit-1
   tanru-unit-2 [linkargs]
@@ -455,7 +455,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
   | abstractor-chain subsentence [+KEI #]
 
 %rule abstractor-chain
-  {... NU [NAI] # \ joik-jek}
+  {... NU [NAI] # / joik-jek}
 
 %rule linkargs
   BE # term [links] [+BEhO #]
@@ -528,7 +528,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   mex-chain | FUhA # rp-expression
 
 %rule mex-chain
-  {... mex-1 \ operator}
+  {... mex-1 / operator}
 
 %rule mex-1
   mex-2 [BIhE # operator mex-1]
@@ -562,10 +562,10 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operand-1 [(ek | joik) [stag] KE # operand [+KEhE #]]
 
 %rule operand-1
-  {... operand-2 \ joik-ek}
+  {... operand-2 / joik-ek}
 
 %rule operand-2
-  {operand-3 ... \ (ek | joik) [stag] BO #}
+  {operand-3 ... / (ek | joik) [stag] BO #}
 
 %rule operand-3
   | quantifier
@@ -579,12 +579,12 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule number
   PA [{PA | lerfu-word}]
 %conditions
-  ¬begins(after($), number-continuation)
+  ¬$.following-tokens.begins( number-continuation)
 
 %rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
 %conditions
-  ¬begins(after($), number-continuation)
+  ¬$.following-tokens.begins( number-continuation)
 
 %rule number-continuation
   PA | lerfu-word
@@ -663,23 +663,23 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   joik # | jek #
 
 %rule plain-joik-jek
-  | $j(joik) #
+  | $j:joik #
   | jek #
 %conditions
-  KE ⊈ tags(head(after($j)))
+  KE ⊈ $j.following-tokens.first-token.tags
 
 %rule joik-before-ke
-  $j(joik) #
+  $j:joik #
 %conditions
-  KE ⊆ tags(head(after($j)))
+  KE ⊆ $j.following-tokens.first-token.tags
 
 %rule selbri-5-not-ke-group
-  $u(selbri-5)
+  $u:selbri-5
 %conditions
   $u ≇ $KE-UNIT
 
 %rule operator-1-not-ke-group
-  $u(operator-1)
+  $u:operator-1
 %conditions
   $u ≇ $KE-UNIT
 
@@ -742,10 +742,10 @@ In `mi viska ba'o pu gi do gi la djan`, `ba'o` stays a tag over the forethought 
 
 ```jbogenbau
 %rule tag
-  {... tense-modal \ joik-jek}
+  {... tense-modal / joik-jek}
 
 %rule stag
-  {... simple-tense-modal \ jek | joik}
+  {... simple-tense-modal / jek | joik}
 
 %rule tense-modal
   simple-tense-modal # | FIhO # selbri [+FEhU #]
@@ -845,10 +845,10 @@ The word stage delimits every quote except `lu ... li'u` and emits its parts for
 
 ```jbogenbau
 %rule any-word
-  ~word
+  Word
 
 %rule anything
-  ~quoted-text
+  Quoted-text
 ```
 
 <details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>

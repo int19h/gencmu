@@ -49,31 +49,31 @@ A run that divides into words divides in one way only. The word forms of each fa
   $
 
 %rule run
-  read-run | foreign-run | unread-run
+  word-run | foreign-token | unsegmentable-run
 
-%rule read-run
+%rule word-run
   run-words
 
-%rule foreign-run
-  $f(UNREAD)
+%rule foreign-token
+  $f:FOREIGN
 %emits
-  $ <tags($f) ∪ ~run-initial ∪ ~run-final>
+  $ ::$f.tags ∪ Run-initial ∪ Run-final
 
-%rule unread-run
-  $f(phoneme-run)
+%rule unsegmentable-run
+  $f:phoneme-sequence
 %conditions
-  ¬begins(after($f), nonpause-phoneme),
-  ¬matches($f, read-run)
+  ¬$f.following-tokens.begins( nonpause-phoneme),
+  ¬$f.matches( word-run)
 %emits
-  $ <UNREAD ∪ ~run-initial ∪ ~run-final>
+  $ ::FOREIGN ∪ Run-initial ∪ Run-final
 
-%rule phoneme-run
-  nonpause-phoneme | phoneme-run nonpause-phoneme
+%rule phoneme-sequence
+  nonpause-phoneme | phoneme-sequence nonpause-phoneme
 
 %rule nonpause-phoneme
-  | /a/ | /e/ | /i/ | /o/ | /u/ | /A/ | /E/ | /I/ | /O/ | /U/ | /y/ | /Y/ | /'/ | /,/
-  | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/
-  | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
+  | "a" | "e" | "i" | "o" | "u" | "A" | "E" | "I" | "O" | "U" | "y" | "Y" | "'" | ","
+  | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
+  | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
 
 <details><summary>Railroad diagrams of the 9 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
@@ -111,17 +111,17 @@ The BPFK word forms set only `onset` and `continued`, with the meaning that the 
 
 ```jbogenbau
 %rule run-words
-  | $f(first-word) <tags($f)>
-  | $r(run-words) $v(later-word)
-      <tags($v) ∪ (~uncounted ⊆ tags($v) ⟹ ~open-stress ∩ tags($r))>
+  | $f:first-word ::$f.tags
+  | $r:run-words $v:later-word
+      ::$v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-stress ∩ $r.tags)
 %conditions
-  (~continued ∪ ~cy ∪ ~name-intro ∪ ~open-stress) ∩ tags($r) ≠ ∅,
-  ~cy ⊆ tags($r) ∧ ~cy ⊆ tags($v)
-    ∨ ~continued ⊆ tags($r) ∧ ~onset ⊆ tags($v)
-    ∨ ~name-intro ⊆ tags($r) ∧ ~name-onset ⊆ tags($v)
-    ∨ ~open-stress ⊆ tags($r) ∧ ~cy ⊈ tags($r) ∧ ~onset ⊆ tags($v),
-  ~final-stress ⊈ tags($r) ∨ (~stress-guard ∪ ~initial-stress) ∩ tags($v) = ∅,
-  ~open-stress ⊈ tags($r) ∨ ~uncounted ⊆ tags($v)
+  (Continued ∪ Cy ∪ Name-intro ∪ Open-stress) ∩ $r.tags ≠ ∅,
+  Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
+    ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
+    ∨ Name-intro ⊆ $r.tags ∧ Name-onset ⊆ $v.tags
+    ∨ Open-stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
+  Final-stress ⊈ $r.tags ∨ (Stress-guard ∪ Initial-stress) ∩ $v.tags = ∅,
+  Open-stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 ```
 
 <details><summary>Railroad diagram of <code>run-words</code></summary>
@@ -143,49 +143,51 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   ordinary-first-word | split-first-y
 
 %rule ordinary-first-word
-  $w(source-word)
+  $w:source-word
 %conditions
-  ¬begins(from($w), split-first-y)
+  ¬$w.onward.begins( split-first-y)
 %emits
-  $ <tags($w) ∪ ~run-initial ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
+  $ ::$w.tags ∪ Run-initial ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
 
 %rule later-word
   ordinary-later-word | split-later-y
 
 %rule ordinary-later-word
-  $w(source-word)
+  $w:source-word
 %conditions
-  ¬begins(from($w), split-later-y)
+  ¬$w.onward.begins( split-later-y)
 %emits
-  $ <tags($w) ∪ (¬begins(after($w), nonpause-phoneme) ⟹ ~run-final)>
+  $ ::$w.tags ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
 
 %rule split-first-y
-  $p(y-prefix) $y(y-atom)
-%tags
-  tags($, source-word)
+  ::
+  $.tags( source-word)
+  | $p:y-prefix $y:y-atom
+
 %conditions
-  matches($, hesitation-shape),
-  begins(after($), bu-form-ahead)
+  $.matches( hesitation-shape),
+  $.following-tokens.begins( bu-form-ahead)
 %emits
-  $p <tags($, source-word) ∪ ~run-initial>,
-  $y <tags($, source-word) ∪ ~spacing ∪ ~after-hesitation ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
+  $p ::$.tags( source-word) ∪ Run-initial,
+  $y ::$.tags( source-word) ∪ Spacing ∪ After-hesitation ∪ (¬$.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
 
 %rule split-later-y
-  $p(y-prefix) $y(y-atom)
-%tags
-  tags($, source-word)
+  ::
+  $.tags( source-word)
+  | $p:y-prefix $y:y-atom
+
 %conditions
-  matches($, hesitation-shape),
-  begins(after($), bu-form-ahead)
+  $.matches( hesitation-shape),
+  $.following-tokens.begins( bu-form-ahead)
 %emits
-  $p <tags($, source-word)>,
-  $y <tags($, source-word) ∪ ~after-hesitation ∪ (¬begins(after($), nonpause-phoneme) ⟹ ~run-final)>
+  $p ::$.tags( source-word),
+  $y ::$.tags( source-word) ∪ After-hesitation ∪ (¬$.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom
 
 %rule y-atom
-  [/,/] any-y
+  [","] any-y
 
 %rule bu-form-ahead
   [PAUSE] bu-form
@@ -214,10 +216,10 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 ```jbogenbau
 %rule source-word
-  | $c(cmavo-shape) <~word ∪ ~cmavo ∪ tags($c) ∪ classify(phonemes($c), lexicon)>
-  | $b(brivla-shape) <~word ∪ BRIVLA ∪ tags($b)>
-  | $n(cmevla-shape) <~word ∪ CMEVLA ∪ tags($n)>
-  | $h(hesitation-shape) <~hesitation ∪ tags($h)>
+  | $c:cmavo-shape ::Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify( lexicon)
+  | $b:brivla-shape ::Word ∪ BRIVLA ∪ $b.tags
+  | $n:cmevla-shape ::Word ∪ CMEVLA ∪ $n.tags
+  | $h:hesitation-shape ::Hesitation ∪ $h.tags
 ```
 
 <details><summary>Railroad diagram of <code>source-word</code></summary>
@@ -230,10 +232,10 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 
 ```jbogenbau
 %rule hesitation-shape
-  $h(y-run) <~continued ∪ ~uncounted ∪ tags($h)>
+  $h:y-run ::Continued ∪ Uncounted ∪ $h.tags
 
 %rule y-run
-  any-y | any-y y-run | any-y /,/ y-run
+  any-y | any-y y-run | any-y "," y-run
 ```
 
 <details><summary>Railroad diagrams of <code>hesitation-shape</code> and <code>y-run</code></summary>
@@ -245,7 +247,7 @@ A `y` here is either phoneme of the letter, plain or stressed.
 
 ```jbogenbau
 %rule any-y
-  /y/ | /Y/
+  "y" | "Y"
 ```
 
 <details><summary>Railroad diagram of <code>any-y</code></summary>

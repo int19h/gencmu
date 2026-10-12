@@ -167,7 +167,7 @@ The implication after the entries marks some words `indicator`, which the indica
 ```
 
 ```jbogenbau
-%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
+%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ Indicator
 ```
 
 ## Differences from CLL and camxes-exp

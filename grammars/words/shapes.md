@@ -14,86 +14,86 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
 
 ```jbogenbau
 %rule consonant
-  | /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/
-  | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
+  | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
+  | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 
 %rule initial-pair
-  | /b/ /l/ | /b/ /r/
-  | /c/ /f/ | /c/ /k/ | /c/ /l/ | /c/ /m/ | /c/ /n/ | /c/ /p/ | /c/ /r/ | /c/ /t/
-  | /d/ /j/ | /d/ /r/ | /d/ /z/
-  | /f/ /l/ | /f/ /r/
-  | /g/ /l/ | /g/ /r/
-  | /j/ /b/ | /j/ /d/ | /j/ /g/ | /j/ /m/ | /j/ /v/
-  | /k/ /l/ | /k/ /r/
-  | /m/ /l/ | /m/ /r/
-  | /p/ /l/ | /p/ /r/
-  | /s/ /f/ | /s/ /k/ | /s/ /l/ | /s/ /m/ | /s/ /n/ | /s/ /p/ | /s/ /r/ | /s/ /t/
-  | /t/ /c/ | /t/ /r/ | /t/ /s/
-  | /v/ /l/ | /v/ /r/
-  | /x/ /l/ | /x/ /r/
-  | /z/ /b/ | /z/ /d/ | /z/ /g/ | /z/ /m/ | /z/ /v/
+  | "b" "l" | "b" "r"
+  | "c" "f" | "c" "k" | "c" "l" | "c" "m" | "c" "n" | "c" "p" | "c" "r" | "c" "t"
+  | "d" "j" | "d" "r" | "d" "z"
+  | "f" "l" | "f" "r"
+  | "g" "l" | "g" "r"
+  | "j" "b" | "j" "d" | "j" "g" | "j" "m" | "j" "v"
+  | "k" "l" | "k" "r"
+  | "m" "l" | "m" "r"
+  | "p" "l" | "p" "r"
+  | "s" "f" | "s" "k" | "s" "l" | "s" "m" | "s" "n" | "s" "p" | "s" "r" | "s" "t"
+  | "t" "c" | "t" "r" | "t" "s"
+  | "v" "l" | "v" "r"
+  | "x" "l" | "x" "r"
+  | "z" "b" | "z" "d" | "z" "g" | "z" "m" | "z" "v"
 
 %rule consonant-pair
-  | /b/ after-b | /c/ after-c | /d/ after-d | /f/ after-f | /g/ after-g | /j/ after-j
-  | /k/ after-k | /l/ after-l | /m/ after-m | /n/ after-n | /p/ after-p | /r/ after-r
-  | /s/ after-s | /t/ after-t | /v/ after-v | /x/ after-x | /z/ after-z
+  | "b" after-b | "c" after-c | "d" after-d | "f" after-f | "g" after-g | "j" after-j
+  | "k" after-k | "l" after-l | "m" after-m | "n" after-n | "p" after-p | "r" after-r
+  | "s" after-s | "t" after-t | "v" after-v | "x" after-x | "z" after-z
 
 %rule after-b
-  /d/ | /g/ | /j/ | /v/ | /z/ | /l/ | /m/ | /n/ | /r/
+  "d" | "g" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
 
 %rule after-d
-  /b/ | /g/ | /j/ | /v/ | /z/ | /l/ | /m/ | /n/ | /r/
+  "b" | "g" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
 
 %rule after-g
-  /b/ | /d/ | /j/ | /v/ | /z/ | /l/ | /m/ | /n/ | /r/
+  "b" | "d" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
 
 %rule after-v
-  /b/ | /d/ | /g/ | /j/ | /z/ | /l/ | /m/ | /n/ | /r/
+  "b" | "d" | "g" | "j" | "z" | "l" | "m" | "n" | "r"
 
 %rule after-j
-  /b/ | /d/ | /g/ | /v/ | /l/ | /m/ | /n/ | /r/
+  "b" | "d" | "g" | "v" | "l" | "m" | "n" | "r"
 
 %rule after-z
-  /b/ | /d/ | /g/ | /v/ | /l/ | /m/ | /n/ | /r/
+  "b" | "d" | "g" | "v" | "l" | "m" | "n" | "r"
 
 %rule after-c
-  /f/ | /k/ | /p/ | /t/ | /l/ | /m/ | /n/ | /r/
+  "f" | "k" | "p" | "t" | "l" | "m" | "n" | "r"
 
 %rule after-s
-  /f/ | /k/ | /p/ | /t/ | /x/ | /l/ | /m/ | /n/ | /r/
+  "f" | "k" | "p" | "t" | "x" | "l" | "m" | "n" | "r"
 
 %rule after-x
-  /f/ | /p/ | /s/ | /t/ | /l/ | /m/ | /n/ | /r/
+  "f" | "p" | "s" | "t" | "l" | "m" | "n" | "r"
 
 %rule after-k
-  /c/ | /f/ | /p/ | /s/ | /t/ | /l/ | /m/ | /n/ | /r/
+  "c" | "f" | "p" | "s" | "t" | "l" | "m" | "n" | "r"
 
 %rule after-f
-  /c/ | /k/ | /p/ | /s/ | /t/ | /x/ | /l/ | /m/ | /n/ | /r/
+  "c" | "k" | "p" | "s" | "t" | "x" | "l" | "m" | "n" | "r"
 
 %rule after-p
-  /c/ | /f/ | /k/ | /s/ | /t/ | /x/ | /l/ | /m/ | /n/ | /r/
+  "c" | "f" | "k" | "s" | "t" | "x" | "l" | "m" | "n" | "r"
 
 %rule after-t
-  /c/ | /f/ | /k/ | /p/ | /s/ | /x/ | /l/ | /m/ | /n/ | /r/
+  "c" | "f" | "k" | "p" | "s" | "x" | "l" | "m" | "n" | "r"
 
 %rule after-l
-  /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /m/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
+  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "m" | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 
 %rule after-r
-  /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /n/ | /p/ | /s/ | /t/ | /v/ | /x/ | /z/
+  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m" | "n" | "p" | "s" | "t" | "v" | "x" | "z"
 
 %rule after-m
-  /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /n/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/
+  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "n" | "p" | "r" | "s" | "t" | "v" | "x"
 
 %rule after-n
-  /b/ | /c/ | /d/ | /f/ | /g/ | /j/ | /k/ | /l/ | /m/ | /p/ | /r/ | /s/ | /t/ | /v/ | /x/ | /z/
+  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 
 %rule initial-cluster
   initial-pair | long-initial-run
 
 %rule n-affricate
-  /n/ /t/ /c/ | /n/ /t/ /s/ | /n/ /d/ /j/ | /n/ /d/ /z/
+  "n" "t" "c" | "n" "t" "s" | "n" "d" "j" | "n" "d" "z"
 
 %rule consonants
   consonant | consonants consonant
@@ -137,55 +137,55 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
   | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
 
 %rule run-b
-  /b/ | run-before-b /b/
+  "b" | run-before-b "b"
 
 %rule run-c
-  /c/ | run-before-c /c/
+  "c" | run-before-c "c"
 
 %rule run-d
-  /d/ | run-before-d /d/
+  "d" | run-before-d "d"
 
 %rule run-f
-  /f/ | run-before-f /f/
+  "f" | run-before-f "f"
 
 %rule run-g
-  /g/ | run-before-g /g/
+  "g" | run-before-g "g"
 
 %rule run-j
-  /j/ | run-before-j /j/
+  "j" | run-before-j "j"
 
 %rule run-k
-  /k/ | run-before-k /k/
+  "k" | run-before-k "k"
 
 %rule run-l
-  /l/ | run-before-l /l/
+  "l" | run-before-l "l"
 
 %rule run-m
-  /m/ | run-before-m /m/
+  "m" | run-before-m "m"
 
 %rule run-n
-  /n/ | run-before-n /n/
+  "n" | run-before-n "n"
 
 %rule run-p
-  /p/ | run-before-p /p/
+  "p" | run-before-p "p"
 
 %rule run-r
-  /r/ | run-before-r /r/
+  "r" | run-before-r "r"
 
 %rule run-s
-  /s/ | run-before-s /s/
+  "s" | run-before-s "s"
 
 %rule run-t
-  /t/ | run-before-t /t/
+  "t" | run-before-t "t"
 
 %rule run-v
-  /v/ | run-before-v /v/
+  "v" | run-before-v "v"
 
 %rule run-x
-  /x/ | run-before-x /x/
+  "x" | run-before-x "x"
 
 %rule run-z
-  /z/ | run-before-z /z/
+  "z" | run-before-z "z"
 
 %rule run-before-b
   run-d | run-g | run-j | run-l | run-m | run-n | run-r | run-v | run-z
@@ -285,126 +285,126 @@ Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin 
 
 ```jbogenbau
 %rule long-initial-run
-  | initial-run-b /l/
-  | initial-run-b /r/
-  | initial-run-c /f/
-  | initial-run-c /k/
-  | initial-run-c /l/
-  | initial-run-c /m/
-  | initial-run-c /n/
-  | initial-run-c /p/
-  | initial-run-c /r/
-  | initial-run-c /t/
-  | initial-run-d /j/
-  | initial-run-d /r/
-  | initial-run-d /z/
-  | initial-run-f /l/
-  | initial-run-f /r/
-  | initial-run-g /l/
-  | initial-run-g /r/
-  | initial-run-j /b/
-  | initial-run-j /d/
-  | initial-run-j /g/
-  | initial-run-j /m/
-  | initial-run-j /v/
-  | initial-run-k /l/
-  | initial-run-k /r/
-  | initial-run-m /l/
-  | initial-run-m /r/
-  | initial-run-p /l/
-  | initial-run-p /r/
-  | initial-run-s /f/
-  | initial-run-s /k/
-  | initial-run-s /l/
-  | initial-run-s /m/
-  | initial-run-s /n/
-  | initial-run-s /p/
-  | initial-run-s /r/
-  | initial-run-s /t/
-  | initial-run-t /c/
-  | initial-run-t /r/
-  | initial-run-t /s/
-  | initial-run-v /l/
-  | initial-run-v /r/
-  | initial-run-z /b/
-  | initial-run-z /d/
-  | initial-run-z /g/
-  | initial-run-z /m/
-  | initial-run-z /v/
+  | initial-run-b "l"
+  | initial-run-b "r"
+  | initial-run-c "f"
+  | initial-run-c "k"
+  | initial-run-c "l"
+  | initial-run-c "m"
+  | initial-run-c "n"
+  | initial-run-c "p"
+  | initial-run-c "r"
+  | initial-run-c "t"
+  | initial-run-d "j"
+  | initial-run-d "r"
+  | initial-run-d "z"
+  | initial-run-f "l"
+  | initial-run-f "r"
+  | initial-run-g "l"
+  | initial-run-g "r"
+  | initial-run-j "b"
+  | initial-run-j "d"
+  | initial-run-j "g"
+  | initial-run-j "m"
+  | initial-run-j "v"
+  | initial-run-k "l"
+  | initial-run-k "r"
+  | initial-run-m "l"
+  | initial-run-m "r"
+  | initial-run-p "l"
+  | initial-run-p "r"
+  | initial-run-s "f"
+  | initial-run-s "k"
+  | initial-run-s "l"
+  | initial-run-s "m"
+  | initial-run-s "n"
+  | initial-run-s "p"
+  | initial-run-s "r"
+  | initial-run-s "t"
+  | initial-run-t "c"
+  | initial-run-t "r"
+  | initial-run-t "s"
+  | initial-run-v "l"
+  | initial-run-v "r"
+  | initial-run-z "b"
+  | initial-run-z "d"
+  | initial-run-z "g"
+  | initial-run-z "m"
+  | initial-run-z "v"
 
 %rule initial-run-b
-  | /j/ /b/
-  | /z/ /b/
-  | initial-run-j /b/
-  | initial-run-z /b/
+  | "j" "b"
+  | "z" "b"
+  | initial-run-j "b"
+  | initial-run-z "b"
 
 %rule initial-run-c
-  | /t/ /c/
-  | initial-run-t /c/
+  | "t" "c"
+  | initial-run-t "c"
 
 %rule initial-run-d
-  | /j/ /d/
-  | /z/ /d/
-  | initial-run-j /d/
-  | initial-run-z /d/
+  | "j" "d"
+  | "z" "d"
+  | initial-run-j "d"
+  | initial-run-z "d"
 
 %rule initial-run-f
-  | /c/ /f/
-  | /s/ /f/
-  | initial-run-c /f/
-  | initial-run-s /f/
+  | "c" "f"
+  | "s" "f"
+  | initial-run-c "f"
+  | initial-run-s "f"
 
 %rule initial-run-g
-  | /j/ /g/
-  | /z/ /g/
-  | initial-run-j /g/
-  | initial-run-z /g/
+  | "j" "g"
+  | "z" "g"
+  | initial-run-j "g"
+  | initial-run-z "g"
 
 %rule initial-run-j
-  | /d/ /j/
-  | initial-run-d /j/
+  | "d" "j"
+  | initial-run-d "j"
 
 %rule initial-run-k
-  | /c/ /k/
-  | /s/ /k/
-  | initial-run-c /k/
-  | initial-run-s /k/
+  | "c" "k"
+  | "s" "k"
+  | initial-run-c "k"
+  | initial-run-s "k"
 
 %rule initial-run-m
-  | /c/ /m/
-  | /j/ /m/
-  | /s/ /m/
-  | /z/ /m/
-  | initial-run-c /m/
-  | initial-run-j /m/
-  | initial-run-s /m/
-  | initial-run-z /m/
+  | "c" "m"
+  | "j" "m"
+  | "s" "m"
+  | "z" "m"
+  | initial-run-c "m"
+  | initial-run-j "m"
+  | initial-run-s "m"
+  | initial-run-z "m"
 
 %rule initial-run-p
-  | /c/ /p/
-  | /s/ /p/
-  | initial-run-c /p/
-  | initial-run-s /p/
+  | "c" "p"
+  | "s" "p"
+  | initial-run-c "p"
+  | initial-run-s "p"
 
 %rule initial-run-s
-  | /t/ /s/
-  | initial-run-t /s/
+  | "t" "s"
+  | initial-run-t "s"
 
 %rule initial-run-t
-  | /c/ /t/
-  | /s/ /t/
-  | initial-run-c /t/
-  | initial-run-s /t/
+  | "c" "t"
+  | "s" "t"
+  | initial-run-c "t"
+  | initial-run-s "t"
 
 %rule initial-run-v
-  | /j/ /v/
-  | /z/ /v/
-  | initial-run-j /v/
-  | initial-run-z /v/
+  | "j" "v"
+  | "z" "v"
+  | initial-run-j "v"
+  | initial-run-z "v"
 
 %rule initial-run-z
-  | /d/ /z/
-  | initial-run-d /z/
+  | "d" "z"
+  | initial-run-d "z"
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>long-initial-run</code> to <code>initial-run-z</code></summary>
@@ -437,25 +437,25 @@ A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo
   any-a | any-e | any-i | any-o | any-u
 
 %rule any-a
-  /a/ | /A/
+  "a" | "A"
 
 %rule any-e
-  /e/ | /E/
+  "e" | "E"
 
 %rule any-i
-  /i/ | /I/
+  "i" | "I"
 
 %rule any-o
-  /o/ | /O/
+  "o" | "O"
 
 %rule any-u
-  /u/ | /U/
+  "u" | "U"
 
 %rule capital-vowel
-  /A/ | /E/ | /I/ | /O/ | /U/
+  "A" | "E" | "I" | "O" | "U"
 
 %rule capital-letter
-  capital-vowel | /Y/
+  capital-vowel | "Y"
 
 %rule i-or-u
   any-i | any-u
@@ -473,13 +473,13 @@ A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo
   i-or-u any-y
 
 %rule r-letter
-  /r/
+  "r"
 
 %rule any-letters
   any-letter | any-letters any-letter
 
 %rule any-letter
-  consonant | vowel | any-y | /'/ | /,/
+  consonant | vowel | any-y | "'" | ","
 
 %rule stress-mark
   [any-letters] capital-letter [any-letters]
@@ -524,34 +524,34 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
 
 ```jbogenbau
 %rule brivla-scan
-  | $i(brivla-item)
-      <(~counted ⊆ tags($i) ⟹ ~n1) ∪ (~counted ⊈ tags($i) ⟹ ~n0)
-       ∪ (~marked ⊆ tags($i) ⟹ ~s1 ∪ ~first-marked) ∪ (~marked ⊈ tags($i) ⟹ ~s0)
-       ∪ ~single-end ∩ tags($i)>
-  | $s(brivla-scan) $j(brivla-item)
-      <(~s0 ⊆ tags($s) ∧ ~marked ⊈ tags($j) ⟹ ~s0)
-       ∪ (~s0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~s1)
-       ∪ (~s1 ⊆ tags($s) ∧ ~counted ⊈ tags($j) ⟹ ~s1)
-       ∪ (~s1 ⊆ tags($s) ∧ ~counted ⊆ tags($j) ∧ ~marked ⊈ tags($j) ⟹ ~s2)
-       ∪ (~s2 ⊆ tags($s) ∧ ~counted ⊈ tags($j) ⟹ ~s2)
-       ∪ (~counted ⊈ tags($j) ⟹ (~n0 ∪ ~n1 ∪ ~n2 ∪ ~n3) ∩ tags($s))
-       ∪ (~counted ⊆ tags($j) ∧ ~n0 ⊆ tags($s) ⟹ ~n1)
-       ∪ (~counted ⊆ tags($j) ∧ ~n1 ⊆ tags($s) ⟹ ~n2)
-       ∪ (~counted ⊆ tags($j) ∧ (~n2 ∪ ~n3) ∩ tags($s) ≠ ∅ ⟹ ~n3)
-       ∪ ~first-marked ∩ tags($s)
-       ∪ (~n0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~first-marked)
-       ∪ ~single-end ∩ tags($j)>
+  | $i:brivla-item
+      ::(Counted ⊆ $i.tags ⟹ N1) ∪ (Counted ⊈ $i.tags ⟹ N0)
+       ∪ (Marked ⊆ $i.tags ⟹ S1 ∪ First-marked) ∪ (Marked ⊈ $i.tags ⟹ S0)
+       ∪ Single-end ∩ $i.tags
+  | $s:brivla-scan $j:brivla-item
+      ::(S0 ⊆ $s.tags ∧ Marked ⊈ $j.tags ⟹ S0)
+       ∪ (S0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ S1)
+       ∪ (S1 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S1)
+       ∪ (S1 ⊆ $s.tags ∧ Counted ⊆ $j.tags ∧ Marked ⊈ $j.tags ⟹ S2)
+       ∪ (S2 ⊆ $s.tags ∧ Counted ⊈ $j.tags ⟹ S2)
+       ∪ (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags)
+       ∪ (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1)
+       ∪ (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2)
+       ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
+       ∪ First-marked ∩ $s.tags
+       ∪ (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-marked)
+       ∪ Single-end ∩ $j.tags
 %conditions
-  ~single-end ⊈ tags($s)
-    ∨ ¬matches(head($j), vowel)
-    ∨ ¬matches(last($s), i-or-u)
-      ∧ (¬matches(last($s), any-a) ∨ ¬matches(head($j), i-or-u))
-      ∧ (¬matches(last($s), e-or-o) ∨ ¬matches(head($j), any-i))
+  Single-end ⊈ $s.tags
+    ∨ ¬$j.first-token.matches( vowel)
+    ∨ ¬$s.last-token.matches( i-or-u)
+      ∧ (¬$s.last-token.matches( any-a) ∨ ¬$j.first-token.matches( i-or-u))
+      ∧ (¬$s.last-token.matches( e-or-o) ∨ ¬$j.first-token.matches( any-i))
 
 %rule brivla-item
-  | consonant | /y/ | /'/ | /,/
-  | $v(vowel) <~counted ∪ ~single-end ∪ (matches($v, capital-vowel) ⟹ ~marked)>
-  | $d(brivla-diphthong) <~counted ∪ (matches($d, stress-mark) ⟹ ~marked)>
+  | consonant | "y" | "'" | ","
+  | $v:vowel ::Counted ∪ Single-end ∪ ($v.matches( capital-vowel) ⟹ Marked)
+  | $d:brivla-diphthong ::Counted ∪ ($d.matches( stress-mark) ⟹ Marked)
 
 %rule brivla-diphthong
   falling-diphthong | rising-diphthong
@@ -574,38 +574,38 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 
 ```jbogenbau
 %rule name-scan
-  | $i(name-item)
-      <(~nucleus ⊆ tags($i) ⟹ ~v1) ∪ (~nucleus ⊈ tags($i) ⟹ ~v0)
-       ∪ (~counted ⊆ tags($i) ⟹ ~n1 ∪ ~first-counted) ∪ (~counted ⊈ tags($i) ⟹ ~n0)
-       ∪ (~marked ⊆ tags($i) ⟹ ~first-marked ∪ ~any-marked)
-       ∪ ~single-end ∩ tags($i)>
-  | $s(name-scan) $j(name-item)
-      <(~v1 ⊆ tags($s) ∨ ~nucleus ⊆ tags($j) ⟹ ~v1)
-       ∪ (~v0 ⊆ tags($s) ∧ ~nucleus ⊈ tags($j) ⟹ ~v0)
-       ∪ ~first-counted ∩ tags($s)
-       ∪ (~v0 ⊆ tags($s) ∧ ~counted ⊆ tags($j) ⟹ ~first-counted)
-       ∪ ~first-marked ∩ tags($s)
-       ∪ (~v0 ⊆ tags($s) ∧ ~marked ⊆ tags($j) ⟹ ~first-marked)
-       ∪ ~any-marked ∩ tags($s)
-       ∪ (~marked ⊆ tags($j) ⟹ ~any-marked)
-       ∪ (~counted ⊈ tags($j) ⟹ (~n0 ∪ ~n1 ∪ ~n2 ∪ ~n3) ∩ tags($s))
-       ∪ (~counted ⊆ tags($j) ∧ ~n0 ⊆ tags($s) ⟹ ~n1)
-       ∪ (~counted ⊆ tags($j) ∧ ~n1 ⊆ tags($s) ⟹ ~n2)
-       ∪ (~counted ⊆ tags($j) ∧ (~n2 ∪ ~n3) ∩ tags($s) ≠ ∅ ⟹ ~n3)
-       ∪ ~single-end ∩ tags($j)>
+  | $i:name-item
+      ::(Nucleus ⊆ $i.tags ⟹ V1) ∪ (Nucleus ⊈ $i.tags ⟹ V0)
+       ∪ (Counted ⊆ $i.tags ⟹ N1 ∪ First-counted) ∪ (Counted ⊈ $i.tags ⟹ N0)
+       ∪ (Marked ⊆ $i.tags ⟹ First-marked ∪ Any-marked)
+       ∪ Single-end ∩ $i.tags
+  | $s:name-scan $j:name-item
+      ::(V1 ⊆ $s.tags ∨ Nucleus ⊆ $j.tags ⟹ V1)
+       ∪ (V0 ⊆ $s.tags ∧ Nucleus ⊈ $j.tags ⟹ V0)
+       ∪ First-counted ∩ $s.tags
+       ∪ (V0 ⊆ $s.tags ∧ Counted ⊆ $j.tags ⟹ First-counted)
+       ∪ First-marked ∩ $s.tags
+       ∪ (V0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-marked)
+       ∪ Any-marked ∩ $s.tags
+       ∪ (Marked ⊆ $j.tags ⟹ Any-marked)
+       ∪ (Counted ⊈ $j.tags ⟹ (N0 ∪ N1 ∪ N2 ∪ N3) ∩ $s.tags)
+       ∪ (Counted ⊆ $j.tags ∧ N0 ⊆ $s.tags ⟹ N1)
+       ∪ (Counted ⊆ $j.tags ∧ N1 ⊆ $s.tags ⟹ N2)
+       ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
+       ∪ Single-end ∩ $j.tags
 %conditions
-  ~single-end ⊈ tags($s)
-    ∨ ¬matches(head($j), name-vowel)
-    ∨ ¬matches(last($s), i-or-u)
-      ∧ (¬matches(last($s), any-a) ∨ ¬matches(head($j), i-or-u))
-      ∧ (¬matches(last($s), e-or-o) ∨ ¬matches(head($j), any-i))
+  Single-end ⊈ $s.tags
+    ∨ ¬$j.first-token.matches( name-vowel)
+    ∨ ¬$s.last-token.matches( i-or-u)
+      ∧ (¬$s.last-token.matches( any-a) ∨ ¬$j.first-token.matches( i-or-u))
+      ∧ (¬$s.last-token.matches( e-or-o) ∨ ¬$j.first-token.matches( any-i))
 
 %rule name-item
-  | consonant | /'/ | /,/
-  | $v(vowel) <~nucleus ∪ ~counted ∪ ~single-end ∪ (matches($v, capital-vowel) ⟹ ~marked)>
-  | $y(any-y) <~nucleus ∪ (matches($y, stress-mark) ⟹ ~marked)>
-  | $d(brivla-diphthong) <~nucleus ∪ ~counted ∪ (matches($d, stress-mark) ⟹ ~marked)>
-  | $e(y-diphthong) <~nucleus ∪ (matches($e, stress-mark) ⟹ ~marked)>
+  | consonant | "'" | ","
+  | $v:vowel ::Nucleus ∪ Counted ∪ Single-end ∪ ($v.matches( capital-vowel) ⟹ Marked)
+  | $y:any-y ::Nucleus ∪ ($y.matches( stress-mark) ⟹ Marked)
+  | $d:brivla-diphthong ::Nucleus ∪ Counted ∪ ($d.matches( stress-mark) ⟹ Marked)
+  | $e:y-diphthong ::Nucleus ∪ ($e.matches( stress-mark) ⟹ Marked)
 
 %rule name-vowel
   vowel | any-y

@@ -52,9 +52,9 @@ A leading indicator run also stays in the stream at the start of the whole text.
 %rule item-run
   | item
   | item-run item
-  | $p(item-run) leading
+  | $p:item-run leading
 %conditions
-  classes(last($p)) ∩ $QUOTE-OPENERS ≠ ∅
+  $p.last-token.classes ∩ $QUOTE-OPENERS ≠ ∅
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>item-run</code></summary>
@@ -66,22 +66,23 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 
 ```jbogenbau
 %rule item
-  [$b(bahe-run)] $w(unit) [$a(indicator-run)]
-%tags
-  tags($w)
+  ::
+  $w.tags
+  | [$b:bahe-run] $w:unit [$a:indicator-run]
+
 %conditions
-  $a ⟹ classes($w) ∩ $QUOTE-OPENERS = ∅
+  $a ⟹ $w.classes ∩ $QUOTE-OPENERS = ∅
 %emits
   ($b) $w ($a)
 
 %rule unit
-  | ~word∩(~indicator ∪ BAhE)=∅ | ~quoted-text | LEhU
+  | Word<¬Indicator   ¬BAhE> | Quoted-text | LEhU
 
 %rule bahe-run
   bahe | bahe-run bahe
 
 %rule bahe
-  ~word⊇BAhE
+  Word<BAhE>
 %emits
   $
 ```
@@ -109,42 +110,47 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
 
 %rule indicator
-  [$b(bahe-run)] $i(~word)
-%tags
-  tags($i)
+  ::
+  $i.tags
+  | [$b:bahe-run] $i:Word
+
 %conditions
-  ~indicator ⊆ tags($i),
-  FUhE ⊈ classes($i)
+  Indicator ⊆ $i.tags,
+  FUhE ⊈ $i.classes
 %emits
   ($b) $i
 
 %rule fuhe
-  [$b(bahe-run)] $i(~word)
-%tags
-  tags($i)
+  ::
+  $i.tags
+  | [$b:bahe-run] $i:Word
+
 %conditions
-  FUhE ⊆ classes($i)
+  FUhE ⊆ $i.classes
 %emits
   ($b) $i
 
 %rule attitudinal-nai
-  [$b(bahe-run)] $u(attitudinal) $n(nai)
-%tags
-  tags($u)
+  ::
+  $u.tags
+  | [$b:bahe-run] $u:attitudinal $n:nai
+
 %emits
   ($b) $u ($n)
 
 %rule attitudinal
-  $i(~word)
-%tags
-  tags($i)
+  ::
+  $i.tags
+  | $i:Word
+
 %conditions
-  classes($i) ∩ (UI ∪ CAI) ≠ ∅
+  $i.classes ∩ (UI ∪ CAI) ≠ ∅
 
 %rule nai
-  [$b(bahe-run)] $m(~word⊇NAI)
-%tags
-  tags($m)
+  ::
+  $m.tags
+  | [$b:bahe-run] $m:Word<NAI>
+
 %emits
   ($b) $m
 ```
@@ -182,7 +188,7 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
   | leading [fuhe] indicator | leading [fuhe] leading-attitudinal-nai
 
 %rule leading-attitudinal-nai
-  [$b(bahe-run)] $u(attitudinal) [$c(bahe-run)] $m(~word⊇NAI)
+  [$b:bahe-run] $u:attitudinal [$c:bahe-run] $m:Word<NAI>
 %emits
   ($b) $u, ($c) $m
 ```

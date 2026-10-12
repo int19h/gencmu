@@ -159,7 +159,7 @@ The forms stage reads a run of `y` as hesitation and never looks it up in this c
 ```
 
 ```jbogenbau
-%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ ~indicator
+%implies UI ∪ CAI ∪ DAhO ∪ FUhE ∪ FUhO ⟹ Indicator
 ```
 
 ## Differences from the CLL dictionary

@@ -20,13 +20,13 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   lohai-quote
 
 %rule lohai-quote
-  | $e(lehai-marker) <tags($e)>
-  | $r(lohai-run) spacing lehai-marker <tags($r)>
-  | $r(lohai-run) spacing lohai-run spacing lehai-marker <tags($r)>
+  | $e:lehai-marker ::$e.tags
+  | $r:lohai-run spacing lehai-marker ::$r.tags
+  | $r:lohai-run spacing lohai-run spacing lehai-marker ::$r.tags
 
 %rule lohai-run
-  | $m(lohai-marker) <tags($m)>
-  | $m(lohai-marker) spacing lohai-stream <tags($m)>
+  | $m:lohai-marker ::$m.tags
+  | $m:lohai-marker spacing lohai-stream ::$m.tags
 
 %rule lohai-stream
   | lohai-element
@@ -37,23 +37,23 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   lohai-word | hesitation
 
 %rule lohai-word
-  $w(read-word)
+  $w:read-word
 %conditions
-  classes($w) ∩ (LOhAI ∪ LEhAI) = ∅
+  $w.classes ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
-  $ <~word>
+  $ ::Word
 
 %rule lohai-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
 %conditions
-  LOhAI ⊆ classes($q)
+  LOhAI ⊆ $q.classes
 %emits
   $
 
 %rule lehai-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
 %conditions
-  LEhAI ⊆ classes($q)
+  LEhAI ⊆ $q.classes
 %emits
   $
 ```

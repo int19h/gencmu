@@ -40,7 +40,7 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
   run | items pause run
 
 %rule run
-  ordinary-run | foreign-run
+  ordinary-run | non-lojban-char-run
 ```
 
 <details><summary>Railroad diagrams of <code>text</code>, <code>edge-pause</code>, <code>items</code> and <code>run</code></summary>
@@ -59,9 +59,9 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   spaced-pause
 
 %rule spaced-pause
-  [pause-edge] $c(pause-core) [pause-edge]
+  [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c <PAUSE ∪ /./>
+  $c ::PAUSE   := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -70,10 +70,10 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   commas
 
 %rule core-char
-  space-char | '.'
+  space-char | "."
 
 %rule space-char
-  '\p{White_Space}'
+  _White_Space
 
 %rule commas
   comma | commas comma
@@ -120,7 +120,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 %rule syllable-break
   commas
 %emits
-  $ </,/>
+  $ ::Syllable-Break := ","
 
 %rule vowel
   plain-vowel | stressed-vowel
@@ -129,15 +129,15 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   vowel | vowel-group-plain | vowel-group-joined
 
 %rule vowel-group-plain
-  | vowel-group⊉~syllabic $v(vowel) <tags($v)> | vowel-group⊇~syllabic $w(vowel⊉~syllabic) <tags($w)>
+  | vowel-group<¬Syllabic> $v:vowel ::$v.tags | vowel-group<Syllabic> $w:vowel<¬Syllabic> ::$w.tags
 
 %rule vowel-group-joined
-  vowel-group⊇~syllabic $v(joined-vowel⊇~syllabic) <tags($v)>
+  vowel-group<Syllabic> $v:joined-vowel<Syllabic> ::$v.tags
 
 %rule joined-vowel
-  $v(vowel) <tags($v)>
+  $v:vowel ::$v.tags
 %emits
-  /'/, $v
+  ε :: ∅ := "'", $v
 
 %rule any-lojban-char
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
@@ -164,38 +164,38 @@ A run that is not an ordinary run is foreign. It has a letter, a digit, a mark o
 A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period.
 
 ```jbogenbau
-%rule foreign-run
-  $r(foreign-chars)
+%rule non-lojban-char-run
+  $r:chars-with-non-lojban-char
 %conditions
-  ¬matches($r, letters),
-  ¬matches(head($r), comma),
-  ¬matches(last($r), comma)
+  ¬$r.matches( letters),
+  ¬$r.first-token.matches( comma),
+  ¬$r.last-token.matches( comma)
 %emits
-  $ <UNREAD>
-%opaque
+  $ ::FOREIGN
 
-%rule foreign-chars
-  | foreign-char
-  | lojban-chars foreign-char
-  | foreign-chars run-char
+
+%rule chars-with-non-lojban-char
+  | non-lojban-char
+  | lojban-chars non-lojban-char
+  | chars-with-non-lojban-char run-char
 
 %rule lojban-chars
   lojban-char | lojban-chars lojban-char
 
 %rule lojban-char
-  $c(run-char)
+  $c:run-char
 %conditions
-  matches($c, any-lojban-char)
+  $c.matches( any-lojban-char)
 
-%rule foreign-char
-  $c(run-char)
+%rule non-lojban-char
+  $c:run-char
 %conditions
-  ¬matches($c, any-lojban-char)
+  ¬$c.matches( any-lojban-char)
 
 %rule run-char
-  $c('\p{Any}')
+  $c:_
 %conditions
-  ¬matches($c, core-char)
+  ¬$c.matches( core-char)
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>foreign-run</code> to <code>run-char</code></summary>
@@ -215,43 +215,43 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 
 ```jbogenbau
 %rule consonant
-  | 'b' </b/> | 'B' </b/>
-  | 'c' </c/> | 'C' </c/>
-  | 'd' </d/> | 'D' </d/>
-  | 'f' </f/> | 'F' </f/>
-  | 'g' </g/> | 'G' </g/>
-  | 'j' </j/> | 'J' </j/>
-  | 'k' </k/> | 'K' </k/>
-  | 'l' </l/> | 'L' </l/>
-  | 'm' </m/> | 'M' </m/>
-  | 'n' </n/> | 'N' </n/>
-  | 'p' </p/> | 'P' </p/>
-  | 'r' </r/> | 'R' </r/>
-  | 's' </s/> | 'S' </s/>
-  | 't' </t/> | 'T' </t/>
-  | 'v' </v/> | 'V' </v/>
-  | 'x' </x/> | 'X' </x/>
-  | 'z' </z/> | 'Z' </z/>
+  | "b" ::∅ := "b" | "B" ::∅ := "b"
+  | "c" ::∅ := "c" | "C" ::∅ := "c"
+  | "d" ::∅ := "d" | "D" ::∅ := "d"
+  | "f" ::∅ := "f" | "F" ::∅ := "f"
+  | "g" ::∅ := "g" | "G" ::∅ := "g"
+  | "j" ::∅ := "j" | "J" ::∅ := "j"
+  | "k" ::∅ := "k" | "K" ::∅ := "k"
+  | "l" ::∅ := "l" | "L" ::∅ := "l"
+  | "m" ::∅ := "m" | "M" ::∅ := "m"
+  | "n" ::∅ := "n" | "N" ::∅ := "n"
+  | "p" ::∅ := "p" | "P" ::∅ := "p"
+  | "r" ::∅ := "r" | "R" ::∅ := "r"
+  | "s" ::∅ := "s" | "S" ::∅ := "s"
+  | "t" ::∅ := "t" | "T" ::∅ := "t"
+  | "v" ::∅ := "v" | "V" ::∅ := "v"
+  | "x" ::∅ := "x" | "X" ::∅ := "x"
+  | "z" ::∅ := "z" | "Z" ::∅ := "z"
 %emits
   $
 
 %rule plain-vowel
-  'a' </a/> | 'e' </e/> | 'i' </i/> | 'o' </o/> | 'u' </u/> | 'y' </y/>
+  "a" ::∅ := "a" | "e" ::∅ := "e" | "i" ::∅ := "i" | "o" ::∅ := "o" | "u" ::∅ := "u" | "y" ::∅ := "y"
 %emits
   $
 
 %rule stressed-vowel
-  'A' </A/> | 'E' </E/> | 'I' </I/> | 'O' </O/> | 'U' </U/> | 'Y' </Y/>
+  "A" ::Stressed := "A" | "E" ::Stressed := "E" | "I" ::Stressed := "I" | "O" ::Stressed := "O" | "U" ::Stressed := "U" | "Y" ::Stressed := "Y"
 %emits
   $
 
 %rule apostrophe
-  '\u{27}' | '’' | '‘' | 'ʼ'
+  $_0027 | "’" | "‘" | "ʼ"
 %emits
-  $ </'/>
+  $ ::∅ := "'"
 
 %rule comma
-  ','
+  ","
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>consonant</code> to <code>comma</code></summary>
