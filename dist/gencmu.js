@@ -8454,8 +8454,14 @@
   function testHolds(context, test, from, to, tags) {
     if (test.inner && !testHolds(context, test.inner, from, to, tags)) return false;
     if (test.op === "tags") {
-      for (const tag of /** @type {TagSet} */ (test.positive)) if (!tags.has(tag)) return false;
-      for (const tag of /** @type {TagSet} */ (test.negative)) if (tags.has(tag)) return false;
+      for (const tag of /** @type {TagSet} */ (test.positive)) {
+        if (hooks.work) countWork(hooks.work, "tags");
+        if (!tags.has(tag)) return false;
+      }
+      for (const tag of /** @type {TagSet} */ (test.negative)) {
+        if (hooks.work) countWork(hooks.work, "tags");
+        if (tags.has(tag)) return false;
+      }
       return true;
     }
     return valueIs(context,/** @type {string} */ (test.value),from,to) === (test.op === "=");
