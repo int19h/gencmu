@@ -1429,6 +1429,7 @@ A document's items are its rules, its directives, its constant definitions, its 
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
+- It lacks any of the five declaration arrays, or one is not an array.
 - Two of its items share a position.
 - A rule lacks `flags`, or its value is neither `[]` nor `["leftmost-longest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
@@ -1447,10 +1448,11 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
 - Its wildcard is not `wildcard:true`.
 - It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.
-- Its constant value is not closed, or its method name, receiver, or arguments violate the method signature.
+- Its constant value is not closed, or it holds an engine-tag literal outside a pattern literal.
+- Its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
 - It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
-- It has an implication whose sides are not closed terms of type tag set.
+- It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
 String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Other dollar signs are document errors. Include paths remain literal. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
