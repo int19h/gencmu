@@ -459,7 +459,7 @@ Keep normalization after phonemes and before forms. This inherited pipeline alre
 %emits
 ```
 
-The rule-level image recipe preserves written images. Every mapping retains its input tags through single-symbol inheritance. The stage preserves token count, order, images, and sources. It changes only values.
+The rule-level image recipe preserves written images. Every mapping retains its input tags through single-symbol inheritance. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
 
 Make sure that every token with a mapped tag has a supported value. An unmapped stressed value fails normalization. Group a comma run into one comma token before this stage. Forms reads syllable boundaries through `Syllable-Break` even when the comma value is empty.
 

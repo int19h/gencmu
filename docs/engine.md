@@ -2030,11 +2030,13 @@ A grammar error found while parsing is a result. Examples are a nested parse ask
 
 Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.
 
-The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage preserves tokens, tags, images, sources, and order while mapping only values. It maps stressed `A E I O U Y` to lowercase and the syllable comma to empty. Every mapping requires its corresponding tag.
+The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. It maps stressed `A E I O U Y` to lowercase and the syllable comma to empty. Every mapping requires its corresponding tag.
 
 A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. A syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token.
 
-A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy`. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
+A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy` in the phoneme-stage output. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
+
+A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. This is now normalization instead of forms. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
 
 The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. Phoneme FOREIGN values preserve exact characters. Forms FOREIGN values preserve normalized phoneme sequences.
 

@@ -241,7 +241,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Normalization is a stage
 
-The Lojban normalization stage stands after phonemes and before forms. Each mapping tests both a value and its tag. It changes values and preserves images, tags, order, token count, and source metadata.
+The Lojban normalization stage stands after phonemes and before forms. Each mapping tests both a value and its tag. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
 
 ```jbogenbau
 %stage normalize
