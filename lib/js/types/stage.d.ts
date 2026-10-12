@@ -1,5 +1,6 @@
 import { ParseContext } from "./earley.js";
 import { Token } from "./tokens.js";
+import { StringWalk } from "./strings.js";
 import type { Derivation, ResultNode, Span, StageReport, TagSet } from "./types.js";
 import type { Grammar } from "./grammar.js";
 import type { UnicodeTable } from "./unicode.js";
@@ -51,7 +52,7 @@ export type RestorationRecord = {
     terminal: string;
     at: number;
     source: Span;
-    sound?: string;
+    value?: string;
 };
 export type ElisionCheck = ({
     kind: "pass";
@@ -75,25 +76,10 @@ export type ElisionCheck = ({
  * @returns {ResultNode[]}
  */
 export declare function resultTree(root: Derivation, context: ParseContext): ResultNode[];
-export type OpaquePart = {
-    source: Span;
-    text: string;
-};
 export type Emitter = {
     context: ParseContext;
-    /**
-     * the derivation's opaque
-     * parts
-     */
-    opaque: Map<Derivation, OpaquePart>;
-    /**
-     * whether any input token has attachments
-     */
+    strings: StringWalk;
     forwards: boolean;
-    /**
-     * the input
-     * tokens whose attachments a token of this emission has inherited
-     */
     inherited: Set<import("./tokens.js").AttachedToken>;
 };
 /**

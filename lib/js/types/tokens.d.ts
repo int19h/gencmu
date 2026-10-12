@@ -15,9 +15,9 @@ export declare class Token {
     span: Span;
     source: Span;
     text: string;
-    phonemes: string | null;
+    value: string;
     insertedBy: string | undefined;
-    label: string;
+    image: string;
     /**
      * The tokens attached before this one (engine §11), none by default.
      * @type {AttachedToken[]}
@@ -33,13 +33,13 @@ export declare class Token {
      * @param {Span} span the tokens of the stage before it this token covers
      * @param {Span} source the code points of the text it covers
      * @param {string} text the text it covers, as written
-     * @param {string | null} phonemes what it sounds like
+     * @param {string} [value] the stored comparison string
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
-     * @param {string} [label] what it shows to people (engine §5): by default
+     * @param {string} [image] what it shows to people (engine §5): by default
      *   its text, as for a character token or one that a caller supplies
      */
-    constructor(tags: TagSet, span: Span, source: Span, text: string, phonemes: string | null, insertedBy: string | undefined, label?: string);
+    constructor(tags: TagSet, span: Span, source: Span, text: string, value?: string, insertedBy?: string | undefined, image?: string);
 }
 /**
  * Whether a token has attachments (engine §11).

@@ -2,8 +2,8 @@ import type { ParseError, ParseResult, ResultNode, Span } from "./types.js";
 import type { AttachedToken, Token } from "./tokens.js";
 export type TokenJson = {
     text: string;
-    phonemes: string;
-    label: string;
+    value: string;
+    image: string;
     tags: string[];
     /**
      * absent for an attached token
@@ -31,6 +31,7 @@ export type NodeJson = {
     terminal: string;
     span: Span;
     source: Span;
+    value?: string;
 } | {
     kind: "rule";
     rule: string;
@@ -106,8 +107,8 @@ export type DisplayValue = {
  * A token in the result JSON.
  * @typedef {object} TokenJson
  * @property {string} text
- * @property {string} phonemes
- * @property {string} label
+ * @property {string} value
+ * @property {string} image
  * @property {string[]} tags
  * @property {Span} [span] absent for an attached token
  * @property {Span} source
@@ -118,7 +119,7 @@ export type DisplayValue = {
 /**
  * A result tree node in the result JSON.
  * @typedef {{kind: "token", terminal: string, token: number, span: Span, source: Span}
- *   | {kind: "elided", terminal: string, span: Span, source: Span}
+ *   | {kind: "elided", terminal: string, span: Span, source: Span, value?:string}
  *   | {kind: "rule", rule: string, span: Span, source: Span, tags: string[], children: NodeJson[]}} NodeJson
  */
 /**
@@ -178,7 +179,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 11;
+export declare const RESULT_FORMAT = 12;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}
@@ -193,7 +194,7 @@ export declare function resultJson(result: ParseResult): ResultJson;
 /**
  * A token's attachments on one line, for the token tables: `◂ ` before a
  * before-attachment and `▸ ` before an after-attachment, each with its
- * classes and its label, and its own attachments after it in parentheses.
+ * classes and its image, and its own attachments after it in parentheses.
  * The empty string for a token with none.
  * @param {AttachedToken} token
  * @returns {string}
@@ -242,7 +243,7 @@ export declare function toTree(result: ParseResult): string;
 export declare function withoutHollowNodes(root: ResultNode): ResultNode;
 /**
  * The tree rendering of any tree over the tokens its nodes index. `text` is
- * the text that the tokens' sources index. Without it, only the labels
+ * the text that the tokens' sources index. Without it, only the images
  * decide whether a rule's tokens fit on its line.
  * @param {ResultNode} root
  * @param {Token[]} tokens

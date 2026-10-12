@@ -11,8 +11,6 @@ export declare class UnicodeTable {
     categories: string[];
     /** @type {[number, number][]} */
     whiteSpace: [number, number][];
-    /** @type {Map<number, number>} */
-    lower: Map<number, number>;
     /** @param {string} text the contents of unicode.txt */
     constructor(text: string);
     /**
@@ -35,25 +33,4 @@ export declare class UnicodeTable {
      * @returns {boolean}
      */
     isWhiteSpace(code: number): boolean;
-    /**
-     * Whether a scalar value has a property (engine §1), whose name must be
-     * one of PROPERTY_NAMES.
-     * @param {string} name
-     * @param {number} code
-     * @returns {boolean}
-     */
-    hasProperty(name: string, code: number): boolean;
-    /**
-     * The canonical form of a sound (engine §5): each code point replaced by
-     * its simple lowercase mapping, and every comma, the syllable break,
-     * removed.
-     * @param {string} text
-     * @returns {string}
-     */
-    canonical(text: string): string;
-    /**
-     * @param {string} text
-     * @returns {string}
-     */
-    lowercase(text: string): string;
 }

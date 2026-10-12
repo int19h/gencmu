@@ -35,10 +35,9 @@ export type ElidedNode = {
     source: Span;
     /**
      * the string of the terminator's `=` test, if it
-     * has one, which a restored token sounds like and the output does not
-     * show (engine §7)
+     * has one, which a restored token stores (engine §7)
      */
-    sound?: string;
+    value?: string;
 };
 export type RuleNode = {
     kind: "rule";
@@ -93,7 +92,7 @@ export type Restoration = {
     terminal: string;
     at: number;
     source: Span;
-    sound?: string;
+    value?: string;
 };
 export type Action = ReadAction | CloseAction;
 export type ReadAction = {
@@ -221,6 +220,17 @@ export type ParseResult = {
      */
     features: string[];
 };
+export type InputToken = {
+    tags: Iterable<string>;
+    span: Span;
+    source: Span;
+    text: string;
+    value?: string;
+    image?: string;
+    insertedBy?: string;
+    before?: unknown[];
+    after?: unknown[];
+};
 export type ParseOptions = {
     /**
      * the features to turn on, besides
@@ -250,7 +260,7 @@ export type ParseOptions = {
      * the first stage's input, in place of the
      * text's characters
      */
-    tokens?: Token[];
+    tokens?: InputToken[];
 };
 export type GrammarDom = {
     format: number;
@@ -271,9 +281,9 @@ export type DomEntry = {
      */
     guards: Guard[];
     /**
-     * each a canonical sound
+     * the unresolved string keys
      */
-    keys: string[];
+    keys: Term[];
     op: "∈" | "∉";
     /**
      * an identifier tag that begins with a capital
@@ -292,6 +302,9 @@ export type DomConstant = {
     value: Term;
     at: Position;
 };
+export type Recipe = {
+    concat: Term[];
+};
 export type DomDirective = {
     name: string;
     args: string[];
@@ -305,13 +318,17 @@ export type DomRule = {
     alternatives: DomAlternative[];
     emit?: Emission;
     conditions: Condition[];
-    opaque?: true;
+    erased?: true;
+    value?: Recipe;
+    image?: Recipe;
     at: Position;
 };
 export type DomAlternative = {
     guards: Guard[];
     expr: Expr;
     tags?: Term;
+    value?: Recipe;
+    image?: Recipe;
 };
 export type Guard = {
     feature: string;
@@ -328,13 +345,14 @@ export type Guard = {
 export type Pattern = {
     name: string;
     at: Position;
-} | PatternTerminal | {
-    constant: string;
-    at: Position;
-} | {
-    test: TestOp;
+} | PatternAtom | {
+    test: "=" | "≠";
     value: Term;
-    expr: PatternTerminal;
+    expr: PatternTestTarget;
+} | {
+    test: "tags";
+    requirements: Requirement[];
+    expr: PatternAtom;
 } | {
     children: PatternChildren;
 } | {
@@ -350,6 +368,24 @@ export type Pattern = {
 export type PatternTerminal = {
     terminal: string;
     at: Position;
+};
+export type PatternAtom = PatternTerminal | {
+    literal: Term;
+    at: Position;
+} | {
+    range: [Term, Term];
+    at: Position;
+} | {
+    wildcard: true;
+    at: Position;
+} | {
+    constant: string;
+    at: Position;
+};
+export type PatternTestTarget = PatternAtom | {
+    test: "tags";
+    requirements: Requirement[];
+    expr: PatternAtom;
 };
 export type PatternChildren = {
     node: Pattern;
@@ -384,40 +420,54 @@ export type Expr = {
 } | {
     ref: string;
 } | {
-    terminal: string;
+    range: [Term, Term];
 } | {
-    range: [string, string];
+    literal: Term;
 } | {
-    property: string;
+    wildcard: true;
 } | {
-    test: TestOp;
+    test: "=" | "≠";
     value: Term;
+    expr: TestedSymbol;
+} | {
+    test: "tags";
+    requirements: Requirement[];
     expr: TestedSymbol;
 } | {
     empty: true;
 };
-export type TestOp = "=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅";
+export type TestOp = "tags" | "=" | "≠";
 export type TestedSymbol = {
     ref: string;
 } | {
-    terminal: string;
+    range: [Term, Term];
 } | {
-    range: [string, string];
+    literal: Term;
 } | {
-    property: string;
+    wildcard: true;
+} | {
+    test: "tags";
+    requirements: Requirement[];
+    expr: TestedSymbol;
 };
 export type Emission = {
     items: EmitItem[];
 };
 export type EmitItem = {
     capture?: string;
-    insert?: string;
+    insert?: true;
     tags?: Term;
+    value?: Recipe;
+    image?: Recipe;
     before?: string[];
     after?: string[];
 };
 export type Comparator = "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇";
 export type Condition = {
+    method: string;
+    receiver: Term;
+    args: Argument[];
+} | {
     any: Condition[];
 } | {
     all: Condition[];
@@ -429,26 +479,24 @@ export type Condition = {
     if: Condition;
     then: Condition;
 } | {
-    matches: Term;
-    rule: string;
-} | {
-    begins: Term;
-    rule: string;
-} | {
-    initial: Term;
-} | {
     op: Comparator;
     left: Term;
     right: Term;
 };
 export type Term = {
+    method: string;
+    receiver: Term;
+    args: Argument[];
+} | {
+    interpolate: ({
+        string: string;
+    } | ConstantTerm)[];
+} | {
     pattern: Pattern;
 } | {
     string: string;
 } | {
     tag: string;
-} | {
-    range: [string, string];
 } | {
     emptySet: true;
 } | {
@@ -460,9 +508,6 @@ export type Term = {
     intersection: Term[];
 } | {
     difference: [Term, Term];
-} | {
-    call: string;
-    args: Argument[];
 } | {
     capture: string;
 } | ConstantTerm;
@@ -485,23 +530,29 @@ export type GrammarSymbol = {
      * of the terminal's identity (engine §4)
      */
     test?: SymbolTest;
+    literal?: string;
+    wildcard?: true;
     /**
      * for a range or a property, the
      * characters it matches; its name is then its written form (engine §4)
      */
     characters?: CharacterClass;
 };
+export type Requirement = {
+    negated: boolean;
+    value: Term;
+};
 export type SymbolTest = {
     op: TestOp;
-    sound?: string;
-    tags?: TagSet;
+    value?: string;
+    positive?: TagSet;
+    negative?: TagSet;
+    inner?: SymbolTest;
     written: string;
 };
 export type CharacterClass = {
     from: number;
     to: number;
-} | {
-    property: string;
 };
 export type Capture = {
     name: string;
@@ -516,6 +567,7 @@ export type ReadyCondition = {
 };
 export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
+    logicalSource?: import("./grammar.js").StitchedAlternative;
     writtenExpression?: Expr;
     rankedGroup?: import("./ranked.js").RankedGroup;
     rankedOption?: number;
@@ -535,6 +587,7 @@ export type Production = {
     id: number;
     lhs: string;
     rhs: GrammarSymbol[];
+    logical?: import("./logical.js").LogicalSymbol[];
     helper: boolean;
     flags: string[];
     /**
@@ -547,7 +600,7 @@ export type Production = {
     elided: string | null;
     /**
      * the test of that terminator, an
-     * `=` test whose string a restored token sounds like, or null (engine §7)
+     * `=` test whose value a restored token stores, or null (engine §7)
      */
     elidedTest: SymbolTest | null;
     captures: Capture[];
@@ -569,11 +622,9 @@ export type Production = {
     conditionsAt: ReadyCondition[][];
     tags: Term | null;
     emit: Emission | null;
-    /**
-     * whether its constituent is an opaque part,
-     * which sounds `?` and shows its text (engine §11)
-     */
-    opaque: boolean;
+    erased: boolean;
+    value?: Recipe;
+    image?: Recipe;
     /**
      * the features of the alternative's warnings,
      * in the order they are written; none for a helper
@@ -767,9 +818,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} terminal
  * @property {Span} span
  * @property {Span} source
- * @property {string} [sound] the string of the terminator's `=` test, if it
- *   has one, which a restored token sounds like and the output does not
- *   show (engine §7)
+ * @property {string} [value] the string of the terminator's `=` test, if it
+ *   has one, which a restored token stores (engine §7)
  */
 /**
  * A result tree node for a rule.
@@ -816,12 +866,12 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A terminator that the check of elision-only wrote back (engine §7.9): its
  * terminal, its position in the stage's input, the empty source of its
- * elided node, and the sound of a terminator with an `=` test.
+ * elided node, and the value of a terminator with an `=` test.
  * @typedef {object} Restoration
  * @property {string} terminal
  * @property {number} at
  * @property {Span} source
- * @property {string} [sound]
+ * @property {string} [value]
  */
 /**
  * One step of a derivation, read bottom-up: a token read, or a production
@@ -926,6 +976,19 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   features added included; not part of the canonical JSON
  */
 /**
+ * A caller token with independently optional value and image strings.
+ * @typedef {object} InputToken
+ * @property {Iterable<string>} tags
+ * @property {Span} span
+ * @property {Span} source
+ * @property {string} text
+ * @property {string} [value]
+ * @property {string} [image]
+ * @property {string} [insertedBy]
+ * @property {unknown[]} [before]
+ * @property {unknown[]} [after]
+ */
+/**
  * @typedef {object} ParseOptions
  * @property {Iterable<string>} [features] the features to turn on, besides
  *   those the dialect's pipeline turns on
@@ -936,7 +999,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} [until] the name of the last stage to run
  * @property {boolean | null} [elisionOnly] override the grammar's own
  *   elision-only setting
- * @property {Token[]} [tokens] the first stage's input, in place of the
+ * @property {InputToken[]} [tokens] the first stage's input, in place of the
  *   text's characters
  */
 /**
@@ -962,7 +1025,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * (engine §2).
  * @typedef {object} DomEntry
  * @property {Guard[]} guards gates only
- * @property {string[]} keys each a canonical sound
+ * @property {Term[]} keys the unresolved string keys
  * @property {"∈" | "∉"} op
  * @property {string} class an identifier tag that begins with a capital
  * @property {Position} at
@@ -984,6 +1047,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Term} value
  * @property {Position} at
  */
+/** @typedef {{concat:Term[]}} Recipe */
 /**
  * @typedef {object} DomDirective
  * @property {string} name
@@ -999,7 +1063,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {DomAlternative[]} alternatives
  * @property {Emission} [emit]
  * @property {Condition[]} conditions
- * @property {true} [opaque]
+ * @property {true} [erased]
+ * @property {Recipe} [value]
+ * @property {Recipe} [image]
  * @property {Position} at
  */
 /**
@@ -1007,6 +1073,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Guard[]} guards
  * @property {Expr} expr
  * @property {Term} [tags]
+ * @property {Recipe} [value]
+ * @property {Recipe} [image]
  */
 /**
  * @typedef {object} Guard
@@ -1017,12 +1085,14 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A structural node predicate in a grammar DOM (output §2).
- * @typedef {{name:string, at:Position} | PatternTerminal | {constant:string, at:Position}
- *   | {test:TestOp, value:Term, expr:PatternTerminal} | {children:PatternChildren}
+ * @typedef {{name:string, at:Position} | PatternAtom
+ *   | {test:"="|"≠", value:Term, expr:PatternTestTarget} | {test:"tags", requirements:Requirement[], expr:PatternAtom} | {children:PatternChildren}
  *   | {union:Pattern[]} | {intersection:Pattern[]} | {difference:[Pattern,Pattern]}
  *   | {path:"descendant"|"first"|"last", pattern:Pattern}} Pattern
  */
 /** @typedef {{terminal:string, at:Position}} PatternTerminal */
+/** @typedef {PatternTerminal | {literal:Term,at:Position} | {range:[Term,Term],at:Position} | {wildcard:true,at:Position} | {constant:string,at:Position}} PatternAtom */
+/** @typedef {PatternAtom | {test:"tags",requirements:Requirement[],expr:PatternAtom}} PatternTestTarget */
 /**
  * A pattern expression over sibling nodes.
  * @typedef {{node:Pattern} | {sequence:PatternChildren[]} | {optional:PatternChildren}
@@ -1032,17 +1102,17 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A rule body expression.
  * @typedef {{choice: Expr[]} | {ranked: Expr[]} | {and: Expr[]} | {seq: Expr[]}
  *   | {repeat: Expr, separator?: Expr, chain?: "left" | "right"}
- *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string} | {terminal: string}
- *   | {range: [string, string]} | {property: string}
- *   | {test: TestOp, value: Term, expr: TestedSymbol} | {empty: true}} Expr
+ *   | {optional: Expr, elidable?: true} | {capture: string, expr: Expr} | {ref: string}
+ *   | {range: [Term, Term]} | {literal: Term} | {wildcard: true}
+ *   | {test: "="|"≠", value: Term, expr: TestedSymbol} | {test: "tags", requirements: Requirement[], expr: TestedSymbol} | {empty: true}} Expr
  */
 /**
  * The comparator of a test in a body (engine §2).
- * @typedef {"=" | "≠" | "⊇" | "⊉" | "∩=∅" | "∩≠∅"} TestOp
+ * @typedef {"tags" | "=" | "≠"} TestOp
  */
 /**
  * What a test follows: a reference other than `#`, or a terminal.
- * @typedef {{ref: string} | {terminal: string} | {range: [string, string]} | {property: string}} TestedSymbol
+ * @typedef {{ref: string} | {range: [Term, Term]} | {literal: Term} | {wildcard: true} | {test: "tags", requirements: Requirement[], expr: TestedSymbol}} TestedSymbol
  */
 /**
  * An emission clause.
@@ -1055,8 +1125,10 @@ export type ParseContext = import("./earley.js").ParseContext;
  * attachment captures before it and after it (engine §11).
  * @typedef {object} EmitItem
  * @property {string} [capture]
- * @property {string} [insert]
+ * @property {true} [insert]
  * @property {Term} [tags]
+ * @property {Recipe} [value]
+ * @property {Recipe} [image]
  * @property {string[]} [before]
  * @property {string[]} [after]
  */
@@ -1065,16 +1137,16 @@ export type ParseContext = import("./earley.js").ParseContext;
  */
 /**
  * A condition.
- * @typedef {{any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
- *   | {if: Condition, then: Condition} | {matches: Term, rule: string} | {begins: Term, rule: string} | {initial: Term}
+ * @typedef {{method: string, receiver: Term, args: Argument[]} | {any: Condition[]} | {all: Condition[]} | {not: Condition} | {captured: string}
+ *   | {if: Condition, then: Condition}
  *   | {op: Comparator, left: Term, right: Term}} Condition
  */
 /**
  * A term of a condition or a tags clause: a string, a tag literal, the
- * empty set, a set expression, a guarded term, a call, or a span, which
- * only a call's argument can be (engine §10).
- * @typedef {{pattern: Pattern} | {string: string} | {tag: string} | {range: [string, string]} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
- *   | {intersection: Term[]} | {difference: [Term, Term]} | {call: string, args: Argument[]} | {capture: string} | ConstantTerm} Term
+ * empty set, a set expression, a guarded term, a method, or a span
+ * (engine §10).
+ * @typedef {{method: string, receiver: Term, args: Argument[]} | {interpolate: ({string: string} | ConstantTerm)[]} | {pattern: Pattern} | {string: string} | {tag: string} | {emptySet: true} | {union: Term[]} | {if: Condition, then: Term}
+ *   | {intersection: Term[]} | {difference: [Term, Term]} | {capture: string} | ConstantTerm} Term
  */
 /**
  * A reference to a constant, with the position of the reference. In a
@@ -1093,23 +1165,32 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {boolean} terminal
  * @property {SymbolTest} [test] the test on the symbol's own span; not part
  *   of the terminal's identity (engine §4)
+ * @property {string} [literal]
+ * @property {true} [wildcard]
  * @property {CharacterClass} [characters] for a range or a property, the
  *   characters it matches; its name is then its written form (engine §4)
  */
 /**
- * A test of a lowered symbol, with its value: a string for a sound test and
+ * A test of a lowered symbol, with its value: a string for a value test and
  * a tag set for a tag test, and the test as an expected list writes it
  * (docs/output.md).
+ * @typedef {object} Requirement
+ * @property {boolean} negated
+ * @property {Term} value
+ */
+/**
  * @typedef {object} SymbolTest
  * @property {TestOp} op
- * @property {string} [sound]
- * @property {TagSet} [tags]
+ * @property {string} [value]
+ * @property {TagSet} [positive]
+ * @property {TagSet} [negative]
+ * @property {SymbolTest} [inner]
  * @property {string} written
  */
 /**
  * The characters a range or a property matches: a range's first and last
  * scalar values, or a property's name.
- * @typedef {{from: number, to: number} | {property: string}} CharacterClass
+ * @typedef {{from: number, to: number}} CharacterClass
  */
 /**
  * @typedef {object} Capture
@@ -1127,6 +1208,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * A production of a lowered grammar (engine §3).
  * @typedef {object} Production
  * @property {import("./grammar.js").StitchedAlternative} [source]
+ * @property {import("./grammar.js").StitchedAlternative} [logicalSource]
  * @property {Expr} [writtenExpression]
  * @property {import("./ranked.js").RankedGroup} [rankedGroup]
  * @property {number} [rankedOption]
@@ -1143,12 +1225,13 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} id
  * @property {string} lhs
  * @property {GrammarSymbol[]} rhs
+ * @property {import("./logical.js").LogicalSymbol[]} [logical]
  * @property {boolean} helper
  * @property {string[]} flags
  * @property {string} owner the rule the production was lowered from
  * @property {string | null} elided the terminator an empty helper stands for
  * @property {SymbolTest | null} elidedTest the test of that terminator, an
- *   `=` test whose string a restored token sounds like, or null (engine §7)
+ *   `=` test whose value a restored token stores, or null (engine §7)
  * @property {Capture[]} captures
  * @property {number[]} captureAt for each position of `rhs`, the index in
  *   `captures` of the capture there, or -1
@@ -1159,8 +1242,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   each position, at `readyAt + 1`, in written order
  * @property {Term | null} tags
  * @property {Emission | null} emit
- * @property {boolean} opaque whether its constituent is an opaque part,
- *   which sounds `?` and shows its text (engine §11)
+ * @property {boolean} erased
+ * @property {Recipe} [value]
+ * @property {Recipe} [image]
  * @property {string[]} warnings the features of the alternative's warnings,
  *   in the order they are written; none for a helper
  */

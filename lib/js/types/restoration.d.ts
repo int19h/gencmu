@@ -3,9 +3,9 @@ export type RestorationRecord = {
     terminal: string;
     at: number;
     source: [number, number];
-    sound?: string;
+    value?: string;
 };
-/** @typedef {{terminal: string, at: number, source: [number, number], sound?: string}} RestorationRecord */
+/** @typedef {{terminal: string, at: number, source: [number, number], value?: string}} RestorationRecord */
 /**
  * @param {import("./tokens.js").Token[]} tokens
  * @param {RestorationRecord[]} records

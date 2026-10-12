@@ -138,7 +138,7 @@ export type Membership = {
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
- * extended, and `%emits ε` that changes nothing.
+ * extended, and `%erased` that changes nothing.
  * @param {Dialect} dialect
  * @returns {StageAudit[]}
  */

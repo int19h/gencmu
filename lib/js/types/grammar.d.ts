@@ -1,6 +1,6 @@
 import { RankedGroups } from "./ranked.js";
 import { GencmuError } from "./errors.js";
-import type { Condition, DomAlternative, DomClassifier, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
+import type { Condition, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, LoweredGrammar, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js";
 import type { TermType } from "./dom.js";
 export type StageConstant = {
     value: TermValue;
@@ -20,7 +20,9 @@ export type RuleClauses = {
     tags: Term | undefined;
     emit: Emission | undefined;
     conditions: Condition[];
-    opaque: boolean;
+    erased: boolean;
+    value: import("./types.js").Recipe | undefined;
+    image: import("./types.js").Recipe | undefined;
 };
 export type StitchedRule = {
     name: string;
@@ -58,7 +60,6 @@ export declare class Grammar {
     stageName: string;
     unicode: {
         isMark(code: number): boolean;
-        lowercase(text: string): string;
     };
     /** @type {Map<string, StageConstant>} */
     constants: Map<string, StageConstant>;
@@ -98,6 +99,8 @@ export declare class Grammar {
         path: string;
         implication: DomImplication;
     }[];
+    /** @type {WeakMap<DomEntry,string[]>} */
+    classifierKeys: WeakMap<DomEntry, string[]>;
     /** @type {StageImplication[]} */
     implications: StageImplication[];
     /**
@@ -133,16 +136,15 @@ export declare class Grammar {
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean, lowercase(text: string): string}} unicode
+     * @param {{isMark(code: number): boolean}} unicode
      *   the loader's table, for the tags of a range in a constant's value and
-     *   the canonical sound of a string constant in a test
+     *   the canonical value of a string constant in a test
      */
     constructor(stageName: string, documents: {
         path: string;
         dom: GrammarDom;
     }[], unicode: {
         isMark(code: number): boolean;
-        lowercase(text: string): string;
     });
     /**
      * @param {string} path
@@ -218,14 +220,16 @@ export declare class Grammar {
     /**
      * A test of a body with its value, from the constants' final values
      * (engine §2, §4).
-     * @param {{test: TestOp, value: Term}} test
+     * @param {{test: TestOp, value?: Term, requirements?: import("./types.js").Requirement[], expr?:Expr}} test
      * @param {string} path
      * @param {ErrorLocation} at
      * @returns {SymbolTest}
      */
     symbolTest(test: {
         test: TestOp;
-        value: Term;
+        value?: Term;
+        requirements?: import("./types.js").Requirement[];
+        expr?: Expr;
     }, path: string, at: ErrorLocation): SymbolTest;
     checkReferences(): void;
     /**

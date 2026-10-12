@@ -104,15 +104,15 @@ export declare class ParseContext {
     /** Whether the check of engine §7 is running over this context's input. */
     checking: boolean;
     /**
-     * Each token's phonemes in canonical form, for the sound tests of
-     * symbols and for phonemes(), computed when one first looks at the
+     * Each token's value in canonical form, for the value tests of
+     * symbols and for value(), computed when one first looks at the
      * token (engine §4, §5).
      * @type {(string | undefined)[]}
      */
-    sounds: (string | undefined)[];
+    storedValues: (string | undefined)[];
     /**
-     * For each position, the first token at or after it whose sound is not
-     * empty, made on the first sound test. A test then skips a run of
+     * For each position, the first token at or after it whose value is not
+     * empty, made on the first value test. A test then skips a run of
      * silent tokens in one step, rather than walking it each time.
      * @type {Int32Array | null}
      */
