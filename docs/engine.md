@@ -1231,7 +1231,9 @@ pattern-atom = rule-name | terminal [tag-test] [value-test]
              | constant-reference [tag-test] [value-test] | pattern-literal | grouped-pattern
 ```
 
-These valid forms restrict the recognition forms without replacing their grammar. The following restrictions also describe validity, not syntax recognition. Section 9.3 defines each rejection's position and priority.
+These valid forms restrict the recognition forms without replacing their grammar. Recognition enforces the leading bar after header clauses and the count and order of clauses. It also enforces two or more ranked options, unmixed choice operators, and the number and placement of markers. Failures of those rules are syntax errors at the furthest position reached.
+
+The remaining restrictions describe reader validity after recognition succeeds. Section 9.3 defines their rejection positions and priority.
 
 In the valid forms, a symbol reference excludes `#`. An untested `#` remains a primary and a capture target.
 
