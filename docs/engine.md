@@ -1127,7 +1127,8 @@ choice = ["|"] conjunction {"|" conjunction} | ranked-choice
 conjunction = ["&"] sequence {"&" sequence}
 sequence = primary {primary}
 primary = captured | tested | untested-primary
-captured = capture-reference ":" primary
+captured = capture-binder ":" primary
+capture-binder = capture-reference | constant-reference
 tested = untested-primary symbol-test {symbol-test}
 untested-primary = reference | tag | string-terminal | range | "_"
                  | group | optional | repetition | "ε"
@@ -1207,6 +1208,7 @@ Recognition names describe productions. The following mapping specifies the name
 | `document` | Root `text` |
 | `flags` and its names | `rule-flags` with `rule-flag` parts |
 | `captured` | `capture` with a binder token and `primary` |
+| `capture-binder` | Direct prefixed-name token, checked as a capture name |
 | `tested` | `tested` with an unwrapped base constructor and the written tests |
 | `ungrouped-pattern-atom` | Shorthand `pattern-atom`, excluding a plain grouped atom |
 | `ranked-body` | `ranked-alternative` with guards, `ranked-choice`, and clauses |
@@ -1229,6 +1231,8 @@ Tests can follow every primary, in any number and order. A capture target is any
 Names, capture references, method names, engine-tag tokens, strings, include paths, and guards are lexical forms. A capture reference includes `$`. Names include both initial cases. These recognition categories do not impose the reader's naming, type, or signature restrictions. `%include` takes exactly one operand, its include path. Only its first operand receives literal include-path decoding, and that operand must be quoted. Any later quoted operand follows ordinary string lexical forms. Other directive strings follow those forms too. The reader rejects wrong operand types at the directive before term conversion.
 
 Thus `%include "a.md" "b$c.md"` fails lexically at `$`, column 19. With two well-formed quoted operands, the reader reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
+
+Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder.
 
 Recognition admits captures of groups, optionals, repeats, empty expressions, and captures, including `$` as a binder. It admits captures inside braces and marked optionals. It admits invalid marked-optional contents and chains inside other expressions. Section 9.3 rejects these forms at the capture, optional, or repetition that it specifies.
 
