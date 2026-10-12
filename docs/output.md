@@ -244,7 +244,13 @@ Terms have these forms:
 {"pattern":PATTERN}
 ```
 
-A run of bare tag names produces one `union` of singleton `tag` terms in written order. It flattens into an enclosing `union`, including through grouping parentheses. A parenthesized union written with `∪` does not flatten into an enclosing union. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. `(Word BY) ∩ $l.tags` retains the run's union as the intersection's first operand.
+A run of bare tag names produces one `union` of singleton `tag` terms in written order. Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
+
+For example, `A ∪ (B ∪ C)` gives this term:
+
+```json
+{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}
+```
 
 `STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
 

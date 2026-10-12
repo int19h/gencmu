@@ -1223,10 +1223,10 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `string` | One complete quoted token | Decode left to right as specified below. Retain unresolved interpolation. |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
-| `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union. |
+| `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union, regardless of grouping. |
 | `term-atom` | One string, tag, tag run, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
-| `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions at this written level flatten. A sole part stays unchanged. |
+| `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
 | `empty-set` | One `∅` token | `emptySet:true` |
 | `capture-reference` | One capture token | `capture`, name without `$`, with empty name for `$` |
@@ -1258,7 +1258,7 @@ Header, alternative, and item clauses use the same channel constructors. The rea
 
 For example, `%rule r := "v" :- "i" | "a"` supplies distinct header recipes. Its `value-clause` gives `value:{"concat":[{"string":"v"}]}`. Its `image-clause` gives `image:{"concat":[{"string":"i"}]}`. `%emits` supplies one whole-constituent item, while `%erased` supplies `erased:true` without an emission.
 
-A tag run forms one union in written order. Its union flattens into an enclosing union, including through grouping parentheses. A parenthesized union written with `∪` does not flatten into an enclosing union.
+A tag run forms one union in written order. Any union operand that is itself a union flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. Intersection and difference retain their operands, so `(A ∪ B) ∩ C` keeps the union as one intersection operand.
 
 A run requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. Without parentheses, the reader reports a document error at the run's first name. It checks placement before reading the names, then requires at least two `tag` parts. Thus `:: ∩ Word BY` fails at `Word`, and `A ∪ B C ∖ D` fails at `B`.
 
@@ -1273,7 +1273,7 @@ The following compact examples show the additional conversions. Positions illust
 | `@$S` | `{"pattern":{"constant":"S","at":[1,2]}}` |
 | `@$S="x"` | `{"pattern":{"test":"=","value":{"string":"x"},"expr":{"constant":"S","at":[1,2]}}}` |
 | `:: $f.tags ∪ Run-Initial Run-Final` | `{"union":[{"method":"tags","receiver":{"capture":"f"},"args":[]},{"tag":"Run-Initial"},{"tag":"Run-Final"}]}` |
-| `A ∪ (B ∪ C)` | `{"union":[{"tag":"A"},{"union":[{"tag":"B"},{"tag":"C"}]}]}` |
+| `A ∪ (B ∪ C)` | `{"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}` |
 | `(Word BY) ∩ $l.tags` | `{"intersection":[{"union":[{"tag":"Word"},{"tag":"BY"}]},{"method":"tags","receiver":{"capture":"l"},"args":[]}]}` |
 | `"a$(_0301)"` | `{"interpolate":[{"string":"a"},{"const":"_0301","at":[1,3]}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |

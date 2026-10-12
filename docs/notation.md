@@ -700,7 +700,9 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 
 A run of bare tag names can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
 
-`A ∪ B C ∖ D` is an error at `B`. A run forms a union in written order and flattens into any enclosing union. A parenthesized union written with `∪` does not flatten into an enclosing union. Other atoms require explicit operators.
+`A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Intersection and difference retain their operands. Other atoms require explicit operators.
+
+`A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
 Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. A string is not a string set, so `"a" ∪ "b"` is an error.
 
