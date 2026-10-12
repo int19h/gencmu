@@ -2083,4 +2083,4 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy MI   DO gy bu`, also after indicators |
 
-These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. Normalization tests must also establish unchanged images, count, order, tags, and sources.
+These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. The proof compares spans within each stage's input coordinates and maps them where input token counts differ from main.

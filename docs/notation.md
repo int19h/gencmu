@@ -889,7 +889,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Normalization as a stage
 
-A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipelines place it after phonemes and before forms. It tests a value and tag together and changes only values. Token count, order, tags, images, and sources remain unchanged.
+A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipelines place it after phonemes and before forms. It tests a value and tag together. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
 
 ```jbogenbau
 %stage normalize
@@ -904,7 +904,7 @@ A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipeline
 %emits
 ```
 
-The explicit image recipe preserves written images while value recipes provide normalized comparisons. A mapped tag without a supported value fails recognition. The phoneme stage emits one comma for a comma run. Forms reads its surviving Syllable-Break tag. A foreign run passes through unchanged.
+The explicit image recipe preserves written images while value recipes provide normalized comparisons. A mapped tag without a supported value fails recognition. The phoneme stage emits one comma for a comma run. Forms reads its surviving Syllable-Break tag. The catch-all keeps a foreign run's value and image. Its output still follows ordinary span and provenance rules.
 
 ## Pipelines
 
