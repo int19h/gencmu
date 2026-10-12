@@ -123,7 +123,7 @@ test("both readers admit every new family of written forms", () => {
 test("both readers reject invalid forms at the same specified position", () => {
   const loader = notationLoader();
   for (const source of [
-    "%rule r $X:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
+    "%rule r $X:A", "%rule r $Foo:A", "%rule r $_0041:A", "%rule a $x:(B) %rule r $Foo:A", "%rule r $x:A<B><C>", "%stage $X", "%rule Foo A",
     "%rule r ¬cbm! A", "%rule r ¬ cbm? A", '%const $_0041 "x"',
     '%rule r A := ∪ "a"', '%include "a.md" "b$c.md"',
     '%rule r $x:A %conditions $x ≅ @(sumti="x")',

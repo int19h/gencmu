@@ -1,0 +1,10 @@
+{
+  "description": "N28 accepts constant tokens as binders during recognition. The reader rejects the name at the binder, in reader order.",
+  "document": "```jbogenbau\n%rule r $Foo:A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  }
+}

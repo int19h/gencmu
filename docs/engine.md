@@ -1232,7 +1232,7 @@ Names, capture references, method names, engine-tag tokens, strings, include pat
 
 Thus `%include "a.md" "b$c.md"` fails lexically at `$`, column 19. With two well-formed quoted operands, the reader reports the wrong count at `%include`. With no operand or a wrong operand type, it also reports at `%include`.
 
-Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder.
+Recognition accepts a constant token as a capture binder before `:`. The reader rejects its capitalized or engine name at that binder. This is a reader error, so an earlier reader error wins after syntax recognition succeeds.
 
 Recognition admits captures of groups, optionals, repeats, empty expressions, and captures, including `$` as a binder. It admits captures inside braces and marked optionals. It admits invalid marked-optional contents and chains inside other expressions. Section 9.3 rejects these forms at the capture, optional, or repetition that it specifies.
 
