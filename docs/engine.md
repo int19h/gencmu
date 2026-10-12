@@ -1192,7 +1192,7 @@ directive-argument = term-atom | include-path | "#" | "_"
 constant-definition = ("%const" | "%redefine-const") constant-reference term
 classifier = "%classifier" name {classifier-entry}
 classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name | engine-tag-token)
-classifier-key = string-literal | constant-reference
+classifier-key = string-literal
 implication-declaration = "%implies" union "⟹" union
 ```
 
@@ -1265,7 +1265,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `argument-term` | One term atom, `#`, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
-| `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
+| `classifier-key` | One `string` | Unresolved STRINGTERM |
 | `classifier-operator` | One `∈` or `∉` token | Operator string |
 | `classifier-entry` | Guards, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
