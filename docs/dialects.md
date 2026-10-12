@@ -431,9 +431,10 @@ An `%extend-rule` takes its own header clauses, never those of the base definiti
 ```jbogenbau
 %extend-rule stressed-vowel
   | "Á" :: Stressed := "A"
+%emits
 ```
 
-Without `:: Stressed`, the extension inherits `_Lu` and `_L` from the character. Normalization then forwards `A` unchanged, and forms cannot read it. A consonant extension likewise needs `:: ∅` to stop inherited engine tags.
+The extension also supplies its own `%emits`. Without `:: Stressed`, the extension inherits `_Lu` and `_L` from the character. Normalization then forwards `A` unchanged, and forms cannot read it. A consonant extension likewise needs `:: ∅` to stop inherited engine tags.
 
 ## Normalize through grammar
 

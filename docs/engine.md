@@ -1140,7 +1140,7 @@ Recipe atoms have no grouping or method-chain extension. Only the methods listed
 
 Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at its test.
 
- Rule atoms and pattern-valued constant atoms accept no tests.
+Rule atoms and pattern-valued constant atoms accept no tests.
 
 ### 9.3 Conversion and validation
 
@@ -1217,7 +1217,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run` | At least two `tag-name` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union. |
-| `tag-name` | One tag token | Singleton `tag` term |
+| `tag-name` | One tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
 | `term-atom` | One string, tag, tag run, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions flatten. A sole part stays unchanged. |
