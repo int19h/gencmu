@@ -3444,7 +3444,7 @@
     // Down the chain of guards, in a loop.
     let current = node;
     while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
-      "matches" in current || "begins" in current || "initial" in current || "captured" in current || "constant" in current)) {
+      (typeof current.method === "string" && ["matches", "begins", "starts-input"].includes(current.method)) || "captured" in current || "constant" in current)) {
       if (!("if" in current)) return false;
       current = current.then;
     }
