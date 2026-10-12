@@ -255,7 +255,7 @@ func phonemeTag(tag string) (string, bool) {
 	return "", false
 }
 
-var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
+var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
 
 // isName says whether a string is a name, and so an identifier tag
 // (engine §1).
@@ -340,22 +340,7 @@ func characterOfTag(tag string, isMark func(rune) bool) (rune, bool) {
 // says which code points are marks, a character tag passes in either
 // spelling that a table could make canonical.
 func isTag(tag string, uni *unicodeTable) bool {
-	if isName(tag) {
-		return true
-	}
-	if _, ok := phonemeTag(tag); ok {
-		return true
-	}
-	if uni != nil {
-		_, ok := characterOfTag(tag, uni.isMark)
-		return ok
-	}
-	// No mark lies below U+0300.
-	if _, ok := characterOfTag(tag, func(rune) bool { return false }); ok {
-		return true
-	}
-	_, ok := characterOfTag(tag, func(c rune) bool { return c >= 0x300 })
-	return ok
+	return isCapital(tag) && isName(tag) || engineTag(tag)
 }
 
 // codeOfCharacterTag is the scalar value of a character tag in its
@@ -406,6 +391,8 @@ func rangeTags(r [2]string, isMark func(rune) bool) []string {
 // range's first and last scalar values, or a property's name.
 type charClass struct {
 	from, to rune
+	literal  *string
+	wildcard bool
 	property string // "" for a range
 }
 

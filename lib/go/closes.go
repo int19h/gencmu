@@ -401,7 +401,7 @@ func (m *closeArena) aligned(candidate, witness, end int) bool {
 
 func demandedCloses(g *lowered) map[int32]bool {
 	wanted, seen := map[int32]bool{}, map[int32]bool{}
-	pending := []int32{g.byName["text"]}
+	pending := []int32{g.byName["source-text"]}
 	for len(pending) > 0 {
 		rule := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
@@ -512,7 +512,7 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 	scan := func(n clausePart) bool {
 		if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins) {
 			span := n.c.Span
-			if span != nil && span.Kind == tmCall && span.Str == "from" {
+			if span != nil && span.Kind == tmCall && span.Str == "onward" {
 				span = span.Items[0]
 			}
 			if span != nil && span.Kind == tmCall && span.Str == "without-elision" {
@@ -609,7 +609,7 @@ func (r *recognizer) requestsChild(p *production, at, position int) bool {
 			return true
 		}
 		for terminal := range prefix.first {
-			if r.reads(r.tokenTags(position), terminal) {
+			if r.reads(position, terminal) {
 				return true
 			}
 		}

@@ -481,28 +481,33 @@ func (run *stageRun) insertedToken(tag string, at, start, end int, rule string) 
 // sources and the texts of the derivation's opaque parts, and inside says
 // whether the constituent lies inside an opaque part (§11).
 func (run *stageRun) emitted(em *emitter, n *dn, explicit *tagset, inside bool) Token {
-	rec, opaque := em.rec, em.opaque
+	rec := em.rec
 	a, b, _ := run.kidSpan(rec, n)
-	// The stage's implications apply before the phonemes and the label
-	// (§11).
 	tags := run.implied(explicit)
-	// Two phoneme tags are an error on any token (§5).
-	phoneme, ok := run.phonemeOf(tags)
-	// A token over an opaque part has the part's source and text (§11).
-	var tok Token
-	if n.kind == dClose && n.prod.opaque && !inside {
-		part := opaque[n]
-		tok = Token{Text: part.text, Tags: tags.list(), Span: [2]int{a, b}, Source: part.source}
-	} else {
-		src := run.spanSource(a, b)
-		tok = Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.list(), Span: [2]int{a, b}, Source: src}
+	src := run.spanSource(a, b)
+	tok := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: tags.list(), Span: [2]int{a, b}, Source: src}
+	var value, image strings.Builder
+	stack := []*dn{n}
+	for len(stack) > 0 {
+		x := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch x.kind {
+		case dRead:
+			t := run.toks[rec.base+int(x.tok)]
+			value.WriteString(t.Value)
+			image.WriteString(t.Image)
+		case dClose:
+			if !x.prod.nothing && x.a != nil {
+				stack = append(stack, x.a)
+			}
+		case dPart:
+			stack = append(stack, x.b)
+			if x.a != nil {
+				stack = append(stack, x.a)
+			}
+		}
 	}
-	// A phoneme tag decides the sound and the label, over ? (§5).
-	if ok {
-		tok.Phonemes, tok.Label = sounded(phoneme)
-	} else {
-		tok.Phonemes, tok.Label = run.spoken(rec, n, opaque, inside)
-	}
+	tok.Value, tok.Image = value.String(), image.String()
 	// The parts decide the attachments too, after the phoneme tags are
 	// checked (§11).
 	if em.forwards {

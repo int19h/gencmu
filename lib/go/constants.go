@@ -27,7 +27,12 @@ type constUser struct {
 
 // constantTypes gives the type of each constant of the stage now.
 func (g *stageGrammar) constantTypes() constTypes {
-	return func(name string) termType { return g.constants[name].value.ty }
+	return func(name string) termType {
+		if _, ok := engineScalar(name); ok {
+			return tyString
+		}
+		return g.constants[name].value.ty
+	}
 }
 
 // constError is an error of the document at a position of it.
@@ -77,7 +82,7 @@ func (g *stageGrammar) addConstant(doc string, k *domConst) *Error {
 }
 func (g *stageGrammar) bindConstants() *Error {
 	for _, v := range g.constVersions {
-		v.references = constRefs(v.definition.Value)
+		v.references = userConstRefs(v.definition.Value)
 		for _, r := range v.references {
 			target, ok := g.constLatest[r.Str]
 			if r.Str == v.definition.Name && v.definition.Op == "redefine" {
@@ -241,7 +246,20 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
 		}
 		return &constValue{ty: tySet}, nil
+	case tmInterpolate:
+		var b strings.Builder
+		for _, part := range t.Items {
+			piece, err := str(part)
+			if err != nil {
+				return nil, err
+			}
+			b.WriteString(piece)
+		}
+		return &constValue{ty: tyString, s: b.String()}, nil
 	case tmConst:
+		if s, ok := engineScalar(t.Str); ok {
+			return &constValue{ty: tyString, s: s}, nil
+		}
 		v := *g.constants[t.Str].value
 		return &v, nil
 	case tmUnion, tmIntersection, tmDifference:
@@ -330,7 +348,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 	types := g.constantTypes()
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {
-			if g.constants[ref.Str] == nil {
+			if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
 				return g.constError(u.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}

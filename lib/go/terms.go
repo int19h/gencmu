@@ -235,25 +235,25 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 				w.invalidObservation = true
 			}
 			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
-		case "head":
+		case "first-token":
 			s.aligned = nil
 			if s.b > s.a {
 				s.b = s.a + 1
 			}
-		case "tail":
+		case "tokens-after-first":
 			s.aligned = nil
 			if s.b > s.a {
 				s.a++
 			}
-		case "last":
+		case "last-token":
 			s.aligned = nil
 			if s.b > s.a {
 				s.a = s.b - 1
 			}
-		case "from", "after":
+		case "onward", "following-tokens":
 			// To the end of the input of the parse that evaluates the
 			// condition (§10).
-			if call.Str == "after" {
+			if call.Str == "following-tokens" {
 				s.a = s.b
 				s.aligned = nil
 			}
@@ -295,6 +295,9 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	ev, t := f.ev, f.t
 	in := ev.in()
 	switch t.Kind {
+	case tmCapture:
+		w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t))})
+		return nil
 	case tmString:
 		w.endTerm(value{kind: vString, s: t.Str})
 		return nil
@@ -373,10 +376,13 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		return nil
 	case tmCall:
 		switch t.Str {
-		case "phonemes":
+		case "value":
 			w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t.Items[0]))})
 			return nil
-		case "text":
+		case "image":
+			w.endTerm(value{kind: vString, s: ev.run.spanImage(w.span(ev, t.Items[0]))})
+			return nil
+		case "source-text":
 			w.endTerm(value{kind: vString, s: ev.run.spanText(w.span(ev, t.Items[0]))})
 			return nil
 		case "split":
@@ -458,7 +464,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			all := ev.spanTags(f.s)
 			var names []string
 			for _, n := range all.names {
-				if isTerminalName(n) {
+				if isClass(n) {
 					names = append(names, n)
 				}
 			}

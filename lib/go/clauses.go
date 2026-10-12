@@ -508,7 +508,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 func definitionProblem(r *domRule) string {
 	// A definition with no clause has nothing to check about its captures,
 	// and its productions, whose number can be exponential, are not listed.
-	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) {
+	if r.Tags == nil && len(r.Conditions) == 0 && r.Emit == nil && !anyAltTags(r) && !hasRecipes(r) {
 		return ""
 	}
 	// A constant is its value in simplification (§3.6). A clause that holds
@@ -554,17 +554,21 @@ func definitionProblem(r *domRule) string {
 		items = r.Emit.Items
 	}
 	// A constituent that does not count is never an opaque part (engine §9).
-	if r.Opaque && r.Emit != nil && r.Emit.nothing() {
-		return fmt.Sprintf("%s is opaque and emits ε", r.Name)
+	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
+		return "an erased definition cannot carry recipes or emission"
 	}
 	// A capture no alternative captures, wherever it is mentioned.
 	mentioned := map[string]bool{}
 	termMentions(r.Tags, mentioned)
+	termMentions(r.Value, mentioned)
+	termMentions(r.Image, mentioned)
 	for _, c := range r.Conditions {
 		condMentions(c, mentioned)
 	}
 	for _, a := range r.Alternatives {
 		termMentions(a.Tags, mentioned)
+		termMentions(a.Value, mentioned)
+		termMentions(a.Image, mentioned)
 	}
 	// An emission item mentions its own capture and its attachments,
 	// whatever else it says.
@@ -576,6 +580,8 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		termMentions(it.Tags, mentioned)
+		termMentions(it.Value, mentioned)
+		termMentions(it.Image, mentioned)
 	}
 	names := make([]string, 0, len(mentioned))
 	for name := range mentioned {
@@ -656,6 +662,11 @@ func definitionProblem(r *domRule) string {
 				return msg
 			}
 		}
+		for _, recipe := range effectiveRecipes(r, a) {
+			if msg := recipeCapturesProblem(recipe, has); msg != "" {
+				return msg
+			}
+		}
 		if r.Emit == nil {
 			continue
 		}
@@ -705,6 +716,11 @@ func definitionProblem(r *domRule) string {
 			}
 		}
 		for _, it := range present {
+			for _, recipe := range []*domTerm{it.Value, it.Image} {
+				if msg := recipeCapturesProblem(recipe, has); msg != "" {
+					return msg
+				}
+			}
 			if msg := lacking(it.Tags, ns, has); msg != "" {
 				return msg
 			}

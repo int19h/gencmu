@@ -878,11 +878,25 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return [][]slot{{{sym: symbol{id: lw.l.byName[e.Name]}}}}
 	case exTerminal:
 		return [][]slot{{{sym: lw.terminal(e.Name)}}}
+	case exLiteral:
+		v, err := lw.g.evaluateClosed(a.doc, e.Value, a.at)
+		if err != nil {
+			panic(err)
+		}
+		return [][]slot{{{sym: lw.classTerminal(stringTerminal(v.s, lw.g.uni), &charClass{literal: &v.s})}}}
+	case exWildcard:
+		return [][]slot{{{sym: lw.classTerminal("_", &charClass{wildcard: true})}}}
 	case exRange:
-		// A range or a property is a terminal whose name is its written
-		// form, and which matches by its characters rather than by a tag.
-		cc := &charClass{from: codeOfCharacterTag(e.Range[0]), to: codeOfCharacterTag(e.Range[1])}
-		return [][]slot{{{sym: lw.classTerminal(rangeName(e.Range), cc)}}}
+		var ends [2]string
+		for i, end := range e.Ends {
+			v, err := lw.g.evaluateClosed(a.doc, end, a.at)
+			if err != nil {
+				panic(err)
+			}
+			ends[i] = v.s
+		}
+		cc := &charClass{from: []rune(ends[0])[0], to: []rune(ends[1])[0]}
+		return [][]slot{{{sym: lw.classTerminal(stringTerminal(ends[0], lw.g.uni)+".."+stringTerminal(ends[1], lw.g.uni), cc)}}}
 	case exProperty:
 		return [][]slot{{{sym: lw.classTerminal(propertyName(e.Name), &charClass{property: e.Name})}}}
 	case exCapture:

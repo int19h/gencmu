@@ -565,16 +565,31 @@ func (r *recognizer) canRead(k int, term int32) bool {
 	if k >= r.n {
 		return false
 	}
-	return r.reads(r.tokenTags(k), term)
+	return r.reads(k, term)
 }
 
 // reads says whether a terminal matches a token with these tags (§4): a tag
 // it carries, or, for a range or a property, one of its character tags.
-func (r *recognizer) reads(ts *tagset, term int32) bool {
+func (r *recognizer) reads(k int, term int32) bool {
 	if cc := r.g.classes[term]; cc != nil {
-		return cc.carries(r.run.ps.uni, ts)
+		index := r.base + k
+		if r.recon != nil {
+			if r.recon.synthetic[k] {
+				return false
+			}
+			index = r.recon.original[k]
+		}
+		v := r.run.toks[index].Value
+		if cc.wildcard {
+			return true
+		}
+		if cc.literal != nil {
+			return v == *cc.literal
+		}
+		codes := []rune(v)
+		return len(codes) == 1 && codes[0] >= cc.from && codes[0] <= cc.to
 	}
-	return ts.has(r.g.terminals[term])
+	return r.tokenTags(k).has(r.g.terminals[term])
 }
 
 // predictable checks the conditions of a production that mention no
@@ -728,7 +743,7 @@ func (r *recognizer) process(k int, it *item) bool {
 			// again has read already.
 			if k < r.n && !again {
 				ts := r.tokenTags(k)
-				if r.reads(ts, sym.id) {
+				if r.reads(k, sym.id) {
 					// In the check, a terminal that reads a synthetic token
 					// captures no tags (§7.5). The written route of an
 					// elidable optional from a synthetic token makes the item

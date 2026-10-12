@@ -87,7 +87,7 @@ type docDOM struct {
 const maxAnd = 16
 
 func isTerminalName(name string) bool {
-	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
+	return isCapital(name) || engineTag(name)
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {

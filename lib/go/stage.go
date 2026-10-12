@@ -61,8 +61,12 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 func (ps *parseState) characterTokens() []Token {
 	toks := make([]Token, len(ps.text))
 	for i, c := range ps.text {
-		tags := []string{characterTag(c, ps.uni.isMark)}
-		toks[i] = Token{Text: string(c), Label: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+		category := ps.uni.category(c)
+		tags := []string{"_" + category, "_" + category[:1]}
+		if ps.uni.isWhiteSpace(c) {
+			tags = append(tags, "_White_Space")
+		}
+		toks[i] = Token{Text: string(c), Value: string(c), Image: string(c), Label: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 	}
 	return toks
 }
@@ -116,7 +120,7 @@ func (run *stageRun) sound(i int) string {
 		run.soundsMade = make([]bool, len(run.toks))
 	}
 	if !run.soundsMade[i] {
-		run.sounds[i] = run.ps.uni.canonical(run.toks[i].Phonemes)
+		run.sounds[i] = run.toks[i].Value
 		run.soundsMade[i] = true
 	}
 	return run.sounds[i]

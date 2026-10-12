@@ -15,6 +15,8 @@ package gencmu
 // A caller of ParseTokens cannot supply attachments.
 type Token struct {
 	Text       string
+	Value      string
+	Image      string
 	Phonemes   string
 	Label      string
 	Tags       []string

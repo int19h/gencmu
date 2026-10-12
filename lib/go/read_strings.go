@@ -1,0 +1,461 @@
+package gencmu
+
+import "strings"
+
+func unionTerm(a, b *domTerm) *domTerm {
+	var parts []*domTerm
+	for _, t := range []*domTerm{a, b} {
+		if t.Kind == tmUnion {
+			parts = append(parts, t.Items...)
+		} else {
+			parts = append(parts, t)
+		}
+	}
+	return &domTerm{Kind: tmUnion, Items: parts}
+}
+
+func (b *domBuilder) tagRun(n *Node) *domTerm {
+	for _, index := range []int{n.Span[0] - 1, n.Span[1]} {
+		if index >= 0 && index < len(b.toks) {
+			t := b.toks[index].Text
+			if t == "∩" || t == "∖" {
+				b.fail(n, "a tag run beside intersection or difference requires parentheses")
+			}
+		}
+	}
+	t := &domTerm{Kind: tmUnion}
+	for _, tag := range b.some(n, "tag", 2) {
+		t.Items = append(t.Items, &domTerm{Kind: tmTag, Str: b.tagOf(b.token(tag)), At: b.at(tag)})
+	}
+	return t
+}
+
+func joinedPattern(kind string, a, b *domPattern) *domPattern {
+	if kind != tmUnion {
+		return &domPattern{Kind: kind, Items: []*domPattern{a, b}}
+	}
+	var items []*domPattern
+	for _, p := range []*domPattern{a, b} {
+		if p.Kind == tmUnion {
+			items = append(items, p.Items...)
+		} else {
+			items = append(items, p)
+		}
+	}
+	return &domPattern{Kind: kind, Items: items}
+}
+
+func patternTestTarget(p *domPattern) bool {
+	if len(p.Items) != 1 {
+		return false
+	}
+	n := p.Items[0]
+	if p.Op != "tags" && n.Kind == "test" && n.Op == "tags" {
+		return patternTestTarget(n)
+	}
+	return n.Kind == "terminal" || n.Kind == "constant" || n.Kind == "literal" || n.Kind == "range" || n.Kind == "wildcard"
+}
+
+func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
+	var tests []*Node
+	for _, p := range ruleParts(n) {
+		if p.Rule == "tag-test" || p.Rule == "value-test" {
+			tests = append(tests, p)
+		}
+	}
+	name := b.text(first)
+	terminal := first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
+	tagSeen, valueSeen := false, false
+	for _, test := range tests {
+		if !terminal || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
+			b.fail(test, "invalid pattern test target or order")
+		}
+		if test.Rule == "tag-test" {
+			tagSeen = true
+		} else {
+			valueSeen = true
+		}
+	}
+	p := &domPattern{At: b.at(first)}
+	switch first.Rule {
+	case "tag":
+		p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
+	case "string-terminal":
+		part := b.knownOf(first, []string{"string", "constant-reference"})
+		p.Kind, p.Value = "literal", b.term(part)
+	case "string":
+		p.Kind, p.Value = "literal", b.term(first)
+	case "wildcard":
+		p.Kind = "wildcard"
+	case "range":
+		p.Kind, p.Ends = "range", b.stringRange(first)
+	case "constant-reference":
+		t := b.constantRef(first)
+		if _, scalar := engineScalar(t.Str); scalar {
+			p.Kind, p.Value = "literal", t
+		} else {
+			p.Kind, p.Name = "constant", t.Str
+		}
+	default:
+		p.Kind, p.Name = "name", name
+		if terminal {
+			p.Kind = "terminal"
+		}
+	}
+	for _, test := range tests {
+		next := &domPattern{Kind: "test", Items: []*domPattern{p}}
+		if test.Rule == "tag-test" {
+			next.Op = "tags"
+			next.Requirements = b.requirements(test)
+		} else {
+			next.Op = b.text(b.token(b.only(test, "test")))
+			operand := b.only(test, "test-operand")
+			part := b.knownOf(operand, atomRules)
+			if part.Rule != "string" && part.Rule != "constant-reference" {
+				b.fail(operand, "a pattern value test requires a string")
+			}
+			next.Value = b.term(part)
+		}
+		p = next
+	}
+	return p
+}
+
+func (c *domChecker) recipe(t *domTerm) {
+	if t == nil {
+		return
+	}
+	if t.Kind != tmConcat || len(t.Items) == 0 {
+		c.fail("a malformed recipe")
+		return
+	}
+	for _, atom := range t.Items {
+		if stringTermShape(atom) {
+			c.term(atom, 1, false)
+			continue
+		}
+		if atom == nil || atom.Kind != tmCall || len(atom.Items) != 1 {
+			c.fail("invalid recipe atom")
+			continue
+		}
+		r := atom.Items[0]
+		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "verbatim-text") {
+			continue
+		}
+		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
+			continue
+		}
+		c.fail("invalid recipe method")
+	}
+}
+
+func (b *domBuilder) constantRef(n *Node) *domTerm {
+	token := b.token(n)
+	name := strings.TrimPrefix(b.text(token), "$")
+	if !constName.MatchString(name) {
+		if _, ok := engineScalar(name); !ok {
+			b.fail(token, "invalid scalar constant %s", name)
+		}
+	}
+	return &domTerm{Kind: tmConst, Str: name, At: b.at(token)}
+}
+
+func (b *domBuilder) stringTerm(n *Node) *domTerm {
+	rs := []rune(b.text(n))
+	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
+		b.fail(n, "a string uses double quotes")
+	}
+	var parts []*domTerm
+	var literal strings.Builder
+	flush := func() {
+		if literal.Len() > 0 {
+			parts = append(parts, &domTerm{Kind: tmString, Str: literal.String()})
+			literal.Reset()
+		}
+	}
+	for i := 1; i < len(rs)-1; i++ {
+		c := rs[i]
+		if c == '\\' {
+			b.fail(n, "a backslash is not legal in a string")
+		}
+		if c != '$' {
+			literal.WriteRune(c)
+			continue
+		}
+		if i+1 < len(rs)-1 && rs[i+1] == '$' {
+			literal.WriteRune('$')
+			i++
+			continue
+		}
+		if i+1 >= len(rs)-1 || rs[i+1] != '(' {
+			b.fail(n, "a dollar sign requires interpolation or $$")
+		}
+		end := i + 2
+		for end < len(rs)-1 && rs[end] != ')' {
+			end++
+		}
+		if end == len(rs)-1 {
+			b.fail(n, "an interpolation requires a closing parenthesis")
+		}
+		name := string(rs[i+2 : end])
+		at := b.gt.at(b.toks[n.Token].Source[0] + i)
+		if !constName.MatchString(name) {
+			if _, ok := engineScalar(name); !ok {
+				panic(grammarError(b.doc, at, "invalid interpolation constant %s", name))
+			}
+		}
+		flush()
+		parts = append(parts, &domTerm{Kind: tmConst, Str: name, At: at})
+		i = end
+	}
+	flush()
+	if len(parts) == 0 {
+		return &domTerm{Kind: tmString}
+	}
+	if len(parts) == 1 && parts[0].Kind == tmString {
+		return parts[0]
+	}
+	return &domTerm{Kind: tmInterpolate, Items: parts}
+}
+
+func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
+	var ends []*domTerm
+	for _, p := range ruleParts(n) {
+		if p.Rule == "string" || p.Rule == "constant-reference" {
+			ends = append(ends, b.term(p))
+		}
+	}
+	if len(ends) < 2 {
+		b.lacks(n, "two string operands")
+	}
+	r := [2]*domTerm{ends[0], ends[1]}
+	var scalars [2]rune
+	known := true
+	for i, end := range r {
+		if end.Kind != tmString {
+			known = false
+			continue
+		}
+		cs := []rune(end.Str)
+		if len(cs) != 1 {
+			b.fail(n, "a range endpoint requires one scalar")
+		}
+		scalars[i] = cs[0]
+	}
+	if known && scalars[0] > scalars[1] {
+		b.fail(n, "a range starts above its end")
+	}
+	return r
+}
+
+func (b *domBuilder) testBase(n *Node) *Node {
+	if p := one(n, "primary"); p != nil {
+		return b.knownOf(p, primaryRules)
+	}
+	for _, p := range ruleParts(n) {
+		for _, kind := range primaryRules {
+			if p.Rule == kind && kind != "tested" {
+				return p
+			}
+		}
+	}
+	b.lacks(n, "primary")
+	return nil
+}
+
+func (b *domBuilder) tested(n *Node) *domExpr {
+	var tests []*Node
+	for _, p := range ruleParts(n) {
+		if p.Rule == "tag-test" || p.Rule == "value-test" {
+			tests = append(tests, p)
+		}
+	}
+	if len(tests) == 0 {
+		b.lacks(n, "test")
+	}
+	base := b.testBase(n)
+	valid := capturedRules[base.Rule] && base.Rule != "tested" && !(base.Rule == "reference" && b.text(b.token(base)) == "#")
+	seenTags, seenValue := false, false
+	for _, test := range tests {
+		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
+			b.fail(test, "invalid test target or order")
+		}
+		if test.Rule == "tag-test" {
+			seenTags = true
+		} else {
+			seenValue = true
+		}
+	}
+	expr := b.expr(base)
+	for _, test := range tests {
+		e := &domExpr{Kind: exTest, Inner: expr}
+		if test.Rule == "tag-test" {
+			e.Op = "tags"
+			e.Requirements = b.requirements(test)
+		} else {
+			e.Op = b.text(b.token(b.only(test, "test")))
+			operand := b.only(test, "test-operand")
+			part := b.knownOf(operand, atomRules)
+			if part.Rule != "string" && part.Rule != "constant-reference" {
+				b.fail(operand, "a value test requires a string or string constant")
+			}
+			e.Value = b.term(part)
+		}
+		expr = e
+	}
+	return expr
+}
+
+func (b *domBuilder) requirements(n *Node) []tagRequirement {
+	out := []tagRequirement{}
+	for _, p := range ofRule(n, "tag-requirement") {
+		operand := b.only(p, "test-operand")
+		part := b.knownOf(operand, atomRules)
+		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" {
+			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
+		}
+		if part.Rule == "name" && !isCapital(b.text(b.token(part))) {
+			b.fail(operand, "a tag requirement requires a tag")
+		}
+		r := tagRequirement{Value: b.term(part)}
+		for _, token := range parts(p) {
+			if token.Kind == KindToken && b.text(token) == "¬" {
+				r.Negated = true
+			}
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
+	if clause := one(n, "value-clause"); clause != nil {
+		value = b.recipe(b.only(clause, "recipe"))
+	}
+	if clause := one(n, "image-clause"); clause != nil {
+		image = b.recipe(b.only(clause, "recipe"))
+	}
+	return
+}
+
+func (b *domBuilder) recipe(n *Node) *domTerm {
+	r := &domTerm{Kind: tmConcat}
+	for _, atom := range b.some(n, "recipe-atom", 1) {
+		first := b.toks[atom.Span[0]].Text
+		if first == "(" || first == "∪" || first == "∩" {
+			b.fail(atom, "a recipe atom uses no grouping or operator")
+		}
+		for i := atom.Span[0]; i < atom.Span[1]; i++ {
+			switch b.toks[i].Text {
+			case "∪", "∩", "∖", "⟹":
+				b.fail(atom, "a recipe atom uses no operator")
+			}
+		}
+		b.inRecipe = true
+		t := b.term(b.only(atom, "term"))
+		b.inRecipe = false
+		valid := stringTermShape(t)
+		if t.Kind == tmCall && len(t.Items) == 1 {
+			receiver := t.Items[0]
+			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "verbatim-text")
+			if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
+				valid = t.Str == "value" || t.Str == "image"
+			}
+		}
+		if !valid {
+			b.fail(atom, "a recipe requires a string or capture string method")
+		}
+		r.Items = append(r.Items, t)
+	}
+	return r
+}
+
+type methodFrame struct {
+	n           *Node
+	inCondition bool
+	started     bool
+	selectors   []*Node
+	index       int
+	receiver    *domTerm
+	args        []*domTerm
+	arguments   []*Node
+}
+
+func (f *methodFrame) resume(b *domBuilder, in any) readStep {
+	if !f.started {
+		f.started = true
+		f.selectors = b.some(f.n, "method-selector", 1)
+		return ask(&termFrame{n: b.only(b.only(f.n, "method-receiver"), "term-atom"), argument: true})
+	}
+	if f.receiver == nil {
+		f.receiver = in.(*domTerm)
+	} else if in != nil {
+		f.args = append(f.args, in.(*domTerm))
+	}
+	selector := f.selectors[f.index]
+	name := b.text(b.token(b.only(selector, "method-name")))
+	if f.arguments == nil {
+		f.arguments = []*Node{}
+		if arguments := one(selector, "arguments"); arguments != nil {
+			f.arguments = b.some(arguments, "argument", 1)
+		}
+	}
+	if len(f.args) < len(f.arguments) {
+		return ask(&termFrame{n: b.only(f.arguments[len(f.args)], "term"), argument: true})
+	}
+	f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.inCondition && f.index == len(f.selectors)-1)
+	f.index++
+	if f.index == len(f.selectors) {
+		return give(f.receiver)
+	}
+	f.args, f.arguments = nil, nil
+	return f.resume(b, nil)
+}
+
+func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
+	fail := func() { b.fail(n, "invalid receiver or arguments for .%s", name) }
+	span := isSpanTerm(receiver)
+	valid := false
+	switch name {
+	case "value", "image", "source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
+		valid = len(args) == 0 && span
+		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
+			valid = len(args) == 0 && (name == "value" || name == "image")
+		}
+	case "without-elision":
+		if receiver.Kind != tmCapture {
+			b.fail(n, ".without-elision requires a bare capture. Use $x.without-elision.onward.")
+		}
+		valid = len(args) == 0
+	case "verbatim-text", "emitted":
+		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
+	case "tags":
+		valid = span && (len(args) == 0 || len(args) == 1 && args[0].Kind == tmRule)
+	case "matches", "begins":
+		valid = span && len(args) == 1 && args[0].Kind == tmRule
+	case "split":
+		valid = len(args) == 1 && b.isStringTerm(receiver) && b.isStringTerm(args[0])
+	case "classify":
+		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule
+		if valid {
+			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
+		}
+	default:
+		b.fail(n, "unknown method .%s", name)
+	}
+	if !valid {
+		fail()
+	}
+	if b.closedFor != "" && name != "split" {
+		b.fail(n, "%s requires a closed term", b.closedFor)
+	}
+	isPredicate := name == "starts-input" || name == "matches" || name == "begins"
+	if isPredicate != predicate {
+		b.fail(n, ".%s has the wrong result type here", name)
+	}
+	items := append([]*domTerm{receiver}, args...)
+	if msg := literalCallProblem(name, items); msg != "" {
+		b.fail(n, "%s", msg)
+	}
+	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}
+}
