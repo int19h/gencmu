@@ -1,6 +1,8 @@
 # The gencmu engine
 
-This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. Tests in `tests/engine/` and `tests/notation/` exercise this contract. This specification controls expectations for values, recipes, and DOM format 26.
+This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification. An implementation that disagrees with one of them is wrong.
+
+The test cases follow this notation and engine contract. Their migration belongs to the grammar and implementation phases.
 
 A case that disagrees with this text is a bug in one or the other, and the same change fixes it.
 

@@ -701,7 +701,7 @@ The tree is lossless with respect to the grammar that the author wrote. Every ru
 
 The engine splices out only one kind of node, because no author wrote it. That is the helper rules that lowering invents for `[ ]` and flat `{ }`. So `%rule text {item}` gives one `text` node over all its items. A chain's levels are nodes of the rule that the author wrote, so they stay (see "Repetition, lists and chains").
 
-An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. `text`, `value`, and `image` are not stored on nodes. The libraries compute them from the tokens, so that stored node strings cannot disagree with tokens.
+An absent elidable optional leaves an `elided` node with an empty span, at the place of the missing terminator. Collapsing chains is a choice of the renderers, not of the tree. Ordinary nodes store no `text`, `value`, or `image`. The libraries compute them from tokens. An equality-tested elided node instead saves its restoration operand as `value`, including an explicit empty string. Omitted pattern leaves still observe empty strings.
 
 Each library exposes this structure in the idiom of its language. JavaScript uses plain objects and arrays, and Python uses dataclasses. Go uses structs with slices, and Rust uses structs with `Vec` and owned `String`. These types let a result outlive the text and the dialect that it came from. Each library can serialize a result to the canonical JSON of `docs/output.md`. Each library also renders the canonical bracket form, because the shared tests compare it.
 

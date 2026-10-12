@@ -63,7 +63,13 @@ A node has one of these forms:
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
-A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling. Elided nodes expose neither a saved equality value nor an ended-constituent assignment.
+A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling. Elided nodes expose no ended-constituent assignment.
+
+An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. This metadata does not change the empty value observed by an omitted pattern leaf.
+
+```json
+{"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}
+```
 
 A warning has this form:
 
@@ -339,7 +345,9 @@ A tree comparison uses the existing `op`, `left` and `right` members:
 
 These operators require a bare capture on the left and a pattern term on the right. Pattern equality and implicit string conversion are malformed. Text, cached DOMs and supplied DOMs use the same grouping, field, arity and type restrictions. Resolution covers patterns in replaced definitions too.
 
-Structural states and omission predicates remain internal derived state. Omitted pattern tags are the singleton terminator tag set. Internal omission records retain `value` only for equality, including explicit empty equality. Serialized tree nodes expose no saved string. Completion diagnostics expose `value` when present.
+Structural states and omission predicates remain internal derived state. Omitted pattern tags are the singleton terminator tag set. Internal omission records retain `value` only for equality, including explicit empty equality.
+
+Equality-tested elided tree nodes expose that saved `value`, including an explicit empty string. Omitted pattern leaves still observe empty value and image. Completion diagnostics expose `value` when present.
 
 ### Ranked expressions
 
