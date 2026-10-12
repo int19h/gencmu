@@ -123,7 +123,7 @@ The emitted letter word `broda bu` has value `broda bu` when its gap recipe supp
 
 `s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain tag names or tag-set constants, with optional negation. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
 
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. A capture can wrap a tested symbol, as in `$l:LA="la"`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. A capture can wrap a tested symbol, as in `$l:LA="la"`. A test written after a capture binder belongs to its target, as in `$l:LA="la"`. Only a supplied notation tree can test the capture itself. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
