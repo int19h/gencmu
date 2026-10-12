@@ -102,23 +102,23 @@ A string is text in straight double quotes, such as `"la"`. It can be a terminal
 
 A span is a range between input token boundaries.
 
-A reference or terminal can carry one tag test or one value test. Here, `X` denotes its symbol:
+A reference or terminal can carry one tag test and one value test. The tag test comes first, and both must hold. Here, `X` denotes its symbol:
 
 - `X="s"` requires the exact input value `s`. `X≠"s"` requires another value.
 - `X<A B>` requires both tags on the symbol. `X<¬A ¬B>` forbids both tags.
 - `X<$C>` requires every tag of a tag-set constant. `X<¬$C>` forbids every tag of that constant.
 
-A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with a test is a tested symbol. The symbol matches only where its test holds.
+A terminal's own tags are the tags of the token that it reads. A reference's own tags are the tags of its constituent (see "Tags"). A symbol with tests is a tested symbol. The symbol matches only where every test holds.
 
 After the dialect's normalization stage, stressed `lA`, Cyrillic `ла`, and zbalermorna `la` match `LE="la"`. A reference reads its complete input value. `sumti="lo mlatu"` can match a sumti with that exact joined value. Pause values remain spaces. The word `broda bu` has value `broda bu` when its gap recipe supplies one space.
 
 `s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain tag names or tag-set constants, with optional negation. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
 
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. A capture can wrap a tested symbol, as in `$l:LE="la"`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` or another test is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. A capture can wrap a tested symbol, as in `$l:LE="la"`. A test follows only a reference other than `#`, or a terminal. So a test after a group, an optional, braces, a capture, `ε`, `#` is an error, such as `(LE NU)="lonu"`. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
 
-A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind. Its test controls both written and omitted routes.
+A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
-A test does not replace a class. `zo la` quotes a word with value `la` but only the tag `Word`, so `LE="la"` cannot read it. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. One symbol cannot combine a tag and value test. Use a condition for the second requirement.
+A test does not replace a class. `zo la` quotes a word with value `la` but only the tag `Word`, so `LE="la"` cannot read it. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
 
 ## Operators
 
@@ -421,9 +421,11 @@ Binding is primary, path, sequence, intersection, then union or difference, from
 
 Plain parentheses preserve sibling grouping without a subtree boundary. `@(A (B C))` therefore has three children. `@(A @(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
 
-One existing symbol test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
+One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
 
-A terminal atom accepts one signed tag test or exact value test. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `@A<B>` keeps the test inside and means `@(A<B>)`.
+A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `@A<B>` keeps the test inside and means `@(A<B>)`.
+
+Likewise, `@A<B>=""` means `@(A<B>="")`.
 
 Patterns reject `&`, `|`, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions and direct chained path prefixes. Braces keep one-or-more sequence behavior and their separator syntax. A repeat body that only matches empty sequences is an error. A sibling ellipsis cannot be a repeat item or separator. Patterns cannot contain recursive constants.
 
@@ -476,7 +478,7 @@ Implications apply only to the tokens that the stage emits. They do not change a
 
 ## Captures
 
-Writing `$name:symbol` captures one symbol of a body. The symbol can carry one test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
+Writing `$name:symbol` captures one symbol of a body. The symbol can carry a tag test followed by a value test. A capture gives the matched part a name for conditions, tags, and recipes. Its name starts lowercase and contains lowercase letters, digits, hyphens, or underscores.
 
 A capture wraps one symbol. That symbol can stand anywhere in an alternative, except inside braces and inside an elidable optional, `[+ ]`. So a capture can stand in a group, in a choice, in an item of `&` and in a plain optional, at any depth.
 
@@ -826,6 +828,8 @@ A later stage that forwards a token preserves its stored value, image, text, and
 Every token has an image that renderings show. The stage builds it through the selected item, alternative, or definition recipe, or concatenates child images. An explicit `:-` can preserve written spelling while `:=` supplies a normalized value. Stage-zero images equal their characters. Tags never determine images.
 
 An inserted `ε` item has an empty default image. `:= "'"` supplies an apostrophe as both value and implied image, so a shorthand apostrophe remains visible in `u'i`. An explicit item `:-` overrides that implied image. The insertion still has empty source text.
+
+The constructor contract in [engine §9.3](engine.md#93-conversion-and-validation) defines the reader's required parts and conversion order. It covers every clause, test, method, recipe, and attachment.
 
 ## Directives
 

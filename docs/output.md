@@ -144,6 +144,8 @@ Choose the shortest inheritance witness. Source traversal order breaks equal-len
 
 ### A grammar DOM
 
+The authoritative constructor contract is [engine §9.3](engine.md#93-conversion-and-validation). It defines recognized syntax parts, required lookups, and conversion into these schemas.
+
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
 Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. Empty declaration arrays can be absent, except `rules`. Every declared item has `at:[line,column]`, counted from 1.
@@ -183,9 +185,9 @@ An expression has exactly one of these forms:
 {"ref":"sumti"}            {"ref":"KOhA"}            {"ref":"_Lu"}
 {"literal":STRINGTERM}      {"wildcard":true}
 {"range":[STRINGTERM,STRINGTERM]}
-{"capture":"x","expr":SYMBOL}
-{"test":"=","value":STRINGTERM,"expr":SYMBOL}
-{"test":"tags","requirements":[REQUIREMENT...],"expr":SYMBOL}
+{"capture":"x","expr":CAPTURETARGET}
+{"test":"=","value":STRINGTERM,"expr":TESTTARGET}
+{"test":"tags","requirements":[REQUIREMENT...],"expr":BASETARGET}
 {"empty":true}
 ```
 
@@ -199,11 +201,25 @@ A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` sto
 
 An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member. Any `maximal` member makes an optional malformed, regardless of its value.
 
-`SYMBOL` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. A capture can also wrap one tested SYMBOL. Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside repeats or elidable optionals. Each expanded production binds a name at most once.
+`BASETARGET` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET, its legal tested form, or an untested `ref:"#"`.
+
+Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside repeats or elidable optionals. Each expanded production binds a name at most once.
 
 A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`, where TERM is a tag literal or tag-set constant. A negative requirement has `negated:true`.
 
-The requirement array can be empty. An empty constant also resolves to no requirements. Tests cannot wrap another test.
+The requirement array can be empty. An empty constant also resolves to no requirements. A tag test wraps only a BASETARGET. A value test wraps a BASETARGET or its tag test. Both tests must hold. Repeated test kinds and reversed nesting are malformed.
+
+For example, `_<Stressed>≠"y"` converts to this nested expression:
+
+```json
+{"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true}}}
+```
+
+A capture of `#` instead converts as follows:
+
+```json
+{"capture":"f","expr":{"ref":"#"}}
+```
 
 The first symbol of an elidable optional is an ordinary tag `ref`, optionally tested. Its expression is that symbol or a sequence starting with it. Engine tags, strings, ranges, wildcard, captures, and grouped heads are invalid. Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
 
@@ -328,7 +344,9 @@ CHILDREN has exactly one of these forms:
 {"siblings":true}
 ```
 
-A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including `#`, use `name`. One signed tag or value test can wrap a terminal atom. Constants stay unresolved until binding, which follows the version graph of engine §2.
+A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including `#`, use `name`. A tag test can wrap a terminal atom, and a value test can wrap that tag test. The source order is tag then value.
+
+Constants stay unresolved until binding, which follows the version graph of engine §2.
 
 At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 
