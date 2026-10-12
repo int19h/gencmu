@@ -66,7 +66,7 @@ Terminal identity ignores its written constant name and its tests. `"a"`, `$_006
 
 A tag test lists required and forbidden tags in angle brackets. `X<A ¬B>` requires `A` and forbids `B`. Every requirement must hold. A tag-set constant expands into requirements with the same sign. `<$C>` requires all its tags. `<¬$C>` forbids all its tags. Both tests hold for an empty constant.
 
-A value test compares a symbol's input value exactly. `X="s"` requires equality. `X≠"s"` requires inequality. Its operand is a string literal or string constant. There is no lowercase conversion or comma removal.
+An empty `<>` tag test holds vacuously. A value test compares a symbol's input value exactly. `X="s"` requires equality. `X≠"s"` requires inequality. Its operand is a string literal or string constant. There is no lowercase conversion or comma removal.
 
 One symbol can carry one test. Combining a tag test with a value test is a document error, including `_<Stressed>≠"y"`. Use a captured symbol and a condition for both requirements. This rule also applies to pattern terminal atoms.
 
@@ -170,7 +170,7 @@ An extension's clauses serve only its appended alternatives. Base clauses never 
 %emits
 ```
 
-## Constants and strings
+## Constants
 
 A constant names a closed value. A closed value reads no capture or current input. Its type is string, string set, tag set, or pattern. There is no string-set literal. `.split` constructs one from a closed string.
 
@@ -354,6 +354,14 @@ An implication adds tags to emitted tokens. Each side is a closed tag-set term. 
 
 The engine repeats implications until no tag changes. Implications apply to ordinary output tokens and attached tokens. They do not change constituent tags, strings, classifiers, or synthetic terminators. A grammar cannot introduce engine tags through implications.
 
+## Tags
+
+`::` assigns constituent or item tags. Alternative and definition tag clauses union. An explicit empty clause stops default inheritance. Without written tags, one logical symbol forwards its own tags, while zero or several symbols supply none.
+
+A plain optional retains its helper structure, with or without captures. An absent helper has empty tags. A present helper inherits only from one logical content symbol. This rule also supplies ranked-choice tag safety and remains independent of physical expansion.
+
+A constituent tag term cannot read the tags that it defines. `$.tags` and `$.classes` are errors there. `$.first-token.tags` reads input tokens and is legal. `$.tags(rule)` performs a query and is legal. An emission item's tags can read `$.tags` because they do not define constituent tags.
+
 ## Emission
 
 The emission walk chooses output tokens from the selected tree. It enters a constituent without `%emits` or `%erased`. A directly read token emits nothing by itself. `%emits` stops that walk and emits its listed items. `%erased` stops it and contributes no output or counted input parts.
@@ -394,7 +402,7 @@ Recipes form a closed language. They accept string literals, string constants, a
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 
-Only selected recipes run. A weaker recipe runs only if an evaluated dependency asks for it. Evaluation identifies the constituent occurrence, channel, and item override. A dependency cycle among selected constituent recipes is a document error. Item recipes cannot refer to their own override.
+Only selected recipes run. A weaker recipe runs only if an evaluated dependency asks for it. Evaluation identifies the constituent occurrence, channel, and item override. A dependency cycle among effective constituent recipes is a document error, even when an item override prevents runtime evaluation. Item recipes cannot refer to their own override.
 
 ```jbogenbau
 %rule r := $.emitted.image :- "x"
@@ -406,7 +414,7 @@ Only selected recipes run. A weaker recipe runs only if an evaluated dependency 
 %emits
 ```
 
-Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value "x"` cycles directly. A stronger item recipe can leave such a constituent recipe unused. Engine §11 defines validation for each reachable selected dependency.
+Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides. Engine §11 defines the selected constituent dependencies.
 
 A recipe on an erased rule or erased alternative is a document error. A parent item over an erased capture emits a token with empty strings unless its item recipe supplies them. Its counted parts remain empty. An empty string recipe on a non-erased part never erases that part.
 
@@ -471,7 +479,7 @@ The restored selected reading must exist before ranked filtering. Its raw absenc
 
 `.without-elision` queries preserve ordered closes over the captured interval. A prefix must preserve the entire close group at its endpoint. An aligned witness cannot use a synthetic token as a required written terminal. Ordinary nested queries start without inherited alignment. Explicit nested restoration uses the witness's own closes.
 
-## Directives and pipelines
+## Pipelines
 
 A pipeline uses `%stage NAME`, `%include "PATH"`, and `%features NAME...`. Each stage needs one `%ambiguity-resolution` with `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`. Stage names identify API output and diagnostics.
 

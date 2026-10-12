@@ -1029,7 +1029,7 @@ primary = captured | tested-symbol | group | optional | repetition | "ε"
 captured = capture-reference ":" tested-symbol
 tested-symbol = symbol [tag-test | value-test]
 symbol = reference | tag-name | string-terminal | range | "_"
-tag-test = "<" requirement {requirement} ">"
+tag-test = "<" {requirement} ">"
 requirement = ["¬"] (tag-name | tag-set-constant)
 value-test = ("=" | "≠") string-operand
 string-operand = string-literal | string-constant
@@ -1051,7 +1051,7 @@ pattern-atom = rule-name | terminal [tag-test | value-test]
 method-chain = receiver {"." method-name ["(" arguments ")"]}
 ```
 
-`item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. At least one requirement must appear in a written tag test. An empty tag constant remains a valid requirement. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
+`item` also accepts `attached-item`. Attachments require a named carrier and precede its clauses. An empty tag test is legal and holds vacuously. An empty tag constant also supplies no requirements. A body with header clauses must use the leading `|` form. Each clause occurs at most once and follows the specified order.
 
 A ranked body is a sequence of at least two conjunction options joined by `≻`. A choice level cannot mix `|` and `≻`. Groups, plain optionals, and flat repeats accept a choice body. A marked optional requires an ordinary tag terminal directly after `+`. Its remainder is a sequence of primaries. It cannot contain captures.
 
@@ -1212,9 +1212,11 @@ A selected recipe runs only when an emitted string or another evaluated recipe n
 
 A cycle exists when a requested constituent channel depends on that same occurrence's active channel before returning. `:= $.emitted.value "x"` cycles directly. `:= $.emitted.image` without an explicit image recipe cycles through the implied image. Cross-channel references alone do not establish a cycle, as `r` and `s` show.
 
-The loader analyzes selected dependencies after clause selection and absent-item pruning. Analysis starts from channels of retained emission items and follows possible covering string walks. It considers all structurally possible productions before feature gates and ignores conditions and tests. A channel suppressed in every such context has no active dependency.
+The loader analyzes each production's effective constituent recipes after alternative and definition channel selection. It validates these two channels before considering item overrides. Overridden definition recipes remain inactive on the channels replaced by alternative recipes. Tests and feature gates excuse no active document cycle.
 
-Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports an active cycle as a document error at its recipe, with the dependency path. A losing runtime option runs no recipes, although its document syntax still undergoes validation.
+Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports a cycle as a document error at its recipe, with the dependency path.
+
+The following definition is a document error, despite its item override:
 
 ```jbogenbau
 %rule masked := $.emitted.value
@@ -1223,13 +1225,15 @@ Only alternative or definition recipes can cycle. A captured child's dependencie
   $ := "x"
 ```
 
-When no covering parent requests `masked`'s constituent value, its cyclic recipe stays unused. Both item channels give `x`. A covering parent that reaches that recipe makes the cycle active and causes a document error. A winning reading's runtime recipe error remains a grammar error. Ranking never falls back because emission failed.
+Its constituent value still defines a cyclic result for `.emitted` or a covering parent. Item selection suppresses runtime evaluation but does not legalize that constituent definition. An alternative override of that cyclic definition recipe can remove the dependency on its replaced channel.
+
+A losing runtime option runs no recipes, although its syntax and effective constituent dependencies still undergo document validation. A winning reading's runtime recipe error remains a grammar error. Ranking never falls back because emission failed.
 
 ### 11.4 Capture scope and erasure
 
-Recipe name analysis includes every receiver. Unknown names and private ranked captures fail before absent-carrier pruning. After pruning, validate each recipe only on channels where it can act. An alternative's explicit recipes can suppress definition recipes separately per channel.
+Recipe name analysis includes every receiver. `$` in an item recipe names the enclosing rule occurrence, even when its carrier is a captured child. Unknown names and private ranked captures fail before absent-carrier pruning. After pruning, validate effective constituent recipes on their selected channels and item recipes on retained items. An alternative's explicit recipes can suppress definition recipes separately per channel.
 
-A remaining recipe that reads a capture absent from its production is a document error. Optional recipe cases need separate alternatives. Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
+A selected recipe that reads a capture absent from its production is a document error. Optional recipe cases need separate alternatives. Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
 
 A recipe beside `%erased` is a document error, on the erased alternative or its definition. An erased descendant's own recipe is not evaluated. A parent item over an erased captured part still emits its listed token. Its strings default to empty, but item recipes can replace them. Its counted parts remain empty.
 
@@ -1359,3 +1363,45 @@ In either case, the engine discards the first run's stages and warnings. Otherwi
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 
 A grammar error found while parsing is a result. Examples are a nested parse asked about its own span as the same rule, and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position. The check of §7 can also end with an error of kind `grammar` and the code `elision-witness-lost` (§7.9). That error also has `chosen` and `completion`. It ends the run.
+
+## 14. Bundled dialect contracts
+
+The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage preserves tokens, tags, images, sources, and order while mapping only values. It maps stressed `A E I O U Y` to lowercase and the syllable comma to empty. Every mapping requires its corresponding tag.
+
+A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. A syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token.
+
+A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy`. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
+
+The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. Phoneme FOREIGN values preserve exact characters. Forms FOREIGN values preserve normalized phoneme sequences.
+
+Quoted bodies compare by their ordinary values and display their body image recipes. `raw-tokens` and `zohoi-payload` use `.verbatim-text` for images. `empty-zoi-body` uses empty concatenation and claims no gaps. The foreign character run uses plain character concatenation. Queries and erased post-fa'o bodies run no body recipes.
+
+Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the last y separated from preceding hesitation. A raw closing run retains every y value. A longer raw key carries neither fixed tag. No input string constructs a tag name.
+
+Quote spacing groups each surviving pause run into one gap. Compound spacing classifies existing erasure-aware derivations with Gap-Pause. SU survivor recipes use Trailing-Pause to avoid duplicating a gap across constituent boundaries. These structural rules preserve attachment ownership independently of their images. The dialect guide states each tag's origin and end.
+
+The following texts pin value, image, and recognition boundaries:
+
+| Text | Required observation |
+| --- | --- |
+| `zoi nu,iork. foo .nuiork.` | CLL accepts the comma-insensitive delimiter comparison |
+| `zoi mai. x .ma,i.` | CLL accepts the comma-insensitive closing delimiter |
+| `zoi .y. bu. foo .y. bu.` | The matching fixed y key closes the quote |
+| `zoi ybu foo ybu` | The unspaced fixed y keys match |
+| `zoi .yy. bu. foo .yy. bu.` | A longer raw closing key does not match |
+| `zoi .y. bu. foo .yy. bu.` | A longer raw closing key does not match |
+| `zoi .y. bu. "Hello!" .y. bu.` | The body image retains its punctuation |
+| `zo'oi "Hello!"` | Experimental preserves the payload punctuation |
+| `zoi klama. abc .Klama.` | A Kelvin-sign closing value does not equal `klama` |
+| `zoi klama. Klama .klama.` | The Kelvin-sign body value does not equal the delimiter |
+| `lo'u broda ybrode le'u bu` | The word image is `lo'u broda brode le'u bu` |
+| `lo'u broda .y. brode le'u bu` | The word image contains one internal space |
+| `lo'ai broda .y. brode le'ai bu` | Experimental and Zantufa retain one internal space |
+| `ni'o su bu` | BPFK and experimental give the word image `ni'o bu` |
+| `ni'o mi si su bu` | BPFK and experimental give the word image `ni'o bu` |
+| `ni'o subu` | The survivor retains the earlier surviving space |
+| `ni'o .su mi` | A standalone survivor's image is `ni'o` |
+| `ni'o su .y. mi` | A standalone survivor's image is `ni'o` |
+| `zoi gy. MI   DO .gy. bu` | The compound image is `zoi gy MI   DO gy bu` through indicators |
+
+These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. Normalization tests must also establish unchanged images, count, order, tags, and sources.

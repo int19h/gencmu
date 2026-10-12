@@ -334,6 +334,6 @@ An empty image never removes an input part or its ownership. `%erased` removes c
 
 ## Read further
 
-[Stage contracts and pipelines](notation.md#directives-and-pipelines) explain inclusion and stage selectors. [Stitching](notation.md#stitching-documents) explains definitions and extensions. [Recipes](engine.md#11-emission) define channels, dependencies, and source gaps.
+[Stage contracts and pipelines](notation.md#pipelines) explain inclusion and stage selectors. [Stitching](notation.md#stitching-documents) explains definitions and extensions. [Recipes](engine.md#11-emission) define channels, dependencies, and source gaps.
 
 [Classifiers](notation.md#classifiers) define exact keys and memberships. [Terminals](notation.md#names-and-terminals) define values and stored tags. [Ambiguity](notation.md#ambiguity) defines ranking and ties. [Corpus cases](../tests/README.md#corpus-cases) define shared expectations.

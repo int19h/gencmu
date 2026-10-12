@@ -92,13 +92,15 @@ Its span counts tokens of the stage before, not code points, so it has no upper 
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
-A caller cannot supply attachments (engine §11). In JavaScript, Python and Go, a caller's token has the type of a token that a stage emits. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, nonempty attachments on a caller token cause a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
+A caller cannot supply attachments (engine §11). JavaScript and Python accept token-shaped input objects. Go accepts `InputToken` records. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, nonempty attachments on a caller token cause a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
 
 The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no tags and applies no normalization. The caller can supply stored engine tags to represent earlier grammar stages.
 
 All supplied string fields must contain scalar values. Invalid strings, tag names, source ranges, spans, or attachments cause a usage error before parsing. Tags follow engine §1, including its reserved engine inventory. The input object is not an output recipe and stores both strings directly.
 
-Rust `InputToken` exposes optional `value` and `image` alongside its text and tags. JavaScript and Python use the fields `value` and `image`. Go uses `Value` and `Image`, with absence represented independently from an explicit empty string. Each language's input form must preserve that distinction.
+Rust `InputToken` stores `value: Option<String>` and `image: Option<String>` alongside its text and tags. `None` uses the text default. JavaScript uses omitted `value` and `image` properties for defaults. Python uses `None` defaults for those fields. Explicit empty strings remain empty.
+
+Go `ParseTokens` accepts `[]InputToken`. Its `Value *string` and `Image *string` use `nil` for defaults. Non-nil pointers can supply empty strings. `InputToken` also carries `Text`, `Tags`, `Span`, `Source`, `Before`, and `After`. Nonempty attachment slices remain usage errors. Output `Token` stores `Value` and `Image` as strings.
 
 For example, a supplied token with `text:"A"`, `value:"a"`, and `image:"A"` compares as `a` and displays as `A`. A supplied normalized comma can have `value:""`, `image:","`, and `tags:["Syllable-Break"]`. Neither token receives `_Lu` or any other engine tag unless the caller supplies it.
 
