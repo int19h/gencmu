@@ -1448,6 +1448,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A rule flag other than `leftmost-longest` is an error at the flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(leftmost-longest,leftmost-longest)` and `%extend-rule(leftmost-longest)` report columns 7, 24 and 13, respectively.
 
   Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the lexical stage at `1`, column 24. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
+- A rule name other than `#` that does not begin with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
 - A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, tag terminal, string terminal, range, wildcard, or a tested form with one of these bases. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error. Thus `%rule r $x:A<B><C>` fails at the second `<`, column 16.
 - A capture whose name has a capital is an error. Capture names are all lower case.
 - A body constant must resolve to a string terminal or scalar range endpoint. A tag-set or pattern constant in that position is a document error.
@@ -1559,6 +1560,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
 - It lacks any of the five declaration arrays, or one is not an array.
 - Two of its items share a position.
+- A rule's name is neither `#` nor a name beginning with `a` to `z`.
 - A rule lacks `flags`, or its value is neither `[]` nor `["leftmost-longest"]`. An `extend` rule must have `[]`.
 - It has an expression, a term or a condition with members of two forms, or with a member that its form lacks (`docs/output.md`).
 - It has a `ref` that is not a name or `#`.
