@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="151.2" lengthAdjust="spacingAndGlyphs">opener-space-token</text>
 <text class="label" x="181.2" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="109" height="24" rx="12"/><text x="74.5" y="51" textLength="92.4" lengthAdjust="spacingAndGlyphs">~hesitation</text></g>
-<path d="M129 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="34" width="100" height="24" rx="12"/><text x="70" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">Hesitation</text></g>
+<path d="M120 46h6m0 -8v16m4 -16v16"/>
 </svg>

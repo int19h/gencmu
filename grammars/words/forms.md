@@ -81,10 +81,10 @@ A run that divides into words divides in one way only. The word forms of each fa
 <p><img src="../../docs/diagrams/words/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
 <p><img src="../../docs/diagrams/words/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
 <p><img src="../../docs/diagrams/words/forms/run.svg" alt="Railroad diagram of the rule run"></p>
-<p><img src="../../docs/diagrams/words/forms/read-run.svg" alt="Railroad diagram of the rule read-run"></p>
-<p><img src="../../docs/diagrams/words/forms/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></p>
-<p><img src="../../docs/diagrams/words/forms/unread-run.svg" alt="Railroad diagram of the rule unread-run"></p>
-<p><img src="../../docs/diagrams/words/forms/phoneme-run.svg" alt="Railroad diagram of the rule phoneme-run"></p>
+<p><img src="../../docs/diagrams/words/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
+<p><img src="../../docs/diagrams/words/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
+<p><img src="../../docs/diagrams/words/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
+<p><img src="../../docs/diagrams/words/forms/phoneme-sequence.svg" alt="Railroad diagram of the rule phoneme-sequence"></p>
 <p><img src="../../docs/diagrams/words/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 

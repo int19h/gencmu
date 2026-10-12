@@ -53,7 +53,20 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: forms
+## Stage 2: normalize
+
+This stage maps stressed vowel values to lowercase and the syllable comma value to empty. It preserves their images and tags. Forms therefore reads stress and syllable boundaries through tags instead of capital or comma values.
+
+```jbogenbau
+%stage normalize
+```
+
+- [Phoneme values](../phonemes/normalize.md)
+  ```jbogenbau
+  %include "../phonemes/normalize.md"
+  ```
+
+## Stage 3: forms
 
 ```jbogenbau
 %stage forms
@@ -72,7 +85,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../words/lexicon-cll.md"
   ```
 
-## Stage 3: words
+## Stage 4: words
 
 ```jbogenbau
 %stage words
@@ -83,7 +96,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../words/stream.md"
   ```
 
-## Stage 4: indicators
+## Stage 5: indicators
 
 ```jbogenbau
 %stage indicators
@@ -94,7 +107,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../indicators/cll.md"
   ```
 
-## Stage 5: syntax
+## Stage 6: syntax
 
 ```jbogenbau
 %stage syntax

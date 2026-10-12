@@ -397,6 +397,7 @@ export function repeat(item, separator, note) {
  */
 function symbolText(expr) {
   if (expr.test) return symbolText(expr.expr) + testText(expr);
+  if (expr.test) return symbolText(expr.expr) + testText(expr);
   if (expr.literal) return formatTerm(expr.literal);
   if (expr.wildcard) return "_";
   if (typeof expr.ref === "string") return expr.ref;
@@ -510,8 +511,12 @@ export function elisionOutcomes(loader, pipelines, documents) {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
             const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
-            const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
+            let base = first;
+            while (base.test) base = base.expr;
+            const terminal = "terminal" in base ? base.terminal : base.ref;
             const tags = new Set([terminal]);
+            let savedValue = "";
+            for (let current = test; current; current = current.inner) if (current.op === "=") savedValue = current.value;
             let held = true;
             for (let current = test; current; current = current.inner) {
               const patternTest = current.op === "tags"
@@ -520,7 +525,7 @@ export function elisionOutcomes(loader, pipelines, documents) {
                   {negated: true, value: {set: current.negative}},
                 ]}
                 : {test: current.op, value: {string: current.value}};
-              held &&= leafTest(patternTest, test.op === "=" ? test.value : "", tags);
+              held &&= leafTest(patternTest, savedValue, tags);
             }
             if (!outcomes.has(document)) outcomes.set(document, new Map());
             const byRule = /** @type {Map<string, Set<boolean>[]>} */ (outcomes.get(document));

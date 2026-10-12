@@ -8,7 +8,7 @@ Each entry lists words by their canonical sound and gives them one selma'o, as [
 
 An attitudinal expresses an attitude. A free modifier adds information outside predicate arguments.
 
-The lexicon marks no word `indicator`, because Zantufa reads attitudinals as free modifiers. They can follow almost any word. So the indicator stage attaches no word to the word before it. It attaches only the words of BAhE, to the word after them. The syntax reads every word of UI.
+The lexicon marks no word `Indicator`, because Zantufa reads attitudinals as free modifiers. They can follow almost any word. So the indicator stage attaches no word to the word before it. It attaches only the words of BAhE, to the word after them. The syntax reads every word of UI.
 
 [The notation document](../../docs/notation.md) explains the notation.
 

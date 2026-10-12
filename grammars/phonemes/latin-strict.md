@@ -200,12 +200,12 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬$c.matches(core-char)
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>foreign-run</code> to <code>run-char</code></summary>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-chars.svg" alt="Railroad diagram of the rule foreign-chars"></p>
+<details><summary>Railroad diagrams of the 6 rules from <code>non-lojban-char-run</code> to <code>run-char</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-lojban-char-run.svg" alt="Railroad diagram of the rule non-lojban-char-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-char.svg" alt="Railroad diagram of the rule lojban-char"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-char.svg" alt="Railroad diagram of the rule foreign-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-lojban-char.svg" alt="Railroad diagram of the rule non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
 

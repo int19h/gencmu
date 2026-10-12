@@ -49,7 +49,7 @@ export function sourceDoms(base, loader) {
 }
 
 /**
- * Read include edges while the language grammars await notation migration.
+ * Read literal include edges for pipeline metadata and document checks.
  * This view supplies pipeline metadata, not grammar DOMs for execution.
  * Quoted forms and comments cannot introduce an include edge.
  * @param {string} base

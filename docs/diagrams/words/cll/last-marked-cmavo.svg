@@ -12,7 +12,7 @@
 <path d="M162 56h20"/>
 <g class="rule"><rect x="182" y="44" width="109" height="24" rx="0"/><text x="236.5" y="61" textLength="92.4" lengthAdjust="spacingAndGlyphs">any-letters</text></g>
 <path d="M291 56h10"/>
-<g class="terminal"><rect x="301" y="44" width="42" height="24" rx="12"/><text x="322" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
+<g class="terminal"><rect x="301" y="44" width="42" height="24" rx="12"/><text x="322" y="61" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M343 56H363"/>
 <path d="M162 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H343a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M363 56h10"/>

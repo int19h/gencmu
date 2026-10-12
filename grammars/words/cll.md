@@ -286,7 +286,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   | "z" hyphen-y after-z
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>lujvo-form</code> to <code>pair-across-y</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>hyphen-y</code> to <code>pair-across-y</code></summary>
+<p><img src="../../docs/diagrams/words/cll/hyphen-y.svg" alt="Railroad diagram of the rule hyphen-y"></p>
 <p><img src="../../docs/diagrams/words/cll/lujvo-form.svg" alt="Railroad diagram of the rule lujvo-form"></p>
 <p><img src="../../docs/diagrams/words/cll/lujvo-after-cvv.svg" alt="Railroad diagram of the rule lujvo-after-cvv"></p>
 <p><img src="../../docs/diagrams/words/cll/cvv-first-rest.svg" alt="Railroad diagram of the rule cvv-first-rest"></p>

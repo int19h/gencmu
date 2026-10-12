@@ -4,10 +4,10 @@
 <text class="title" x="10" y="24" textLength="159.6" lengthAdjust="spacingAndGlyphs">cyrillic-apostrophe</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">'һ'</text></g>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;һ&quot;</text></g>
 <path d="M82 46H102"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'Һ'</text></g>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Һ&quot;</text></g>
 <path d="M82 80H82a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M102 46h6m0 -8v16m4 -16v16"/>
 </svg>

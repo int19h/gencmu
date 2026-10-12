@@ -204,11 +204,13 @@ The shared BU constructor also takes a bare marker when no quote begins there. Z
 
 Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
 
+The constructor uses the shared `compound-gap` recipe so that surviving pauses contribute one space around erased regions. The lookahead still uses `skipped`, because it tests recognition and runs no string recipes.
+
 The lookahead skips erased regions before BU. Thus `su mi si bu` forms the letteral of SU. Without a following BU, SU erases the whole preceding text. NIhO, LU, TUhE, and TO do not stop it.
 
 ```jbogenbau
 %extend-rule unit
-  $s:su-letter-base skipped bu-word :: Word ∪ BY
+  $s:su-letter-base compound-gap bu-word :: Word ∪ BY
 %emits
   $
 

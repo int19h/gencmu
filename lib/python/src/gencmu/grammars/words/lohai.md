@@ -8,9 +8,11 @@ A magic word acts on other words. The words inside are plain words, whatever the
 
 So `mi lo'ai su le'ai klama` keeps `mi`, and `mi lo'ai zo le'ai klama` is a text. A magic word after the quote acts on all of it. Thus `lo'ai mi le'ai si` is nothing, and `lo'ai mi le'ai bu` is a letteral, a letter word of class BY, as [stream.md](stream.md) defines it.
 
+The quote uses `quiet-gap`, `pause-gap` and `quote-spacing` from the shared word stream. A gap with a surviving pause contributes one space, and hesitation without a pause contributes no string. These rules execute no erasure inside the quote. The stream also keeps a route with no gap. The marker-only alternative stays separate and introduces no second empty-body route.
+
 A free modifier adds information outside predicate arguments. The syntax reads the quote as a free modifier.
 
-The quote carries the tags of its first marker, as every quote carries its marker's. A tag marks a token by name, phoneme or character. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
+The quote carries the tags of its first marker, as every quote carries its marker's. A tag marks a token by an identifier. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
 
 In the experimental dialect, a marker that opens no quote is an ordinary word. [The word stream](stream.md) reads no word where a quote begins, and only there. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. The Zantufa word stream has its own rules for such a marker.
 
@@ -20,50 +22,47 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   lohai-quote
 
 %rule lohai-quote
-  | $e(lehai-marker) <tags($e)>
-  | $r(lohai-run) spacing lehai-marker <tags($r)>
-  | $r(lohai-run) spacing lohai-run spacing lehai-marker <tags($r)>
+  | $e:lehai-marker :: $e.tags
+  | $r:lohai-run quote-spacing lehai-marker :: $r.tags
+  | $r:lohai-run quote-spacing lohai-run quote-spacing lehai-marker :: $r.tags
 
 %rule lohai-run
-  | $m(lohai-marker) <tags($m)>
-  | $m(lohai-marker) spacing lohai-stream <tags($m)>
+  | $m:lohai-marker :: $m.tags
+  | $m:lohai-marker quote-spacing lohai-stream :: $m.tags
 
 %rule lohai-stream
-  | lohai-element
-  | lohai-stream PAUSE lohai-element
-  | lohai-stream lohai-element
-
-%rule lohai-element
-  lohai-word | hesitation
+  | lohai-word
+  | lohai-stream pause-gap lohai-word
+  | lohai-stream quiet-gap lohai-word
+  | lohai-stream lohai-word
 
 %rule lohai-word
-  $w(read-word)
+  $w:read-word
 %conditions
-  classes($w) ∩ (LOhAI ∪ LEhAI) = ∅
+  $w.classes ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
-  $ <~word>
+  $ :: Word
 
 %rule lohai-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  LOhAI ⊆ classes($q)
+  LOhAI ⊆ $q.classes
 %emits
   $
 
 %rule lehai-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  LEhAI ⊆ classes($q)
+  LEhAI ⊆ $q.classes
 %emits
   $
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>quote</code> to <code>lehai-marker</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>quote</code> to <code>lehai-marker</code></summary>
 <p><img src="../../docs/diagrams/words/lohai/quote.svg" alt="Railroad diagram of the rule quote"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-quote.svg" alt="Railroad diagram of the rule lohai-quote"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-run.svg" alt="Railroad diagram of the rule lohai-run"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-stream.svg" alt="Railroad diagram of the rule lohai-stream"></p>
-<p><img src="../../docs/diagrams/words/lohai/lohai-element.svg" alt="Railroad diagram of the rule lohai-element"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-marker.svg" alt="Railroad diagram of the rule lohai-marker"></p>
 <p><img src="../../docs/diagrams/words/lohai/lehai-marker.svg" alt="Railroad diagram of the rule lehai-marker"></p>

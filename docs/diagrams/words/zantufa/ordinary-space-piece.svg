@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="168" lengthAdjust="spacingAndGlyphs">ordinary-space-piece</text>
 <text class="label" x="198" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="201" height="24" rx="0"/><text x="120.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">source-word⊇~y-letters</text></g>
+<g class="rule"><rect x="20" y="34" width="201" height="24" rx="0"/><text x="120.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">source-word&lt;Y-Letters&gt;</text></g>
 <path d="M221 46h6m0 -8v16m4 -16v16"/>
 </svg>

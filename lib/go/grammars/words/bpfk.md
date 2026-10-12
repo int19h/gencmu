@@ -38,35 +38,35 @@ In the second case, the PEG uses the rule only in lookaheads, directly or at the
 
 ## Words
 
-The phoneme stage supplies normalized phonemes and pause tokens. The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
+Phonemes supplies phoneme and pause tokens. Normalization then gives stressed vowels lowercase values and keeps their `Stressed` tags. The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
 
-The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
+The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `Continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `Onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
 The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. This stage reads `ybu` as two words, as the [closing comparison](#the-ybu-exception) explains.
 
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
-A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `onset` where no nucleus begins it.
+A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a run is a nucleus exactly when the run has an odd number of letters. A run with an even number can follow a word directly: `kyyykerlo` is `ky yy kerlo`, but `bayyy` is no text. So a run of `y` has `Onset` where no nucleus begins it.
 
 ```jbogenbau
 %rule cmevla-shape            (* CMEVLA <- cmevla *)
-  $n(cmevla) <~continued ∪ (¬begins(from($n), nucleus) ⟹ ~onset)>
+  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
 
 %rule cmavo-shape             (* CMAVO, less hesitation and ybu *)
-  $c(cmavo) <~continued ∪ (¬begins(from($c), nucleus) ⟹ ~onset)>
+  $c:cmavo :: Continued ∪ (¬$c.onward.begins(nucleus) ⟹ Onset)
 %conditions
-  ¬matches($c, y-letters)
+  ¬$c.matches(y-letters)
 
 %rule brivla-shape            (* BRIVLA, after CMEVLA and CMAVO in lojban_word *)
-  $b(brivla-word) <~continued ∪ (¬begins(from($b), nucleus) ⟹ ~onset)>
+  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
 %conditions
-  ¬begins(from($b), cmevla),
-  ¬begins(from($b), cmavo)
+  ¬$b.onward.begins(cmevla),
+  ¬$b.onward.begins(cmavo)
 
 %redefine-rule y-run          (* a CMAVO of y letters: cmavo_form's y+, or one y *)
-  $h(cmavo) <(¬begins(from($h), nucleus) ⟹ ~onset)>
+  $h:cmavo :: (¬$h.onward.begins(nucleus) ⟹ Onset)
 %conditions
-  matches($h, y-letters)
+  $h.matches(y-letters)
 
 %rule y-letters               (* a run of y letters, which a condition tests *)
   any-y | any-y y-letters
@@ -85,33 +85,33 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 ```jbogenbau
 %rule lojban-word             (* lojban_word <- CMEVLA / CMAVO / BRIVLA *)
   | cmevla
-  | $m(cmavo)
-  | $b(brivla-word)
+  | $m:cmavo
+  | $b:brivla-word
 %conditions
-  ¬begins(from($m), cmevla),
-  ¬begins(from($b), cmevla),
-  ¬begins(from($b), cmavo)
+  ¬$m.onward.begins(cmevla),
+  ¬$b.onward.begins(cmevla),
+  ¬$b.onward.begins(cmavo)
 
 %rule brivla-word             (* BRIVLA <- gismu / lujvo / fuhivla *)
   | gismu
-  | $l(lujvo)
-  | $f(fuhivla)
+  | $l:lujvo
+  | $f:fuhivla
 %conditions
-  ¬begins(from($l), gismu),
-  ¬begins(from($f), gismu),
-  ¬begins(from($f), lujvo)
+  ¬$l.onward.begins(gismu),
+  ¬$f.onward.begins(gismu),
+  ¬$f.onward.begins(lujvo)
 
 %rule lujvo                   (* lujvo <- !gismu !fuhivla brivla *)
-  $b(brivla)
+  $b:brivla
 %conditions
-  ¬begins(from($b), gismu),
-  ¬begins(from($b), fuhivla)
+  ¬$b.onward.begins(gismu),
+  ¬$b.onward.begins(fuhivla)
 
 %rule post-word               (* post_word <- pause / !nucleus lojban_word; only a lookahead *)
   | pause
-  | $w(lojban-word)
+  | $w:lojban-word
 %conditions
-  ¬begins(from($w), nucleus)
+  ¬$w.onward.begins(nucleus)
 
 %rule pause                   (* pause <- comma* space_char+ / EOF; only a lookahead *)
   PAUSE | end-of-text
@@ -119,7 +119,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule end-of-text             (* EOF <- comma* !. *)
   ε
 %conditions
-  matches(after($), nothing)
+  $.following-tokens.matches(nothing)
 
 %rule nothing                 (* the empty text: the empty alternative of an optional or a repetition, and what EOF tests *)
   ε
@@ -142,45 +142,45 @@ A name is a run of letters that ends in a consonant and is followed by a pause. 
 ```jbogenbau
 %rule cmevla                  (* cmevla <- jbocme / zifcme *)
   | jbocme
-  | $z(zifcme)
+  | $z:zifcme
 %conditions
-  ¬begins(from($z), jbocme)
+  ¬$z.onward.begins(jbocme)
 
 %rule zifcme                  (* zifcme <- !h (nucleus / glide / h / consonant !pause / digit)* consonant &pause *)
-  $s(zifcme-sounds) $c(consonant)
+  $s:zifcme-sounds $c:consonant
 %conditions
-  ¬begins(from($s), h),
-  begins(after($c), pause)
+  ¬$s.onward.begins(h),
+  $c.following-tokens.begins(pause)
 
 %rule zifcme-sounds           (* (nucleus / glide / h / consonant !pause)* *)
-  | $n(nothing)
+  | $n:nothing
   | zifcme-sound zifcme-sounds
 %conditions
-  ¬begins(from($n), zifcme-sound)
+  ¬$n.onward.begins(zifcme-sound)
 
 %rule zifcme-sound            (* nucleus / glide / h / consonant !pause; h and consonant begin with letters no other alternative begins with *)
   | nucleus
-  | $g(glide)
+  | $g:glide
   | h
-  | $c(consonant)
+  | $c:consonant
 %conditions
-  ¬begins(from($g), nucleus),
-  ¬begins(after($c), pause)
+  ¬$g.onward.begins(nucleus),
+  ¬$c.following-tokens.begins(pause)
 
 %rule jbocme                  (* jbocme <- &zifcme (any_syllable / digit)+ &pause *)
-  $s(any-syllables)
+  $s:any-syllables
 %conditions
-  begins(from($s), zifcme),
-  begins(after($s), pause)
+  $s.onward.begins(zifcme),
+  $s.following-tokens.begins(pause)
 
 %rule any-syllables           (* (any_syllable)+ *)
   any-syllable more-any-syllables
 
 %rule more-any-syllables      (* the rest of (any_syllable)+ *)
-  | $n(nothing)
+  | $n:nothing
   | any-syllable more-any-syllables
 %conditions
-  ¬begins(from($n), any-syllable)
+  ¬$n.onward.begins(any-syllable)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>cmevla</code> to <code>more-any-syllables</code></summary>
@@ -199,11 +199,11 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 
 ```jbogenbau
 %rule cmavo                   (* cmavo <- !cmevla !CVCy_lujvo cmavo_form &post_word *)
-  $f(cmavo-form)
+  $f:cmavo-form
 %conditions
-  ¬begins(from($f), cmevla),
-  ¬begins(from($f), cvcy-lujvo),
-  begins(after($f), post-word)
+  ¬$f.onward.begins(cmevla),
+  ¬$f.onward.begins(cvcy-lujvo),
+  $f.following-tokens.begins(post-word)
 
 %rule cvcy-lujvo              (* CVCy_lujvo <- CVC_rafsi y h? initial_rafsi* brivla_core / stressed_CVC_rafsi y short_final_rafsi; only a lookahead *)
   | cvc-rafsi y h-opt initial-rafsis brivla-core
@@ -211,21 +211,21 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 
 %rule cmavo-form              (* cmavo_form <- !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster) / y+ / digit *)
   | cmavo-form-with-onset
-  | $y(ys)
+  | $y:ys
 %conditions
-  ¬begins(from($y), cmavo-form-with-onset)
+  ¬$y.onward.begins(cmavo-form-with-onset)
 
 %rule cmavo-form-with-onset   (* !h !cluster onset (nucleus h)* (!stressed nucleus / nucleus !cluster) *)
-  $o(onset) nucleus-h-pairs cmavo-last-nucleus
+  $o:onset nucleus-h-pairs cmavo-last-nucleus
 %conditions
-  ¬begins(from($o), h),
-  ¬begins(from($o), cluster)
+  ¬$o.onward.begins(h),
+  ¬$o.onward.begins(cluster)
 
 %rule nucleus-h-pairs         (* (nucleus h)* *)
-  | $n(nothing)
+  | $n:nothing
   | nucleus-h-pair nucleus-h-pairs
 %conditions
-  ¬begins(from($n), nucleus-h-pair)
+  ¬$n.onward.begins(nucleus-h-pair)
 
 %rule nucleus-h-pair          (* nucleus h, repeated in (nucleus h)* *)
   nucleus h
@@ -244,21 +244,21 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 
 ```jbogenbau
 %rule cmavo-last-nucleus      (* !stressed nucleus / nucleus !cluster *)
-  | $n(nucleus)
-  | $m(nucleus)
+  | $n:nucleus
+  | $m:nucleus
 %conditions
-  ¬begins(from($n), stressed),
-  begins(from($m), stressed),
-  ¬begins(after($m), cluster)
+  ¬$n.onward.begins(stressed),
+  $m.onward.begins(stressed),
+  ¬$m.following-tokens.begins(cluster)
 
 %rule ys                      (* y+ *)
   y more-ys
 
 %rule more-ys                 (* the rest of y+ *)
-  | $n(nothing)
+  | $n:nothing
   | y more-ys
 %conditions
-  ¬begins(from($n), y)
+  ¬$n.onward.begins(y)
 ```
 
 <details><summary>Railroad diagrams of <code>cmavo-last-nucleus</code>, <code>ys</code> and <code>more-ys</code></summary>
@@ -273,37 +273,37 @@ A brivla is not a cmavo. It is any number of rafsi followed by a core. The core 
 
 ```jbogenbau
 %rule brivla                  (* brivla <- !cmavo initial_rafsi* brivla_core *)
-  $r(initial-rafsis) brivla-core
+  $r:initial-rafsis brivla-core
 %conditions
-  ¬begins(from($r), cmavo)
+  ¬$r.onward.begins(cmavo)
 
 %rule initial-rafsis          (* initial_rafsi* *)
-  | $n(nothing)
+  | $n:nothing
   | initial-rafsi initial-rafsis
 %conditions
-  ¬begins(from($n), initial-rafsi)
+  ¬$n.onward.begins(initial-rafsi)
 
 %rule brivla-core             (* brivla_core <- fuhivla / gismu / CVV_final_rafsi / stressed_initial_rafsi short_final_rafsi *)
   | fuhivla
-  | $g(gismu)
-  | $v(cvv-final-rafsi)
-  | $s(stressed-initial-rafsi) short-final-rafsi
+  | $g:gismu
+  | $v:cvv-final-rafsi
+  | $s:stressed-initial-rafsi short-final-rafsi
 %conditions
-  ¬begins(from($g), fuhivla),
-  ¬begins(from($v), fuhivla),
-  ¬begins(from($v), gismu),
-  ¬begins(from($s), fuhivla),
-  ¬begins(from($s), gismu),
-  ¬begins(from($s), cvv-final-rafsi)
+  ¬$g.onward.begins(fuhivla),
+  ¬$v.onward.begins(fuhivla),
+  ¬$v.onward.begins(gismu),
+  ¬$s.onward.begins(fuhivla),
+  ¬$s.onward.begins(gismu),
+  ¬$s.onward.begins(cvv-final-rafsi)
 
 %rule stressed-initial-rafsi  (* stressed_initial_rafsi <- stressed_extended_rafsi / stressed_y_rafsi / stressed_y_less_rafsi *)
   | stressed-extended-rafsi
-  | $y(stressed-y-rafsi)
-  | $l(stressed-y-less-rafsi)
+  | $y:stressed-y-rafsi
+  | $l:stressed-y-less-rafsi
 %conditions
-  ¬begins(from($y), stressed-extended-rafsi),
-  ¬begins(from($l), stressed-extended-rafsi),
-  ¬begins(from($l), stressed-y-rafsi)
+  ¬$y.onward.begins(stressed-extended-rafsi),
+  ¬$l.onward.begins(stressed-extended-rafsi),
+  ¬$l.onward.begins(stressed-y-rafsi)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>brivla</code> to <code>stressed-initial-rafsi</code></summary>
@@ -318,14 +318,14 @@ A rafsi without a y-hyphen stands before the core only where neither it nor the 
 ```jbogenbau
 %rule initial-rafsi           (* initial_rafsi <- extended_rafsi / y_rafsi / !any_extended_rafsi y_less_rafsi !any_extended_rafsi *)
   | extended-rafsi
-  | $y(y-rafsi)
-  | $l(y-less-rafsi)
+  | $y:y-rafsi
+  | $l:y-less-rafsi
 %conditions
-  ¬begins(from($y), extended-rafsi),
-  ¬begins(from($l), extended-rafsi),
-  ¬begins(from($l), y-rafsi),
-  ¬begins(from($l), any-extended-rafsi),
-  ¬begins(after($l), any-extended-rafsi)
+  ¬$y.onward.begins(extended-rafsi),
+  ¬$l.onward.begins(extended-rafsi),
+  ¬$l.onward.begins(y-rafsi),
+  ¬$l.onward.begins(any-extended-rafsi),
+  ¬$l.following-tokens.begins(any-extended-rafsi)
 
 %rule any-extended-rafsi      (* any_extended_rafsi <- fuhivla / extended_rafsi / stressed_extended_rafsi; only a lookahead *)
   fuhivla | extended-rafsi | stressed-extended-rafsi
@@ -348,63 +348,63 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 
 %rule stressed-extended-rafsi (* stressed_extended_rafsi <- stressed_brivla_rafsi / stressed_fuhivla_rafsi *)
   | stressed-brivla-rafsi
-  | $f(stressed-fuhivla-rafsi)
+  | $f:stressed-fuhivla-rafsi
 %conditions
-  ¬begins(from($f), stressed-brivla-rafsi)
+  ¬$f.onward.begins(stressed-brivla-rafsi)
 
 %rule extended-rafsi          (* extended_rafsi <- brivla_rafsi / fuhivla_rafsi *)
   | brivla-rafsi
-  | $f(fuhivla-rafsi)
+  | $f:fuhivla-rafsi
 %conditions
-  ¬begins(from($f), brivla-rafsi)
+  ¬$f.onward.begins(brivla-rafsi)
 
 %rule stressed-brivla-rafsi   (* stressed_brivla_rafsi <- &unstressed_syllable brivla_head stressed_syllable h y *)
-  $b(brivla-head) stressed-syllable h y
+  $b:brivla-head stressed-syllable h y
 %conditions
-  begins(from($b), unstressed-syllable)
+  $b.onward.begins(unstressed-syllable)
 
 %rule brivla-rafsi            (* brivla_rafsi <- &(syllable consonantal_syllable* syllable) brivla_head h y h? *)
-  $b(brivla-head) h y h-opt
+  $b:brivla-head h y h-opt
 %conditions
-  begins(from($b), two-syllables)
+  $b.onward.begins(two-syllables)
 
 %rule two-syllables           (* syllable consonantal_syllable* syllable *)
   syllable consonantal-syllables syllable
 
 %rule stressed-fuhivla-rafsi  (* stressed_fuhivla_rafsi <- fuhivla_head stressed_syllable consonantal_syllable* !h onset y *)
-  fuhivla-head stressed-syllable $c(consonantal-syllables) onset y
+  fuhivla-head stressed-syllable $c:consonantal-syllables onset y
 %conditions
-  ¬begins(after($c), h)
+  ¬$c.following-tokens.begins(h)
 
 %rule fuhivla-rafsi           (* fuhivla_rafsi <- &unstressed_syllable fuhivla_head !h onset y h? *)
-  $f(fuhivla-head) onset y h-opt
+  $f:fuhivla-head onset y h-opt
 %conditions
-  begins(from($f), unstressed-syllable),
-  ¬begins(after($f), h)
+  $f.onward.begins(unstressed-syllable),
+  ¬$f.following-tokens.begins(h)
 
 %rule fuhivla-head            (* fuhivla_head <- !rafsi_string brivla_head *)
-  $b(brivla-head)
+  $b:brivla-head
 %conditions
-  ¬begins(from($b), rafsi-string)
+  ¬$b.onward.begins(rafsi-string)
 
 %rule brivla-head             (* brivla_head <- !cmavo !slinkuhi !h &onset unstressed_syllable* *)
-  $s(unstressed-syllables)
+  $s:unstressed-syllables
 %conditions
-  ¬begins(from($s), cmavo),
-  ¬begins(from($s), slinkuhi),
-  ¬begins(from($s), h),
-  begins(from($s), onset)
+  ¬$s.onward.begins(cmavo),
+  ¬$s.onward.begins(slinkuhi),
+  ¬$s.onward.begins(h),
+  $s.onward.begins(onset)
 
 %rule unstressed-syllables    (* unstressed_syllable* *)
-  | $n(nothing)
+  | $n:nothing
   | unstressed-syllable unstressed-syllables
 %conditions
-  ¬begins(from($n), unstressed-syllable)
+  ¬$n.onward.begins(unstressed-syllable)
 
 %rule slinkuhi                (* slinkuhi <- !rafsi_string consonant rafsi_string; only a lookahead *)
-  $c(consonant) rafsi-string
+  $c:consonant rafsi-string
 %conditions
-  ¬begins(from($c), rafsi-string)
+  ¬$c.onward.begins(rafsi-string)
 ```
 
 <details><summary>Railroad diagrams of the 12 rules from <code>fuhivla</code> to <code>slinkuhi</code></summary>
@@ -429,10 +429,10 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
   y-less-rafsis rafsi-string-end
 
 %rule y-less-rafsis           (* y_less_rafsi* *)
-  | $n(nothing)
+  | $n:nothing
   | y-less-rafsi y-less-rafsis
 %conditions
-  ¬begins(from($n), y-less-rafsi)
+  ¬$n.onward.begins(y-less-rafsi)
 
 %rule rafsi-string-end        (* gismu / CVV_final_rafsi / stressed_y_less_rafsi short_final_rafsi / y_rafsi / stressed_y_rafsi / stressed_y_less_rafsi? initial_pair y / hy_rafsi / stressed_hy_rafsi; only a lookahead *)
   | gismu
@@ -446,9 +446,9 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 
 %rule stressed-y-less-rafsi-opt  (* stressed_y_less_rafsi? *)
   | stressed-y-less-rafsi
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), stressed-y-less-rafsi)
+  ¬$n.onward.begins(stressed-y-less-rafsi)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>rafsi-string</code> to <code>stressed-y-less-rafsi-opt</code></summary>
@@ -464,41 +464,41 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 
 ```jbogenbau
 %rule gismu                   (* gismu <- (initial_pair stressed_vowel / consonant stressed_vowel consonant) &final_syllable consonant vowel &post_word *)
-  gismu-start $c(consonant) $v(vowel)
+  gismu-start $c:consonant $v:vowel
 %conditions
-  begins(from($c), final-syllable),
-  begins(after($v), post-word)
+  $c.onward.begins(final-syllable),
+  $v.following-tokens.begins(post-word)
 
 %rule gismu-start             (* initial_pair stressed_vowel / consonant stressed_vowel consonant; the second letter is a consonant in one and a vowel in the other *)
   initial-pair stressed-vowel | consonant stressed-vowel consonant
 
 %rule cvv-final-rafsi         (* CVV_final_rafsi <- consonant stressed_vowel h &final_syllable vowel &post_word *)
-  consonant stressed-vowel h $v(vowel)
+  consonant stressed-vowel h $v:vowel
 %conditions
-  begins(from($v), final-syllable),
-  begins(after($v), post-word)
+  $v.onward.begins(final-syllable),
+  $v.following-tokens.begins(post-word)
 
 %rule short-final-rafsi       (* short_final_rafsi <- &final_syllable (consonant diphthong / initial_pair vowel) &post_word *)
-  $r(short-final-body)
+  $r:short-final-body
 %conditions
-  begins(from($r), final-syllable),
-  begins(after($r), post-word)
+  $r.onward.begins(final-syllable),
+  $r.following-tokens.begins(post-word)
 
 %rule short-final-body        (* consonant diphthong / initial_pair vowel; the second letter is a vowel in one and a consonant in the other *)
   consonant diphthong | initial-pair vowel
 
 %rule stressed-y-rafsi        (* stressed_y_rafsi <- (stressed_long_rafsi / stressed_CVC_rafsi) y *)
   | stressed-long-rafsi y
-  | $c(stressed-cvc-rafsi) y
+  | $c:stressed-cvc-rafsi y
 %conditions
-  ¬begins(from($c), stressed-long-rafsi)
+  ¬$c.onward.begins(stressed-long-rafsi)
 
 %rule stressed-y-less-rafsi   (* stressed_y_less_rafsi <- stressed_CVC_rafsi !y / stressed_CCV_rafsi / stressed_CVV_rafsi; CVC and CCV differ in the second letter, CVC and CVV in the third, CCV and CVV in the second *)
-  | $c(stressed-cvc-rafsi)
+  | $c:stressed-cvc-rafsi
   | stressed-ccv-rafsi
   | stressed-cvv-rafsi
 %conditions
-  ¬begins(after($c), y)
+  ¬$c.following-tokens.begins(y)
 
 %rule stressed-long-rafsi     (* stressed_long_rafsi <- initial_pair stressed_vowel consonant / consonant stressed_vowel consonant consonant; they differ in the second letter *)
   initial-pair stressed-vowel consonant | consonant stressed-vowel consonant consonant
@@ -517,18 +517,18 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 
 %rule y-rafsi                 (* y_rafsi <- (long_rafsi / CVC_rafsi) y h? *)
   | long-rafsi y h-opt
-  | $c(cvc-rafsi) y h-opt
+  | $c:cvc-rafsi y h-opt
 %conditions
-  ¬begins(from($c), long-rafsi)
+  ¬$c.onward.begins(long-rafsi)
 
 %rule y-less-rafsi            (* y_less_rafsi <- !y_rafsi !stressed_y_rafsi !hy_rafsi !stressed_hy_rafsi (CVC_rafsi / CCV_rafsi / CVV_rafsi) !h *)
-  $r(y-less-rafsi-body)
+  $r:y-less-rafsi-body
 %conditions
-  ¬begins(from($r), y-rafsi),
-  ¬begins(from($r), stressed-y-rafsi),
-  ¬begins(from($r), hy-rafsi),
-  ¬begins(from($r), stressed-hy-rafsi),
-  ¬begins(after($r), h)
+  ¬$r.onward.begins(y-rafsi),
+  ¬$r.onward.begins(stressed-y-rafsi),
+  ¬$r.onward.begins(hy-rafsi),
+  ¬$r.onward.begins(stressed-hy-rafsi),
+  ¬$r.following-tokens.begins(h)
 
 %rule y-less-rafsi-body       (* CVC_rafsi / CCV_rafsi / CVV_rafsi; CVC and CCV differ in the second letter, CVC and CVV in the third, CCV and CVV in the second *)
   cvc-rafsi | ccv-rafsi | cvv-rafsi
@@ -560,10 +560,10 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 
 %rule hy-rafsi-body           (* long_rafsi vowel / CCV_rafsi / CVV_rafsi; CVV differs from each of the others in its second or third letter *)
   | long-rafsi-vowel
-  | $c(ccv-rafsi)
+  | $c:ccv-rafsi
   | cvv-rafsi
 %conditions
-  ¬begins(from($c), long-rafsi-vowel)
+  ¬$c.onward.begins(long-rafsi-vowel)
 
 %rule long-rafsi-vowel        (* long_rafsi vowel *)
   long-rafsi vowel
@@ -573,10 +573,10 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 
 %rule stressed-hy-rafsi-body  (* long_rafsi stressed_vowel / stressed_CCV_rafsi / stressed_CVV_rafsi; as hy-rafsi-body *)
   | long-rafsi-stressed-vowel
-  | $c(stressed-ccv-rafsi)
+  | $c:stressed-ccv-rafsi
   | stressed-cvv-rafsi
 %conditions
-  ¬begins(from($c), long-rafsi-stressed-vowel)
+  ¬$c.onward.begins(long-rafsi-stressed-vowel)
 
 %rule long-rafsi-stressed-vowel  (* long_rafsi stressed_vowel *)
   long-rafsi stressed-vowel
@@ -597,17 +597,17 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
   unstressed-vowel h unstressed-vowel | unstressed-diphthong
 
 %rule r-hyphen                (* r_hyphen <- r &consonant / n &r *)
-  | $r(r)
-  | $n(n)
+  | $r:r
+  | $n:n
 %conditions
-  begins(after($r), consonant),
-  begins(after($n), r)
+  $r.following-tokens.begins(consonant),
+  $n.following-tokens.begins(r)
 
 %rule r-hyphen-opt            (* r_hyphen? *)
   | r-hyphen
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), r-hyphen)
+  ¬$n.onward.begins(r-hyphen)
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>hy-rafsi</code> to <code>r-hyphen-opt</code></summary>
@@ -634,71 +634,71 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 
 ```jbogenbau
 %rule final-syllable          (* final_syllable <- onset !y !stressed nucleus !cmevla &post_word *)
-  $o(onset) $n(nucleus)
+  $o:onset $n:nucleus
 %conditions
-  ¬begins(after($o), y),
-  ¬begins(after($o), stressed),
-  ¬begins(after($n), cmevla),
-  begins(after($n), post-word)
+  ¬$o.following-tokens.begins(y),
+  ¬$o.following-tokens.begins(stressed),
+  ¬$n.following-tokens.begins(cmevla),
+  $n.following-tokens.begins(post-word)
 
 %rule stressed-syllable       (* stressed_syllable <- &stressed syllable / syllable &stress *)
-  | $s(syllable)
-  | $t(syllable)
+  | $s:syllable
+  | $t:syllable
 %conditions
-  begins(from($s), stressed),
-  ¬begins(from($t), stressed),
-  begins(after($t), stress)
+  $s.onward.begins(stressed),
+  ¬$t.onward.begins(stressed),
+  $t.following-tokens.begins(stress)
 
 %rule stressed-diphthong      (* stressed_diphthong <- &stressed diphthong / diphthong &stress *)
-  | $s(diphthong)
-  | $t(diphthong)
+  | $s:diphthong
+  | $t:diphthong
 %conditions
-  begins(from($s), stressed),
-  ¬begins(from($t), stressed),
-  begins(after($t), stress)
+  $s.onward.begins(stressed),
+  ¬$t.onward.begins(stressed),
+  $t.following-tokens.begins(stress)
 
 %rule stressed-vowel          (* stressed_vowel <- &stressed vowel / vowel &stress *)
-  | $s(vowel)
-  | $t(vowel)
+  | $s:vowel
+  | $t:vowel
 %conditions
-  begins(from($s), stressed),
-  ¬begins(from($t), stressed),
-  begins(after($t), stress)
+  $s.onward.begins(stressed),
+  ¬$t.onward.begins(stressed),
+  $t.following-tokens.begins(stress)
 
 %rule unstressed-syllable     (* unstressed_syllable <- !stressed syllable !stress / consonantal_syllable *)
   | unstressed-plain-syllable
-  | $c(consonantal-syllable)
+  | $c:consonantal-syllable
 %conditions
-  ¬begins(from($c), unstressed-plain-syllable)
+  ¬$c.onward.begins(unstressed-plain-syllable)
 
 %rule unstressed-plain-syllable  (* !stressed syllable !stress *)
-  $s(syllable)
+  $s:syllable
 %conditions
-  ¬begins(from($s), stressed),
-  ¬begins(after($s), stress)
+  ¬$s.onward.begins(stressed),
+  ¬$s.following-tokens.begins(stress)
 
 %rule unstressed-diphthong    (* unstressed_diphthong <- !stressed diphthong !stress *)
-  $d(diphthong)
+  $d:diphthong
 %conditions
-  ¬begins(from($d), stressed),
-  ¬begins(after($d), stress)
+  ¬$d.onward.begins(stressed),
+  ¬$d.following-tokens.begins(stress)
 
 %rule unstressed-vowel        (* unstressed_vowel <- !stressed vowel !stress *)
-  $v(vowel)
+  $v:vowel
 %conditions
-  ¬begins(from($v), stressed),
-  ¬begins(after($v), stress)
+  ¬$v.onward.begins(stressed),
+  ¬$v.following-tokens.begins(stress)
 
 %rule stress                  (* stress <- (consonant / glide)* h? y? syllable pause; only a lookahead *)
-  stress-onsets h-opt y-opt $s(syllable)
+  stress-onsets h-opt y-opt $s:syllable
 %conditions
-  begins(after($s), pause)
+  $s.following-tokens.begins(pause)
 
 %rule stress-onsets           (* (consonant / glide)*; a consonant and a glide are different letters *)
-  | $n(nothing)
+  | $n:nothing
   | stress-onset stress-onsets
 %conditions
-  ¬begins(from($n), stress-onset)
+  ¬$n.onward.begins(stress-onset)
 
 %rule stress-onset            (* consonant / glide, repeated in (consonant / glide)* *)
   consonant | glide
@@ -707,7 +707,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   onset stress-mark
 
 %rule stress-mark             (* [AEIOU], a letter and not a vowel rule *)
-  /A/ | /E/ | /I/ | /O/ | /U/
+  "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
@@ -731,96 +731,96 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
 ```jbogenbau
 %rule any-syllable            (* any_syllable <- onset nucleus coda? / consonantal_syllable *)
   | onset-nucleus-coda
-  | $c(consonantal-syllable)
+  | $c:consonantal-syllable
 %conditions
-  ¬begins(from($c), onset-nucleus-coda)
+  ¬$c.onward.begins(onset-nucleus-coda)
 
 %rule onset-nucleus-coda      (* onset nucleus coda? *)
   onset nucleus coda-opt
 
 %rule syllable                (* syllable <- onset !y nucleus coda? *)
-  $o(onset) nucleus coda-opt
+  $o:onset nucleus coda-opt
 %conditions
-  ¬begins(after($o), y)
+  ¬$o.following-tokens.begins(y)
 
 %rule consonantal-syllable    (* consonantal_syllable <- consonant &syllabic coda *)
-  $c(consonant) coda
+  $c:consonant coda
 %conditions
-  begins(after($c), syllabic)
+  $c.following-tokens.begins(syllabic)
 
 %rule consonantal-syllables   (* consonantal_syllable* *)
-  | $n(nothing)
+  | $n:nothing
   | consonantal-syllable consonantal-syllables
 %conditions
-  ¬begins(from($n), consonantal-syllable)
+  ¬$n.onward.begins(consonantal-syllable)
 
 %rule coda                    (* coda <- !any_syllable consonant &any_syllable / syllabic? consonant? &pause *)
   | coda-before-syllable
-  | $p(coda-before-pause)
+  | $p:coda-before-pause
 %conditions
-  ¬begins(from($p), coda-before-syllable)
+  ¬$p.onward.begins(coda-before-syllable)
 
 %rule coda-before-syllable    (* !any_syllable consonant &any_syllable *)
-  $c(consonant)
+  $c:consonant
 %conditions
-  ¬begins(from($c), any-syllable),
-  begins(after($c), any-syllable)
+  ¬$c.onward.begins(any-syllable),
+  $c.following-tokens.begins(any-syllable)
 
 %rule coda-before-pause       (* syllabic? consonant? &pause *)
-  syllabic-opt $c(consonant-opt)
+  syllabic-opt $c:consonant-opt
 %conditions
-  begins(after($c), pause)
+  $c.following-tokens.begins(pause)
 
 %rule coda-opt                (* coda? *)
   | coda
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), coda)
+  ¬$n.onward.begins(coda)
 
 %rule onset                   (* onset <- h / glide / initial; h and glide begin with different letters, and initial can be empty *)
   | h
   | glide
-  | $i(initial)
+  | $i:initial
 %conditions
-  ¬begins(from($i), h),
-  ¬begins(from($i), glide)
+  ¬$i.onward.begins(h),
+  ¬$i.onward.begins(glide)
 
 %rule nucleus                 (* nucleus <- vowel / diphthong / y !nucleus; y is a letter that no vowel or diphthong begins with *)
   | vowel
-  | $d(diphthong)
-  | $y(y)
+  | $d:diphthong
+  | $y:y
 %conditions
-  ¬begins(from($d), vowel),
-  ¬begins(after($y), nucleus)
+  ¬$d.onward.begins(vowel),
+  ¬$y.following-tokens.begins(nucleus)
 
 %rule glide                   (* glide <- (i / u) &nucleus *)
-  $g(i-or-u)
+  $g:i-or-u
 %conditions
-  begins(after($g), nucleus)
+  $g.following-tokens.begins(nucleus)
 
 %rule i-or-u                  (* i / u *)
   i | u
 
 %rule diphthong               (* diphthong <- (a i !i / a u !u / e i !i / o i !i) !nucleus *)
-  $d(diphthong-letters)
+  $d:diphthong-letters
 %conditions
-  ¬begins(after($d), nucleus)
+  ¬$d.following-tokens.begins(nucleus)
 
 %rule diphthong-letters       (* a i !i / a u !u / e i !i / o i !i; they differ in the first or the second letter *)
-  | a $i(i)
-  | a $u(u)
-  | e $j(i)
-  | o $k(i)
+  | a $i:i
+  | a $u:u
+  | e $j:i
+  | o $k:i
 %conditions
-  ¬begins(after($i), i),
-  ¬begins(after($u), u),
-  ¬begins(after($j), i),
-  ¬begins(after($k), i)
+  ¬$i.following-tokens.begins(i),
+  ¬$u.following-tokens.begins(u),
+  ¬$j.following-tokens.begins(i),
+  ¬$k.following-tokens.begins(i)
 
 %rule vowel                   (* vowel <- (a / e / i / o / u) !nucleus *)
-  $v(vowel-letter)
+  $v:vowel-letter
 %conditions
-  ¬begins(after($v), nucleus)
+  ¬$v.following-tokens.begins(nucleus)
 
 %rule vowel-letter            (* a / e / i / o / u *)
   a | e | i | o | u
@@ -848,38 +848,38 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
 
 ## Letters
 
-A vowel letter is plain or capital. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
+A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it still finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
 
 ```jbogenbau
 %rule a                       (* a <- comma* [aA] *)
-  /a/ | /A/
+  "a"
 
 %rule e                       (* e <- comma* [eE] *)
-  /e/ | /E/
+  "e"
 
 %rule i                       (* i <- comma* [iI] *)
-  /i/ | /I/
+  "i"
 
 %rule o                       (* o <- comma* [oO] *)
-  /o/ | /O/
+  "o"
 
 %rule u                       (* u <- comma* [uU] *)
-  /u/ | /U/
+  "u"
 
 %rule y                       (* y <- comma* [yY] !(!y nucleus) *)
-  $y(any-y)
+  $y:any-y
 %conditions
-  ¬begins(after($y), non-y-nucleus)
+  ¬$y.following-tokens.begins(non-y-nucleus)
 
 %rule non-y-nucleus           (* !y nucleus *)
-  $n(nucleus)
+  $n:nucleus
 %conditions
-  ¬begins(from($n), y)
+  ¬$n.onward.begins(y)
 
 %rule h                       (* h <- comma* ['h] &nucleus *)
-  $h(/'/)
+  $h:"'"
 %conditions
-  begins(after($h), nucleus)
+  $h.following-tokens.begins(nucleus)
 ```
 
 <details><summary>Railroad diagrams of <code>a</code>, <code>e</code>, <code>i</code>, <code>o</code>, <code>u</code>, <code>y</code>, <code>non-y-nucleus</code> and <code>h</code></summary>
@@ -902,20 +902,20 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   consonant consonant
 
 %rule initial-pair            (* initial_pair <- &initial consonant consonant !consonant *)
-  $a(consonant) $b(consonant)
+  $a:consonant $b:consonant
 %conditions
-  begins(from($a), initial),
-  ¬begins(after($b), consonant)
+  $a.onward.begins(initial),
+  ¬$b.following-tokens.begins(consonant)
 
 %rule initial                 (* initial <- (affricate / sibilant? other? liquid?) !consonant !glide *)
-  | $a(affricate)
-  | $p(initial-parts)
+  | $a:affricate
+  | $p:initial-parts
 %conditions
-  ¬begins(after($a), consonant),
-  ¬begins(after($a), glide),
-  ¬begins(from($p), affricate),
-  ¬begins(after($p), consonant),
-  ¬begins(after($p), glide)
+  ¬$a.following-tokens.begins(consonant),
+  ¬$a.following-tokens.begins(glide),
+  ¬$p.onward.begins(affricate),
+  ¬$p.following-tokens.begins(consonant),
+  ¬$p.following-tokens.begins(glide)
 
 %rule initial-parts           (* sibilant? other? liquid? *)
   sibilant-opt other-opt liquid-opt
@@ -927,20 +927,20 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   l | r
 
 %rule other                   (* other <- p / t !l / k / f / x / b / d !l / g / v / m / n !liquid *)
-  | p | $t(t) | k | f | x | b | $d(d) | g | v | m | $n(n)
+  | p | $t:t | k | f | x | b | $d:d | g | v | m | $n:n
 %conditions
-  ¬begins(after($t), l),
-  ¬begins(after($d), l),
-  ¬begins(after($n), liquid)
+  ¬$t.following-tokens.begins(l),
+  ¬$d.following-tokens.begins(l),
+  ¬$n.following-tokens.begins(liquid)
 
 %rule sibilant                (* sibilant <- c / s !x / (j / z) !n !liquid *)
   | c
-  | $s(s)
-  | $j(j-or-z)
+  | $s:s
+  | $j:j-or-z
 %conditions
-  ¬begins(after($s), x),
-  ¬begins(after($j), n),
-  ¬begins(after($j), liquid)
+  ¬$s.following-tokens.begins(x),
+  ¬$j.following-tokens.begins(n),
+  ¬$j.following-tokens.begins(liquid)
 
 %rule j-or-z                  (* j / z *)
   j | z
@@ -978,146 +978,146 @@ Each consonant letter refuses a following apostrophe that begins a syllable, a g
 
 ```jbogenbau
 %rule l                       (* l <- comma* [lL] !h !glide !l *)
-  $c(/l/)
+  $c:"l"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), l)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(l)
 
 %rule m                       (* m <- comma* [mM] !h !glide !m !z *)
-  $c(/m/)
+  $c:"m"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), m),
-  ¬begins(after($c), z)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(m),
+  ¬$c.following-tokens.begins(z)
 
 %rule n                       (* n <- comma* [nN] !h !glide !n !affricate *)
-  $c(/n/)
+  $c:"n"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), n),
-  ¬begins(after($c), affricate)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(n),
+  ¬$c.following-tokens.begins(affricate)
 
 %rule r                       (* r <- comma* [rR] !h !glide !r *)
-  $c(/r/)
+  $c:"r"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), r)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(r)
 
 %rule b                       (* b <- comma* [bB] !h !glide !b !unvoiced *)
-  $c(/b/)
+  $c:"b"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), b),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(b),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule d                       (* d <- comma* [dD] !h !glide !d !unvoiced *)
-  $c(/d/)
+  $c:"d"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), d),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(d),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule g                       (* g <- comma* [gG] !h !glide !g !unvoiced *)
-  $c(/g/)
+  $c:"g"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), g),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(g),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule v                       (* v <- comma* [vV] !h !glide !v !unvoiced *)
-  $c(/v/)
+  $c:"v"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), v),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(v),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule j                       (* j <- comma* [jJ] !h !glide !j !z !unvoiced *)
-  $c(/j/)
+  $c:"j"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), j),
-  ¬begins(after($c), z),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(j),
+  ¬$c.following-tokens.begins(z),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule z                       (* z <- comma* [zZ] !h !glide !z !j !unvoiced *)
-  $c(/z/)
+  $c:"z"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), z),
-  ¬begins(after($c), j),
-  ¬begins(after($c), unvoiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(z),
+  ¬$c.following-tokens.begins(j),
+  ¬$c.following-tokens.begins(unvoiced)
 
 %rule s                       (* s <- comma* [sS] !h !glide !s !c !voiced *)
-  $c(/s/)
+  $c:"s"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), s),
-  ¬begins(after($c), c),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(s),
+  ¬$c.following-tokens.begins(c),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule c                       (* c <- comma* [cC] !h !glide !c !s !x !voiced *)
-  $c(/c/)
+  $c:"c"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), c),
-  ¬begins(after($c), s),
-  ¬begins(after($c), x),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(c),
+  ¬$c.following-tokens.begins(s),
+  ¬$c.following-tokens.begins(x),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule x                       (* x <- comma* [xX] !h !glide !x !c !k !voiced *)
-  $c(/x/)
+  $c:"x"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), x),
-  ¬begins(after($c), c),
-  ¬begins(after($c), k),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(x),
+  ¬$c.following-tokens.begins(c),
+  ¬$c.following-tokens.begins(k),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule k                       (* k <- comma* [kK] !h !glide !k !x !voiced *)
-  $c(/k/)
+  $c:"k"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), k),
-  ¬begins(after($c), x),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(k),
+  ¬$c.following-tokens.begins(x),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule f                       (* f <- comma* [fF] !h !glide !f !voiced *)
-  $c(/f/)
+  $c:"f"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), f),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(f),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule p                       (* p <- comma* [pP] !h !glide !p !voiced *)
-  $c(/p/)
+  $c:"p"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), p),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(p),
+  ¬$c.following-tokens.begins(voiced)
 
 %rule t                       (* t <- comma* [tT] !h !glide !t !voiced *)
-  $c(/t/)
+  $c:"t"
 %conditions
-  ¬begins(after($c), h),
-  ¬begins(after($c), glide),
-  ¬begins(after($c), t),
-  ¬begins(after($c), voiced)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(t),
+  ¬$c.following-tokens.begins(voiced)
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>l</code> to <code>t</code></summary>
@@ -1147,45 +1147,45 @@ Each optional of the PEG is a rule that reads the optional part wherever it begi
 ```jbogenbau
 %rule h-opt                   (* h? *)
   | h
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), h)
+  ¬$n.onward.begins(h)
 
 %rule y-opt                   (* y? *)
   | y
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), y)
+  ¬$n.onward.begins(y)
 
 %rule syllabic-opt            (* syllabic? *)
   | syllabic
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), syllabic)
+  ¬$n.onward.begins(syllabic)
 
 %rule consonant-opt           (* consonant? *)
   | consonant
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), consonant)
+  ¬$n.onward.begins(consonant)
 
 %rule sibilant-opt            (* sibilant? *)
   | sibilant
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), sibilant)
+  ¬$n.onward.begins(sibilant)
 
 %rule other-opt               (* other? *)
   | other
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), other)
+  ¬$n.onward.begins(other)
 
 %rule liquid-opt              (* liquid? *)
   | liquid
-  | $n(nothing)
+  | $n:nothing
 %conditions
-  ¬begins(from($n), liquid)
+  ¬$n.onward.begins(liquid)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>h-opt</code> to <code>liquid-opt</code></summary>

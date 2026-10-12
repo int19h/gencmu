@@ -125,7 +125,7 @@ function scanBody(chars, start) {
   let depth = 0;
   for (;;) {
     i = skipLayout(i);
-    if (i >= chars.length || (depth === 0 && (chars[i] === "%" || chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])))) break;
+    if (i >= chars.length || depth === 0 && chars[i] === "%") break;
     if (depth === 0 && chars[i] === "|") {
       if (current) alternatives.push(current);
       current = null;

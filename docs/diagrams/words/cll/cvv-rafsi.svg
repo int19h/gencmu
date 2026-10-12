@@ -13,7 +13,7 @@
 <path d="M132 80h10"/>
 <g class="rule"><rect x="142" y="68" width="58" height="24" rx="0"/><text x="171" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">vowel</text></g>
 <path d="M200 80h10"/>
-<g class="terminal"><rect x="210" y="68" width="42" height="24" rx="12"/><text x="231" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
+<g class="terminal"><rect x="210" y="68" width="42" height="24" rx="12"/><text x="231" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M252 80h10"/>
 <g class="rule"><rect x="262" y="68" width="58" height="24" rx="0"/><text x="291" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">vowel</text></g>
 <path d="M320 80H320a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

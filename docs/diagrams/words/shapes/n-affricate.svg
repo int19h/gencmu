@@ -4,32 +4,32 @@
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">n-affricate</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">/n/</text></g>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;n&quot;</text></g>
 <path d="M82 46h10"/>
-<g class="terminal"><rect x="92" y="34" width="42" height="24" rx="12"/><text x="113" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">/t/</text></g>
+<g class="terminal"><rect x="92" y="34" width="42" height="24" rx="12"/><text x="113" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;t&quot;</text></g>
 <path d="M134 46h10"/>
-<g class="terminal"><rect x="144" y="34" width="42" height="24" rx="12"/><text x="165" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">/c/</text></g>
+<g class="terminal"><rect x="144" y="34" width="42" height="24" rx="12"/><text x="165" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;c&quot;</text></g>
 <path d="M186 46H206"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/n/</text></g>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;n&quot;</text></g>
 <path d="M82 80h10"/>
-<g class="terminal"><rect x="92" y="68" width="42" height="24" rx="12"/><text x="113" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/t/</text></g>
+<g class="terminal"><rect x="92" y="68" width="42" height="24" rx="12"/><text x="113" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;t&quot;</text></g>
 <path d="M134 80h10"/>
-<g class="terminal"><rect x="144" y="68" width="42" height="24" rx="12"/><text x="165" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/s/</text></g>
+<g class="terminal"><rect x="144" y="68" width="42" height="24" rx="12"/><text x="165" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;s&quot;</text></g>
 <path d="M186 80H186a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">/n/</text></g>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;n&quot;</text></g>
 <path d="M82 114h10"/>
-<g class="terminal"><rect x="92" y="102" width="42" height="24" rx="12"/><text x="113" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">/d/</text></g>
+<g class="terminal"><rect x="92" y="102" width="42" height="24" rx="12"/><text x="113" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;d&quot;</text></g>
 <path d="M134 114h10"/>
-<g class="terminal"><rect x="144" y="102" width="42" height="24" rx="12"/><text x="165" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">/j/</text></g>
+<g class="terminal"><rect x="144" y="102" width="42" height="24" rx="12"/><text x="165" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;j&quot;</text></g>
 <path d="M186 114H186a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">/n/</text></g>
+<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;n&quot;</text></g>
 <path d="M82 148h10"/>
-<g class="terminal"><rect x="92" y="136" width="42" height="24" rx="12"/><text x="113" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">/d/</text></g>
+<g class="terminal"><rect x="92" y="136" width="42" height="24" rx="12"/><text x="113" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;d&quot;</text></g>
 <path d="M134 148h10"/>
-<g class="terminal"><rect x="144" y="136" width="42" height="24" rx="12"/><text x="165" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">/z/</text></g>
+<g class="terminal"><rect x="144" y="136" width="42" height="24" rx="12"/><text x="165" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;z&quot;</text></g>
 <path d="M186 148H186a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M206 46h6m0 -8v16m4 -16v16"/>
 </svg>

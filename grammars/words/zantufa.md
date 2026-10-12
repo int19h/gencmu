@@ -182,7 +182,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 <details><summary>Railroad diagrams of the 11 rules from <code>runs</code> to <code>rahoi-form</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa/runs.svg" alt="Railroad diagram of the rule runs"></p>
-<p><img src="../../docs/diagrams/words/zantufa/read-run.svg" alt="Railroad diagram of the rule read-run"></p>
+<p><img src="../../docs/diagrams/words/zantufa/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../docs/diagrams/words/zantufa/run-words.svg" alt="Railroad diagram of the rule run-words"></p>
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-rest.svg" alt="Railroad diagram of the rule rahoi-rest"></p>
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-tail.svg" alt="Railroad diagram of the rule rahoi-tail"></p>

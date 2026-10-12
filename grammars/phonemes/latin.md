@@ -325,8 +325,9 @@ A period between two digits is the decimal point, `pi`. `items` says that no pau
   $ :: ∅ := "p", ε :: ∅ := "i"
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/period-with-commas.svg" alt="Railroad diagram of the rule period-with-commas"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>

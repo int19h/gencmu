@@ -15,13 +15,14 @@ The stage keeps token order, count, text, image, tags, source and attachments. I
   [{unit}]
 
 %rule unit :- $.image
-  | "A"<Stressed> := "a"
-  | "E"<Stressed> := "e"
-  | "I"<Stressed> := "i"
-  | "O"<Stressed> := "o"
-  | "U"<Stressed> := "u"
-  | "Y"<Stressed> := "y"
+  | "A"<Stressed> := "a" | "E"<Stressed> := "e" | "I"<Stressed> := "i"
+  | "O"<Stressed> := "o" | "U"<Stressed> := "u" | "Y"<Stressed> := "y"
   | ","<Syllable-Break> := ""
   | _<¬Stressed ¬Syllable-Break>
 %emits
 ```
+
+<details><summary>Railroad diagrams of <code>text</code> and <code>unit</code></summary>
+<p><img src="../../docs/diagrams/phonemes/normalize/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/phonemes/normalize/unit.svg" alt="Railroad diagram of the rule unit"></p>
+</details>

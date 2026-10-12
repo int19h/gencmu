@@ -8,6 +8,6 @@
 <path d="M124 56H144"/>
 <path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H124a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M144 56h10"/>
-<g class="terminal"><rect x="154" y="44" width="92" height="24" rx="12"/><text x="200" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">~word⊇NAI</text></g>
+<g class="terminal"><rect x="154" y="44" width="92" height="24" rx="12"/><text x="200" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">Word&lt;NAI&gt;</text></g>
 <path d="M246 56h6m0 -8v16m4 -16v16"/>
 </svg>

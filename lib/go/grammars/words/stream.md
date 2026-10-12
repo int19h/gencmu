@@ -37,14 +37,14 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 
 %rule text
   | empty [faho-group]
-  | $s(stream) spacing [faho-group]
+  | $s:stream spacing [faho-group]
 %conditions
-  ~fault ⊈ tags($s)
+  Fault ⊈ $s.tags
 
 %rule text-start
   ε
 %conditions
-  initial($)
+  $.starts-input
 
 %rule empty
   | text-start spacing
@@ -56,62 +56,65 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   | sa-su? sa-wiped spacing
   | sa-su? empty sa-tail
   | sa-su? stream spacing sa-tail
-%emits
-  ε
+%erased
+
 
 %rule su-cleared
-  sa-su? su-boundary? $s(stream) spacing su-word spacing
+  sa-su? su-boundary? $s:stream spacing su-word spacing
 %conditions
-  classes($s) ∩ $SU-STOPS = ∅
+  $s.classes ∩ $SU-STOPS = ∅
 
 %rule stream
-  | empty $u(unit) <tags($u)>
-  | $s(stream) spacing $u(unit) <tags($s) ∪ tags($u)>
-  | $s(stream) spacing erasure <tags($s)>
+  | empty $u:unit :: $u.tags
+  | $s:stream spacing $u:unit :: $s.tags ∪ $u.tags
+  | $s:stream spacing erasure :: $s.tags
 
 %rule unit
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
 %rule spacing
-  [PAUSE] [hesitations [PAUSE]]
+  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
 
 %rule skipped
-  spacing [erasures spacing]
+  $s:spacing [$e:erasures $t:spacing]
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
 
 %rule erasures
-  erasure | erasures spacing erasure
+  | erasure :: ∅
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
 
 %rule erasure
   si-erasure | sa-su? sa-erasure
 
 %rule fault-unit
-  | empty bu-word <~word ∪ BY ∪ ~fault>
-  | lehu-marker <~word ∪ LEhU ∪ ~fault>
+  | empty bu-word :: Word ∪ BY ∪ Fault
+  | lehu-marker :: Word ∪ LEhU ∪ Fault
 %emits
   $
 
 %rule hesitation
-  $h(y-run) <∅>
+  $h:y-run :: ∅
 %conditions
-  ¬begins(from($h), y-bu-word)
-%emits
-  ε
+  ¬$h.onward.begins(y-bu-word)
+%erased
+
 
 %rule y-run
-  ~hesitation
+  Hesitation
 
 %rule faho-group
   faho-word [raw-tokens]
-%emits
-  ε
+%erased
+
 
 %rule faho-word
-  read-word∩FAhO≠∅
+  read-word<FAhO>
 
 %rule sa-tail
   sa-su? sa-run spacing
 %conditions
-  ¬begins(after($), read-word)
+  ¬$.following-tokens.begins(read-word)
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>text</code> to <code>sa-tail</code></summary>
@@ -152,31 +155,32 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   ZO ∪ ZOI ∪ LOhU ∪ LEhU ∪ ZOhOI ∪ MEhOI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
 
 %rule read-word
-  | $c(cmavo-token) <tags($c)>
-  | $b(BRIVLA) <tags($b)>
-  | $n(CMEVLA) <tags($n)>
-  | $y(y-bu-word) <tags($y)>
+  | $c:cmavo-token :: $c.tags
+  | $b:BRIVLA :: $b.tags
+  | $n:CMEVLA :: $n.tags
+  | $y:y-bu-word :: $y.tags
 
 %rule y-bu-word
-  $b(y-key) [PAUSE] $u(bu-word)
-%tags
-  ~word ∪ BY ∪ ~y-letter ∪ tags($b) ∪ ~run-initial ∩ tags(head($b)) ∪ ~run-final ∩ tags(last($u))
+  ::
+  Word ∪ BY ∪ Y-Letter ∪ $b.tags ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
+  | $b:y-key [PAUSE] $u:bu-word
+
 %emits
   $
 
 %rule word
-  | sa-su? $c(read-word) <tags($c)>
-  | ¬sa-su? $e(read-word) <tags($e)>
+  | sa-su? $c:read-word :: $c.tags
+  | ¬sa-su? $e:read-word :: $e.tags
 %conditions
-  classes($c) ∩ $MAGIC-WORDS = ∅,
-  classes($e) ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬begins(from($c), quote),
-  ¬begins(from($e), quote)
+  $c.classes ∩ $MAGIC-WORDS = ∅,
+  $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
+  ¬$c.onward.begins(quote),
+  ¬$e.onward.begins(quote)
 %emits
   $
 
 %rule cmavo-token
-  $c(~cmavo) <tags($c)>
+  $c:Cmavo :: $c.tags
 
 ```
 
@@ -191,7 +195,9 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 Every complete quote is one opaque unit. Later operations see its opening marker class and no class from its contents or closing marker. The indicator and syntax stages receive the quote's emitted tokens.
 
-A quote marker keeps its word kind and classes but drops the `indicator` mark. Otherwise the indicator stage can detach a marker from its quoted contents.
+A quote marker keeps its word kind and classes but drops the `Indicator` mark. Otherwise the indicator stage can detach a marker from its quoted contents.
+
+`quote-gap` keeps the single-word quote's hesitation conditions and marks every surviving pause with `Gap-Pause`. `single-quote-gap` gives that run one space or no string. This keeps two pauses separated by erased hesitation from doubling the space when a compound covers the quote.
 
 ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
@@ -199,7 +205,7 @@ ZOhOI and MEhOI quote one raw run in the experimental dialect. After a pause, th
 
 In `zo'oi .y. bu`, the quote takes the raw y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged raw run in `zo'oi .yyy. bu`.
 
-The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by canonical sound. Canonical sound ignores case and commas.
+The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter. They close at the first matching whole run by exact value. Normalization lowers stressed vowels and empties syllable comma values before this stage. Foreign values remain exact, so different foreign runs do not compare through a placeholder.
 
 The y letteral used as a delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
 
@@ -211,9 +217,13 @@ The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa
 
 The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
 
-Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit an opaque body token. Pauses delimit the body and the closing run.
+Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes still emit a body token with empty value and image. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
 
 A LOhU quote ends at the first LEhU. Its body reads Lojban words through the shared reader without executing operations. No magic word acts there, including BU, ZEI, and FAhO. An unread run makes the quote fail.
+
+`quiet-gap` reads hesitation without a surviving pause and emits no string. `pause-gap` reads the first surviving pause and gives the whole gap one space. `quote-spacing` also admits an empty gap at the quote edges. `lohu-stream` separates pause, quiet and absent gaps, so each gap has one reading. These rules never execute an eraser inside a quote.
+
+`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts. An outer body recipe stops descendant image evaluation, so recursive bodies claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -222,61 +232,63 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   quoted-word | zoi-y-quote | zoi-quote | lohu-quote | single-word-quote
 
 %rule quoted-word
-  $m(word-quote-marker) quote-gap $w(read-word) <tags($m)>
+  $m:word-quote-marker single-quote-gap $w:read-word :: $m.tags
 %emits
-  $m, $w <~word>
+  $m, $w :: Word
 
 %rule word-quote-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZO ⊆ classes($q)
+  ZO ⊆ $q.classes
 
 %rule single-word-quote
-  | $m(single-marker) $r(zohoi-payload) <tags($m)>
-  | $m(single-marker) PAUSE [zohoi-hesitations [PAUSE]] $s(zohoi-payload) <tags($m)>
+  | $m:single-marker $r:zohoi-payload :: $m.tags
+  | $m:single-marker PAUSE [zohoi-hesitations [PAUSE]] $s:zohoi-payload :: $m.tags
 %conditions
-  ~run-final ⊆ tags(last($r)),
-  ~run-final ⊆ tags(last($s)),
-  ~hesitation ⊈ tags(head($s)) ∨ begins(from(head($s)), raw-y-letter)
+  Run-Final ⊆ $r.last-token.tags,
+  Run-Final ⊆ $s.last-token.tags,
+  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
-  $m, $r <~quoted-text>, $s <~quoted-text>
+  $m, $r :: Quoted-Text, $s :: Quoted-Text
 
 %rule single-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  classes($q) ∩ (ZOhOI ∪ MEhOI) ≠ ∅
+  $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅
 
 %rule zoi-y-quote
-  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(raw-tokens) PAUSE $close(raw-close)
-  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
-%tags
-  tags($m)
+  ::
+  $m.tags
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:raw-tokens PAUSE $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
+
 %conditions
-  ~y-letter ⊆ tags($open),
-  tags($open) ∖ $Y-PROPERTIES = tags($close),
-  tags($open) ∖ $Y-PROPERTIES ⊈ tags($content, body-with-y-close)
+  Y-Letter ⊆ $open.tags,
+  $open.tags ∖ $Y-PROPERTIES = $close.tags,
+  $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
-  $m, $open <~word>, $content <~quoted-text>, $close <~word>
+  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
 %rule zoi-quote
-  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(raw-tokens) PAUSE $close(raw-close)
-  | $m(zoi-marker) delimiter-gap $open(delimiter) PAUSE $content(empty-zoi-body) $close(raw-close)
-%tags
-  tags($m)
+  ::
+  $m.tags
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:raw-tokens PAUSE $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
+
 %conditions
-  ~y-letter ⊈ tags($open),
-  phonemes($open) = phonemes($close),
-  phonemes($open) ∉ split(phonemes($content), ".")
+  Y-Letter ⊈ $open.tags,
+  $open.value = $close.value,
+  $open.value ∉ $content.value.split(" ")
 %emits
-  $m, $open <~word>, $content <~quoted-text>, $close <~word>
+  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
 %const $Y-PROPERTIES
-  ~word ∪ BY ∪ ~y-letter ∪ ~run-initial ∪ ~run-final
+  Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule delimiter
-  $w(read-word)
+  $w:read-word
 %conditions
-  Y ⊈ classes($w)
+  Y ⊈ $w.classes
 
 %rule delimiter-gap
   [PAUSE] [delimiter-hesitations [PAUSE]]
@@ -285,46 +297,45 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   delimiter-hesitation | delimiter-hesitations [PAUSE] delimiter-hesitation
 
 %rule delimiter-hesitation
-  $h(y-run)
+  $h:y-run
 %conditions
-  ¬begins(from($h), y-bu-word)
-%emits
-  ε
+  ¬$h.onward.begins(y-bu-word)
+%erased
 
-%rule y-key
-  $y(y-run)
-%tags
-  (phonemes($y) = "ie'o" ⟹ ~ieho) ∪ (phonemes($y) ≠ "ie'o" ⟹ tag(phonemes($y)))
+
+%rule y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
+  | $y:y-run
 
 %rule raw-close
   raw-run | raw-y-close
 
 %rule raw-run
-  $r(raw-run-parts)
+  $r:raw-run-parts
 %conditions
-  ~run-final ⊆ tags(last($r))
+  Run-Final ⊆ $r.last-token.tags
 
 %rule raw-run-parts
   matched-close-token | raw-run-parts matched-close-token
 
 %rule matched-close-token
-  cmavo-token | payload-token⊉~cmavo
+  cmavo-token | payload-token<¬Cmavo>
 
 %rule raw-y-close
-  $y(raw-y-key) [PAUSE] $b(matched-close-token)
-%tags
-  tags($y)
+  ::
+  $y.tags
+  | $y:raw-y-key [PAUSE] $b:matched-close-token
+
 %conditions
-  phonemes($b) = "bu",
-  ~run-initial ⊆ tags(head($y)),
-  ~run-final ⊆ tags(last($b))
+  $b.value = "bu",
+  Run-Initial ⊆ $y.first-token.tags,
+  Run-Final ⊆ $b.last-token.tags
 
 %rule raw-y-base
   | y-run
-  | $b(raw-y-base) $h(y-run)
+  | $b:raw-y-base $h:y-run
 %conditions
-  phonemes($b) ≠ "ie'o",
-  phonemes($h) ≠ "ie'o"
+  $b.value ≠ "ie'o",
+  $h.value ≠ "ie'o"
 
 ```
 
@@ -349,96 +360,111 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 <p><img src="../../docs/diagrams/words/stream/raw-y-base.svg" alt="Railroad diagram of the rule raw-y-base"></p>
 </details>
 
+The opening `y-key` uses fixed `Y-Key` for value `y` and `Ieho` for value `ie'o`. The forms stage separates the last opening y from preceding hesitation. `raw-y-key` uses the same tests but keeps every raw y value. A longer run gets neither key tag, so it cannot close the delimiter.
+
 The raw rule rejoins every piece of one y run. A drawn-out raw run retains its extra y sounds and cannot close a ybu delimiter. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation.
 
 ```jbogenbau
-%rule raw-y-key
-  $y(raw-y-base)
-%tags
-  (phonemes($y) = "ie'o" ⟹ ~ieho) ∪ (phonemes($y) ≠ "ie'o" ⟹ tag(phonemes($y)))
+%rule raw-y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
+  | $y:raw-y-base
 
 %rule raw-y-letter
   raw-y-base [PAUSE] bu-word
 
 %rule zohoi-hesitation
-  $h(y-run)
+  $h:y-run
 %conditions
-  ¬begins(from($h), raw-y-letter)
-%emits
-  ε
+  ¬$h.onward.begins(raw-y-letter)
+%erased
+
 
 %rule zohoi-hesitations
   zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
 
 %rule body-with-y-close
-  [raw-tokens] $c(raw-y-close) [raw-tokens] <tags($c)>
+  [raw-tokens] $c:raw-y-close [raw-tokens] :: $c.tags
 
 %rule empty-zoi-body
   ε
-%opaque
+
 
 %rule zoi-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZOI ⊆ classes($q)
+  ZOI ⊆ $q.classes
 
-%rule lohu-quote
-  | $m(lohu-marker) spacing lohu-stream spacing lehu-marker <tags($m)>
-  | $m(lohu-marker) [PAUSE] lehu-marker <tags($m)>
+%rule quiet-gap
+  | hesitation
+  | quiet-gap hesitation
+
+%rule pause-gap := " "
+  | [quiet-gap] PAUSE [hesitations [PAUSE]]
+
+%rule quote-spacing
+  ε | quiet-gap | pause-gap
+
+%rule lohu-quote :: $m.tags
+  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
+  | $m:lohu-marker quote-spacing lehu-marker
 
 %rule lohu-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  LOhU ⊆ classes($q)
+  LOhU ⊆ $q.classes
 %emits
   $
 
 %rule lehu-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  LEhU ⊆ classes($q)
+  LEhU ⊆ $q.classes
 %emits
-  $ <LEhU>
+  $ :: LEhU
 
 %rule lohu-stream
-  | lohu-element
-  | lohu-stream PAUSE lohu-element
-  | lohu-stream lohu-element
+  | lohu-word
+  | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word
+  | lohu-stream lohu-word
 
-%rule lohu-element
-  lohu-word | hesitation
+
 
 %rule lohu-word
-  $w(read-word)
+  $w:read-word
 %conditions
-  LEhU ⊈ classes($w)
+  LEhU ⊈ $w.classes
 %emits
-  $ <~word>
+  $ :: Word
+
+%rule single-quote-gap
+  quote-gap<¬Gap-Pause> | quote-gap<Gap-Pause> := " "
 
 %rule quote-gap
-  [PAUSE] | [PAUSE] hesitations PAUSE | [PAUSE] hesitations
+  | [$p:PAUSE] :: ($p ⟹ Gap-Pause)
+  | [$p:PAUSE] $h:hesitations PAUSE :: Gap-Pause
+  | [$p:PAUSE] $h:hesitations :: ($p ⟹ Gap-Pause) ∪ ($h.tags ∩ Gap-Pause)
 
 %rule hesitations
-  | hesitation
-  | hesitations PAUSE hesitation
-  | hesitations hesitation
+  | hesitation :: ∅
+  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
 
-%rule raw-tokens
-  any-token | raw-tokens any-token
-%opaque
+%rule raw-tokens :- $.verbatim-text
+  | any-token
+  | raw-tokens any-token
 
-%rule zohoi-payload
-  payload-token | zohoi-payload payload-token
-%opaque
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
 
 %rule any-token
   payload-token | PAUSE
 
 %rule payload-token
-  ~word | ~hesitation | UNREAD
+  Word | Hesitation | FOREIGN
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>raw-y-key</code> to <code>payload-token</code></summary>
+<details><summary>Railroad diagrams of the 22 rules from <code>raw-y-key</code> to <code>payload-token</code></summary>
 <p><img src="../../docs/diagrams/words/stream/raw-y-key.svg" alt="Railroad diagram of the rule raw-y-key"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
@@ -446,12 +472,15 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
 <p><img src="../../docs/diagrams/words/stream/body-with-y-close.svg" alt="Railroad diagram of the rule body-with-y-close"></p>
 <p><img src="../../docs/diagrams/words/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
 <p><img src="../../docs/diagrams/words/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
+<p><img src="../../docs/diagrams/words/stream/quiet-gap.svg" alt="Railroad diagram of the rule quiet-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/pause-gap.svg" alt="Railroad diagram of the rule pause-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-spacing.svg" alt="Railroad diagram of the rule quote-spacing"></p>
 <p><img src="../../docs/diagrams/words/stream/lohu-quote.svg" alt="Railroad diagram of the rule lohu-quote"></p>
 <p><img src="../../docs/diagrams/words/stream/lohu-marker.svg" alt="Railroad diagram of the rule lohu-marker"></p>
 <p><img src="../../docs/diagrams/words/stream/lehu-marker.svg" alt="Railroad diagram of the rule lehu-marker"></p>
 <p><img src="../../docs/diagrams/words/stream/lohu-stream.svg" alt="Railroad diagram of the rule lohu-stream"></p>
-<p><img src="../../docs/diagrams/words/stream/lohu-element.svg" alt="Railroad diagram of the rule lohu-element"></p>
 <p><img src="../../docs/diagrams/words/stream/lohu-word.svg" alt="Railroad diagram of the rule lohu-word"></p>
+<p><img src="../../docs/diagrams/words/stream/single-quote-gap.svg" alt="Railroad diagram of the rule single-quote-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/quote-gap.svg" alt="Railroad diagram of the rule quote-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/hesitations.svg" alt="Railroad diagram of the rule hesitations"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-tokens.svg" alt="Railroad diagram of the rule raw-tokens"></p>
@@ -468,35 +497,49 @@ The right word of ZEI executes no operation. Thus `.abu zei bu` has a literal BU
 
 The constructors can repeat and combine without exposing their operands. Each result keeps any fault of its base. SI erases the complete result as one unit.
 
-Erased regions and ordinary hesitation can separate an operand from its operator. The compound's sound and label omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
+Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
+
+`Gap-Pause` means that a gap contains a surviving pause. `spacing` and `hesitations` introduce it, while `skipped` and `erasures` carry it across erased children. `compound-gap` and `spacing-gap` use complementary tag tests to contribute one space or no string. BU and ZEI use these rules instead of an engine pause join. This keeps unspaced `abu` unspaced and collapses surviving pause runs inside compounds.
 
 The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 
 ```jbogenbau
-%rule lerfu-word
-  $u(unit) skipped bu-word <~word ∪ BY ∪ ~fault ∩ tags($u)>
+%rule compound-gap
+  skipped<¬Gap-Pause> | skipped<Gap-Pause> := " "
+
+%rule spacing-gap
+  spacing<¬Gap-Pause> | spacing<Gap-Pause> := " "
+
+%rule suppressed-gap := ""
+  | skipped
+
+%rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
+  | $u:unit<¬Trailing-Pause> compound-gap bu-word
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
 %emits
   $
 
 %rule bu-word
-  $q(cmavo-token)
+  $q:cmavo-token
 %conditions
-  BU ⊆ classes($q)
+  BU ⊆ $q.classes
 
-%rule zei-compound
-  $l(unit) skipped zei-word spacing $r(read-word)
-%tags
-  ~word ∪ BRIVLA ∪ ~fault ∩ tags($l)
+%rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
+  | $l:unit<¬Trailing-Pause> compound-gap zei-word spacing-gap $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap zei-word spacing-gap $r:read-word
 %emits
   $
 
 %rule zei-word
-  $q(cmavo-token)
+  $q:cmavo-token
 %conditions
-  ZEI ⊆ classes($q)
+  ZEI ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of <code>lerfu-word</code>, <code>bu-word</code>, <code>zei-compound</code> and <code>zei-word</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
+<p><img src="../../docs/diagrams/words/stream/compound-gap.svg" alt="Railroad diagram of the rule compound-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/spacing-gap.svg" alt="Railroad diagram of the rule spacing-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/suppressed-gap.svg" alt="Railroad diagram of the rule suppressed-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/bu-word.svg" alt="Railroad diagram of the rule bu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></p>
@@ -512,13 +555,13 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
 ```jbogenbau
 %rule si-erasure
   unit skipped si-word
-%emits
-  ε
+%erased
+
 
 %rule si-word
-  $q(cmavo-token)
+  $q:cmavo-token
 %conditions
-  SI ⊆ classes($q)
+  SI ⊆ $q.classes
 ```
 
 <details><summary>Railroad diagrams of <code>si-erasure</code> and <code>si-word</code></summary>
@@ -546,46 +589,51 @@ In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimenta
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
+`su-survivor` keeps its base's emitted strings when a compound covers the survivor. If its skipped tail has a surviving pause, it adds one space and introduces `Trailing-Pause`. `unit` forwards that mark. BU and ZEI suppress their next gap contribution when their left unit carries it, then end the mark. The suppressed gap keeps its structure and erasure ownership.
+
+The survivor has no emission clause, so a standalone survivor forwards only its base token. Its trailing recipe acts inside a covering compound. In bpfk and experimental, `ni'o su bu` has one space, and `ni'o subu` retains the earlier surviving space.
+
 These examples show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
-The rule `sa-key` refuses an SA key because a run of SA forms one counted erasure. The rule `next-word-class` tests the whole remaining span through `tags(after($), next-word-class)`. Its optional `raw-tokens` reads everything after the key, including material after FAhO ([notation, Conditions](../../docs/notation.md#conditions)). The rule reads those tokens without word operations, as quote bodies and the active FAhO suffix do.
+The rule `sa-key` refuses an SA key because a run of SA forms one counted erasure. The rule `next-word-class` tests the whole remaining span through `$.following-tokens.tags(next-word-class)`. Its optional `raw-tokens` reads everything after the key, including material after FAhO ([notation, Conditions](../../docs/notation.md#conditions)). The rule reads those tokens without word operations, as quote bodies and the active FAhO suffix do.
 
 ```jbogenbau
 %rule sa-erasure
-  $s(sa-nest) spacing $k(sa-key)
+  $s:sa-nest spacing $k:sa-key
 %conditions
-  classes($s) ∩ tags($k) ≠ ∅
-%emits
-  ε
+  $s.classes ∩ $k.tags ≠ ∅
+%erased
+
 
 %rule sa-nest
-  | $u(sa-open) spacing sa-word <classes($u)>
-  | $u(sa-open) spacing $n(sa-nest) spacing sa-word <classes($u) ∩ classes($n)>
+  | $u:sa-open spacing sa-word :: $u.classes
+  | $u:sa-open spacing $n:sa-nest spacing sa-word :: $u.classes ∩ $n.classes
 %conditions
-  classes($u) ≠ ∅,
-  classes($u) ∩ classes($n) ≠ ∅
+  $u.classes ≠ ∅,
+  $u.classes ∩ $n.classes ≠ ∅
 
 %rule sa-open
-  | $u(unit) <classes($u)>
-  | $s(sa-open) spacing $u(unit) <classes($s) ∖ classes($u)>
-  | $s(sa-open) spacing erasure <classes($s)>
+  | $u:unit :: $u.classes
+  | $s:sa-open spacing $u:unit :: $s.classes ∖ $u.classes
+  | $s:sa-open spacing erasure :: $s.classes
 %conditions
-  classes($) ≠ ∅
+  $.classes ≠ ∅
 
 %rule sa-key
-  ε
-%tags
-  tags(after($), next-word-class)
+  ::
+  $.following-tokens.tags(next-word-class)
+  | ε
+
 %conditions
-  SA ⊈ tags($)
+  SA ⊈ $.tags
 
 %rule next-word-class
-  spacing $w(read-word) [raw-tokens] <classes($w) ∪ ~has-word>
+  spacing $w:read-word [raw-tokens] :: $w.classes ∪ Has-Word
 
 %rule sa-word
-  $q(cmavo-token)
+  $q:cmavo-token
 %conditions
-  SA ⊆ classes($q)
+  SA ⊆ $q.classes
 
 %rule sa-run
   sa-word | sa-run spacing sa-word
@@ -594,46 +642,49 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   sa-word spacing sa-run
 
 %rule sa-wiped
-  | empty sa-run spacing $k(sa-key)
-  | $s(stream) spacing sa-run spacing $k(sa-key)
-  | empty $n(sa-wipe-core) spacing $k(sa-key)
-  | $s(stream) spacing $n(sa-wipe-core) spacing $k(sa-key)
+  | empty sa-run spacing $k:sa-key
+  | $s:stream spacing sa-run spacing $k:sa-key
+  | empty $n:sa-wipe-core spacing $k:sa-key
+  | $s:stream spacing $n:sa-wipe-core spacing $k:sa-key
 %conditions
-  ~has-word ⊆ tags($k),
-  classes($s) ∩ tags($k) = ∅,
-  classes($n) ∩ tags($k) ≠ ∅
-%emits
-  ε
+  Has-Word ⊆ $k.tags,
+  $s.classes ∩ $k.tags = ∅,
+  $n.classes ∩ $k.tags ≠ ∅
+%erased
+
 
 %rule sa-wipe-core
-  | $u(sa-open) spacing sa-run-twice <classes($u)>
-  | $u(sa-open) spacing $n(sa-wipe-core) spacing sa-word <classes($u) ∩ classes($n)>
+  | $u:sa-open spacing sa-run-twice :: $u.classes
+  | $u:sa-open spacing $n:sa-wipe-core spacing sa-word :: $u.classes ∩ $n.classes
 %conditions
-  classes($u) ∩ classes($n) ≠ ∅
+  $u.classes ∩ $n.classes ≠ ∅
 
 %const $SU-STOPS
   NIhO ∪ LU ∪ TUhE ∪ TO
 
-%rule su-survivor
-  sa-su? su-boundary? $b(unit) skipped su-suffix <tags($b)>
+%rule su-survivor := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
 %conditions
-  classes($b) ∩ $SU-STOPS ≠ ∅
+  $b.classes ∩ $SU-STOPS ≠ ∅
 
 %rule su-suffix
   | su-word
   | su-reach spacing su-word
-%emits
-  ε
+%erased
+
 
 %rule su-reach
-  | unit∩$SU-STOPS=∅
-  | su-reach spacing unit∩$SU-STOPS=∅
+  | unit<¬$SU-STOPS>
+  | su-reach spacing unit<¬$SU-STOPS>
   | su-reach spacing erasure
 
 %rule su-word
-  $q(cmavo-token)
+  $q:cmavo-token
 %conditions
-  SU ⊆ classes($q)
+  SU ⊆ $q.classes
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>sa-erasure</code> to <code>su-word</code></summary>

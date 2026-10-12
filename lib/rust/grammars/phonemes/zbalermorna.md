@@ -18,36 +18,36 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 ```jbogenbau
 %extend-rule consonant
-  | '\u{ED80}' </p/>
-  | '\u{ED81}' </t/>
-  | '\u{ED82}' </k/>
-  | '\u{ED83}' </f/>
-  | '\u{ED90}' </b/>
-  | '\u{ED91}' </d/>
-  | '\u{ED92}' </g/>
-  | '\u{ED93}' </v/>
-  | '\u{ED84}' </l/>
-  | '\u{ED85}' </s/>
-  | '\u{ED86}' </c/>
-  | '\u{ED87}' </m/>
-  | '\u{ED94}' </r/>
-  | '\u{ED95}' </z/>
-  | '\u{ED96}' </j/>
-  | '\u{ED97}' </n/>
-  | '\u{ED88}' </x/>
+  | $_ED80 :: ∅ := "p"
+  | $_ED81 :: ∅ := "t"
+  | $_ED82 :: ∅ := "k"
+  | $_ED83 :: ∅ := "f"
+  | $_ED90 :: ∅ := "b"
+  | $_ED91 :: ∅ := "d"
+  | $_ED92 :: ∅ := "g"
+  | $_ED93 :: ∅ := "v"
+  | $_ED84 :: ∅ := "l"
+  | $_ED85 :: ∅ := "s"
+  | $_ED86 :: ∅ := "c"
+  | $_ED87 :: ∅ := "m"
+  | $_ED94 :: ∅ := "r"
+  | $_ED95 :: ∅ := "z"
+  | $_ED96 :: ∅ := "j"
+  | $_ED97 :: ∅ := "n"
+  | $_ED88 :: ∅ := "x"
 %emits
   $
 
 %extend-rule apostrophe
-  '\u{ED8A}'
+  $_ED8A
 %emits
-  $ </'/>
+  $ :: ∅ := "'"
 
 %extend-rule core-char
-  '\u{ED89}'
+  $_ED89
 
 %extend-rule comma
-  '\u{ED9A}' | '\u{ED8C}' | '\u{ED99}' | '\u{ED9B}'
+  $_ED9A | $_ED8C | $_ED99 | $_ED9B
 ```
 
 <details><summary>Railroad diagrams of <code>consonant</code>, <code>apostrophe</code>, <code>core-char</code> and <code>comma</code></summary>
@@ -57,37 +57,39 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
 </details>
 
-A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel. A diphthong diacritic is two phonemes and stands where a vowel stands.
+A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel.
+
+A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
 
 The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
-The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. A diphthong diacritic cannot directly follow the mark.
+The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-marked-vowel` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
 
-A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `foreign-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
+A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `non-lojban-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
 ```jbogenbau
 %extend-rule plain-vowel
-  | '\u{EDA0}' </a/> | '\u{EDB0}' </a/>
-  | '\u{EDA1}' </e/> | '\u{EDB1}' </e/>
-  | '\u{EDA2}' </i/> | '\u{EDB2}' </i/> | '\u{EDAA}' </i/>
-  | '\u{EDA3}' </o/> | '\u{EDB3}' </o/>
-  | '\u{EDA4}' </u/> | '\u{EDB4}' </u/> | '\u{EDAB}' </u/>
-  | '\u{EDA5}' </y/> | '\u{EDB5}' </y/>
+  | $_EDA0 :: ∅ := "a" | $_EDB0 :: ∅ := "a"
+  | $_EDA1 :: ∅ := "e" | $_EDB1 :: ∅ := "e"
+  | $_EDA2 :: ∅ := "i" | $_EDB2 :: ∅ := "i" | $_EDAA :: ∅ := "i"
+  | $_EDA3 :: ∅ := "o" | $_EDB3 :: ∅ := "o"
+  | $_EDA4 :: ∅ := "u" | $_EDB4 :: ∅ := "u" | $_EDAB :: ∅ := "u"
+  | $_EDA5 :: ∅ := "y" | $_EDB5 :: ∅ := "y"
 %emits
   $
 
 %extend-rule stressed-vowel
-  | '\u{EDA0}' zbalermorna-stress </A/> | '\u{EDB0}' zbalermorna-stress </A/>
-  | '\u{EDA1}' zbalermorna-stress </E/> | '\u{EDB1}' zbalermorna-stress </E/>
-  | '\u{EDA2}' zbalermorna-stress </I/> | '\u{EDB2}' zbalermorna-stress </I/>
-  | '\u{EDA3}' zbalermorna-stress </O/> | '\u{EDB3}' zbalermorna-stress </O/>
-  | '\u{EDA4}' zbalermorna-stress </U/> | '\u{EDB4}' zbalermorna-stress </U/>
-  | '\u{EDA5}' zbalermorna-stress </Y/> | '\u{EDB5}' zbalermorna-stress </Y/>
+  | $_EDA0 zbalermorna-stress :: Stressed := "A" | $_EDB0 zbalermorna-stress :: Stressed := "A"
+  | $_EDA1 zbalermorna-stress :: Stressed := "E" | $_EDB1 zbalermorna-stress :: Stressed := "E"
+  | $_EDA2 zbalermorna-stress :: Stressed := "I" | $_EDB2 zbalermorna-stress :: Stressed := "I"
+  | $_EDA3 zbalermorna-stress :: Stressed := "O" | $_EDB3 zbalermorna-stress :: Stressed := "O"
+  | $_EDA4 zbalermorna-stress :: Stressed := "U" | $_EDB4 zbalermorna-stress :: Stressed := "U"
+  | $_EDA5 zbalermorna-stress :: Stressed := "Y" | $_EDB5 zbalermorna-stress :: Stressed := "Y"
 %emits
   $
 
 %rule zbalermorna-stress
-  '\u{ED98}' | zbalermorna-stress '\u{ED98}'
+  $_ED98 | zbalermorna-stress $_ED98
 
 %extend-rule vowel
   zbalermorna-diphthong | zbalermorna-stressed-diphthong
@@ -102,70 +104,69 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
   zbalermorna-shorthand-mark | zbalermorna-stress-mark
 
 %rule zbalermorna-stress-mark
-  '\u{ED98}'
+  $_ED98
 
 %rule zbalermorna-diphthong
   zbalermorna-ai | zbalermorna-ei | zbalermorna-oi | zbalermorna-au
 
 %rule zbalermorna-ai
-  '\u{EDA6}'
+  $_EDA6
 %emits
-  $ </a/>, $ </i/>
+  $ :: ∅ := "a", ε :: ∅ := "i"
 
 %rule zbalermorna-ei
-  '\u{EDA7}'
+  $_EDA7
 %emits
-  $ </e/>, $ </i/>
+  $ :: ∅ := "e", ε :: ∅ := "i"
 
 %rule zbalermorna-oi
-  '\u{EDA8}'
+  $_EDA8
 %emits
-  $ </o/>, $ </i/>
+  $ :: ∅ := "o", ε :: ∅ := "i"
 
 %rule zbalermorna-au
-  '\u{EDA9}'
+  $_EDA9
 %emits
-  $ </a/>, $ </u/>
+  $ :: ∅ := "a", ε :: ∅ := "u"
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
   | zbalermorna-stressed-oi | zbalermorna-stressed-au
 
 %rule zbalermorna-stressed-ai
-  '\u{EDA6}' zbalermorna-stress
+  $_EDA6 zbalermorna-stress
 %emits
-  $ </A/>, $ </i/>
+  $ :: Stressed := "A", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-ei
-  '\u{EDA7}' zbalermorna-stress
+  $_EDA7 zbalermorna-stress
 %emits
-  $ </E/>, $ </i/>
+  $ :: Stressed := "E", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-oi
-  '\u{EDA8}' zbalermorna-stress
+  $_EDA8 zbalermorna-stress
 %emits
-  $ </O/>, $ </i/>
+  $ :: Stressed := "O", ε :: ∅ := "i"
 
 %rule zbalermorna-stressed-au
-  '\u{EDA9}' zbalermorna-stress
+  $_EDA9 zbalermorna-stress
 %emits
-  $ </A/>, $ </u/>
+  $ :: Stressed := "A", ε :: ∅ := "u"
 
 %rule zbalermorna-shorthand
-  $v(zbalermorna-marked-vowel)
+  $v:zbalermorna-marked-vowel
 %emits
-  $v, /'/
+  $v, ε :: ∅ := "'"
 
-%rule zbalermorna-marked-vowel
-  zbalermorna-shorthand-mark $v(zbalermorna-shorthand-vowel)
-%tags
-  tags($v)
+%rule zbalermorna-marked-vowel :: $v.tags := $v.emitted.value :- $v.emitted.image
+  | zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
+
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel
 
 %rule zbalermorna-shorthand-mark
-  '\u{ED8B}'
+  $_ED8B
 ```
 
 <details><summary>Railroad diagrams of the 22 rules from <code>plain-vowel</code> to <code>zbalermorna-shorthand-mark</code></summary>

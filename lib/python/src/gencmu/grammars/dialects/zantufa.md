@@ -41,7 +41,20 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: forms
+## Stage 2: normalize
+
+This stage maps stressed vowel values to lowercase and the syllable comma value to empty. It preserves their images and tags. Forms therefore reads stress and syllable boundaries through tags instead of capital or comma values.
+
+```jbogenbau
+%stage normalize
+```
+
+- [Phoneme values](../phonemes/normalize.md)
+  ```jbogenbau
+  %include "../phonemes/normalize.md"
+  ```
+
+## Stage 3: forms
 
 ```jbogenbau
 %stage forms
@@ -64,7 +77,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../words/lexicon-zantufa.md"
   ```
 
-## Stage 3: words
+## Stage 4: words
 
 ```jbogenbau
 %stage words
@@ -83,7 +96,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../words/zantufa-stream.md"
   ```
 
-## Stage 4: indicators
+## Stage 5: indicators
 
 ```jbogenbau
 %stage indicators
@@ -94,7 +107,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../indicators/cll.md"
   ```
 
-## Stage 5: syntax
+## Stage 6: syntax
 
 ```jbogenbau
 %stage syntax

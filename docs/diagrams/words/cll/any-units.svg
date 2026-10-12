@@ -9,7 +9,7 @@
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="92" height="24" rx="0"/><text x="86" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">any-units</text></g>
 <path d="M132 80h10"/>
-<g class="terminal"><rect x="142" y="68" width="42" height="24" rx="12"/><text x="163" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
+<g class="terminal"><rect x="142" y="68" width="42" height="24" rx="12"/><text x="163" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M184 80h10"/>
 <g class="rule"><rect x="194" y="68" width="84" height="24" rx="0"/><text x="236" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-unit</text></g>
 <path d="M278 80H278a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

@@ -426,7 +426,7 @@ Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin 
 
 ## Vowels
 
-A vowel of a word form has value `a`, `e`, `i`, `o` or `u`, with either stress tag. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
+A vowel of a word form has one of the lowercase values `a e i o u`, with either stress tag. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 

@@ -4,7 +4,7 @@ This document gives the grammar of *The Complete Lojban Language* (CLL), edition
 
 The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). The closing section lists differences from the printed grammar.
 
-A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by name, phoneme or character. A free modifier is a phrase permitted in designated syntax slots.
+A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by an identifier. A free modifier is a phrase permitted in designated syntax slots.
 
 Afterthought places a connective between its operands. Forethought introduces a connection before its first operand. An operand is one side of a connection or operation.
 
@@ -24,7 +24,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 [The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, before syntax reads them.
 
-Outside a quote, the earlier stages hand on some cmavo as tokens of their own. Each carries its class from [the CLL lexicon](../words/lexicon-cll.md). The material of a quote arrives tagged `word` or `quoted-text`, which is what `any-word` and `anything` read.
+Outside a quote, the earlier stages hand on some cmavo as tokens of their own. Each carries its class from [the CLL lexicon](../words/lexicon-cll.md). The material of a quote arrives tagged `Word` or `Quoted-Text`, which is what `any-word` and `anything` read.
 
 [The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
@@ -210,9 +210,9 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 %rule bridi-tail-1-final
   | bridi-tail-2
   | bridi-tail-1 gihek {free} bridi-tail-2 tail-terms
-  | bridi-tail-1 gihek $t(bridi-tail-2) $v(tail-terms)
+  | bridi-tail-1 gihek $t:bridi-tail-2 $v:tail-terms
 %conditions
-  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ text($v) ≠ "")
+  $t ≇ $KE-TAIL ∨ ($t ≅ $KE-TAIL-WITH-VAU ∧ $v.source-text ≠ "")
 
 %rule bridi-tail-2
   bridi-tail-3 [gihek [stag] BO # bridi-tail-2 tail-terms]
@@ -268,10 +268,10 @@ The terms `zu'a nu'i la djordj. la'u lo mitre be li mu` and `zu'a nu'i la'u lo m
   {terms-1}
 
 %rule terms-1
-  {... terms-2 \ PEhE # joik-jek}
+  {... terms-2 / PEhE # joik-jek}
 
 %rule terms-2
-  {term \ CEhE #}
+  {term / CEhE #}
 
 %rule term
   sumti | (tag | FA #) (sumti | [+KU #]) | termset | tag termset | NA KU #
@@ -307,7 +307,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 - `lo'u ... le'u` quotes a run of Lojban words that need not be grammatical, possibly none.
 - `zoi` quotes any text between two copies of a delimiter word.
 
-This grammar states the quote rules over `any-word` and `anything`. The word stage decides where a `zo`, `lo'u` or `zoi` quote ends, and hands on its parts as tokens. It tags each quoted word `word`. It tags a quoted unit, such as a `zoi` body, `quoted-text`. This grammar delimits only `lu ... li'u`. The free-modifier slot of that quote follows it whether or not `li'u` is written.
+This grammar states the quote rules over `any-word` and `anything`. The word stage decides where a `zo`, `lo'u` or `zoi` quote ends, and hands on its parts as tokens. It tags each quoted word `Word`. It tags a quoted unit, such as a `zoi` body, `Quoted-Text`. This grammar delimits only `lu ... li'u`. The free-modifier slot of that quote follows it whether or not `li'u` is written.
 
 `sumti-tail` is what follows a descriptor.[^cll-s6-2] It begins with an optional inner sumti that possesses or restricts, `le mi zdani`.[^cll-s8-7] Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti.[^cll-s8-7] They can also replace it.[^cll-s8-6]
 
@@ -319,10 +319,10 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   sumti-2 [(ek | joik) [stag] KE # sumti [+KEhE #]]
 
 %rule sumti-2
-  {... sumti-3 \ joik-ek}
+  {... sumti-3 / joik-ek}
 
 %rule sumti-3
-  {sumti-4 ... \ (ek | joik) [stag] BO #}
+  {sumti-4 ... / (ek | joik) [stag] BO #}
 
 %rule sumti-4
   sumti-5 | gek sumti gik sumti-4
@@ -367,7 +367,7 @@ A relative clause attaches to a sumti and restricts or comments on it[^cll-c8]. 
 
 ```jbogenbau
 %rule relative-clauses
-  {relative-clause \ ZIhE #}
+  {relative-clause / ZIhE #}
 
 %rule relative-clause
   GOI # term [+GEhU #] | NOI # subsentence [+KUhO #]
@@ -431,13 +431,13 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
   | selbri-4 joik [stag] KE # selbri-3 [+KEhE #]
 
 %rule selbri-5
-  {selbri-6 ... \ (jek | joik) [stag] BO #}
+  {selbri-6 ... / (jek | joik) [stag] BO #}
 
 %rule selbri-6
   tanru-unit [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %rule tanru-unit
-  {tanru-unit-1 \ CEI #}
+  {tanru-unit-1 / CEI #}
 
 %rule tanru-unit-1
   tanru-unit-2 [linkargs]
@@ -455,7 +455,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
   | abstractor-chain subsentence [+KEI #]
 
 %rule abstractor-chain
-  {... NU [NAI] # \ joik-jek}
+  {... NU [NAI] # / joik-jek}
 
 %rule linkargs
   BE # term [links] [+BEhO #]
@@ -528,7 +528,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   mex-chain | FUhA # rp-expression
 
 %rule mex-chain
-  {... mex-1 \ operator}
+  {... mex-1 / operator}
 
 %rule mex-1
   mex-2 [BIhE # operator mex-1]
@@ -562,10 +562,10 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
   operand-1 [(ek | joik) [stag] KE # operand [+KEhE #]]
 
 %rule operand-1
-  {... operand-2 \ joik-ek}
+  {... operand-2 / joik-ek}
 
 %rule operand-2
-  {operand-3 ... \ (ek | joik) [stag] BO #}
+  {operand-3 ... / (ek | joik) [stag] BO #}
 
 %rule operand-3
   | quantifier
@@ -579,12 +579,12 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule number
   PA [{PA | lerfu-word}]
 %conditions
-  ¬begins(after($), number-continuation)
+  ¬$.following-tokens.begins(number-continuation)
 
 %rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
 %conditions
-  ¬begins(after($), number-continuation)
+  ¬$.following-tokens.begins(number-continuation)
 
 %rule number-continuation
   PA | lerfu-word
@@ -663,23 +663,23 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   joik # | jek #
 
 %rule plain-joik-jek
-  | $j(joik) #
+  | $j:joik #
   | jek #
 %conditions
-  KE ⊈ tags(head(after($j)))
+  KE ⊈ $j.following-tokens.first-token.tags
 
 %rule joik-before-ke
-  $j(joik) #
+  $j:joik #
 %conditions
-  KE ⊆ tags(head(after($j)))
+  KE ⊆ $j.following-tokens.first-token.tags
 
 %rule selbri-5-not-ke-group
-  $u(selbri-5)
+  $u:selbri-5
 %conditions
   $u ≇ $KE-UNIT
 
 %rule operator-1-not-ke-group
-  $u(operator-1)
+  $u:operator-1
 %conditions
   $u ≇ $KE-UNIT
 
@@ -742,10 +742,10 @@ In `mi viska ba'o pu gi do gi la djan`, `ba'o` stays a tag over the forethought 
 
 ```jbogenbau
 %rule tag
-  {... tense-modal \ joik-jek}
+  {... tense-modal / joik-jek}
 
 %rule stag
-  {... simple-tense-modal \ jek | joik}
+  {... simple-tense-modal / jek | joik}
 
 %rule tense-modal
   simple-tense-modal # | FIhO # selbri [+FEhU #]
@@ -841,14 +841,14 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ## Quote payloads
 
-The word stage delimits every quote except `lu ... li'u` and emits its parts for syntax to assemble. A quoted word carries `word`, and a quoted unit carries `quoted-text`. These two rules read those parts:
+The word stage delimits every quote except `lu ... li'u` and emits its parts for syntax to assemble. A quoted word carries `Word`, and a quoted unit carries `Quoted-Text`. These two rules read those parts:
 
 ```jbogenbau
 %rule any-word
-  ~word
+  Word
 
 %rule anything
-  ~quoted-text
+  Quoted-Text
 ```
 
 <details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>

@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">other-char</text>
 <text class="label" x="114" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="92" height="24" rx="12"/><text x="66" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">'\p{Any}'</text></g>
-<path d="M112 46h6m0 -8v16m4 -16v16"/>
+<g class="terminal"><rect x="20" y="34" width="25" height="24" rx="12"/><text x="32.5" y="51" textLength="8.4" lengthAdjust="spacingAndGlyphs">_</text></g>
+<path d="M45 46h6m0 -8v16m4 -16v16"/>
 </svg>

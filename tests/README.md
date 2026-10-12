@@ -4,7 +4,7 @@ Every gencmu library runs every shared case that its API can express. A library 
 
 ## Engine cases: `engine/*.json`
 
-During this phase, bundled language grammars retain their previous notation. Corpus execution and cases that load those grammars wait for their separate migration. The JavaScript runner marks those cases as skipped. It still runs engine-only cases, notation cases, source checks, and result invariants.
+The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`. No language migration gate remains.
 
 Each file is one case:
 

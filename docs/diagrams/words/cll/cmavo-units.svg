@@ -9,7 +9,7 @@
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="109" height="24" rx="0"/><text x="94.5" y="85" textLength="92.4" lengthAdjust="spacingAndGlyphs">cmavo-units</text></g>
 <path d="M149 80h10"/>
-<g class="terminal"><rect x="159" y="68" width="42" height="24" rx="12"/><text x="180" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
+<g class="terminal"><rect x="159" y="68" width="42" height="24" rx="12"/><text x="180" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M201 80h10"/>
 <g class="rule"><rect x="211" y="68" width="100" height="24" rx="0"/><text x="261" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">cmavo-unit</text></g>
 <path d="M311 80H311a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

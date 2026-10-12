@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="8.4" lengthAdjust="spacingAndGlyphs">s</text>
 <text class="label" x="38.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="42" height="24" rx="12"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">/s/</text></g>
+<g class="terminal"><rect x="20" y="34" width="42" height="24" rx="12"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;s&quot;</text></g>
 <path d="M62 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -107,7 +107,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "read-run",
+                    "rule": "word-run",
                     "span": [
                       0,
                       6
@@ -269,13 +269,11 @@
                                                       0,
                                                       1
                                                     ],
-                                                    "tags": [
-                                                      "Sound-0073-s"
-                                                    ],
+                                                    "tags": [],
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "Sound-0073-s",
+                                                        "terminal": "\"s\"",
                                                         "token": 0,
                                                         "span": [
                                                           0,
@@ -300,7 +298,7 @@
                                                       2
                                                     ],
                                                     "tags": [
-                                                      "Sound-0041-s"
+                                                      "Stressed"
                                                     ],
                                                     "children": [
                                                       {
@@ -315,12 +313,12 @@
                                                           2
                                                         ],
                                                         "tags": [
-                                                          "Sound-0041-s"
+                                                          "Stressed"
                                                         ],
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "Sound-0041-s",
+                                                            "terminal": "\"a\"",
                                                             "token": 1,
                                                             "span": [
                                                               1,
@@ -360,7 +358,7 @@
                                                           3
                                                         ],
                                                         "tags": [
-                                                          "Sound-0049-s"
+                                                          "Stressed"
                                                         ],
                                                         "children": [
                                                           {
@@ -375,12 +373,12 @@
                                                               3
                                                             ],
                                                             "tags": [
-                                                              "Sound-0049-s"
+                                                              "Stressed"
                                                             ],
                                                             "children": [
                                                               {
                                                                 "kind": "token",
-                                                                "terminal": "Sound-0049-s",
+                                                                "terminal": "\"i\"",
                                                                 "token": 2,
                                                                 "span": [
                                                                   2,
@@ -436,7 +434,7 @@
                                                                 "children": [
                                                                   {
                                                                     "kind": "token",
-                                                                    "terminal": "Sound-0063-s",
+                                                                    "terminal": "\"c\"",
                                                                     "token": 3,
                                                                     "span": [
                                                                       3,
@@ -449,7 +447,7 @@
                                                                   },
                                                                   {
                                                                     "kind": "token",
-                                                                    "terminal": "Sound-006C-s",
+                                                                    "terminal": "\"l\"",
                                                                     "token": 4,
                                                                     "span": [
                                                                       4,
@@ -473,9 +471,7 @@
                                                                   5,
                                                                   6
                                                                 ],
-                                                                "tags": [
-                                                                  "Sound-0069-s"
-                                                                ],
+                                                                "tags": [],
                                                                 "children": [
                                                                   {
                                                                     "kind": "rule",
@@ -488,13 +484,11 @@
                                                                       5,
                                                                       6
                                                                     ],
-                                                                    "tags": [
-                                                                      "Sound-0069-s"
-                                                                    ],
+                                                                    "tags": [],
                                                                     "children": [
                                                                       {
                                                                         "kind": "token",
-                                                                        "terminal": "Sound-0069-s",
+                                                                        "terminal": "\"i\"",
                                                                         "token": 5,
                                                                         "span": [
                                                                           5,

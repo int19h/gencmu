@@ -44,8 +44,6 @@ const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/gra
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
 const stale = [];
-// This phase migrates the notation. Language grammar execution resumes after their migration.
-const notationDocument = file => file.startsWith("notation/") || file === "dialects/notation.md";
 const includeEdges = sourceIncludeEdges(root);
 
 function write(relative, content) {
@@ -133,14 +131,14 @@ const reader = loaderWith(bootstrapText);
 /** @type {Map<string, {text: string, dom: any}>} each grammar document as this pass reads it */
 const read = new Map();
 for (const file of grammarFiles()) {
-  if (!file.endsWith(".md") || !notationDocument(file)) continue;
+  if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   read.set(file, { text, dom: extractGrammarText(text, file).blocks === 0 ? { rules: [] } : reader.readDocument(text, file) });
 }
 // Whether a test on an elided terminator allows its omission, in each
 // stage of each dialect that reads the document. With no such test, this
 // costs nothing.
-const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => notationDocument(file) && file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
+const outcomes = elisionOutcomes(reader, grammarFiles().filter((file) => file.startsWith("dialects/") && file.endsWith(".md")), new Map([...read].map(([file, { dom }]) => [file, dom])));
 for (const [file, { text, dom }] of read) {
   const { text: next, files } = withDiagrams(file, text, dom, outcomes.get(file));
   for (const [relative, svg] of files) diagrams.set(relative, svg);
@@ -173,7 +171,7 @@ if (strays.length) {
 const loader = moved ? loaderWith(bootstrapText) : reader;
 const documents = {};
 for (const file of grammarFiles()) {
-  if (!file.endsWith(".md") || !notationDocument(file)) continue;
+  if (!file.endsWith(".md")) continue;
   const text = fs.readFileSync(path.join(grammars, file), "utf8");
   // A document holds grammar when the reader finds a block in it.
   if (extractGrammarText(text, file).blocks === 0) continue;
@@ -255,7 +253,7 @@ const existing = (relative) => {
   return fs.readdirSync(directory, { withFileTypes: true }).filter((entry) => !entry.name.startsWith(".")).flatMap((entry) => (entry.isDirectory() ? existing(`${relative}/${entry.name}`) : [`${relative}/${entry.name}`]));
 };
 for (const relative of existing(DIAGRAMS)) {
-  if (!relative.startsWith(`${DIAGRAMS}/notation/`) || diagrams.has(relative)) continue;
+  if (diagrams.has(relative)) continue;
   stale.push(relative);
   if (check) continue;
   fs.unlinkSync(path.join(root, relative));

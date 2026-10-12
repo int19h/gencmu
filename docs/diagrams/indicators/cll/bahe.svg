@@ -3,6 +3,6 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="33.6" lengthAdjust="spacingAndGlyphs">bahe</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="100" height="24" rx="12"/><text x="70" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">~word⊇BAhE</text></g>
+<g class="terminal"><rect x="20" y="34" width="100" height="24" rx="12"/><text x="70" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">Word&lt;BAhE&gt;</text></g>
 <path d="M120 46h6m0 -8v16m4 -16v16"/>
 </svg>
