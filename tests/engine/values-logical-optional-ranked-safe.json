@@ -1,0 +1,22 @@
+{
+  "description": "A plain optional with two logical symbols blocks ranked tag inheritance (engine §§3, 6).",
+  "grammar": "%rule text [(\"a\" ≻ \"b\") $x:\"c\"]",
+  "input": "ac",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "tree": {
+        "tags": [],
+        "children": [
+          {
+            "terminal": "\"a\""
+          },
+          {
+            "terminal": "\"c\""
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "The ranked choice loads because its captures remain local and its tags cannot escape.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text Q ($x(a) ≻ b)\n%conditions $x ⟹ begins(from($), q)\n%rule q Q\n%rule a X Y\n%rule b U V",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (Q ($x:a ≻ b)) %conditions ($x ⟹ $.onward.begins(q))\n\n%rule q Q\n%rule a (X Y)\n%rule b (U V)",
   "tokens": [
     {
       "text": "q",

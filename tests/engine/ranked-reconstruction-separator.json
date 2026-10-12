@@ -1,24 +1,24 @@
 {
   "description": "Reconstruction preserves written helper entries, common captures, and raw query evidence before admission.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text {Q \\ (a ≻ b)}\n%tags ∅\n%rule a X T\n%rule b X [+T] | [+U] X",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text :: ∅ | {Q / (a ≻ b)}\n\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)",
   "tokens": [
     {
       "text": "q",
-      "phonemes": "q",
+      "value": "q",
       "tags": [
         "Q"
       ]
     },
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]
     },
     {
       "text": "q",
-      "phonemes": "q",
+      "value": "q",
       "tags": [
         "Q"
       ]
@@ -27,7 +27,7 @@
   "expect": {
     "error": "ambiguous",
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

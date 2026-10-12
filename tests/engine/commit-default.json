@@ -1,6 +1,6 @@
 {
   "description": "An elided terminator permits the preceding constituent to end where the complete text requires it.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text x B C\n%rule x y [+T]\n%rule y A | A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (x B C)\n%rule x (y [+T])\n%rule y A | (A B)",
   "tokens": [
     {
       "text": "a",

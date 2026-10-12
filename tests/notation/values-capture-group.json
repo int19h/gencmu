@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $x:(A | B)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  },
+  "description": "A capture of a grouped primary is a reader error at the binder (engine §9.3)."
+}

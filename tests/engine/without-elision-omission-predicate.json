@@ -1,13 +1,13 @@
 {
   "description": "A rival whose omission test fails supplies no witness (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions ¬matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival X [+T≠\"\"]",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T])\n%rule rival (X [+T≠\"\"])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

@@ -1,18 +1,18 @@
 {
   "description": "Two tag sets are different whatever their tags hold: a token tagged with the one tag a-b and a token tagged a and b are told apart (engine §1).",
-  "grammar": "%rule text ~a-b ~b",
+  "grammar": "%rule text (A-b B)",
   "tokens": [
     {
       "text": "x",
       "tags": [
-        "a-b"
+        "A-b"
       ]
     },
     {
       "text": "y",
       "tags": [
-        "a",
-        "b"
+        "A",
+        "B"
       ]
     }
   ],

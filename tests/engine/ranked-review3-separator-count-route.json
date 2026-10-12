@@ -1,6 +1,6 @@
 {
   "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
-  "grammar": "%rule text (X [($x(Y) ≻ V)] {U \\ T} ≻ Z W)\n%conditions $x",
+  "grammar": "%rule text ((X [($x:Y ≻ V)] {U / T}) ≻ (Z W)) %conditions $x\n",
   "tokens": [
     {
       "text": "x",

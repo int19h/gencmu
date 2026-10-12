@@ -1,20 +1,20 @@
 {
   "description": "The observer in `¬begins(after($x), term)` reads the original input through the span projection. The chosen a elides T at 0 and at 2, so the reconstructed input is T A B T, and c reads both synthetic T as bare terminals. a survives only if after($x) is the empty original suffix; then a and c are two readings. Read over the reconstructed tokens, after($x) begins with the trailing synthetic T, which term reads, a is lost, and c alone would pass (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a [+T=\"ta\"] $x(pair) [+T=\"ta\"]\n%conditions ¬begins(after($x), term)\n%rule b [+T=\"ta\"] [+T=\"ta\"] pair [+T=\"ta\"]\n%rule c T=\"ta\" pair T=\"ta\"\n%rule pair A B\n%rule term T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a ([+T=\"ta\"] $x:pair [+T=\"ta\"]) %conditions ¬($x.following-tokens.begins(term))\n\n%rule b ([+T=\"ta\"] [+T=\"ta\"] pair [+T=\"ta\"])\n%rule c (T=\"ta\" pair T=\"ta\")\n%rule pair (A B)\n%rule term T",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

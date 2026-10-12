@@ -1,0 +1,20 @@
+{
+  "description": "A selected recipe cannot use a capture absent from a served production (engine §§9.3 and 11.4).",
+  "grammar": "%rule text := $x.value | A | $x:B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

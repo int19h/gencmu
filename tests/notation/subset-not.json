@@ -1,6 +1,6 @@
 {
   "description": "⊆ and ⊈ compare two sets of one kind, tag sets or sets of strings (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions ~a ⊈ tags($x), split(phonemes($x), \".\") ⊆ split(phonemes($x), \".\"), tags($x) ∖ ~a = ∅\n```\n",
+  "document": "```jbogenbau\n%rule a $x:B %conditions A ⊈ $x.tags, $x.value.split(\".\") ⊆ $x.value.split(\".\"), ($x.tags ∖ A) = ∅\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,46 +9,43 @@
             {
               "op": "⊈",
               "left": {
-                "tag": "a"
+                "tag": "A"
               },
               "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
-                  }
-                ]
+                "method": "tags",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
               }
             },
             {
               "op": "⊆",
               "left": {
-                "call": "split",
-                "args": [
-                  {
-                    "call": "phonemes",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                "method": "split",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": "x"
                   },
+                  "args": []
+                },
+                "args": [
                   {
                     "string": "."
                   }
                 ]
               },
               "right": {
-                "call": "split",
-                "args": [
-                  {
-                    "call": "phonemes",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                "method": "split",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": "x"
                   },
+                  "args": []
+                },
+                "args": [
                   {
                     "string": "."
                   }
@@ -60,15 +57,14 @@
               "left": {
                 "difference": [
                   {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   },
                   {
-                    "tag": "a"
+                    "tag": "A"
                   }
                 ]
               },

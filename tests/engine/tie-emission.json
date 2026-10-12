@@ -2,7 +2,7 @@
   "description": "A tie at a non-final stage is an error. The stage emits nothing, and no later stage runs (engine §6, §11, §13).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p A B <P> %emits $\n%rule q A B <Q> %emits $\n```\n",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p (A B) :: P %emits $\n%rule q (A B) :: Q %emits $\n```\n",
     "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text P\n```\n"
   },
   "pipeline": "p.md",

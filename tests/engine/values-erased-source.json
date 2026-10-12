@@ -1,0 +1,25 @@
+{
+  "description": "Erasure excludes strings while preserving the covering source envelope (engine §11.4).",
+  "grammar": "%rule text gone \"b\" %emits\n%rule gone \"a\" %erased",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "ab",
+              "value": "b",
+              "image": "b",
+              "source": [
+                0,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "The loader refuses a ranked choice that violates its local capture or tag rules.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text Q ($x(a) ≻ b) $y(Z)\n%conditions text($x) = text($y)\n%rule a X Y\n%rule b U V",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (Q ($x:a ≻ b) $y:Z) %conditions $x.source-text = $y.source-text\n\n%rule a (X Y)\n%rule b (U V)",
   "input": "",
   "expect": {
     "error": "grammar",

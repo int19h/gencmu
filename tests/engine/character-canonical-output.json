@@ -1,6 +1,6 @@
 {
   "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token carries its character tag and nothing else (engine §1, docs/output.md).",
-  "grammar": "%rule text [{c}]\n%rule c '\\u{61}' | '\\u{0301}' | '\\'' | '\\\\' | '\\u{E000}' | '\\u{9}' | 'é'\n%emits $",
+  "grammar": "%rule text [{c}]\n%rule c \"a\" | \"́\" | \"'\" | $_005C | \"\" | $_0009 | \"é\" %emits $\n",
   "input": "á'\\\té",
   "expect": {
     "result": {
@@ -12,43 +12,51 @@
             {
               "text": "a",
               "tags": [
-                "'a'"
+                "_L",
+                "_Ll"
               ]
             },
             {
               "text": "́",
               "tags": [
-                "'\\u{301}'"
+                "_M",
+                "_Mn"
               ]
             },
             {
               "text": "'",
               "tags": [
-                "'\\u{27}'"
+                "_P",
+                "_Po"
               ]
             },
             {
               "text": "\\",
               "tags": [
-                "'\\u{5C}'"
+                "_P",
+                "_Po"
               ]
             },
             {
               "text": "",
               "tags": [
-                "'\\u{E000}'"
+                "_C",
+                "_Co"
               ]
             },
             {
               "text": "\t",
               "tags": [
-                "'\\u{9}'"
+                "_C",
+                "_Cc",
+                "_White_Space"
               ]
             },
             {
               "text": "é",
               "tags": [
-                "'é'"
+                "_L",
+                "_Ll"
               ]
             }
           ]

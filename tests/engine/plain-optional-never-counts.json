@@ -1,6 +1,6 @@
 {
   "description": "An absent plain optional counts nothing under late-elision, also where another optional marks its terminal: x with [KU] and y with nothing tie, while z with [+KU] loses (engine §3.8, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y | z\n%rule x A [KU]\n%rule y A\n%rule z A [+KU] B",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text x | y | z\n%rule x (A [KU])\n%rule y A\n%rule z (A [+KU] B)",
   "tokens": [
     {
       "text": "a",

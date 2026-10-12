@@ -1,6 +1,6 @@
 {
   "description": "A prefix can end at the entry of a positive-width ranked block without consuming it (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions begins(without-elision($x), rival)\n%rule candidate X choice\n%rule choice a ≻ b\n%rule a Y [+T]\n%rule b Y [+U]\n%rule rival X",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.begins(rival)\n\n%rule candidate (X choice)\n%rule choice (a ≻ b)\n%rule a (Y [+T])\n%rule b (Y [+U])\n%rule rival X",
   "tokens": [
     {
       "text": "x",

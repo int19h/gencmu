@@ -1,0 +1,47 @@
+{
+  "document": "```jbogenbau\n%rule r := \"v\" :- \"i\" | A\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "value": {
+            "concat": [
+              {
+                "string": "v"
+              }
+            ]
+          },
+          "image": {
+            "concat": [
+              {
+                "string": "i"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A rule header can define independent value and image recipes (engine §11)."
+}

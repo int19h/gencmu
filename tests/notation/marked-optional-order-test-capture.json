@@ -1,10 +1,10 @@
 {
   "description": "The terminator test is legal. The capture inside the elidable optional causes the error.",
-  "document": "```jbogenbau\n%rule a [+KU≠\"ku\" $x(A)]\n```\n",
+  "document": "```jbogenbau\n%rule a [ + KU ≠ \"ku\" $x:A]\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 19
+      "column": 23
     }
   }
 }

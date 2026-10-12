@@ -1,10 +1,10 @@
 {
   "description": "A constant's value is a closed term, so phonemes of a span is an error in it, at the call (engine §9, §10).",
-  "document": "```jbogenbau\n%const $A split(phonemes($x), \".\")\n```\n",
+  "document": "```jbogenbau\n%const $A $x.value.split(\".\")\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 17
+      "column": 11
     }
   }
 }

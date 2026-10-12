@@ -1,6 +1,6 @@
 {
   "description": "Flat braces count as one symbol for default tags: {A} over one token has A's tags, over two tokens none, and an empty [{A}] none (engine §3.7).",
-  "grammar": "%rule text p Z q Z r\n%rule p {A}\n%rule q {A}\n%rule r [{A}]",
+  "grammar": "%rule text (p Z q Z r)\n%rule p {A}\n%rule q {A}\n%rule r [{A}]",
   "tokens": [
     {
       "text": "a",

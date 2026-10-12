@@ -1,0 +1,18 @@
+{
+  "description": "Opposite requirements for one tag cannot both hold (engine §4).",
+  "grammar": "%rule text _<A ¬A>",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

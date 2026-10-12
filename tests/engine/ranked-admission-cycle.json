@@ -1,10 +1,10 @@
 {
   "description": "Ranked admission uses the same finite eligibility channel through every generated helper.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text slot\n%rule slot slot ≻ X\n%tags ∅",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text slot\n%rule slot :: ∅ | (slot ≻ X)\n",
   "tokens": [
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]

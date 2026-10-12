@@ -1,10 +1,10 @@
 {
   "description": "Reconstruction uses projected flags without the lazy directive or a diagnostic lean.",
-  "grammar": "%ambiguity-resolution lazy elision-only\n%rule text (w ≻ missing) | old | c\n%rule(leftmost-longest) w X [+T]\n%rule missing M N\n%rule old [+U] X\n%rule(leftmost-longest) c r T\n%rule r X e\n%rule e ε",
+  "grammar": "%ambiguity-resolution lazy elision-only\n%rule text (w ≻ missing) | old | c\n%rule (leftmost-longest) w (X [+T])\n%rule missing (M N)\n%rule old ([+U] X)\n%rule (leftmost-longest) c (r T)\n%rule r (X e)\n%rule e ε",
   "tokens": [
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]
@@ -13,7 +13,7 @@
   "expect": {
     "error": "ambiguous",
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

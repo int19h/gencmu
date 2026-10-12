@@ -1,10 +1,54 @@
 {
-  "description": "A span on the right of = is an error at the span, not at the comparison: head($x) gives a span, which is not a value (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) = head($x)\n```\n",
+  "description": "Engine §10 converts a capture to its input value when a string is required.",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.value= $x.first-token\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 42
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "method": "value",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              },
+              "right": {
+                "method": "first-token",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              }
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

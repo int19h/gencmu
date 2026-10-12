@@ -1,34 +1,34 @@
 {
   "description": "The key under which a nested parse's answer is remembered must tell every field of every token apart, even when a token's phonemes hold characters that a key might use as separators: the two pairs here differ only in how their phonemes split between the tokens (engine §4, nested parses).",
-  "grammar": "%rule text $x(pair) $y(pair)\n%conditions matches($x, probe), ¬matches($y, probe)\n%rule pair W W\n%rule probe $f(W) W\n%conditions phonemes($f) = \"x\"",
+  "grammar": "%rule text ($x:pair $y:pair) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"x\"\n",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "b",
       "tags": [
         "W"
       ],
-      "phonemes": "y\u0001[[\"W\",true]]\u0002b\u0002z"
+      "value": "y\u0001[[\"W\",true]]\u0002b\u0002z"
     },
     {
       "text": "a",
       "tags": [
         "W"
       ],
-      "phonemes": "x\u0001[[\"W\",true]]\u0002b\u0002y"
+      "value": "x\u0001[[\"W\",true]]\u0002b\u0002y"
     },
     {
       "text": "b",
       "tags": [
         "W"
       ],
-      "phonemes": "z"
+      "value": "z"
     }
   ],
   "expect": {

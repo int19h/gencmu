@@ -1,0 +1,35 @@
+{
+  "document": "```jbogenbau\n%rule r \"\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": ""
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "An empty string is a value terminal (engine §§1, 9)."
+}

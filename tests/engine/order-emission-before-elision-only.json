@@ -1,11 +1,25 @@
 {
   "description": "A stage emits before it runs the check of elision-only. The text is resolved, and written back it would fail the check, but its emission fails first. So the result is the error of the grammar, and the stage keeps its verdict (engine §6, §7, §11).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%emits $ <tags(head($)) ∖ A>\n%rule a A [+T]\n%rule b A [+T] [+T]\n%rule c A T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c %emits\n%rule a x y [+T]\n%rule b x y [+T] [+T]\n%rule c x y T\n%rule x :- $.verbatim-text | A\n%rule y :- $.verbatim-text | B",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        2,
+        3
       ]
     }
   ],
@@ -25,5 +39,6 @@
       }
     },
     "error": "grammar"
-  }
+  },
+  "input": "a,b"
 }

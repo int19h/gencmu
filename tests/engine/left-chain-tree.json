@@ -1,6 +1,6 @@
 {
   "description": "A left chain, {... x \\ s}, is r → x | r s x on the rule itself, so each level is a node of the rule, nesting from the left (engine §3.3, §12).",
-  "grammar": "%rule text {... A \\ S}",
+  "grammar": "%rule text {... A / S}",
   "tokens": [
     {
       "text": "a",

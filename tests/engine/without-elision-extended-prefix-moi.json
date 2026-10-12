@@ -1,20 +1,20 @@
 {
   "description": "An extended prefix can read the following MOI (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate) MOI\n%conditions begins(from(without-elision($x)), rival)\n%rule candidate X [+T]\n%rule rival X [+T] MOI",
+  "grammar": "%rule text ($x:candidate MOI) %conditions $x.without-elision.onward.begins(rival)\n\n%rule candidate (X [+T])\n%rule rival (X [+T] MOI)",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "moi",
       "tags": [
         "MOI"
       ],
-      "phonemes": "moi"
+      "value": "moi"
     }
   ],
   "expect": {

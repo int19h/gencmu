@@ -1,0 +1,25 @@
+{
+  "description": "A value dependency on an explicit image recipe has no cycle (engine §11.3).",
+  "grammar": "%rule text := $.emitted.image :- \"x\" | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "x",
+              "image": "x",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

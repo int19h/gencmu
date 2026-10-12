@@ -1,6 +1,6 @@
 {
   "description": "Observed and ordinary callers of one ranked group keep separate entry frames. The observed caller retains the same seal as its witness.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text piece | $x(piece)\n%conditions matches(without-elision($x), piece)\n%rule piece 'x' (a \u227b b)\n%rule a 'a' [+T]\n%rule b 'a' [+U]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text piece | $x:piece %conditions $x.without-elision.matches(piece)\n\n%rule piece (\"x\" (a ≻ b))\n%rule a (\"a\" [+T])\n%rule b (\"a\" [+U])",
   "input": "xa",
   "expect": {
     "error": "ambiguous",

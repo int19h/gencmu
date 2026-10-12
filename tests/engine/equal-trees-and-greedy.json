@@ -1,6 +1,6 @@
 {
   "description": "text → [A] & [B] on the empty input ties under greedy too: its three derivations differ only at transparent closes, and transparency does not merge them (engine §6).",
-  "grammar": "%rule text [A] & [B]",
+  "grammar": "%rule text ([A] & [B])",
   "tokens": [],
   "expect": {
     "result": {

@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $x:[A]\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  },
+  "description": "A capture of an optional is a reader error at the binder (engine §9.3)."
+}

@@ -1,6 +1,6 @@
 {
   "description": "A capture wraps a reference, a tag literal, a character tag or a phoneme tag; a group, even of one symbol, is an error at the capture (engine §9).",
-  "document": "```jbogenbau\n%rule a $x((B))\n```\n",
+  "document": "```jbogenbau\n%rule a $x:( B )\n```\n",
   "expect": {
     "error": {
       "line": 2,

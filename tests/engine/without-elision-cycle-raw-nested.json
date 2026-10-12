@@ -1,13 +1,13 @@
 {
   "description": "The active query stack is shared with ordinary nested queries (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival $y(body)\n%conditions matches(from($y), rival)\n%rule body X [+T]",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate (X [+T])\n%rule rival $y:body %conditions $y.onward.matches(rival)\n\n%rule body (X [+T])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

@@ -1,6 +1,6 @@
 {
   "description": "An optional expanded in place is no symbol: r → A [$b(B)] over a is the one-symbol production A, which inherits A's tags, and over a b has none; q → A [B] has two symbols, A and a helper, and none either way (engine §3.2, §3.7).",
-  "grammar": "%rule text r Z r Z q Z q\n%rule r A [$b(B)]\n%rule q A [B]",
+  "grammar": "%rule text (r Z r Z q Z q)\n%rule r (A [$b:B])\n%rule q (A [B])",
   "tokens": [
     {
       "text": "a",
@@ -94,10 +94,7 @@
               0,
               1
             ],
-            "tags": [
-              "A",
-              "X"
-            ],
+            "tags": [],
             "children": [
               {
                 "kind": "token",

@@ -1,32 +1,34 @@
 {
-  "description": "from preserves a restored span through nested calls. Engine \u00a79 and \u00a710.",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions begins(from(from(without-elision($x))), r)\n```\n",
+  "description": "from preserves a restored span through nested calls. Engine §9 and §10.",
+  "document": "```jbogenbau\n%rule a $x:B %conditions $x.without-elision.onward.onward.begins(r)\n```\n",
   "expect": {
     "dom": {
-      "format": 25,
+      "format": 26,
       "rules": [
         {
           "conditions": [
             {
-              "begins": {
-                "call": "from",
-                "args": [
-                  {
-                    "call": "from",
-                    "args": [
-                      {
-                        "call": "without-elision",
-                        "args": [
-                          {
-                            "capture": "x"
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
+              "method": "begins",
+              "receiver": {
+                "method": "onward",
+                "receiver": {
+                  "method": "onward",
+                  "receiver": {
+                    "method": "without-elision",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
+                  },
+                  "args": []
+                },
+                "args": []
               },
-              "rule": "r"
+              "args": [
+                {
+                  "rule": "r"
+                }
+              ]
             }
           ]
         }

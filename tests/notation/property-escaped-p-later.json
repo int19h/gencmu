@@ -1,10 +1,10 @@
 {
-  "description": "Only the opening '\\p makes a property. '\\p{L}\\p' is one property token, and the reader reports it as malformed at its opening quote (engine §9, grammars/notation/lexical.md).",
-  "document": "```jbogenbau\n%rule a '\\p{L}\\p'\n```\n",
+  "description": "A backslash after an ordinary character is still a lexical error (engine §9.1).",
+  "document": "```jbogenbau\n%rule a \"a\\p{L}\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 9
+      "column": 11
     }
   }
 }

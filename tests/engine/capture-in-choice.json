@@ -1,6 +1,6 @@
 {
   "description": "A capture can stand in a branch of a choice: on a c, the production A C has $a and $c, and emits both (engine §3.5, §11).",
-  "grammar": "%rule text ($a(A) | B) $c(C)\n%emits $a, $c",
+  "grammar": "%rule text (($a:A | B) $c:C) %emits $a, $c\n",
   "tokens": [
     {
       "text": "a",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "tags": [
                 "A"
               ],
@@ -41,8 +41,8 @@
             },
             {
               "text": "c",
-              "phonemes": "",
-              "label": "c",
+              "value": "c",
+              "image": "c",
               "tags": [
                 "C"
               ],

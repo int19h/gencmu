@@ -1,0 +1,15 @@
+{
+  "description": "Invalid caller strings or tags fail before recognition (engine §§1 and 13).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "'a'"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

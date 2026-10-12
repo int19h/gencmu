@@ -1,6 +1,6 @@
 {
   "description": "A rule reference takes a test as a terminal does, and a capture can wrap a tested tag literal (engine §9).",
-  "document": "```jbogenbau\n%rule text $s(~la=\"la\") sumti=\"lonu\"\n%rule sumti LE NU\n```\n",
+  "document": "```jbogenbau\n%rule text ($s:La=\"la\" sumti=\"lonu\")\n%rule sumti (LE NU)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -17,7 +17,7 @@
                         "string": "la"
                       },
                       "expr": {
-                        "terminal": "la"
+                        "ref": "La"
                       }
                     }
                   },

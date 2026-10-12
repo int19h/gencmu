@@ -1,6 +1,6 @@
 {
   "description": "Parentheses make no node, so a group of the connective around it is part of it: (a ∧ b) ∧ c is one all of three, and (a ∨ b) ∨ c one any of three (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %conditions (~p ⊆ tags($x) ∧ ~q ⊆ tags($x)) ∧ ~r ⊆ tags($x)\n%rule b $x(A) %conditions (~p ⊆ tags($x) ∨ ~q ⊆ tags($x)) ∨ ~r ⊆ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x:A %conditions (P ⊆ $x.tags ∧ Q ⊆ $x.tags ∧ R ⊆ $x.tags)\n%rule b $x:A %conditions (P ⊆ $x.tags ∨ Q ⊆ $x.tags ∨ R ⊆ $x.tags)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -11,43 +11,40 @@
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "p"
+                    "tag": "P"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "q"
+                    "tag": "Q"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "r"
+                    "tag": "R"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 }
               ]
@@ -61,43 +58,40 @@
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "p"
+                    "tag": "P"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "q"
+                    "tag": "Q"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "r"
+                    "tag": "R"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 }
               ]

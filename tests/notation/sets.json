@@ -1,6 +1,6 @@
 {
   "description": "A tag term: tag literals, ∅, and ∩ binding tighter than ∪ (engine §10).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule w $a(A) <X ∪ ~y ∪ tags($a) ∩ ∅>\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule w $a:A :: (X ∪ Y ∪ ($a.tags ∩ ∅))\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -13,17 +13,16 @@
                     "tag": "X"
                   },
                   {
-                    "tag": "y"
+                    "tag": "Y"
                   },
                   {
                     "intersection": [
                       {
-                        "call": "tags",
-                        "args": [
-                          {
-                            "capture": "a"
-                          }
-                        ]
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "a"
+                        },
+                        "args": []
                       },
                       {
                         "emptySet": true

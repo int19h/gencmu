@@ -1,6 +1,6 @@
 {
   "description": "Where the final value of $E is not empty, the condition uses $x and $y, which no alternative has together, so it applies to no alternative. The loader reports it at the definition (engine §2, §9).",
-  "grammar": "%const $E B ∖ B\n%rule text $x(A) | $y(C)\n%conditions tags($x) ∪ ($E ∩ tags($y)) ≠ ∅\n%redefine-const $E B",
+  "grammar": "%const $E (B ∖ B)\n%rule text $x:A | $y:C %conditions ($x.tags ∪ ($E ∩ $y.tags)) ≠ ∅\n\n%redefine-const $E B",
   "tokens": [
     {
       "text": "a",

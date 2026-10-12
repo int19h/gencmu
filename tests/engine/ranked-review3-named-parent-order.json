@@ -1,6 +1,6 @@
 {
   "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
-  "grammar": "%rule text $y(X) [($x(Y) ≻ V)]\n%conditions $x ∨ text($) = \"never\", $y ⟹ (\"a\" ∈ split(text($y), phonemes($)))",
+  "grammar": "%rule text ($y:X [($x:Y ≻ V)]) %conditions ($x ∨ $.source-text = \"never\"), ($y ⟹ \"a\" ∈ $y.source-text.split($.value))\n",
   "tokens": [
     {
       "text": "x",

@@ -1,6 +1,6 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 4 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text [{C}] v | B C | ε\n%rule t B B | C {C \\ B}\n%rule u v | C [A]\n%rule v [u] | ε",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ([{C}] v) | (B C) | ε\n%rule t (B B) | (C {C / B})\n%rule u v | (C [A])\n%rule v [u] | ε",
   "tokens": [
     {
       "text": "x",
@@ -8,19 +8,19 @@
         "B",
         "C"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "x",
       "tags": [
         "C"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

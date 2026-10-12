@@ -1,0 +1,35 @@
+{
+  "description": "Classes start and end with capitals and exclude engine tags (engine §§1 and 10).",
+  "grammar": "%rule text $x:_ %emits $x :: $x.classes",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "Word",
+        "WORD",
+        "A",
+        "_L"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "A",
+                "WORD"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

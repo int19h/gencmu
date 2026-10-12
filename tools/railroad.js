@@ -508,10 +508,20 @@ export function elisionOutcomes(loader, pipelines, documents) {
           const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
-            const grammar = holdsConstant(first.value) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
+            const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
             const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
-            const held = leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } }, test.op === "=" ? test.sound : "", new Set([terminal]));
+            const tags = new Set([terminal]);
+            let held = true;
+            for (let current = test; current; current = current.inner) {
+              const patternTest = current.op === "tags"
+                ? {test: "tags", requirements: [
+                  {negated: false, value: {set: current.positive}},
+                  {negated: true, value: {set: current.negative}},
+                ]}
+                : {test: current.op, value: {string: current.value}};
+              held &&= leafTest(patternTest, test.op === "=" ? test.value : "", tags);
+            }
             if (!outcomes.has(document)) outcomes.set(document, new Map());
             const byRule = /** @type {Map<string, Set<boolean>[]>} */ (outcomes.get(document));
             if (!byRule.has(ruleKey)) byRule.set(ruleKey, []);

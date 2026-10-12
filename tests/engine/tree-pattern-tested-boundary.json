@@ -1,20 +1,20 @@
 {
   "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
-  "grammar": "%rule text A [+KEhE] B\n%conditions $ ≅ @(A KEhE=\"\" B) ∧ $ ≇ @(A KEhE≠\"\" B)",
+  "grammar": "%rule text (A [+KEhE] B) %conditions ($ ≅ @(A KEhE=\"\" B) ∧ $ ≇ @(A KEhE≠\"\" B))\n",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r A %conditions $.unknown = \"x\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 23
+    }
+  },
+  "description": "An unknown method is an error at the method’s first token, its receiver (engine §9.3)."
+}

@@ -1,6 +1,6 @@
 {
   "description": "Only a marked optional is elidable: in text → [+KU] A [KU] on a, the first optional leaves an elided node and the plain one leaves none, although both hold KU (engine §3.8, §12).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text [+KU] A [KU]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text ([+KU] A [KU])",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,25 @@
+{
+  "description": "Empty strings do not erase a constituent or its covering token (engine §11.4).",
+  "grammar": "%rule text := \"\" :- \"\" | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "",
+              "image": "",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "description": "An item over an erased capture can supply strings without counted parts (engine §11.4).",
+  "grammar": "%rule text $x:gone %emits $x := \"x\"\n%rule gone \"a\" %erased",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "x",
+              "image": "x",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

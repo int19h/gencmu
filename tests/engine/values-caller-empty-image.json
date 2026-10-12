@@ -1,0 +1,28 @@
+{
+  "description": "An explicit empty caller image preserves the default value (engine §1).",
+  "grammar": "%rule text \"a\" %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "image": ""
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

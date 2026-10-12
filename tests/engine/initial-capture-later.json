@@ -1,6 +1,6 @@
 {
   "description": "initial($x) fails for a captured part that begins after the start of the input (engine §10).",
-  "grammar": "%rule text W $x(W) %conditions initial($x)",
+  "grammar": "%rule text (W $x:W) %conditions $x.starts-input",
   "tokens": [
     {
       "text": "w",

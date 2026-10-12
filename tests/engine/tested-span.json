@@ -1,38 +1,52 @@
 {
   "description": "A tested rule reference matches where the phonemes of its constituent's span, joined without a separator and lowercased, are the test's string; each token keeps its own periods (engine §4, §5).",
-  "grammar": "%rule text x=\"lonu\" y=\"broda.bu\"\n%rule x LE NU\n%rule y BY",
+  "grammar": "%rule text (x=\"lonu\" y=\"broda.bu\")\n%rule x (LE NU)\n%rule y BY",
   "tokens": [
     {
       "text": "lo",
       "tags": [
         "LE"
       ],
-      "phonemes": "lo"
+      "value": "lo"
     },
     {
       "text": "NU",
       "tags": [
         "NU"
       ],
-      "phonemes": "NU"
+      "value": "NU"
     },
     {
       "text": "broda bu",
       "tags": [
         "BY"
       ],
-      "phonemes": "broda.bu"
+      "value": "broda.bu"
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
-      ]
-    },
-    "brackets": "([lo NU] broda bu)"
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "source": [
+          6,
+          14
+        ],
+        "line": 1,
+        "column": 7,
+        "expected": []
+      }
+    }
   }
 }

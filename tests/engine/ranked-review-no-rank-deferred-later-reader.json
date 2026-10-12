@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text $x(X) | Y\n%emits $x\n%rule bad Z\n%conditions split(\"a\", \"\") = ∅",
+  "grammar": "%rule text $x:X| Y\n%emits $x\n%rule bad Z\n%conditions \"a\".split(\"\")= ∅",
   "expect": {
     "error": "grammar",
     "where": {

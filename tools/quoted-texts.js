@@ -583,8 +583,8 @@ export function roleProblem(c, role, text, dialects, loader) {
     for (const stage of result.stages) {
       if (!stage.output) continue;
       // A pause token has a label of white space, and stands for no word.
-      const tokens = stage.output.filter((/** @type {any} */ token) => token.label.trim());
-      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.label), wanted)) {
+      const tokens = stage.output.filter((/** @type {any} */ token) => token.image.trim());
+      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.image), wanted)) {
         if (together(points, tokens.slice(first, first + wanted.length))) return null;
         apart = true;
       }
@@ -629,7 +629,7 @@ export function hasNodeWithWords(tree, input, role, wanted) {
       continue;
     }
     if (node.kind === "token") {
-      const label = input[node.token].label;
+      const label = input[node.token].image;
       if (label.trim()) {
         labels.push(label);
         before.push(before[before.length - 1] + [...label].length + 1);

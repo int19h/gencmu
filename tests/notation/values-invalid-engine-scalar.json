@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $_D800\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  },
+  "description": "A surrogate is not an engine scalar value (engine §9.1)."
+}

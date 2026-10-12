@@ -1,6 +1,6 @@
 {
   "description": "A chain's levels are closes of its rule, which the ranking sees: text → r r with r → {... A} over three tokens resolves. At the first difference, greedy reads the third token rather than close a level of the first r over two (engine §3.3, §6).",
-  "grammar": "%rule text r r\n%rule r {... A}",
+  "grammar": "%rule text (r r)\n%rule r {... A}",
   "tokens": [
     {
       "text": "a",

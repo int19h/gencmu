@@ -1,6 +1,6 @@
 {
   "description": "A lazy tag read uses the completed candidate structure.",
-  "grammar": "%rule text A <($ ≅ @(text)) ⟹ X>\n%conditions tags($) = X",
+  "grammar": "%rule text A :: ($ ≅ @text ⟹ X) %conditions $.tags = X\n",
   "tokens": [
     {
       "text": "a",

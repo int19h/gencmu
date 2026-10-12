@@ -1,6 +1,6 @@
 {
   "description": "Two branches capture one name, and every production has it, so an unguarded tag term and an emission read it: on a b, the tags and the token are B's (engine §3.5).",
-  "grammar": "%rule text A ($x(B) | $x(C))\n%tags tags($x)\n%emits $x",
+  "grammar": "%rule text :: $x.tags | (A ($x:B | $x:C)) %emits $x\n\n",
   "tokens": [
     {
       "text": "a",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "b",
-              "phonemes": "",
-              "label": "b",
+              "value": "b",
+              "image": "b",
               "tags": [
                 "B"
               ],

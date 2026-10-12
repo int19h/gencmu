@@ -1,10 +1,10 @@
 {
   "description": "head, tail and last give spans, which are not values (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions head($x) = ~b\n```\n",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.first-token= B\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 25
     }
   }
 }

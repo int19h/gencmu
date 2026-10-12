@@ -1,6 +1,6 @@
 {
   "description": "Every property name: the 30 General_Category values in their short form, the seven one-letter groups, White_Space and Any, each with a character that has it. '\\p{Cs}' is a name, but no character tag has it, since a character tag is never a surrogate (engine §1, §4).",
-  "grammar": "%rule text '\\p{Lu}' '\\p{Ll}' '\\p{Lt}' '\\p{Lm}' '\\p{Lo}' '\\p{Mn}' '\\p{Mc}' '\\p{Me}' '\\p{Nd}' '\\p{Nl}' '\\p{No}' '\\p{Pc}' '\\p{Pd}' '\\p{Ps}' '\\p{Pe}' '\\p{Pi}' '\\p{Pf}' '\\p{Po}' '\\p{Sm}' '\\p{Sc}' '\\p{Sk}' '\\p{So}' '\\p{Zs}' '\\p{Zl}' '\\p{Zp}' '\\p{Cc}' '\\p{Cf}' ['\\p{Cs}'] '\\p{Co}' '\\p{Cn}' '\\p{L}' '\\p{M}' '\\p{N}' '\\p{P}' '\\p{S}' '\\p{Z}' '\\p{C}' '\\p{White_Space}' '\\p{Any}'",
+  "grammar": "%rule text (_Lu _Ll _Lt _Lm _Lo _Mn _Mc _Me _Nd _Nl _No _Pc _Pd _Ps _Pe _Pi _Pf _Po _Sm _Sc _Sk _So _Zs _Zl _Zp _Cc _Cf [_Cs] _Co _Cn _L _M _N _P _S _Z _C _White_Space _)",
   "input": "Aaǅʰ漢́ः⃝7Ⅻ①_-()«»!+$^©   \u0007​͸აा٥،€　\u0001😀",
   "expect": {
     "result": {
@@ -16,155 +16,155 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "'\\p{Lu}'"
+            "terminal": "_Lu"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Ll}'"
+            "terminal": "_Ll"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Lt}'"
+            "terminal": "_Lt"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Lm}'"
+            "terminal": "_Lm"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Lo}'"
+            "terminal": "_Lo"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Mn}'"
+            "terminal": "_Mn"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Mc}'"
+            "terminal": "_Mc"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Me}'"
+            "terminal": "_Me"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Nd}'"
+            "terminal": "_Nd"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Nl}'"
+            "terminal": "_Nl"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{No}'"
+            "terminal": "_No"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Pc}'"
+            "terminal": "_Pc"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Pd}'"
+            "terminal": "_Pd"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Ps}'"
+            "terminal": "_Ps"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Pe}'"
+            "terminal": "_Pe"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Pi}'"
+            "terminal": "_Pi"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Pf}'"
+            "terminal": "_Pf"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Po}'"
+            "terminal": "_Po"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Sm}'"
+            "terminal": "_Sm"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Sc}'"
+            "terminal": "_Sc"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Sk}'"
+            "terminal": "_Sk"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{So}'"
+            "terminal": "_So"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Zs}'"
+            "terminal": "_Zs"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Zl}'"
+            "terminal": "_Zl"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Zp}'"
+            "terminal": "_Zp"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Cc}'"
+            "terminal": "_Cc"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Cf}'"
+            "terminal": "_Cf"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Co}'"
+            "terminal": "_Co"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Cn}'"
+            "terminal": "_Cn"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{L}'"
+            "terminal": "_L"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{M}'"
+            "terminal": "_M"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{N}'"
+            "terminal": "_N"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{P}'"
+            "terminal": "_P"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{S}'"
+            "terminal": "_S"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Z}'"
+            "terminal": "_Z"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{C}'"
+            "terminal": "_C"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{White_Space}'"
+            "terminal": "_White_Space"
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Any}'"
+            "terminal": "_"
           }
         ]
       }

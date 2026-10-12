@@ -1,6 +1,6 @@
 {
   "description": "References in constants use final stage definitions. Both $B and the rule observe the final value of $A.",
-  "grammar": "%const $A ~a\n%const $B $A\n%redefine-const $A ~b\n%rule text $x(X)\n%conditions $B = ~b, $A = ~b",
+  "grammar": "%const $A A\n%const $B $A\n%redefine-const $A B\n%rule text $x:X %conditions $B = B, $A = B\n",
   "tokens": [
     {
       "text": "x",

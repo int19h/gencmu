@@ -1,6 +1,6 @@
 {
   "description": "Whether a constituent is an opaque part depends on where it stands in the chosen derivation, not on what it derives. The two `inner` constituents derive the same empty span. The first lies inside the opaque part `outer`, so it is no opaque part, and its token has no parts and sounds ``. The second is an opaque part itself, so its token sounds `?` (engine §5, §11).",
-  "grammar": "%rule text outer inner\n%rule outer inner\n%opaque\n%rule inner ε\n%emits $ <X>\n%opaque",
+  "grammar": "%rule text (outer inner)\n%rule outer :- $.verbatim-text | inner\n\n%rule inner :- $.verbatim-text | ε %emits $ :: X\n\n",
   "input": "",
   "expect": {
     "result": {
@@ -10,8 +10,8 @@
           "output": [
             {
               "text": "",
-              "phonemes": "",
-              "label": "",
+              "value": "",
+              "image": "",
               "tags": [
                 "X"
               ],
@@ -26,8 +26,8 @@
             },
             {
               "text": "",
-              "phonemes": "?",
-              "label": "",
+              "value": "",
+              "image": "",
               "tags": [
                 "X"
               ],

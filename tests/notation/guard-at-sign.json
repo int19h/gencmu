@@ -1,10 +1,10 @@
 {
   "description": "A guard has no @. The lexer reads @ as a pattern opener prefix, then reports the missing opening parenthesis.",
-  "document": "```jbogenbau\n%rule a @cbm? A\n```\n",
+  "document": "```jbogenbau\n%rule a @ cbm? A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 10
+      "column": 9
     }
   }
 }

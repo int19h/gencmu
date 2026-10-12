@@ -1,6 +1,6 @@
 {
   "description": "Twin of capture-name-order-per-production.json with %emits $a alone, which every production orders in one way (engine §9).",
-  "grammar": "%rule text ($a(A) $b(B) | $b(B) $a(A))\n%emits $a",
+  "grammar": "%rule text (($a:A $b:B) | ($b:B $a:A)) %emits $a\n",
   "tokens": [
     {
       "text": "b",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "tags": [
                 "A"
               ],

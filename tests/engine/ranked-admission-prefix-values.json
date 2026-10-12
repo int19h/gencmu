@@ -1,31 +1,31 @@
 {
   "description": "Each ranked candidate uses its enclosing named invocation and its actual prefix bindings before admission.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text $p(prefix) ($x(a) ≻ b) Z\n%conditions ~high ⊆ tags($p) ∨ ¬$x\n%rule prefix Q <~high> | Q <~low>\n%rule a X Y\n%rule b X Y",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text ($p:prefix ($x:a ≻ b) Z) %conditions (High ⊆ $p.tags ∨ ¬($x))\n\n%rule prefix Q :: High | Q :: Low\n%rule a (X Y)\n%rule b (X Y)",
   "tokens": [
     {
       "text": "q",
-      "phonemes": "q",
+      "value": "q",
       "tags": [
         "Q"
       ]
     },
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]
     },
     {
       "text": "y",
-      "phonemes": "y",
+      "value": "y",
       "tags": [
         "Y"
       ]
     },
     {
       "text": "z",
-      "phonemes": "z",
+      "value": "z",
       "tags": [
         "Z"
       ]
@@ -46,7 +46,7 @@
             "children": [
               {
                 "tags": [
-                  "high"
+                  "High"
                 ]
               },
               {
@@ -61,7 +61,7 @@
             "children": [
               {
                 "tags": [
-                  "low"
+                  "Low"
                 ]
               },
               {

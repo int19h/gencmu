@@ -1,6 +1,6 @@
 {
   "description": "A partial item can repeat below itself in a derivation that is not cyclic: the outer p and the nested p start at the same token but end apart, so no rule completes again over its own span. The input has three such derivations. Lazy closes the empty r before it reads A, so the derivation whose outer r is empty wins, and its nested p spans A (engine §4, §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text p\n%rule p r q [B]\n%rule r A | ε\n%rule q p | ε",
+  "grammar": "%ambiguity-resolution lazy\n%rule text p\n%rule p (r q [B])\n%rule r A | ε\n%rule q p | ε",
   "tokens": [
     {
       "text": "a",

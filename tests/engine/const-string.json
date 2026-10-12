@@ -1,13 +1,13 @@
 {
   "description": "A string constant stands wherever a string can: as the delimiter of split in a condition, and as the name of tag in a tag term (engine §2, §10).",
-  "grammar": "%const $PAUSE \".\"\n%const $NAME \"KOhA\"\n%rule text $w(word)\n%conditions KOhA ⊆ tags($w)\n%rule word $x(A) <tag($NAME)>\n%conditions \"b\" ∈ split(phonemes($x), $PAUSE)",
+  "grammar": "%const $PAUSE \".\"\n%const $NAME \"KOhA\"\n%rule text $w:word %conditions KOhA ⊆ $w.tags\n\n%rule word $x:A :: $NAME.classify(migration-tags) %conditions \"b\" ∈ $x.value.split($PAUSE)\n\n%classifier migration-tags \"KOhA\" ∈ KOhA",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "a.b"
+      "value": "a.b"
     }
   ],
   "expect": {

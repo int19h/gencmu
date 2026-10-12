@@ -1,20 +1,20 @@
 {
   "description": "A test does not replace the class: a quoted la, which carries only word, does not match LE=\"la\" (engine §4).",
-  "grammar": "%rule text ZO LE=\"la\"",
+  "grammar": "%rule text (ZO LE=\"la\")",
   "tokens": [
     {
       "text": "zo",
       "tags": [
         "ZO"
       ],
-      "phonemes": "zo"
+      "value": "zo"
     },
     {
       "text": "la",
       "tags": [
-        "word"
+        "Word"
       ],
-      "phonemes": "la"
+      "value": "la"
     }
   ],
   "expect": {

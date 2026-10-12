@@ -1,6 +1,6 @@
 {
   "description": "An extended whole query rejects a shorter witness that still qualifies as a prefix (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate) Y\n%conditions ¬matches(from(without-elision($x)), rival), begins(from(without-elision($x)), rival)\n%rule candidate X [+T]\n%rule rival X [+T]",
+  "grammar": "%rule text ($x:candidate Y) %conditions ¬($x.without-elision.onward.matches(rival)), $x.without-elision.onward.begins(rival)\n\n%rule candidate (X [+T])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

@@ -1,0 +1,33 @@
+{
+  "document": "```jbogenbau\n%rule r _Cs\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "_Cs"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A stored engine tag is a terminal even when stage zero never assigns it (engine §1)."
+}

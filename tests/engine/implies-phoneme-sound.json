@@ -1,13 +1,13 @@
 {
   "description": "The stage applies its implications before it finds a token's sound, so an implication that adds a phoneme tag sets the sound (engine §5, §11).",
-  "grammar": "%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <tags($w) ∪ A>\n%emits\n  $",
+  "grammar": "%implies A ⟹ Sound-006F-s\n%rule text [{word}]\n%rule word $w:W :: ($w.tags ∪ A) %emits $\n\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
@@ -19,10 +19,10 @@
           "output": [
             {
               "text": "x",
-              "phonemes": "o",
+              "value": "x",
               "tags": [
-                "/o/",
                 "A",
+                "Sound-006F-s",
                 "W"
               ]
             }

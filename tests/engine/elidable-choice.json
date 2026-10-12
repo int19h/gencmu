@@ -1,6 +1,6 @@
 {
   "description": "A plain optional is never elidable, even when each branch of its choice begins with a terminator that another optional marks (engine §3.8): no elided node appears for [KU | VAU]. A marked optional cannot hold such a choice, as the notation case marked-optional-choice.json shows.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A [KU | VAU] [+KU]",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A [(KU | VAU)] [+KU])",
   "tokens": [
     {
       "text": "a",
@@ -11,7 +11,7 @@
   ],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {

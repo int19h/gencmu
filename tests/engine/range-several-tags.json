@@ -1,42 +1,50 @@
 {
   "description": "A range or a property matches a token once, with one reading, however many of the token's character tags qualify (engine §4).",
-  "grammar": "%rule text 'a'..'z' '\\p{L}'",
+  "grammar": "%rule text (\"a\"..\"z\" _L)",
   "tokens": [
     {
       "text": "ab",
       "tags": [
-        "'a'",
-        "'b'"
+        "Char-0061-n",
+        "Char-0062-n"
       ]
     },
     {
       "text": "xy",
       "tags": [
-        "'x'",
-        "'y'",
+        "Char-0078-n",
+        "Char-0079-n",
         "W"
       ]
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
       ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          2
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
           {
-            "kind": "token",
-            "terminal": "'a'..'z'"
-          },
-          {
-            "kind": "token",
-            "terminal": "'\\p{L}'"
+            "terminal": "\"a\"..\"z\"",
+            "rules": [
+              "text"
+            ]
           }
         ]
       }

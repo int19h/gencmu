@@ -1,20 +1,20 @@
 {
   "description": "A token that a caller supplies has its text as its label, whatever its phonemes. A token over it joins that label, and the brackets show it (engine §5, docs/api.md, docs/output.md).",
-  "grammar": "%rule text $a(A) $b(B)\n%emits $a <X>, $b <Y>",
+  "grammar": "%rule text ($a:A $b:B) %emits $a :: X, $b :: Y\n",
   "tokens": [
     {
       "text": "Mi",
       "tags": [
         "A"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     },
     {
       "text": "klAma",
       "tags": [
         "B"
       ],
-      "phonemes": "klAma"
+      "value": "klAma"
     }
   ],
   "expect": {
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "Mi",
-              "phonemes": "mi",
-              "label": "Mi",
+              "value": "mi",
+              "image": "Mi",
               "span": [
                 0,
                 1
@@ -38,8 +38,8 @@
             },
             {
               "text": "klAma",
-              "phonemes": "klAma",
-              "label": "klAma",
+              "value": "klAma",
+              "image": "klAma",
               "span": [
                 1,
                 2

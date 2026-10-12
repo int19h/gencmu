@@ -1,0 +1,36 @@
+{
+  "description": "Signed requirements and an exact value test hold on the same primary (engine §4).",
+  "grammar": "%const $S B C\n%rule text _<A $S ¬D>=\"A,B\" %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "B",
+        "C"
+      ],
+      "value": "A,B"
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "A,B",
+              "image": "a",
+              "tags": [
+                "A",
+                "B",
+                "C"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

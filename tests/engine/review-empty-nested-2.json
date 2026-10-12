@@ -1,6 +1,6 @@
 {
   "description": "Nested empty operands take the surrounding pattern type.",
-  "grammar": "%rule text A\n%conditions $ ≅ (@(A) ∖ ((∅ ∪ ∅) ∩ (∅ ∖ ∅)))",
+  "grammar": "%rule text A %conditions $ ≅ (@A ∖ ((∅ ∪ ∅) ∩ (∅ ∖ ∅)))\n",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A separator can hold flat braces, and so can an item (engine §9).",
-  "document": "```jbogenbau\n%rule a {a \\ {s} t}\n%rule b {{a} \\ s}\n```\n",
+  "document": "```jbogenbau\n%rule a {a / ({s} t)}\n%rule b {{a} / s}\n```\n",
   "expect": {
     "dom": {
       "rules": [

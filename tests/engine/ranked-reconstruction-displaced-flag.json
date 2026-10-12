@@ -1,10 +1,10 @@
 {
   "description": "A reconstructed higher option excludes the chosen witness despite its better flagged profile.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (a ≻ b)\n%tags ∅\n%rule a X T\n%rule(leftmost-longest) b X [+T] | [+U] X",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text :: ∅ | (a ≻ b)\n\n%rule a (X T)\n%rule (leftmost-longest) b (X [+T]) | ([+U] X)",
   "tokens": [
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]
@@ -13,7 +13,7 @@
   "expect": {
     "error": "ambiguous",
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

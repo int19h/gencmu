@@ -1,6 +1,6 @@
 {
   "description": "Default tags pass through a chain's level of one item, from its one symbol, and no longer level has them; tags that the rule writes apply at every level (engine §3.3, §3.7).",
-  "grammar": "%rule text c Z d\n%rule c {... A \\ S}\n%rule d {... A \\ S}\n%tags ~X",
+  "grammar": "%rule text (c Z d)\n%rule c {... A / S}\n%rule d :: X | {... A / S}\n",
   "tokens": [
     {
       "text": "a",

@@ -72,7 +72,7 @@ for (const name of [...classes.keys()].sort(compare)) {
 
 let blocks = "```jbogenbau\n%classifier lexicon\n" + entries.join("\n") + "\n```\n";
 const indicators = INDICATORS.filter((name) => classes.has(name));
-if (indicators.length) blocks += "\n```jbogenbau\n%implies " + indicators.join(" ∪ ") + " ⟹ ~indicator\n```\n";
+if (indicators.length) blocks += "\n```jbogenbau\n%implies " + indicators.join(" ∪ ") + " ⟹ Indicator\n```\n";
 
 const document = fs.readFileSync(documentPath, "utf8");
 const block = parseMarkdown(document).children.find((node) => node.type === "code" && node.lang === "jbogenbau");

@@ -1,6 +1,6 @@
 {
   "description": "Reconstruction reads restored tokens and retains the competing c reading.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T] [+T]\n%rule b A [+T] [+T] [+T]\n%rule c y [+T] T\n%rule y A | A T",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (A [+T] [+T])\n%rule b (A [+T] [+T] [+T])\n%rule c (y [+T] T)\n%rule y A | (A T)",
   "tokens": [
     {
       "text": "a",

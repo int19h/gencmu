@@ -1,6 +1,6 @@
 {
   "description": "Completed routes establish private capture absence before ready conditions run in written order.",
-  "grammar": "%rule text (X [($y(U) ≻ T)] ($x(Y) ≻ V) ≻ Z W)\n%conditions $x",
+  "grammar": "%rule text ((X [($y:U ≻ T)] ($x:Y ≻ V)) ≻ (Z W)) %conditions $x\n",
   "tokens": [
     {
       "text": "x",

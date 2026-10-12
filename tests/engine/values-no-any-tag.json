@@ -1,0 +1,15 @@
+{
+  "description": "The wildcard is not a stored _Any tag (engine §1).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "_Any"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

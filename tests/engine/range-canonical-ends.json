@@ -1,6 +1,6 @@
 {
   "description": "A range's identity is its written form with each end in its canonical spelling. So ends written with escapes, or in lower-case hexadecimal, give the same terminal, and a mark's end keeps its escape (engine §1, §4).",
-  "grammar": "%rule text '\\u{61}'..'\\u{7a}' '\\u{0300}'..'\\u{36F}' 'x'..'\\u{7A}'",
+  "grammar": "%rule text (\"a\"..\"z\" \"̀\"..\"ͯ\" \"x\"..\"z\")",
   "input": "b́y",
   "expect": {
     "result": {
@@ -11,15 +11,15 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "'a'..'z'"
+            "terminal": "\"a\"..\"z\""
           },
           {
             "kind": "token",
-            "terminal": "'\\u{300}'..'\\u{36F}'"
+            "terminal": "\"$(_0300)\"..\"$(_036F)\""
           },
           {
             "kind": "token",
-            "terminal": "'x'..'z'"
+            "terminal": "\"x\"..\"z\""
           }
         ]
       }

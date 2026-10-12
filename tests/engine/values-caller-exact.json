@@ -1,0 +1,29 @@
+{
+  "description": "Terminals read an exact stored multiscalar value, independent of image and tags (engine §§1 and 4).",
+  "grammar": "%rule text \"A,B\" %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "A,B",
+      "image": "display"
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "A,B",
+              "image": "display",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

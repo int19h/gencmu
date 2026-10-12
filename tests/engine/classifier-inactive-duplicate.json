@@ -1,13 +1,13 @@
 {
   "description": "An entry that adds a membership that already holds is an error of the grammar, but only for features that turn the entry on. The error ends the stage before it reads its input, and the same loaded dialect parses again with the feature off (engine §2).",
-  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n  f? \"mi\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex  \"mi\" ∈ KOhA f? \"mi\" ∈ KOhA\n\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     }
   ],
   "parses": [
@@ -23,7 +23,7 @@
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]
@@ -68,7 +68,7 @@
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]

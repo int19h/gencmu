@@ -1,6 +1,6 @@
 {
   "description": "T with a visible prefix among derivations that also read one token under different tags (engine §6). The flat list reads its tokens as B; an item of braces cannot match nothing (engine §3.3), so the list is not a list of text.",
-  "grammar": "%rule text a | B\n%rule a a text | {B} | text {text}",
+  "grammar": "%rule text a | B\n%rule a (a text) | {B} | (text {text})",
   "tokens": [
     {
       "text": "x",
@@ -25,7 +25,7 @@
   ],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

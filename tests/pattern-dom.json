@@ -325,10 +325,15 @@
   {
     "description": "A tag test requires a tag set.",
     "pattern": {
-      "test": "⊇",
-      "value": {
-        "string": ""
-      },
+      "test": "tags",
+      "requirements": [
+        {
+          "negated": false,
+          "value": {
+            "string": ""
+          }
+        }
+      ],
       "expr": {
         "terminal": "A",
         "at": [
@@ -342,15 +347,19 @@
   {
     "description": "A test operand cannot hold a capture.",
     "pattern": {
-      "test": "⊇",
-      "value": {
-        "call": "tags",
-        "args": [
-          {
-            "capture": "x"
+      "test": "tags",
+      "requirements": [
+        {
+          "negated": false,
+          "value": {
+            "method": "tags",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": []
           }
-        ]
-      },
+        }
+      ],
       "expr": {
         "terminal": "A",
         "at": [
@@ -364,10 +373,8 @@
   {
     "description": "A terminal pattern accepts the tag comparator ⊇.",
     "pattern": {
-      "test": "⊇",
-      "value": {
-        "emptySet": true
-      },
+      "test": "tags",
+      "requirements": [],
       "expr": {
         "terminal": "A",
         "at": [
@@ -381,10 +388,8 @@
   {
     "description": "A terminal pattern accepts the tag comparator ⊉.",
     "pattern": {
-      "test": "⊉",
-      "value": {
-        "emptySet": true
-      },
+      "test": "tags",
+      "requirements": [],
       "expr": {
         "terminal": "A",
         "at": [
@@ -398,10 +403,8 @@
   {
     "description": "A terminal pattern accepts the tag comparator ∩=∅.",
     "pattern": {
-      "test": "∩=∅",
-      "value": {
-        "emptySet": true
-      },
+      "test": "tags",
+      "requirements": [],
       "expr": {
         "terminal": "A",
         "at": [
@@ -415,10 +418,8 @@
   {
     "description": "A terminal pattern accepts the tag comparator ∩≠∅.",
     "pattern": {
-      "test": "∩≠∅",
-      "value": {
-        "emptySet": true
-      },
+      "test": "tags",
+      "requirements": [],
       "expr": {
         "terminal": "A",
         "at": [
@@ -453,12 +454,11 @@
     "condition": {
       "op": "≅",
       "left": {
-        "call": "head",
-        "args": [
-          {
-            "capture": "x"
-          }
-        ]
+        "method": "first-token",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": []
       },
       "right": {
         "pattern": {
@@ -560,10 +560,8 @@
     "description": "An elidable terminator accepts the comparator ⊇.",
     "expr": {
       "optional": {
-        "test": "⊇",
-        "value": {
-          "emptySet": true
-        },
+        "test": "tags",
+        "requirements": [],
         "expr": {
           "ref": "T"
         }
@@ -576,10 +574,15 @@
     "description": "An elidable terminator accepts the comparator ⊇.",
     "expr": {
       "optional": {
-        "test": "⊇",
-        "value": {
-          "tag": "T"
-        },
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "T"
+            }
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -592,10 +595,15 @@
     "description": "An elidable terminator accepts the comparator ⊇.",
     "expr": {
       "optional": {
-        "test": "⊇",
-        "value": {
-          "tag": "U"
-        },
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "U"
+            }
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -608,17 +616,21 @@
     "description": "An elidable terminator accepts the comparator ⊇.",
     "expr": {
       "optional": {
-        "test": "⊇",
-        "value": {
-          "union": [
-            {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
               "tag": "T"
-            },
-            {
+            }
+          },
+          {
+            "negated": false,
+            "value": {
               "tag": "U"
             }
-          ]
-        },
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -631,10 +643,8 @@
     "description": "An elidable terminator accepts the comparator ⊉.",
     "expr": {
       "optional": {
-        "test": "⊉",
-        "value": {
-          "emptySet": true
-        },
+        "test": "tags",
+        "requirements": [],
         "expr": {
           "ref": "T"
         }
@@ -647,10 +657,15 @@
     "description": "An elidable terminator accepts the comparator ⊉.",
     "expr": {
       "optional": {
-        "test": "⊉",
-        "value": {
-          "tag": "T"
-        },
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
+              "tag": "T"
+            }
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -663,10 +678,15 @@
     "description": "An elidable terminator accepts the comparator ⊉.",
     "expr": {
       "optional": {
-        "test": "⊉",
-        "value": {
-          "tag": "U"
-        },
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
+              "tag": "U"
+            }
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -679,17 +699,21 @@
     "description": "An elidable terminator accepts the comparator ⊉.",
     "expr": {
       "optional": {
-        "test": "⊉",
-        "value": {
-          "union": [
-            {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
               "tag": "T"
-            },
-            {
+            }
+          },
+          {
+            "negated": true,
+            "value": {
               "tag": "U"
             }
-          ]
-        },
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -702,10 +726,8 @@
     "description": "An elidable terminator accepts the comparator ∩=∅.",
     "expr": {
       "optional": {
-        "test": "∩=∅",
-        "value": {
-          "emptySet": true
-        },
+        "test": "tags",
+        "requirements": [],
         "expr": {
           "ref": "T"
         }
@@ -718,49 +740,36 @@
     "description": "An elidable terminator accepts the comparator ∩=∅.",
     "expr": {
       "optional": {
-        "test": "∩=∅",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩=∅.",
-    "expr": {
-      "optional": {
-        "test": "∩=∅",
-        "value": {
-          "union": [
-            {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
               "tag": "T"
-            },
-            {
+            }
+          }
+        ],
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
+    "expr": {
+      "optional": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
               "tag": "U"
             }
-          ]
-        },
+          }
+        ],
         "expr": {
           "ref": "T"
         }
@@ -770,68 +779,107 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "description": "An elidable terminator accepts the comparator ∩=∅.",
     "expr": {
       "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "emptySet": true
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "tag": "T"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "tag": "U"
-        },
-        "expr": {
-          "ref": "T"
-        }
-      },
-      "elidable": true
-    },
-    "malformed": false
-  },
-  {
-    "description": "An elidable terminator accepts the comparator ∩≠∅.",
-    "expr": {
-      "optional": {
-        "test": "∩≠∅",
-        "value": {
-          "union": [
-            {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
               "tag": "T"
-            },
-            {
+            }
+          },
+          {
+            "negated": true,
+            "value": {
               "tag": "U"
             }
-          ]
-        },
+          }
+        ],
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "tags",
+        "requirements": [],
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "T"
+            }
+          }
+        ],
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "U"
+            }
+          }
+        ],
+        "expr": {
+          "ref": "T"
+        }
+      },
+      "elidable": true
+    },
+    "malformed": false
+  },
+  {
+    "description": "An elidable terminator accepts the comparator ∩≠∅.",
+    "expr": {
+      "optional": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "T"
+            }
+          },
+          {
+            "negated": false,
+            "value": {
+              "tag": "U"
+            }
+          }
+        ],
         "expr": {
           "ref": "T"
         }

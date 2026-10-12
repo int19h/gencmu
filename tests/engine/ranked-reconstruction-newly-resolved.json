@@ -1,10 +1,10 @@
 {
   "description": "Admission resolves the original tie, and the surviving best proof passes reconstruction.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (X [+U] | X [+T] [+U]) ≻ X [+U]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (((X [+U]) | (X [+T] [+U])) ≻ (X [+U]))",
   "tokens": [
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]

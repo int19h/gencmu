@@ -1,10 +1,10 @@
 {
   "description": "~indicator is a mark, not a class, so it is an error of the document as the class of an entry (engine §9).",
-  "document": "```jbogenbau\n%classifier lex\n  \"ui\" ∈ ~indicator\n```\n",
+  "document": "```jbogenbau\n%classifier lex\n\"ui\" ∈ Indicator\n```\n",
   "expect": {
     "error": {
       "line": 3,
-      "column": 10
+      "column": 8
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "description": "A tag-set constant stands in a tag term and in a condition (engine §2, §10).",
-  "grammar": "%const $MARKS ~word ∪ C\n%rule text $w(word)\n%conditions $MARKS ⊆ tags($w), tags($w) ∩ $MARKS ≠ ∅\n%rule word A <$MARKS>",
+  "grammar": "%const $MARKS (Word ∪ C)\n%rule text $w:word %conditions $MARKS ⊆ $w.tags, ($w.tags ∩ $MARKS) ≠ ∅\n\n%rule word A :: $MARKS",
   "tokens": [
     {
       "text": "a",
@@ -21,7 +21,7 @@
             "rule": "word",
             "tags": [
               "C",
-              "word"
+              "Word"
             ]
           }
         ]

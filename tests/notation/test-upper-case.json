@@ -1,10 +1,39 @@
 {
-  "description": "A string in a sound test with a code point that lowercase changes is an error of the document, reported at the string, since the match ignores stress (engine §9).",
-  "document": "```jbogenbau\n%rule text LE=\"lA\"\n```\n",
+  "description": "Engine §§4, 9, and 10 accept exact value strings without normalization.",
+  "document": "```jbogenbau\n%rule text LE = \"lA\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 15
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "=",
+                "value": {
+                  "string": "lA"
+                },
+                "expr": {
+                  "ref": "LE"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

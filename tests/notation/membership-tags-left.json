@@ -1,10 +1,10 @@
 {
   "description": "tags() on the left of ∉ is a tag set, not a string, so the comparison is an error of the document (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions tags($x) ∉ split(phonemes($x), \".\")\n```\n",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.tags∉ $x.value.split(\".\")\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 25
     }
   }
 }

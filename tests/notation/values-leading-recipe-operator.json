@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r A := ∪ \"v\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  },
+  "description": "A leading operator makes the written recipe atom invalid (coordinator N21)."
+}

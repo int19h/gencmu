@@ -1,78 +1,64 @@
 {
   "description": "An identifier tag, a character tag and a phoneme tag of the same letter are three different tags: each token reads under its own kind only (engine §1).",
-  "grammar": "%rule text x x x\n%rule x ~a | 'a' | /a/",
+  "grammar": "%rule text (x x x)\n%rule x A | \"a\" | Sound-0061-s",
   "tokens": [
     {
       "text": "p",
       "tags": [
-        "a"
+        "A"
       ]
     },
     {
       "text": "q",
       "tags": [
-        "'a'"
+        "Char-0061-n"
       ]
     },
     {
       "text": "r",
       "tags": [
-        "/a/"
+        "Sound-0061-s"
       ]
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
       ],
-      "tree": {
-        "kind": "rule",
-        "rule": "text",
-        "children": [
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "source": [
+          2,
+          3
+        ],
+        "line": 1,
+        "column": 3,
+        "expected": [
           {
-            "kind": "rule",
-            "rule": "x",
-            "tags": [
-              "a"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "a",
-                "token": 0
-              }
+            "terminal": "\"a\"",
+            "rules": [
+              "x"
             ]
           },
           {
-            "kind": "rule",
-            "rule": "x",
-            "tags": [
-              "'a'"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "'a'",
-                "token": 1
-              }
+            "terminal": "A",
+            "rules": [
+              "x"
             ]
           },
           {
-            "kind": "rule",
-            "rule": "x",
-            "tags": [
-              "/a/"
-            ],
-            "children": [
-              {
-                "kind": "token",
-                "terminal": "/a/",
-                "token": 2
-              }
+            "terminal": "Sound-0061-s",
+            "rules": [
+              "x"
             ]
           }
         ]

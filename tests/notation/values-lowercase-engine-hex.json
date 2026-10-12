@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $_00ff\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 9
+    }
+  },
+  "description": "Engine constants require uppercase hexadecimal digits (engine §9.1)."
+}

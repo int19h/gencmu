@@ -1,10 +1,39 @@
 {
-  "description": "The lowercase mapping of grammars/unicode.txt decides what is lower case, beyond ASCII (engine §9, §10).",
+  "description": "Engine §§4, 9, and 10 accept exact value strings without normalization.",
   "document": "```jbogenbau\n%rule text LE = \"Ла\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 17
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "=",
+                "value": {
+                  "string": "Ла"
+                },
+                "expr": {
+                  "ref": "LE"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

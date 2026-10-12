@@ -1,10 +1,42 @@
 {
-  "description": "A capture cannot wrap a constant, which cannot stand in a body. The error is at the constant (engine §9).",
-  "document": "```jbogenbau\n%rule a $x($K) B\n```\n",
+  "description": "Engine §§2, 4, and 9 admit unresolved string constants as body terminals and capture targets.",
+  "document": "```jbogenbau\n%rule a $x:$KB\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 12
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "literal": {
+                    "const": "KB",
+                    "at": [
+                      2,
+                      12
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

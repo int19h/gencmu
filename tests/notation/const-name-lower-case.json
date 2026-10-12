@@ -1,6 +1,6 @@
 {
   "description": "A constant's name begins with a capital; $a is a capture, which the syntax does not read after %const (engine §2).",
-  "document": "```jbogenbau\n%const $a ~b\n```\n",
+  "document": "```jbogenbau\n%const $a B\n```\n",
   "expect": {
     "error": {
       "line": 2,

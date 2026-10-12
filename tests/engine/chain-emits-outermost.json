@@ -1,6 +1,6 @@
 {
   "description": "%emits $ on a chain emits its outermost level as one token, and the levels inside emit nothing more (engine §11).",
-  "grammar": "%rule text c\n%rule c {... A \\ S}\n%emits $ <W>",
+  "grammar": "%rule text c\n%rule c {... A / S} %emits $ :: W\n",
   "tokens": [
     {
       "text": "a",
@@ -43,8 +43,8 @@
           "output": [
             {
               "text": "a s a s a",
-              "phonemes": "",
-              "label": "asasa",
+              "value": "asasa",
+              "image": "asasa",
               "tags": [
                 "W"
               ],

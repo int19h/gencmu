@@ -1,10 +1,39 @@
 {
-  "description": "A string with a comma in a sound test is an error, since no canonical sound holds a comma. The error is at the string (engine §9).",
-  "document": "```jbogenbau\n%rule a A=\"ko,a\"\n```\n",
+  "description": "Engine §§4, 9, and 10 accept exact value strings without normalization.",
+  "document": "```jbogenbau\n%rule a A = \"ko,a\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 11
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "=",
+                "value": {
+                  "string": "ko,a"
+                },
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -1,10 +1,52 @@
 {
-  "description": "A constant cannot stand in a body, with a test or without one. The error is at the constant (engine §9).",
-  "document": "```jbogenbau\n%rule a B $A=\"a\"\n```\n",
+  "description": "Engine §§2, 4, and 9 admit unresolved string constants as body terminals and capture targets.",
+  "document": "```jbogenbau\n%rule a B $A = \"a\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 11
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "B"
+                  },
+                  {
+                    "test": "=",
+                    "value": {
+                      "string": "a"
+                    },
+                    "expr": {
+                      "literal": {
+                        "const": "A",
+                        "at": [
+                          2,
+                          11
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -10,11 +10,14 @@
   },
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
+        },
+        {
+          "name": "normalize"
         },
         {
           "name": "forms",
@@ -22,17 +25,17 @@
           "output": [
             {
               "text": "ro'inrai",
-              "phonemes": "ro'inrai",
-              "label": "ro'inrai",
+              "value": "ro'inrai",
+              "image": "ro'inrai",
               "tags": [
                 "BRIVLA",
-                "lujvo",
-                "onset",
-                "open-stress",
-                "run-final",
-                "run-initial",
-                "stress-guard",
-                "word"
+                "Lujvo",
+                "Onset",
+                "Open-stress",
+                "Run-final",
+                "Run-initial",
+                "Stress-guard",
+                "Word"
               ],
               "span": [
                 0,
@@ -72,11 +75,11 @@
             ],
             "tags": [
               "BRIVLA",
-              "lujvo",
-              "onset",
-              "open-stress",
-              "stress-guard",
-              "word"
+              "Lujvo",
+              "Onset",
+              "Open-stress",
+              "Stress-guard",
+              "Word"
             ],
             "children": [
               {
@@ -92,11 +95,11 @@
                 ],
                 "tags": [
                   "BRIVLA",
-                  "lujvo",
-                  "onset",
-                  "open-stress",
-                  "stress-guard",
-                  "word"
+                  "Lujvo",
+                  "Onset",
+                  "Open-stress",
+                  "Stress-guard",
+                  "Word"
                 ],
                 "children": [
                   {
@@ -112,11 +115,11 @@
                     ],
                     "tags": [
                       "BRIVLA",
-                      "lujvo",
-                      "onset",
-                      "open-stress",
-                      "stress-guard",
-                      "word"
+                      "Lujvo",
+                      "Onset",
+                      "Open-stress",
+                      "Stress-guard",
+                      "Word"
                     ],
                     "children": [
                       {
@@ -132,11 +135,11 @@
                         ],
                         "tags": [
                           "BRIVLA",
-                          "lujvo",
-                          "onset",
-                          "open-stress",
-                          "stress-guard",
-                          "word"
+                          "Lujvo",
+                          "Onset",
+                          "Open-stress",
+                          "Stress-guard",
+                          "Word"
                         ],
                         "children": [
                           {
@@ -152,11 +155,11 @@
                             ],
                             "tags": [
                               "BRIVLA",
-                              "lujvo",
-                              "onset",
-                              "open-stress",
-                              "stress-guard",
-                              "word"
+                              "Lujvo",
+                              "Onset",
+                              "Open-stress",
+                              "Stress-guard",
+                              "Word"
                             ],
                             "children": [
                               {
@@ -172,11 +175,11 @@
                                 ],
                                 "tags": [
                                   "BRIVLA",
-                                  "lujvo",
-                                  "onset",
-                                  "open-stress",
-                                  "stress-guard",
-                                  "word"
+                                  "Lujvo",
+                                  "Onset",
+                                  "Open-stress",
+                                  "Stress-guard",
+                                  "Word"
                                 ],
                                 "children": [
                                   {
@@ -192,11 +195,11 @@
                                     ],
                                     "tags": [
                                       "BRIVLA",
-                                      "lujvo",
-                                      "onset",
-                                      "open-stress",
-                                      "stress-guard",
-                                      "word"
+                                      "Lujvo",
+                                      "Onset",
+                                      "Open-stress",
+                                      "Stress-guard",
+                                      "Word"
                                     ],
                                     "children": [
                                       {
@@ -211,10 +214,10 @@
                                           8
                                         ],
                                         "tags": [
-                                          "lujvo",
-                                          "onset",
-                                          "open-stress",
-                                          "stress-guard"
+                                          "Lujvo",
+                                          "Onset",
+                                          "Open-stress",
+                                          "Stress-guard"
                                         ],
                                         "children": [
                                           {
@@ -229,8 +232,8 @@
                                               8
                                             ],
                                             "tags": [
-                                              "lujvo",
-                                              "onset"
+                                              "Lujvo",
+                                              "Onset"
                                             ],
                                             "children": [
                                               {
@@ -258,12 +261,12 @@
                                                       1
                                                     ],
                                                     "tags": [
-                                                      "/r/"
+                                                      "Sound-0072-s"
                                                     ],
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "/r/",
+                                                        "terminal": "Sound-0072-s",
                                                         "token": 0,
                                                         "span": [
                                                           0,
@@ -288,7 +291,7 @@
                                                       2
                                                     ],
                                                     "tags": [
-                                                      "/o/"
+                                                      "Sound-006F-s"
                                                     ],
                                                     "children": [
                                                       {
@@ -303,12 +306,12 @@
                                                           2
                                                         ],
                                                         "tags": [
-                                                          "/o/"
+                                                          "Sound-006F-s"
                                                         ],
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/o/",
+                                                            "terminal": "Sound-006F-s",
                                                             "token": 1,
                                                             "span": [
                                                               1,
@@ -325,7 +328,7 @@
                                                   },
                                                   {
                                                     "kind": "token",
-                                                    "terminal": "/'/",
+                                                    "terminal": "Sound-0027-s",
                                                     "token": 2,
                                                     "span": [
                                                       2,
@@ -348,7 +351,7 @@
                                                       4
                                                     ],
                                                     "tags": [
-                                                      "/i/"
+                                                      "Sound-0069-s"
                                                     ],
                                                     "children": [
                                                       {
@@ -363,12 +366,12 @@
                                                           4
                                                         ],
                                                         "tags": [
-                                                          "/i/"
+                                                          "Sound-0069-s"
                                                         ],
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/i/",
+                                                            "terminal": "Sound-0069-s",
                                                             "token": 3,
                                                             "span": [
                                                               3,
@@ -398,7 +401,7 @@
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "/n/",
+                                                        "terminal": "Sound-006E-s",
                                                         "token": 4,
                                                         "span": [
                                                           4,
@@ -460,12 +463,12 @@
                                                                       6
                                                                     ],
                                                                     "tags": [
-                                                                      "/r/"
+                                                                      "Sound-0072-s"
                                                                     ],
                                                                     "children": [
                                                                       {
                                                                         "kind": "token",
-                                                                        "terminal": "/r/",
+                                                                        "terminal": "Sound-0072-s",
                                                                         "token": 5,
                                                                         "span": [
                                                                           5,
@@ -516,12 +519,12 @@
                                                                               7
                                                                             ],
                                                                             "tags": [
-                                                                              "/a/"
+                                                                              "Sound-0061-s"
                                                                             ],
                                                                             "children": [
                                                                               {
                                                                                 "kind": "token",
-                                                                                "terminal": "/a/",
+                                                                                "terminal": "Sound-0061-s",
                                                                                 "token": 6,
                                                                                 "span": [
                                                                                   6,
@@ -546,12 +549,12 @@
                                                                               8
                                                                             ],
                                                                             "tags": [
-                                                                              "/i/"
+                                                                              "Sound-0069-s"
                                                                             ],
                                                                             "children": [
                                                                               {
                                                                                 "kind": "token",
-                                                                                "terminal": "/i/",
+                                                                                "terminal": "Sound-0069-s",
                                                                                 "token": 7,
                                                                                 "span": [
                                                                                   7,

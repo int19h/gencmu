@@ -1,6 +1,6 @@
 {
   "description": "Late-elision compares only elided terminators. Neither derivation elides one, so they tie, where greedy would read B and lazy would close x (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text x B | y\n%rule x A [C]\n%rule y A B",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (x B) | y\n%rule x (A [C])\n%rule y (A B)",
   "tokens": [
     {
       "text": "a",

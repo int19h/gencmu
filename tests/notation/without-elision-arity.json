@@ -1,10 +1,10 @@
 {
-  "description": "A restored span requires exactly one capture. Engine \u00a79.",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions matches(without-elision($x, $x), r)\n```\n",
+  "description": "A restored span requires exactly one capture. Engine §9.",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.without-elision($x).matches(r)\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 35
+      "column": 25
     }
   }
 }

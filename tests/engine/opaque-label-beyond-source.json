@@ -1,27 +1,27 @@
 {
   "description": "A token whose constituent holds an opaque part, but is none, keeps the source of its input tokens. Its label joins the whole text of the part, which takes in the space after `x` that no input token covers. So the label of `wrap` reaches beyond its source and its text (engine §5, §11).",
-  "grammar": "%rule text $w(wrap) $q(Q)\n%emits $w <W>, $q <Q>\n%rule wrap P body\n%rule body X\n%opaque",
+  "grammar": "%rule text ($w:wrap $q:Q) %emits $w :: W, $q :: Q\n\n%rule wrap (P body)\n%rule body :- $.verbatim-text | X\n",
   "tokens": [
     {
       "text": "p",
       "tags": [
         "P"
       ],
-      "phonemes": "p"
+      "value": "p"
     },
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "q",
       "tags": [
         "Q"
       ],
-      "phonemes": "q"
+      "value": "q"
     }
   ],
   "expect": {
@@ -32,8 +32,8 @@
           "output": [
             {
               "text": "p x",
-              "phonemes": "p?",
-              "label": "p x ",
+              "value": "px",
+              "image": "p x ",
               "span": [
                 0,
                 2
@@ -45,8 +45,8 @@
             },
             {
               "text": "q",
-              "phonemes": "q",
-              "label": "q",
+              "value": "q",
+              "image": "q",
               "span": [
                 2,
                 3

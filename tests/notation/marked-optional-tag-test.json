@@ -1,9 +1,9 @@
 {
   "description": "A tag test on an elidable terminator is legal. Its omission is inert when the restoration tags fail the test.",
-  "document": "```jbogenbau\n%rule a [+KU⊇~x]\n```\n",
+  "document": "```jbogenbau\n%rule a [+KU<X>]\n```\n",
   "expect": {
     "dom": {
-      "format": 25,
+      "format": 26,
       "rules": [
         {
           "name": "a",
@@ -14,10 +14,15 @@
               "guards": [],
               "expr": {
                 "optional": {
-                  "test": "⊇",
-                  "value": {
-                    "tag": "x"
-                  },
+                  "test": "tags",
+                  "requirements": [
+                    {
+                      "negated": false,
+                      "value": {
+                        "tag": "X"
+                      }
+                    }
+                  ],
                   "expr": {
                     "ref": "KU"
                   }

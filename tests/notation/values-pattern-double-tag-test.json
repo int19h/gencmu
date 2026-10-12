@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r A %conditions $ ≅ @A<B><C>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 32
+    }
+  },
+  "description": "Pattern atoms use the same test-order check as primaries (coordinator N19)."
+}

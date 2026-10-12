@@ -1,6 +1,6 @@
 {
   "description": "after($x) is empty at the end of the input, so matches(after($x), nothing) holds exactly there (engine §10).",
-  "grammar": "%rule text A $x(B) %conditions matches(after($x), nothing)\n%rule nothing ε",
+  "grammar": "%rule text (A $x:B) %conditions $x.following-tokens.matches(nothing)\n%rule nothing ε",
   "tokens": [
     {
       "text": "a",

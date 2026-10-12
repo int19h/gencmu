@@ -2,9 +2,9 @@
   "description": "Every %classifier of one name in a stage adds entries to one classifier, applied in stitching order across documents: b.md removes mi from KOhA and adds it to UI, and c.md adds it to KOhA again. Taken in another order, c.md's entry would add a membership that holds (engine §2).",
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n%include \"c.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier lex\n  \"mi\" \"do\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%classifier lex\n  \"mi\" ∉ KOhA\n  \"mi\" ∈ UI\n```\n",
-    "c.md": "```jbogenbau\n%classifier lex\n  \"mi\" ∈ KOhA\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier lex  \"mi\" \"do\" ∈ KOhA\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n\n```\n",
+    "b.md": "```jbogenbau\n%classifier lex  \"mi\" ∉ KOhA  \"mi\" ∈ UI\n\n\n```\n",
+    "c.md": "```jbogenbau\n%classifier lex  \"mi\" ∈ KOhA\n\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
@@ -13,14 +13,14 @@
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     },
     {
       "text": "do",
       "tags": [
         "W"
       ],
-      "phonemes": "do"
+      "value": "do"
     }
   ],
   "expect": {
@@ -33,14 +33,14 @@
             {
               "tags": [
                 "KOhA",
-                "UI",
-                "w"
+                "Tag-w",
+                "UI"
               ]
             },
             {
               "tags": [
                 "KOhA",
-                "w"
+                "Tag-w"
               ]
             }
           ]

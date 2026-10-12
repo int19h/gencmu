@@ -1,0 +1,35 @@
+{
+  "description": "Verbatim images preserve the token’s own source and text (engine §11).",
+  "grammar": "%rule text :- $.verbatim-text | _ %emits",
+  "input": "(a)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "source": [
+        1,
+        2
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "(a)",
+              "source": [
+                1,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

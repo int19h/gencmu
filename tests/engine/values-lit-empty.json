@@ -1,0 +1,27 @@
+{
+  "description": "An engine literal in an always-empty complete filter introduces no engine tag (engine §10).",
+  "grammar": "%rule text _ :: _Lu ∩ Word %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

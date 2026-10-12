@@ -1,0 +1,35 @@
+{
+  "document": "```jbogenbau\n%rule r \"A,B\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "A,B"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A value terminal preserves capitals, commas, and multiple scalars (engine §§1, 4)."
+}

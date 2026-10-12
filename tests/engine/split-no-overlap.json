@@ -1,20 +1,20 @@
 {
   "description": "split() finds the occurrences of its delimiter from the left, and each search starts where the last occurrence ends: `aaa` split at `aa` is `a`, and `aaaa` split at `aa` is empty (engine §10).",
-  "grammar": "%rule text $x(A) $y(A)\n%conditions split(phonemes($x), \"aa\") = split(\"a\", \".\"), split(phonemes($y), \"aa\") = ∅",
+  "grammar": "%rule text ($x:A $y:A) %conditions $x.value.split(\"aa\") = \"a\".split(\".\"), $y.value.split(\"aa\") = ∅\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "aaa"
+      "value": "aaa"
     },
     {
       "text": "y",
       "tags": [
         "A"
       ],
-      "phonemes": "aaaa"
+      "value": "aaaa"
     }
   ],
   "expect": {

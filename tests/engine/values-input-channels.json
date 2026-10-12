@@ -1,0 +1,29 @@
+{
+  "description": "Input methods observe value, image, and source text separately (engine §5 and §10).",
+  "grammar": "%rule text $x:_ %conditions $x.value=\"v\", $x.image=\"i\", $x.source-text=\"a\" %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "v",
+      "image": "i"
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "v",
+              "image": "i",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

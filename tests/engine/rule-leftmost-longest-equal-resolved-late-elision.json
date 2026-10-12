@@ -1,10 +1,10 @@
 {
   "description": "Equal profiles retain the resolving stage preference (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule(leftmost-longest) r 'a' [+T] 'b' | 'a' 'b'",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule (leftmost-longest) r (\"a\" [+T] \"b\") | (\"a\" \"b\")",
   "input": "ab",
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
@@ -41,7 +41,7 @@
             "children": [
               {
                 "kind": "token",
-                "terminal": "'a'",
+                "terminal": "\"a\"",
                 "token": 0,
                 "span": [
                   0,
@@ -54,7 +54,7 @@
               },
               {
                 "kind": "token",
-                "terminal": "'b'",
+                "terminal": "\"b\"",
                 "token": 1,
                 "span": [
                   1,

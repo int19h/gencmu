@@ -2,7 +2,7 @@
   "description": "Attachments nest as deep as the text is long, here 1500 levels, and emission, the output and the brackets handle them without overflow (engine §11, docs/output.md).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text\n  | $w(word) | $w(word) $a(text)\n%emits\n  $w ($a)\n%rule word\n  'w' <W>\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:word | $w:word $a:text %emits $w ($a)\n%rule word \"w\" :: W\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text W\n```\n"
   },
   "pipeline": "p.md",

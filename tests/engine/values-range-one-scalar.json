@@ -1,0 +1,27 @@
+{
+  "description": "A range does not read a multiscalar caller value (engine §4).",
+  "grammar": "%rule text \"A\"..\"Z\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "AA"
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "error": {
+        "expected": [
+          {
+            "terminal": "\"A\"..\"Z\"",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

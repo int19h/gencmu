@@ -1,15 +1,13 @@
 {
   "description": "A character token of the first stage carries its character tag and nothing else: tags($c) of one is exactly that tag (engine §1).",
-  "grammar": "%rule text $c('\\p{Any}') $d('\\p{Any}') $e('\\p{Any}')\n%conditions\n  tags($c) = 'x',\n  tags($d) = '\\u{20}',\n  tags($e) = '7'",
+  "grammar": "%rule text ($c:_ $d:_ $e:_) %conditions $c.tags = \"x\", $d.tags = \" \", $e.tags = \"7\"\n\n\n\n",
   "input": "x 7",
   "expect": {
-    "result": {
-      "ok": true,
-      "stages": [
-        {
-          "verdict": "unique"
-        }
-      ]
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 41
     }
   }
 }

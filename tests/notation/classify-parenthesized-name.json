@@ -1,6 +1,6 @@
 {
   "description": "A bare name in parentheses is still a bare name. As the second argument of classify it names a classifier, and as that of tags or matches it names a rule (engine §9).",
-  "document": "```jbogenbau\n%classifier lex\n%rule text $w(W) <classify(\"mi\", (lex)) ∪ classify(phonemes($w), ((lex))) ∪ tags($w, (text))>\n%conditions matches($w, (text))\n```\n",
+  "document": "```jbogenbau\n%classifier lex \n%rule text $w:W :: (\"mi\".classify(lex) ∪ $w.value.classify(lex) ∪ $w.tags(text)) %conditions $w.matches(text)\n\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -18,38 +18,37 @@
               "tags": {
                 "union": [
                   {
-                    "call": "classify",
+                    "method": "classify",
+                    "receiver": {
+                      "string": "mi"
+                    },
                     "args": [
-                      {
-                        "string": "mi"
-                      },
                       {
                         "classifier": "lex"
                       }
                     ]
                   },
                   {
-                    "call": "classify",
-                    "args": [
-                      {
-                        "call": "phonemes",
-                        "args": [
-                          {
-                            "capture": "w"
-                          }
-                        ]
-                      },
-                      {
-                        "classifier": "lex"
-                      }
-                    ]
-                  },
-                  {
-                    "call": "tags",
-                    "args": [
-                      {
+                    "method": "classify",
+                    "receiver": {
+                      "method": "value",
+                      "receiver": {
                         "capture": "w"
                       },
+                      "args": []
+                    },
+                    "args": [
+                      {
+                        "classifier": "lex"
+                      }
+                    ]
+                  },
+                  {
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "w"
+                    },
+                    "args": [
                       {
                         "rule": "text"
                       }
@@ -61,10 +60,15 @@
           ],
           "conditions": [
             {
-              "matches": {
+              "method": "matches",
+              "receiver": {
                 "capture": "w"
               },
-              "rule": "text"
+              "args": [
+                {
+                  "rule": "text"
+                }
+              ]
             }
           ]
         }

@@ -1,6 +1,6 @@
 {
   "description": "Flat braces are a helper whose base productions come first, then its recursive ones, and the helpers of the places inside the item come before those inside the separator: in {C [A] \\ [A]}, h → C o₁ is 1, h → h o₂ C o₁ is 2, and the item's o₁ → ε is 3, which the witness names (engine §3, Numbering).",
-  "grammar": "%rule text {C [A] \\ [A]}",
+  "grammar": "%rule text {(C [A]) / [A]}",
   "tokens": [
     {
       "text": "c",

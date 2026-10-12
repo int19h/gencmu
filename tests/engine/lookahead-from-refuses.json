@@ -1,6 +1,6 @@
 {
   "description": "¬begins(from($x), R) refuses the parse when R begins there (engine §10).",
-  "grammar": "%rule text $x(A) B %conditions ¬begins(from($x), ab)\n%rule ab A B",
+  "grammar": "%rule text ($x:A B) %conditions ¬($x.onward.begins(ab))\n%rule ab (A B)",
   "tokens": [
     {
       "text": "a",

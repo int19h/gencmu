@@ -1,0 +1,37 @@
+{
+  "description": "An item recipe’s $ names the enclosing rule occurrence (engine §11).",
+  "grammar": "%rule text $a:A $b:B %emits $a := $.value, $b",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab",
+              "image": "ab"
+            },
+            {
+              "value": "b",
+              "image": "b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

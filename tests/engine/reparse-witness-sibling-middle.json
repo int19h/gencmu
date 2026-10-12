@@ -1,20 +1,20 @@
 {
   "description": "The chosen derivation uses the middle sibling. Reconstruction reports it first and the first bare sibling second.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a A T B | A [+T] B | A T B\n%rule b A [+T] [+T] B",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a (A T B) | (A [+T] B) | (A T B)\n%rule b (A [+T] [+T] B)",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

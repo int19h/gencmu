@@ -1,0 +1,29 @@
+{
+  "description": "An equality-tested omission exposes its explicit empty saved value (engine §§3.8 and 7, output format 12).",
+  "grammar": "%rule text A [+T=\"\"]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "A"
+          },
+          {
+            "kind": "elided",
+            "terminal": "T",
+            "value": ""
+          }
+        ]
+      }
+    }
+  }
+}

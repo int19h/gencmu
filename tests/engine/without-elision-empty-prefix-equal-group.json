@@ -1,13 +1,13 @@
 {
   "description": "An empty prefix can preserve a complete initial close group (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions begins(without-elision($x), rival)\n%rule candidate [+T] [+U] X\n%rule rival [+T] [+U]",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.begins(rival)\n\n%rule candidate ([+T] [+U] X)\n%rule rival ([+T] [+U])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

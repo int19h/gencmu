@@ -1,6 +1,6 @@
 {
   "description": "The capture checks that wait for a constant's value apply to a definition that a later %redefine-rule replaces too, as the reader's checks do (engine §2, §9).",
-  "grammar": "%const $E B\n%rule text A | $x(A)\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-rule text A",
+  "grammar": "%const $E B\n%rule text :: (Y ∪ ($E ∩ $x.tags)) | A | $x:A\n\n%redefine-rule text A",
   "tokens": [
     {
       "text": "a",

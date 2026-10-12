@@ -1,6 +1,6 @@
 {
   "description": "An ordinary omission permits the complete reading without reserving the preceding constituent.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A body [+T] B\n%rule body X | X B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A body [+T] B)\n%rule body X | (X B)",
   "tokens": [
     {
       "text": "a",

@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($x(X) Y | Z W)\n%conditions $x",
+  "grammar": "%rule text (($x:X Y) | (Z W)) %conditions $x\n",
   "tokens": [
     {
       "text": "x",

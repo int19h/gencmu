@@ -1,6 +1,6 @@
 {
   "description": "Twin of optional-suffix-elidable.json with a plain suffix [S r]: it elides nothing, as the chain of right-chain-elidable-suffix.json does, so text → r | A ties on a (engine §3.8, §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r | A\n%rule r A [S r]",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | A\n%rule r (A [(S r)])",
   "tokens": [
     {
       "text": "a",

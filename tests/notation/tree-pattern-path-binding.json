@@ -16,7 +16,11 @@
                         "node": {
                           "path": "first",
                           "pattern": {
-                            "terminal": "A"
+                            "terminal": "A",
+                            "at": [
+                              2,
+                              13
+                            ]
                           }
                         }
                       },
@@ -24,7 +28,11 @@
                         "node": {
                           "path": "last",
                           "pattern": {
-                            "terminal": "B"
+                            "terminal": "B",
+                            "at": [
+                              2,
+                              19
+                            ]
                           }
                         }
                       }
@@ -36,13 +44,21 @@
                     {
                       "path": "first",
                       "pattern": {
-                        "terminal": "C"
+                        "terminal": "C",
+                        "at": [
+                          2,
+                          23
+                        ]
                       }
                     },
                     {
                       "path": "last",
                       "pattern": {
-                        "terminal": "D"
+                        "terminal": "D",
+                        "at": [
+                          2,
+                          31
+                        ]
                       }
                     }
                   ]
@@ -51,7 +67,8 @@
             }
           }
         }
-      ]
+      ],
+      "format": 26
     }
   }
 }

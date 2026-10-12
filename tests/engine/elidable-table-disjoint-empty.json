@@ -1,6 +1,6 @@
 {
   "description": "The omission tests its restoration value. The fallback routes force reconstruction and preserve the projected omitted marker.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text A [+T∩∅=∅] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%conditions $ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER [OTHER])",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text (A [+T<>]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER]) %conditions ($ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER [OTHER]))\n",
   "tokens": [
     {
       "text": "a",

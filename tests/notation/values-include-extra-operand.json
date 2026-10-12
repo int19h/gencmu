@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%include \"a.md\" \"b.md\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  },
+  "description": "Two well-formed include paths cause a reader error at the directive (engine §9.3)."
+}

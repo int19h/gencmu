@@ -1,6 +1,6 @@
 {
   "description": "Both complete choices remain available. Their different rule closes tie under the declared ranking.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text x | y\n%rule x a B\n%rule a A B | A\n%rule y A B",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x | y\n%rule x (a B)\n%rule a (A B) | A\n%rule y (A B)",
   "tokens": [
     {
       "text": "a",

@@ -1,0 +1,17 @@
+{
+  "description": "A caller value does not supply an unstored engine category tag (engine §§1 and 4).",
+  "grammar": "%rule text _Lu",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "A"
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

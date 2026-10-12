@@ -1,10 +1,10 @@
 {
-  "description": "A property is written '\\p{Name}': '\\pL' is an error at the property (engine §9).",
-  "document": "```jbogenbau\n%rule a B '\\pL'\n```\n",
+  "description": "An unknown engine tag is one invalid token (engine §9.1).",
+  "document": "```jbogenbau\n%rule a _Letter\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 11
+      "column": 9
     }
   }
 }

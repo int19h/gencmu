@@ -1,11 +1,11 @@
 {
-  "description": "An inserted token is made when its item's turn comes, after the items before it and their attachments. Here the attachment's tag term fails, and so does the inserted /a/, which an implication gives a second phoneme tag. The attachment's error comes first and ends the emission (engine §11).",
-  "grammar": "%implies /a/ ⟹ /e/\n%rule text $b(bad) $w(word)\n%emits\n  ($b) $w, /a/\n%rule word\n  '1'\n%rule bad\n  '?'\n%emits\n  $ <tag(text($))>",
-  "input": "?1",
+  "description": "The before-attachment fails on a shared verbatim gap before the later inserted item evaluates its failing tag query (engine §11).",
+  "grammar": "%rule text $b:bad $w:word %emits ($b) $w, ε :: $.tags(migration-fault) := \"a\"\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
+  "input": "b,b1",
   "expect": {
     "error": "grammar",
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {
@@ -18,5 +18,31 @@
         "stage": "main"
       }
     }
-  }
+  },
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "1",
+      "tags": [],
+      "source": [
+        3,
+        4
+      ]
+    }
+  ]
 }

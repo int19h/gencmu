@@ -103,6 +103,21 @@ function scanBody(chars, start) {
   i = skipLayout(i);
   if (chars[i] === "#") i++;
   else while (isNameChar(chars[i])) i++;
+  i = skipLayout(i);
+  // A header clause precedes the bar that starts the ordinary body.
+  if (chars[i] === ":" && [":", "=", "-"].includes(chars[i + 1])) {
+    let headerDepth = 0;
+    while (i < chars.length) {
+      i = skipLayout(i);
+      if (chars[i] === "\"") {
+        i++;
+        while (i < chars.length && chars[i] !== "\"") i++;
+      } else if (chars[i] === "(") headerDepth++;
+      else if (chars[i] === ")") headerDepth--;
+      else if (chars[i] === "|" && headerDepth === 0) break;
+      i++;
+    }
+  }
   /** @type {{from: number, to: number}[]} */
   const alternatives = [];
   /** @type {{from: number, to: number} | null} */

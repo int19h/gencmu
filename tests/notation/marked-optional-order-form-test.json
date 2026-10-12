@@ -1,6 +1,6 @@
 {
   "description": "The marked optional has a choice and tests a noncanonical sound. Its form error comes first, at the [ (engine §9).",
-  "document": "```jbogenbau\n%rule a [+KU=\"K\" | A]\n```\n",
+  "document": "```jbogenbau\n%rule a [ + KU = \"K\" | A ]\n```\n",
   "expect": {
     "error": {
       "line": 2,

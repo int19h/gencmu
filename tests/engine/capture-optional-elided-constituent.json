@@ -1,6 +1,6 @@
 {
   "description": "An expanded optional leaves no helper when its capture is absent. The elided T remains between A and C.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A [$y(y)] [+T] C\n%rule y C",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A [$y:y] [+T] C)\n%rule y C",
   "tokens": [
     {
       "text": "a",

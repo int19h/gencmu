@@ -1,6 +1,6 @@
 {
   "description": "A condition of a rule with flat braces applies to the rule's whole constituent and never to a part of the list: text($) ≠ \"a\" holds of a s a (engine §3.3, §3.6).",
-  "grammar": "%rule text r\n%rule r {A \\ S}\n%conditions text($) ≠ \"a\"",
+  "grammar": "%rule text r\n%rule r {A / S} %conditions $.source-text ≠ \"a\"\n",
   "tokens": [
     {
       "text": "a",

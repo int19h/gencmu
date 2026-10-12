@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule Foo A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  },
+  "description": "A rule name starts with a lowercase letter (coordinator N18)."
+}

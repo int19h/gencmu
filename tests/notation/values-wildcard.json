@@ -1,0 +1,33 @@
+{
+  "document": "```jbogenbau\n%rule r _\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "wildcard": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "The wildcard has its own DOM form (output format 26)."
+}

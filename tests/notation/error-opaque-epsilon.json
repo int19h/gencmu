@@ -1,9 +1,9 @@
 {
-  "description": "%opaque with %emits ε is an error of the document, reported at the definition (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n%emits ε\n%opaque\n```\n",
+  "description": "An image recipe on an erased definition fails at the definition (engine §11.4).",
+  "document": "```jbogenbau\n%rule a :- $.verbatim-text | A %erased\n```\n",
   "expect": {
     "error": {
-      "line": 6,
+      "line": 2,
       "column": 1
     }
   }

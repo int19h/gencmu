@@ -1,6 +1,6 @@
 {
   "description": "begins holds when a prefix of the span parses as the rule, matches only when the whole span does (engine §10).",
-  "grammar": "%rule text $x(A) B %conditions begins(from($x), a), ¬matches(from($x), a)\n%rule a A",
+  "grammar": "%rule text ($x:A B) %conditions $x.onward.begins(a), ¬($x.onward.matches(a))\n%rule a A",
   "tokens": [
     {
       "text": "a",

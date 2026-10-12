@@ -1,6 +1,6 @@
 {
   "description": "A capture can stand in an item of &: $a(A) & $b(B) expands to A, B and A B, and each production has the captures it reads, which its tags show (engine §3.2, §3.5).",
-  "grammar": "%rule text r Z r Z r\n%rule r $a(A) & $b(B)\n%tags ($a ⟹ ~HA) ∪ ($b ⟹ ~HB)",
+  "grammar": "%rule text (r Z r Z r)\n%rule r :: (($a ⟹ HA) ∪ ($b ⟹ HB)) | ($a:A & $b:B)\n",
   "tokens": [
     {
       "text": "a",

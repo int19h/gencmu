@@ -1,0 +1,13 @@
+{
+  "description": "An implied image cannot hide an active value-to-image cycle (engine §11.3).",
+  "grammar": "%rule text := $.emitted.image | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "∖ is set difference. ∩ binds tighter than ∪ and ∖, which bind equally and group from the left; a leading ∪ is a separator (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a A <B ∖ C ∪ D>\n%rule b A <B ∪ C ∖ D>\n%rule c A <B ∖ C ∖ D>\n%rule d A <B ∪ C ∩ D ∖ E>\n%rule e A <∪ B ∪ C>\n%rule f A <B ∖ (C ∪ D)>\n```\n",
+  "document": "```jbogenbau\n%rule a A :: ((B ∖ C) ∪ D)\n%rule b A :: ((B ∪ C) ∖ D)\n%rule c A :: ((B ∖ C) ∖ D)\n%rule d A :: ((B ∪ (C ∩ D)) ∖ E)\n%rule e A :: (B ∪ C)\n%rule f A :: (B ∖ (C ∪ D))\n```\n",
   "expect": {
     "dom": {
       "rules": [

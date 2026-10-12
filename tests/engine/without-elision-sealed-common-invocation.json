@@ -1,6 +1,6 @@
 {
   "description": "A ranked block retains its enclosing named invocation and original prefix context (engine §4 and §6.1).",
-  "grammar": "%rule text $x(candidate)\n%conditions ¬matches(without-elision($x), rival)\n%rule candidate choice\n%rule choice {X} (a ≻ b)\n%rule a Y [+T]\n%rule b Y [+U]\n%rule rival X choice",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate choice\n%rule choice ({X} (a ≻ b))\n%rule a (Y [+T])\n%rule b (Y [+U])\n%rule rival (X choice)",
   "tokens": [
     {
       "text": "x",

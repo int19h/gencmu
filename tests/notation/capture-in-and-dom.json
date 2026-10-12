@@ -1,6 +1,6 @@
 {
   "description": "A capture can stand in an item of & (engine §3.5, §9).",
-  "document": "```jbogenbau\n%rule a $a(A) & B\n```\n",
+  "document": "```jbogenbau\n%rule a ($a:A & B)\n```\n",
   "expect": {
     "dom": {
       "rules": [

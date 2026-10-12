@@ -1,6 +1,6 @@
 {
   "description": "∪, ∩ and ∖ on tag sets: ∩ binds tighter than ∪ and ∖, which bind equally and group from the left (engine §10).",
-  "grammar": "%rule text a b c d e f\n%rule a W <A ∪ B ∖ A ∪ C>\n%rule b W <A ∪ B ∩ C>\n%rule c W <(A ∪ B) ∩ (B ∪ C)>\n%rule d W <A ∖ (A ∪ B) ∪ C>\n%rule e W <A ∖ A ∩ B ∪ B>\n%rule f $x(W) <tags($x) ∖ W ∪ D>",
+  "grammar": "%rule text (a b c d e f)\n%rule a W :: (((A ∪ B) ∖ A) ∪ C)\n%rule b W :: (A ∪ (B ∩ C))\n%rule c W :: ((A ∪ B) ∩ (B ∪ C))\n%rule d W :: ((A ∖ (A ∪ B)) ∪ C)\n%rule e W :: ((A ∖ (A ∩ B)) ∪ B)\n%rule f $x:W :: (($x.tags ∖ W) ∪ D)",
   "tokens": [
     {
       "text": "u",

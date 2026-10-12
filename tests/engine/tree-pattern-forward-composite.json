@@ -1,13 +1,13 @@
 {
   "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
-  "grammar": "%const $P $Q ∪ @(B)\n%const $Q @(A)\n%rule text A\n%conditions $ ≅ $P",
+  "grammar": "%const $P ($Q ∪ @B)\n%const $Q @A\n%rule text A %conditions $ ≅ $P\n",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     }
   ],
   "expect": {

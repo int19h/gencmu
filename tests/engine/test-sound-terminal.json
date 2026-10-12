@@ -7,28 +7,28 @@
       "tags": [
         "X"
       ],
-      "phonemes": "la"
+      "value": "la"
     },
     {
       "text": "lo",
       "tags": [
         "X"
       ],
-      "phonemes": "lo"
+      "value": "lo"
     },
     {
       "text": "lA",
       "tags": [
         "X"
       ],
-      "phonemes": "lA"
+      "value": "lA"
     },
     {
       "text": "lai",
       "tags": [
         "X"
       ],
-      "phonemes": "lai"
+      "value": "lai"
     }
   ],
   "expect": {
@@ -62,7 +62,7 @@
             "rule": "p",
             "children": [
               {
-                "rule": "hit"
+                "rule": "miss"
               }
             ]
           },

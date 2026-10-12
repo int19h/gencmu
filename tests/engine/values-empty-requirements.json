@@ -1,0 +1,27 @@
+{
+  "description": "Empty signed requirements impose no additional restriction (engine §4).",
+  "grammar": "%const $S A ∖ A\n%rule text _<$S ¬$S> %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

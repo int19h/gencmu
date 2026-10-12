@@ -1,10 +1,35 @@
 {
-  "description": "A string is a value, never a terminal: a body that holds one is an error at the string (design §2, engine §9).",
+  "description": "Engine §4 admits every scalar string as a terminal, including empty and multiscalar values.",
   "document": "```jbogenbau\n%rule a \"KOhA\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 9
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "KOhA"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

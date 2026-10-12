@@ -1,10 +1,10 @@
 {
   "description": "Two distinct flagged occurrences over one projected span each contribute weight.",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (w ≻ missing) | d | c\n%rule(leftmost-longest) w X [+T] | [+U] X\n%rule missing M N\n%rule(leftmost-longest) d X T\n%rule(leftmost-longest) c inner T\n%rule(leftmost-longest) inner X",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (w ≻ missing) | d | c\n%rule (leftmost-longest) w (X [+T]) | ([+U] X)\n%rule missing (M N)\n%rule (leftmost-longest) d (X T)\n%rule (leftmost-longest) c (inner T)\n%rule (leftmost-longest) inner X",
   "tokens": [
     {
       "text": "x",
-      "phonemes": "x",
+      "value": "x",
       "tags": [
         "X"
       ]
@@ -13,7 +13,7 @@
   "expect": {
     "error": "ambiguous",
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

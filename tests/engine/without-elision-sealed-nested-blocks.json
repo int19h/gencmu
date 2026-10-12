@@ -1,13 +1,13 @@
 {
   "description": "Nested ranked blocks retain their common outside identity (engine §4 and §10).",
-  "grammar": "%rule text $x(outer)\n%conditions matches(without-elision($x), same), ¬matches(without-elision($x), flat)\n%rule outer left ≻ right\n%rule left inner\n%rule right X [+V]\n%rule inner a ≻ b\n%rule a X [+T]\n%rule b X [+U]\n%rule same outer\n%rule flat X [+T]",
+  "grammar": "%rule text $x:outer %conditions $x.without-elision.matches(same), ¬($x.without-elision.matches(flat))\n\n%rule outer (left ≻ right)\n%rule left inner\n%rule right (X [+V])\n%rule inner (a ≻ b)\n%rule a (X [+T])\n%rule b (X [+U])\n%rule same outer\n%rule flat (X [+T])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

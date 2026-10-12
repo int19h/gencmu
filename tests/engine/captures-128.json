@@ -1,6 +1,6 @@
 {
   "description": "One production with 128 captures, above a signed byte of slots: the condition and the tag term read the last, and the emission carries it with the one before as an attachment (engine §3.5).",
-  "grammar": "%rule text $c0(A) $c1(A) $c2(A) $c3(A) $c4(A) $c5(A) $c6(A) $c7(A) $c8(A) $c9(A) $c10(A) $c11(A) $c12(A) $c13(A) $c14(A) $c15(A) $c16(A) $c17(A) $c18(A) $c19(A) $c20(A) $c21(A) $c22(A) $c23(A) $c24(A) $c25(A) $c26(A) $c27(A) $c28(A) $c29(A) $c30(A) $c31(A) $c32(A) $c33(A) $c34(A) $c35(A) $c36(A) $c37(A) $c38(A) $c39(A) $c40(A) $c41(A) $c42(A) $c43(A) $c44(A) $c45(A) $c46(A) $c47(A) $c48(A) $c49(A) $c50(A) $c51(A) $c52(A) $c53(A) $c54(A) $c55(A) $c56(A) $c57(A) $c58(A) $c59(A) $c60(A) $c61(A) $c62(A) $c63(A) $c64(A) $c65(A) $c66(A) $c67(A) $c68(A) $c69(A) $c70(A) $c71(A) $c72(A) $c73(A) $c74(A) $c75(A) $c76(A) $c77(A) $c78(A) $c79(A) $c80(A) $c81(A) $c82(A) $c83(A) $c84(A) $c85(A) $c86(A) $c87(A) $c88(A) $c89(A) $c90(A) $c91(A) $c92(A) $c93(A) $c94(A) $c95(A) $c96(A) $c97(A) $c98(A) $c99(A) $c100(A) $c101(A) $c102(A) $c103(A) $c104(A) $c105(A) $c106(A) $c107(A) $c108(A) $c109(A) $c110(A) $c111(A) $c112(A) $c113(A) $c114(A) $c115(A) $c116(A) $c117(A) $c118(A) $c119(A) $c120(A) $c121(A) $c122(A) $c123(A) $c124(A) $c125(A) $c126(e) $c127(A)\n%tags tags($c127)\n%conditions text($c127) = \"a\"\n%emits ($c126) $c127 <~L>\n%rule e A\n%emits $ <~M>",
+  "grammar": "%rule text :: $c127.tags | ($c0:A $c1:A $c2:A $c3:A $c4:A $c5:A $c6:A $c7:A $c8:A $c9:A $c10:A $c11:A $c12:A $c13:A $c14:A $c15:A $c16:A $c17:A $c18:A $c19:A $c20:A $c21:A $c22:A $c23:A $c24:A $c25:A $c26:A $c27:A $c28:A $c29:A $c30:A $c31:A $c32:A $c33:A $c34:A $c35:A $c36:A $c37:A $c38:A $c39:A $c40:A $c41:A $c42:A $c43:A $c44:A $c45:A $c46:A $c47:A $c48:A $c49:A $c50:A $c51:A $c52:A $c53:A $c54:A $c55:A $c56:A $c57:A $c58:A $c59:A $c60:A $c61:A $c62:A $c63:A $c64:A $c65:A $c66:A $c67:A $c68:A $c69:A $c70:A $c71:A $c72:A $c73:A $c74:A $c75:A $c76:A $c77:A $c78:A $c79:A $c80:A $c81:A $c82:A $c83:A $c84:A $c85:A $c86:A $c87:A $c88:A $c89:A $c90:A $c91:A $c92:A $c93:A $c94:A $c95:A $c96:A $c97:A $c98:A $c99:A $c100:A $c101:A $c102:A $c103:A $c104:A $c105:A $c106:A $c107:A $c108:A $c109:A $c110:A $c111:A $c112:A $c113:A $c114:A $c115:A $c116:A $c117:A $c118:A $c119:A $c120:A $c121:A $c122:A $c123:A $c124:A $c125:A $c126:e $c127:A) %conditions $c127.source-text = \"a\" %emits ($c126) $c127 :: L\n\n\n\n%rule e A %emits $ :: M\n",
   "tokens": [
     {
       "text": "a",
@@ -909,8 +909,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "tags": [
                 "L"
               ],
@@ -925,8 +925,8 @@
               "before": [
                 {
                   "text": "a",
-                  "phonemes": "",
-                  "label": "a",
+                  "value": "a",
+                  "image": "a",
                   "tags": [
                     "M"
                   ],

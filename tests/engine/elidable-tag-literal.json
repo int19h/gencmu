@@ -1,6 +1,6 @@
 {
   "description": "An elidable optional's terminator can be a tag literal: [+~ku] marks the terminal ku, and [+~KU] and [+KU] mark one terminal (design §15, engine §3.8).",
-  "grammar": "%rule text A [+~ku] [+KU]",
+  "grammar": "%rule text (A [+Ku] [+KU])",
   "tokens": [
     {
       "text": "a",
@@ -23,7 +23,7 @@
           },
           {
             "kind": "elided",
-            "terminal": "ku",
+            "terminal": "Ku",
             "span": [
               1,
               1

@@ -1,6 +1,6 @@
 {
   "description": "An inserted token without a phoneme tag has empty phonemes and an empty label. A token over characters with no phoneme tag sounds like nothing, and its label is its text, since a character token's label is its text (engine §1, §5).",
-  "grammar": "%rule text $a('a') $b(pair)\n%emits $a <A>, M, $b <B>\n%rule pair 'b' 'c'",
+  "grammar": "%rule text ($a:\"a\" $b:pair) %emits $a :: A, ε :: M, $b :: B\n\n%rule pair (\"b\" \"c\")",
   "input": "abc",
   "expect": {
     "result": {
@@ -10,8 +10,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "span": [
                 0,
                 1
@@ -23,8 +23,8 @@
             },
             {
               "text": "",
-              "phonemes": "",
-              "label": "",
+              "value": "",
+              "image": "",
               "span": [
                 1,
                 1
@@ -37,8 +37,8 @@
             },
             {
               "text": "bc",
-              "phonemes": "",
-              "label": "bc",
+              "value": "bc",
+              "image": "bc",
               "span": [
                 1,
                 3

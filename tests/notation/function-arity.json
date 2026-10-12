@@ -1,10 +1,10 @@
 {
   "description": "phonemes takes one span (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x, $x) = \"b\"\n```\n",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.value($x)= \"b\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 25
     }
   }
 }

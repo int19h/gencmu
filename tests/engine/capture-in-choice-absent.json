@@ -1,6 +1,6 @@
 {
   "description": "Twin of capture-in-choice.json: on b c, the production B C has no $a, so it emits $c alone (engine §3.5, §11).",
-  "grammar": "%rule text ($a(A) | B) $c(C)\n%emits $a, $c",
+  "grammar": "%rule text (($a:A | B) $c:C) %emits $a, $c\n",
   "tokens": [
     {
       "text": "b",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "c",
-              "phonemes": "",
-              "label": "c",
+              "value": "c",
+              "image": "c",
               "tags": [
                 "C"
               ],

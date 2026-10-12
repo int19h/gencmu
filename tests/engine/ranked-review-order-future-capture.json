@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($x(X) ≻ Z) W $y(Y)\n%conditions text($y) = \"y\", $x ⟹ text($x) = \"x\"",
+  "grammar": "%rule text (($x:X ≻ Z) W $y:Y) %conditions $y.source-text = \"y\", ($x ⟹ $x.source-text = \"x\")\n",
   "tokens": [
     {
       "text": "x",

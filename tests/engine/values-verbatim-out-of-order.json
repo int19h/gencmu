@@ -1,0 +1,38 @@
+{
+  "description": "Both independent gap searches claim the same comma on different input spans (engine §11).",
+  "grammar": "%rule text {unit}\n%rule unit :- $.verbatim-text | _ %emits",
+  "input": "a,b",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [],
+      "source": [
+        0,
+        1
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

@@ -1,13 +1,13 @@
 {
   "description": "A reconstruction capture includes its own synthetic read and excludes a later synthetic close (engine §4 and §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a X [+T] [+U]\n%rule b X [+T] [+U] [+V]\n%rule c $x(body) U\n%conditions matches(without-elision($x), rival), ¬matches(without-elision($x), wrong)\n%rule body X T\n%rule rival X [+T]\n%rule wrong X [+T] [+U]",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (X [+T] [+U])\n%rule b (X [+T] [+U] [+V])\n%rule c ($x:body U) %conditions $x.without-elision.matches(rival), ¬($x.without-elision.matches(wrong))\n\n%rule body (X T)\n%rule rival (X [+T])\n%rule wrong (X [+T] [+U])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

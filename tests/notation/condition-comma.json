@@ -1,6 +1,6 @@
 {
   "description": "The conditions of %conditions are separated by commas, each one condition (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %conditions ~p ⊆ tags($x), ~q ⊆ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a $x:A %conditions P ⊆ $x.tags, Q ⊆ $x.tags\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,29 +9,27 @@
             {
               "op": "⊆",
               "left": {
-                "tag": "p"
+                "tag": "P"
               },
               "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
-                  }
-                ]
+                "method": "tags",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
               }
             },
             {
               "op": "⊆",
               "left": {
-                "tag": "q"
+                "tag": "Q"
               },
               "right": {
-                "call": "tags",
-                "args": [
-                  {
-                    "capture": "x"
-                  }
-                ]
+                "method": "tags",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
               }
             }
           ]

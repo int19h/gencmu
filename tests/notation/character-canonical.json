@@ -1,6 +1,6 @@
 {
   "description": "A character tag's identity is its scalar value, and the DOM holds it in its canonical spelling: the character itself, or \\u{h…} in upper case with no leading zeros for a control character, a nonspacing mark, a private-use character, the quote and the backslash (engine §1, §9).",
-  "document": "```jbogenbau\n%rule a '\\u{61}' '\\u{0301}' '́' '\\'' '\\\\' '\\u{e000}' '\\u{9}' 'é' '\\u{E9}'\n```\n",
+  "document": "```jbogenbau\n%rule a (\"a\" \"́\" \"́\" \"'\" $_005C \"\" $_0009 \"é\" \"é\")\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,31 +10,57 @@
               "expr": {
                 "seq": [
                   {
-                    "terminal": "'a'"
+                    "literal": {
+                      "string": "a"
+                    }
                   },
                   {
-                    "terminal": "'\\u{301}'"
+                    "literal": {
+                      "string": "́"
+                    }
                   },
                   {
-                    "terminal": "'\\u{301}'"
+                    "literal": {
+                      "string": "́"
+                    }
                   },
                   {
-                    "terminal": "'\\u{27}'"
+                    "literal": {
+                      "string": "'"
+                    }
                   },
                   {
-                    "terminal": "'\\u{5C}'"
+                    "literal": {
+                      "const": "_005C",
+                      "at": [
+                        2,
+                        26
+                      ]
+                    }
                   },
                   {
-                    "terminal": "'\\u{E000}'"
+                    "literal": {
+                      "string": ""
+                    }
                   },
                   {
-                    "terminal": "'\\u{9}'"
+                    "literal": {
+                      "const": "_0009",
+                      "at": [
+                        2,
+                        37
+                      ]
+                    }
                   },
                   {
-                    "terminal": "'é'"
+                    "literal": {
+                      "string": "é"
+                    }
                   },
                   {
-                    "terminal": "'é'"
+                    "literal": {
+                      "string": "é"
+                    }
                   }
                 ]
               }

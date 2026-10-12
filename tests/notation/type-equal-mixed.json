@@ -1,10 +1,10 @@
 {
   "description": "= compares two values of one type: a string and a tag set are an error at the comparison (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) = ~a\n```\n",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.value= A\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 25
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "description": "An omitted terminal exposes singleton tags to patterns. The empty helper keeps its empty constituent tags after reconstruction.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(r)\n%conditions tags($x) = ∅, $x ≇ @(A T⊇U) ∨ $x ≅ @(A OTHER OTHER [OTHER])\n%rule r A [+T] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%tags ∅",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x:r %conditions $x.tags = ∅, ($x ≇ @(A T<U>) ∨ $x ≅ @(A OTHER OTHER [OTHER]))\n\n%rule r :: ∅ | (A [+T]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER])\n",
   "tokens": [
     {
       "text": "a",

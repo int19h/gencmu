@@ -1,6 +1,6 @@
 {
   "description": "A separated list, {x \\ s}, is a helper h → x | h s x that the tree splices: its items and separators are children of the rule that writes the braces (engine §3.2, §12).",
-  "grammar": "%rule text {A \\ S}",
+  "grammar": "%rule text {A / S}",
   "tokens": [
     {
       "text": "a",

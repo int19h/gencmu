@@ -1,6 +1,6 @@
 {
   "description": "A rule with %emits emits exactly its list: a part it does not name is not walked, although that part's rule emits (engine §11).",
-  "grammar": "%rule text $a(x) y\n%emits $a\n%rule x A\n%emits $\n%rule y B\n%emits $",
+  "grammar": "%rule text ($a:x y) %emits $a\n\n%rule x A %emits $\n\n%rule y B %emits $\n",
   "tokens": [
     {
       "text": "a",

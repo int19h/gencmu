@@ -1,6 +1,6 @@
 {
   "description": "A restored sumti query sees `su'i` after `my` and preserves the mathematical ME argument (engine §4 and §10).",
-  "grammar": "%rule text LI mex [+LOhO]\n%rule mex converted-operator operator number\n%rule converted-operator MAhO selbri [+TEhU]\n%rule selbri ME $m(letter-mex) [+MEhU]\n%conditions ¬matches(without-elision($m), sumti), matches($m, sumti)\n%rule letter-mex BY [+BOI]\n%rule sumti $l(lerfu-boi)\n%conditions ¬begins(after($l), operator)\n%rule lerfu-boi BY [+BOI]\n%rule operator SUhI\n%rule number PA [+BOI]",
+  "grammar": "%rule text (LI mex [+LOhO])\n%rule mex (converted-operator operator number)\n%rule converted-operator (MAhO selbri [+TEhU])\n%rule selbri (ME $m:letter-mex [+MEhU]) %conditions ¬($m.without-elision.matches(sumti)), $m.matches(sumti)\n\n%rule letter-mex (BY [+BOI])\n%rule sumti $l:lerfu-boi %conditions ¬($l.following-tokens.begins(operator))\n\n%rule lerfu-boi (BY [+BOI])\n%rule operator SUhI\n%rule number (PA [+BOI])",
   "tokens": [
     {
       "text": "li",

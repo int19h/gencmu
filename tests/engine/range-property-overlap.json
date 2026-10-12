@@ -1,6 +1,6 @@
 {
   "description": "Two character predicates can match one token. Each is its own terminal, so the two reads of the token are tied (engine §6, rule 1). The first reading reads it as the terminal first in code point order (engine §4, §6).",
-  "grammar": "%rule text 'a'..'c' | '\\p{Ll}'",
+  "grammar": "%rule text \"a\"..\"c\" | _Ll",
   "input": "b",
   "expect": {
     "result": {
@@ -12,13 +12,13 @@
             {
               "read": {
                 "token": 0,
-                "terminal": "'\\p{Ll}'"
+                "terminal": "\"a\"..\"c\""
               }
             },
             {
               "read": {
                 "token": 0,
-                "terminal": "'a'..'c'"
+                "terminal": "_Ll"
               }
             }
           ]
@@ -36,7 +36,7 @@
             "children": [
               {
                 "kind": "token",
-                "terminal": "'\\p{Ll}'"
+                "terminal": "\"a\"..\"c\""
               }
             ]
           },
@@ -46,7 +46,7 @@
             "children": [
               {
                 "kind": "token",
-                "terminal": "'a'..'c'"
+                "terminal": "_Ll"
               }
             ]
           }

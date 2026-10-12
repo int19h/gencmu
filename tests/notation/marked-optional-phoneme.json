@@ -1,10 +1,36 @@
 {
-  "description": "A phoneme tag cannot be the terminator of a marked optional: an error at the [ (engine §9).",
-  "document": "```jbogenbau\n%rule a [+/a/]\n```\n",
+  "description": "Engine §§1 and 3.8 replace this phoneme spelling with an ordinary metadata tag, which can head an elidable optional.",
+  "document": "```jbogenbau\n%rule a [ + Sound-0061-s ]\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 9
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "optional": {
+                  "ref": "Sound-0061-s"
+                },
+                "elidable": true
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

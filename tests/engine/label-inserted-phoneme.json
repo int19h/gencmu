@@ -2,8 +2,8 @@
   "description": "An inserted token with a phoneme tag has that phoneme as its label, so the apostrophe that the zbalermorna shorthand U+ED8B inserts stays in the label of the word U+ED8B U+EDA4 U+EDA2, `u'i` (engine §5, §11).",
   "documents": {
     "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part vowel | shorthand\n%rule vowel '\\u{EDA4}' </u/> | '\\u{EDA2}' </i/>\n%emits $\n%rule shorthand '\\u{ED8B}' $v(vowel)\n%emits $v, /'/\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word)\n%emits $w <W>\n%rule word [{phoneme}]\n%rule phoneme /u/ | /i/ | /'/\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part vowel | shorthand\n%rule vowel \"\" :: Sound-0075-s := \"u\" | \"\" :: Sound-0069-s := \"i\" %emits $\n\n%rule shorthand (\"\" $v:vowel) %emits $v, ε :: Sound-0027-s := \"'\"\n\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:word %emits $w :: W\n\n%rule word [{phoneme}]\n%rule phoneme Sound-0075-s | Sound-0069-s | Sound-0027-s\n```\n"
   },
   "pipeline": "p.md",
   "input": "",
@@ -15,8 +15,8 @@
           "output": [
             {
               "text": "",
-              "phonemes": "u",
-              "label": "u",
+              "value": "u",
+              "image": "u",
               "span": [
                 1,
                 2
@@ -28,8 +28,8 @@
             },
             {
               "text": "",
-              "phonemes": "'",
-              "label": "'",
+              "value": "'",
+              "image": "'",
               "span": [
                 2,
                 2
@@ -42,8 +42,8 @@
             },
             {
               "text": "",
-              "phonemes": "i",
-              "label": "i",
+              "value": "i",
+              "image": "i",
               "span": [
                 2,
                 3
@@ -59,8 +59,8 @@
           "output": [
             {
               "text": "",
-              "phonemes": "u'i",
-              "label": "u'i",
+              "value": "u'i",
+              "image": "u'i",
               "span": [
                 0,
                 3

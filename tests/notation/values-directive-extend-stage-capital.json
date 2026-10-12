@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.3 reports every wrong directive operand at the directive.",
+  "document": "```jbogenbau\n%extend-stage First\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  }
+}

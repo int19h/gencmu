@@ -1,11 +1,11 @@
 {
-  "grammar": "%rule text $common(P) [(($x(a) ≻ b) ≻ c)]\n%tags tags($common) ∪ ~extra\n%conditions $x ⟹ tags($) = (~mark ∪ ~extra)\n%rule a X Y\n%rule b X Y\n%rule c X Y",
+  "grammar": "%rule text :: ($common.tags ∪ Extra) | ($common:P [(($x:a ≻ b) ≻ c)]) %conditions ($x ⟹ $.tags = (Mark ∪ Extra))\n\n\n%rule a (X Y)\n%rule b (X Y)\n%rule c (X Y)",
   "tokens": [
     {
       "text": "p",
       "tags": [
         "P",
-        "mark"
+        "Mark"
       ]
     },
     {

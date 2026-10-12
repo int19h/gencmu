@@ -1,6 +1,6 @@
 {
   "description": "Local admission removes the lower option before ordinary action ranking. The neutral reading wins the remaining ordinary comparison.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text (favored ≻ disfavored) | neutral\n%rule favored A B C D\n%rule disfavored early C D\n%rule early A B\n%rule neutral middle D\n%rule middle A B C",
+  "grammar": "%ambiguity-resolution lazy\n%rule text (favored ≻ disfavored) | neutral\n%rule favored (A B C D)\n%rule disfavored (early C D)\n%rule early (A B)\n%rule neutral (middle D)\n%rule middle (A B C)",
   "tokens": [
     {
       "text": "a",

@@ -1,6 +1,6 @@
 {
   "description": "A query recognizes a prefix whose outer continuation fails. The completed stage keeps the rival that can reach its end.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text $x(r) B\n%conditions begins(from($x), preferred) ∧ $x ≅ @(short)\n%rule r preferred | short\n%rule(leftmost-longest) preferred A B\n%rule short A",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ($x:r B) %conditions ($x.onward.begins(preferred) ∧ $x ≅ @short)\n\n%rule r preferred | short\n%rule (leftmost-longest) preferred (A B)\n%rule short A",
   "tokens": [
     {
       "text": "a",

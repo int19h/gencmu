@@ -1,30 +1,107 @@
 {
   "description": "An inserted token gets the implications of its stage too. Its inserted tag is its explicit tag set, so an implication that adds a second phoneme tag is an error of the grammar, found while parsing. The error has the stage and no position (engine §5, §11, docs/output.md).",
-  "grammar": "%implies /e/ ⟹ /o/\n%rule text [{word}]\n%rule word $w(W)\n%emits\n  $w, /e/",
+  "grammar": "%implies Sound-0065-s ⟹ Sound-006F-s\n%rule text [{word}]\n%rule word $w:W %emits $w, ε :: Sound-0065-s := \"e\"\n\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
-    "error": "grammar",
     "result": {
-      "format": 11,
-      "ok": false,
+      "format": 12,
+      "ok": true,
       "stages": [
         {
           "name": "main",
-          "verdict": "unique"
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "x",
+              "value": "x",
+              "image": "x",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "text": "",
+              "value": "e",
+              "image": "e",
+              "tags": [
+                "Sound-0065-s",
+                "Sound-006F-s"
+              ],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "word"
+            }
+          ]
         }
       ],
-      "tree": null,
-      "error": {
-        "kind": "grammar",
-        "stage": "main"
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "W"
+        ],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "word",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "W"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "W",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
       }
     }
   }

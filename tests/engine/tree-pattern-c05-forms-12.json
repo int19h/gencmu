@@ -1,5 +1,5 @@
 {
-  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -10,11 +10,14 @@
   },
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
+        },
+        {
+          "name": "normalize"
         },
         {
           "name": "forms",
@@ -22,12 +25,12 @@
           "output": [
             {
               "text": "ro'irrai",
-              "phonemes": "ro'irrai",
-              "label": "ro'irrai",
+              "value": "ro'irrai",
+              "image": "ro'irrai",
               "tags": [
-                "UNREAD",
-                "run-final",
-                "run-initial"
+                "Run-final",
+                "Run-initial",
+                "UNREAD"
               ],
               "span": [
                 0,
@@ -196,7 +199,7 @@
                                                       1
                                                     ],
                                                     "tags": [
-                                                      "/r/"
+                                                      "Sound-0072-s"
                                                     ],
                                                     "children": [
                                                       {
@@ -211,12 +214,12 @@
                                                           1
                                                         ],
                                                         "tags": [
-                                                          "/r/"
+                                                          "Sound-0072-s"
                                                         ],
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/r/",
+                                                            "terminal": "Sound-0072-s",
                                                             "token": 0,
                                                             "span": [
                                                               0,
@@ -243,12 +246,12 @@
                                                       2
                                                     ],
                                                     "tags": [
-                                                      "/o/"
+                                                      "Sound-006F-s"
                                                     ],
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "/o/",
+                                                        "terminal": "Sound-006F-s",
                                                         "token": 1,
                                                         "span": [
                                                           1,
@@ -275,12 +278,12 @@
                                                   3
                                                 ],
                                                 "tags": [
-                                                  "/'/"
+                                                  "Sound-0027-s"
                                                 ],
                                                 "children": [
                                                   {
                                                     "kind": "token",
-                                                    "terminal": "/'/",
+                                                    "terminal": "Sound-0027-s",
                                                     "token": 2,
                                                     "span": [
                                                       2,
@@ -307,12 +310,12 @@
                                               4
                                             ],
                                             "tags": [
-                                              "/i/"
+                                              "Sound-0069-s"
                                             ],
                                             "children": [
                                               {
                                                 "kind": "token",
-                                                "terminal": "/i/",
+                                                "terminal": "Sound-0069-s",
                                                 "token": 3,
                                                 "span": [
                                                   3,
@@ -339,12 +342,12 @@
                                           5
                                         ],
                                         "tags": [
-                                          "/r/"
+                                          "Sound-0072-s"
                                         ],
                                         "children": [
                                           {
                                             "kind": "token",
-                                            "terminal": "/r/",
+                                            "terminal": "Sound-0072-s",
                                             "token": 4,
                                             "span": [
                                               4,
@@ -371,12 +374,12 @@
                                       6
                                     ],
                                     "tags": [
-                                      "/r/"
+                                      "Sound-0072-s"
                                     ],
                                     "children": [
                                       {
                                         "kind": "token",
-                                        "terminal": "/r/",
+                                        "terminal": "Sound-0072-s",
                                         "token": 5,
                                         "span": [
                                           5,
@@ -403,12 +406,12 @@
                                   7
                                 ],
                                 "tags": [
-                                  "/a/"
+                                  "Sound-0061-s"
                                 ],
                                 "children": [
                                   {
                                     "kind": "token",
-                                    "terminal": "/a/",
+                                    "terminal": "Sound-0061-s",
                                     "token": 6,
                                     "span": [
                                       6,
@@ -435,12 +438,12 @@
                               8
                             ],
                             "tags": [
-                              "/i/"
+                              "Sound-0069-s"
                             ],
                             "children": [
                               {
                                 "kind": "token",
-                                "terminal": "/i/",
+                                "terminal": "Sound-0069-s",
                                 "token": 7,
                                 "span": [
                                   7,

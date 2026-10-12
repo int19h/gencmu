@@ -1,0 +1,36 @@
+{
+  "description": "Inserted items use enclosing capture scope for both explicit string channels (engine §11.1).",
+  "grammar": "%rule text $x:\"a\" %emits $x, ε :: X := $x.value :- \"inserted\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a"
+            },
+            {
+              "value": "a",
+              "image": "inserted",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "text"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

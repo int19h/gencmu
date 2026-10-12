@@ -1,27 +1,27 @@
 {
   "description": "%opaque on a chain makes its outermost level one opaque part, which sounds ? (engine §11).",
-  "grammar": "%rule text c\n%rule c {... A \\ S}\n%emits $ <W>\n%opaque",
+  "grammar": "%rule text c\n%rule c :- $.verbatim-text | {... A / S} %emits $ :: W\n\n",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "s",
       "tags": [
         "S"
       ],
-      "phonemes": "s"
+      "value": "s"
     },
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     }
   ],
   "expect": {
@@ -34,8 +34,8 @@
           "output": [
             {
               "text": "a s a",
-              "phonemes": "?",
-              "label": "a s a",
+              "value": "asa",
+              "image": "a s a",
               "tags": [
                 "W"
               ],

@@ -1,6 +1,6 @@
 {
   "description": "A rule named in begins() must be a rule of the stage (engine §2).",
-  "grammar": "%rule text $a(A) %conditions begins(from($a), absent)",
+  "grammar": "%rule text $a:A %conditions $a.onward.begins(absent)",
   "tokens": [
     {
       "text": "a",

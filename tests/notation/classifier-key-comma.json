@@ -1,10 +1,38 @@
 {
-  "description": "A key is a canonical sound, so a key with a comma is an error of the document, at the key (engine §9).",
-  "document": "```jbogenbau\n%classifier lex\n  \"ko,a\" ∈ KOhA\n```\n",
+  "description": "Engine §§2 and 9 accept exact classifier strings without canonical-value restrictions.",
+  "document": "```jbogenbau\n%classifier lex\n\"ko,a\" ∈ KOhA\n```\n",
   "expect": {
-    "error": {
-      "line": 3,
-      "column": 3
+    "dom": {
+      "format": 26,
+      "rules": [],
+      "directives": [],
+      "constants": [],
+      "classifiers": [
+        {
+          "name": "lex",
+          "entries": [
+            {
+              "guards": [],
+              "keys": [
+                {
+                  "string": "ko,a"
+                }
+              ],
+              "op": "∈",
+              "class": "KOhA",
+              "at": [
+                3,
+                1
+              ]
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "implications": []
     }
   }
 }

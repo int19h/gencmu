@@ -1,13 +1,13 @@
 {
   "description": "As step-order-tag-term-after-conditions-check, with the failing tag term in the definition's `%tags` rather than the alternative's own. A `$` condition that fails without reading `tags($)` stops both tag terms (engine §4, §3.7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a A [+T]\n%rule b A [+T] [+T]\n%rule c A x\n%rule x T\n%tags tag(text(tail($)))\n%conditions text($) = \"q\"",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (A [+T])\n%rule b (A [+T] [+T])\n%rule c (A x)\n%rule x :: $.tokens-after-first.tags(migration-fault) | T %conditions $.source-text = \"q\"\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     }
   ],
   "expect": {

@@ -1,26 +1,29 @@
 {
   "description": "initial(span) is a condition (engine §9, §10).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) %conditions initial($a), ¬initial(tail($a))\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a:A %conditions $a.starts-input, ¬($a.tokens-after-first.starts-input)\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
           "conditions": [
             {
-              "initial": {
+              "method": "starts-input",
+              "receiver": {
                 "capture": "a"
-              }
+              },
+              "args": []
             },
             {
               "not": {
-                "initial": {
-                  "call": "tail",
-                  "args": [
-                    {
-                      "capture": "a"
-                    }
-                  ]
-                }
+                "method": "starts-input",
+                "receiver": {
+                  "method": "tokens-after-first",
+                  "receiver": {
+                    "capture": "a"
+                  },
+                  "args": []
+                },
+                "args": []
               }
             }
           ]

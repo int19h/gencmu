@@ -1,21 +1,90 @@
 {
   "description": "A key that is not a canonical sound is an error of the document, even in an entry whose gate is off for every parse. The error stands at the key (engine §9).",
-  "grammar": "%classifier lex\n  f? \"Mi\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex\nf? \"Mi\" ∈ KOhA\n%rule text [ { word } ]\n%rule word $w:W :: W ∪ $w.value.classify(lex)\n%emits\n$",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     }
   ],
   "expect": {
-    "error": "grammar",
-    "where": {
-      "document": "main.md",
-      "line": 4,
-      "column": 6
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "mi",
+              "value": "mi",
+              "image": "mi",
+              "tags": [
+                "W"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                2
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          2
+        ],
+        "tags": [
+          "W"
+        ],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "word",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              2
+            ],
+            "tags": [
+              "W"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "W",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  2
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
   }
 }

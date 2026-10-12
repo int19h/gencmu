@@ -1,0 +1,34 @@
+{
+  "document": "```jbogenbau\n%rule r A %erased\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "erased": true,
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "Erasure has its own rule member (output format 26)."
+}

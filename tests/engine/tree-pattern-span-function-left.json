@@ -1,6 +1,6 @@
 {
   "description": "The loader rejects an invalid constant dependency or pattern type.",
-  "grammar": "%rule text A\n%conditions head($) ≅ @(A)",
+  "grammar": "%rule text A\n%conditions $.first-token≅ @ ( A )",
   "input": "",
   "expect": {
     "error": "grammar"

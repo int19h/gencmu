@@ -1,0 +1,53 @@
+{
+  "document": "```jbogenbau\n%rule r $x:A<B>=\"a\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "test": "=",
+                  "value": {
+                    "string": "a"
+                  },
+                  "expr": {
+                    "test": "tags",
+                    "requirements": [
+                      {
+                        "negated": false,
+                        "value": {
+                          "tag": "B"
+                        }
+                      }
+                    ],
+                    "expr": {
+                      "ref": "A"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A binder wraps the full tested primary (engine §9.2)."
+}
