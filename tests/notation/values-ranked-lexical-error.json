@@ -1,0 +1,10 @@
+{
+  "description": "N30 limits ranked-choice-syntax to the syntax stage. This lexical error stands at the digit.",
+  "document": "```jbogenbau\n%rule r a ≻ 1\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

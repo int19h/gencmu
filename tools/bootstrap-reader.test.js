@@ -172,3 +172,15 @@ test("wrong directive names and operand counts retain the directive position", (
     }
   }
 });
+
+
+test("a lexical failure after a ranked separator has no ranked syntax code", () => {
+  const loader = notationLoader();
+  const document = '```jbogenbau\n%rule r a ≻ 1\n```';
+  for (const reader of [readDocument, loader.readDocument.bind(loader)]) {
+    assert.throws(() => reader(document, "case.md"), error => {
+      assert.deepEqual(error.where, { document: "case.md", line: 2, column: 13 });
+      return error.kind === "grammar";
+    });
+  }
+});
