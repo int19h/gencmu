@@ -242,6 +242,8 @@ Terms have these forms:
 {"pattern":PATTERN}
 ```
 
+A run of bare tag names produces one `union` of singleton `tag` terms in written order. It flattens into an enclosing `union`, including through grouping parentheses. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. `(Word BY) ∩ $l.tags` retains the run's union as the intersection's first operand.
+
 `STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
 
 Engine constants resolve directly as scalar strings outside the user constant version graph (engine §2).
@@ -352,7 +354,15 @@ CHILDREN has exactly one of these forms:
 
 A capitalized or engine tag becomes `terminal`, including KEhE, GIhI, NUhI, and `_Lu`. Strings use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names, including `#`, use `name`. A tag test can wrap a terminal atom, and a value test can wrap that tag test. The source order is tag then value.
 
-User constants stay unresolved until binding through the version graph of engine §2. Engine scalar references instead resolve directly as string terminals.
+User constant atoms use `constant` until binding through the version graph of engine §2. A string constant denotes a string terminal, while a pattern constant denotes its predicate. Binding does not change the cached DOM.
+
+Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both positions name the constant token. `@$_0061` has this complete DOM:
+
+```json
+{"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
+```
+
+Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the test. `TERMINALATOM` therefore includes an unresolved user constant subject to this requirement.
 
 At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 

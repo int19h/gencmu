@@ -1042,15 +1042,19 @@ A DOM holds the definitions of constants and the references to them as the docum
 
 The reader selects the longest punctuation token. `...`, `..`, and `.` are distinct tokens. They denote a chain marker, a range separator, and a method selector. `:-`, `:=`, `::`, and `:` denote image, value, tags, and capture binding. A range cannot consume part of a chain marker.
 
-A lowercase name matches `[a-z][A-Za-z0-9_-]*`. A capture name matches `[a-z][a-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`. An engine tag matches only a name in §1. `_` is its own wildcard token. `#` is its own rule-name token.
+The lexer reads maximal names before the reader checks them. A lowercase name matches `[a-z][A-Za-z0-9_-]*`. An uppercase name matches `[A-Z][A-Za-z0-9_-]*`. An underscore token matches `_[A-Za-z0-9_]*`. `_` alone is the wildcard, and a name in §1 is an engine tag. Any other underscore token is a document error at that token.
 
-A capture reference is `$` followed by a capture name, or `$` alone. A user constant reference is `$` followed by an uppercase name. An engine constant is `$_` followed by four to six uppercase hexadecimal digits. It must denote one scalar value. A longer hexadecimal run is one invalid constant, not a constant followed by a name.
+Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a wildcard or engine tag followed by a name. `#` is its own rule-name token.
+
+A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must match `[a-z][a-z0-9_-]*`. `$fooBar:A` therefore reports the capture-name error at `$fooBar`. A user constant reference is `$` followed by an uppercase name.
+
+An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must contain four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. Interpolated engine names meet the same validity rules.
 
 String delimiters are straight double quotes. `$$` decodes to `$`. `$(NAME)` refers to a string constant without its leading `$`. The reference retains a source position. Interpolation happens after stage constant binding, not while the document DOM is cached.
 
 A dollar sign starting neither interpolation nor `$$` is a lexical document error. Backslash has no escape meaning and is a lexical error. A quote within a string uses `$(_0022)`. A backslash value uses `$(_005C)`. Include paths use literal quoted text without interpolation.
 
-Whitespace and comments separate tokens but add no grammar node. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
+Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape or interpolation processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
 Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, or private-use scalar uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
@@ -1090,7 +1094,11 @@ string-method = "value" | "image" | "source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
 pattern-literal = "@(" pattern-union ")" | "@" pattern-atom
 pattern-atom = rule-name | terminal [tag-test] [value-test]
-             | constant-reference | pattern-literal | grouped-pattern
+             | constant-reference [tag-test] [value-test] | pattern-literal | grouped-pattern
+term = union | guarded-term
+tag-run = tag-name tag-name {tag-name}
+term-atom = tag-run | tag-name | string-literal | constant-reference
+          | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
 method-chain = receiver {"." method-name ["(" arguments ")"]}
 ```
 
@@ -1106,7 +1114,9 @@ Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immedia
 
 Recipe atoms have no grouping or method-chain extension. Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, or `.classify` is a document error. A recipe cannot branch on a condition.
 
-Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. Rule atoms accept no tests.
+Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at its test.
+
+ Rule atoms and pattern-valued constant atoms accept no tests.
 
 ### 9.3 Conversion and validation
 
@@ -1182,7 +1192,9 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `string` | One complete quoted token | Decode left to right as specified below. Retain unresolved interpolation. |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
-| `term-atom` | One string, tag, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
+| `tag-run` | At least two `tag-name` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union. |
+| `tag-name` | One tag token | Singleton `tag` term |
+| `term-atom` | One string, tag, tag run, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions flatten. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
@@ -1203,7 +1215,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-intersection` | One or more `pattern-sequence` | Intersection, or sole predicate |
 | `pattern-sequence` | One or more `pattern-item` | Concatenate plain groups. Multiple siblings become `children`. |
 | `pattern-item` | Atom, brackets, repeat, path, or sibling ellipsis | Corresponding child predicate or `siblings:true` |
-| `pattern-atom` | One name, terminal constructor, constant, nested literal, or grouped union. Optional tag then value test on terminals. | Named rule, tested terminal, unresolved constant, or child predicate |
+| `pattern-atom` | One name, terminal constructor, constant, nested literal, or grouped union. Optional tag then value test on terminals or constant atoms. | Named rule, tested terminal, constant form below, or child predicate |
 | `pattern-brackets` | One `pattern-union` | Ordinary optional children |
 | `pattern-repeat` | One item union and optional separator union | Repeated children |
 | `pattern-path` | Path token, then one `pattern-atom` | Descendant, first, or last path |
@@ -1216,11 +1228,20 @@ Header, alternative, and item clauses use the same channel constructors. The rea
 
 For example, `%rule r := "v" :- "i" | "a"` supplies distinct header recipes. Its `value-clause` gives `value:{"concat":[{"string":"v"}]}`. Its `image-clause` gives `image:{"concat":[{"string":"i"}]}`. `%emits` supplies one whole-constituent item, while `%erased` supplies `erased:true` without an emission.
 
+A tag run forms one union in written order. Its union flattens into an enclosing union, including through grouping parentheses. A run beside `∩` or `∖` requires parentheses. Without them, the reader reports a document error at the run's first name. The reader checks this placement before reading the run's names, then requires at least two `tag-name` parts.
+
+An engine scalar atom in a pattern uses `literal` with an unresolved STRINGTERM reference and the atom's source position. A user constant atom uses `constant` and its source position, whatever its eventual type. Binding interprets it as a string terminal or a pattern predicate without changing the cached DOM. Tag then value tests wrap either constant form. Tested user atoms must resolve to strings.
+
 The following compact examples show the additional conversions. Positions illustrate the corresponding written token's start.
 
 | Source form | Converted form |
 | --- | --- |
 | `$_0061` | `{"literal":{"const":"_0061","at":[1,1]}}` |
+| `@$_0061` | `{"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}` |
+| `@$S` | `{"pattern":{"constant":"S","at":[1,2]}}` |
+| `@$S="x"` | `{"pattern":{"test":"=","value":{"string":"x"},"expr":{"constant":"S","at":[1,2]}}}` |
+| `:: $f.tags ∪ Run-Initial Run-Final` | `{"union":[{"method":"tags","receiver":{"capture":"f"},"args":[]},{"tag":"Run-Initial"},{"tag":"Run-Final"}]}` |
+| `(Word BY) ∩ $l.tags` | `{"intersection":[{"union":[{"tag":"Word"},{"tag":"BY"}]},{"method":"tags","receiver":{"capture":"l"},"args":[]}]}` |
 | `"a$(_0301)"` | `{"interpolate":[{"string":"a"},{"const":"_0301","at":[1,3]}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |
 | `Word ∪ ($c ⟹ $c.value.classify(lexicon))` | `{"union":[{"tag":"Word"},{"if":{"captured":"c"},"then":{"method":"classify","receiver":{"method":"value","receiver":{"capture":"c"},"args":[]},"args":[{"classifier":"lexicon"}]}}]}` |
@@ -1231,7 +1252,7 @@ The full ranked alternative is `{"guards":[{"feature":"f","kind":"gate","negated
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
-`+` is the sole elision marker and has no other use. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings use interpolation rather than backslash escapes. A bare backslash in grammar text is an error.
+`+` is the sole elision marker and has no other use. Braces and `/` delimit repetition. Inside a string, braces and slash are literal characters. Strings use interpolation rather than backslash escapes. Outside comments and quoted include paths, a bare backslash in grammar text is an error. Comments can contain `(* see C:\temp *)`.
 
 A document can hold several errors. The reader reports one, and every reader chooses the same one, in this order:
 

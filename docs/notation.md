@@ -168,7 +168,7 @@ The chain marker `...` stands right after `{` for a left chain. It stands after 
 
 A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x / ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `"a"..."z"`.
 
-`/` separates repeated items from their separator and has no string escape role. Strings use engine-constant interpolation for special characters. Backslash is rejected in grammar text. `∖` denotes set difference.
+`/` separates repeated items from their separator. Strings use engine-constant interpolation for special characters. Comments can contain backslashes, as in `(* see C:\temp *)`. Elsewhere, backslash is rejected except in quoted include paths. `∖` denotes set difference.
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
@@ -407,7 +407,9 @@ Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, 
 | `@({P / S})` | One or more P children separated by S |
 | `@([P Q])` | An optional sequence of those two children |
 
-A capitalized or engine tag denotes its tag terminal. A string, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals.
+A capitalized or engine tag denotes its tag terminal. A string, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
+
+A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals.
 
 Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
 
@@ -677,7 +679,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | String sets | Error | `$S $T` |
 | Patterns outside a literal | Error | `%const $P @(A) @(B)` |
 
-A run of bare tag names can stand alone or beside `∪`. Beside `∩` or `∖`, it requires parentheses. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` is an error. Other atoms require explicit operators.
+A run of bare tag names can stand alone or beside `∪`. Beside `∩` or `∖`, it requires parentheses. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` is an error at `Word`. A run forms a union in written order and flattens into any enclosing union. Other atoms require explicit operators.
 
 Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. A string is not a string set, so `"a" ∪ "b"` is an error.
 
