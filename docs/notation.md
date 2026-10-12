@@ -744,7 +744,7 @@ The compact form `[$b:bahe-run] $w:unit [$a:indicator-run]` has the same capture
 
 Introducing these optionals changes logical symbol counts. The explicit `$w:unit` alternative has one logical symbol and a transparent close. The compact alternative retains three logical symbols even when both optionals are absent, so its close is visible. A lazy comparison can therefore resolve readings that the explicit alternatives leave tied. Adding a capture inside an existing optional remains neutral.
 
-A forwarded token keeps attachments. A covering token over one counted input token inherits its attachments, whatever tags or strings recipes assign. Combining that input token with another counted part is a grammar error. Empty strings do not remove counted parts. Disjoint carrier spans prevent two emitted tokens from inheriting the same attachment.
+A forwarded token keeps attachments. A covering token over one counted input token inherits its attachments, whatever tags or strings recipes assign. Combining that input token with another counted part is a grammar error. Empty strings do not remove counted parts. Disjoint carriers and attachment captures prevent two emitted tokens from inheriting the same attachment.
 
 No condition, test or method sees attachments, and neither does a terminal. The renderings show them with their token.
 
@@ -806,11 +806,13 @@ Engine §11 defines the selected constituent dependencies.
 
 A recipe on an erased rule or erased alternative is a document error. A parent item over an erased capture emits a token with empty strings unless its item recipe supplies them. Its counted parts remain empty. An empty string recipe on a non-erased part never erases that part.
 
-Emission carriers cover disjoint input-token spans. Source overlap does not decide this rule. Two `$` items over a constituent that can consume input are an error. A `$` item beside a capture that can consume input is an error. Structurally always-empty carriers can coexist.
+Emission carriers cover disjoint input-token spans. Source overlap does not decide this rule. Two `$` items over a constituent that can consume input are an error. A `$` item beside a carrier or attachment capture that can consume input is an error. Structurally always-empty carriers can coexist.
 
 Engine §9.3 defines this conservative property across every feature configuration, ignoring conditions, tests, and erasure. `$` can stand beside inserted `ε` items.
 
-An inserted item anchors before the next named capture item's first present before-attachment or carrier. With no following named carrier, it anchors at the constituent's end. An absent next named carrier remains a document error. An absent attachment simply changes the anchor to the next present part. Engine §11 defines its empty source.
+An inserted item anchors before the next covering item, skipping inserted items. For a named item, it uses the first present before-attachment or carrier. For `$`, it uses the whole constituent. Thus `%emits ε, $` anchors the insertion at the constituent's start. With no following covering item, it anchors at the constituent's end.
+
+An absent next named carrier remains a document error. An absent attachment changes the anchor to the next present part. The inserted token's source is empty at its anchor part's source start. An empty anchor part uses the empty-node source of [engine §12](engine.md#12-the-tree). Engine §11 defines the source at constituent end.
 
 Attachments belong to the carrier but no later stage reads them. Ownership counts non-erased input tokens, independently of recipes. Combining an input token with attachments and another counted part causes a grammar error. An empty value or image does not remove a counted part.
 
@@ -828,6 +830,8 @@ The recipe says nothing about whether text is grammatical Lojban. A zoi body can
 `zoi gy. John is a man .gy.` emits a body whose image is `John is a man`. Experimental's phoneme mappings give normalized body parts such as `jo'n is a man`. Their concatenation supplies the body value. The renderings show the image, and an exact comparison reads the value.
 
 `.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. Each neighbor bound limits only the extension on its own side. The method does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
+
+At a later stage, an extension can include erased or attached text that ordinary stage-input tokens no longer cover. Bundled grammars call `.verbatim-text` only in the word stage.
 
 Only evaluated selected recipes claim verbatim gaps. Erased descendants contribute nothing. An outer recursive body image recipe stops descendant image evaluation, while the value walk can still concatenate children. An item override suppresses runtime evaluation of weaker recipes. A recipe on an erased definition is a document error.
 

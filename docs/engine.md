@@ -1367,7 +1367,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, and `method`. In a condition, they are `any`, `all`, `not`, `if`, `method`, and a comparison.
 
   The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` or `{ }` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
-- A whole `$` carrier conflicts with a captured carrier that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input.
+- A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
 - A bare range or property is not an emission item. Capture its matched symbol or insert with `ε` and explicit clauses.
@@ -1408,11 +1408,13 @@ Propagate consuming marks until none changes, starting with terminals alone. Rec
 
 Each expanded production is analyzed separately. Its whole `$` carrier uses that production's expression. A named carrier uses its captured symbol, with references using the complete target rule's alternatives. Structurally always-empty means unmarked by this analysis. An absent carrier drops before overlap comparison, while an inserted item has no input span.
 
-For each production, two whole carriers conflict if its expression is consuming. A whole carrier and named carrier conflict if that captured symbol is consuming. Distinct named carriers remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
+For each production, two whole carriers conflict if its expression is consuming. A whole carrier conflicts with every consuming named carrier or attachment capture in that production. Distinct named carriers and attachment captures remain disjoint under the capture rules. These tests concern input positions, even when every successful recipe yields an empty string.
 
-The loader reports a document error at the definition that supplies the emission. It visits final stitched rules, alternatives, and expanded productions in their established source order. Within a production, it compares surviving item pairs in written order. The first conflict determines the error. All preceding document and stitching errors retain their priority.
+The loader reports a document error at the definition that supplies the emission. It visits final stitched rules, alternatives, and expanded productions in their established source order. Within a production, it compares surviving item pairs in written order. Each pair compares its carriers and attachment captures in before, carrier, after order. The first conflict determines the error. All preceding document and stitching errors retain their priority.
 
 For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The failed test does not legalize `%emits $, $x` over `$x:e`. A gated consuming branch has the same effect. An erased consuming child also remains consuming for this overlap test.
+
+For `r → $e:empty $a:word`, with `empty → ε`, `%emits $, $e ($a)` is a document error. The whole carrier conflicts with the consuming attachment `$a`, although `$e` itself is always empty. The error stands at the emitting definition.
 
 A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
@@ -1582,9 +1584,11 @@ An item can emit an empty tag set. A string terminal or `_` can read such a toke
 
 A token's constituent is its whole `$` carrier or captured carrier. Its span covers that part's stage-input tokens. Its source is their envelope, or the empty-node source of §12. Its text is the original source interval. A recipe changes neither source nor text, even when its image includes neighboring punctuation.
 
-An inserted token's span is empty at the start of its anchor. The anchor is the first present part of the next named capture item, among the parts that the production has. That part is the item's first before-attachment capture that the production has, or else its carrier. So in `%emits ε, ($b) $w`, the insertion stands before `$b` where the production has `$b`, and before `$w` where it does not.
+An inserted token's span is empty at the start of its anchor. The anchor is the first present part of the next covering item, skipping inserted items. For a named item, that part is its first present before-attachment or its carrier. For `$`, it is the whole constituent. Thus `%emits ε, $` anchors the insertion at the constituent's start.
 
-If no capture is listed after an inserted token, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
+In `%emits ε, ($b) $w`, the insertion stands before `$b` where the production has `$b`, and before `$w` otherwise. An absent next named carrier remains a document error. An inserted token anchored before a part has empty source at that part's source start. Where the part is empty, it uses the empty-node source of §12.
+
+If no covering item follows an inserted token, the span is empty at the end of the constituent. Its source is empty at the source end of the input token before that position. If the position is the constituent's start, its source is empty at the start of the constituent's source.
 
 Verbatim spelling comes from `.verbatim-text` in a constituent recipe. A body's rule-level image recipe applies both directly and inside a covering parent. Recognition and conditions still read original input values. The recipe does not imply any foreign placeholder or change the value channel.
 
@@ -1597,6 +1601,8 @@ A constituent without a selected channel recipe concatenates its children on tha
 An empty span gives empty verbatim text and claims no uncovered gap. It retains the empty-node source rule of §12. A nonempty image recipe over an empty carrier can still emit strings without enlarging its source.
 
 A nonempty verbatim span begins with its source envelope `[l,r)`. Its image can include adjacent uncovered original text. The following bounds use the stage-input neighbors, independent of emitted token order.
+
+At a later stage, erased or attached text can lack coverage by ordinary stage-input tokens. A verbatim extension can then include that text. Bundled grammars call `.verbatim-text` only in the word stage.
 
 Let the span be `[a,b)`. Its left bound P is the preceding token's source end, or 0 at input start. Its right bound Q is the following token's source start, or original text length at input end. Each bound limits only its own side.
 
@@ -1735,7 +1741,7 @@ If a token has exactly one part, and that part is an input token with attachment
 
 A token combining an attached input token with any other counted input token causes a grammar error. Recipes cannot hide or merge their ownership. Exactly one counted input token can forward its attachments. The token's strings can still come from explicit recipes.
 
-Two emitted covering items cannot claim the same nonempty input span. This disjoint-span rule prevents duplicate attachment ownership. Multiple whole items require a structurally always-empty production under §9.3's conservative overlap analysis. Such items cover no counted input token or inherited attachments.
+Two emitted covering items cannot claim the same nonempty input span. A whole carrier also cannot overlap a consuming attachment capture of another item (§9.3). Together, these restrictions prevent duplicate attachment ownership. Multiple whole items require a structurally always-empty production under §9.3's conservative overlap analysis. Such items cover no counted input token or inherited attachments.
 
 A covering token cannot identify attachment ownership across several counted input tokens. The stage tests this independently of tag and string overrides. No bundled dialect combines such parts. Source overlap alone does not establish shared input ownership.
 
