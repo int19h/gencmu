@@ -378,7 +378,7 @@ At the literal root, a sequence becomes `children`. A nested literal inside a se
 
 Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
 
-Flatten every union operand that is itself a union. For example, `@(A ∪ (B ∪ C))` gives this complete DOM:
+Any union operand that is itself a union flattens into its enclosing union. For example, `@(A ∪ (B ∪ C))` gives this complete DOM:
 
 ```json
 {"pattern":{"union":[{"terminal":"A","at":[1,3]},{"terminal":"B","at":[1,8]},{"terminal":"C","at":[1,12]}]}}
