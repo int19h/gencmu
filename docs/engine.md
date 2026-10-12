@@ -1101,7 +1101,7 @@ Recognition productions:
 ```text
 document = {statement}
 statement = rule | directive | constant-definition | classifier | implication-declaration
-rule = definer [flags] rule-name (body | clauses "|" ordinary-body)
+rule = definer [flags] rule-name (body | clauses headed-body)
        [conditions] [output]
 definer = "%rule" | "%redefine-rule" | "%extend-rule"
 flags = "(" name {"," name} ")"
@@ -1111,6 +1111,7 @@ clauses = tags-clause [value-clause] [image-clause]
 tags-clause = "::" term
 value-clause = ":=" recipe
 image-clause = ":-" recipe
+headed-body = "|" ordinary-body
 body = ["|"] ordinary-body | ranked-body
 ordinary-body = alternative {"|" alternative}
 ranked-body = {guard} conjunction "≻" conjunction {"≻" conjunction} [clauses]
@@ -1264,12 +1265,13 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `constant-definition` | `constant-definer`, `constant-reference`, `term` | Operation, user name, unresolved value |
 | `constant-definer` | One `%const` or `%redefine-const` token | `define` or `redefine` |
 | `constant-reference` | One user or engine scalar reference token | `const`, name without `$`, and reference `at` |
-| `rule` | Definer, name, flags, header clauses, body, conditions, output | Definition fields. Header clauses precede body lookup. |
+| `rule` | Definer, name, flags, header clauses, `body` or `headed-body`, conditions, output | Definition fields. Header clauses precede body lookup. |
 | `definer` | One definition keyword token | `define`, `redefine`, or `extend` |
 | `rule-name` | One rule-name token | Lowercase name or `#` |
 | `rule-flags` | One or more `rule-flag` parts | Ordered flags. Reject extension flags before reading flag tokens. |
 | `rule-flag` | One flag token | Flag string. Unknown precedes duplicate-value error. |
 | `body` | One or more `alternative`, or one `ranked-alternative` | Ordered alternative list |
+| `headed-body` | One or more `alternative` | Ordered alternative list, like an ordinary `body` |
 | `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
 | `ranked-alternative` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
 | `guard` | One feature token and its `?` or `!` marker, with optional `¬` | `feature`, `kind`, `negated`. Warnings cannot be negated. |
@@ -1433,7 +1435,7 @@ A tree from a bootstrap of another notation can also lack a part that a construc
 
 - A `rule`: its `definer` and token, then its `rule-name` and token, then its optional `rule-flags`. If flags exist, first reject them on an extension. Then require one or more `rule-flag` parts. Read each flag's token in text order. Reject an unknown value before a repeated value.
 
-  Next, the rule reads header tags, value, and image clauses, in that order. Only then does it look up the `body` and read alternatives. Trailing conditions and emission or erasure come last.
+  Next, the rule reads header tags, value, and image clauses, in that order. Only then does it look up `body` or `headed-body` and read alternatives. Trailing conditions and emission or erasure come last.
 - A `tested`: require at least one test, then look up tag and value tests in that order. Retain all tests in written order, including repeated kinds. Next look up its `primary`. Check the target and test order before reading the symbol, then read requirements and operands. A missing required part is reported when its lookup occurs.
 - A `capture`: the checks of its place (inside braces, inside an elidable optional), then its token and its `primary`. Then come the checks of `$` and of the name. Last come the one known part of the primary, the check that it is one symbol, and that symbol.
 - An `optional`: its `choice`, then its markers, then the form of an elidable optional, and then its content through the ordinary symbol-test rules. So an `optional` with two markers and no `choice` is an error at the `optional`.
