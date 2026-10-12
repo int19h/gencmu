@@ -1493,6 +1493,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
 - A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the six string methods and string atoms of §11.
+- A constant declaration whose name is an engine constant is an error at that name. Thus `%const $_0041 "x"` fails at `$_0041`, column 8.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
 - An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal.
 - An engine tag on either side of `%implies` is an error at that tag.
