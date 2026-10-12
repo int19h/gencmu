@@ -13825,11 +13825,8 @@
      */
     function readEntry(node) {
       const guards = ofRule(node, "guard").map((guard) => {
-        const spelled = text(token(guard));
-        if (spelled.endsWith("!")) fail("an entry of a classifier takes gates only, not a warning", guard);
-        const negated = spelled.startsWith("¬");
-        /** @type {import("./types.js").Guard} */
-        const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: "gate", negated };
+        const read = readGuard(guard);
+        if (read.kind === "warning") fail("an entry of a classifier takes gates only, not a warning", guard);
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
@@ -13839,9 +13836,8 @@
       });
       const op = /** @type {"∈" | "∉"} */ (text(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
-      const written = text(token(classNode));
-      const name = written.startsWith("~") ? written.slice(1) : written;
-      if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${written} is not a class: a class starts and ends with a capital`, classNode);
+      const name = text(token(classNode));
+      if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
       return { guards, keys, op, class: name, at: at(node) };
     }
 
@@ -13935,20 +13931,20 @@
       return /** @type {DomRule} */ (rule);
     }
 
+    /** @param {ResultNode} node @returns {import("./types.js").Guard} */
+    function readGuard(node) {
+      const spelled = text(token(node));
+      const found = /^(¬?)([A-Za-z][A-Za-z0-9-]*)([?!])$/.exec(spelled);
+      if (!found || (found[1] && found[3] === "!")) fail("invalid feature guard", node);
+      return { feature: found[2], kind: found[3] === "!" ? "warning" : "gate", negated: found[1] === "¬" };
+    }
+
     /**
      * @param {ResultNode} node
      * @returns {Generator<Step, DomAlternative, any>}
      */
     function* readAlternative(node) {
-      // A guard's token is its spelling: `f?` or `¬f?` for a gate, `f!` for
-      // a warning (engine §9).
-      const guards = ofRule(node, "guard").map((guard) => {
-        const spelled = text(token(guard));
-        const negated = spelled.startsWith("¬");
-        /** @type {import("./types.js").Guard} */
-        const read = { feature: spelled.slice(negated ? 1 : 0, -1), kind: spelled.endsWith("!") ? "warning" : "gate", negated };
-        return read;
-      });
+      const guards = ofRule(node, "guard").map(readGuard);
       captureNodes = new Map();
       /** @type {DomAlternative} */
       const alternative = { guards, expr: /** @type {Expr} */ (yield readExpression(only(node, ruleOf(node) === "ranked-alternative" ? "ranked-choice" : "conjunction"), true)) };
@@ -15447,7 +15443,7 @@
             if (value === undefined && field !== "text") continue;
             if (typeof value !== "string" || loneSurrogate(value) !== null) throw new GencmuError("usage", `token ${index}: ${field} must contain scalar values`);
           }
-          if (!token.tags || ![...token.tags].every(tag => isTag(tag))) throw new GencmuError("usage", `token ${index}: invalid tags`);
+          if (!token.tags || typeof token.tags[Symbol.iterator] !== "function" || ![...token.tags].every(tag => isTag(tag))) throw new GencmuError("usage", `token ${index}: invalid tags`);
           if ([token.before,token.after].some(list => list !== undefined && (!Array.isArray(list) || list.length > 0))) {
             throw new GencmuError("usage", `token ${index} has attachments, which a caller cannot supply`);
           }
