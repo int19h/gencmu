@@ -203,7 +203,9 @@ An unmarked unary cycle cannot invent tags in a finite proof. Written terminals 
 
 Follow local unary inheritance from the ranked helper toward its enclosing named parent. If unsafe tags reach that boundary, report `ranked-choice-tags`. A multi-symbol parent or common explicit tag term discards option tags locally. No caller analysis or runtime equality of rival tags excuses unsafe inheritance.
 
-Malformed ranked syntax or DOM reports `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form.
+Malformed ranked DOM reports `ranked-choice-syntax`. A syntax failure carries that code when its failing token is `≻`, or the preceding token is `≻`. A failing `|` also carries it when its current grouping level already contains `≻`. Grouping levels start at `(`, `[`, or `{` and end at their matching closer. A keyword starts a new statement at its current level.
+
+Thus `a | b ≻ c`, `a ≻ b | c`, `| a ≻ b`, `a ≻`, and `≻ a` carry `ranked-choice-syntax`. Other unrelated reader errors retain their codes or uncoded form.
 
 Loading errors carry the structured members defined in `docs/output.md`. Tag errors use the shortest inheritance witness from the group to its tag source. Source traversal order breaks equal-length choices. Helper sites use written expression paths.
 
