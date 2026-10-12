@@ -63,7 +63,7 @@ A diphthong diacritic is two phonemes and stands where a vowel stands. The first
 
 The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
-The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. A diphthong diacritic cannot directly follow the mark.
+The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-marked-vowel` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
 
 A stress mark or a shorthand is a mark of the script, like an accent. So this document adds both to `mark-char` of [latin.md](latin.md), and no punctuation rule reads them as a pause. Neither is a Lojban character by itself. So `foreign-char` takes a stray mark, one that no letter takes, and the mark makes its run foreign.
 
@@ -158,9 +158,7 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %emits
   $v, ε :: ∅ := "'"
 
-%rule zbalermorna-marked-vowel
-  ::
-  $v.tags
+%rule zbalermorna-marked-vowel :: $v.tags := $v.emitted.value :- $v.emitted.image
   | zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
 
 
