@@ -1182,7 +1182,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `string` | One complete quoted token | Decode left to right as specified below. Retain unresolved interpolation. |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
-| `term-atom` | One string, tag, name, constant, capture, method, empty set, pattern literal, or grouped union | Child term, preserving its type |
+| `term-atom` | One string, tag, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions flatten. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
@@ -1223,6 +1223,7 @@ The following compact examples show the additional conversions. Positions illust
 | `$_0061` | `{"literal":{"const":"_0061","at":[1,1]}}` |
 | `"a$(_0301)"` | `{"interpolate":[{"string":"a"},{"const":"_0301","at":[1,3]}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |
+| `Word ∪ ($c ⟹ $c.value.classify(lexicon))` | `{"union":[{"tag":"Word"},{"if":{"captured":"c"},"then":{"method":"classify","receiver":{"method":"value","receiver":{"capture":"c"},"args":[]},"args":[{"classifier":"lexicon"}]}}]}` |
 | `%emits ($b) $w ($a) :- "i"` | `{"items":[{"capture":"w","image":{"concat":[{"string":"i"}]},"before":["b"],"after":["a"]}]}` |
 | `%rule r f? A ≻ B :: ∅` | ALT has gate `f`, ranked refs `A`,`B`, and `tags:{"emptySet":true}`. |
 

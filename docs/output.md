@@ -215,6 +215,12 @@ For example, `_<Stressed>≠"y"` converts to this nested expression:
 {"test":"≠","value":{"string":"y"},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"Stressed"}}],"expr":{"wildcard":true}}}
 ```
 
+The pattern value `@A<B>=""` converts as follows. Its leaf uses `terminal` and records its source position. Both tests observe that same leaf.
+
+```json
+{"pattern":{"test":"=","value":{"string":""},"expr":{"test":"tags","requirements":[{"negated":false,"value":{"tag":"B"}}],"expr":{"terminal":"A","at":[1,2]}}}}
+```
+
 A capture of `#` instead converts as follows:
 
 ```json
