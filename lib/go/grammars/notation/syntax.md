@@ -151,7 +151,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   [{emit-before}] emit-target [{emit-after}] [emit-clauses]
 
 %rule emit-target
-  Capture | "ε" | Identifier | Engine-Tag | range
+  Capture | "ε" | Identifier | Engine-Tag≠"_" | range
 
 %rule emit-before
   "(" capture-reference ")"
@@ -312,7 +312,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   String | Include-Path
 
 %rule argument-tag
-  Engine-Tag | range
+  Engine-Tag≠"_" | range
 
 %rule argument-term
   method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
@@ -339,7 +339,7 @@ Recognition admits invalid capture targets and repeated tests. The reader report
   "∈" | "∉"
 
 %rule classifier-class
-  Identifier | Engine-Tag
+  Identifier | Engine-Tag≠"_"
 
 %rule implication-declaration
   KW-IMPLIES union "⟹" union

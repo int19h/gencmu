@@ -1,0 +1,10 @@
+{
+  "description": "N27 excludes the wildcard from tag operands. Syntax errors precede reader errors.",
+  "document": "```jbogenbau\n%classifier c \"a\" ∈ _\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 21
+    }
+  }
+}

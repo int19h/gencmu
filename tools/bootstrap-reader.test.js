@@ -130,6 +130,8 @@ test("both readers reject invalid forms at the same specified position", () => {
     '%rule r $x:A %conditions $x ≅ @(sumti<B><C>)',
     '%rule r A="x"<B>', "%rule r (A)<B>", "%rule r $x:[A]",
     "%rule r A<$_0041>", "%rule r :: _Lu | A", "%rule r :: ∩ Word BY | A",
+    "%stage _", "%rule r A %emits _", '%classifier c "a" ∈ _',
+    "%rule r $x:(A) %rule s A %emits _", '%rule r $x:(A) %classifier c "a" ∈ _',
     "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
     '%include "a$b".value', '%rule r $x:A := ($x).value',
     '%rule r $x:A %conditions $x.unknown = "x"',
