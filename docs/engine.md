@@ -83,11 +83,35 @@ The engine inventory has no other name. `_lu` and `_Letter` are document errors.
 
 ### Engine-tag provenance
 
-A grammar cannot introduce an engine tag. A literal engine tag can filter a forwarded set through intersection or the right side of difference. `:: $c.tags ∩ _Lu` is legal. A literal `:: _Lu`, a union introduction, or a guarded introduction is a document error.
+A grammar cannot introduce an engine tag. The function `lit` finds engine tags supplied by literals rather than forwarded input. The loader applies it to each complete tag term after constant binding. It does not reject an intermediate term whose enclosing filter removes its literals.
 
-The loader tracks provenance through set operations and guards. Intersection retains provenance from either forwarded operand. Difference retains the left operand's provenance. A selected engine tag must originate in captured or queried input tags.
+| Term | `lit` result |
+| --- | --- |
+| Engine-tag literal `_X` | `{_X}` |
+| Forwarded tag term, ordinary tag, empty set, or tag-set constant | `∅` |
+| `.classes` or `.classify` result | `∅` |
+| `a ∪ b` | `lit(a) ∪ lit(b)` |
+| `a ∩ b` | `lit(a) ∩ lit(b)` |
+| `a ∖ b` | `lit(a)` |
+| `A ⟹ t` | `lit(t)` |
 
-Tag-set constants cannot contain engine literals. Classifiers cannot assign them because engine tags are not classes. Neither implication side can name one, and an engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
+A forwarded term reads stored input or queried tags, such as `$c.tags` or `$.tags(r)`. Guards do not affect `lit`, and difference ignores its right operand. A tag term with nonempty `lit` is a document error at the first engine-tag literal that `lit` keeps.
+
+For error positions, each literal carries its source occurrence beside its tag name. Union keeps occurrences from both operands. Intersection keeps occurrences from both operands only for names present in both `lit` sets. Difference keeps only the left operand's occurrences, and a guard keeps only its result's occurrences. The first retained occurrence in written order determines the error.
+
+Each expression below is legal with `lit = ∅`. Its result can retain an engine tag only when the forwarded input holds it.
+
+| Tag clause | Result |
+| --- | --- |
+| `:: $c.tags ∩ (_Lu ∪ _Ll)` | The stored `_Lu` or `_Ll` tags of `$c` |
+| `:: ($x ⟹ _Lu) ∩ $c.tags` | Stored `_Lu` when `$x` is present, otherwise empty |
+| `:: ($c.tags ∪ _Lu) ∩ $d.tags` | The union filtered by the stored tags of `$d` |
+| `:: (_Lu ∪ Word) ∩ $c.tags` | The stored `_Lu` and `Word` tags of `$c` |
+| `:: (_Lu ∩ $c.tags) ∪ (Word ∩ $c.tags)` | The same stored tags as the preceding row |
+
+In contrast, `:: _Lu` and `:: ($x ⟹ _Lu)` have `lit = {_Lu}`. Both are document errors at `_Lu`, even when the guard cannot hold.
+
+A tag-set constant cannot hold an engine-tag literal, even inside a filter. Classifiers cannot assign them because engine tags are not classes. Neither side of `%implies` can name one. An engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
 
 Caller tokens bypass stage-zero character construction. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization. The caller can supply engine tags to represent earlier stages. Nonempty supplied attachments remain a usage error.
 
@@ -1315,6 +1339,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A chain, a `repetition` with a marker, that is not the whole expression of its alternative is an error, reported at its `{`. The whole expression is the alternative's `conjunction` when that is one `sequence` of one `primary`, the `repetition` itself. So a chain inside a group, an optional, other braces, a capture or a test is an error. So is a chain in a sequence, a choice or `&`, although a group makes no node of the DOM. The lowering of §3.3 makes sure that the chain's alternative is the only one of its rule.
 - A range whose start is above its end is an error, reported at the range.
 - An engine tag name outside §1's inventory is a document error at its token. Long aliases and wrong-case names are invalid.
+- A tag term with nonempty `lit` is a document error at the first retained engine-tag literal (§1).
 - A range in a term or condition is a document error. Property conditions instead read stored tag membership.
 - A value-test operand must resolve to a string. Any scalar string is legal, including capitals and commas. No engine normalization or canonical-value restriction applies.
 - Value tests require a string literal or string constant. Tag tests require signed tag names or tag-set constants. A capture, input method, or guarded term is invalid in either operand.
@@ -1407,7 +1432,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features` directive whose operands the reader refuses.
 - It has a `maximal` member on a directive. No directive has that member.
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
-- It has a tag or tag-terminal `ref` outside the identifier rules of §1, or an engine tag introduction without forwarded provenance.
+- It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag term with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
 - Its wildcard is not `wildcard:true`, or it uses a property constructor instead of a stored engine-tag reference.
 - It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.

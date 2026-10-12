@@ -94,6 +94,8 @@ The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tag
 
 A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_L`. A grammar can forward or filter engine tags but never introduce them.
 
+An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Tag terms can filter forwarded membership, as in `:: $c.tags ∩ _Lu`. [Engine §1](engine.md#engine-tag-provenance) defines the exact `lit` test for nested filters.
+
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
 A string is text in straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes. `$(NAME)` interpolates a string constant and `$$` writes a dollar sign. `$(_0022)` writes a quote. The section "Constants" gives errors and resolution.
@@ -342,6 +344,8 @@ The first line defines a word-stage constant in `grammars/words/stream.md`. The 
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` on closed strings is closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
+A tag-set constant cannot hold an engine-tag literal, even inside a filter. A pattern constant can read engine tags as terminal atoms or tag requirements.
+
 Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
 
 Every user constant reference uses its name's final definition in the stitched stage. Other names can refer forward. After `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`.
@@ -474,7 +478,7 @@ An implication says that some tags bring other tags with them:
 
 The stage applies its implications when it emits a token. First it gives the token the tags that the emission gives it (see "Emission"). Then it adds `B` for each implication whose `A` shares a tag with the token. It repeats this until no tag changes. So implications chain, and a cycle ends, because an implication only adds tags.
 
-Implications change only emitted tags. They never supply or alter a value or image. Neither side can introduce an engine tag. Recipes and plain concatenation determine token strings independently.
+Implications change only emitted tags. They never supply or alter a value or image. Neither side of `%implies` can name an engine tag. Recipes and plain concatenation determine token strings independently.
 
 Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each word of these classes `Indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
 

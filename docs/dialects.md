@@ -420,9 +420,20 @@ Use string terminals for exact characters and ranges for scalar intervals. Use s
   $ :: ∅ := "n", ε :: ∅ := "o"
 ```
 
-`:: ∅` stops character-tag inheritance. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
+`:: ∅` stops inheritance of the child's tags, engine tags included. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
 
-Engine tags belong to stage-zero tokens. Forward or filter them through captured tags. Do not introduce one in a tag clause, constant, classifier, implication, or elidable terminator. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
+Engine tags belong to stage-zero tokens. Grammars forward or filter them but never introduce them. An engine tag can stand in a tag test, a pattern, a condition, and a body terminal. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
+
+A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Classifiers and elidable terminators cannot assign them. [Engine §1](engine.md#engine-tag-provenance) defines `lit` for nested filters.
+
+An `%extend-rule` takes its own header clauses, never those of the base definition. This stressed mapping supplies its tag explicitly:
+
+```jbogenbau
+%extend-rule stressed-vowel
+  | "Á" :: Stressed := "A"
+```
+
+Without `:: Stressed`, the extension inherits `_Lu` and `_L` from the character. Normalization then forwards `A` unchanged, and forms cannot read it. A consonant extension likewise needs `:: ∅` to stop inherited engine tags.
 
 ## Normalize through grammar
 
