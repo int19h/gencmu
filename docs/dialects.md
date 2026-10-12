@@ -4,7 +4,7 @@ You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [
 
 A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
 
-This example adds a new word class. It also changes syntax.
+This example adds a word class and changes syntax. It retains the inherited phoneme, normalization, word, and indicator policies.
 
 ## Before you start
 
@@ -51,15 +51,15 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A stage is one step of a parse. A pipeline is an ordered sequence of stages. A phoneme is one speech sound.
 
-   The pipeline reads phonemes, recognizes word forms, processes the word stream, attaches indicators, and reads syntax.
+   The pipeline reads phonemes, normalizes values, recognizes forms, processes the word stream, attaches indicators, and reads syntax.
 
-   The included dialect creates all five stages. `%extend-stage` selects an existing stage. The stage keeps its position.
+   The included dialect creates all six stages. `%extend-stage` selects an existing stage and preserves its position.
 
 2. Add the word class in the forms stage.
 
-   A cmavo is a short structure word. A selma'o is a class of cmavo. A canonical sound is a normalized spelling of phonemes.
+   A cmavo is a short structure word. A selma'o is a class of cmavo. A value is the string that exact comparisons read. The forms stage receives normalized values.
 
-   A classifier maps canonical sounds to classes. A lexicon is the classifier that assigns selma'o.
+   A classifier maps exact values to classes. A lexicon is the classifier that assigns selma'o. Classes start and end with capitals and never start with `_`.
 
    Append these rules to `grammars/dialects/my-kihei.md`:
 
@@ -74,7 +74,7 @@ Use example filenames that do not clash with your own files. The commands below 
    EOF
    ````
 
-   `%extend-stage forms` selects the grammar that recognizes words. `%classifier lexicon` adds the class `KIhEI` to the sound `ki'ei`.
+   `%extend-stage forms` selects the grammar that recognizes words. `%classifier lexicon` adds KIhEI to the normalized value `ki'ei`.
 
    CLL already accepts this word form. The later word stages carry its class to syntax.
 
@@ -90,19 +90,27 @@ Use example filenames that do not clash with your own files. The commands below 
 
    ````text
    phonemes: 5 tokens, unique
-   #  text  phonemes  label  span  source  tags
-   0  "k"   "k"       "k"    0-1   0-1     /k/
-   1  "i"   "i"       "i"    1-2   1-2     /i/
-   2  "'"   "'"       "'"    2-3   2-3     /'/
-   3  "e"   "e"       "e"    3-4   3-4     /e/
-   4  "i"   "i"       "i"    4-5   4-5     /i/
+   #  text  value  image  span  source  tags
+   0  "k"   "k"    "k"    0-1   0-1     ∅
+   1  "i"   "i"    "i"    1-2   1-2     ∅
+   2  "'"   "'"    "'"    2-3   2-3     ∅
+   3  "e"   "e"    "e"    3-4   3-4     ∅
+   4  "i"   "i"    "i"    4-5   4-5     ∅
+
+   normalize: 5 tokens, unique
+   #  text  value  image  span  source  tags
+   0  "k"   "k"    "k"    0-1   0-1     ∅
+   1  "i"   "i"    "i"    1-2   1-2     ∅
+   2  "'"   "'"    "'"    2-3   2-3     ∅
+   3  "e"   "e"    "e"    3-4   3-4     ∅
+   4  "i"   "i"    "i"    4-5   4-5     ∅
 
    forms: 1 tokens, unique
-   #  text     phonemes  label    span  source  tags
-   0  "ki'ei"  "ki'ei"   "ki'ei"  0-5   0-5     KIhEI cmavo continued onset run-final run-initial word
+   #  text     value    image    span  source  tags
+   0  "ki'ei"  "ki'ei"  "ki'ei"  0-5   0-5     Cmavo Continued KIhEI Onset Run-Final Run-Initial Word
    ````
 
-   A tag is a label that a token carries. `KIhEI` must appear among the tags in the forms output.
+   A tag is a named mark on a token. Make sure that KIhEI appears in the forms output. Read `value` for comparisons and `image` for visible spelling.
 
    Keep lexicon keys lowercase. Use a straight apostrophe in those keys.
 
@@ -134,7 +142,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `%extend-stage syntax` selects syntax after the forms addition. `%redefine-rule paragraph` replaces the inherited paragraph rule.
 
-   `%rule` defines each new rule. `KIhEI` matches the new word class, and `[terms]` accepts zero or more CLL terms.
+   `%rule` defines each additional rule. `KIhEI` matches the additional word class, and `[terms]` accepts zero or more CLL terms.
 
    A free modifier adds information at permitted grammar positions. `#` reads optional free modifiers. `I` matches `.i`.
 
@@ -287,7 +295,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    The playground has no file upload or command that loads an arbitrary local dialect. You cannot load `my-kihei.md` directly into the shipped page.
 
-   If you want your new dialect in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
+   If you want your additional dialect in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
 
    `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
 
@@ -342,7 +350,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
 8. Prepare the dialect for shared use.
 
-   The prose coverage tool requires a coverage decision for each new grammar document. It automatically examines documents of `cll-ebnf` and `bpfk`.
+   The prose coverage tool requires a coverage decision for each additional grammar document. It automatically examines documents of `cll-ebnf` and `bpfk`.
 
    For this trial, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
 
@@ -362,7 +370,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    You maintain these dialect lists by hand.
 
-   Add the new grammar file to Git:
+   Add the additional grammar file to Git:
 
    ````sh
    git add grammars/dialects/my-kihei.md
@@ -395,6 +403,235 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Before you commit, review the generated changes. Keep each prose paragraph on one line.
 
+## Map character values
+
+Use string terminals for exact characters and ranges for scalar intervals. Use stored engine tags for Unicode properties. A scalar value is a Unicode code point outside surrogates. `_` reads any ordinary token.
+
+```jbogenbau
+%rule consonant :: ∅
+  | "b"
+  | "B" := "b"
+  | "б" := "b"
+%emits
+
+%rule digit-0
+  "0"
+%emits
+  $ :: ∅ := "n", ε :: ∅ := "o"
+```
+
+`:: ∅` stops character-tag inheritance. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
+
+Engine tags belong to stage-zero tokens. Forward or filter them through captured tags. Do not introduce one in a tag clause, constant, classifier, implication, or elidable terminator. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
+
+## Normalize through grammar
+
+Keep normalization after phonemes and before forms. This inherited pipeline already defines `normalize`. The example uses `%redefine-stage` to replace that stage. An independent pipeline creates it with `%stage`. Write `Stressed` on the mapping that creates each stressed value. Keep inherited tags on forwarding-only extensions.
+
+```jbogenbau
+%redefine-stage normalize
+%ambiguity-resolution lazy
+
+%rule text
+  [{unit}]
+
+%rule unit :- $.image
+  | "A"<Stressed> := "a"
+  | "E"<Stressed> := "e"
+  | "I"<Stressed> := "i"
+  | "O"<Stressed> := "o"
+  | "U"<Stressed> := "u"
+  | "Y"<Stressed> := "y"
+  | ","<Syllable-Break> := ""
+  | _<¬Stressed ¬Syllable-Break>
+%emits
+```
+
+The rule-level image recipe preserves written images. Every mapping retains its input tags through single-symbol inheritance. The stage preserves token count, order, images, and sources. It changes only values.
+
+Make sure that every token with a mapped tag has a supported value. An unmapped stressed value fails normalization. Group a comma run into one comma token before this stage. Forms reads syllable boundaries through `Syllable-Break` even when the comma value is empty.
+
+## Place recipes for parents
+
+A covering parent runs a string walk through its children. That walk uses child constituent recipes but skips child emission lists. An item recipe serves only its directly emitted token.
+
+The following child emits `x` alone. Its parent emits `ab` over input `ab`:
+
+```jbogenbau
+%rule text
+  child | parent
+
+%rule child
+  "a"
+%emits
+  $ := "x"
+
+%rule parent
+  child "b"
+%emits
+```
+
+Put the recipe on the child definition when the parent must also receive it:
+
+```jbogenbau
+%rule text
+  child | parent
+
+%rule child := "x"
+  | "a"
+%emits
+
+%rule parent
+  child "b"
+%emits
+```
+
+This parent emits `xb`. An alternative recipe serves only that alternative. An item override remains strongest for its own token. Use `.emitted.value` or `.emitted.image` to read a reconstructed child. Name the channel explicitly in every recipe.
+
+## Preserve verbatim quote images
+
+Verbatim text preserves original spelling with adjacent uncovered punctuation. Put its image recipe on the rule that reads the quote body. Do not place it only on the parent's emission item.
+
+```jbogenbau
+%rule raw-tokens :- $.verbatim-text
+  | any-token
+  | raw-tokens any-token
+
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
+
+%rule empty-zoi-body
+  ε
+```
+
+The body recipe also serves a larger compound. Its outer image recipe stops recursive descendant image evaluation. Its value still concatenates normalized parts. An empty body takes no neighboring punctuation.
+
+The method changes neither source nor text. An image can include text outside its token's source interval. Two evaluated different spans cannot claim the same uncovered text. Delimiter tokens keep ordinary quote bodies apart.
+
+## Carry decisions through tags
+
+The gap-tag invariant governs facts that recipes cannot inspect. If a recipe needs a branching decision, compute that fact during recognition and carry it upward as a tag. State the tag's origin, forwarding rules, readers, and end in grammar prose.
+
+A gap is a run between lexical parts. `Gap-Pause` means that a run contains a surviving pause. Erased children never introduce it. `Trailing-Pause` means that a survivor's compound contribution already ends with one space. These tags are internal grammar marks, not engine tags.
+
+Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
+
+## Group quote gaps
+
+Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer without erasures. A hesitation still follows its grammar condition and erasure.
+
+```jbogenbau
+%rule quiet-gap
+  | hesitation
+  | quiet-gap hesitation
+
+%rule pause-gap := " "
+  | [quiet-gap] PAUSE [hesitations [PAUSE]]
+
+%rule quote-spacing
+  | ε
+  | quiet-gap
+  | pause-gap
+
+%rule lohu-quote :: $m.tags
+  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
+  | $m:lohu-marker quote-spacing lehu-marker
+
+%rule lohu-stream
+  | lohu-word
+  | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word
+  | lohu-stream lohu-word
+```
+
+`PAUSE` marks the first surviving pause of a nonempty pause run. `quiet-gap` contains no surviving pause and contributes empty concatenation. `pause-gap` contributes one space. Only `quote-spacing` permits an empty run. `lohu-stream` has a separate no-gap route.
+
+Use the same partition for lohai streams and quote edges. Preserve their marker-only alternative without adding another empty-body route. Delimiter and single-word quote gaps keep their own hesitation conditions. An erasure-aware gap inside lo'u incorrectly removes quoted `si`.
+
+## Classify compound gaps
+
+Compound recognition retains spacing, skipped text, and erasures before BU and ZEI. The following tag clauses classify surviving pauses without changing those recognition routes:
+
+```jbogenbau
+%rule hesitations
+  | hesitation :: ∅
+  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
+
+%rule spacing
+  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
+
+%rule erasures
+  | erasure :: ∅
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
+
+%rule skipped
+  $s:spacing [$e:erasures $t:spacing]
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
+
+%rule compound-gap
+  | skipped<¬Gap-Pause>
+  | skipped<Gap-Pause> := " "
+
+%rule spacing-gap
+  | spacing<¬Gap-Pause>
+  | spacing<Gap-Pause> := " "
+```
+
+`hesitations` and `spacing` introduce `Gap-Pause` only for surviving pauses. `erasures` and `skipped` forward it while ignoring erased children. `compound-gap`, `spacing-gap`, and `su-survivor` read it. Their complementary tests admit each skipped derivation once.
+
+Put `compound-gap` before BU and before ZEI. Put `spacing-gap` after ZEI, where erasures change the recognized language. Do not insert a space unconditionally. The form `abu` has no pause and keeps no space.
+
+## Preserve SU survivors
+
+In BPFK and experimental, SU can stop at a boundary such as ni'o. A survivor groups that boundary with its erased tail. Its pause can lie before the erased SU while another pause follows it. Carry that spacing state through `Trailing-Pause`.
+
+```jbogenbau
+%rule su-survivor := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
+%conditions
+  $b.classes ∩ $SU-STOPS ≠ ∅
+
+%rule suppressed-gap := ""
+  | skipped
+
+%rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
+  | $u:unit<¬Trailing-Pause> compound-gap bu-word
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
+%emits
+```
+
+`su-survivor` introduces `Trailing-Pause` when it adds a surviving space. `unit` forwards that tag. BU and ZEI compounds read it and suppress their next gap's string. They retain the gap's tree parts for ownership. Their output does not forward the state.
+
+Use the same two-way left-unit division in `zei-compound`. The final word after ZEI ends the trailing state. Preserve feature gates and the boundary-class condition. Zantufa's SU-letter rule has no survivor behavior.
+
+The survivor has no `%emits`. When it stands alone, the emission walk forwards only its base's token. Its trailing recipe applies only inside a covering compound. `ni'o su bu` therefore has one space, while `ni'o subu` retains the earlier surviving space.
+
+## Read foreign runs
+
+`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quoted body keeps its own value policy and verbatim image.
+
+Use names that state each recognizer's role:
+
+| Stage | Rule | Recognizes |
+| --- | --- | --- |
+| Phonemes | `non-lojban-char-run` | A whole run with a character outside the orthography |
+| Phonemes | `non-lojban-char` | One such character |
+| Phonemes | `chars-with-non-lojban-char` | Characters containing at least one such character |
+| Forms | `foreign-token` | One forwarded FOREIGN token |
+| Forms | `unsegmentable-run` | A run with no valid word division |
+| Forms | `word-run` | A whole run divided into valid words |
+| Forms | `phoneme-sequence` | Phonemes without the whole-run boundary test |
+
+A run extends between pauses. A helper that can match only part of one uses `sequence` or `chars`. A foreign run is legal only in the quote and post-fa'o positions specified by the word grammar.
+
+Y delimiter keys use fixed tags `Y-Key` and `Ieho`. A grammar never constructs a tag name from input text. Longer raw y runs receive neither key tag. Values remain available for exact string comparisons.
+
 ## Other changes
 
 If your change differs from the kihei example, use these approaches.
@@ -403,7 +640,7 @@ If your change differs from the kihei example, use these approaches.
 
 If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
 
-If you change an existing classification, remove its old class with `∉`.
+If you change an existing classification, remove its earlier class with `∉`.
 
 Add its replacement class with `∈`.
 
@@ -568,7 +805,7 @@ Read [Pipelines](notation.md#pipelines) for dialects, stage order, `%include`, `
 
 Read [Stitching documents](notation.md#stitching-documents) for `%rule`, `%extend-rule`, and `%redefine-rule`.
 
-Read [Classifiers](notation.md#classifiers) for lexicons, class membership, and sound keys.
+Read [Classifiers](notation.md#classifiers) for lexicons, exact keys, and class membership.
 
 Read [Names and terminals](notation.md#names-and-terminals) for classes, terminals, and tags.
 
