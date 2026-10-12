@@ -156,3 +156,16 @@ function notationLoader() {
     return fs.existsSync(path) ? fs.readFileSync(path, "utf8") : undefined;
   });
 }
+
+test("wrong directive names and operand counts retain the directive position", () => {
+  const loader = notationLoader();
+  for (const source of ["%ambiguity-resolution", "%ambiguity-resolution unknown", "%ambiguity-resolution greedy lazy",
+    "%ambiguity-resolution greedy elision-only extra", "%stage First", "%extend-stage First",
+    "%redefine-stage First", "%features a_b"]) {
+    const document = "```jbogenbau\n" + source + "\n```";
+    for (const reader of [readDocument, loader.readDocument.bind(loader)]) {
+      assert.throws(() => reader(document, "case.md"), error => error.kind === "grammar" &&
+        error.where.document === "case.md" && error.where.line === 2 && error.where.column === 1, source);
+    }
+  }
+});

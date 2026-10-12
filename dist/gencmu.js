@@ -13764,16 +13764,24 @@
         if (name === "ambiguity-resolution" && operands.some((child) => text(token(child)) === "maximal")) {
           fail("the maximal operand is retired", item);
         }
-        directives.push({
-          name,
-          // A string operand is decoded, as a string of a rule is, and a tag
-          // literal is its name.
-          args: operands.map((child) => {
+        const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return text(token(child));
             if (ruleOf(child) === "argument-string") return text(token(child)).slice(1, -1);
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
-          }),
+          });
+        if (["stage", "extend-stage", "redefine-stage"].includes(name) && !CLASSIFIER_NAME.test(args[0])) {
+          fail(`%${name} takes one lowercase name`, item);
+        }
+        if (name === "features" && args.some(arg => !/^[A-Za-z][A-Za-z0-9-]*$/.test(arg))) {
+          fail("%features takes feature names", item);
+        }
+        if (name === "ambiguity-resolution" && !(["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) {
+          fail("%ambiguity-resolution takes a ranking name and optionally elision-only", item);
+        }
+        directives.push({
+          name,
+          args,
           at: at(item),
         });
       } else if (ruleOf(item) === "rule") {
@@ -14760,6 +14768,7 @@
     if (["stage", "extend-stage", "redefine-stage"].includes(name)) return kinds.length === 1 && names ? null : `%${name} takes one name`;
     if (name === "include") return kinds.length === 1 && kinds[0] === "string" ? null : "%include takes one string";
     if (name === "features") return kinds.length > 0 && names ? null : "%features takes one or more names";
+    if (name === "ambiguity-resolution" && !(kinds.length >= 1 && kinds.length <= 2)) return "%ambiguity-resolution takes one or two names";
     return names ? null : `%${name} takes names only`;
   }
 
