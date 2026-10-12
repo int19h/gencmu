@@ -1086,6 +1086,10 @@ In a string outside an include path, a dollar sign starting neither interpolatio
 
 An include path is literal text in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. A backslash is still a lexical error. Paths use `/` separators.
 
+A feature name matches `[A-Za-z][A-Za-z0-9-]*`, as on main. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
+
+The lexer reads `¬` separately only when no guard starts immediately after it. It has no negated-warning token. Thus `%rule r ¬cbm! A` fails lexically at `!`, column 13. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard with an invalid feature or a negated warning fails at that guard.
+
 Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape or interpolation processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
 Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, or private-use scalar uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
@@ -1277,7 +1281,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `headed-body` | One or more `alternative` | Ordered alternative list, like an ordinary `body` |
 | `alternative` | Guards, conjunction, then tag, value, image clauses | `guards`, `expr`, and optional channel or tag members |
 | `ranked-alternative` | Guards, ranked choice, then tag, value, image clauses | One ALT. Guards and clauses apply to the entire ranked expression. |
-| `guard` | One feature token and its `?` or `!` marker, with optional `¬` | `feature`, `kind`, `negated`. Warnings cannot be negated. |
+| `guard` | One guard token from §9.1 | `feature`, `kind`, `negated`. Reject invalid feature names or negated warnings at the guard. |
 | `ranked-choice` | At least two `conjunction` parts | Ordered `ranked` array |
 | `choice` | One `ranked-choice`, or one or more `conjunction` parts | Ranked expression, ordinary `choice`, or sole child |
 | `conjunction` | One or more `sequence` parts | `and`, or sole sequence |

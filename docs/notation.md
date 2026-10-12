@@ -75,7 +75,7 @@ The sections below explain these forms.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores. A rule, classifier, stage, or feature starts with a lowercase letter. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+Names use ASCII letters, digits, hyphens, and underscores. A rule, classifier, or stage starts with a lowercase letter. Feature names retain main's form: an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
 
 A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`. A selma'o is a class of Lojban particles.
 

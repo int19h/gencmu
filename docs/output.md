@@ -315,7 +315,7 @@ A classifier and an implication have no member but those shown.
 
 A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`.
 
-Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one include path. Features take at least one lowercase name. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
+Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one include path. Features take at least one feature name as engine §9.1 defines it. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
 
 A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name or, for `include`, the include path: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`. The operand `maximal` in `args` is an error.
 
