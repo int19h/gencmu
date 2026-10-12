@@ -18,30 +18,30 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 ```jbogenbau
 %extend-rule consonant
-  | $_ED80 ::∅ := "p"
-  | $_ED81 ::∅ := "t"
-  | $_ED82 ::∅ := "k"
-  | $_ED83 ::∅ := "f"
-  | $_ED90 ::∅ := "b"
-  | $_ED91 ::∅ := "d"
-  | $_ED92 ::∅ := "g"
-  | $_ED93 ::∅ := "v"
-  | $_ED84 ::∅ := "l"
-  | $_ED85 ::∅ := "s"
-  | $_ED86 ::∅ := "c"
-  | $_ED87 ::∅ := "m"
-  | $_ED94 ::∅ := "r"
-  | $_ED95 ::∅ := "z"
-  | $_ED96 ::∅ := "j"
-  | $_ED97 ::∅ := "n"
-  | $_ED88 ::∅ := "x"
+  | $_ED80 :: ∅ := "p"
+  | $_ED81 :: ∅ := "t"
+  | $_ED82 :: ∅ := "k"
+  | $_ED83 :: ∅ := "f"
+  | $_ED90 :: ∅ := "b"
+  | $_ED91 :: ∅ := "d"
+  | $_ED92 :: ∅ := "g"
+  | $_ED93 :: ∅ := "v"
+  | $_ED84 :: ∅ := "l"
+  | $_ED85 :: ∅ := "s"
+  | $_ED86 :: ∅ := "c"
+  | $_ED87 :: ∅ := "m"
+  | $_ED94 :: ∅ := "r"
+  | $_ED95 :: ∅ := "z"
+  | $_ED96 :: ∅ := "j"
+  | $_ED97 :: ∅ := "n"
+  | $_ED88 :: ∅ := "x"
 %emits
   $
 
 %extend-rule apostrophe
   $_ED8A
 %emits
-  $ ::∅ := "'"
+  $ :: ∅ := "'"
 
 %extend-rule core-char
   $_ED89
@@ -67,22 +67,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 ```jbogenbau
 %extend-rule plain-vowel
-  | $_EDA0 ::∅ := "a" | $_EDB0 ::∅ := "a"
-  | $_EDA1 ::∅ := "e" | $_EDB1 ::∅ := "e"
-  | $_EDA2 ::∅ := "i" | $_EDB2 ::∅ := "i" | $_EDAA ::∅ := "i"
-  | $_EDA3 ::∅ := "o" | $_EDB3 ::∅ := "o"
-  | $_EDA4 ::∅ := "u" | $_EDB4 ::∅ := "u" | $_EDAB ::∅ := "u"
-  | $_EDA5 ::∅ := "y" | $_EDB5 ::∅ := "y"
+  | $_EDA0 :: ∅ := "a" | $_EDB0 :: ∅ := "a"
+  | $_EDA1 :: ∅ := "e" | $_EDB1 :: ∅ := "e"
+  | $_EDA2 :: ∅ := "i" | $_EDB2 :: ∅ := "i" | $_EDAA :: ∅ := "i"
+  | $_EDA3 :: ∅ := "o" | $_EDB3 :: ∅ := "o"
+  | $_EDA4 :: ∅ := "u" | $_EDB4 :: ∅ := "u" | $_EDAB :: ∅ := "u"
+  | $_EDA5 :: ∅ := "y" | $_EDB5 :: ∅ := "y"
 %emits
   $
 
 %extend-rule stressed-vowel
-  | $_EDA0 zbalermorna-stress ::Stressed := "A" | $_EDB0 zbalermorna-stress ::Stressed := "A"
-  | $_EDA1 zbalermorna-stress ::Stressed := "E" | $_EDB1 zbalermorna-stress ::Stressed := "E"
-  | $_EDA2 zbalermorna-stress ::Stressed := "I" | $_EDB2 zbalermorna-stress ::Stressed := "I"
-  | $_EDA3 zbalermorna-stress ::Stressed := "O" | $_EDB3 zbalermorna-stress ::Stressed := "O"
-  | $_EDA4 zbalermorna-stress ::Stressed := "U" | $_EDB4 zbalermorna-stress ::Stressed := "U"
-  | $_EDA5 zbalermorna-stress ::Stressed := "Y" | $_EDB5 zbalermorna-stress ::Stressed := "Y"
+  | $_EDA0 zbalermorna-stress :: Stressed := "A" | $_EDB0 zbalermorna-stress :: Stressed := "A"
+  | $_EDA1 zbalermorna-stress :: Stressed := "E" | $_EDB1 zbalermorna-stress :: Stressed := "E"
+  | $_EDA2 zbalermorna-stress :: Stressed := "I" | $_EDB2 zbalermorna-stress :: Stressed := "I"
+  | $_EDA3 zbalermorna-stress :: Stressed := "O" | $_EDB3 zbalermorna-stress :: Stressed := "O"
+  | $_EDA4 zbalermorna-stress :: Stressed := "U" | $_EDB4 zbalermorna-stress :: Stressed := "U"
+  | $_EDA5 zbalermorna-stress :: Stressed := "Y" | $_EDB5 zbalermorna-stress :: Stressed := "Y"
 %emits
   $
 
@@ -110,22 +110,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-ai
   $_EDA6
 %emits
-  $ ::∅ := "a", $ ::∅ := "i"
+  $ :: ∅ := "a", $ :: ∅ := "i"
 
 %rule zbalermorna-ei
   $_EDA7
 %emits
-  $ ::∅ := "e", $ ::∅ := "i"
+  $ :: ∅ := "e", $ :: ∅ := "i"
 
 %rule zbalermorna-oi
   $_EDA8
 %emits
-  $ ::∅ := "o", $ ::∅ := "i"
+  $ :: ∅ := "o", $ :: ∅ := "i"
 
 %rule zbalermorna-au
   $_EDA9
 %emits
-  $ ::∅ := "a", $ ::∅ := "u"
+  $ :: ∅ := "a", $ :: ∅ := "u"
 
 %rule zbalermorna-stressed-diphthong
   | zbalermorna-stressed-ai | zbalermorna-stressed-ei
@@ -134,22 +134,22 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %rule zbalermorna-stressed-ai
   $_EDA6 zbalermorna-stress
 %emits
-  $ ::Stressed := "A", $ ::∅ := "i"
+  $ :: Stressed := "A", $ :: ∅ := "i"
 
 %rule zbalermorna-stressed-ei
   $_EDA7 zbalermorna-stress
 %emits
-  $ ::Stressed := "E", $ ::∅ := "i"
+  $ :: Stressed := "E", $ :: ∅ := "i"
 
 %rule zbalermorna-stressed-oi
   $_EDA8 zbalermorna-stress
 %emits
-  $ ::Stressed := "O", $ ::∅ := "i"
+  $ :: Stressed := "O", $ :: ∅ := "i"
 
 %rule zbalermorna-stressed-au
   $_EDA9 zbalermorna-stress
 %emits
-  $ ::Stressed := "A", $ ::∅ := "u"
+  $ :: Stressed := "A", $ :: ∅ := "u"
 
 %rule zbalermorna-shorthand
   $v:zbalermorna-marked-vowel

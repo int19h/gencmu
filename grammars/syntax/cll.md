@@ -579,12 +579,12 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 %rule number
   PA [{PA | lerfu-word}]
 %conditions
-  ¬$.following-tokens.begins( number-continuation)
+  ¬$.following-tokens.begins(number-continuation)
 
 %rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
 %conditions
-  ¬$.following-tokens.begins( number-continuation)
+  ¬$.following-tokens.begins(number-continuation)
 
 %rule number-continuation
   PA | lerfu-word
@@ -848,7 +848,7 @@ The word stage delimits every quote except `lu ... li'u` and emits its parts for
   Word
 
 %rule anything
-  Quoted-text
+  Quoted-Text
 ```
 
 <details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>

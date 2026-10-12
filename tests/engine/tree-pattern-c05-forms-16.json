@@ -32,9 +32,9 @@
                 "Continued",
                 "Lujvo",
                 "Onset",
-                "Run-final",
-                "Run-initial",
-                "Stress-guard",
+                "Run-Final",
+                "Run-Initial",
+                "Stress-Guard",
                 "Word"
               ],
               "span": [
@@ -78,7 +78,7 @@
               "Continued",
               "Lujvo",
               "Onset",
-              "Stress-guard",
+              "Stress-Guard",
               "Word"
             ],
             "children": [
@@ -98,7 +98,7 @@
                   "Continued",
                   "Lujvo",
                   "Onset",
-                  "Stress-guard",
+                  "Stress-Guard",
                   "Word"
                 ],
                 "children": [
@@ -118,7 +118,7 @@
                       "Continued",
                       "Lujvo",
                       "Onset",
-                      "Stress-guard",
+                      "Stress-Guard",
                       "Word"
                     ],
                     "children": [
@@ -138,7 +138,7 @@
                           "Continued",
                           "Lujvo",
                           "Onset",
-                          "Stress-guard",
+                          "Stress-Guard",
                           "Word"
                         ],
                         "children": [
@@ -158,7 +158,7 @@
                               "Continued",
                               "Lujvo",
                               "Onset",
-                              "Stress-guard",
+                              "Stress-Guard",
                               "Word"
                             ],
                             "children": [
@@ -178,7 +178,7 @@
                                   "Continued",
                                   "Lujvo",
                                   "Onset",
-                                  "Stress-guard",
+                                  "Stress-Guard",
                                   "Word"
                                 ],
                                 "children": [
@@ -198,7 +198,7 @@
                                       "Continued",
                                       "Lujvo",
                                       "Onset",
-                                      "Stress-guard",
+                                      "Stress-Guard",
                                       "Word"
                                     ],
                                     "children": [
@@ -217,7 +217,7 @@
                                           "Continued",
                                           "Lujvo",
                                           "Onset",
-                                          "Stress-guard"
+                                          "Stress-Guard"
                                         ],
                                         "children": [
                                           {

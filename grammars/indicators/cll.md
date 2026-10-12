@@ -76,7 +76,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   ($b) $w ($a)
 
 %rule unit
-  | Word<¬Indicator   ¬BAhE> | Quoted-text | LEhU
+  | Word<¬Indicator ¬BAhE> | Quoted-Text | LEhU
 
 %rule bahe-run
   bahe | bahe-run bahe

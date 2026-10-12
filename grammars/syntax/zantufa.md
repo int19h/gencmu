@@ -84,7 +84,7 @@ A following-input condition reserves words after a candidate for another constru
   Word
 
 %rule anything
-  Quoted-text
+  Quoted-Text
 ```
 
 <details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
@@ -207,18 +207,18 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | links
   | linkargs
 %conditions
-  ¬$n.following-tokens.begins( terms),
-  ¬$n.following-tokens.begins( ku-word),
-  ¬$t.following-tokens.begins( mex),
+  ¬$n.following-tokens.begins(terms),
+  ¬$n.following-tokens.begins(ku-word),
+  ¬$t.following-tokens.begins(mex),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬$m.following-tokens.begins( sumti-5),
-  ¬$m.following-tokens.begins( selbri),
-  ¬$m.without-elision.matches( fragment-terms)
+  ¬$m.following-tokens.begins(sumti-5),
+  ¬$m.following-tokens.begins(selbri),
+  ¬$m.without-elision.matches(fragment-terms)
 
 %rule fragment-terms
   $t:terms
 %conditions
-  ¬$t.following-tokens.begins( mex),
+  ¬$t.following-tokens.begins(mex),
   $t ≇ @(na-clause KU="")
 
 %rule prenex
@@ -333,7 +333,7 @@ The middle `$INITIAL-KE` arm matches a tag followed by a selbri whose first-chil
   | [tag] KE # gek-bridi-tail [+KEhE #]
   | NA # gek-bridi-tail
 %conditions
-  ¬$g.following-tokens.begins( gik-term)
+  ¬$g.following-tokens.begins(gik-term)
 
 %rule gik-bridi-tails
   {gik bridi-tail}
@@ -384,7 +384,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 %rule term-link
   $j:joik-ek term-1
 %conditions
-  $j ≇ @(joik) ∨ ¬$j.following-tokens.begins( tag-bo-cu)
+  $j ≇ @(joik) ∨ ¬$j.following-tokens.begins(tag-bo-cu)
 
 %rule tag-bo-cu
   tag [BO #] CU
@@ -406,15 +406,15 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   $g ≇ @(gek sumti {gik sumti} GIhI [#]),
   $k ⟹ $ ≇ @(ke-clause sumti KEhE≠"" [#]),
   $s ≇ @(KE [#] sumti KEhE="" [#]),
-  ¬$s.without-elision.onward.begins( tag)
+  ¬$s.without-elision.onward.begins(tag)
 
 %rule brigahi
   (* brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible *)
   | POIhA # selbri [+KU #]
   | $n:na-clause [+KU #]
 %conditions
-  ¬$n.following-tokens.begins( bridi-tail),
-  ¬$n.following-tokens.begins( joik-gihek)
+  ¬$n.following-tokens.begins(bridi-tail),
+  ¬$n.following-tokens.begins(joik-gihek)
 
 %rule tag-term
   (* tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
@@ -424,15 +424,15 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | $t:tag [+KU #]
   | $f:fa-jai [+KU #]
 %conditions
-  ¬$a.following-tokens.begins( gi-word),
-  ¬$s.without-elision.onward.begins( tcita-selci),
-  ¬$t.following-tokens.begins( gi-word),
-  ¬$t.following-tokens.begins( free),
-  ¬$t.following-tokens.begins( tcita-selci),
-  ¬$t.following-tokens.begins( selbri),
-  ¬$t.following-tokens.begins( gek-bridi-tail),
-  ¬$t.following-tokens.begins( bo-word),
-  ¬$f.following-tokens.begins( tanru-unit-1)
+  ¬$a.following-tokens.begins(gi-word),
+  ¬$s.without-elision.onward.begins(tcita-selci),
+  ¬$t.following-tokens.begins(gi-word),
+  ¬$t.following-tokens.begins(free),
+  ¬$t.following-tokens.begins(tcita-selci),
+  ¬$t.following-tokens.begins(selbri),
+  ¬$t.following-tokens.begins(gek-bridi-tail),
+  ¬$t.following-tokens.begins(bo-word),
+  ¬$f.following-tokens.begins(tanru-unit-1)
 
 %rule gi-word
   GI
@@ -487,7 +487,7 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   (* sumti_1 <- sumti_2 (joik_ek sumti_2)* *)
   $r:sumti-1-run
 %conditions
-  ¬$r.following-tokens.begins( sumti-1-link)
+  ¬$r.following-tokens.begins(sumti-1-link)
 
 %rule sumti-1-run
   {sumti-2 / joik-ek}
@@ -499,7 +499,7 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   (* sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)* *)
   $r:sumti-2-run
 %conditions
-  ¬$r.following-tokens.begins( sumti-2-link)
+  ¬$r.following-tokens.begins(sumti-2-link)
 
 %rule sumti-2-run
   {sumti-3 / [joik-ek] [tag] BO #}
@@ -534,8 +534,8 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   | LI # mex [+LOhO #]
   | NAhE # sumti-3
 %conditions
-  ¬$l.following-tokens.begins( lerfu-operator),
-  ¬$l.following-tokens.begins( operand-kehe)
+  ¬$l.following-tokens.begins(lerfu-operator),
+  ¬$l.following-tokens.begins(operand-kehe)
 
 %rule lerfu-boi
   lerfu-string [+BOI #]
@@ -546,7 +546,7 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   [{BO #}] [{operand}] $o:operator
 %conditions
   $o ≇ $JOIK-EK-OP
-  ∨ ¬$o.following-tokens.begins( sumti-or-relative)
+  ∨ ¬$o.following-tokens.begins(sumti-or-relative)
 
 %rule sumti-or-relative
   sumti | relative-clause
@@ -559,7 +559,7 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   | [relative-clauses] sumti-tail-1
   | [relative-clauses] $s:sumti sumti-tail-1
 %conditions
-  ¬$s.without-elision.onward.begins( quantifier)
+  ¬$s.without-elision.onward.begins(quantifier)
 
 %rule sumti-tail-1
   (* sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti *)
@@ -647,7 +647,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | $s:selbri-2 KEhE # linkargs [relative-clauses] [CEI # selbri]
   | selbri-2 [relative-clauses] [CEI # selbri]
 %conditions
-  ¬$s.onward.begins( ke-word)
+  ¬$s.onward.begins(ke-word)
 
 %rule ke-word
   KE
@@ -714,13 +714,13 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | JAI # [tag] tanru-unit-1
   | {NU # / joik} statement [+KEI #]
 %conditions
-  ¬$g.following-tokens.begins( gik-term-or-cu),
-  ¬$m.following-tokens.begins( sumti-5),
-  ¬$m.following-tokens.begins( selbri),
+  ¬$g.following-tokens.begins(gik-term-or-cu),
+  ¬$m.following-tokens.begins(sumti-5),
+  ¬$m.following-tokens.begins(selbri),
   $m ≇ @(operator ⋰),
   $t ≇ @(operator ⋰),
   $k ≇ @(NAhE ⋰),
-  ¬$m.without-elision.matches( sumti),
+  ¬$m.without-elision.matches(sumti),
   $v ≇ $GEK-UNIT,
   $w ≇ $SE-GEK-UNIT
 
@@ -784,9 +784,9 @@ The condition removes a connective operator whose first word is SE. The alternat
   (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
   $m:mex [relative-clauses]
 %conditions
-  ¬$m.without-elision.onward.begins( sumti-5),
-  ¬$m.without-elision.onward.begins( selbri),
-  ¬$m.following-tokens.begins( roi-word)
+  ¬$m.without-elision.onward.begins(sumti-5),
+  ¬$m.without-elision.onward.begins(selbri),
+  ¬$m.following-tokens.begins(roi-word)
 
 %rule mex
   (* mex <- mex_1 (operator+ mex_1?)* *)
@@ -796,7 +796,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   $o:operators | operators $x:mex-1
 %conditions
   $x ≇ @(operator ⋰),
-  ¬$o.following-tokens.begins( mex-1)
+  ¬$o.following-tokens.begins(mex-1)
 
 %rule mex-1
   (* mex_1 <- (KE_clause mex_2+ KEhE_elidible / mex_2 (BO_clause mex_2)* )
@@ -807,7 +807,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   BIhE # $o:operators | BIhE # operators $x:mex-group
 %conditions
   $x ≇ @(operator ⋰),
-  ¬$o.following-tokens.begins( mex-group)
+  ¬$o.following-tokens.begins(mex-group)
 
 %rule mex-group
   KE # {mex-2} [+KEhE #] | {mex-2 / BO #}
@@ -834,14 +834,14 @@ The condition removes a connective operator whose first word is SE. The alternat
   | VUhU #
   | $j:joik-ek
 %conditions
-  ¬$j.following-tokens.begins( cu-word),
+  ¬$j.following-tokens.begins(cu-word),
   $j ≇ @(SE ⋯)
 
 %rule operators
   (* operator+, which reads every operator that follows *)
   $r:operator-run
 %conditions
-  ¬$r.following-tokens.begins( operator)
+  ¬$r.following-tokens.begins(operator)
 
 %rule operator-run
   {operator}
@@ -999,7 +999,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
   | UI #
 %conditions
-  ¬$.following-tokens.begins( free)
+  ¬$.following-tokens.begins(free)
 
 %rule parenthesis-text
   text
@@ -1015,7 +1015,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   [{free-not-number}]
 
 %rule lohai-word
-  Word<¬LOhAI   ¬LEhAI>
+  Word<¬LOhAI ¬LEhAI>
 
 %rule free-not-number
   $f:free

@@ -61,7 +61,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule spaced-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c ::PAUSE   := " "
+  $c :: PAUSE := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -120,7 +120,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 %rule syllable-break
   commas
 %emits
-  $ ::Syllable-Break := ","
+  $ :: Syllable-Break := ","
 
 %rule vowel
   plain-vowel | stressed-vowel
@@ -129,13 +129,13 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   vowel | vowel-group-plain | vowel-group-joined
 
 %rule vowel-group-plain
-  | vowel-group<¬Syllabic> $v:vowel ::$v.tags | vowel-group<Syllabic> $w:vowel<¬Syllabic> ::$w.tags
+  | vowel-group<¬Syllabic> $v:vowel :: $v.tags | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
 
 %rule vowel-group-joined
-  vowel-group<Syllabic> $v:joined-vowel<Syllabic> ::$v.tags
+  vowel-group<Syllabic> $v:joined-vowel<Syllabic> :: $v.tags
 
 %rule joined-vowel
-  $v:vowel ::$v.tags
+  $v:vowel :: $v.tags
 %emits
   ε :: ∅ := "'", $v
 
@@ -167,11 +167,11 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 %rule non-lojban-char-run
   $r:chars-with-non-lojban-char
 %conditions
-  ¬$r.matches( letters),
-  ¬$r.first-token.matches( comma),
-  ¬$r.last-token.matches( comma)
+  ¬$r.matches(letters),
+  ¬$r.first-token.matches(comma),
+  ¬$r.last-token.matches(comma)
 %emits
-  $ ::FOREIGN
+  $ :: FOREIGN
 
 
 %rule chars-with-non-lojban-char
@@ -185,17 +185,17 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 %rule lojban-char
   $c:run-char
 %conditions
-  $c.matches( any-lojban-char)
+  $c.matches(any-lojban-char)
 
 %rule non-lojban-char
   $c:run-char
 %conditions
-  ¬$c.matches( any-lojban-char)
+  ¬$c.matches(any-lojban-char)
 
 %rule run-char
   $c:_
 %conditions
-  ¬$c.matches( core-char)
+  ¬$c.matches(core-char)
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>foreign-run</code> to <code>run-char</code></summary>
@@ -215,40 +215,40 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 
 ```jbogenbau
 %rule consonant
-  | "b" ::∅ := "b" | "B" ::∅ := "b"
-  | "c" ::∅ := "c" | "C" ::∅ := "c"
-  | "d" ::∅ := "d" | "D" ::∅ := "d"
-  | "f" ::∅ := "f" | "F" ::∅ := "f"
-  | "g" ::∅ := "g" | "G" ::∅ := "g"
-  | "j" ::∅ := "j" | "J" ::∅ := "j"
-  | "k" ::∅ := "k" | "K" ::∅ := "k"
-  | "l" ::∅ := "l" | "L" ::∅ := "l"
-  | "m" ::∅ := "m" | "M" ::∅ := "m"
-  | "n" ::∅ := "n" | "N" ::∅ := "n"
-  | "p" ::∅ := "p" | "P" ::∅ := "p"
-  | "r" ::∅ := "r" | "R" ::∅ := "r"
-  | "s" ::∅ := "s" | "S" ::∅ := "s"
-  | "t" ::∅ := "t" | "T" ::∅ := "t"
-  | "v" ::∅ := "v" | "V" ::∅ := "v"
-  | "x" ::∅ := "x" | "X" ::∅ := "x"
-  | "z" ::∅ := "z" | "Z" ::∅ := "z"
+  | "b" :: ∅ := "b" | "B" :: ∅ := "b"
+  | "c" :: ∅ := "c" | "C" :: ∅ := "c"
+  | "d" :: ∅ := "d" | "D" :: ∅ := "d"
+  | "f" :: ∅ := "f" | "F" :: ∅ := "f"
+  | "g" :: ∅ := "g" | "G" :: ∅ := "g"
+  | "j" :: ∅ := "j" | "J" :: ∅ := "j"
+  | "k" :: ∅ := "k" | "K" :: ∅ := "k"
+  | "l" :: ∅ := "l" | "L" :: ∅ := "l"
+  | "m" :: ∅ := "m" | "M" :: ∅ := "m"
+  | "n" :: ∅ := "n" | "N" :: ∅ := "n"
+  | "p" :: ∅ := "p" | "P" :: ∅ := "p"
+  | "r" :: ∅ := "r" | "R" :: ∅ := "r"
+  | "s" :: ∅ := "s" | "S" :: ∅ := "s"
+  | "t" :: ∅ := "t" | "T" :: ∅ := "t"
+  | "v" :: ∅ := "v" | "V" :: ∅ := "v"
+  | "x" :: ∅ := "x" | "X" :: ∅ := "x"
+  | "z" :: ∅ := "z" | "Z" :: ∅ := "z"
 %emits
   $
 
 %rule plain-vowel
-  "a" ::∅ := "a" | "e" ::∅ := "e" | "i" ::∅ := "i" | "o" ::∅ := "o" | "u" ::∅ := "u" | "y" ::∅ := "y"
+  "a" :: ∅ := "a" | "e" :: ∅ := "e" | "i" :: ∅ := "i" | "o" :: ∅ := "o" | "u" :: ∅ := "u" | "y" :: ∅ := "y"
 %emits
   $
 
 %rule stressed-vowel
-  "A" ::Stressed := "A" | "E" ::Stressed := "E" | "I" ::Stressed := "I" | "O" ::Stressed := "O" | "U" ::Stressed := "U" | "Y" ::Stressed := "Y"
+  "A" :: Stressed := "A" | "E" :: Stressed := "E" | "I" :: Stressed := "I" | "O" :: Stressed := "O" | "U" :: Stressed := "U" | "Y" :: Stressed := "Y"
 %emits
   $
 
 %rule apostrophe
   $_0027 | "’" | "‘" | "ʼ"
 %emits
-  $ ::∅ := "'"
+  $ :: ∅ := "'"
 
 %rule comma
   ","

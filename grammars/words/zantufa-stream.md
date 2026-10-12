@@ -20,7 +20,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅
 ```
@@ -36,12 +36,12 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker quote-gap $f:Rafsi-form ::$m.tags
+  $m:rahoi-marker quote-gap $f:Rafsi-Form :: $m.tags
 %emits
-  $m, $f ::Quoted-text
+  $m, $f :: Quoted-Text
 
 %rule rahoi-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   RAhOI ⊆ $q.classes
 ```
@@ -57,7 +57,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅
 ```
@@ -73,10 +73,10 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
 ```jbogenbau
 %redefine-rule hesitation
   (* spaces <- !Y initial_spaces *)
-  $h:y-run ::∅
+  $h:y-run :: ∅
 %conditions
-  ¬$h.onward.begins( y-bu-word),
-  (Run-initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨ Y-letters ⊆ $h.tags ∧ $h.following-tokens.begins( y-letter-ahead)
+  ¬$h.onward.begins(y-bu-word),
+  (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨ Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
 %erased
 
 
@@ -84,11 +84,11 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
   y-bu-word | Hesitation y-letter-ahead
 
 %rule attached-y
-  $h:Hesitation ::Word ∪ Cmavo ∪ Y
+  $h:Hesitation :: Word ∪ Cmavo ∪ Y
 %conditions
-  (Run-initial ∪ Spacing) ∩ $h.tags = ∅,
-  Y-letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins( y-letter-ahead),
-  ¬$h.onward.begins( y-bu-word)
+  (Run-Initial ∪ Spacing) ∩ $h.tags = ∅,
+  Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
+  ¬$h.onward.begins(y-bu-word)
 %emits
   $
 
@@ -116,22 +116,22 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   LU ∪ TO ∪ LUhEI
 
 %redefine-rule word
-  | sa-su? $c:read-word ::$c.tags
-  | ¬sa-su? $e:read-word ::$e.tags
-  | $o:text-opener $p:opener-spaces ::$o.tags
+  | sa-su? $c:read-word :: $c.tags
+  | ¬sa-su? $e:read-word :: $e.tags
+  | $o:text-opener $p:opener-spaces :: $o.tags
 %conditions
-  ¬$p.following-tokens.begins( opener-space-token),
-  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.begins( opener-space-token),
-  $e.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$e.following-tokens.begins( opener-space-token),
+  ¬$p.following-tokens.begins(opener-space-token),
+  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.begins(opener-space-token),
+  $e.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$e.following-tokens.begins(opener-space-token),
   $c.classes ∩ $MAGIC-WORDS = ∅,
   $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬$c.onward.begins( quote),
-  ¬$e.onward.begins( quote)
+  ¬$c.onward.begins(quote),
+  ¬$e.onward.begins(quote)
 %emits
   $
 
 %rule text-opener
-  $q:cmavo-token ::$q.tags
+  $q:cmavo-token :: $q.tags
 %conditions
   $q.classes ∩ $TEXT-OPENERS ≠ ∅
 %emits
@@ -146,8 +146,8 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   (* initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space *)
   $h:Hesitation
 %conditions
-  Opener-space ⊆ $h.tags,
-  ¬$h.onward.begins( y-bu-word)
+  Opener-Space ⊆ $h.tags,
+  ¬$h.onward.begins(y-bu-word)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>word</code> to <code>opener-space-token</code></summary>
@@ -161,10 +161,10 @@ The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even wh
 
 ```jbogenbau
 %extend-rule payload-token
-  Rafsi-form
+  Rafsi-Form
 
 %extend-rule delimiter
-  Rafsi-form
+  Rafsi-Form
 ```
 
 <details><summary>Railroad diagrams of <code>payload-token</code> and <code>delimiter</code></summary>
@@ -180,10 +180,10 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 
 ```jbogenbau
 %extend-rule unit
-  $b:bare-marker ::$b.tags
+  $b:bare-marker :: $b.tags
 %conditions
-  ¬$b.onward.begins( quote),
-  $b.following-tokens.begins( bare-marker-tail)
+  ¬$b.onward.begins(quote),
+  $b.following-tokens.begins(bare-marker-tail)
 
 %rule bare-marker-tail
   skipped si-word | skipped bu-word
@@ -208,7 +208,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ```jbogenbau
 %extend-rule unit
-  $s:su-letter-base skipped bu-word ::Word ∪ BY
+  $s:su-letter-base skipped bu-word :: Word ∪ BY
 %emits
   $
 
@@ -224,7 +224,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
   $q:read-word
 %conditions
   SU ⊆ $q.classes,
-  ¬$q.following-tokens.begins( su-letter-tail)
+  ¬$q.following-tokens.begins(su-letter-tail)
 ```
 
 <details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code>, <code>su-letter-tail</code> and <code>su-word</code></summary>

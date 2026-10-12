@@ -65,9 +65,9 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   $s.classes ∩ $SU-STOPS = ∅
 
 %rule stream
-  | empty $u:unit ::$u.tags
-  | $s:stream spacing $u:unit ::$s.tags ∪ $u.tags
-  | $s:stream spacing erasure ::$s.tags
+  | empty $u:unit :: $u.tags
+  | $s:stream spacing $u:unit :: $s.tags ∪ $u.tags
+  | $s:stream spacing erasure :: $s.tags
 
 %rule unit
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
@@ -85,15 +85,15 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   si-erasure | sa-su? sa-erasure
 
 %rule fault-unit
-  | empty bu-word ::Word ∪ BY ∪ Fault
-  | lehu-marker ::Word ∪ LEhU ∪ Fault
+  | empty bu-word :: Word ∪ BY ∪ Fault
+  | lehu-marker :: Word ∪ LEhU ∪ Fault
 %emits
   $
 
 %rule hesitation
-  $h:y-run ::∅
+  $h:y-run :: ∅
 %conditions
-  ¬$h.onward.begins( y-bu-word)
+  ¬$h.onward.begins(y-bu-word)
 %erased
 
 
@@ -111,7 +111,7 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 %rule sa-tail
   sa-su? sa-run spacing
 %conditions
-  ¬$.following-tokens.begins( read-word)
+  ¬$.following-tokens.begins(read-word)
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>text</code> to <code>sa-tail</code></summary>
@@ -152,32 +152,32 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   ZO ∪ ZOI ∪ LOhU ∪ LEhU ∪ ZOhOI ∪ MEhOI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
 
 %rule read-word
-  | $c:cmavo-token ::$c.tags
-  | $b:BRIVLA ::$b.tags
-  | $n:CMEVLA ::$n.tags
-  | $y:y-bu-word ::$y.tags
+  | $c:cmavo-token :: $c.tags
+  | $b:BRIVLA :: $b.tags
+  | $n:CMEVLA :: $n.tags
+  | $y:y-bu-word :: $y.tags
 
 %rule y-bu-word
   ::
-  Word ∪ BY ∪ Y-letter ∪ $b.tags ∪ Run-initial ∩ $b.first-token.tags ∪ Run-final ∩ $u.last-token.tags
+  Word ∪ BY ∪ Y-Letter ∪ $b.tags ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
   | $b:y-key [PAUSE] $u:bu-word
 
 %emits
   $
 
 %rule word
-  | sa-su? $c:read-word ::$c.tags
-  | ¬sa-su? $e:read-word ::$e.tags
+  | sa-su? $c:read-word :: $c.tags
+  | ¬sa-su? $e:read-word :: $e.tags
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
   $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬$c.onward.begins( quote),
-  ¬$e.onward.begins( quote)
+  ¬$c.onward.begins(quote),
+  ¬$e.onward.begins(quote)
 %emits
   $
 
 %rule cmavo-token
-  $c:Cmavo ::$c.tags
+  $c:Cmavo :: $c.tags
 
 ```
 
@@ -223,27 +223,27 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   quoted-word | zoi-y-quote | zoi-quote | lohu-quote | single-word-quote
 
 %rule quoted-word
-  $m:word-quote-marker quote-gap $w:read-word ::$m.tags
+  $m:word-quote-marker quote-gap $w:read-word :: $m.tags
 %emits
-  $m, $w ::Word
+  $m, $w :: Word
 
 %rule word-quote-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   ZO ⊆ $q.classes
 
 %rule single-word-quote
-  | $m:single-marker $r:zohoi-payload ::$m.tags
-  | $m:single-marker PAUSE [zohoi-hesitations [PAUSE]] $s:zohoi-payload ::$m.tags
+  | $m:single-marker $r:zohoi-payload :: $m.tags
+  | $m:single-marker PAUSE [zohoi-hesitations [PAUSE]] $s:zohoi-payload :: $m.tags
 %conditions
-  Run-final ⊆ $r.last-token.tags,
-  Run-final ⊆ $s.last-token.tags,
-  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins( raw-y-letter)
+  Run-Final ⊆ $r.last-token.tags,
+  Run-Final ⊆ $s.last-token.tags,
+  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
-  $m, $r ::Quoted-text, $s ::Quoted-text
+  $m, $r :: Quoted-Text, $s :: Quoted-Text
 
 %rule single-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅
 
@@ -254,11 +254,11 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
 
 %conditions
-  Y-letter ⊆ $open.tags,
+  Y-Letter ⊆ $open.tags,
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
-  $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags( body-with-y-close)
+  $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
-  $m, $open ::Word, $content ::Quoted-text, $close ::Word
+  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
 %rule zoi-quote
   ::
@@ -267,14 +267,14 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
 
 %conditions
-  Y-letter ⊈ $open.tags,
+  Y-Letter ⊈ $open.tags,
   $open.value = $close.value,
-  $open.value ∉ $content.value.split( " ")
+  $open.value ∉ $content.value.split(" ")
 %emits
-  $m, $open ::Word, $content ::Quoted-text, $close ::Word
+  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
 %const $Y-PROPERTIES
-  Word ∪ BY ∪ Y-letter ∪ Run-initial ∪ Run-final
+  Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule delimiter
   $w:read-word
@@ -290,7 +290,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %rule delimiter-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.begins( y-bu-word)
+  ¬$h.onward.begins(y-bu-word)
 %erased
 
 
@@ -306,7 +306,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %rule raw-run
   $r:raw-run-parts
 %conditions
-  Run-final ⊆ $r.last-token.tags
+  Run-Final ⊆ $r.last-token.tags
 
 %rule raw-run-parts
   matched-close-token | raw-run-parts matched-close-token
@@ -321,8 +321,8 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 
 %conditions
   $b.value = "bu",
-  Run-initial ⊆ $y.first-token.tags,
-  Run-final ⊆ $b.last-token.tags
+  Run-Initial ⊆ $y.first-token.tags,
+  Run-Final ⊆ $b.last-token.tags
 
 %rule raw-y-base
   | y-run
@@ -369,7 +369,7 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
 %rule zohoi-hesitation
   $h:y-run
 %conditions
-  ¬$h.onward.begins( raw-y-letter)
+  ¬$h.onward.begins(raw-y-letter)
 %erased
 
 
@@ -377,34 +377,34 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
 
 %rule body-with-y-close
-  [raw-tokens] $c:raw-y-close [raw-tokens] ::$c.tags
+  [raw-tokens] $c:raw-y-close [raw-tokens] :: $c.tags
 
 %rule empty-zoi-body
   ε
 
 
 %rule zoi-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   ZOI ⊆ $q.classes
 
 %rule lohu-quote
-  | $m:lohu-marker spacing lohu-stream spacing lehu-marker ::$m.tags
-  | $m:lohu-marker [PAUSE] lehu-marker ::$m.tags
+  | $m:lohu-marker spacing lohu-stream spacing lehu-marker :: $m.tags
+  | $m:lohu-marker [PAUSE] lehu-marker :: $m.tags
 
 %rule lohu-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LOhU ⊆ $q.classes
 %emits
   $
 
 %rule lehu-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LEhU ⊆ $q.classes
 %emits
-  $ ::LEhU
+  $ :: LEhU
 
 %rule lohu-stream
   | lohu-element
@@ -419,7 +419,7 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
 %conditions
   LEhU ⊈ $w.classes
 %emits
-  $ ::Word
+  $ :: Word
 
 %rule quote-gap
   [PAUSE] | [PAUSE] hesitations PAUSE | [PAUSE] hesitations
@@ -480,7 +480,7 @@ The CLL dialect requires pauses around a direct name base of BU. It tests the so
 
 ```jbogenbau
 %rule lerfu-word
-  $u:unit skipped bu-word ::Word ∪ BY ∪ Fault ∩ $u.tags
+  $u:unit skipped bu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
 %emits
   $
 
@@ -566,29 +566,29 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 
 
 %rule sa-nest
-  | $u:sa-open spacing sa-word ::$u.classes
-  | $u:sa-open spacing $n:sa-nest spacing sa-word ::$u.classes ∩ $n.classes
+  | $u:sa-open spacing sa-word :: $u.classes
+  | $u:sa-open spacing $n:sa-nest spacing sa-word :: $u.classes ∩ $n.classes
 %conditions
   $u.classes ≠ ∅,
   $u.classes ∩ $n.classes ≠ ∅
 
 %rule sa-open
-  | $u:unit ::$u.classes
-  | $s:sa-open spacing $u:unit ::$s.classes ∖ $u.classes
-  | $s:sa-open spacing erasure ::$s.classes
+  | $u:unit :: $u.classes
+  | $s:sa-open spacing $u:unit :: $s.classes ∖ $u.classes
+  | $s:sa-open spacing erasure :: $s.classes
 %conditions
   $.classes ≠ ∅
 
 %rule sa-key
   ::
-  $.following-tokens.tags( next-word-class)
+  $.following-tokens.tags(next-word-class)
   | ε
 
 %conditions
   SA ⊈ $.tags
 
 %rule next-word-class
-  spacing $w:read-word [raw-tokens] ::$w.classes ∪ Has-word
+  spacing $w:read-word [raw-tokens] :: $w.classes ∪ Has-Word
 
 %rule sa-word
   $q:cmavo-token
@@ -607,15 +607,15 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   | empty $n:sa-wipe-core spacing $k:sa-key
   | $s:stream spacing $n:sa-wipe-core spacing $k:sa-key
 %conditions
-  Has-word ⊆ $k.tags,
+  Has-Word ⊆ $k.tags,
   $s.classes ∩ $k.tags = ∅,
   $n.classes ∩ $k.tags ≠ ∅
 %erased
 
 
 %rule sa-wipe-core
-  | $u:sa-open spacing sa-run-twice ::$u.classes
-  | $u:sa-open spacing $n:sa-wipe-core spacing sa-word ::$u.classes ∩ $n.classes
+  | $u:sa-open spacing sa-run-twice :: $u.classes
+  | $u:sa-open spacing $n:sa-wipe-core spacing sa-word :: $u.classes ∩ $n.classes
 %conditions
   $u.classes ∩ $n.classes ≠ ∅
 
@@ -623,7 +623,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
   NIhO ∪ LU ∪ TUhE ∪ TO
 
 %rule su-survivor
-  sa-su? su-boundary? $b:unit skipped su-suffix ::$b.tags
+  sa-su? su-boundary? $b:unit skipped su-suffix :: $b.tags
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
 

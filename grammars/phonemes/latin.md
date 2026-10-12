@@ -32,7 +32,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 %rule punctuation-pause
   [commas] $c:punctuation [commas]
 %emits
-  $c ::PAUSE   := " "
+  $c :: PAUSE := " "
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char
@@ -46,16 +46,16 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 %rule punctuation-char
   $c:other-char
 %conditions
-  ¬$c.matches( any-lojban-char),
-  ¬$c.matches( core-char)
+  ¬$c.matches(any-lojban-char),
+  ¬$c.matches(core-char)
 
 %rule other-char
   $c:_
 %conditions
-  ¬$c.matches( alpha-char),
-  ¬$c.matches( mark-char),
-  ¬$c.matches( digit-char),
-  ¬$c.matches( space-char)
+  ¬$c.matches(alpha-char),
+  ¬$c.matches(mark-char),
+  ¬$c.matches(digit-char),
+  ¬$c.matches(space-char)
 
 %rule alpha-char
   _L
@@ -69,8 +69,8 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 %redefine-rule run-char
   $c:_
 %conditions
-  ¬$c.matches( core-char),
-  ¬$c.matches( punctuation-char)
+  ¬$c.matches(core-char),
+  ¬$c.matches(punctuation-char)
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>pause</code> to <code>run-char</code></summary>
@@ -97,10 +97,10 @@ A comma between vowels is ignored, as it is between other letters. It creates no
   | letters-after-consonant [commas] vowel-group
 
 %extend-rule vowel-group-plain
-  | vowel-group<¬Syllabic> commas $v:vowel ::$v.tags | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> ::$w.tags
+  | vowel-group<¬Syllabic> commas $v:vowel :: $v.tags | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> :: $w.tags
 
 %extend-rule vowel-group-joined
-  vowel-group<Syllabic> commas $v:joined-vowel<Syllabic> ::$v.tags
+  vowel-group<Syllabic> commas $v:joined-vowel<Syllabic> :: $v.tags
 ```
 
 <details><summary>Railroad diagrams of the 3 rules from <code>letters-after-vowel</code> to <code>vowel-group-joined</code></summary>
@@ -117,7 +117,7 @@ The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban par
 %extend-rule apostrophe
   "h" | "H"
 %emits
-  $ ::∅ := "'"
+  $ :: ∅ := "'"
 ```
 
 <details><summary>Railroad diagram of <code>apostrophe</code></summary>
@@ -139,7 +139,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 %redefine-rule ordinary-run
   $r:letters
 %conditions
-  ¬$r.matches( capital-shape)
+  ¬$r.matches(capital-shape)
 
 %rule capital-run
   capital-shape
@@ -160,7 +160,7 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   | capital-consonants commas capital-non-vowel
   | $c:capital-consonants decimal-point digit
 %conditions
-  $c.last-token.matches( digit)
+  $c.last-token.matches(digit)
 
 %rule capital-non-vowel
   consonant | digit | apostrophe
@@ -169,19 +169,19 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   folded-vowel | folded-vowel-group-plain | folded-vowel-group-joined
 
 %rule folded-vowel-group-plain
-  | folded-vowel-group<¬Syllabic> [commas] $v:folded-vowel ::$v.tags
-  | folded-vowel-group<Syllabic> [commas] $w:folded-vowel<¬Syllabic> ::$w.tags
+  | folded-vowel-group<¬Syllabic> [commas] $v:folded-vowel :: $v.tags
+  | folded-vowel-group<Syllabic> [commas] $w:folded-vowel<¬Syllabic> :: $w.tags
 
 %rule folded-vowel-group-joined
-  folded-vowel-group<Syllabic> [commas] $v:joined-folded-vowel<Syllabic> ::$v.tags
+  folded-vowel-group<Syllabic> [commas] $v:joined-folded-vowel<Syllabic> :: $v.tags
 
 %rule joined-folded-vowel
-  $v:folded-vowel ::$v.tags
+  $v:folded-vowel :: $v.tags
 %emits
   ε :: ∅ := "'", $v
 
 %rule folded-vowel
-  "A" ::∅ := "a" | "E" ::∅ := "e" | "I" ::∅ := "i" | "O" ::∅ := "o" | "U" ::∅ := "u" | "Y" ::∅ := "y"
+  "A" :: ∅ := "a" | "E" :: ∅ := "e" | "I" :: ∅ := "i" | "O" :: ∅ := "o" | "U" :: ∅ := "u" | "Y" :: ∅ := "y"
 %emits
   $
 ```
@@ -208,18 +208,18 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ```jbogenbau
 %extend-rule plain-vowel
-  | "ĭ" ::∅ := "i" | "Ĭ" ::∅ := "i" | "i" glide-mark ::∅ := "i" | "I" glide-mark ::∅ := "i"
-  | "ŭ" ::∅ := "u" | "Ŭ" ::∅ := "u" | "u" glide-mark ::∅ := "u" | "U" glide-mark ::∅ := "u"
+  | "ĭ" :: ∅ := "i" | "Ĭ" :: ∅ := "i" | "i" glide-mark :: ∅ := "i" | "I" glide-mark :: ∅ := "i"
+  | "ŭ" :: ∅ := "u" | "Ŭ" :: ∅ := "u" | "u" glide-mark :: ∅ := "u" | "U" glide-mark :: ∅ := "u"
 %emits
   $
 
 %extend-rule stressed-vowel
-  | "á" ::Stressed := "A" | "à" ::Stressed := "A" | "Á" ::Stressed := "A" | "À" ::Stressed := "A" | "a" stress-mark ::Stressed := "A" | "A" stress-mark ::Stressed := "A"
-  | "é" ::Stressed := "E" | "è" ::Stressed := "E" | "É" ::Stressed := "E" | "È" ::Stressed := "E" | "e" stress-mark ::Stressed := "E" | "E" stress-mark ::Stressed := "E"
-  | "í" ::Stressed := "I" | "ì" ::Stressed := "I" | "Í" ::Stressed := "I" | "Ì" ::Stressed := "I" | "i" stress-mark ::Stressed := "I" | "I" stress-mark ::Stressed := "I"
-  | "ó" ::Stressed := "O" | "ò" ::Stressed := "O" | "Ó" ::Stressed := "O" | "Ò" ::Stressed := "O" | "o" stress-mark ::Stressed := "O" | "O" stress-mark ::Stressed := "O"
-  | "ú" ::Stressed := "U" | "ù" ::Stressed := "U" | "Ú" ::Stressed := "U" | "Ù" ::Stressed := "U" | "u" stress-mark ::Stressed := "U" | "U" stress-mark ::Stressed := "U"
-  | "ý" ::Stressed := "Y" | "ỳ" ::Stressed := "Y" | "Ý" ::Stressed := "Y" | "Ỳ" ::Stressed := "Y" | "y" stress-mark ::Stressed := "Y" | "Y" stress-mark ::Stressed := "Y"
+  | "á" :: Stressed := "A" | "à" :: Stressed := "A" | "Á" :: Stressed := "A" | "À" :: Stressed := "A" | "a" stress-mark :: Stressed := "A" | "A" stress-mark :: Stressed := "A"
+  | "é" :: Stressed := "E" | "è" :: Stressed := "E" | "É" :: Stressed := "E" | "È" :: Stressed := "E" | "e" stress-mark :: Stressed := "E" | "E" stress-mark :: Stressed := "E"
+  | "í" :: Stressed := "I" | "ì" :: Stressed := "I" | "Í" :: Stressed := "I" | "Ì" :: Stressed := "I" | "i" stress-mark :: Stressed := "I" | "I" stress-mark :: Stressed := "I"
+  | "ó" :: Stressed := "O" | "ò" :: Stressed := "O" | "Ó" :: Stressed := "O" | "Ò" :: Stressed := "O" | "o" stress-mark :: Stressed := "O" | "O" stress-mark :: Stressed := "O"
+  | "ú" :: Stressed := "U" | "ù" :: Stressed := "U" | "Ú" :: Stressed := "U" | "Ù" :: Stressed := "U" | "u" stress-mark :: Stressed := "U" | "U" stress-mark :: Stressed := "U"
+  | "ý" :: Stressed := "Y" | "ỳ" :: Stressed := "Y" | "Ý" :: Stressed := "Y" | "Ỳ" :: Stressed := "Y" | "y" stress-mark :: Stressed := "Y" | "Y" stress-mark :: Stressed := "Y"
 %emits
   $
 
@@ -246,7 +246,7 @@ Each digit emits the letters of its number word, so `2` is `re`. A period betwee
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches( digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches( digit)
+  ¬$i.last-token.matches(digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches(digit)
 
 %extend-rule non-vowel
   digit
@@ -254,7 +254,7 @@ Each digit emits the letters of its number word, so `2` is `re`. A period betwee
 %extend-rule non-vowels
   $n:non-vowels decimal-point digit
 %conditions
-  $n.last-token.matches( digit)
+  $n.last-token.matches(digit)
 
 %extend-rule any-lojban-char
   digit
@@ -265,57 +265,57 @@ Each digit emits the letters of its number word, so `2` is `re`. A period betwee
 %rule digit-0
   "0"
 %emits
-  $ ::∅ := "n", $ ::∅ := "o"
+  $ :: ∅ := "n", $ :: ∅ := "o"
 
 %rule digit-1
   "1"
 %emits
-  $ ::∅ := "p", $ ::∅ := "a"
+  $ :: ∅ := "p", $ :: ∅ := "a"
 
 %rule digit-2
   "2"
 %emits
-  $ ::∅ := "r", $ ::∅ := "e"
+  $ :: ∅ := "r", $ :: ∅ := "e"
 
 %rule digit-3
   "3"
 %emits
-  $ ::∅ := "c", $ ::∅ := "i"
+  $ :: ∅ := "c", $ :: ∅ := "i"
 
 %rule digit-4
   "4"
 %emits
-  $ ::∅ := "v", $ ::∅ := "o"
+  $ :: ∅ := "v", $ :: ∅ := "o"
 
 %rule digit-5
   "5"
 %emits
-  $ ::∅ := "m", $ ::∅ := "u"
+  $ :: ∅ := "m", $ :: ∅ := "u"
 
 %rule digit-6
   "6"
 %emits
-  $ ::∅ := "x", $ ::∅ := "a"
+  $ :: ∅ := "x", $ :: ∅ := "a"
 
 %rule digit-7
   "7"
 %emits
-  $ ::∅ := "z", $ ::∅ := "e"
+  $ :: ∅ := "z", $ :: ∅ := "e"
 
 %rule digit-8
   "8"
 %emits
-  $ ::∅ := "b", $ ::∅ := "i"
+  $ :: ∅ := "b", $ :: ∅ := "i"
 
 %rule digit-9
   "9"
 %emits
-  $ ::∅ := "s", $ ::∅ := "o"
+  $ :: ∅ := "s", $ :: ∅ := "o"
 
 %rule decimal-point
   "."
 %emits
-  $ ::∅ := "p", $ ::∅ := "i"
+  $ :: ∅ := "p", $ :: ∅ := "i"
 ```
 
 <details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>

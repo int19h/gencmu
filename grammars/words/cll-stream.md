@@ -12,8 +12,8 @@ The stage gives the warning where it reads the word as a Lojban word. That is, t
 
 ```jbogenbau
 %redefine-rule cmavo-token
-  | Cmavo<¬Cmavo-warning>
-  | y-cmavo! Cmavo<Cmavo-warning>
+  | Cmavo<¬Cmavo-Warning>
+  | y-cmavo! Cmavo<Cmavo-Warning>
 ```
 
 <details><summary>Railroad diagram of <code>cmavo-token</code></summary>
@@ -28,9 +28,9 @@ A replacement name keeps its source boundary. Thus `ladjan. sa .djim. bu` leaves
 
 ```jbogenbau
 %redefine-rule lerfu-word
-  $u:unit skipped bu-word ::Word ∪ BY ∪ Fault ∩ $u.tags
+  $u:unit skipped bu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
 %conditions
-  CMEVLA ⊈ $u.tags ∨ Run-initial ⊆ $u.tags
+  CMEVLA ⊈ $u.tags ∨ Run-Initial ⊆ $u.tags
 %emits
   $
 ```

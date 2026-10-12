@@ -23,9 +23,9 @@ The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. 
 %redefine-rule m              (* m <- comma* [mM] !h !glide !m *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins( h),
-  ¬$c.following-tokens.begins( glide),
-  ¬$c.following-tokens.begins( m)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
@@ -41,13 +41,13 @@ An extended rafsi is a whole or shortened word before a y-hyphen. `extended-rafs
   | hy-rafsi
   | $f:fuhivla-rafsi
 %conditions
-  ¬$f.onward.begins( hy-rafsi)
+  ¬$f.onward.begins(hy-rafsi)
 
 %redefine-rule stressed-extended-rafsi (* stressed_extended_rafsi <- stressed_hy_rafsi / stressed_fuhivla_rafsi *)
   | stressed-hy-rafsi
   | $f:stressed-fuhivla-rafsi
 %conditions
-  ¬$f.onward.begins( stressed-hy-rafsi)
+  ¬$f.onward.begins(stressed-hy-rafsi)
 
 %redefine-rule long-rafsi-vowel (* long_rafsi unstressed_vowel, in hy_rafsi *)
   long-rafsi unstressed-vowel
@@ -65,8 +65,8 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %redefine-rule brivla         (* brivla <- !cmavo !slihykru initial_rafsi* brivla_core *)
   $r:initial-rafsis brivla-core
 %conditions
-  ¬$r.onward.begins( cmavo),
-  ¬$r.onward.begins( slihykru)
+  ¬$r.onward.begins(cmavo),
+  ¬$r.onward.begins(slihykru)
 
 %rule slihykru                (* slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset; only a lookahead *)
   (ccv-rafsi | stressed-ccv-rafsi) h y onset
@@ -83,7 +83,7 @@ The onset after a borrowing rafsi head can be an apostrophe. So `kerlyfa'u'yiism
 %redefine-rule fuhivla-rafsi  (* fuhivla_rafsi <- &unstressed_syllable fuhivla_head onset y h? *)
   $f:fuhivla-head onset y h-opt
 %conditions
-  $f.onward.begins( unstressed-syllable)
+  $f.onward.begins(unstressed-syllable)
 
 %redefine-rule stressed-fuhivla-rafsi (* stressed_fuhivla_rafsi <- fuhivla_head stressed_syllable consonantal_syllable* onset y *)
   fuhivla-head stressed-syllable consonantal-syllables onset y
@@ -102,11 +102,11 @@ The onset after a borrowing rafsi head can be an apostrophe. So `kerlyfa'u'yiism
   | $y:y-rafsi
   | $l:y-less-rafsi
 %conditions
-  ¬$y.onward.begins( extended-rafsi),
-  ¬$l.onward.begins( extended-rafsi),
-  ¬$l.onward.begins( y-rafsi),
-  ¬$l.onward.begins( any-fuhivla-rafsi),
-  ¬$l.following-tokens.begins( any-fuhivla-rafsi)
+  ¬$y.onward.begins(extended-rafsi),
+  ¬$l.onward.begins(extended-rafsi),
+  ¬$l.onward.begins(y-rafsi),
+  ¬$l.onward.begins(any-fuhivla-rafsi),
+  ¬$l.following-tokens.begins(any-fuhivla-rafsi)
 
 %rule any-fuhivla-rafsi       (* any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi; only a lookahead *)
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi

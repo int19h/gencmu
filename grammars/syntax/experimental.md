@@ -100,9 +100,9 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
   (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
   $i:I
 %conditions
-  ¬$i.following-tokens.begins( ek),
-  ¬$i.following-tokens.begins( jek),
-  ¬$i.following-tokens.begins( joik)
+  ¬$i.following-tokens.begins(ek),
+  ¬$i.following-tokens.begins(jek),
+  ¬$i.following-tokens.begins(joik)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>text</code> to <code>lone-i</code></summary>
@@ -289,31 +289,31 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %redefine-rule term
   (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
   | term-bo-group
-  | $t:term $l:term-link ::$l.tags ∩ $EXTENSIBLE-END
+  | $t:term $l:term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  Link-extensible-end ⊈ $t.tags ∨ Sumti-start ⊈ $l.tags
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-group
   (* term_2 <- term_3 (joik_ek stag? BO_clause term_3)* *)
   | term-3
-  | $g:term-bo-group $l:term-bo-link ::($g.tags ∩ Sumti-start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:term-bo-group $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  Bo-extensible-end ⊈ $g.tags ∨ Sumti-start ⊈ $l.tags
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-link
   ::
-  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-start)
+  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | term-connective [stag] BO # $u:term-3
 
 
 %rule term-link
   ::
-  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-start)
+  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | $c:term-connective $g:term-bo-group
 
 %conditions
-  ¬$c.following-tokens.begins( tag-bo-ke-bridi-tail),
-  ¬$c.following-tokens.begins( tag-bo-subsentence)
+  ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
+  ¬$c.following-tokens.begins(tag-bo-subsentence)
 
 %rule tag-bo-ke-bridi-tail
   (* tag_bo_ke_bridi_tail <- stag (BO_clause / KE_clause) CU_elidible free* (selbri / gek_sentence) *)
@@ -326,12 +326,12 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %rule term-connective
   joik # | jek # | ek # | VUhU #
 
-%const $EXTENSIBLE-END Link-extensible-end ∪ Bo-extensible-end
+%const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
-  | $s:sumti ::$s.tags ∪ Sumti-start
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | tagged-term
   | termset
   | NA # KU #
@@ -342,7 +342,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
   $n:NA #
 %conditions
-  ¬$n.onward.begins( na-connective)
+  ¬$n.onward.begins(na-connective)
 
 %rule na-connective
   gek | ek | jek | joik | gihek
@@ -352,43 +352,43 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
-  | $g:tag $s:sumti ::$s.tags ∩ $EXTENSIBLE-END
+  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | $g:tag [+KU] #
 %conditions
-  ¬$g.onward.begins( gek)
+  ¬$g.onward.begins(gek)
 
 %rule listed-term
   (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
   | listed-term-bo-group
-  | $t:listed-term $l:listed-term-link ::$l.tags ∩ $EXTENSIBLE-END
+  | $t:listed-term $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  Link-extensible-end ⊈ $t.tags ∨ Sumti-start ⊈ $l.tags
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-group
   (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
   | listed-term-3
-  | $g:listed-term-bo-group $l:listed-term-bo-link ::($g.tags ∩ Sumti-start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:listed-term-bo-group $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  Bo-extensible-end ⊈ $g.tags ∨ Sumti-start ⊈ $l.tags
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-link
   ::
-  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-start)
+  $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | term-connective [stag] BO # $u:listed-term-3
 
 
 %rule listed-term-link
   ::
-  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-start)
+  $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
   | $c:term-connective $g:listed-term-bo-group
 
 %conditions
-  ¬$c.following-tokens.begins( tag-bo-ke-bridi-tail),
-  ¬$c.following-tokens.begins( tag-bo-subsentence)
+  ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
+  ¬$c.following-tokens.begins(tag-bo-subsentence)
 
 %rule listed-term-3
   (* abs_term_3 <- sumti / abs_tag_term / termset *)
-  | $s:sumti ::$s.tags ∪ Sumti-start
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | listed-tagged-term
   | termset
   | NA # KU #
@@ -397,11 +397,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
-  | $g:tag $s:sumti ::$s.tags ∩ $EXTENSIBLE-END
+  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | $g:tag [+KU] #
 %conditions
-  ¬$g.onward.begins( gek),
-  ¬$g.following-tokens.begins( selbri-after-tag)
+  ¬$g.onward.begins(gek),
+  ¬$g.following-tokens.begins(selbri-after-tag)
 
 %rule selbri-after-tag
   # (selbri | gek-sentence)
@@ -410,7 +410,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   (* !selbri !gek_sentence !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
   $n:NA #
 %conditions
-  ¬$n.onward.begins( listed-na-follower)
+  ¬$n.onward.begins(listed-na-follower)
 
 %rule listed-na-follower
   selbri | gek-sentence | ek | jek | joik | gihek
@@ -448,18 +448,18 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule listed-term-not-starting-with-bare-gek
   | listed-term-bo-group-not-starting-with-bare-gek
-  | $t:listed-term-not-starting-with-bare-gek $l:listed-term-link ::$l.tags ∩ $EXTENSIBLE-END
+  | $t:listed-term-not-starting-with-bare-gek $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  Link-extensible-end ⊈ $t.tags ∨ Sumti-start ⊈ $l.tags
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-group-not-starting-with-bare-gek
   | listed-term-3-not-starting-with-bare-gek
-  | $g:listed-term-bo-group-not-starting-with-bare-gek $l:listed-term-bo-link ::($g.tags ∩ Sumti-start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:listed-term-bo-group-not-starting-with-bare-gek $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  Bo-extensible-end ⊈ $g.tags ∨ Sumti-start ⊈ $l.tags
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-3-not-starting-with-bare-gek
-  | $s:sumti ::$s.tags ∪ Sumti-start
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | listed-tagged-term
   | termset-with-nuhi
   | NA # KU #
@@ -532,12 +532,12 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti
   | sumti-1
-  | sumti-1 VUhO # [relative-clauses] ::Link-extensible-end
-  | sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti ::$i.tags ∩ $EXTENSIBLE-END
+  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
+  | sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # ::KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-2
   ::
@@ -580,7 +580,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  ¬$s.first-token.matches( quantifier-head),
+  ¬$s.first-token.matches(quantifier-head),
   $s ≇ $QUANTIFIED-SUMTI
 
 %rule quantifier-head
@@ -795,9 +795,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   (* quantifier <- !selbri !sumti_6 mex *)
   $m:mex
 %conditions
-  ¬$m.first-token.matches( quantifier-barrier),
-  ¬$m.onward.begins( gek-barrier),
-  ¬$m.onward.begins( selbri)
+  ¬$m.first-token.matches(quantifier-barrier),
+  ¬$m.onward.begins(gek-barrier),
+  ¬$m.onward.begins(selbri)
 
 %rule quantifier-barrier
   BY | LAU | TEI | LAhE | NAhE
@@ -991,19 +991,19 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
   [+BOI] $f:#
 %conditions
-  $.begins( spoken-boi) ∨ ¬$f.begins( number-part)
+  $.begins(spoken-boi) ∨ ¬$f.begins(number-part)
 
 %rule free-after-lerfu-string
   (* lerfu_string BOI_elidible free*: after an elided boi, the string has read every letter *)
   [+BOI] $f:#
 %conditions
-  $.begins( spoken-boi) ∨ ¬$f.begins( lerfu-word)
+  $.begins(spoken-boi) ∨ ¬$f.begins(lerfu-word)
 
 %rule spoken-boi
   BOI
 
 %rule lohai-word
-  Word<¬LOhAI   ¬LEhAI>
+  Word<¬LOhAI ¬LEhAI>
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>

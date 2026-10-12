@@ -33,7 +33,7 @@
                 "Continued",
                 "Indicator",
                 "Onset",
-                "Run-initial",
+                "Run-Initial",
                 "Word"
               ],
               "span": [
@@ -52,11 +52,11 @@
               "tags": [
                 "BRIVLA",
                 "Gismu",
-                "Initial-stress",
+                "Initial-Stress",
                 "Onset",
-                "Open-stress",
-                "Run-final",
-                "Stress-guard",
+                "Open-Stress",
+                "Run-Final",
+                "Stress-Guard",
                 "Word"
               ],
               "span": [
@@ -98,10 +98,10 @@
             "tags": [
               "BRIVLA",
               "Gismu",
-              "Initial-stress",
+              "Initial-Stress",
               "Onset",
-              "Open-stress",
-              "Stress-guard",
+              "Open-Stress",
+              "Stress-Guard",
               "Word"
             ],
             "children": [
@@ -119,10 +119,10 @@
                 "tags": [
                   "BRIVLA",
                   "Gismu",
-                  "Initial-stress",
+                  "Initial-Stress",
                   "Onset",
-                  "Open-stress",
-                  "Stress-guard",
+                  "Open-Stress",
+                  "Stress-Guard",
                   "Word"
                 ],
                 "children": [
@@ -140,10 +140,10 @@
                     "tags": [
                       "BRIVLA",
                       "Gismu",
-                      "Initial-stress",
+                      "Initial-Stress",
                       "Onset",
-                      "Open-stress",
-                      "Stress-guard",
+                      "Open-Stress",
+                      "Stress-Guard",
                       "Word"
                     ],
                     "children": [
@@ -161,10 +161,10 @@
                         "tags": [
                           "BRIVLA",
                           "Gismu",
-                          "Initial-stress",
+                          "Initial-Stress",
                           "Onset",
-                          "Open-stress",
-                          "Stress-guard",
+                          "Open-Stress",
+                          "Stress-Guard",
                           "Word"
                         ],
                         "children": [
@@ -449,10 +449,10 @@
                             "tags": [
                               "BRIVLA",
                               "Gismu",
-                              "Initial-stress",
+                              "Initial-Stress",
                               "Onset",
-                              "Open-stress",
-                              "Stress-guard",
+                              "Open-Stress",
+                              "Stress-Guard",
                               "Word"
                             ],
                             "children": [
@@ -470,10 +470,10 @@
                                 "tags": [
                                   "BRIVLA",
                                   "Gismu",
-                                  "Initial-stress",
+                                  "Initial-Stress",
                                   "Onset",
-                                  "Open-stress",
-                                  "Stress-guard",
+                                  "Open-Stress",
+                                  "Stress-Guard",
                                   "Word"
                                 ],
                                 "children": [
@@ -491,10 +491,10 @@
                                     "tags": [
                                       "BRIVLA",
                                       "Gismu",
-                                      "Initial-stress",
+                                      "Initial-Stress",
                                       "Onset",
-                                      "Open-stress",
-                                      "Stress-guard",
+                                      "Open-Stress",
+                                      "Stress-Guard",
                                       "Word"
                                     ],
                                     "children": [
@@ -511,10 +511,10 @@
                                         ],
                                         "tags": [
                                           "Gismu",
-                                          "Initial-stress",
+                                          "Initial-Stress",
                                           "Onset",
-                                          "Open-stress",
-                                          "Stress-guard"
+                                          "Open-Stress",
+                                          "Stress-Guard"
                                         ],
                                         "children": [
                                           {

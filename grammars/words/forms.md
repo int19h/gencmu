@@ -57,15 +57,15 @@ A run that divides into words divides in one way only. The word forms of each fa
 %rule foreign-token
   $f:FOREIGN
 %emits
-  $ ::$f.tags ∪ Run-initial ∪ Run-final
+  $ :: $f.tags ∪ Run-Initial ∪ Run-Final
 
 %rule unsegmentable-run
   $f:phoneme-sequence
 %conditions
-  ¬$f.following-tokens.begins( nonpause-phoneme),
-  ¬$f.matches( word-run)
+  ¬$f.following-tokens.begins(nonpause-phoneme),
+  ¬$f.matches(word-run)
 %emits
-  $ ::FOREIGN ∪ Run-initial ∪ Run-final
+  $ :: FOREIGN ∪ Run-Initial ∪ Run-Final
 
 %rule phoneme-sequence
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
@@ -111,17 +111,17 @@ The BPFK word forms set only `onset` and `continued`, with the meaning that the 
 
 ```jbogenbau
 %rule run-words
-  | $f:first-word ::$f.tags
+  | $f:first-word :: $f.tags
   | $r:run-words $v:later-word
-      ::$v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-stress ∩ $r.tags)
+      :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
 %conditions
-  (Continued ∪ Cy ∪ Name-intro ∪ Open-stress) ∩ $r.tags ≠ ∅,
+  (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
     ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
-    ∨ Name-intro ⊆ $r.tags ∧ Name-onset ⊆ $v.tags
-    ∨ Open-stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
-  Final-stress ⊈ $r.tags ∨ (Stress-guard ∪ Initial-stress) ∩ $v.tags = ∅,
-  Open-stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
+    ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
+    ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
+  Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
+  Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 ```
 
 <details><summary>Railroad diagram of <code>run-words</code></summary>
@@ -145,9 +145,9 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %rule ordinary-first-word
   $w:source-word
 %conditions
-  ¬$w.onward.begins( split-first-y)
+  ¬$w.onward.begins(split-first-y)
 %emits
-  $ ::$w.tags ∪ Run-initial ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ Run-Initial ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule later-word
   ordinary-later-word | split-later-y
@@ -155,33 +155,33 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %rule ordinary-later-word
   $w:source-word
 %conditions
-  ¬$w.onward.begins( split-later-y)
+  ¬$w.onward.begins(split-later-y)
 %emits
-  $ ::$w.tags ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-first-y
   ::
-  $.tags( source-word)
+  $.tags(source-word)
   | $p:y-prefix $y:y-atom
 
 %conditions
-  $.matches( hesitation-shape),
-  $.following-tokens.begins( bu-form-ahead)
+  $.matches(hesitation-shape),
+  $.following-tokens.begins(bu-form-ahead)
 %emits
-  $p ::$.tags( source-word) ∪ Run-initial,
-  $y ::$.tags( source-word) ∪ Spacing ∪ After-hesitation ∪ (¬$.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $p :: $.tags(source-word) ∪ Run-Initial,
+  $y :: $.tags(source-word) ∪ Spacing ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   ::
-  $.tags( source-word)
+  $.tags(source-word)
   | $p:y-prefix $y:y-atom
 
 %conditions
-  $.matches( hesitation-shape),
-  $.following-tokens.begins( bu-form-ahead)
+  $.matches(hesitation-shape),
+  $.following-tokens.begins(bu-form-ahead)
 %emits
-  $p ::$.tags( source-word),
-  $y ::$.tags( source-word) ∪ After-hesitation ∪ (¬$.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $p :: $.tags(source-word),
+  $y :: $.tags(source-word) ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom
@@ -216,10 +216,10 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 ```jbogenbau
 %rule source-word
-  | $c:cmavo-shape ::Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify( lexicon)
-  | $b:brivla-shape ::Word ∪ BRIVLA ∪ $b.tags
-  | $n:cmevla-shape ::Word ∪ CMEVLA ∪ $n.tags
-  | $h:hesitation-shape ::Hesitation ∪ $h.tags
+  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
+  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
+  | $h:hesitation-shape :: Hesitation ∪ $h.tags
 ```
 
 <details><summary>Railroad diagram of <code>source-word</code></summary>
@@ -232,7 +232,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 
 ```jbogenbau
 %rule hesitation-shape
-  $h:y-run ::Continued ∪ Uncounted ∪ $h.tags
+  $h:y-run :: Continued ∪ Uncounted ∪ $h.tags
 
 %rule y-run
   any-y | any-y y-run | any-y "," y-run

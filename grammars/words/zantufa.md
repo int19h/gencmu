@@ -25,9 +25,9 @@ A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel
 %redefine-rule m              (* m <- [mM] !h !glide !m *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins( h),
-  ¬$c.following-tokens.begins( glide),
-  ¬$c.following-tokens.begins( m)
+  ¬$c.following-tokens.begins(h),
+  ¬$c.following-tokens.begins(glide),
+  ¬$c.following-tokens.begins(m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
@@ -41,14 +41,14 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 ```jbogenbau
 %redefine-rule source-word
   (* spaces <- !Y initial_spaces;  initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF;  Y <- &cmavo ( y+ / i e h o ) &post_word *)
-  | $c:cmavo-shape ::Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify( lexicon)
-  | $y:cmavo-shape ::Hesitation ∪ $y.tags
-  | $b:brivla-shape ::Word ∪ BRIVLA ∪ $b.tags
-  | $n:cmevla-shape ::Word ∪ CMEVLA ∪ $n.tags
-  | $h:hesitation-shape ::Hesitation ∪ Y-letters ∪ $h.tags
+  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
+  | $y:cmavo-shape :: Hesitation ∪ $y.tags
+  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
+  | $h:hesitation-shape :: Hesitation ∪ Y-Letters ∪ $h.tags
 %conditions
-  Y ⊈ $c.value.classify( lexicon),
-  Y ⊆ $y.value.classify( lexicon)
+  Y ⊈ $c.value.classify(lexicon),
+  Y ⊆ $y.value.classify(lexicon)
 ```
 
 <details><summary>Railroad diagram of <code>source-word</code></summary>
@@ -74,11 +74,11 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 ```jbogenbau
 %redefine-rule runs
-  | $r:run ::$r.tags
-  | $p:runs pause-token $r:run ::$r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches( only-hesitation) ⟹ RAhOI)
-  | $q:runs pause-token $s:rahoi-rest ::$s.tags
+  | $r:run :: $r.tags
+  | $p:runs pause-token $r:run :: $r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
+  | $q:runs pause-token $s:rahoi-rest :: $s.tags
 %conditions
-  RAhOI ⊈ $p.tags ∨ ¬$r.matches( rahoi-rest),
+  RAhOI ⊈ $p.tags ∨ ¬$r.matches(rahoi-rest),
   RAhOI ⊆ $q.tags
 
 %extend-rule word-run
@@ -88,77 +88,77 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 
 %redefine-rule run-words
-  | $f:first-word ::$f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
+  | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
   | $r:run-words $v:later-word
-      ::$v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-stress ∩ $r.tags)
-  | $s:run-words $y:joined-hesitation ::$y.tags
-  | $t:run-words $u:space-hesitation ::$u.tags ∪ Spacing
-  | $q:run-words $x:space-piece ::$x.tags ∪ Spacing ∪ After-hesitation
-  | $o:run-words $n:opener-space ::$n.tags ∪ Opener-space
+      :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
+  | $s:run-words $y:joined-hesitation :: $y.tags
+  | $t:run-words $u:space-hesitation :: $u.tags ∪ Spacing
+  | $q:run-words $x:space-piece :: $x.tags ∪ Spacing ∪ After-Hesitation
+  | $o:run-words $n:opener-space :: $n.tags ∪ Opener-Space
 %conditions
-  Y-letters ⊆ $s.tags,
-  (Spacing ∪ Opener-space) ∩ $s.tags = ∅,
+  Y-Letters ⊆ $s.tags,
+  (Spacing ∪ Opener-Space) ∩ $s.tags = ∅,
   Spacing ⊆ $q.tags,
-  Y-letters ⊆ $q.tags,
+  Y-Letters ⊆ $q.tags,
   Spacing ⊆ $t.tags,
-  Opener-space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅,
-  Y-letters ⊈ $t.tags ∨ Y-letters ⊈ $u.tags,
-  Y-letters ⊈ $r.tags ∨ Y-letters ⊈ $v.tags,
-  Hesitation ⊈ $v.tags ∨ (Spacing ∪ Opener-space) ∩ $r.tags = ∅ ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
-  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins( rahoi-form),
-  (Continued ∪ Cy ∪ Name-intro ∪ Open-stress) ∩ $r.tags ≠ ∅,
+  Opener-Space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅,
+  Y-Letters ⊈ $t.tags ∨ Y-Letters ⊈ $u.tags,
+  Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
+  Hesitation ⊈ $v.tags ∨ (Spacing ∪ Opener-Space) ∩ $r.tags = ∅ ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
+  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
+  (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
     ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
-    ∨ Name-intro ⊆ $r.tags ∧ Name-onset ⊆ $v.tags
-    ∨ Open-stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
-  Final-stress ⊈ $r.tags ∨ (Stress-guard ∪ Initial-stress) ∩ $v.tags = ∅,
-  Open-stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
+    ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
+    ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
+  Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
+  Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 
 %rule rahoi-rest
-  | $p:rahoi-form ::∅
-  | rahoi-form $w:rahoi-tail ::$w.tags
-  | rahoi-form $v:rahoi-tail $s:rahoi-rest ::$s.tags
-  | $h:run-words $t:rahoi-rest ::$t.tags
+  | $p:rahoi-form :: ∅
+  | rahoi-form $w:rahoi-tail :: $w.tags
+  | rahoi-form $v:rahoi-tail $s:rahoi-rest :: $s.tags
+  | $h:run-words $t:rahoi-rest :: $t.tags
 %conditions
   RAhOI ⊆ $v.tags,
-  $h.matches( only-hesitation)
+  $h.matches(only-hesitation)
 
 %rule rahoi-tail
   (* the words after a ra'oi form in its run: the first of them does not begin the run *)
-  | $v:later-word ::$v.tags
-  | $r:rahoi-tail $v:later-word ::$v.tags
-  | $s:rahoi-tail $y:joined-hesitation ::$y.tags
-  | $o:rahoi-tail $n:opener-space ::$n.tags ∪ Opener-space
+  | $v:later-word :: $v.tags
+  | $r:rahoi-tail $v:later-word :: $v.tags
+  | $s:rahoi-tail $y:joined-hesitation :: $y.tags
+  | $o:rahoi-tail $n:opener-space :: $n.tags ∪ Opener-Space
 %conditions
-  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins( rahoi-form),
-  Y-letters ⊈ $r.tags ∨ Y-letters ⊈ $v.tags,
-  Hesitation ⊈ $v.tags ∨ Opener-space ⊈ $r.tags ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
-  Y-letters ⊆ $s.tags,
-  Opener-space ⊈ $s.tags,
-  Opener-space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅
+  RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
+  Y-Letters ⊈ $r.tags ∨ Y-Letters ⊈ $v.tags,
+  Hesitation ⊈ $v.tags ∨ Opener-Space ⊈ $r.tags ∧ $r.classes ∩ $TEXT-OPENERS = ∅,
+  Y-Letters ⊆ $s.tags,
+  Opener-Space ⊈ $s.tags,
+  Opener-Space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅
 
 %rule space-hesitation
   (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)
   $w:source-word<Hesitation>
 %emits
-  $ ::$w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule opener-space
   (* a hesitation after a text opener, or after such a hesitation: space if that word opens a text *)
   $w:source-word<Hesitation>
 %emits
-  $ ::$w.tags ∪ Opener-space ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule space-piece
   ordinary-space-piece | split-later-y
 
 %rule ordinary-space-piece
   (* the next piece of one run of y letters inside space *)
-  $w:source-word<Y-letters>
+  $w:source-word<Y-Letters>
 %conditions
-  ¬$w.onward.begins( split-later-y)
+  ¬$w.onward.begins(split-later-y)
 %emits
-  $ ::$w.tags ∪ Spacing ∪ After-hesitation ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ Spacing ∪ After-Hesitation ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule only-hesitation
   (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
@@ -171,13 +171,13 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   | $s:y-less-rafsi
   | $g:gismu
 %conditions
-  ¬$l.onward.begins( y-rafsi),
-  ¬$s.onward.begins( long-rafsi),
-  ¬$g.onward.begins( y-rafsi),
-  ¬$g.onward.begins( long-rafsi),
-  ¬$g.onward.begins( y-less-rafsi)
+  ¬$l.onward.begins(y-rafsi),
+  ¬$s.onward.begins(long-rafsi),
+  ¬$g.onward.begins(y-rafsi),
+  ¬$g.onward.begins(long-rafsi),
+  ¬$g.onward.begins(y-less-rafsi)
 %emits
-  $ ::Rafsi-form ∪ (¬$.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of the 11 rules from <code>runs</code> to <code>rahoi-form</code></summary>
@@ -212,11 +212,11 @@ The stage tags `opener-space` a hesitation directly after a text opener, and eac
 
 %rule ordinary-joined-hesitation
   (* Y <- &cmavo ( y+ / ie'o ) &post_word *)
-  $w:source-word<Y-letters>
+  $w:source-word<Y-Letters>
 %conditions
-  ¬$w.onward.begins( split-later-y)
+  ¬$w.onward.begins(split-later-y)
 %emits
-  $ ::$w.tags ∪ After-hesitation ∪ (¬$w.following-tokens.begins( nonpause-phoneme) ⟹ Run-final)
+  $ :: $w.tags ∪ After-Hesitation ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of <code>joined-hesitation</code> and <code>ordinary-joined-hesitation</code></summary>

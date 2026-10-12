@@ -20,13 +20,13 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   lohai-quote
 
 %rule lohai-quote
-  | $e:lehai-marker ::$e.tags
-  | $r:lohai-run spacing lehai-marker ::$r.tags
-  | $r:lohai-run spacing lohai-run spacing lehai-marker ::$r.tags
+  | $e:lehai-marker :: $e.tags
+  | $r:lohai-run spacing lehai-marker :: $r.tags
+  | $r:lohai-run spacing lohai-run spacing lehai-marker :: $r.tags
 
 %rule lohai-run
-  | $m:lohai-marker ::$m.tags
-  | $m:lohai-marker spacing lohai-stream ::$m.tags
+  | $m:lohai-marker :: $m.tags
+  | $m:lohai-marker spacing lohai-stream :: $m.tags
 
 %rule lohai-stream
   | lohai-element
@@ -41,17 +41,17 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
 %conditions
   $w.classes ∩ (LOhAI ∪ LEhAI) = ∅
 %emits
-  $ ::Word
+  $ :: Word
 
 %rule lohai-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LOhAI ⊆ $q.classes
 %emits
   $
 
 %rule lehai-marker
-  $q:read-word ::$q.classes ∪ Word ∪ Cmavo
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   LEhAI ⊆ $q.classes
 %emits

@@ -33,7 +33,7 @@
                 "Continued",
                 "Indicator",
                 "Onset",
-                "Run-initial",
+                "Run-Initial",
                 "Word"
               ],
               "span": [
@@ -54,7 +54,7 @@
                 "Cmavo",
                 "Continued",
                 "Onset",
-                "Run-final",
+                "Run-Final",
                 "Word"
               ],
               "span": [

@@ -29,13 +29,13 @@
               "image": "sairgau",
               "tags": [
                 "BRIVLA",
-                "Initial-stress",
+                "Initial-Stress",
                 "Lujvo",
                 "Onset",
-                "Open-stress",
-                "Run-final",
-                "Run-initial",
-                "Stress-guard",
+                "Open-Stress",
+                "Run-Final",
+                "Run-Initial",
+                "Stress-Guard",
                 "Word"
               ],
               "span": [
@@ -76,11 +76,11 @@
             ],
             "tags": [
               "BRIVLA",
-              "Initial-stress",
+              "Initial-Stress",
               "Lujvo",
               "Onset",
-              "Open-stress",
-              "Stress-guard",
+              "Open-Stress",
+              "Stress-Guard",
               "Word"
             ],
             "children": [
@@ -97,11 +97,11 @@
                 ],
                 "tags": [
                   "BRIVLA",
-                  "Initial-stress",
+                  "Initial-Stress",
                   "Lujvo",
                   "Onset",
-                  "Open-stress",
-                  "Stress-guard",
+                  "Open-Stress",
+                  "Stress-Guard",
                   "Word"
                 ],
                 "children": [
@@ -118,11 +118,11 @@
                     ],
                     "tags": [
                       "BRIVLA",
-                      "Initial-stress",
+                      "Initial-Stress",
                       "Lujvo",
                       "Onset",
-                      "Open-stress",
-                      "Stress-guard",
+                      "Open-Stress",
+                      "Stress-Guard",
                       "Word"
                     ],
                     "children": [
@@ -139,11 +139,11 @@
                         ],
                         "tags": [
                           "BRIVLA",
-                          "Initial-stress",
+                          "Initial-Stress",
                           "Lujvo",
                           "Onset",
-                          "Open-stress",
-                          "Stress-guard",
+                          "Open-Stress",
+                          "Stress-Guard",
                           "Word"
                         ],
                         "children": [
@@ -160,11 +160,11 @@
                             ],
                             "tags": [
                               "BRIVLA",
-                              "Initial-stress",
+                              "Initial-Stress",
                               "Lujvo",
                               "Onset",
-                              "Open-stress",
-                              "Stress-guard",
+                              "Open-Stress",
+                              "Stress-Guard",
                               "Word"
                             ],
                             "children": [
@@ -181,11 +181,11 @@
                                 ],
                                 "tags": [
                                   "BRIVLA",
-                                  "Initial-stress",
+                                  "Initial-Stress",
                                   "Lujvo",
                                   "Onset",
-                                  "Open-stress",
-                                  "Stress-guard",
+                                  "Open-Stress",
+                                  "Stress-Guard",
                                   "Word"
                                 ],
                                 "children": [
@@ -202,11 +202,11 @@
                                     ],
                                     "tags": [
                                       "BRIVLA",
-                                      "Initial-stress",
+                                      "Initial-Stress",
                                       "Lujvo",
                                       "Onset",
-                                      "Open-stress",
-                                      "Stress-guard",
+                                      "Open-Stress",
+                                      "Stress-Guard",
                                       "Word"
                                     ],
                                     "children": [
@@ -222,11 +222,11 @@
                                           7
                                         ],
                                         "tags": [
-                                          "Initial-stress",
+                                          "Initial-Stress",
                                           "Lujvo",
                                           "Onset",
-                                          "Open-stress",
-                                          "Stress-guard"
+                                          "Open-Stress",
+                                          "Stress-Guard"
                                         ],
                                         "children": [
                                           {
