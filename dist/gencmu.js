@@ -114,7 +114,7 @@
   //   the synthetic tokens' tags inside the exact span of R behind a span to
   //   the union of its tokens' tags.
   // - "F26:lost" loses an error of the grammar that the check meets, and
-  //   "F26:reimage" reports it as elision-witness-lost, which the runner
+  //   "F26:relabel" reports it as elision-witness-lost, which the runner
   //   invariant of tests/README.md fails.
   // - "F27:order" reverses the records at one position, and "F27:bare" shows
   //   a read of a synthetic token as a token.
@@ -3181,7 +3181,7 @@
           if (item.capture) names.push(item.capture);
           for (const side of ["before", "after"]) if (side in item) {
             if (!item.capture || !Array.isArray(item[side]) || !item[side].length || !item[side].every(name => typeof name === "string" && CAPTURE_NAME.test(name))) return "a malformed attachment";
-            names.push(...item[side]);
+            for (const name of item[side]) names.push(name);
           }
           if (item.tags !== undefined) push("tags", item.tags, depth);
           for (const channel of ["value", "image"]) if (item[channel] !== undefined) push("recipe", item[channel], depth);
@@ -3330,7 +3330,8 @@
       if (typeof current.method === "string") {
         if ((current.method === "tags" || current.method === "classes") && /** @type {any} */ (current).args.length === 0 && /** @type {any} */ (current).receiver.capture === "") return true;
         if (current.method === "tags" || QUERY_METHODS.has(current.method)) continue;
-        stack.push(/** @type {any} */ (current).receiver, .../** @type {any} */ (current).args);
+        stack.push(/** @type {any} */ (current).receiver);
+        for (const arg of /** @type {any} */ (current).args) stack.push(arg);
         continue;
       }
       if (current.op === "≅" || current.op === "≇") continue;
@@ -10681,7 +10682,7 @@
         /** @type {Route[]} */
         let selected = [{parts:[],captures:new Map()}];
         choices.forEach((choice,index) => { if (mask & (1<<index)) selected = overlapProduct(selected,choice); });
-        all.push(...selected);
+        for (const route of selected) all.push(route);
       }
       return all;
     }
@@ -12819,7 +12820,7 @@
           // while emitting does: no output, the rest kept (engine §7.7).
           if (error instanceof GencmuError) {
             // A fault loses the error (F26:lost), and another reports it as
-            // a lost witness (F26:reimage).
+            // a lost witness (F26:relabel).
             if (fault("F26:lost")) return report;
             report.output = null;
             report.error = fault("F26:relabel")

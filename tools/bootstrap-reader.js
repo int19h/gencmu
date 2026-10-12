@@ -398,7 +398,7 @@ class Parser {
     }
     children.push(this.is("identifier") || this.is("#") ? this.leaf("rule-name") : this.fail("expected a rule's name"));
     if (["::", ":=", ":-"].includes(this.kindAt())) {
-      children.push(...(yield this.clauses("tags-clause")));
+      for (const clause of yield this.clauses("tags-clause")) children.push(clause);
       const at = this.index;
       const body = [this.expect("|"), (yield this.alternative(false))];
       while (this.is("|")) body.push(this.tok(), (yield this.alternative(false)));
@@ -466,7 +466,7 @@ class Parser {
       ranked = true;
     }
     children.push(expression);
-    children.push(...(yield this.clauses("alternative-tags")));
+    for (const clause of yield this.clauses("alternative-tags")) children.push(clause);
     return this.node(ranked ? "ranked-alternative" : "alternative", start, children);
   }
 
@@ -569,7 +569,7 @@ class Parser {
   *emitsClause() {
     const start = this.index;
     const children = [this.tok()];
-    if (["::", ":=", ":-"].includes(this.kindAt())) children.push(...(yield this.clauses("emit-tags")));
+    if (["::", ":=", ":-"].includes(this.kindAt())) for (const clause of yield this.clauses("emit-tags")) children.push(clause);
     else if (this.is(",") || EMIT_STARTS.has(this.kindAt())) {
       if (this.is(",")) children.push(this.tok());
       children.push((yield this.emitItem()));
@@ -587,7 +587,7 @@ class Parser {
     else if (["capture", "identifier", "tag", "ε"].includes(this.kindAt())) children.push(this.node("emit-target", at, [this.tok()]));
     else this.fail("expected an emission target");
     while (this.is("(")) children.push(this.attachment("emit-after"));
-    children.push(...(yield this.clauses("emit-tags")));
+    for (const clause of yield this.clauses("emit-tags")) children.push(clause);
     return this.node("emit-item", start, children);
   }
 
