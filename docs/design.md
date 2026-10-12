@@ -155,7 +155,7 @@ A stage can also name a value, such as a list of classes that several rules test
 
 A stage can also give exact values their classes with a classifier, such as a lexicon. `%classifier lexicon` lists entries such as `"mi" "do" ∈ KOhA`, and `∉` removes a class. A gate can guard an entry, so a feature can change the class of a word. `$c.value.classify(lexicon)` gives the classes of the word `$c`. A classifier's value depends on the features, so a stage resolves it for the features of each parse.
 
-`%implies UI ∪ CAI ⟹ Indicator` says that each token that the stage emits with `UI` or `CAI` also carries `indicator`. So a lexicon says once which classes are indicators, and not on every word.
+`%implies UI ∪ CAI ⟹ Indicator` says that each token that the stage emits with `UI` or `CAI` also carries `Indicator`. So a lexicon says once which classes are indicators, and not on every word.
 
 The dialects use these extensions and classifiers. A script document adds its letters to the rules of the phoneme grammar with `%extend-rule`. A word family is a set of word forms that dialects use, such as those of CLL. Its documents add those forms to the stage that divides the text into words. The experimental syntax is a layer over the CLL syntax. It restates the CLL rules that it changes, and adds rules of its own.
 

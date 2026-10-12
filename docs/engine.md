@@ -31,7 +31,7 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 
 - A user class starts and ends with a capital and never starts with `_`, such as `KOhA`.
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
-- An engine tag is a stored property such as `_Lu`, `_L`, `_White_Space`, or `_Any`.
+- An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
 A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks, and private-use scalars. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
@@ -43,7 +43,7 @@ A nonspacing mark has general category Mn in the configured Unicode table. Other
 
 U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
 
-Stage zero is named `input`. It supplies one token for each scalar `c` at position `i`. `span` and `source` are `[i,i+1)`, and `text`, `value`, and `image` are `c`. Its stored tags are its general category, major category, `_Any`, and applicable `_White_Space`. Stage zero is implicit and adds no executed grammar-stage result.
+Stage zero is named `input`. It supplies one token for each scalar `c` at position `i`. `span` and `source` are `[i,i+1)`, and `text`, `value`, and `image` are `c`. Its stored tags are its general category, major category, and applicable `_White_Space`. Stage zero is implicit and adds no executed grammar-stage result.
 
 A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
 
@@ -77,7 +77,7 @@ Engine property names correspond to the configured Unicode table. A general cate
 - `_Z`: `_Zs`, `_Zl` and `_Zp`
 - `_C`: `_Cc`, `_Cf`, `_Cs`, `_Co` and `_Cn`
 
-The other engine names are `_White_Space`, assigned from white-space ranges, and `_Any`, assigned to every stage-zero scalar. A missing category record assigns `_Cn` and `_C`. Later stages never derive these tags from values or images.
+The remaining engine name is `_White_Space`, assigned from white-space ranges. `_` matches any token at any stage, including every stage-zero character. It requires no stored universal tag. A missing category record assigns `_Cn` and `_C`. Later stages never derive these tags from values or images.
 
 The engine inventory has no other name. `_lu` and `_Letter` are document errors. Engine tags are ordinary stored membership after stage zero. A grammar can read, inherit, forward, or filter them, but never introduce one. An empty value or a capitalized image does not imply an engine tag.
 
@@ -241,7 +241,7 @@ So a chain beside another alternative is reported before an empty item, whicheve
    The engine names the helpers, and it never shows their names. A helper is a production whose left side is a helper name.
 5. A capture `$x:s` must wrap a single symbol `s`, which can be tested. It can stand anywhere in the expression of an alternative, at any depth. That includes a group, a choice, an item of `&` and a plain optional. It must not stand inside braces, flat or chain, or inside an elidable optional (step 8), at any depth (§9).
 
-   A capture images the symbol's position in each production that reads the symbol. A production has the capture `x` exactly when its expansion reads the symbol that `$x` wraps. The other productions of the alternative lack it, and the missing-capture rules of step 6 apply to them.
+   A capture names the matched symbol in each production that reads it. A production has the capture `x` exactly when its expansion reads the symbol that `$x` wraps. The other productions of the alternative lack it, and the missing-capture rules of step 6 apply to them.
 
    A name stands at most once in each production, but it can stand in several productions of one alternative. So `A ($x:B | $x:C)` is valid: each of its two productions reads one `$x`. `[$x:A] $x:B` and `$x:A & $x:B` are errors, because the expansions `A B` hold `$x` twice (§9). Two alternatives of a rule can always capture one name, and two branches of a choice are two productions in the same way.
 
@@ -441,7 +441,7 @@ After original position `b`, an extended witness follows ordinary omission rules
 
 Qualification uses original eligible proofs before applying the alignment filter. The witness's tests and conditions must hold on O. Written-terminator priority retains the full context bound and cannot treat a restored token as a written blocker. A blocker with another internal division still belongs to original eligibility. Filtering alignment before computing eligibility changes this policy and is forbidden. Ranked admission and stage ranking do not run inside the query.
 
-A synthetic token supplies evidence for an omission, rather than a additional mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's saved equality-test value. For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
+A synthetic token supplies evidence for an omission, rather than an additional mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's saved equality-test value. For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
 
 These four probes distinguish aligned queries from literal replay:
 
@@ -494,7 +494,7 @@ Derivations are finite trees. A derivation in which a constituent has, anywhere 
 
 Derivations are made only of advances that the tests allowed. An implementation can build derivations again from completed spans, without the advances. Such an implementation applies the tests again, each to the candidate constituent itself, with its own span and its own tags. For example, take `text → [X] body="y"`, `body → X Y | Y` and the input `X Y`, where `X` sounds `x` and `Y` sounds `y`. Only the `body` over `Y` matches, so `[X]` reads `X`. No derivation reads `[X]` as empty.
 
-A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y | Y`, where the second production of `body` has the tag term `B`. Only the `body` over `Y` carries `b`, so again `[X]` reads `X`.
+A tag test works in the same way. Take `text → [X] body<B>` and `body → X Y | Y`, where the second production of `body` has the tag term `B`. Only the `body` over `Y` carries `B`, so again `[X]` reads `X`.
 
 In a derivation, an empty elidable helper supplies one omission at its input boundary. Its record holds the terminal, boundary, source, and saved equality value. It has no stored ended-constituent assignment. Late-elision reads omission counts. Aligned queries read their owned ordered close records.
 
@@ -516,7 +516,7 @@ A primitive predicate tests the current node and propagates its answer through a
 
 The state retains more than final Boolean answers. It includes sequence prefixes, leaf tests and child observations that later transitions need. Intersections and differences use correlated product states. They never combine facts from different packed edges.
 
-An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run a additional recognizer or inspect ranking.
+An advance keeps its structural prefix and each captured child's completed state. A condition on a capture reads that state when the constituent completes. A condition on `$` reads the candidate completion state before ordinary tag evaluation. These conditions never run an additional recognizer or inspect ranking.
 
 At a ranked group completion, the structural sequence machine receives one fixed sealed leaf. Every option and proof supplies the same leaf. It has no name, terminal identity, value, tags or children. Primitive names fail, paths stop, and sibling ellipses consume it as one child. An empty completed option also contributes exactly one leaf. Empty normalization never removes it or a named node that contains it.
 
@@ -1744,6 +1744,8 @@ Mistakes of the caller are errors of kind `usage`. Two examples are an `until` t
 A grammar error found while parsing is a result. Examples are a nested parse asked about its own span as the same rule, and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position. The check of §7 can also end with an error of kind `grammar` and the code `elision-witness-lost` (§7.9). That error also has `chosen` and `completion`. It ends the run.
 
 ## 14. Bundled dialect contracts
+
+Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.
 
 The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage preserves tokens, tags, images, sources, and order while mapping only values. It maps stressed `A E I O U Y` to lowercase and the syllable comma to empty. Every mapping requires its corresponding tag.
 

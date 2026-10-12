@@ -18,7 +18,7 @@ An ordinary choice is unordered: its alternatives have no priority by position. 
 
 Every token has a value and an image. Its value is the string that exact comparisons read. Its image is the string that people see. Tags never supply either string. A constituent stores neither string.
 
-Stage zero, named `input`, supplies character tokens. Both strings start as the character. Later stages set strings through grammar recipes, or concatenate their non-erased parts. Forwarding keeps stored values and images. The engine never trims, merges, lowercases, or removes characters.
+Stage zero, named `input`, supplies character tokens. Both strings start as the character. A recipe is an expression that supplies a string. Later stages set strings through grammar recipes, or concatenate their non-erased parts. Forwarding keeps stored values and images. The engine never trims, merges, lowercases, or removes characters.
 
 ## Rules
 
@@ -78,7 +78,7 @@ A tag is an identifier string. A tag has no strength: a token either carries it 
 
 - A class is a tag such as `KOhA`, `BRIVLA`, or `FOREIGN`.
 - A mark is a tag such as `Word`, `Stressed`, or `Run-Initial`.
-- An engine tag is a stored property such as `_Lu`, `_L`, `_White_Space`, or `_Any`.
+- An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
 A tag literal is a singleton tag set written as its capitalized name. `KOhA` denotes the same tag in a body, a tag term, and a set expression. Bare adjacent tag names form one union atom. The section "Juxtaposition" gives its grouping rules.
 
@@ -90,7 +90,7 @@ A scalar value is a Unicode code point outside surrogates. Engine constants such
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `...` is a chain marker, so `"a"..."z"` is an error.
 
-The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` and `_Any` complete the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
+The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` completes the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
 A range and an engine tag are terminals in a body. A range tests the value and an engine tag tests stored membership. Each reads one token with one reading. A capture names a matched part, as in `$c:"0".."9"` or `$c:_L`. A grammar can forward or filter engine tags but never introduce them.
 
@@ -164,7 +164,7 @@ Inside one pair of braces, the item `x` and the separator `s` are each a full ch
 
 A pair of braces has at most one separator `/`, and each side of it holds an expression. So `{}`, `{x /}`, `{/ s}` and `{x / s / t}` are errors of the document. A separator can be `ε`, but an item cannot (below).
 
-The chain marker `...` stands right after `{` for a left chain. It stands after the whole item, before `\` or `}`, for a right chain. So `{a | b ... / s}` is a right chain whose item is `a | b`.
+The chain marker `...` stands right after `{` for a left chain. It stands after the whole item, before `/` or `}`, for a right chain. So `{a | b ... / s}` is a right chain whose item is `a | b`.
 
 A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x / ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `"a"..."z"`.
 
@@ -474,7 +474,7 @@ The stage applies its implications when it emits a token. First it gives the tok
 
 Implications change only emitted tags. They never supply or alter a value or image. Neither side can introduce an engine tag. Recipes and plain concatenation determine token strings independently.
 
-Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each word of these classes `indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
+Implications apply only to the tokens that the stage emits. They do not change a constituent's tags, the value of a term or the classes of a classifier. A later stage applies only its own implications. So the lexicon's implication in the forms stage marks each word of these classes `Indicator`. The word stage can drop that mark from a quote's marker, and nothing adds it again.
 
 ## Captures
 
@@ -734,7 +734,9 @@ An attachment capture stands in exactly one item, and never as an item of its ow
 
 A production reads each name at most once, so each name is one part of it and the order is clear. Two productions can read names in different orders, as in `($a:A $b:B | $b:B $a:A)`. Then no order of `$a` and `$b` fits both, and an emission of both is an error. Where a production lacks an attachment capture, the item has one attachment fewer.
 
-The four alternatives of `item` above can also be one, with two optionals that hold captures: `[$b:bahe-run] $w:unit [$a:indicator-run]`. That alternative expands to the same four productions, `$w`, `$w $a`, `$b $w` and `$b $w $a`, in that order (see "Captures"). Only the numbers of the productions differ.
+The compact form `[$b:bahe-run] $w:unit [$a:indicator-run]` has the same capture bindings and emission order as the four alternatives. Its expansions supply `$w`, `$w $a`, `$b $w`, and `$b $w $a`, in that order (see "Captures"). This equivalence concerns captures and emission, rather than ranking.
+
+Introducing these optionals changes logical symbol counts. The explicit `$w:unit` alternative has one logical symbol and a transparent close. The compact alternative retains three logical symbols even when both optionals are absent, so its close is visible. A lazy comparison can therefore resolve readings that the explicit alternatives leave tied. Adding a capture inside an existing optional remains neutral.
 
 A forwarded token keeps attachments. A covering token over one counted input token inherits its attachments, whatever tags or strings recipes assign. Combining that input token with another counted part is a grammar error. Empty strings do not remove counted parts. Disjoint carrier spans prevent two emitted tokens from inheriting the same attachment.
 
@@ -903,7 +905,7 @@ By convention, each document keeps its link in the prose, and its `%include` fol
 
 The layout is a matter of style, and the notation does not require it. An `%include` can stand in any block, between any two rules or directives. `tools/sync.js --check` makes sure that the bundled pipelines keep the style.
 
-Stage zero supplies one token for each character with that character as value and image. The configured Unicode table assigns its general category, major category, `_Any`, and applicable `_White_Space`. The first grammar can read strings, scalar ranges, or stored engine tags. Every later stage reads emitted tokens, with no engine normalization.
+Stage zero supplies one token for each character with that character as value and image. The configured Unicode table assigns its general category, major category, and applicable `_White_Space`. The first grammar can read strings, scalar ranges, or stored engine tags. Every later stage reads emitted tokens, with no engine normalization.
 
 `node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
