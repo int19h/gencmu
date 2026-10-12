@@ -821,7 +821,7 @@ The recipe says nothing about whether text is grammatical Lojban. A zoi body can
 
 `zoi gy. John is a man .gy.` emits a body whose image is `John is a man`. Experimental's phoneme mappings give normalized body parts such as `jo'n is a man`. Their concatenation supplies the body value. The renderings show the image, and an exact comparison reads the value.
 
-`.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. It does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
+`.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. Each neighbor bound limits only the extension on its own side. The method does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
 
 Only evaluated selected recipes claim verbatim gaps. Erased descendants contribute nothing. An outer recursive body image recipe stops descendant image evaluation, while the value walk can still concatenate children. An item override suppresses runtime evaluation of weaker recipes. A recipe on an erased definition is a document error.
 

@@ -1552,11 +1552,36 @@ An empty span gives empty verbatim text and claims no uncovered gap. It retains 
 
 A nonempty verbatim span begins with its source envelope `[l,r)`. Its image can include adjacent uncovered original text. The following bounds use the stage-input neighbors, independent of emitted token order.
 
-Let the span be `[a,b)`. Its left bound P is the preceding token's source end, or 0 at input start. Its right bound Q is the following token's source start, or original text length at input end. Extensions can take uncovered text within those bounds.
+Let the span be `[a,b)`. Its left bound P is the preceding token's source end, or 0 at input start. Its right bound Q is the following token's source start, or original text length at input end. Each bound limits only its own side.
 
-Extend left only when `P < l`, and right only when `r < Q`. Take maximal adjacent intervals that no stage-input token source covers. Overlapping or out-of-order sources never shrink or reverse the base envelope. The returned string is original text over the extended interval. Token source and text remain unchanged.
+If `P < l`, the left extension is the maximal uncovered interval inside `[P,l)` that touches `l`. Otherwise, there is no left extension.
+
+If `r < Q`, the right extension is the maximal uncovered interval inside `[r,Q)` that touches `r`. Otherwise, there is no right extension.
+
+Both searches exclude every code point covered by any stage-input token's source. The searches run independently. Q never limits the left search, and P never limits the right search. Overlapping or out-of-order sources never shrink or reverse the base envelope. The returned string is original text over the extended interval. Token source and text remain unchanged.
 
 Record the original span and nonempty uncovered extension intervals of each evaluated call. Calls on an identical span share a claim. Different spans conflict only when their extensions overlap by at least one code point. Base-source overlap alone is legal. A conflict ends emission with a grammar error.
+
+For example, the original text is `a,b`. Token 0 has source `[2,3)` and value `b`. Token 1 has source `[0,1)` and value `a`. Their source intervals leave the comma at `[1,2)` uncovered. The following grammar evaluates one verbatim call per token:
+
+```jbogenbau
+%ambiguity-resolution greedy
+
+%rule text
+  | unit
+  | text unit
+
+%rule unit :- $.verbatim-text
+  | _
+%emits
+```
+
+| Token | P | Q | Left extension | Right extension | Verbatim result |
+| --- | ---: | ---: | --- | --- | --- |
+| 0 | 0 | 0 | `[1,2)` | None | `,b` |
+| 1 | 3 | 3 | None | `[1,2)` | `a,` |
+
+Both calls claim `[1,2)`. Their input spans differ, so emission ends with a grammar error and produces no stage output. Neither token's source nor text changes. A bound on the wrong side blocks only that side's search.
 
 The claim set contains only evaluated selected dependencies, including attachment walks. Overridden recipes, erased parts, losing options, and unevaluated descendant channels contribute no call. Memoization changes neither that set nor the shared-gap verdict. This keeps each verbatim result independent of call order.
 

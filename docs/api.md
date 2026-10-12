@@ -88,6 +88,8 @@ Some entry points exist for tests and tools, outside the common API. They supply
 
 In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11).
 
+The `.verbatim-text` method searches left and right separately (engine §11.1). Each neighbor bound limits only its own side. Token order remains the caller's order.
+
 Its span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
