@@ -150,7 +150,7 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. Empty declaration arrays can be absent, except `rules`. Every declared item has `at:[line,column]`, counted from 1.
+Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. Empty declaration arrays are absent, except `rules`, which is always present. Every declared item has `at:[line,column]`, counted from 1.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
@@ -158,7 +158,7 @@ DOM format 26 supports restored spans, ordered ranked expressions, stage selecto
 
 Format 26 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":26,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
-A library skips cached DOMs with another format and rejects bootstraps with another format. The cache identity also includes the bootstrap hash (engine §8).
+The cache identity also includes the bootstrap hash (engine §8).
 
 A rule has this form, in canonical member order:
 
@@ -199,7 +199,7 @@ An expression has no member but those of its one form.
 
 `repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
 
-A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`. Ranges and wildcard have no property or character-tag fields.
+A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
 An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member. Any `maximal` member makes an optional malformed, regardless of its value.
 
@@ -244,7 +244,7 @@ Terms have these forms:
 {"pattern":PATTERN}
 ```
 
-A run of bare tag names produces one `union` of singleton `tag` terms in written order. It flattens into an enclosing `union`, including through grouping parentheses. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. `(Word BY) ∩ $l.tags` retains the run's union as the intersection's first operand.
+A run of bare tag names produces one `union` of singleton `tag` terms in written order. It flattens into an enclosing `union`, including through grouping parentheses. A parenthesized union written with `∪` does not flatten into an enclosing union. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. `(Word BY) ∩ $l.tags` retains the run's union as the intersection's first operand.
 
 `STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
 
@@ -323,6 +323,8 @@ DOMs store unresolved references and source positions, never stage-resolved cons
 
 PATTERN tests one structural tree. CHILDREN consumes an ordered sequence of sibling trees. A pattern term has exactly one member, `pattern`, whose value is a PATTERN. Pattern types can also use `const`, `union`, `intersection`, `difference` and contextual `emptySet` terms. Mixed pattern and tag-set operations are malformed.
 
+`TERMINALATOM` is a `terminal`, `literal`, `range`, `wildcard`, or unresolved user `constant` pattern atom. A user constant under a test must resolve to a string.
+
 PATTERN has exactly one of these forms:
 
 ```text
@@ -364,7 +366,7 @@ Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both po
 {"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
 ```
 
-Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the test. `TERMINALATOM` therefore includes an unresolved user constant subject to this requirement.
+Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the `at` of its `constant` reference. `TERMINALATOM` therefore includes an unresolved user constant subject to this requirement.
 
 At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 

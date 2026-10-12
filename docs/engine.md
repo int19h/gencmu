@@ -1074,7 +1074,7 @@ Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a
 
 A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must match `[a-z][a-z0-9_-]*`. `$fooBar:A` therefore reports the capture-name error at `$fooBar`. A user constant reference is `$` followed by an uppercase name.
 
-An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must contain four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. Interpolated engine names meet the same validity rules.
+An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must consist of four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. Interpolated engine names meet the same validity rules.
 
 String delimiters are straight double quotes. `$$` decodes to `$`. `$(NAME)` refers to a string constant without its leading `$`. The reference retains a source position. Interpolation happens after stage constant binding, not while the document DOM is cached.
 
@@ -1101,9 +1101,10 @@ sequence = primary {primary}
 primary = captured | tested-symbol | "#" | group | optional | repetition | "ε"
 captured = named-capture ":" (tested-symbol | "#")
 tested-symbol = symbol [tag-test] [value-test]
-symbol = reference | tag-name | string-terminal | range | "_"
+symbol = reference | tag | string-terminal | range | "_"
+tag = tag-name
 tag-test = "<" {requirement} ">"
-requirement = ["¬"] (tag-name | tag-set-constant)
+requirement = ["¬"] (tag | tag-set-constant)
 value-test = ("=" | "≠") string-operand
 string-operand = string-literal | string-constant
 range = string-operand ".." string-operand
@@ -1122,8 +1123,8 @@ pattern-literal = "@(" pattern-union ")" | "@" pattern-atom
 pattern-atom = rule-name | terminal [tag-test] [value-test]
              | constant-reference [tag-test] [value-test] | pattern-literal | grouped-pattern
 term = union | guarded-term
-tag-run = tag-name tag-name {tag-name}
-term-atom = tag-run | tag-name | string-literal | constant-reference
+tag-run = tag tag {tag}
+term-atom = tag-run | tag | string-literal | constant-reference
           | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
 method-chain = receiver {"." method-name ["(" arguments ")"]}
 ```
@@ -1140,7 +1141,7 @@ Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immedia
 
 Recipe atoms have no grouping or method-chain extension. Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, or `.classify` is a document error. A recipe cannot branch on a condition.
 
-Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at its test.
+Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at the constant reference.
 
 Rule atoms and pattern-valued constant atoms accept no tests.
 
@@ -1154,7 +1155,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
-| The root | Declaration constructors in source order | Separate ordered item arrays. A known non-declaration part is an error. |
+| The root | Declaration constructors in source order | Separate ordered item arrays. Empty arrays are absent, except `rules`. A known non-declaration part is an error. |
 | `directive` | Keyword token, then argument parts in order | Keyword without `%` as `name`, argument values as `args` |
 | `argument-word` | One name token | Name string |
 | `argument-string` | One literal path token | Literal path, without interpolation |
@@ -1183,7 +1184,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `sequence` | One or more `primary` parts | `seq`, or sole primary |
 | `primary` | One symbol, capture, tested, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
 | `reference` | One rule or tag name token | `ref`, including untested `#` |
-| `tag`, `engine-tag` | One tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
+| `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
 | `string-terminal` | One `string` or `constant-reference` | `literal` of the unresolved string term |
 | `wildcard` | One `_` token | `wildcard:true` |
 | `range` | Two string operands in order | `range` of unresolved STRINGTERMs |
@@ -1218,11 +1219,10 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `string` | One complete quoted token | Decode left to right as specified below. Retain unresolved interpolation. |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
-| `tag-run` | At least two `tag-name` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union. |
-| `tag-name` | One tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
+| `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union. |
 | `term-atom` | One string, tag, tag run, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
-| `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions flatten. A sole part stays unchanged. |
+| `union` | One or more `intersection` parts and their operators | Fold union and difference left. Consecutive unions at this written level flatten. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
 | `empty-set` | One `∅` token | `emptySet:true` |
 | `capture-reference` | One capture token | `capture`, name without `$`, with empty name for `$` |
@@ -1244,7 +1244,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-atom` | One name, terminal constructor, constant, nested literal, or grouped union. Optional tag then value test on terminals or constant atoms. | Named rule, tested terminal, constant form below, or child predicate |
 | `pattern-brackets` | One `pattern-union` | Ordinary optional children |
 | `pattern-repeat` | One item union and optional separator union | Repeated children |
-| `pattern-path` | Path token, then one `pattern-atom` | Descendant, first, or last path |
+| `pattern-path` | One path token and one `pattern-atom` | Descendant, first, or last path |
 
 For a string token, the reader removes only its delimiters. It scans the content left to right, preserving ordinary characters and decoding `$$`. Each `$(NAME)` adds a constant reference with the dollar sign's source position. Its name excludes both delimiters. Adjacent literal segments merge, and empty segments disappear unless all segments are empty.
 
@@ -1254,7 +1254,9 @@ Header, alternative, and item clauses use the same channel constructors. The rea
 
 For example, `%rule r := "v" :- "i" | "a"` supplies distinct header recipes. Its `value-clause` gives `value:{"concat":[{"string":"v"}]}`. Its `image-clause` gives `image:{"concat":[{"string":"i"}]}`. `%emits` supplies one whole-constituent item, while `%erased` supplies `erased:true` without an emission.
 
-A tag run forms one union in written order. Its union flattens into an enclosing union, including through grouping parentheses. A run beside `∩` or `∖` requires parentheses. Without them, the reader reports a document error at the run's first name. The reader checks this placement before reading the run's names, then requires at least two `tag-name` parts.
+A tag run forms one union in written order. Its union flattens into an enclosing union, including through grouping parentheses. A parenthesized union written with `∪` does not flatten into an enclosing union.
+
+A run requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. Without parentheses, the reader reports a document error at the run's first name. It checks placement before reading the names, then requires at least two `tag` parts. Thus `:: ∩ Word BY` fails at `Word`, and `A ∪ B C ∖ D` fails at `B`.
 
 An engine scalar atom in a pattern uses `literal` with an unresolved STRINGTERM reference and the atom's source position. A user constant atom uses `constant` and its source position, whatever its eventual type. Binding interprets it as a string terminal or a pattern predicate without changing the cached DOM. Tag then value tests wrap either constant form. Tested user atoms must resolve to strings.
 
@@ -1267,6 +1269,7 @@ The following compact examples show the additional conversions. Positions illust
 | `@$S` | `{"pattern":{"constant":"S","at":[1,2]}}` |
 | `@$S="x"` | `{"pattern":{"test":"=","value":{"string":"x"},"expr":{"constant":"S","at":[1,2]}}}` |
 | `:: $f.tags ∪ Run-Initial Run-Final` | `{"union":[{"method":"tags","receiver":{"capture":"f"},"args":[]},{"tag":"Run-Initial"},{"tag":"Run-Final"}]}` |
+| `A ∪ (B ∪ C)` | `{"union":[{"tag":"A"},{"union":[{"tag":"B"},{"tag":"C"}]}]}` |
 | `(Word BY) ∩ $l.tags` | `{"intersection":[{"union":[{"tag":"Word"},{"tag":"BY"}]},{"method":"tags","receiver":{"capture":"l"},"args":[]}]}` |
 | `"a$(_0301)"` | `{"interpolate":[{"string":"a"},{"const":"_0301","at":[1,3]}]}` |
 | `$x.value` | `{"method":"value","receiver":{"capture":"x"},"args":[]}` |
@@ -1420,7 +1423,7 @@ For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The f
 
 For `r → $e:empty $a:word`, with `empty → ε`, `%emits $, $e ($a)` is a document error. The whole carrier conflicts with the consuming attachment `$a`, although `$e` itself is always empty. The error stands at the emitting definition.
 
-A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
+A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps each kind in its own list, in written order. Empty lists are absent, except `rules`, which is always present. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
@@ -1440,7 +1443,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an unsupported test position or comparator, an ill-typed string operand, or an invalid signed requirement. A value test can wrap a tag test. Repeated test kinds and reversed nesting are malformed. All scalar string values remain legal.
 - It has a tag or tag-terminal `ref` outside the identifier rules of §1, or a tag clause with nonempty `lit` (§1).
 - Its range does not contain two string terms resolving to ordered single-scalar endpoints.
-- Its wildcard is not `wildcard:true`, or it uses a property constructor instead of a stored engine-tag reference.
+- Its wildcard is not `wildcard:true`.
 - It has a constant declaration whose name does not begin with `A` to `Z`. A `const` reference instead accepts either a user name or a valid scalar name from §9.1. Invalid underscore names and surrogate scalar names are errors at the reference.
 - Its constant value is not closed, or its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
@@ -1450,7 +1453,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
 String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Other dollar signs are document errors. Include paths remain literal. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
 
-A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains its term, not a character tag. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
+A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
 Pattern constructors use the authoritative table above. Readers retain the grouping boundaries specified in `docs/output.md`.
 

@@ -694,7 +694,9 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | String sets | Error | `$S $T` |
 | Patterns outside a literal | Error | `%const $P @(A) @(B)` |
 
-A run of bare tag names can stand alone or beside `∪`. Beside `∩` or `∖`, it requires parentheses. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` is an error at `Word`. A run forms a union in written order and flattens into any enclosing union. Other atoms require explicit operators.
+A run of bare tag names can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
+
+`A ∪ B C ∖ D` is an error at `B`. A run forms a union in written order and flattens into any enclosing union. A parenthesized union written with `∪` does not flatten into an enclosing union. Other atoms require explicit operators.
 
 Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. A string is not a string set, so `"a" ∪ "b"` is an error.
 
