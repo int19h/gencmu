@@ -1852,39 +1852,39 @@ Quote spacing groups each surviving pause run into one gap. Compound spacing cla
 
 Parse-result format 12 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental`, and `zantufa`. The verdict column describes the word stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+The following texts pin value, image, and recognition boundaries. `Five` names `bpfk`, `cll-ebnf`, `experimental`, `kihei`, and `zantufa`. The verdict column describes the word stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
 | Text | Dialects | Word-stage verdict | Required observation |
 | --- | --- | --- | --- |
-| `zoi nu,iork. foo .nuiork.` | Four | `unique` | The comma-insensitive delimiter comparison succeeds |
-| `zoi mai. x .ma,i.` | Four | `unique` | The comma-insensitive closing delimiter succeeds |
-| `zoi .y. bu. foo .y. bu.` | Four | `unique` | The matching fixed y key closes the quote |
-| `zoi ybu foo ybu` | Four | `unique` | The unspaced fixed y keys match |
-| `zoi .yy. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. "Hello!" .y. bu.` | Four | `unique` | The body image is `"Hello!"` |
+| `zoi nu,iork. foo .nuiork.` | Five | `unique` | The comma-insensitive delimiter comparison succeeds |
+| `zoi mai. x .ma,i.` | Five | `unique` | The comma-insensitive closing delimiter succeeds |
+| `zoi .y. bu. foo .y. bu.` | Five | `unique` | The matching fixed y key closes the quote |
+| `zoi ybu foo ybu` | Five | `unique` | The unspaced fixed y keys match |
+| `zoi .yy. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. "Hello!" .y. bu.` | Five | `unique` | The body image is `"Hello!"` |
 | `zo'oi "Hello!"` | `experimental` | `unique` | The payload image is `"Hello!"` |
-| `zoi klama. abc .Klama.` | Four | `rejected` | A Kelvin-sign closing value does not equal `klama` |
-| `zoi klama. Klama .klama.` | Four | `unique` | The Kelvin-sign body value does not equal the delimiter |
-| `abu` | Four | `unique` | The word image is `abu` |
-| `broda brode si bu` | Four | `unique` | The word image is `broda bu` |
-| `lo'u broda ybrode le'u bu` | Four | `unique` | The word image is `lo'u broda brode le'u bu` |
-| `lo'u broda .y. brode le'u bu` | Four | `unique` | The word image is `lo'u broda brode le'u bu` |
-| `lo'u .y. broda le'u bu` | Four | `unique` | Initial hesitation leaves image `lo'u broda le'u bu` |
-| `lo'u broda .y. le'u bu` | Four | `unique` | Final hesitation leaves image `lo'u broda le'u bu` |
-| `lo'u y le'u bu` | Four | `unique` | The word image is `lo'u le'u bu` |
+| `zoi klama. abc .Klama.` | Five | `rejected` | A Kelvin-sign closing value does not equal `klama` |
+| `zoi klama. Klama .klama.` | Five | `unique` | The Kelvin-sign body value does not equal the delimiter |
+| `abu` | Five | `unique` | The word image is `abu` |
+| `broda brode si bu` | Five | `unique` | The word image is `broda bu` |
+| `lo'u broda ybrode le'u bu` | Five | `unique` | The word image is `lo'u broda brode le'u bu` |
+| `lo'u broda .y. brode le'u bu` | Five | `unique` | The word image is `lo'u broda brode le'u bu` |
+| `lo'u .y. broda le'u bu` | Five | `unique` | Initial hesitation leaves image `lo'u broda le'u bu` |
+| `lo'u broda .y. le'u bu` | Five | `unique` | Final hesitation leaves image `lo'u broda le'u bu` |
+| `lo'u y le'u bu` | Five | `unique` | The word image is `lo'u le'u bu` |
 | `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The word image is `lo'ai broda brode le'ai bu` |
 | `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | Initial hesitation leaves image `lo'ai broda le'ai bu` |
 | `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | Final hesitation leaves image `lo'ai broda le'ai bu` |
 | `ni'o su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o su bu` | `cll-ebnf` | `rejected` | No word-stage output |
+| `ni'o su bu` | `cll-ebnf`, `kihei` | `rejected` | No word-stage output |
 | `ni'o mi si su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o mi si su bu` | `cll-ebnf` | `rejected` | No word-stage output |
+| `ni'o mi si su bu` | `cll-ebnf`, `kihei` | `rejected` | No word-stage output |
 | `ni'o subu` | `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
 | `ni'o .su mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `zoi gy. MI   DO .gy. bu` | Four | `unique` | The image is `zoi gy MI   DO gy bu`, also after indicators |
+| `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy MI   DO gy bu`, also after indicators |
 
 These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. Normalization tests must also establish unchanged images, count, order, tags, and sources.
