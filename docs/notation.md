@@ -61,7 +61,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
 
 These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
 
-A clause assigns tags or strings. Clauses come in the order `:: T`, `:= value`, then `:- image`, with each optional. They can stand after an alternative or on the definition header. A header with any clause requires a leading `|` before its first alternative.
+A clause assigns tags or strings. Clauses come in the order `:: T`, `:= value`, then `:- image`, with each optional. `T` is a tag term, a term whose value is a set of tags. Clauses can stand after an alternative or on the definition header. A header with any clause requires a leading `|` before its first alternative.
 
 A `:: T` clause gives constituent tags, with definition and alternative tags unioned. Trailing keywords impose conditions or define output:
 
@@ -216,15 +216,13 @@ The clauses of the rule serve every level, as they serve every alternative:
 - A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
 - `%emits`, `%erased`, and constituent recipes serve each level. `%emits $` emits the outermost level as one token. Its string walk uses level recipes without executing inner emission lists.
 
-A logical symbol is a symbol as written. A plain optional or flat braces count as one logical symbol, even when captures require expansion.
-
 A chain cannot hold a capture, since a capture never stands inside braces (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
 - The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - A single-symbol `x` gives that level its tags in the chain. The optional-suffix form inherits none unless the rule writes tags.
-- Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority. In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
+- Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority (see [Conditions](#conditions)). In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
 
 Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
 
@@ -373,7 +371,9 @@ The loader gives the constants their values when it stitches each stage. So a do
 
 A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. Engine constants start with `$_` and four to six uppercase hexadecimal digits. A grammar cannot define or redefine an engine constant.
 
-Strings interpolate only string constants. A dollar sign starting neither `$$` nor `$(` is a document error, including a final lone dollar sign. `%include` paths take no interpolation. In a redefinition, `$(X)` follows the same immediately preceding self-definition rule as `$X`.
+Outside include paths, strings interpolate only string constants. A dollar sign starting neither `$$` nor `$(` is a document error, including a final lone dollar sign. In a redefinition, `$(X)` follows the same immediately preceding self-definition rule as `$X`.
+
+An include path is literal text in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
 
 ```jbogenbau
 %const $ACCENTED "a$(_0301)"
@@ -513,7 +513,9 @@ gencmu expands each alternative into productions, as engine §3 says. A producti
 
 A plain optional without a capture stays one optional. It is not expanded into two productions. A production has a capture where it reads the captured symbol, and lacks it elsewhere.
 
-Either way, a rule node holds the parts that its production reads, and an optional adds no node. A helper is an unnamed rule for an expression. The engine interprets a plain optional through one helper, with or without captures. `A [$b:B]` therefore counts as two symbols even when B is absent, and inherits no default tags. Expansion still binds captures.
+Either way, a rule node holds the parts that its production reads, and an optional adds no node. A helper is an unnamed rule for an expression.
+
+A logical symbol is one symbol of a production as written, before captures expand optionals. Each optional, flat braces, and a ranked group count as one logical symbol. The engine interprets a plain optional through one helper, with or without captures. `A [$b:B]` therefore counts as two symbols even when B is absent, and inherits no default tags. Expansion still binds captures.
 
 A query gives a written terminator priority over an omission. For a preceding plain optional, it checks both absence and presence when looking for the written terminator. `a [$b:b] [+KU]` therefore follows the same query rule as `a [b] [+KU]`. An omission names no separate constituent that it ends. Diagnostic production numbers and recorded parse actions can follow expansion. [Engine §4](engine.md#4-recognition) defines the complete query rule.
 
@@ -719,7 +721,7 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 
 Sometimes no tags are written at all, neither on the alternative nor on its header. Then a constituent built from one symbol has that symbol's tags, and a constituent built from several symbols has none. So a rule `word` whose body is `cmavo | brivla | cmevla` needs no tags. A `mi` arrives at the next stage tagged by the chain of rules that built it.
 
-Brackets and flat braces count as one symbol here. Their tags are those of what they read, when that is one symbol, and none otherwise. So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
+Each optional, flat braces, and a ranked group count as one logical symbol here. An optional or flat braces inherits its content's tags when that content has one logical symbol, and has none otherwise. Ranked groups follow the restrictions in "Ranked choices". So `%rule terms {terms-1}` over one `terms-1` has its tags, and over two has none. An empty optional has none.
 
 A chain's levels follow the same inheritance rule. Plain optionals keep their own helper, including when they hold captures. An absent optional has empty tags. A present optional counts its content's symbols as if no captures were written. Ranking, ranked tag safety, and query priority use that same structure.
 

@@ -1080,7 +1080,9 @@ An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. T
 
 String delimiters are straight double quotes. `$$` decodes to `$`. `$(NAME)` refers to a string constant without its leading `$`. The reference retains a source position. Interpolation happens after stage constant binding, not while the document DOM is cached.
 
-A dollar sign starting neither interpolation nor `$$` is a lexical document error. Backslash has no escape meaning and is a lexical error. A quote within a string uses `$(_0022)`. A backslash value uses `$(_005C)`. Include paths use literal quoted text without interpolation. Paths use `/` separators.
+In a string outside an include path, a dollar sign starting neither interpolation nor `$$` is a lexical document error. Backslash has no escape meaning and is a lexical error. A quote within a string uses `$(_0022)`. A backslash value uses `$(_005C)`.
+
+An include path is literal text in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. A backslash is still a lexical error. Paths use `/` separators.
 
 Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape or interpolation processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
@@ -1304,6 +1306,8 @@ A document can hold several errors. The reader reports one, and every reader cho
 6. The reader examines a document's items in their written order. The first item with an error decides, whatever kind of item it is.
 7. A stage's documents are read in the order in which its pipeline includes them (§13), and the first document with an error of reading decides. Every document is read before the loader stitches the stage. So an error of reading in any document comes before an error of stitching (§2). Errors of stitching come before the errors of lowering, which a parse finds (§3).
 
+Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
+
 These steps make every reader report the same token for every combination of errors.
 
 A tree from a bootstrap of another notation can also lack a part that a construct requires (the table of parts above). The reader then reports the missing part at the construct, as soon as it looks the part up. So the order of the lookups decides between a missing part and another error of the same construct. Each construct looks up its parts, and makes its checks, in this order:
@@ -1400,7 +1404,7 @@ Each of the following is an error of the document too, and the reader reports it
 
   The check is well defined per production, because a production holds each name at most once (§3.5). So each name of the emission stands for at most one part of the production. Those parts have one order, the order in which the production reads them. A name that stands in several branches is the part of whichever branch the production took. So `($a:A $b:B | $b:B $a:A)` with `%emits $a, $b` is an error, because the second production reads `$b` first.
 
-  The same holds for attachments. An attachment capture names at most one part of each production. So the item's before-attachments, carrier and after-attachments have one order in each production. An inserted token anchors at a part of its next covering item or at the whole constituent (§11).
+  The same holds for attachments. An attachment capture names at most one part of each production. So the item's before-attachments, carrier and after-attachments have one order in each production. An inserted token anchors at a part of its next covering item, at the whole constituent, or at the constituent's end (§11).
 - In an emission, an attachment capture in a production that lacks the carrier of its item is an error.
 - An inserted item whose next covering item has an absent named carrier is a document error. The next covering item is the first following `$` or named capture item, skipping inserted items.
 - A production for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that erases its constituent says so with `%erased`. So `A [$b:B]` with `%emits $b` is an error, because the production `A` emits nothing.
@@ -1455,7 +1459,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
-String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Other dollar signs are document errors. Include paths remain literal. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
+String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 

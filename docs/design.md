@@ -141,7 +141,7 @@ A rule is a keyword, its optional flags, its name and its body, followed by its 
   ε :: ∅ := "'", $v
 ```
 
-Only these binary operators can also stand first as a no-op. A list can therefore put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
+Only `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions can also stand first. A list can therefore put one item on each line. The commas of a clause's list can stand first too.
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 

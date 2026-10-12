@@ -366,7 +366,7 @@ Engine scalar atoms use `literal` with an unresolved `const` STRINGTERM. Both po
 {"pattern":{"literal":{"const":"_0061","at":[1,2]},"at":[1,2]}}
 ```
 
-Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the `at` of its `constant` reference. `TERMINALATOM` therefore includes an unresolved user constant subject to this requirement.
+Tag and value tests can wrap either constant atom form. A tested user constant must resolve to a string. A test on a pattern-valued constant is a document error at the `at` of its `constant` reference.
 
 At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 
