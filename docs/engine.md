@@ -1352,7 +1352,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union, regardless of grouping. |
-| `term-atom` | One string, tag, tag run, name, constant, capture, method, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
+| `term-atom` | One string, tag, tag run, name, constant, capture, method, range, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
