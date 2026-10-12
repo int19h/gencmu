@@ -396,7 +396,7 @@ The notation sets no fixed limit on captures. A captured span before the dot for
 
 A tree pattern tests a constructed constituent without recognizing its words again. The grammar uses `@(…)` values and `≅` or `≇` conditions. Single-child transparency reaches an identity through unary wrappers. Branching nodes and omitted terminator leaves preserve constructor boundaries. Ordinary optional brackets retain their usual meaning.
 
-All constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
+All user constant references use final stage definitions. A redefinition's own lexical name instead uses its immediately preceding definition. A graph of immutable versions permits forward references and detects cycles, including cycles through replaced definitions. Composite patterns therefore observe dialect overrides without copied declarations.
 
 The recognizer compiles demanded patterns into finite structural states. Items retain prefix states, and captures retain completed states alongside spans and tags. Packed edges keep correlated answers for one candidate. Equal observation states still retain distinct derivations.
 

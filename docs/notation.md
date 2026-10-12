@@ -344,7 +344,7 @@ The value is a string, string set, tag set, or pattern, never a span. A closed t
 
 Inside a `%redefine-const`, the constant's own name is its value before the redefinition. So one redefinition can extend a set with `∪`, narrow it with `∩` or `∖`, or replace it. A redefinition keeps the type of the value, so a set cannot become a string. That type also gives `∅` its kind. So `%redefine-const $A ∅` makes a set empty, but `%const $E ∅` is an error.
 
-Every constant reference uses its name's final definition in the stitched stage. Other names can refer forward. After `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`.
+Every user constant reference uses its name's final definition in the stitched stage. Other names can refer forward. After `%const $A A`, `%const $B $A` and `%redefine-const $A B`, both final values are `B`.
 
 Inside `%redefine-const $X EXPR`, `$X` denotes X's immediately previous definition. This exception applies throughout EXPR, including nested patterns. It does not pass through another constant. A previous definition's other names still use their final definitions.
 
