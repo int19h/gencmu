@@ -1572,7 +1572,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `$.tags` or `$.classes` in it. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one include path, and `%features` takes one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one include path, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1627,7 +1627,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an `optional` with an `elidable` member whose value is not `true`, or with any `maximal` member. It has an elidable `optional` whose expression the reader refuses (above).
 - It has a capture that the reader refuses. That is one that wraps anything but a symbol, or one inside a `repeat` or inside an elidable `optional`. It is also a name that some expansion of an alternative holds twice (above), or a name that is not all lower case.
 - It has an emission with a member other than `items`, or an erased definition with a recipe or emission.
-- It has an alternative guard whose feature is not a name. Or the guard has members beyond its feature, kind, and negation state.
+- It has an alternative guard whose feature is not a feature name as §9.1 defines it. Or the guard has members beyond its feature, kind, and negation state.
 - It has a directive whose name is not `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features`. So a directive named `elidable` is malformed.
 - It has an `ambiguity-resolution`, `stage`, `extend-stage`, `redefine-stage`, `include` or `features` directive whose operands the reader refuses.
 - It has a `maximal` member on a directive. No directive has that member.
@@ -1639,7 +1639,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - Its constant value is not closed, or it holds an engine-tag literal outside a pattern literal.
 - Its method name, receiver, or arguments violate the method signature.
 - It has a term or a condition whose types do not agree (§10).
-- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a name. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
+- It has a classifier whose name does not begin with `a` to `z`. It has an entry with a warning, or with a gate whose feature is not a feature name as §9.1 defines it. It has an entry with no key, or with a key that the reader refuses. It has an entry whose operator is not `∈` or `∉`. Its class must start and end with uppercase ASCII letters and never start with `_`.
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
