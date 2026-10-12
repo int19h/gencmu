@@ -1250,7 +1250,7 @@ Recipe recognition admits terms beyond the closed recipe language. Each recipe a
 
 Directive recognition reads each name as its own operand. It admits methods, references, grouped terms, patterns, ranges, include paths, `#`, and `_`. It admits no bare tag run as one operand or method receiver. A grouped term can still be a receiver.
 
-An include path is not a method receiver. It does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1.
+An include path is not a method receiver. Directive recognition does not constrain operand counts or types. The reader reports every wrong operand at the directive. Thus `%stage $X` fails at `%stage`, column 1.
 
 Flags and classifier entries admit values that §9.3 rejects, including warning guards on entries.
 
