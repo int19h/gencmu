@@ -612,7 +612,7 @@ In BPFK and experimental, SU can stop at a boundary such as ni'o. A survivor gro
 %rule suppressed-gap := ""
   | skipped
 
-%rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
+%rule lerfu-word :: Word BY ∪ (Fault ∩ $u.tags)
   | $u:unit<¬Trailing-Pause> compound-gap bu-word
   | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
 %emits

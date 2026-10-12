@@ -141,7 +141,7 @@ A rule is a keyword, its optional flags, its name and its body, followed by its 
   ε :: ∅ := "'", $v
 ```
 
-Every binary operator except `∖`, `/`, and `≻` can also stand first as a no-op. A list can therefore put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
+Only these binary operators can also stand first as a no-op. A list can therefore put one item on each line. These operators are `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions. The commas of a clause's list can stand first too.
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
@@ -165,7 +165,7 @@ A capitalized tag name is a terminal that reads stored membership. Strings and s
 
 User tags use capitalized names, such as `Cmavo`, `Stressed`, and `PAUSE`. A class starts and ends with a capital and never starts with `_`. Stage zero assigns reserved Unicode property tags. Later stages forward or filter them but never introduce them. Tags never assign a token's value or image.
 
-A reference or terminal can carry one signed tag test followed by one exact value test. `LE="la"` compares its input value with that string. `cmavo<¬UI>` forbids UI on its own tags. Tests cannot replace token classes. A zo-quoted word can retain value `la` while lacking LE. `cmavo<¬UI>="la"` requires both tests.
+A reference or terminal can carry one signed tag test followed by one exact value test. `LA="la"` compares its input value with that string. `cmavo<¬UI>` forbids UI on its own tags. Tests cannot replace token classes. A zo-quoted word can retain value `la` while lacking LA. `cmavo<¬UI>="la"` requires both tests.
 
 The body adds repetition, elidable terminators, and ranked choices to the CLL operators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
 

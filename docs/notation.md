@@ -59,7 +59,7 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
-These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first. A tag term gives a set of tags.
+These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
 
 A clause assigns tags or strings. Clauses come in the order `:: T`, `:= value`, then `:- image`, with each optional. They can stand after an alternative or on the definition header. A header with any clause requires a leading `|` before its first alternative.
 
@@ -177,7 +177,7 @@ The chain marker `...` stands right after `{` for a left chain. It stands after 
 
 A pair of braces has at most one marker, and the separator has none. So `{... x ...}` and `{x / ... s}` are errors of the document. `...` has no other use. CLL's postfix `x ...` is an error of the document, and so is `"a"..."z"`.
 
-`/` separates repeated items from their separator. Strings use engine-constant interpolation for special characters. Comments can contain backslashes, as in `(* see C:\temp *)`. Elsewhere, backslash is rejected except in quoted include paths. `∖` denotes set difference.
+`/` separates repeated items from their separator. Strings use engine-constant interpolation for special characters. Comments can contain backslashes, as in `(* see C:\temp *)`. Elsewhere, backslash is rejected. Include paths use `/` separators. `∖` denotes set difference.
 
 A chain is the whole of its rule. That means two things. First, the chain is the whole expression of its alternative. A chain inside parentheses, brackets, other braces, a capture, a sequence, a choice or `&` is an error of the document.
 
@@ -216,13 +216,15 @@ The clauses of the rule serve every level, as they serve every alternative:
 - A warning on the chain's alternative gives one warning for each level in the chosen tree, each with the text of its level.
 - `%emits`, `%erased`, and constituent recipes serve each level. `%emits $` emits the outermost level as one token. Its string walk uses level recipes without executing inner emission lists.
 
+A logical symbol is a symbol as written. A plain optional or flat braces count as one logical symbol, even when captures require expansion.
+
 A chain cannot hold a capture, since a capture never stands inside braces (see "Captures"). So a clause can say nothing about a part of a chain, only about a level, `$`.
 
 A right chain is not the same as an optional suffix. In a rule `r`, the body `x [s r]` and the chain `{x ... / s}` read the same words. But the level of one item is `x` alone in the chain, and `x` with an empty optional in the suffix. That makes three differences:
 
 - The suffix can be an elidable optional, `[+T s′ r]`, where `s` is `T s′`. Where that suffix is absent, it leaves an elided node, and `late-elision` counts it. The chain has no optional there, so it elides nothing. So a text can tie, or resolve otherwise, under `late-elision`, and `elision-only` sees a different terminator. A plain suffix, `[s r]`, elides nothing, as the chain does.
 - A single-symbol `x` gives that level its tags in the chain. The optional-suffix form inherits none unless the rule writes tags.
-- Where `s` begins with an elidable optional `[+T]`, the suffix and chain give query priority different logical prefixes. In the suffix, the marked optional starts its helper content. In the chain, it follows the item's final logical symbol. Engine §4 gives the blocker relation. An omission stores no ended-constituent assignment.
+- Where `s` starts with `[+T]`, the suffix and chain apply different rules for written-terminator priority. In the suffix, the marked optional starts the optional's content. In the chain, it follows the item's last symbol, which a query can extend. Engine §4 gives the exact rule. An omission names no separate constituent that it ends.
 
 Where the suffix is plain and `s` does not begin with an elidable optional, the two group the words in the same way. The tags of a level of one item can still differ, as the second difference says.
 
@@ -280,7 +282,7 @@ An action reads one token or closes a constituent. Internal named rules and read
 
 The choice must discard its returned tags locally or return a provably empty set. A common explicit tag term can replace inheritance. The loader applies the closure in engine §2.1. A private capture cannot supply that common term.
 
-`begins`, `matches`, and two-argument `tags` inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
+`begins`, `matches`, and `.tags` with a rule argument inspect readings allowed by recognition before ranked filtering ([engine §4](engine.md#4-recognition)). `span.tags(rule)` remains a union over those readings.
 
 After admission, rule flags take precedence over the stage directive. With no flagged rule, the stage directive alone ranks the admitted parses.
 
@@ -471,7 +473,7 @@ The name of a classifier begins with a lower-case letter. A classifier belongs t
 
 An entry that adds a class that a key already has is an error. So is an entry that removes a class that a key does not have. These errors depend on the features, so they are errors of the grammar. gencmu reports one at its entry, for a parse that turns on the features that make it. A mistake in how an entry is written is an error of the document, even where the entry's gates do not hold.
 
-`string.classify(name)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.tags(rule)` is still the way to ask a rule for the tags of a span, as `brivla-shape` asks `brivla-scan` in the CLL word forms.
+`string.classify(classifier)` (see "Conditions") is the set of the classes that the classifier gives the string. It is empty for a string that no entry names. A `classify` that names a classifier that no `%classifier` of the stage declares is an error. `span.tags(rule)` is still the way to ask a rule for the tags of a span, as `brivla-shape` asks `brivla-scan` in the CLL word forms.
 
 The audit data lists every membership change, with its key, class, gates and document. The printed report shows the gated memberships and those that more than one entry changes.
 
@@ -721,7 +723,7 @@ Brackets and flat braces count as one symbol here. Their tags are those of what 
 
 A chain's levels follow the same inheritance rule. Plain optionals keep their own helper, including when they hold captures. An absent optional has empty tags. A present optional counts its content's symbols as if no captures were written. Ranking, ranked tag safety, and query priority use that same structure.
 
-A tag term that defines a constituent's tags cannot be made of those tags. So `$.tags` and `$.classes` are errors in a tag term after an alternative or after `::`. `$.tags(rule)` and `$.value.classify(lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their value. The tag term of an emitted item does not define the constituent's tags, so it can use `$.tags` and `$.classes`.
+A tag term that defines a constituent's tags cannot be made of those tags. So `$.tags` and `$.classes` are errors in a rule's or an alternative's tag term. `$.tags(rule)` and `$.value.classify(lexicon)` are not errors there. The first parses the constituent's tokens again, and the second reads their value. The tag term of an emitted item does not define the constituent's tags, so it can use `$.tags` and `$.classes`.
 
 ## Emission
 
@@ -838,7 +840,7 @@ Engine §9.3 defines this conservative property across every feature configurati
 
 An inserted item anchors before the next covering item, skipping inserted items. For a named item, it uses the first present before-attachment or carrier. For `$`, it uses the whole constituent. Thus `%emits ε, $` anchors the insertion at the constituent's start. With no following covering item, it anchors at the constituent's end.
 
-An absent next named carrier remains a document error. An absent attachment changes the anchor to the next present part. The inserted token's source is empty at its anchor part's source start. An empty anchor part uses the empty-node source of [engine §12](engine.md#12-the-tree). Engine §11 defines the source at constituent end.
+An inserted item whose next covering item has an absent named carrier is a document error. Thus `%emits ε, $, $e` permits an absent, structurally empty `$e` because its insertion anchors at `$`. An absent attachment changes the anchor to the next present part. The inserted token's source is empty at its anchor part's source start. An empty anchor part uses the empty-node source of [engine §12](engine.md#12-the-tree). Engine §11 defines the source at constituent end.
 
 Attachments belong to the carrier but no later stage reads them. Ownership counts non-erased input tokens, independently of recipes. Combining an input token with attachments and another counted part causes a grammar error. An empty value or image does not remove a counted part.
 
