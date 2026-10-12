@@ -2,7 +2,9 @@
 
 A grammar document is Markdown with fenced `jbogenbau` blocks. The reader joins these blocks in order. Prose between the blocks explains the grammar.
 
-A token is one unit that a stage reads. A constituent is the input that one rule matches. A tag is a named mark on either object. A span is a range between input token boundaries. A capture names one matched part. A stage reads tokens and emits tokens. A dialect defines an ordered pipeline of stages.
+A token is one unit that a stage reads. A constituent is the input that one rule matches. A tag is a named mark on either object. A span is a range between input token boundaries. A capture names one matched part.
+
+A stage reads tokens and emits tokens. A dialect defines an ordered pipeline of stages.
 
 Every token has two strings. Its value is the string that comparisons read. Its image is the string that people see. A constituent has tags but stores neither string. Methods read its input span or reconstruct strings from its chosen reading.
 
@@ -21,7 +23,9 @@ A rule starts with `%rule`, optional flags, its name, and its body. Line breaks 
   | $n:cmevla-shape :: CMEVLA ∪ $n.tags
 ```
 
-A clause assigns tags or a string. Clauses come in the order `::`, `:=`, `:-`. Each position accepts at most one clause of each kind. `:: T` supplies tags. `:= E` supplies a value and an implied image. `:- E` supplies an explicit image. A recipe is an expression that supplies a string.
+A clause assigns tags or a string. Clauses come in the order `::`, `:=`, `:-`. Each position accepts at most one clause of each kind.
+
+`:: T` supplies tags. `:= E` supplies a value and an implied image. `:- E` supplies an explicit image. A recipe is an expression that supplies a string.
 
 Clauses can stand on the rule header or after an alternative. A header with any clause requires a leading `|` before the first alternative. This delimiter separates header expressions from the body.
 
@@ -40,7 +44,9 @@ After the body, `%conditions` lists conditions. Then either `%emits` lists outpu
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores. A rule, classifier, stage, or feature name starts with a lowercase ASCII letter. A rule can also be named `#`. A tag starts with an uppercase ASCII letter or `_`. A capture starts with a lowercase ASCII letter and contains no uppercase letter. A user constant starts with an uppercase ASCII letter. Digits, hyphens, and underscores can follow each initial letter.
+Names use ASCII letters, digits, hyphens, and underscores. A rule, classifier, stage, or feature name starts with a lowercase ASCII letter. A rule can also be named `#`. A tag starts with an uppercase ASCII letter or `_`.
+
+A capture starts with a lowercase ASCII letter and contains no uppercase letter. A user constant starts with an uppercase ASCII letter. Digits, hyphens, and underscores can follow each initial letter.
 
 A class is a tag with capital letters at both ends. It never starts with `_`. `BRIVLA`, `KOhA`, and `FOREIGN` are classes. `Word`, `Run-Final`, `Stressed`, and `Quoted-Text` are tags but not classes.
 
@@ -64,7 +70,9 @@ Terminal identity ignores its written constant name and its tests. `"a"`, `$_006
 
 ## Tests
 
-A tag test lists required and forbidden tags in angle brackets. `X<A ¬B>` requires `A` and forbids `B`. Every requirement must hold. A tag-set constant expands into requirements with the same sign. `<$C>` requires all its tags. `<¬$C>` forbids all its tags. Both tests hold for an empty constant.
+A tag test lists required and forbidden tags in angle brackets. `X<A ¬B>` requires `A` and forbids `B`. Every requirement must hold.
+
+A tag-set constant expands into requirements with the same sign. `<$C>` requires all its tags. `<¬$C>` forbids all its tags. Both tests hold for an empty constant.
 
 An empty `<>` tag test holds vacuously. A value test compares a symbol's input value exactly. `X="s"` requires equality. `X≠"s"` requires inequality. Its operand is a string literal or string constant. There is no lowercase conversion or comma removal.
 

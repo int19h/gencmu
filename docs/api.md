@@ -12,7 +12,7 @@ A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
-A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has the category `Cn`, no White_Space (engine §1).
+A `unicode.txt` in the map replaces the bundled table entirely, with no fallback to the bundled data. This holds for `White_Space` too, so the table must list the white space that the documents use. A code point that the table omits has category `Cn` and lacks White_Space (engine §1).
 
 The path of an `%include` resolves against the document that holds it, with `.` and `..` normalized (engine §13). A DOM (document object model) is the parsed form of a grammar document, as `docs/output.md` describes. `compiled.json` holds precompiled DOMs. A library reads a document through the notation (the grammar of grammar documents) only when `compiled.json` has no entry for it that matches. An entry matches when it has the same text hash, the same bootstrap hash and the same DOM format.
 
@@ -92,7 +92,9 @@ Its span counts tokens of the stage before, not code points, so it has no upper 
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
-A caller cannot supply attachments (engine §11). JavaScript and Python accept token-shaped input objects. Go accepts `InputToken` records. So it can hold attachments: `before` and `after`, or `Before` and `After` in Go. In these three libraries, nonempty attachments on a caller token cause a usage error. The library accepts empty lists and drops them. The `InputToken` of Rust has no such fields.
+A caller cannot supply attachments (engine §11). JavaScript and Python accept token-shaped input objects. Go accepts `InputToken` records. These inputs expose `before` and `after`, or `Before` and `After` in Go. Nonempty attachment lists cause a usage error. Libraries accept empty lists and drop them.
+
+Rust `InputToken` has no attachment fields.
 
 The caller supplies tags, `value`, and `image` for pre-built tokens. An omitted string defaults to `text`. An explicit empty string stays empty. The engine adds no tags and applies no normalization. The caller can supply stored engine tags to represent earlier grammar stages.
 

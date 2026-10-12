@@ -12,7 +12,9 @@ Grammar authors need to read rules and understand their effect. The notation kee
 
 ## Repository layout
 
-`grammars/` contains the source grammar documents. `docs/` contains the specification and author guidance. `tests/engine/` exercises engine behavior. `tests/notation/` exercises document reading and DOM conversion. `tests/corpus/` records Lojban expectations. `lib/` contains the four libraries. `playground/` and `index.html` provide the browser interface.
+`grammars/` contains the source grammar documents. `docs/` contains the specification and author guidance. `tests/engine/` exercises engine behavior. `tests/notation/` exercises document reading and DOM conversion. `tests/corpus/` records Lojban expectations.
+
+`lib/` contains the four libraries. `playground/` and `index.html` provide the browser interface.
 
 Each package includes its own grammar copy. `node tools/sync.js` generates these copies, precompiled DOMs, browser bundles, and railroad diagrams. Generated artifacts remain in Git. A diagram is an SVG drawing of paths through a rule.
 
@@ -110,7 +112,7 @@ The child definition recipe serves both walks. A recipe that must apply inside a
 
 Recipes use a closed string language. They concatenate literals, string constants, and six captured string methods. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 
-Only requested selected recipes run. `.emitted` reads a constituent before the current item's override. Cross-channel reads can terminate through an explicit recipe. A selected channel that depends on itself causes a document cycle error. Engine §11 states occurrence identity and suppressed dependencies.
+Only requested selected recipes run. `.emitted` reads a constituent before the current item's override. Cross-channel reads can terminate through an explicit recipe. An effective constituent channel that depends on itself causes a document cycle error, even when an item overrides its runtime string. Engine §11 states occurrence identity and suppressed dependencies.
 
 ## Pauses and spacing
 

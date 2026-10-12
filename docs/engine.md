@@ -13,7 +13,7 @@ A token has these fields:
 - `tags` is a set of named marks.
 - `value` is the string that exact comparisons read.
 - `image` is the string that people see.
-- `span` counts the preceding stage's input positions covered by the token.
+- `span` counts input tokens consumed by the stage that emits this token.
 - `source` is a half-open range of original Unicode code points.
 - `text` is the original text over `source`.
 - `insertedBy` names the rule that inserts an `ε` emission item.
@@ -492,7 +492,7 @@ Private option captures retain their real completed states for ready gates. The 
 
 Every proof edge stays within its observation state. Equal states still permit distinct derivations and ordinary ties. A cycle alone supplies no finite proof of a structural answer. Cycle exclusion keeps its rule-and-span identity. A different structural state does not permit repetition of the same rule over the same span.
 
-Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `without-elision`, and their dependencies, need these observations. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
+Restoration observations retain proof-sensitive close groups and opaque blocks beside the finite structural states. Only captures demanded by `.without-elision`, and their dependencies, need these observations. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
 
 A caller consumes a constituent in a rule occurrence. An observed caller retains its item's closes for `without-elision`. A capture or an enclosing observed caller can demand those closes. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
 
@@ -552,7 +552,9 @@ An occurrence beats absence, and equal spans count separately. With no flagged r
 
 The stage retains every derivation with the greatest rule profile before applying its directive. The admitted total, before rule-profile selection, determines `unique`. The remaining comparison of actions and elisions applies within that retained forest.
 
-A derivation is read as its sequence of actions in bottom-up order. An action is a read of a token as a terminal, or a close of a production over a span. Closes of helper productions and of productions with exactly one logical symbol are transparent. Logical helper structure supplies that symbol count even when capture expansion removes a physical helper. Production numbers and witness action lists still follow physical expansion. Canonical diagnostic keys can therefore change without changing verdicts or accepted structures. They are part of the sequence, but two sequences never differ at one. The other actions are visible.
+A derivation is read as its sequence of actions in bottom-up order. An action reads a token as a terminal or closes a production over a span. Closes of helpers and productions with exactly one logical symbol are transparent. These closes remain in the action sequence, but action comparison skips them. All other actions are visible.
+
+Logical helper structure supplies that symbol count even when capture expansion removes a physical helper. Production numbers and witness action lists still follow physical expansion. Canonical diagnostic keys can therefore change without changing verdicts or accepted structures.
 
 So the closes of flat braces are transparent. The close of a chain's level is visible where its production has more than one symbol (§3.3).
 
@@ -701,7 +703,7 @@ A candidate must pass its tests and ready conditions in the requested eligibilit
 
 The existing summaries compose over admitted edges. Their totals count admitted derivations, capped at two, before rule-profile selection. Rank by `leftmost-longest`, then the stage directive. With no flagged rule, the stage directive alone ranks admitted derivations.
 
-Outside `without-elision` observations retain the same opaque group block for every option. Private captures keep their real closes only for ready conditions within the option. The admission key includes demanded common restoration observations and excludes all private closes. Thus an aligned outside condition gives the same answer for each admitted proof of one block.
+Outside `.without-elision` observations retain the same opaque group block for every option. Private captures keep their real closes only for ready conditions within the option. The admission key includes demanded common restoration observations and excludes all private closes. Thus an aligned outside condition gives the same answer for each admitted proof of one block.
 
 Every proof that admission excludes has an eligible same-context replacement at the group. The seal and local tag rule preserve its common continuation. Induction through finite admitted child proofs preserves eligible recognition with sealing fixed. Adding a seal can change outside pattern answers.
 
@@ -810,7 +812,7 @@ During the check, the observers mean the following. Here `s` is a span of R, and
 - `s.starts-input` holds where `s′` starts at the start of that input.
 - `s.source-text` is the original text over the source of the tokens of `s′`, as §5 says. `s.value` concatenates their values, and `s.image` concatenates their images (§5).
 - For a whole capture or `$`, `s.tags` is the constituent's tags. For any other span, it is the union of the tags of the tokens of `s′`. `s.classes` keeps the tags of `s.tags` whose names begin and end with an uppercase ASCII letter and never start with `_`.
-- `matches`, `begins` and `s.tags(R)` run a nested query over `s′` (§7.6).
+- `s.matches(R)`, `s.begins(R)`, and `s.tags(R)` run a nested query over `s′` (§7.6).
 
 The projection comes first, then the function. So `s.first-token` is the first original token of `s`, not the first token of `s` with a synthetic one removed. A function of a span never carries a capture's constituent tags: `$x.first-token.tags` reads tokens even where `$x.first-token` is all of `$x`.
 
@@ -842,7 +844,7 @@ Written-terminator priority applies to the tokens that it reads. It does not ran
 
 Inside the query, `.starts-input`, `.onward` and `.following-tokens` read the query's span of O. Its start and end are positions of O.
 
-A query is about a rule and a span of O. For the recursive-query rule of §4, `matches`, `begins` and `s.tags(R)` of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
+A query is about a rule and a span of O. For the recursive-query rule of §4, `s.matches(R)`, `s.begins(R)`, and `s.tags(R)` of one rule and span are one query. The rule is unchanged. A query is an error of the grammar where a query about the same rule and span is active. Only queries are active.
 
 The reconstruction's recognition of R is not a query. This holds also where the span of `$` projects to all of O and the query asks about `text`. So a condition of the reconstruction can ask whether the original input parses as `text`. That query runs with G over O, and it is active while it runs. It is an error only where a query inside it asks about `text` over all of O.
 
@@ -1087,7 +1089,9 @@ The loader proves disjoint carrier spans structurally in stage-input positions. 
 
 Unknown keywords, directives, methods, wrong arities, clause orders, types, and engine-tag introductions are document errors. Malformed source trees and supplied DOMs receive the same restrictions. A source tree must provide every part required by its converted form. Missing parts report their enclosing construct.
 
-The maximum DOM depth is 256 compound ancestors. Parentheses add no depth. Compound expressions include sequence, choice, ranked, conjunction, optional, repeat, capture, and tests. Compound terms include set operators, guards, interpolation, method nodes, and concatenation. Compound conditions include comparisons, predicates, negation, conjunction, disjunction, and implication. Pattern compounds follow their schema. Cross-kind children continue the same ancestor count.
+The maximum DOM depth is 256 compound ancestors. Parentheses add no depth. Compound expressions include sequence, choice, ranked, conjunction, optional, repeat, capture, and tests. Compound terms include set operators, guards, interpolation, method nodes, and concatenation. Compound conditions include comparisons, predicates, negation, conjunction, disjunction, and implication.
+
+Pattern compounds follow their schema. Cross-kind children continue the same ancestor count.
 
 Syntax and local reading errors precede depth errors. Among overdeep items, the first in document order decides. Supplied DOMs must meet the same depth, member, arity, and type rules. An expression with members of two forms is malformed. Two declarations cannot share a source position.
 

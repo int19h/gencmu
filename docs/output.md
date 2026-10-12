@@ -181,7 +181,9 @@ A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` sto
 
 `SYMBOL` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. A capture can also wrap one tested SYMBOL. Capture names use lowercase letters, digits, hyphens, and underscores. Captures cannot occur inside repeats or elidable optionals. Each expanded production binds a name at most once.
 
-A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`, where TERM is a tag literal or tag-set constant. A negative requirement has `negated:true`. The requirement array can be empty. An empty constant also resolves to no requirements. Tests cannot wrap another test.
+A value test uses `=` or `≠`. A tag test uses `test:"tags"` and an ordered array of requirements. A requirement is `{"negated":false,"value":TERM}`, where TERM is a tag literal or tag-set constant. A negative requirement has `negated:true`.
+
+The requirement array can be empty. An empty constant also resolves to no requirements. Tests cannot wrap another test.
 
 The first symbol of an elidable optional is an ordinary tag `ref`, optionally tested. Its expression is that symbol or a sequence starting with it. Engine tags, strings, ranges, wildcard, captures, and grouped heads are invalid. Source syntax also rejects parentheses around the head. The DOM does not record discarded grouping.
 
@@ -202,7 +204,9 @@ Terms have these forms:
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. `.without-elision` requires a bare capture receiver. `.onward` can wrap its restored result. The DOM contains no runtime restoration records.
+Rule arguments use `{"rule":"r"}`. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms.
+
+`.without-elision` requires a bare capture receiver. `.onward` can wrap its restored result. The DOM contains no runtime restoration records.
 
 A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the six recipe string methods on a bare capture. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
@@ -274,9 +278,11 @@ CHILDREN has exactly one of these forms:
 {"siblings":true}
 ```
 
-A tag name becomes `terminal`, including KEhE, GIhI, NUhI, and engine tags. String atoms use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names become `name`, including `#`. A tested terminal uses one value test or one signed tag test. Its `expr` must be one terminal atom, including `literal`, `range`, or `wildcard`. Constants remain unresolved expressions in document DOMs. The stage binder resolves their version graph (§2).
+A tag name becomes `terminal`, including KEhE, GIhI, NUhI, and engine tags. String atoms use `literal`, ranges use `range`, and `_` uses `wildcard`. Other names become `name`, including `#`. A tested terminal uses one value test or one signed tag test. Its `expr` must be one terminal atom, including `literal`, `range`, or `wildcard`.
 
-At the literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
+Constants remain unresolved expressions in document DOMs. The stage binder resolves their version graph (§2).
+
+At the pattern literal root, a sequence becomes `children`. A nested literal inside a sequence instead becomes one `node` item. Plain parentheses preserve sibling grouping. Thus `@(A (B C))` has three children, while `@(A @(B C))` has two. A single node predicate remains that predicate. An optional or repeat always becomes a `children` predicate.
 
 Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
 
@@ -284,7 +290,7 @@ Union and intersection require at least two operands. Difference requires exactl
 
 Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
 
-A tree comparison uses the existing `op`, `left` and `right` members:
+A tree comparison uses `op`, `left` and `right` members:
 
 ```json
 {"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
@@ -305,7 +311,7 @@ For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
+The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
 
 ### Precompiled DOMs
 
