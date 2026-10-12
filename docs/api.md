@@ -24,7 +24,7 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 Grammar DOM format 26 supports token strings, recipes, stored engine tags, and method expressions. Parse-result format 12 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-26 DOMs or grammar text in the specified notation. Callers do not supply phoneme tags, character tags, or normalization instructions to the engine. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-26 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 An `optional` with a `maximal` member is malformed, as `docs/output.md` says.
 
@@ -84,13 +84,17 @@ Every library writes the canonical JSON of a result as text, in the key order th
 
 ### Tokens for tests and tools
 
-Some entry points exist for tests and tools, outside the common API. They supply pre-built tokens instead of stage-zero characters. JavaScript uses `tokens`, Python uses `Dialect.parse_tokens`, Go uses `(*Dialect).ParseTokens`, and Rust uses `Dialect::parse_tokens`. Omitted values and images default independently to text. Explicit empty strings remain empty.
+Some entry points exist for tests and tools, outside the common API. They supply pre-built tokens instead of stage-zero characters.
+
+JavaScript supplies tokens in `dialect.parse(text, { tokens, ...configuration })`. Python uses `Dialect.parse_tokens(tokens, text, ...)`. Go uses `(*Dialect).ParseTokens(text, tokens, options)`. Rust uses `Dialect::parse_tokens(tokens, options)`.
+
+JavaScript, Python and Go take the original text beside the tokens. Token sources, `.source-text`, and `.verbatim-text` use that text.
 
 In JavaScript, Python and Go, a caller's token has a source and a span. Its source counts code points of the text. It must start at 0 or later, end at or after its start, and end within the text. The sources of two tokens can overlap or lie out of order (engine §11).
 
-The `.verbatim-text` method searches left and right separately (engine §11.1). Each neighbor bound limits only its own side. Token order remains the caller's order.
+A caller's token span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
 
-Its span counts tokens of the stage before, not code points, so it has no upper bound. The span must start at 0 or later and end at or after its start. A token that breaks the source or span rules is a usage error.
+The `.verbatim-text` method searches left and right separately (engine §11.1). Each neighbor bound limits only its own side. Token order remains the caller's order.
 
 The `InputToken` of Rust has no source and no span. The library gives each token its span, and a source in a text of the tokens' texts joined with single spaces. The generated source range always lies within that text.
 
@@ -127,6 +131,10 @@ import { loadDialectSources, toJson, toBrackets } from "gencmu";
 
 const dialect = loadDialect("cll-ebnf");
 const result = dialect.parse("mi klama", { features: ["y-cmavo"], until: "words" });
+const supplied = dialect.parse("A", {
+    tokens: [{ text: "A", value: "a", image: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }],
+    until: "phonemes", autoFeatures: false
+});
 result.ok; result.tree; result.error; result.warnings;
 dialect.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
                   //  { name: "sa-su", kind: "gate", default: false },
@@ -136,7 +144,7 @@ toJson(result); toBrackets(result, { showElided: true });
 ```
 
 - `loadDialect(name)` and `loadDialectFile(path)` come from `gencmu/node`. `loadDialectSources(sources, pipelinePath)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills in `unicode.txt`, `notation/bootstrap.json` and `compiled.json` from the bundled grammars. The `gencmu` version has no files to read. So the map must hold the first two itself, as the grammar object of the browser bundle does.
-- `dialect.parse(text, { features, withoutFeatures, autoFeatures, until, elisionOnly })` returns a `ParseResult`. `autoFeatures` defaults to `true`.
+- `dialect.parse(text, { tokens, features, withoutFeatures, autoFeatures, until, elisionOnly })` returns a `ParseResult`. `autoFeatures` defaults to `true`.
 - `dialect.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
 - Errors are `GencmuError`, with `kind` and `where`.
@@ -151,6 +159,8 @@ import gencmu
 
 dialect = gencmu.load_dialect("cll-ebnf")
 result = dialect.parse("mi klama", features={"y-cmavo"}, until="words")
+tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_Lu", "_L"}, span=(0, 1), source=(0, 1))]
+supplied = dialect.parse_tokens(tokens, "A", until="phonemes", auto_features=False)
 result.ok, result.tree, result.error, result.warnings
 dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
                   #  Feature(name="sa-su", kind="gate", default=False),
@@ -162,6 +172,7 @@ gencmu.to_brackets(result, show_elided=True)
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` load a dialect. `sources` is a mapping from path to text.
 - `Dialect.parse(text, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult` parses a text.
+- `Dialect.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult` parses supplied tokens.
 - `Dialect.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
@@ -177,6 +188,11 @@ import gencmu "github.com/int19h/gencmu/lib/go"
 dialect, err := gencmu.LoadDialect("cll-ebnf")
 result, err := dialect.Parse("mi klama", gencmu.ParseOptions{Features: []string{"y-cmavo"}, Until: "words"})
 result.OK; result.Tree; result.Error; result.Warnings
+value, image := "a", "A"
+supplied, err := dialect.ParseTokens("A", []gencmu.InputToken{{
+    Text: "A", Value: &value, Image: &image, Tags: []string{"_Lu", "_L"},
+    Span: [2]int{0, 1}, Source: [2]int{0, 1},
+}}, gencmu.ParseOptions{Until: "phonemes", NoAutoFeatures: true})
 dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
                    //   {Name: "sa-su", Kind: "gate", Default: false},
                    //   {Name: "su-boundary", Kind: "gate", Default: false},
@@ -189,6 +205,7 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 - `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`.
 
   Auto features are on unless `NoAutoFeatures` is set. `Until` is a string, so Go cannot tell an empty name from no name. An empty `Until` runs every stage.
+- `(*Dialect).ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error)` parses supplied tokens with the same configuration.
 - `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
 - A `*Dialect` is safe for concurrent use by any number of goroutines.
@@ -202,6 +219,12 @@ let result = dialect.parse("mi klama", &gencmu::ParseOptions {
     until: Some("words".into()),
     ..Default::default()
 })?;
+let supplied = dialect.parse_tokens(&[gencmu::InputToken {
+    text: "A".into(), value: Some("a".into()), image: Some("A".into()),
+    tags: ["_Lu".into(), "_L".into()].into_iter().collect(),
+}], &gencmu::ParseOptions {
+    until: Some("phonemes".into()), auto_features: false, ..Default::default()
+})?;
 let (ok, tree, error, warnings) = (result.ok, &result.tree, &result.error, &result.warnings);
 let features = dialect.features(); // &[Feature { name, kind, default }]
 gencmu::to_json(&result);
@@ -210,6 +233,7 @@ gencmu::to_brackets(&result, true);
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` each return `Result<Dialect, gencmu::Error>`.
 - `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `auto_features`, `until` and `elision_only`, and `ParseOptions::default()` has auto features on.
+- `Dialect::parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error>` parses supplied tokens with the same configuration.
 - `Dialect::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
 - `to_json(&ParseResult) -> String` writes the canonical JSON.
 - `to_brackets(&ParseResult, show_elided: bool) -> String` renders the tree as brackets.
