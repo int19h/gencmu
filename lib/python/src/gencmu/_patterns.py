@@ -6,6 +6,7 @@ import re
 from typing import Any, Callable
 
 from . import _testing
+from ._strings import ENGINE_TAGS, USER_NAME, is_constant
 
 Dom = dict[str, Any]
 
@@ -67,18 +68,33 @@ def pattern_problem(root: Any, test_fault: Callable[[Dom], str | None] | None = 
             if not isinstance(name, str) or not isinstance(at, list) or len(at) != 2 or any(type(n) is not int for n in at):
                 return "a malformed pattern atom"
             if key == "name":
-                if name != "#" and re.fullmatch(r"[a-z][A-Za-z0-9-]*", name) is None:
+                if name != "#" and re.fullmatch(r"[a-z][A-Za-z0-9_-]*", name) is None:
                     return "a malformed pattern rule name"
-            elif re.fullmatch(r"[A-Z][A-Za-z0-9-]*", name) is None:
+            elif not (USER_NAME.fullmatch(name) or key == "terminal" and name in ENGINE_TAGS):
                 return "a malformed pattern terminal or constant"
-        elif keys == {"test", "expr", "value"}:
-            if not isinstance(node["expr"], dict) or "terminal" not in node["expr"] or node["test"] not in ("=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅"):
+        elif keys in ({"literal", "at"}, {"range", "at"}, {"wildcard", "at"}):
+            at = node["at"]
+            if not isinstance(at, list) or len(at) != 2 or any(type(n) is not int or n < 1 for n in at):
+                return "a malformed pattern position"
+            if "wildcard" in node and node["wildcard"] is not True:
+                return "a malformed wildcard pattern"
+        elif "test" in node:
+            inner = node.get("expr")
+            value_test = node["test"] in ("=", "≠")
+            form = {"test", "expr", "value"} if value_test else {"test", "expr", "requirements"}
+            if keys != form or node["test"] not in ("tags", "=", "≠") or not isinstance(inner, dict):
+                return "a malformed pattern test"
+            if value_test and inner.get("test") == "tags":
+                base = inner.get("expr", {})
+            else:
+                base = inner
+            if not any(k in base for k in ("terminal", "literal", "range", "wildcard", "constant")) or "test" in base:
                 return "a pattern test requires one terminal atom"
             if test_fault is not None:
                 problem = test_fault(node)
-                if problem is not None:
+                if problem:
                     return problem
-            push(node["expr"])
+            push(inner)
         elif keys == {"children"}:
             push(node["children"], True)
         elif keys == {"path", "pattern"}:

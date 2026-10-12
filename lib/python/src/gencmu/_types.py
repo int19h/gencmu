@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
 from ._patterns import walk_pattern
+from ._strings import scalar
 
 TermType = str
 """``"string"``, ``"strings"``, ``"tags"``, ``"span"``, ``"pattern"``, ``"set"`` or ``"any"``."""
@@ -34,7 +35,7 @@ ConstantTypes = Callable[[str], TermType]
 reader knows none, and gives every constant the type ``any``."""
 
 _SET_KINDS = frozenset(["strings", "tags", "set", "pattern"])
-_NAMES = {"pattern":"a tree pattern","string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "set": "a set", "any": "a value"}
+_NAMES = {"pattern":"a tree pattern","string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "capture": "a capture", "restored": "a restored span", "emitted": "an emitted pair", "predicate": "a predicate", "set": "a set", "any": "a value"}
 SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
 _CALL_STRINGS = {"split": "two strings", "tag": "one string", "classify": "a string and a classifier's name"}
 """The calls whose arguments, but a classifier's name, are strings."""
@@ -46,24 +47,54 @@ def type_name(kind: TermType) -> str:
 
 
 def _unknown_constants(name: str) -> TermType:
-    return "any"
+    return "string" if scalar(name) is not None else "any"
 
 
-def _call_type(call: str) -> TermType:
-    if call in ("phonemes", "text"):
-        return "string"
-    if call == "split":
-        return "strings"
-    if call in ("tags", "classes", "tag", "classify"):
-        return "tags"
-    return "span"
+_SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}
+_STRING_METHODS = {"value", "image", "source-text", "verbatim-text"}
+_PREDICATES = {"matches", "begins", "starts-input"}
+
+
+def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
+    """Select a method on its actual receiver before string conversion."""
+    spans = {"capture", "span", "restored"}
+    if name in _STRING_METHODS:
+        valid = receiver in spans or (recipe and receiver == "emitted" and name in ("value", "image"))
+        if name == "verbatim-text":
+            valid = recipe and bare
+        result, arity = "string", 0
+    elif name == "emitted":
+        valid, result, arity = recipe and bare, "emitted", 0
+    elif name == "without-elision":
+        valid, result, arity = bare, "restored", 0
+    elif name in _SPAN_METHODS:
+        valid = receiver in spans
+        result = "restored" if name == "onward" and receiver == "restored" else "span"
+        arity = 0
+    elif name in ("tags", "classes"):
+        valid, result, arity = receiver in spans, "tags", None if name == "tags" else 0
+        if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
+            valid = False
+    elif name in _PREDICATES:
+        valid, result, arity = receiver in spans, "predicate", 0 if name == "starts-input" else 1
+        if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
+            valid = False
+    elif name in ("split", "classify"):
+        valid, result, arity = receiver in spans | {"string", "any"}, "strings" if name == "split" else "tags", 1
+        if name == "classify" and (len(args) != 1 or set(args[0]) != {"classifier"}):
+            valid = False
+    else:
+        return None, f"unknown method .{name}"
+    if not valid or arity is not None and len(args) != arity:
+        return None, f"invalid receiver or arguments for .{name}"
+    return result, None
 
 
 def joined_type(types: list[TermType], operator: str) -> Found:
     """The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined:
     each is a set, and all whose kind is known have one kind. A constant
     whose type is not known yet fits any set."""
-    if "span" in types:
+    if any(kind in ("capture", "span", "restored") for kind in types):
         return None, SPAN_NOT_VALUE
     known = [kind for kind in types if kind != "any"]
     for kind in known:
@@ -81,14 +112,17 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
     """Why a comparison's two sides do not fit its comparator, or None. A
     side of type ``any`` fits, and the loader checks it again."""
     if op in ("≅", "≇"):
-        if left != "span":
+        if left != "capture":
             return "a tree comparison requires a bare capture on its left"
         if right not in ("pattern", "set", "any"):
             return "a tree comparison requires a tree pattern on its right"
         return None
     if "pattern" in (left, right):
         return "tree patterns use ≅ or ≇"
-    if left == "span" or right == "span":
+    if op in ("=", "≠", "∈", "∉"):
+        left = "string" if left in ("capture", "span", "restored") else left
+        right = "string" if right in ("capture", "span", "restored") else right
+    if left in ("capture", "span", "restored") or right in ("capture", "span", "restored"):
         return SPAN_NOT_VALUE
     if op in ("∈", "∉"):
         if left not in ("string", "any"):
@@ -112,9 +146,9 @@ def expected_problem(kind: TermType, expected: TermType) -> str | None:
     """Why a term of type ``kind`` cannot stand where ``expected``, a string
     or a tag set, is needed, or None. A set of open kind takes the kind it
     is given, and a constant of unknown type fits."""
-    if kind == expected or kind == "any" or (kind == "set" and expected == "tags"):
+    if kind == expected or kind == "any" or (kind == "set" and expected in ("tags", "strings", "pattern")) or (expected == "string" and kind in ("capture", "span", "restored")):
         return None
-    if kind == "span":
+    if kind in ("capture", "span", "restored"):
         return SPAN_NOT_VALUE
     return f"{_NAMES[expected]} is needed here, not {_NAMES[kind]}"
 
@@ -163,25 +197,37 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
     if "pattern" in term:
         for node, _ in walk_pattern(term["pattern"]):
             if "constant" in node:
-                problem = expected_problem(constants(node["constant"]), "pattern")
+                kind = constants(node["constant"])
+                problem = None if kind in ("pattern", "string", "any") else "a pattern atom requires a string or pattern constant"
                 if problem is not None:
                     return None, (problem, {"const":node["constant"], "at":node["at"]})
             if "test" in node:
-                kind, fault = yield _term_typing(node["value"], constants, memo)
-                if fault is not None:
-                    return None, fault
-                problem = test_type_problem(node["test"], kind)
-                if problem is not None:
-                    return None, (problem, node["value"])
+                operands = [r["value"] for r in node["requirements"]] if node["test"] == "tags" else [node["value"]]
+                for operand in operands:
+                    kind, fault = yield _term_typing(operand, constants, memo)
+                    if fault is not None:
+                        return None, fault
+                    problem = test_type_problem(node["test"], kind)
+                    if problem is not None:
+                        return None, (problem, operand)
         return "pattern", None
     if isinstance(term.get("string"), str):
         return "string", None
-    if isinstance(term.get("tag"), str) or "range" in term:
+    if isinstance(term.get("tag"), str):
         return "tags", None
     if term.get("emptySet") is True:
         return "set", None
     if isinstance(term.get("capture"), str):
-        return "span", None
+        return "capture", None
+    if "interpolate" in term:
+        for part in term["interpolate"]:
+            kind, fault = yield _term_typing(part, constants, memo)
+            if fault is not None:
+                return None, fault
+            problem = expected_problem(kind, "string")
+            if problem:
+                return None, (problem, part)
+        return "string", None
     if isinstance(term.get("const"), str):
         return constants(term["const"]), None
     for key, operator in (("union", "∪"), ("intersection", "∩"), ("difference", "∖")):
@@ -205,19 +251,23 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             return None, fault
         problem = expected_problem(kind, "tags")
         return (None, (problem, term)) if problem is not None else ("tags", None)
-    call = term.get("call")
-    if isinstance(call, str):
-        for argument in term.get("args", []):
-            if "rule" in argument or "classifier" in argument:
-                continue
-            kind, fault = yield _term_typing(argument, constants, memo)
+    name = term.get("method")
+    if isinstance(name, str):
+        kind, fault = yield _term_typing(term["receiver"], constants, memo)
+        if fault is not None:
+            return None, fault
+        recipe = name in ("verbatim-text", "emitted") or kind == "emitted"
+        result, problem = method_type(name, kind, term["args"], set(term["receiver"]) == {"capture"}, recipe)
+        if problem is not None:
+            return None, (problem, term)
+        if name == "split":
+            argument, fault = yield _term_typing(term["args"][0], constants, memo)
             if fault is not None:
                 return None, fault
-            if call in _CALL_STRINGS:
-                problem = expected_problem(kind, "string")
-                if problem is not None:
-                    return None, (f"{call} takes {_CALL_STRINGS[call]}: {problem}", term)
-        return _call_type(call), None
+            problem = expected_problem(argument, "string")
+            if problem:
+                return None, (problem, term)
+        return result, None
     return None, ("a malformed term", term)
 
 
@@ -263,6 +313,12 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
             return fault
         problem = comparison_problem(condition["op"], left, right)
         return (problem, condition) if problem is not None else None
+    if "method" in condition:
+        kind, fault = yield _term_typing(condition, constants, memo)
+        if fault:
+            return fault
+        if kind != "predicate":
+            return "a condition requires a predicate", condition
     return None
 
 
@@ -304,16 +360,16 @@ def rule_type_fault(rule: Any, constants: ConstantTypes = _unknown_constants) ->
         fault = condition_type_fault(condition, constants)
         if fault is not None:
             return fault
-    # A test's value is a string for a sound test and a tag set for a tag
-    # test (engine §9, §10).
     for alternative in rule["alternatives"]:
         for test in tests_in(alternative["expr"]):
-            kind, fault = term_type_fault(test["value"], constants)
-            if fault is not None:
-                return fault
-            problem = test_type_problem(test["test"], kind)  # type: ignore[arg-type]
-            if problem is not None:
-                return problem, test["value"]
+            operands = [r["value"] for r in test["requirements"]] if test["test"] == "tags" else [test["value"]]
+            for value in operands:
+                kind, fault = term_type_fault(value, constants)
+                if fault is not None:
+                    return fault
+                problem = test_type_problem(test["test"], kind)
+                if problem is not None:
+                    return problem, value
     return None
 
 
@@ -327,7 +383,7 @@ def tests_in(expr: Any) -> list[dict[str, Any]]:
             continue
         if isinstance(current.get("test"), str):
             found.append(current)
-        for key in ("choice", "and", "seq"):
+        for key in ("choice", "ranked", "and", "seq"):
             items = current.get(key)
             if isinstance(items, list):
                 stack.extend(reversed(items))
@@ -353,7 +409,7 @@ def constant_value_type(value: Any, redefine: bool, constants: ConstantTypes = _
     kind, fault = term_type_fault(value, constants, memo)
     if fault is not None:
         return None, fault
-    if kind == "span":
+    if kind in ("capture", "span", "restored"):
         return None, ("a constant's value is a string or a set, never a span", value)
     if kind == "set" and not redefine:
         return None, ("the kind of the set that the constant holds is not given", value)
@@ -368,7 +424,7 @@ def constant_value_problem(value: Any, redefine: bool) -> str | None:
 
 def open_part(term: Any) -> Any:
     """The first part of a term that is not closed (engine §10), or None: a
-    capture, a guarded term, or a call of anything but split and tag. The
+    capture, a guarded term, or a method other than split. The
     shape of the term need not be checked. In the order written, with a
     list for a stack."""
     stack: list[Any] = [term]
@@ -379,15 +435,17 @@ def open_part(term: Any) -> Any:
         if "capture" in current or "if" in current:
             return current
         if "pattern" in current:
-            stack.extend(node["value"] for node, _ in walk_pattern(current["pattern"]) if "test" in node)
+            for node, _ in walk_pattern(current["pattern"]):
+                if "test" in node:
+                    stack.extend(r["value"] for r in node["requirements"]) if node["test"] == "tags" else stack.append(node["value"])
             continue
         items: Any = []
-        if isinstance(current.get("call"), str):
-            if current["call"] not in ("split", "tag"):
+        if isinstance(current.get("method"), str):
+            if current["method"] != "split":
                 return current
-            items = current.get("args")
+            items = [current["receiver"], *current["args"]]
         else:
-            for key in ("union", "intersection", "difference"):
+            for key in ("union", "intersection", "difference", "interpolate"):
                 if isinstance(current.get(key), list):
                     items = current[key]
                     break

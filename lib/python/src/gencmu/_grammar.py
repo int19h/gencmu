@@ -40,12 +40,13 @@ from ._types import (
     type_name,
 )
 from ._validate import Lowercase, sound_problem
+from ._strings import scalar, literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
 
 
 def is_terminal_name(name: str) -> bool:
-    return bool(name) and "A" <= name[0] <= "Z"
+    return bool(name) and ("A" <= name[0] <= "Z" or name in ENGINE_TAGS)
 
 
 # ---------------------------------------------------------------------------
@@ -107,11 +108,17 @@ class SymbolTest:
     sound: str | None
     tags: frozenset[str] | None
     written: str
+    requirements: tuple[tuple[bool, frozenset[str]], ...] = ()
+    prior: SymbolTest | None = None
 
     def holds(self, sound: str, tags: frozenset[str]) -> bool:
         """Whether the test holds of a span that sounds like ``sound`` and
         a symbol whose own tags are ``tags`` (engine §4)."""
+        if self.prior is not None and not self.prior.holds(sound, tags):
+            return False
         op = self.op
+        if op == "tags":
+            return all(tags.isdisjoint(wanted) if negated else wanted <= tags for negated, wanted in self.requirements)
         if op == "=":
             return sound == self.sound
         if op == "≠":
@@ -140,6 +147,7 @@ class Grammar:
     # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
+    unicode: Any = field(default=None, repr=False, compare=False)
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
     # The stage's %classifier items in stitching order, each with its
@@ -269,7 +277,7 @@ class _Constants:
         self.deferred_emissions = []
 
     def type_of(self, name: str) -> TermType:
-        return self.values[name].type
+        return "string" if scalar(name) is not None else self.values[name].type
 
     def fault_error(self, path: str, node: Any, item: Any, problem: str) -> GencmuError:
         """The error for a construct whose types disagree, or whose value
@@ -294,6 +302,8 @@ class _Constants:
             dependencies = []
             for reference in constants_in(version["value"]):
                 name = reference["const"]
+                if scalar(name) is not None:
+                    continue
                 target = version["previous"] if name == version["name"] and version["op"] == "redefine" else self.latest.get(name)
                 if target is None:
                     raise _error(f"${name} is not defined in stage {self.stage}; dependency ${version['name']} → ${name}", version["path"], reference["at"], self.stage)
@@ -333,7 +343,7 @@ class _Constants:
             index += 1
             queued.discard(at)
             version = self.versions[at]
-            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: kinds.get(name, "any"))
+            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: "string" if scalar(name) is not None else kinds.get(name, "any"))
             if fault is not None:
                 raise self.fault_error(version["path"], fault[1], version["at"], fault[0])
             if kind in ("any", "set"):
@@ -352,7 +362,7 @@ class _Constants:
             if kind is None:
                 raise _error(f"the kind of the value of ${version['name']} is not given", version["path"], version["at"], self.stage)
             self.values = {}
-            for reference, (target, _) in zip(constants_in(version["value"]), version["dependencies"]):
+            for reference, (target, _) in zip((r for r in constants_in(version["value"]) if scalar(r["const"]) is None), version["dependencies"]):
                 self.values[reference["const"]] = target["result"]
             value = run(self._closed(version["path"], version["value"], version["at"], kind))
             version["result"] = _Constant(value, kind, version["path"])
@@ -365,7 +375,7 @@ class _Constants:
             if "pattern" in node:
                 return True
             if "const" in node:
-                if self.values[node["const"]].type == "pattern":
+                if self.type_of(node["const"]) == "pattern":
                     return True
             else:
                 for key in ("union", "intersection", "difference"):
@@ -410,6 +420,11 @@ class _Constants:
             return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]
+        if "interpolate" in term:
+            parts = []
+            for part in term["interpolate"]:
+                parts.append(_string((yield self._closed(path, part, item))))
+            return "".join(parts)
         if "tag" in term:
             return frozenset((term["tag"],))
         if "range" in term:
@@ -417,7 +432,8 @@ class _Constants:
         if "emptySet" in term:
             return {"pattern":empty_pattern()} if expected == "pattern" else EMPTY
         if "const" in term:
-            return self.values[term["const"]].value
+            direct = scalar(term["const"])
+            return direct if direct is not None else self.values[term["const"]].value
         if "union" in term:
             gathered = Gathered()
             for part in term["union"]:
@@ -432,19 +448,14 @@ class _Constants:
         if "difference" in term:
             left = _set((yield self._closed(path, term["difference"][0], item)))
             return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
-        if term.get("call") == "split":
+        if term.get("method") == "split":
             # Left to right, as a parse evaluates a term (engine §10).
-            text, delimiter = term["args"]
+            text, delimiter = term["receiver"], term["args"][0]
             pieces = _string((yield self._closed(path, text, item)))
             seen = _string((yield self._closed(path, delimiter, item)))
             if seen == "":
                 raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
             return split_string(pieces, seen)
-        if term.get("call") == "tag":
-            name = _string((yield self._closed(path, term["args"][0], item)))
-            if not is_name(name):
-                raise self.fault_error(path, term["args"][0], item, f"tag({json.dumps(name, ensure_ascii=False)}): the string is not a name")
-            return frozenset((name,))
         raise _error("a constant's value is not a closed term", path, item, self.stage)
 
     def implication(self, path: str, implication: Dom) -> tuple[frozenset[str], frozenset[str]]:
@@ -453,7 +464,7 @@ class _Constants:
         sides: list[frozenset[str]] = []
         for side in (implication["if"], implication["then"]):
             for reference in constants_in(side):
-                if reference["const"] not in self.values:
+                if scalar(reference["const"]) is None and reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             kind, fault = term_type_fault(side, self.type_of)
             if fault is None:
@@ -472,7 +483,7 @@ class _Constants:
         not empty, or a name (engine §2, §9, §10)."""
         for path, rule in self.users:
             for reference in constants_in(rule):
-                if reference["const"] not in self.values:
+                if scalar(reference["const"]) is None and reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
@@ -495,38 +506,23 @@ class _Constants:
                     self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
                 else:
                     raise _error(problem, path, rule["at"], self.stage)
-            # A string constant in a sound test must be a canonical sound
-            # (engine §2, §9); the error stands at the constant.
-            for alternative in rule["alternatives"]:
-                for test in tests_in(alternative["expr"]):
-                    found = constants_in(test["value"])
-                    if not is_sound_test(test["test"]) or not found:
-                        continue
-                    value = run(self._closed(path, test["value"], rule["at"]))
-                    wrong = sound_problem(value if isinstance(value, str) else "", self.unicode)
-                    if wrong is not None:
-                        raise _error(wrong, path, found[0]["at"], self.stage)
             for call in _calls_in(rule):
-                argument = call["args"][1] if call["call"] == "split" else call["args"][0]
-                if not isinstance(argument, dict) or "const" not in argument:
-                    continue
-                value = self.values[argument["const"]].value
-                seen = value if isinstance(value, str) else ""
-                if call["call"] == "split" and seen == "":
-                    raise _error("split has an empty delimiter", path, argument["at"], self.stage)
-                if call["call"] == "tag" and not is_name(seen):
-                    raise _error(
-                        f"tag({json.dumps(seen, ensure_ascii=False)}): the string is not a name", path, argument["at"], self.stage
-                    )
+                argument = call["args"][0]
+                if call["method"] == "split" and literal_string(argument) == "":
+                    raise self.fault_error(path, argument, rule["at"], "split has an empty delimiter")
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
         values (engine §2, §4)."""
+        prior = test["expr"].get(RESOLVED) if isinstance(test.get("expr"), dict) else None
+        if test["test"] == "tags":
+            requirements = tuple((r["negated"], _set(run(self._closed(path, r["value"], at)))) for r in test["requirements"])
+            names = sorted({(name, negated) for negated, tags in requirements for name in tags})
+            written = "<" + " ".join(("¬" if negated else "") + name for name, negated in names) + ">"
+            return SymbolTest("tags", None, None, written, requirements, prior)
         value = run(self._closed(path, test["value"], at))
-        written = written_test(test["test"], value)
-        if isinstance(value, str):
-            return SymbolTest(test["test"], value, None, written)
-        return SymbolTest(test["test"], None, _set(value), written)
+        written = (prior.written if prior else "") + test["test"] + spelling(value, self.unicode)
+        return SymbolTest(test["test"], value, None, written, (), prior)
 
     def with_values(self, node: Any) -> Walk:
         """A copy of a DOM node in which each reference to a constant holds
@@ -541,8 +537,9 @@ class _Constants:
         if "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
             return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
-            constant = self.values[node["const"]]
-            return constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+            direct = scalar(node["const"])
+            constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+            return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
         if node.get("op") in ("≅", "≇"):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
@@ -577,8 +574,9 @@ class _Constants:
             elif "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
                 copy = yield self._closed("", node, None)
             elif isinstance(node.get("const"), str):
-                constant = self.values[node["const"]]
-                copy = constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+                direct = scalar(node["const"])
+                constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+                copy = constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
             elif node.get("op") in ("≅", "≇"):
                 copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
             else:
@@ -591,6 +589,7 @@ class _Constants:
 
         for rule in rules.values():
             for alternative in rule.alternatives:
+                alternative.expr = run(resolve(alternative.expr))
                 alternative.tags = run(resolve(alternative.tags))
                 alternative.rule_tags = run(resolve(alternative.rule_tags))
                 alternative.emit = run(resolve(alternative.emit))
@@ -614,7 +613,7 @@ def _calls_in(node: Any) -> list[Dom]:
         if isinstance(current, list):
             stack.extend(reversed(current))
         elif isinstance(current, dict):
-            if current.get("call") in ("split", "tag") and isinstance(current.get("args"), list):
+            if current.get("method") == "split" and isinstance(current.get("args"), list):
                 found.append(current)
             stack.extend(reversed(list(current.values())))
     return found
@@ -696,6 +695,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    classifier_items = [(path, {**c, "entries": [{**e, "keys": [run(constants._closed(path, key, e["at"])) for key in e["keys"]]} for e in c["entries"]]}) for path, c in classifier_items]
     _resolve_tests(rules, constants)
     implications = [constants.implication(path, implication) for path, implication in implication_items]
     if not resolutions:
@@ -760,7 +760,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         rules,
         args[0],
         elision_only,
-        changes,
+        unicode=unicode,
+        changes=changes,
         classifier_items=classifier_items,
         implications=implications,
     )
@@ -825,7 +826,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
             else:
                 copy[key] = value
         if isinstance(node.get("test"), str):
-            copy[RESOLVED] = constants.test(alt.document, node, alt.at)
+            copy[RESOLVED] = constants.test(alt.document, copy, alt.at)
         copies[id(node)] = copy
         return copy
 
@@ -994,6 +995,7 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 class _Lowerer:
     def __init__(self, grammar: Grammar, features: frozenset[str], validation: bool = False) -> None:
         self.grammar = grammar
+        self.unicode = grammar.unicode
         self.validation = validation
         self.current_expr = None
         self.helper_sources = {}
@@ -1084,14 +1086,22 @@ class _Lowerer:
         """A range or a property as a terminal, whose name is its written
         form, and which matches by its characters rather than by a tag
         (engine §4); None for any other expression."""
-        if "range" in expr:
-            ends = expr["range"]
-            name = range_name(ends)
-            self.characters[name] = (code_of_character_tag(ends[0]), code_of_character_tag(ends[1]))
+        if "literal" in expr:
+            value = literal_string(expr["literal"])
+            if value is None:
+                raise self.fail("a string terminal requires a string constant")
+            name = spelling(value, self.unicode)
+            self.characters[name] = value
             return ("t", name)
-        if "property" in expr:
-            name = property_name(expr["property"])
-            self.characters[name] = expr["property"]
+        if "wildcard" in expr:
+            self.characters["_"] = None
+            return ("t", "_")
+        if "range" in expr:
+            ends = [literal_string(end) for end in expr["range"]]
+            if any(end is None or len(end) != 1 for end in ends) or ends[0] > ends[1]:
+                raise self.fail("invalid scalar range")
+            name = "..".join(spelling(end, self.unicode) for end in ends)
+            self.characters[name] = tuple(ord(end) for end in ends)
             return ("t", name)
         return None
 
@@ -1181,7 +1191,7 @@ class _Lowerer:
             return [[(self.symbol(expr["ref"]), None)]]
         if "terminal" in expr:
             return [[(("t", expr["terminal"]), None)]]
-        if "range" in expr or "property" in expr:
+        if any(k in expr for k in ("range", "literal", "wildcard")):
             return [[(self.character_class(expr), None)]]
         if "test" in expr:
             # A tested symbol lowers to its symbol with the test, and adds
@@ -1190,22 +1200,8 @@ class _Lowerer:
             kind, name = tested[0][0][0][:2]
             return [[((kind, name, expr[RESOLVED]), None)]]
         if "capture" in expr:
-            inner = expr.get("expr", {})
-            test = inner[RESOLVED] if "test" in inner else None
-            if test is not None:
-                inner = inner.get("expr", {})
-            symbol: tuple[Any, ...]
-            if "ref" in inner:
-                symbol = self.symbol(inner["ref"])
-            elif "terminal" in inner:
-                symbol = ("t", inner["terminal"])
-            elif "range" in inner or "property" in inner:
-                symbol = self.character_class(inner)  # type: ignore[assignment]
-            else:
-                raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
-            if test is not None:
-                symbol = (symbol[0], symbol[1], test)
-            return [[(symbol, expr["capture"])]]
+            expanded = yield self._expand(expr["expr"])
+            return [[(expanded[0][0][0], expr["capture"])]]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
     def repeat_helper(self, items: list[list[_Sym]], separators: list[list[_Sym]]) -> int:

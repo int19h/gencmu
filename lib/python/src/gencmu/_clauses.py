@@ -361,6 +361,8 @@ def _term(dom: Any, present: AbstractSet[str]) -> Walk:
         args = []
         for arg in dom["args"]:
             args.append((yield _term(arg, present)))
+        if "receiver" in dom:
+            return {**dom, "receiver": (yield _term(dom["receiver"], present)), "args": args}
         return {**dom, "args": args}
     return dom
 
@@ -722,10 +724,12 @@ def definition_problem(rule: Dom) -> str | None:
     error of its document as a whole (engine §9), or None. The checks that
     simplification decides skip a clause that holds a constant without its
     value."""
+    if rule.get("erased") and ("emit" in rule or any(channel in owner for owner in [rule, *rule["alternatives"]] for channel in ("value", "image"))):
+        return "an erased definition cannot carry a recipe or emission"
     alternatives = rule["alternatives"]
     # A definition with no clause has nothing to check about its captures,
     # and its productions, whose number can be exponential, are not listed.
-    if "tags" not in rule and not rule["conditions"] and "emit" not in rule and all("tags" not in alternative for alternative in alternatives):
+    if not any(k in rule for k in ("tags", "value", "image", "emit")) and not rule["conditions"] and all(not any(k in alternative for k in ("tags", "value", "image")) for alternative in alternatives):
         return None
     # Each production of each alternative, with the captures it reads
     # (engine §3.5, §9); productions that read the same captures in the same
@@ -741,6 +745,7 @@ def definition_problem(rule: Dom) -> str | None:
         return f"{rule['name']} is opaque and emits ε"
     clauses: list[Any] = [rule.get("tags"), rule["conditions"], items]
     clauses.extend(alternative.get("tags") for alternative in alternatives)
+    clauses.extend(owner.get(channel) for owner in [rule, *alternatives] for channel in ("value", "image"))
     # An emission item mentions its attachments too.
     attached = {name for item in items if "capture" in item for name in attachments_of(item)}
     unknown = sorted(set().union(attached, *(mentioned_in(clause) for clause in clauses)) - known)
@@ -802,6 +807,12 @@ def definition_problem(rule: Dom) -> str | None:
                 rule_lacks[key] = lacks(rule["tags"], present)
             if rule_lacks[key]:
                 return f"the %tags of {rule['name']} use a capture a production lacks; guard the use with ⟹"
+    for (alternative, _), present in zip(productions, presents):
+        value = alternative.get("value", rule.get("value"))
+        image = alternative.get("image", rule.get("image", value))
+        for recipe in (value, image):
+            if recipe is not None and not captures_in(recipe) <= present:
+                return "a selected recipe uses a capture that its production lacks"
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
     anchors: list[str | None] = [None] * len(items)
@@ -816,6 +827,9 @@ def definition_problem(rule: Dom) -> str | None:
         if items and not kept:
             return f"%emits of {rule['name']} leaves a production nothing to emit"
         for item in kept:
+            for channel in ("value", "image"):
+                if channel in item and not captures_in(item[channel]) <= present:
+                    return "an item recipe uses a capture that its production lacks"
             if "tags" in item and lacks(item["tags"], present):
                 return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
         # A production without an item's carrier lacks its attachments too

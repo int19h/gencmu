@@ -18,9 +18,9 @@ def token_json(token: Token) -> dict[str, Any]:
 
     def shallow(current: Token) -> dict[str, Any]:
         value: dict[str, Any] = {"text": current.text}
-        if current.phonemes is not None:
-            value["phonemes"] = current.phonemes
-        value["label"] = current.label
+        if current.value is not None:
+            value["phonemes"] = current.value
+        value["label"] = current.image
         value["tags"] = sorted_tags(current.tags)
         if current.span is not None:
             value["span"] = list(current.span)
@@ -218,7 +218,7 @@ def _token_member(token: Token) -> Any:
     each rendered the same way (docs/output.md). Built without recursion."""
 
     def shallow(current: Token) -> Any:
-        return current.label if not current.before and not current.after else _Group([])
+        return current.image if not current.before and not current.after else _Group([])
 
     top = shallow(token)
     stack = [(token, top)]
@@ -230,7 +230,7 @@ def _token_member(token: Token) -> Any:
             inner = shallow(attached)
             member.members.append(inner)
             stack.append((attached, inner))
-        member.members.append(current.label)
+        member.members.append(current.image)
         for attached in current.after:
             inner = shallow(attached)
             member.members.append(inner)

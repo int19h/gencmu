@@ -324,33 +324,19 @@ class Emitter:
         self.inherited: set[int] = set()
         # The opaque parts and their sources, fixed before any token
         # (engine §11).
-        self.opaque = opaque_parts(root, self.tokens, context.sources, context.text)
+        self.opaque = {}
 
     def spoken(self, part: DChild) -> tuple[str, str]:
-        """What a part says and shows: the phonemes and the labels of its
-        parts, joined (engine §5, §11). A part is a read input token or a
-        opaque part. Nothing inside a constituent that does not count is a
-        part, and the walk does not enter an opaque part."""
-        phonemes = Join()
-        label = Join()
-        stack: list[DChild] = [part]
+        values, images = [], []
+        stack = [part]
         while stack:
             node = stack.pop()
             if isinstance(node, DRead):
-                token = self.tokens[node.token]
-                sound = token.phonemes or ""
-                phonemes.add(sound, sound == PAUSE)
-                label.add(token.label, sound == PAUSE)
-                continue
-            if emits_nothing(node.production):
-                continue
-            source = self.opaque.get(id(node))
-            if source is not None:
-                phonemes.add("?", False)
-                label.add(self.context.text[source[0] : source[1]], False)
-                continue
-            stack.extend(reversed(node.children))
-        return phonemes.result(), label.result()
+                values.append(self.tokens[node.token].value)
+                images.append(self.tokens[node.token].image)
+            elif not emits_nothing(node.production):
+                stack.extend(reversed(node.children))
+        return "".join(values), "".join(images)
 
     def part_token(self, part: DChild, explicit: Tags) -> Token:
         """The token a ``$`` item or a capture item emits over a part, with
@@ -359,7 +345,7 @@ class Emitter:
         # (engine §11).
         tags = implied(explicit, self.context.lowered)
         # Two phoneme tags are an error on any token (engine §5).
-        phoneme = phoneme_tag(tags)
+        phoneme = None
         # A token over an opaque part has the part's source and text (engine
         # §11).
         source = self.opaque.get(id(part)) if isinstance(part, DNode) else None
@@ -534,7 +520,7 @@ class Emitter:
             tags = implied(frozenset((tag,)), self.context.lowered)
             # An inserted token has no parts: a phoneme tag gives its phonemes
             # and its label, or both are empty (engine §5).
-            phoneme = phoneme_tag(tags)
+            phoneme = None
             phonemes, label = sounded(phoneme) if phoneme is not None else ("", "")
             out.append(Token("", tags, (boundary, boundary), (at, at), phonemes, node.production.rule_name, label))
 

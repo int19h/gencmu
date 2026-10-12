@@ -36,15 +36,17 @@ class Token:
     tags: Tags
     span: Range | None
     source: Range
-    phonemes: str | None = None
+    value: str = None  # type: ignore[assignment]
     inserted_by: str | None = None
-    label: str = None  # type: ignore[assignment]
+    image: str = None  # type: ignore[assignment]
     before: list[Token] = field(default_factory=list)
     after: list[Token] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        if self.label is None:
-            self.label = self.text
+        if self.value is None:
+            self.value = self.text
+        if self.image is None:
+            self.image = self.text
 
     # Attachments nest as deep as a text is long, so equality and the
     # representation walk them with a list for a stack. They give what the

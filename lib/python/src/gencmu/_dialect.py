@@ -21,7 +21,7 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._pipeline import Pipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
-from ._tags import character_tag, is_name
+from ._tags import is_name
 from ._unicode import UnicodeTable
 from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -147,7 +147,11 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     for index, char in enumerate(text):
         found = tags.get(char)
         if found is None:
-            found = tags[char] = frozenset((character_tag(ord(char), unicode),))
+            category = unicode.category(ord(char))
+            assigned = {"_" + category, "_" + category[0]}
+            if unicode.is_white_space(ord(char)):
+                assigned.add("_White_Space")
+            found = tags[char] = frozenset(assigned)
         tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
     return tokens
 
@@ -652,7 +656,7 @@ class Dialect:
                 tags=frozenset(token.tags),
                 span=None if token.span is None else (token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
-                label=token.text,
+                image=token.text,
                 before=[],
                 after=[],
             )

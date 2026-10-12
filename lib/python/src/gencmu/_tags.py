@@ -163,16 +163,8 @@ class _AllMarks:
 
 
 def is_tag(tag: object, unicode: Marks | None = None) -> bool:
-    """Whether a value is a tag in its canonical spelling (engine §1).
-    Without a table, a character tag is accepted in either spelling a mark
-    could have."""
-    if not isinstance(tag, str):
-        return False
-    if is_name(tag) or is_phoneme_tag(tag):
-        return True
-    if unicode is not None:
-        return character_of_tag(tag, unicode) is not None
-    return character_of_tag(tag, _NoMarks()) is not None or character_of_tag(tag, _AllMarks()) is not None
+    from ._strings import ENGINE_TAGS, USER_NAME
+    return isinstance(tag, str) and (USER_NAME.fullmatch(tag) is not None or tag in ENGINE_TAGS)
 
 
 def code_of_character_tag(tag: str) -> int:
@@ -209,7 +201,7 @@ def range_tags(range_: tuple[str, str] | list[str], unicode: Marks) -> Tags:
 
 def is_class(tag: str) -> bool:
     """Whether a tag's first character is ``A`` to ``Z`` (engine §10)."""
-    return "A" <= tag[:1] <= "Z"
+    return bool(tag) and "A" <= tag[0] <= "Z" and "A" <= tag[-1] <= "Z"
 
 
 class TagTable:
