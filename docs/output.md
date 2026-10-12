@@ -65,7 +65,7 @@ A list that flat braces read has no node of its own. Each level of a chain is a 
 
 A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling. Elided nodes expose no ended-constituent assignment.
 
-An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. This metadata does not change the empty value observed by an omitted pattern leaf.
+An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
 
 ```json
 {"kind":"elided","terminal":"T","span":[1,1],"source":[1,1],"value":"saved"}

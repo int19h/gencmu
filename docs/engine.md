@@ -1841,28 +1841,41 @@ Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the 
 
 Quote spacing groups each surviving pause run into one gap. Compound spacing classifies existing erasure-aware derivations with Gap-Pause. SU survivor recipes use Trailing-Pause to avoid duplicating a gap across constituent boundaries. These structural rules preserve attachment ownership independently of their images. The dialect guide states each tag's origin and end.
 
-The following texts pin value, image, and recognition boundaries:
+Parse-result format 12 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-| Text | Required observation |
-| --- | --- |
-| `zoi nu,iork. foo .nuiork.` | CLL accepts the comma-insensitive delimiter comparison |
-| `zoi mai. x .ma,i.` | CLL accepts the comma-insensitive closing delimiter |
-| `zoi .y. bu. foo .y. bu.` | The matching fixed y key closes the quote |
-| `zoi ybu foo ybu` | The unspaced fixed y keys match |
-| `zoi .yy. bu. foo .yy. bu.` | A longer raw closing key does not match |
-| `zoi .y. bu. foo .yy. bu.` | A longer raw closing key does not match |
-| `zoi .y. bu. "Hello!" .y. bu.` | The body image retains its punctuation |
-| `zo'oi "Hello!"` | Experimental preserves the payload punctuation |
-| `zoi klama. abc .Klama.` | A Kelvin-sign closing value does not equal `klama` |
-| `zoi klama. Klama .klama.` | The Kelvin-sign body value does not equal the delimiter |
-| `lo'u broda ybrode le'u bu` | The word image is `lo'u broda brode le'u bu` |
-| `lo'u broda .y. brode le'u bu` | The word image contains one internal space |
-| `lo'ai broda .y. brode le'ai bu` | Experimental and Zantufa retain one internal space |
-| `ni'o su bu` | BPFK and experimental give the word image `ni'o bu` |
-| `ni'o mi si su bu` | BPFK and experimental give the word image `ni'o bu` |
-| `ni'o subu` | The survivor retains the earlier surviving space |
-| `ni'o .su mi` | A standalone survivor's image is `ni'o` |
-| `ni'o su .y. mi` | A standalone survivor's image is `ni'o` |
-| `zoi gy. MI   DO .gy. bu` | The compound image is `zoi gy MI   DO gy bu` through indicators |
+The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental`, and `zantufa`. The verdict column describes the word stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+
+| Text | Dialects | Word-stage verdict | Required observation |
+| --- | --- | --- | --- |
+| `zoi nu,iork. foo .nuiork.` | Four | `unique` | The comma-insensitive delimiter comparison succeeds |
+| `zoi mai. x .ma,i.` | Four | `unique` | The comma-insensitive closing delimiter succeeds |
+| `zoi .y. bu. foo .y. bu.` | Four | `unique` | The matching fixed y key closes the quote |
+| `zoi ybu foo ybu` | Four | `unique` | The unspaced fixed y keys match |
+| `zoi .yy. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. "Hello!" .y. bu.` | Four | `unique` | The body image is `"Hello!"` |
+| `zo'oi "Hello!"` | `experimental` | `unique` | The payload image is `"Hello!"` |
+| `zoi klama. abc .Klama.` | Four | `rejected` | A Kelvin-sign closing value does not equal `klama` |
+| `zoi klama. Klama .klama.` | Four | `unique` | The Kelvin-sign body value does not equal the delimiter |
+| `abu` | Four | `unique` | The word image is `abu` |
+| `broda brode si bu` | Four | `unique` | The word image is `broda bu` |
+| `lo'u broda ybrode le'u bu` | Four | `unique` | The word image is `lo'u broda brode le'u bu` |
+| `lo'u broda .y. brode le'u bu` | Four | `unique` | The word image is `lo'u broda brode le'u bu` |
+| `lo'u .y. broda le'u bu` | Four | `unique` | Initial hesitation leaves image `lo'u broda le'u bu` |
+| `lo'u broda .y. le'u bu` | Four | `unique` | Final hesitation leaves image `lo'u broda le'u bu` |
+| `lo'u y le'u bu` | Four | `unique` | The word image is `lo'u le'u bu` |
+| `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The word image is `lo'ai broda brode le'ai bu` |
+| `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | Initial hesitation leaves image `lo'ai broda le'ai bu` |
+| `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | Final hesitation leaves image `lo'ai broda le'ai bu` |
+| `ni'o su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
+| `ni'o su bu` | `cll-ebnf` | `rejected` | No word-stage output |
+| `ni'o mi si su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
+| `ni'o mi si su bu` | `cll-ebnf` | `rejected` | No word-stage output |
+| `ni'o subu` | `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
+| `ni'o .su mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `zoi gy. MI   DO .gy. bu` | Four | `unique` | The image is `zoi gy MI   DO gy bu`, also after indicators |
 
 These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. Normalization tests must also establish unchanged images, count, order, tags, and sources.
