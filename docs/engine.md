@@ -1157,7 +1157,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
-| The root | Declaration constructors in source order | Separate ordered item arrays. Empty arrays are absent, except `rules`. A known non-declaration part is an error. |
+| The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
 | `directive` | Keyword token, then argument parts in order | Keyword without `%` as `name`, argument values as `args` |
 | `argument-word` | One name token | Name string |
 | `argument-string` | One literal path token | Literal path, without interpolation |
@@ -1425,7 +1425,7 @@ For example, a carrier referencing `e → ε | "a"="b"` remains consuming. The f
 
 For `r → $e:empty $a:word`, with `empty → ε`, `%emits $, $e ($a)` is a document error. The whole carrier conflicts with the consuming attachment `$a`, although `$e` itself is always empty. The error stands at the emitting definition.
 
-A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps each kind in its own list, in written order. Empty lists are absent, except `rules`, which is always present. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
+A document's items are its rules, its directives, its constant definitions, its classifiers and its implications. The DOM keeps them in five lists, each in the order written. All five lists are present, including when empty. Every item has the position of its first token, so the order of all of a document's items is the order of their positions.
 
 A DOM is malformed in each of these cases, whether it is read, cached or in the bootstrap:
 
