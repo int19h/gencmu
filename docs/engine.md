@@ -1567,6 +1567,7 @@ Each of the following is an error of the document too, and the reader reports it
 - A capture that no alternative of the definition captures is an error, in any clause, `$x` presence tests included.
 - A condition that applies (§3.6) to no production of the definition, whatever features are enabled, is an error.
 - A tag term that uses (§3.6) a capture that a production it serves lacks is an error. An alternative's own tags serve the productions of that alternative, and the rule-level `::` clause serves every production of the definition. An emission item's tags serve every production in which the item is not dropped.
+- A selected recipe that uses a capture that a production it serves lacks is an error. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. An item recipe serves each production where its item remains.
 - A recipe beside `%erased` is a document error. A retained parent item over an erased capture can supply strings while its counted parts remain empty.
 - In an emission, captures written in an order other than the one in which some production reads them are an error. The written order runs item after item. Within an item, it runs through the before-attachments, the carrier and the after-attachments. For each production, the reader makes sure that the captures that the production has stand in the written order of the emission. So `%emits ($a) $c, $b` is an error when a production reads `$a`, `$b` and `$c` in that order.
 
@@ -1903,7 +1904,7 @@ A losing runtime option runs no recipes, although its syntax and effective const
 
 Recipe name analysis includes every receiver. `$` in an item recipe names the enclosing rule occurrence, even when its carrier is a captured child. Unknown names and private ranked captures fail before absent-carrier pruning. After pruning, validate effective constituent recipes on their selected channels and item recipes on retained items. An alternative's explicit recipes can suppress definition recipes separately per channel.
 
-A selected recipe that reads a capture absent from its production is a document error. Optional recipe cases need separate alternatives. Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
+A selected recipe that reads a capture absent from its production is a document error, reported at the definition (§9.3). An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. Optional recipe cases need separate alternatives. Item recipes on an absent carrier drop with the item. An absent attachment drops alone. Tag terms retain §3.6's guarded missing-capture rule.
 
 A recipe beside `%erased` is a document error, on the erased alternative or its definition. An erased descendant's own recipe is not evaluated. A parent item over an erased captured part still emits its listed token. Its strings default to empty, but item recipes can replace them. Its counted parts remain empty.
 
