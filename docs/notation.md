@@ -434,7 +434,7 @@ An omitted terminator is a child like a written one. When it is the last child, 
 
 Binding is primary, path, sequence, intersection, then union or difference, from strongest to weakest. Intersection associates left. Union and difference share precedence and associate left. First-path `⋰` follows one primary, while descendant `⋮` and last-path `⋱` precede one primary. Chained paths and optional operands require parentheses or a nested literal.
 
-Flatten every union operand that is itself a union. Thus `@(A ∪ (B ∪ C))` has one union with three operands in written order. Intersection and difference retain their operands.
+Flatten every union operand that is itself a union. Thus `@(A ∪ (B ∪ C))` and `@(@(A ∪ B) ∪ C)` each have one union with three operands in written order. Intersection and difference retain their operands.
 
 `@(A ⋰ B)` tests two children, the first through `A ⋰`. `@((A B) ⋰)` searches for a node with children A and B. `@(NAhE ⋰ ∪ SE)` puts only NAhE under the path. `@((NAhE ∪ SE) ⋰)` puts both alternatives under it. `@(A ⋰ ⋱ B)` applies first-path to A and last-path to B.
 
