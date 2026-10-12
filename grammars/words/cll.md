@@ -201,10 +201,15 @@ A lujvo is exactly what the algorithm of CLL[^cll-s4-11] makes from two rafsi or
 
 The rules below build the letters of a lujvo from the left, and they place each hyphen by its cause. `lujvo-rest` is the rafsi after a vowel or after an `r` or `n` hyphen, to the end of the word. `cvc-rest` is the part of a CVC or CVCC rafsi from its third letter, with the joint after it. A joint without a hyphen must be a permissible pair and must not make one of the four triples. A `y` at a joint must be required.
 
+A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
+
 ```jbogenbau
+%rule hyphen-y
+  "y"<¬Stressed>
+
 %rule lujvo-form
   | ccv-rafsi lujvo-rest
-  | initial-pair vowel consonant "y" lujvo-rest
+  | initial-pair vowel consonant hyphen-y lujvo-rest
   | consonant vowel lujvo-after-cv
   | consonant $a:vowel $t:lujvo-after-cvv
   | consonant vowel "'" vowel cvv-first-rest
@@ -213,7 +218,7 @@ The rules below build the letters of a lujvo from the left, and they place each 
   ¬$a.matches(e-or-o) ∨ $t.begins(falling-i)
 
 %rule lujvo-after-cvv
-  [","] i-or-u cvv-first-rest
+  [Syllable-Break] i-or-u cvv-first-rest
 
 %rule cvv-first-rest
   | ccv-rafsi
@@ -229,12 +234,12 @@ The rules below build the letters of a lujvo from the left, and they place each 
   | ccv-rafsi lujvo-rest
   | cvv-rafsi lujvo-rest
   | consonant vowel cvc-rest
-  | initial-pair vowel consonant "y" lujvo-rest
+  | initial-pair vowel consonant hyphen-y lujvo-rest
 
 %rule cvc-rest
   | $k:consonant lujvo-rest
-  | $l:consonant "y" lujvo-rest
-  | consonant-pair "y" lujvo-rest
+  | $l:consonant hyphen-y lujvo-rest
+  | consonant-pair hyphen-y lujvo-rest
 %conditions
   $k.onward.begins(consonant-pair),
   ¬$k.onward.begins(n-affricate),
@@ -251,34 +256,34 @@ The rules below build the letters of a lujvo from the left, and they place each 
 
 %rule mandatory-y
   | $j:y-joint
-  | "n" "y" affricate
+  | "n" hyphen-y affricate
 %conditions
   ¬$j.matches(pair-across-y)
 
 %rule y-joint
-  consonant "y" consonant
+  consonant hyphen-y consonant
 
 %rule affricate
   "t" "c" | "t" "s" | "d" "j" | "d" "z"
 
 %rule pair-across-y
-  | "b" "y" after-b
-  | "c" "y" after-c
-  | "d" "y" after-d
-  | "f" "y" after-f
-  | "g" "y" after-g
-  | "j" "y" after-j
-  | "k" "y" after-k
-  | "l" "y" after-l
-  | "m" "y" after-m
-  | "n" "y" after-n
-  | "p" "y" after-p
-  | "r" "y" after-r
-  | "s" "y" after-s
-  | "t" "y" after-t
-  | "v" "y" after-v
-  | "x" "y" after-x
-  | "z" "y" after-z
+  | "b" hyphen-y after-b
+  | "c" hyphen-y after-c
+  | "d" hyphen-y after-d
+  | "f" hyphen-y after-f
+  | "g" hyphen-y after-g
+  | "j" hyphen-y after-j
+  | "k" hyphen-y after-k
+  | "l" hyphen-y after-l
+  | "m" hyphen-y after-m
+  | "n" hyphen-y after-n
+  | "p" hyphen-y after-p
+  | "r" hyphen-y after-r
+  | "s" hyphen-y after-s
+  | "t" hyphen-y after-t
+  | "v" hyphen-y after-v
+  | "x" hyphen-y after-x
+  | "z" hyphen-y after-z
 ```
 
 <details><summary>Railroad diagrams of the 12 rules from <code>lujvo-form</code> to <code>pair-across-y</code></summary>
@@ -307,8 +312,8 @@ If the test examines at least one pair and every examined pair is an initial pai
 ```jbogenbau
 %rule lujvo-after-cv
   | $k:consonant lujvo-rest
-  | $l:consonant "y" lujvo-rest
-  | consonant-pair "y" lujvo-rest
+  | $l:consonant hyphen-y lujvo-rest
+  | consonant-pair hyphen-y lujvo-rest
 %conditions
   $k.onward.begins(consonant-pair),
   ¬$k.onward.begins(n-affricate),
@@ -320,7 +325,7 @@ If the test examines at least one pair and every examined pair is an initial pai
   | initial-pair vowel initial-pair vowel
 
 %rule tosmabru-chain
-  | consonant "y" any-letters
+  | consonant hyphen-y any-letters
   | tosmabru-positive
 
 %rule tosmabru-y
@@ -328,54 +333,54 @@ If the test examines at least one pair and every examined pair is an initial pai
   | initial-pair-across-y vowel initial-pair vowel
 
 %rule initial-pair-across-y
-  | "b" "y" "l"
-  | "b" "y" "r"
-  | "c" "y" "f"
-  | "c" "y" "k"
-  | "c" "y" "l"
-  | "c" "y" "m"
-  | "c" "y" "n"
-  | "c" "y" "p"
-  | "c" "y" "r"
-  | "c" "y" "t"
-  | "d" "y" "j"
-  | "d" "y" "r"
-  | "d" "y" "z"
-  | "f" "y" "l"
-  | "f" "y" "r"
-  | "g" "y" "l"
-  | "g" "y" "r"
-  | "j" "y" "b"
-  | "j" "y" "d"
-  | "j" "y" "g"
-  | "j" "y" "m"
-  | "j" "y" "v"
-  | "k" "y" "l"
-  | "k" "y" "r"
-  | "m" "y" "l"
-  | "m" "y" "r"
-  | "p" "y" "l"
-  | "p" "y" "r"
-  | "s" "y" "f"
-  | "s" "y" "k"
-  | "s" "y" "l"
-  | "s" "y" "m"
-  | "s" "y" "n"
-  | "s" "y" "p"
-  | "s" "y" "r"
-  | "s" "y" "t"
-  | "t" "y" "c"
-  | "t" "y" "r"
-  | "t" "y" "s"
-  | "v" "y" "l"
-  | "v" "y" "r"
-  | "x" "y" "l"
-  | "x" "y" "r"
-  | "z" "y" "b"
-  | "z" "y" "d"
-  | "z" "y" "g"
-  | "z" "y" "m"
-  | "z" "y" "v"
+  | "b" hyphen-y "l"
+  | "b" hyphen-y "r"
+  | "c" hyphen-y "f"
+  | "c" hyphen-y "k"
+  | "c" hyphen-y "l"
+  | "c" hyphen-y "m"
+  | "c" hyphen-y "n"
+  | "c" hyphen-y "p"
+  | "c" hyphen-y "r"
+  | "c" hyphen-y "t"
+  | "d" hyphen-y "j"
+  | "d" hyphen-y "r"
+  | "d" hyphen-y "z"
+  | "f" hyphen-y "l"
+  | "f" hyphen-y "r"
+  | "g" hyphen-y "l"
+  | "g" hyphen-y "r"
+  | "j" hyphen-y "b"
+  | "j" hyphen-y "d"
+  | "j" hyphen-y "g"
+  | "j" hyphen-y "m"
+  | "j" hyphen-y "v"
+  | "k" hyphen-y "l"
+  | "k" hyphen-y "r"
+  | "m" hyphen-y "l"
+  | "m" hyphen-y "r"
+  | "p" hyphen-y "l"
+  | "p" hyphen-y "r"
+  | "s" hyphen-y "f"
+  | "s" hyphen-y "k"
+  | "s" hyphen-y "l"
+  | "s" hyphen-y "m"
+  | "s" hyphen-y "n"
+  | "s" hyphen-y "p"
+  | "s" hyphen-y "r"
+  | "s" hyphen-y "t"
+  | "t" hyphen-y "c"
+  | "t" hyphen-y "r"
+  | "t" hyphen-y "s"
+  | "v" hyphen-y "l"
+  | "v" hyphen-y "r"
+  | "x" hyphen-y "l"
+  | "x" hyphen-y "r"
+  | "z" hyphen-y "b"
+  | "z" hyphen-y "d"
+  | "z" hyphen-y "g"
+  | "z" hyphen-y "m"
+  | "z" hyphen-y "v"
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>lujvo-after-cv</code> to <code>initial-pair-across-y</code></summary>
@@ -427,7 +432,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   ¬$m.matches(has-n-affricate)
 
 %rule vowel-group
-  vowel | vowel-group vowel | vowel-group "'" vowel | vowel-group "," vowel
+  vowel | vowel-group vowel | vowel-group "'" vowel | vowel-group Syllable-Break vowel
 
 %rule clustered-start
   [counted-lead] consonant consonant [any-letters]
@@ -436,7 +441,7 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   counted-letter | counted-letter counted-letter | counted-letter counted-letter counted-letter
 
 %rule counted-letter
-  consonant | vowel | vowel "'" | vowel ","
+  consonant | vowel | vowel "'" | vowel Syllable-Break
 
 %rule combination
   (plain-cmavo-body | vowel-cmavo) combination-rest
@@ -488,14 +493,14 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor
   | name-vowels permissible-run name-body
 
 %rule name-vowels
-  name-vowel | name-vowels name-vowel | name-vowels "'" name-vowel | name-vowels "," name-vowel
+  name-vowel | name-vowels name-vowel | name-vowels "'" name-vowel | name-vowels Syllable-Break name-vowel
 
 %rule la-doi-inside
   | la-or-doi [any-letters]
   | [any-letters] name-vowel la-or-doi [any-letters]
 
 %rule la-or-doi
-  "l" any-a | "d" any-o [","] any-i
+  "l" any-a | "d" any-o [Syllable-Break] any-i
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>cmevla-shape</code> to <code>la-or-doi</code></summary>
@@ -509,11 +514,13 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `onset` nor
 
 ## Commas
 
-A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). It is the phoneme `/,/` of the phoneme stage, and a comma anywhere else is no phoneme. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". So a comma never makes a word, and it never changes the class of a word.
+A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). Phonemes gives it value `,` and tag `Syllable-Break`, and a comma anywhere else is no phoneme. Normalization empties that value and keeps its tag and image. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". So a comma never makes a word, and it never changes the class of a word.
 
 Only a borrowing, a name or hesitation can hold a comma between two vowels. A cmavo, a gismu or a lujvo cannot. A word with such a comma must also be a word of the same class when its commas are removed and its capitals lowered. So `ma,i` and `ba,irgau` are no words, because `mai` is a cmavo and `bairgau` is a lujvo. `zda,i` is no word either, because `zdai` is none.
 
 A run with such a word divides into no words, and the forms stage hands it on as one unread token ([forms.md](forms.md)). The word stage rejects that run unless it is inside a foreign quote or after `fa'o`.
+
+The comma rules read `Syllable-Break`, because the normalized comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` keep their existing optional boundary reads. `has-comma` still finds a comma through its tag.
 
 The rules that test whether letters form a cmavo or a lujvo read a comma inside a diphthong as if it were absent. `cmavo-unit` and `cvv-rafsi` read `falling-vowels`. `vowel-cmavo` reads `rising-vowels`, and it reads `falling-vowels` through `cmavo-units`. `lujvo-form` and `lujvo-after-cvv` read a comma before the `i` or `u` that ends a first CVV rafsi. `cmavo-shape` and `brivla-word` then refuse a cmavo or a lujvo that has a comma.
 
@@ -525,13 +532,13 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 ```jbogenbau
 %rule falling-vowels
-  falling-diphthong | any-a "," any-i | any-e "," any-i | any-o "," any-i | any-a "," any-u
+  falling-diphthong | any-a Syllable-Break any-i | any-e Syllable-Break any-i | any-o Syllable-Break any-i | any-a Syllable-Break any-u
 
 %rule rising-vowels
-  rising-diphthong | i-or-u "," vowel
+  rising-diphthong | i-or-u Syllable-Break vowel
 
 %rule falling-i
-  [","] any-i
+  [Syllable-Break] any-i
 
 %rule one-syllable
   [consonants] syllable-vowels
@@ -540,7 +547,7 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
   vowel | falling-vowels | rising-vowels
 
 %rule has-comma
-  [any-letters] "," [any-letters]
+  [any-letters] Syllable-Break [any-letters]
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>falling-vowels</code> to <code>has-comma</code></summary>

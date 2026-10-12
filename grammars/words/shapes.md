@@ -4,7 +4,7 @@ This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) d
 
 The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects use [bpfk.md](bpfk.md), the word forms of the BPFK, the Lojban language planning committee, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 
-Before this stage, the phoneme stage folds consonants to lowercase and writes every apostrophe as `/'/`. A token is one unit that a stage reads or emits. The only capital tokens are the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`. A comma reaches this stage only where it stands between two vowels, as the syllable break `/,/`.
+Before this stage, phonemes folds consonants to lowercase and writes each apostrophe with value `'`. A token is one unit that a stage reads or emits. Normalization gives every vowel a lowercase value and keeps stress through `Stressed`. It gives the syllable comma an empty value and keeps its tag `Syllable-Break`. The written images retain capitals and commas.
 
 ## Consonants
 
@@ -426,36 +426,38 @@ Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin 
 
 ## Vowels
 
-A vowel of a word form is one of `a e i o u`, in either case. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
+A vowel of a word form has value `a`, `e`, `i`, `o` or `u`, with either stress tag. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo is free (CLL[^cll-s3-9]). [forms.md](forms.md) reads `any-y` in the same way.
+A vowel letter reads its lowercase value with either stress tag, since the stress of a cmavo is free (CLL[^cll-s3-9]). `any-a` through `any-u` therefore use one value each. `capital-vowel` tests `Stressed` on those values, and `capital-letter` also tests stressed `y`. [forms.md](forms.md) reads `any-y` with either stress tag.
+
+`any-letter`, `brivla-item` and `name-item` read syllable boundaries through `Syllable-Break`. This keeps the syllable scans tied to written commas after normalization empties their values. `brivla-item` reads an unstressed `y`, while `name-item` keeps the existing stress policy for names.
 
 ```jbogenbau
 %rule vowel
   any-a | any-e | any-i | any-o | any-u
 
 %rule any-a
-  "a" | "A"
+  "a"
 
 %rule any-e
-  "e" | "E"
+  "e"
 
 %rule any-i
-  "i" | "I"
+  "i"
 
 %rule any-o
-  "o" | "O"
+  "o"
 
 %rule any-u
-  "u" | "U"
+  "u"
 
 %rule capital-vowel
-  "A" | "E" | "I" | "O" | "U"
+  "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 
 %rule capital-letter
-  capital-vowel | "Y"
+  capital-vowel | "y"<Stressed>
 
 %rule i-or-u
   any-i | any-u
@@ -479,7 +481,7 @@ A vowel letter is either phoneme, plain or stressed, since the stress of a cmavo
   any-letter | any-letters any-letter
 
 %rule any-letter
-  consonant | vowel | any-y | "'" | ","
+  consonant | vowel | any-y | "'" | Syllable-Break
 
 %rule stress-mark
   [any-letters] capital-letter [any-letters]
@@ -549,7 +551,7 @@ So a brivla with marked stress has `s2`, and one without any capital vowel has `
       ∧ (¬$s.last-token.matches(e-or-o) ∨ ¬$j.first-token.matches(any-i))
 
 %rule brivla-item
-  | consonant | "y" | "'" | ","
+  | consonant | "y"<¬Stressed> | "'" | Syllable-Break
   | $v:vowel :: Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
   | $d:brivla-diphthong :: Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
 
@@ -601,7 +603,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
       ∧ (¬$s.last-token.matches(e-or-o) ∨ ¬$j.first-token.matches(any-i))
 
 %rule name-item
-  | consonant | "'" | ","
+  | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus ∪ Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
   | $y:any-y :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
   | $d:brivla-diphthong :: Nucleus ∪ Counted ∪ ($d.matches(stress-mark) ⟹ Marked)

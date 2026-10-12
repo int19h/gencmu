@@ -38,7 +38,7 @@ In the second case, the PEG uses the rule only in lookaheads, directly or at the
 
 ## Words
 
-The phoneme stage supplies normalized phonemes and pause tokens. The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
+Phonemes supplies phoneme and pause tokens. Normalization then gives stressed vowels lowercase values and keeps their `Stressed` tags. The forms stage reads three word shapes, `cmevla-shape`, `cmavo-shape` and `brivla-shape`. It reads them in the order of the PEG's `lojban_word`: a cmevla, then a cmavo, then a brivla. The document [forms.md](forms.md) says what a word is and how words join.
 
 The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
@@ -707,7 +707,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   onset stress-mark
 
 %rule stress-mark             (* [AEIOU], a letter and not a vowel rule *)
-  "A" | "E" | "I" | "O" | "U"
+  "a"<Stressed> | "e"<Stressed> | "i"<Stressed> | "o"<Stressed> | "u"<Stressed>
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>final-syllable</code> to <code>stress-mark</code></summary>
@@ -848,23 +848,23 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
 
 ## Letters
 
-A vowel letter is plain or capital. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
+A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it still finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
 
 ```jbogenbau
 %rule a                       (* a <- comma* [aA] *)
-  "a" | "A"
+  "a"
 
 %rule e                       (* e <- comma* [eE] *)
-  "e" | "E"
+  "e"
 
 %rule i                       (* i <- comma* [iI] *)
-  "i" | "I"
+  "i"
 
 %rule o                       (* o <- comma* [oO] *)
-  "o" | "O"
+  "o"
 
 %rule u                       (* u <- comma* [uU] *)
-  "u" | "U"
+  "u"
 
 %rule y                       (* y <- comma* [yY] !(!y nucleus) *)
   $y:any-y

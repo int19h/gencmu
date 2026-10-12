@@ -2,9 +2,9 @@
 
 This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
-The forms stage is the second stage of every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the phonemes that the phoneme stage emitted.
+The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their original images and tags.
 
-The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by name, phoneme or character. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
+The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
 This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
@@ -71,7 +71,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
 
 %rule nonpause-phoneme
-  | "a" | "e" | "i" | "o" | "u" | "A" | "E" | "I" | "O" | "U" | "y" | "Y" | "'" | ","
+  | "a" | "e" | "i" | "o" | "u" | "y" | "'" | Syllable-Break
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
@@ -187,7 +187,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   y-atom | y-prefix y-atom
 
 %rule y-atom
-  [","] any-y
+  [Syllable-Break] any-y
 
 %rule bu-form-ahead
   [PAUSE] bu-form
@@ -235,7 +235,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
   $h:y-run :: Continued ∪ Uncounted ∪ $h.tags
 
 %rule y-run
-  any-y | any-y y-run | any-y "," y-run
+  any-y | any-y y-run | any-y Syllable-Break y-run
 ```
 
 <details><summary>Railroad diagrams of <code>hesitation-shape</code> and <code>y-run</code></summary>
@@ -243,11 +243,11 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 <p><img src="../../docs/diagrams/words/forms/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 </details>
 
-A `y` here is either phoneme of the letter, plain or stressed.
+A `y` here has value `y`, with or without `Stressed`. `any-y` therefore needs one terminal. `y-atom` and `y-run` read the empty-valued comma through `Syllable-Break`. `nonpause-phoneme` uses lowercase vowel values and the same boundary tag, so normalization does not remove a readable token.
 
 ```jbogenbau
 %rule any-y
-  "y" | "Y"
+  "y"
 ```
 
 <details><summary>Railroad diagram of <code>any-y</code></summary>
