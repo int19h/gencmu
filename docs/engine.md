@@ -1120,10 +1120,10 @@ image-clause = ":-" recipe
 headed-body = "|" ordinary-body
 body = ["|"] ordinary-body | ranked-body
 ordinary-body = alternative {"|" alternative}
-ranked-body = {guard} conjunction "≻" conjunction {"≻" conjunction} [clauses]
+ranked-body = {guard} ranked-choice [clauses]
+ranked-choice = conjunction "≻" conjunction {"≻" conjunction}
 alternative = {guard} conjunction [clauses]
-choice = ["|"] conjunction {"|" conjunction}
-       | conjunction "≻" conjunction {"≻" conjunction}
+choice = ["|"] conjunction {"|" conjunction} | ranked-choice
 conjunction = ["&"] sequence {"&" sequence}
 sequence = primary {primary}
 primary = captured | tested | untested-primary
@@ -1141,7 +1141,8 @@ repetition = "{" ["..."] choice ["/" choice] "}"
 symbol-test = tag-test | value-test
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] test-operand
-value-test = ("=" | "≠") test-operand
+value-test = test test-operand
+test = "=" | "≠"
 test-operand = string-literal | constant-reference | lowercase-name | tag | range
              | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
 range = string-operand ".." string-operand
@@ -1162,7 +1163,8 @@ tag-run = tag tag {tag}
 term-atom = plain-term-atom | method-chain
 plain-term-atom = tag-run | tag | lowercase-name | string-literal | constant-reference | range
                 | capture-reference | "∅" | pattern-literal | "(" term ")"
-method-chain = plain-term-atom method-selector {method-selector}
+method-chain = method-receiver method-selector {method-selector}
+method-receiver = term-atom
 method-selector = "." method-name ["(" arguments ")"]
 arguments = term {"," term}
 implication = any-of {"⟹" any-of}
@@ -1195,6 +1197,28 @@ classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name
 classifier-key = string-literal
 implication-declaration = "%implies" union "⟹" union
 ```
+
+Recognition names describe productions. The following mapping specifies the named constructors that the syntax stage builds. Other production names remain wrappers under §9.3. Lexical forms contribute tokens where a constructor requires tokens.
+
+| Recognition part | Constructor parts |
+| --- | --- |
+| `document` | Root `text` |
+| `flags` and its names | `rule-flags` with `rule-flag` parts |
+| `captured` | `capture` with a binder token and `primary` |
+| `ranked-body` | `ranked-alternative` with guards, `ranked-choice`, and clauses |
+| `conditions` | `conditions-clause` |
+| `%emits` output | `emits-clause` with emission parts |
+| `%erased` output | `erased-clause` |
+| `item` | `emit-item` |
+| Before and after `attachment` | `emit-before` and `emit-after`, each with `capture-reference` parts |
+| `requirement` | `tag-requirement`, whose operand has a `test-operand` wrapper |
+| `method-chain` | `method` with `method-receiver` and selector parts |
+| `tags-clause` by owner | Header `tags-clause`, `alternative-tags`, or `emit-tags` |
+| `directive-argument` | `argument-word`, `argument-string`, `argument-tag`, or `argument-term` by written form |
+| Bare names in value positions | `name` or `tag` by initial case |
+| Names or capture references in token positions | Direct lexical tokens |
+
+A method receiver retains a `term-atom` constructor. Explicit grouping and selector folding keep the same DOM. The `headed-body` constructor supplies the header branch's ordered alternatives.
 
 Tests can follow every primary, in any number and order. A capture target is any primary. Within a capture, following tests belong to its target. Thus `$x:A<B>="v"` captures the tested A, rather than testing the capture. One `tested` constructor holds the base primary and every following test in written order. A source test never wraps another tested constructor or the capture binder. Tests after a binder belong to its target, including nested invalid captures. Supplied notation trees can still contain a test on a capture itself.
 
