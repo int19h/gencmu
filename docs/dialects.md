@@ -45,7 +45,7 @@ Use example filenames that do not clash with your own files. The commands below 
    EOF
    ````
 
-   `%include` reads the base dialect before your additions. Its path starts from the directory of the file that contains it.
+   `%include` reads the base dialect before your additions. Its include path starts from the directory of the file that contains it.
 
    Keep the Markdown link and its `%include` together. The document tests require this layout for grammar files.
 

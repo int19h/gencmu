@@ -1162,7 +1162,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
 | `directive` | Keyword token, then argument parts in order | Keyword without `%` as `name`, argument values as `args` |
 | `argument-word` | One name token | Name string |
-| `argument-string` | One literal path token | Literal path, without interpolation |
+| `argument-string` | One include path token | Include path, without interpolation |
 | `argument-tag` | One tag token | Identifier string |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
@@ -1241,7 +1241,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, pattern `right` |
 | `tree-comparator` | One `≅` or `≇` token | Comparator string |
 | `pattern-literal` | One `pattern-union` or shorthand `pattern-atom` | Pattern term with the literal's grouping boundaries |
-| `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left |
+| `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
 | `pattern-intersection` | One or more `pattern-sequence` | Intersection, or sole predicate |
 | `pattern-sequence` | One or more `pattern-item` | Concatenate plain groups. Multiple siblings become `children`. |
 | `pattern-item` | Atom, brackets, repeat, path, or sibling ellipsis | Corresponding child predicate or `siblings:true` |
@@ -1390,7 +1390,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
 - A rule's or an alternative's tag term that reads the tags that it defines is an error: `$.tags` or `$.classes` in it. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`.
 - An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one string, and `%features` takes one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
+- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one include path, and `%features` takes one or more names. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`. The operand `maximal` is an error. `%elidable` is no directive, and the syntax grammar refuses it as an unknown keyword.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 
@@ -1794,7 +1794,7 @@ Nothing else gives warnings. No warnings come from a reading of an `ambiguous` e
 
 A pipeline document (`docs/design.md`, "Pipelines") defines a dialect. The loader reads it into stages as follows.
 
-To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves `PATH` against the directory of the document that holds the `%include`.
+To splice a pipeline, the loader reads the pipeline document's items (§9) in order. It replaces each `%include "PATH"` with the items of the document at `PATH`, read in the same way. It resolves the include path `PATH` against the directory of the document that holds the `%include`.
 
 `%stage NAME` creates and selects a stage. `%extend-stage NAME` selects an earlier stage and appends subsequent stage items to it. `%redefine-stage NAME` selects an earlier stage and clears its accumulated stage items, including earlier extensions. Both selectors preserve the stage's execution position.
 

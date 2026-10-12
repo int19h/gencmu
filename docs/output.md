@@ -315,9 +315,9 @@ A classifier and an implication have no member but those shown.
 
 A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`.
 
-Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one literal path string. Features take at least one lowercase name. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
+Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one include path. Features take at least one lowercase name. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
 
-A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name or, for `include`, the literal path string: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`. The operand `maximal` in `args` is an error.
+A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name or, for `include`, the include path: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`. The operand `maximal` in `args` is an error.
 
 A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
 
@@ -378,7 +378,13 @@ At the literal root, a sequence becomes `children`. A nested literal inside a se
 
 Set operators combine PATTERN values. A sequence operand becomes `children` before a set operation or path. A set expression within a sequence consumes one child through `node`. Every bracket becomes `optional`, including `[T]` and `[(T)]`. No `boundary`, `written` or `omitted` pattern form exists.
 
-Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true.
+Flatten every union operand that is itself a union. For example, `@(A ∪ (B ∪ C))` gives this complete DOM:
+
+```json
+{"pattern":{"union":[{"terminal":"A","at":[1,3]},{"terminal":"B","at":[1,8]},{"terminal":"C","at":[1,12]}]}}
+```
+
+Intersection and difference retain their operands. Union and intersection require at least two operands. Difference requires exactly two. A sequence requires at least two parts. `siblings` must be true.
 
 Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
 

@@ -458,7 +458,7 @@ A pipeline document is Markdown too, and literate. Each stage is a heading, foll
 The basic declarations are these:
 
 - `%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call the stage, whatever the heading says. Two stages with one name are an error.
-- `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there.
+- `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there. `PATH` is its include path.
 - `%features NAME…` names features that the dialect turns on for every parse, wherever it stands. The loader unions the names of every `%features`. A caller (the program or person that asks for a parse) can turn further features on, and can turn any of them off. So a feature that is on by default is a choice that the caller can undo.
 
 The link to each included document stays in the prose, so the pipeline reads as hyperlinked prose on GitHub. The bundled grammars keep a style for this. The block of each `%include` stands under a list item, indented to the item's text. The item's line has an inline link `[text](PATH)` to the same path. The style is not part of jbogenbau, which accepts an `%include` in any block. Only `tools/sync.js --check` enforces it, and only for the bundled grammars.
