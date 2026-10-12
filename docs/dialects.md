@@ -1,579 +1,339 @@
 # Implement a dialect
 
-You will build `grammars/dialects/my-kihei.md` with the `ki'ei` construct from [kihei](../grammars/dialects/kihei.md). A dialect defines which grammar a parser uses.
+A dialect is a pipeline of grammar stages. A stage reads tokens and emits tokens. A token is one input or output unit. This guide explains author choices for values, images, tags, and syntax. The [notation](notation.md) defines their exact spelling.
 
-A frame is a context for subsequent utterances. `ki'ei` sets that frame for the utterances after it. The parser groups those utterances under their frame.
-
-This example adds a new word class. It also changes syntax.
+A value is the string that comparisons read. An image is the string that people see. A tag is a named mark used for recognition. A recipe supplies a value or image. A capture names one matched symbol. A constituent is one occurrence of a matched rule.
 
 ## Before you start
 
-Use a checkout of [int19h/gencmu](https://github.com/int19h/gencmu). Install Node 20 or later.
+Use a checkout of `int19h/gencmu` with Node 20 or later. Run commands from the repository root unless a step names another directory. Use `--pipeline` to read edited source documents directly. Use `--dialect` to read the package's bundled copy.
 
-Run these commands from the repository root:
+Create a pipeline file under `grammars/dialects/`. Pair each include with a Markdown link. Include the base dialect before selecting its stages. Include paths resolve relative to the file that contains them.
 
-````sh
-cd lib/js
-npm ci
-cd ../..
-````
+```jbogenbau
+%include "cll-ebnf.md"
+%extend-stage forms
+```
 
-Unless a step names another directory, use the repository root as your working directory.
+## Add a word class
 
-## Procedure
+A class is a tag with capital letters at both ends. It never starts with `_`. A classifier maps exact values to classes. A lexicon is the classifier for word classes.
 
-Use example filenames that do not clash with your own files. The commands below create or overwrite those files.
+The following extension assigns `ki'ei` to KIhEI in the forms stage. CLL already recognizes that word form. Later word stages carry the class to syntax.
 
-1. Create the dialect file.
+```jbogenbau
+%extend-stage forms
+%classifier lexicon
+  "ki'ei" ∈ KIhEI
+```
 
-   CLL means *The Complete Lojban Language*. A literate grammar combines prose with fenced `jbogenbau` blocks.
+Keep lexicon keys in the normalized spelling supplied to forms. The engine compares them exactly. If you replace an existing class, remove its membership with `∉` before adding the replacement with `∈`.
 
-   A directive is an instruction that starts with `%`. A rule describes which text a grammar can match. A parse applies grammar rules to a text.
+Inspect the local forms output with this command:
 
-   Create `grammars/dialects/my-kihei.md` with this command:
+```sh
+node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --until forms --format tokens "ki'ei"
+```
 
-   ````sh
-   cat > grammars/dialects/my-kihei.md <<'EOF'
-   # My discourse frames
+Make sure that the output token carries `KIhEI`. Read its `value` for comparisons and its `image` for spelling. Do not infer either string from tags.
 
-   This dialect adds frames to CLL.
+## Add syntax
 
-   - [The CLL dialect](cll-ebnf.md)
-     ```jbogenbau
-     %include "cll-ebnf.md"
-     ```
-   EOF
-   ````
+A frame is a context for subsequent utterances. The example uses `ki'ei` to introduce a frame. `#` names the grammar's free-modifier slot. A free modifier is a phrase permitted at many positions. `I` reads `.i`.
 
-   `%include` reads the base dialect before your additions. Its path starts from the directory of the file that contains it.
+Append the following rules after the word-class extension:
 
-   Keep the Markdown link and its `%include` together. The document tests require this layout for grammar files.
+```jbogenbau
+%extend-stage syntax
+%redefine-rule paragraph
+  utterance-sequence [{frame-group}] | {frame-group}
 
-   A stage is one step of a parse. A pipeline is an ordered sequence of stages. A phoneme is one speech sound.
+%rule utterance-sequence
+  (statement | fragment) [{I # [statement | fragment]}]
 
-   The pipeline reads phonemes, recognizes word forms, processes the word stream, attaches indicators, and reads syntax.
+%rule frame-group
+  frame [I # [utterance-sequence]]
 
-   The included dialect creates all five stages. `%extend-stage` selects an existing stage. The stage keeps its position.
+%rule frame
+  KIhEI # [terms]
+```
 
-2. Add the word class in the forms stage.
+`%redefine-rule` replaces the inherited paragraph. `%rule` defines each added rule. The frame and following utterances share one `frame-group`. This construct requires `.i` before a following utterance.
 
-   A cmavo is a short structure word. A selma'o is a class of cmavo. A canonical sound is a normalized spelling of phonemes.
+Parse the local pipeline with this command:
 
-   A classifier maps canonical sounds to classes. A lexicon is the classifier that assigns selma'o.
+```sh
+node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md "ki'ei ko'a .i broda"
+```
 
-   Append these rules to `grammars/dialects/my-kihei.md`:
+The intended brackets are `([ki'ei ko'a] i broda)`. Inspect canonical or tree output to make sure that the frame owns its following utterances. Brackets alone do not record every named wrapper.
 
-   ````sh
-   cat >> grammars/dialects/my-kihei.md <<'EOF'
+## Design stage contracts
 
-   ```jbogenbau
-   %extend-stage forms
-   %classifier lexicon
-     "ki'ei" ∈ KIhEI
-   ```
-   EOF
-   ````
+State each stage's input values, tags, and output policy in its prose. Stage zero supplies character values and images with stored engine tags. It adds no pause, stress, or normalization policy.
 
-   `%extend-stage forms` selects the grammar that recognizes words. `%classifier lexicon` adds the class `KIhEI` to the sound `ki'ei`.
+Select a stage with `%extend-stage NAME` before changing its rules. Use `%redefine-stage NAME` for a complete replacement. That replacement clears stage items and ambiguity policy but keeps execution position. Other stages and global features remain intact.
 
-   CLL already accepts this word form. The later word stages carry its class to syntax.
+A `%extend-rule` carries only its own clauses. It never copies base tags, recipes, conditions, or emission. An inherited rule flag still applies to its appended alternatives. A `%redefine-rule` states the complete replacement and its flag.
 
-   A token is one unit that a stage reads.
+The bundled Lojban pipeline runs `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. Find outputs by stage name. A stage insertion changes later positions without changing their names.
 
-   Inspect the forms output with this command:
+## Map character values
 
-   ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --until forms --format tokens "ki'ei"
-   ````
+Use string terminals for exact characters and ranges for scalar intervals. Use stored engine tags for Unicode properties. A scalar value is a Unicode code point outside surrogates. `_` reads any ordinary token.
 
-   Output:
+```jbogenbau
+%rule consonant :: ∅
+  | "b"
+  | "B" := "b"
+  | "б" := "b"
+%emits
 
-   ````text
-   phonemes: 5 tokens, unique
-   #  text  phonemes  label  span  source  tags
-   0  "k"   "k"       "k"    0-1   0-1     /k/
-   1  "i"   "i"       "i"    1-2   1-2     /i/
-   2  "'"   "'"       "'"    2-3   2-3     /'/
-   3  "e"   "e"       "e"    3-4   3-4     /e/
-   4  "i"   "i"       "i"    4-5   4-5     /i/
+%rule digit-0
+  "0"
+%emits
+  $ :: ∅ := "n", ε :: ∅ := "o"
+```
 
-   forms: 1 tokens, unique
-   #  text     phonemes  label    span  source  tags
-   0  "ki'ei"  "ki'ei"   "ki'ei"  0-5   0-5     KIhEI cmavo continued onset run-final run-initial word
-   ````
+`:: ∅` stops character-tag inheritance. `:=` sets both strings unless a stronger explicit image recipe applies. The second digit phoneme is an inserted token with empty source text. Never emit two covering tokens over the digit's input span.
 
-   A tag is a label that a token carries. `KIhEI` must appear among the tags in the forms output.
+Engine tags belong to stage-zero tokens. Forward or filter them through captured tags. Do not introduce one in a tag clause, constant, classifier, implication, or elidable terminator. `_Lu ⊆ $c.tags` tests membership. `:: $c.tags ∩ _Lu` filters inherited membership.
 
-   Keep lexicon keys lowercase. Use a straight apostrophe in those keys.
+## Normalize through grammar
 
-3. Add the syntax construct.
+Place normalization after the phoneme mappings and before forms. Write `Stressed` on the mapping that creates each stressed value. Keep inherited tags on forwarding-only extensions.
 
-   A terminal matches a token with a specified tag.
+```jbogenbau
+%stage normalize
+%ambiguity-resolution lazy
 
-   Append the kihei syntax rules to `grammars/dialects/my-kihei.md`:
+%rule text
+  [{unit}]
 
-   ````sh
-   cat >> grammars/dialects/my-kihei.md <<'EOF'
+%rule unit :- $.image
+  | "A"<Stressed> := "a"
+  | "E"<Stressed> := "e"
+  | "I"<Stressed> := "i"
+  | "O"<Stressed> := "o"
+  | "U"<Stressed> := "u"
+  | "Y"<Stressed> := "y"
+  | ","<Syllable-Break> := ""
+  | _<¬Stressed ¬Syllable-Break>
+%emits
+```
 
-   ```jbogenbau
-   %extend-stage syntax
-   %redefine-rule paragraph
-     utterance-sequence [{frame-group}] | {frame-group}
+The rule-level image recipe preserves written images. Every mapping retains its input tags through single-symbol inheritance. The stage preserves token count, order, images, and sources. It changes only values.
 
-   %rule utterance-sequence
-     (statement | fragment) [{I # [statement | fragment]}]
+Make sure that every token with a mapped tag has a supported value. An unmapped stressed value fails normalization. Group a comma run into one comma token before this stage. Forms reads syllable boundaries through `Syllable-Break` even when the comma value is empty.
 
-   %rule frame-group
-     frame [I # [utterance-sequence]]
+## Place recipes for parents
 
-   %rule frame
-     KIhEI # [terms]
-   ```
-   EOF
-   ````
+A covering parent runs a string walk through its children. That walk uses child constituent recipes but skips child emission lists. An item recipe serves only its directly emitted token.
 
-   `%extend-stage syntax` selects syntax after the forms addition. `%redefine-rule paragraph` replaces the inherited paragraph rule.
+The following child emits `x` alone. Its parent emits `ab` over input `ab`:
 
-   `%rule` defines each new rule. `KIhEI` matches the new word class, and `[terms]` accepts zero or more CLL terms.
+```jbogenbau
+%rule text
+  child | parent
 
-   A free modifier adds information at permitted grammar positions. `#` reads optional free modifiers. `I` matches `.i`.
+%rule child
+  "a"
+%emits
+  $ := "x"
 
-   The frame and its subsequent utterances share a `frame-group`. The construct requires `.i` before an utterance that follows a frame.
+%rule parent
+  child "b"
+%emits
+```
 
-4. Parse a text with your dialect.
+Put the recipe on the child definition when the parent must also receive it:
 
-   The CLI accepts commands from your terminal.
+```jbogenbau
+%rule text
+  child | parent
 
-   Run the local file through `lib/js/cli.js`:
+%rule child := "x"
+  | "a"
+%emits
 
-   ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md "ki'ei ko'a .i broda"
-   ````
+%rule parent
+  child "b"
+%emits
+```
 
-   Output:
+This parent emits `xb`. An alternative recipe serves only that alternative. An item override remains strongest for its own token. Use `.emitted.value` or `.emitted.image` to read a reconstructed child. Name the channel explicitly in every recipe.
 
-   ````text
-   ([ki'ei ko'a] i broda)
-   ````
+## Preserve verbatim quote images
 
-   `--pipeline` reads your files from disk. `--dialect` reads the package's bundled copy.
+Verbatim text preserves original spelling with adjacent uncovered punctuation. Put its image recipe on the rule that reads the quote body. Do not place it only on the parent's emission item.
 
-   Until you complete step 8, use `--pipeline` for changed grammar files.
+```jbogenbau
+%rule raw-tokens :- $.verbatim-text
+  | any-token
+  | raw-tokens any-token
 
-   After each later grammar edit, run `node tools/sync.js`.
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
 
-   A feature is a named switch for a parse. List the features that the local dialect exposes:
+%rule empty-zoi-body
+  ε
+```
 
-   ````sh
-   node lib/js/cli.js features --pipeline grammars/dialects/my-kihei.md
-   ````
+The body recipe also serves a larger compound. Its outer image recipe stops recursive descendant image evaluation. Its value still concatenates normalized parts. An empty body takes no neighboring punctuation.
 
-   Output:
+The method changes neither source nor text. An image can include text outside its token's source interval. Two evaluated different spans cannot claim the same uncovered text. Delimiter tokens keep ordinary quote bodies apart.
 
-   ````text
-   cll-cyrillic            gate     on
-   sa-su                   gate     off
-   su-boundary             gate     off
-   y-cmavo                 warning  off
-   ````
+## Carry decisions through tags
 
-   The trial inherits these features from CLL. It adds no feature of its own.
+The gap-tag invariant governs facts that recipes cannot inspect. If a recipe needs a branching decision, compute that fact during recognition and carry it upward as a tag. State the tag's origin, forwarding rules, readers, and end in grammar prose.
 
-   A tie gives two best readings the same rank.
+A gap is a run between lexical parts. `Gap-Pause` means that a run contains a surviving pause. Erased children never introduce it. `Trailing-Pause` means that a survivor's compound contribution already ends with one space. These tags are internal grammar marks, not engine tags.
 
-   The CLI exits with `0` for acceptance, `1` for rejection or a tie, and `2` for a grammar or command error.
+Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
 
-5. Compare the trees.
+## Group quote gaps
 
-   A parse tree records which rules matched the text.
+Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer without erasures. A hesitation still follows its grammar condition and erasure.
 
-   Parse the same CLL text in the base dialect:
+```jbogenbau
+%rule quiet-gap
+  | hesitation
+  | quiet-gap hesitation
 
-   ````sh
-   node lib/js/cli.js parse --dialect cll-ebnf --format tree "broda .i brode"
-   ````
+%rule pause-gap := " "
+  | [quiet-gap] PAUSE [hesitations [PAUSE]]
 
-   ````text
-   text › text-1 › paragraphs › paragraph
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
-       selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
-       tail-terms
-         ⟨VAU⟩
-     I "i"
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
-       selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · brode
-       tail-terms
-         ⟨VAU⟩
-   ````
+%rule quote-spacing
+  | ε
+  | quiet-gap
+  | pause-gap
 
-   Parse that text with your local trial:
+%rule lohu-quote :: $m.tags
+  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
+  | $m:lohu-marker quote-spacing lehu-marker
 
-   ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "broda .i brode"
-   ````
+%rule lohu-stream
+  | lohu-word
+  | lohu-stream pause-gap lohu-word
+  | lohu-stream quiet-gap lohu-word
+  | lohu-stream lohu-word
+```
 
-   ````text
-   text › text-1 › paragraphs › paragraph › utterance-sequence
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
-       selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
-       tail-terms
-         ⟨VAU⟩
-     I "i"
-     statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
-       selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · brode
-       tail-terms
-         ⟨VAU⟩
-   ````
+`PAUSE` marks the first surviving pause of a nonempty pause run. `quiet-gap` contains no surviving pause and contributes empty concatenation. `pause-gap` contributes one space. Only `quote-spacing` permits an empty run. `lohu-stream` has a separate no-gap route.
 
-   The trial adds `utterance-sequence` below `paragraph`. Both dialects still accept the text. Their default bracket output hides this structural difference.
+Use the same partition for lohai streams and quote edges. Preserve their marker-only alternative without adding another empty-body route. Delimiter and single-word quote gaps keep their own hesitation conditions. An erasure-aware gap inside lo'u incorrectly removes quoted `si`.
 
-   `›` joins successive tree nodes on one line. An elided terminator is an omitted closing word. `⟨VAU⟩` marks one.
+## Classify compound gaps
 
-   Parse a frame with your local trial:
+Compound recognition retains spacing, skipped text, and erasures before BU and ZEI. The following tag clauses classify surviving pauses without changing those recognition routes:
 
-   ````sh
-   node lib/js/cli.js parse --pipeline grammars/dialects/my-kihei.md --format tree "ki'ei ko'a .i broda"
-   ````
+```jbogenbau
+%rule hesitations
+  | hesitation :: ∅
+  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
 
-   ````text
-   text › text-1 › paragraphs › paragraph › frame-group
-     frame
-       KIhEI "ki'ei"
-       terms › terms-1 › terms-2 › term › sumti › sumti-1 › sumti-2 › sumti-3 › sumti-4 › sumti-5 › sumti-6 · ko'a
-     I "i"
-     utterance-sequence › statement › statement-1 › statement-2 › statement-3 › sentence › bridi-tail › bridi-tail-1-final › bridi-tail-2 › bridi-tail-3
-       selbri › selbri-1 › selbri-2 › selbri-3 › selbri-4 › selbri-5 › selbri-6 › tanru-unit › tanru-unit-1 › tanru-unit-2 · broda
-       tail-terms
-         ⟨VAU⟩
-   ````
+%rule spacing
+  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
 
-   `frame-group` contains `frame`, `.i`, and `utterance-sequence`. The `frame` contains `ki'ei` and its terms.
+%rule erasures
+  | erasure :: ∅
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
 
-   Try that frame in the base dialect:
+%rule skipped
+  $s:spacing [$e:erasures $t:spacing]
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
 
-   ````sh
-   node lib/js/cli.js parse --dialect cll-ebnf --format tree "ki'ei ko'a .i broda"
-   ````
+%rule compound-gap
+  | skipped<¬Gap-Pause>
+  | skipped<Gap-Pause> := " "
 
-   The command exits with `1`. Its error starts with these lines:
+%rule spacing-gap
+  | spacing<¬Gap-Pause>
+  | spacing<Gap-Pause> := " "
+```
 
-   ````text
-   The syntax stage cannot read the text at "ki'ei":
-   1 | ki'ei ko'a .i broda
-     | ^^^^^
-   ````
+`hesitations` and `spacing` introduce `Gap-Pause` only for surviving pauses. `erasures` and `skipped` forward it while ignoring erased children. `compound-gap`, `spacing-gap`, and `su-survivor` read it. Their complementary tests admit each skipped derivation once.
 
-   CLL recognizes the word form but assigns no `KIhEI` class. Its syntax has no frame construct.
+Put `compound-gap` before BU and before ZEI. Put `spacing-gap` after ZEI, where erasures change the recognized language. Do not insert a space unconditionally. The form `abu` has no pause and keeps no space.
 
-6. Try the rules in the playground.
+## Preserve SU survivors
 
-   Open `index.html` from your checkout in a browser.
+In BPFK and experimental, SU can stop at a boundary such as ni'o. A survivor groups that boundary with its erased tail. Its pause can lie before the erased SU while another pause follows it. Carry that spacing state through `Trailing-Pause`.
 
-   Select `kihei` in the Dialect menu.
+```jbogenbau
+%rule su-survivor := $b.emitted.value :- $b.emitted.image
+  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
+%conditions
+  $b.classes ∩ $SU-STOPS ≠ ∅
 
-   Enter `ki'ei ko'a .i broda` in Text.
+%rule suppressed-gap := ""
+  | skipped
 
-   Select the Tree tab.
+%rule lerfu-word :: Word BY ∪ Fault ∩ $u.tags
+  | $u:unit<¬Trailing-Pause> compound-gap bu-word
+  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
+%emits
+```
 
-   Under Grammar documents, open `dialects/kihei.md`.
+`su-survivor` introduces `Trailing-Pause` when it adds a surviving space. `unit` forwards that tag. BU and ZEI compounds read it and suppress their next gap's string. They retain the gap's tree parts for ownership. Their output does not forward the state.
 
-   Edit its `%extend-stage` blocks to try your change.
+Use the same two-way left-unit division in `zei-compound`. The final word after ZEI ends the trailing state. Preserve feature gates and the boundary-class condition. Zantufa's SU-letter rule has no survivor behavior.
 
-   The page parses again after each edit. The Audit tab lists changes to the grammar and rules that nothing reaches.
+The survivor has no `%emits`. When it stands alone, the emission walk forwards only its base's token. Its trailing recipe applies only inside a covering compound. `ni'o su bu` therefore has one space, while `ni'o subu` retains the earlier surviving space.
 
-   If you want to keep an edit, click Download. Save the downloaded content to its corresponding file in your checkout.
+## Read foreign runs
 
-   The browser names that download `dialects--kihei.md`. Browser edits disappear when you reload the page.
+`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quoted body keeps its own value policy and verbatim image.
 
-   The playground has no file upload or command that loads an arbitrary local dialect. You cannot load `my-kihei.md` directly into the shipped page.
+Use names that state each recognizer's role:
 
-   If you want your new dialect in the local menu, complete step 8 first. After synchronization, reopen your checkout's `index.html`.
+| Stage | Rule | Recognizes |
+| --- | --- | --- |
+| Phonemes | `non-lojban-char-run` | A whole run with a character outside the orthography |
+| Phonemes | `non-lojban-char` | One such character |
+| Phonemes | `chars-with-non-lojban-char` | Characters containing at least one such character |
+| Forms | `foreign-token` | One forwarded FOREIGN token |
+| Forms | `unsegmentable-run` | A run with no valid word division |
+| Forms | `word-run` | A whole run divided into valid words |
+| Forms | `phoneme-sequence` | Phonemes without the whole-run boundary test |
 
-   `dist/grammars.js` is a bundle, a generated collection of grammars. `node tools/sync.js` rebuilds that bundle. The hosted playground does not read your checkout.
+A run extends between pauses. A helper that can match only part of one uses `sequence` or `chars`. A foreign run is legal only in the quote and post-fa'o positions specified by the word grammar.
 
-7. Add corpus cases.
+Y delimiter keys use fixed tags `Y-Key` and `Ieho`. A grammar never constructs a tag name from input text. Longer raw y runs receive neither key tag. Values remain available for exact string comparisons.
 
-   A corpus case records a text and its result. JSONL stores one JSON object per line.
+## Test and share the dialect
 
-   Create `my-kihei.jsonl` at the repository root:
+Make sure that accepted and rejected examples record their intended stage, word images, brackets, and features. Add tree expectations where brackets hide a structural distinction. Include a base-dialect comparison.
 
-   ````sh
-   cat > my-kihei.jsonl <<'EOF'
-   {"id":"trial.kihei.frame","text":"ki'ei ko'a .i broda","expect":"accept","verdict":"unique","words":["ki'ei","ko'a","i","broda"],"brackets":"([ki'ei ko'a] i broda)"}
-   {"id":"trial.kihei.missing-i","text":"ki'ei ko'a broda","expect":"reject","stage":"syntax","at":11,"words":["ki'ei","ko'a","broda"]}
-   EOF
-   ````
+After editing grammar sources, run these commands from the repository root:
 
-   The first case accepts the frame. The second rejects an utterance without `.i`.
+```sh
+node tools/sync.js
+node tools/sync.js --check
+```
 
-   A code point is a Unicode character number. `at` counts code points from zero. `11` is the start of `broda` in the rejected text.
+Synchronization copies grammars, rebuilds bundles and DOMs, and draws diagrams. Review the generated files before committing them. Keep each prose paragraph on one line. Run the document tests and the relevant dialect tests.
 
-   Run both cases against your local file:
-
-   ````sh
-   node lib/js/cli.js test my-kihei.jsonl --pipeline grammars/dialects/my-kihei.md
-   ````
-
-   ````text
-   2 of 2 cases pass
-   ````
-
-   These local cases omit `dialect`, so the CLI uses `--pipeline`. The shared corpus requires a bundled dialect name.
-
-   For shared tests, add `"dialect":"my-kihei"` to each case. Save those cases to `tests/corpus/my-kihei.jsonl`.
-
-   Add their IDs to `tests/core.txt`. The core corpus runs in all four libraries on pull requests.
-
-   Include an accepted case, a rejected case, and a base comparison. Inspect the output. Record the intended brackets.
-
-   The HOWTO also supplies five cases in `tests/corpus/dialects-howto.jsonl`. They cover the tree examples and the missing `.i`.
-
-   Run those bundled cases:
-
-   ````sh
-   node lib/js/cli.js test tests/corpus/dialects-howto.jsonl
-   ````
-
-   ````text
-   5 of 5 cases pass
-   ````
-
-   Brackets do not record every rule node. If your change groups text differently, add tests for tree nodes like those in `lib/js/test/kihei.test.js`.
-
-8. Prepare the dialect for shared use.
-
-   The prose coverage tool requires a coverage decision for each new grammar document. It automatically examines documents of `cll-ebnf` and `bpfk`.
-
-   For this trial, add this entry to `UNCHECKED` in `tools/quoted-texts.js`:
-
-   ````js
-   "grammars/dialects/my-kihei.md": "the trial has local corpus cases in my-kihei.jsonl",
-   ````
-
-   This entry records why the automatic CLL prose test excludes the trial. The tests must cover its claims.
-
-   For your own dialect, name its actual tests in that reason.
-
-   In `lib/js/test/quoted-texts.test.js`, add `my-kihei` to the expected list for `dialectNames()`.
-
-   Add `my-kihei` to the expected list for `documentDialects().get("grammars/syntax/cll.md")`.
-
-   `quoted-texts.test.js` names every dialect and every dialect that includes CLL syntax. Keep each list in alphabetical order.
-
-   You maintain these dialect lists by hand.
-
-   Add the new grammar file to Git:
-
-   ````sh
-   git add grammars/dialects/my-kihei.md
-   ````
-
-   Add your corpus files and test changes to Git.
-
-   Run the synchronization commands from the repository root:
-
-   ````sh
-   node tools/sync.js
-   node tools/sync.js --check
-   ````
-
-   `sync.js` copies grammars into the libraries, rebuilds browser files, and draws rule diagrams. `--check` fails when generated files or document conventions differ.
-
-   Run the document tests in `lib/js`:
-
-   ````sh
-   node --test test/documents.test.js test/markdown.test.js test/links.test.js test/prose-lines.test.js test/quoted-texts.test.js
-   ````
-
-   Run the kihei tests and core corpus in `lib/js`:
-
-   ````sh
-   node --test test/kihei.test.js test/corpus.test.js
-   ````
-
-   If you add other tests, run them too.
-
-   Before you commit, review the generated changes. Keep each prose paragraph on one line.
-
-## Other changes
-
-If your change differs from the kihei example, use these approaches.
-
-### Change word forms or classifications
-
-If your word fails before forms, change the phoneme stage first. If forms rejects its shape, change the forms rules.
-
-If you change an existing classification, remove its old class with `∉`.
-
-Add its replacement class with `∈`.
-
-### Add or replace alternatives
-
-An alternative is one possible body of a rule. If you need only another alternative, use `%extend-rule` on the existing rule.
-
-Put the extension in that rule's stage.
-
-A clause specifies tags, conditions, or output. `%extend-rule` adds alternatives. It does not copy the original clauses onto them.
-
-The notation cannot remove one alternative. If you need that change, replace the complete rule with `%redefine-rule`.
-
-### Replace a stage
-
-If you replace an entire stage, use `%redefine-stage NAME`. Define its complete grammar after that directive.
-
-Stage replacement clears all its grammar items and parsing policy. It keeps the stage position, other stages, and global features.
-
-Set `%ambiguity-resolution` in the replacement stage. That directive specifies how the stage ranks competing parses.
-
-### Add a feature
-
-If your change needs a switch, guard its alternative with `name?`. Add `%features name` to enable it by default.
-
-Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
-
-A warning guard, `name!`, reports an addition when enabled. It does not change which texts the grammar accepts.
+The playground editor uses bundled sources. Rebuild the bundles before opening a disk edit there. Download preserves a browser edit. Reload discards changes that you do not save.
 
 ## Common mistakes
 
-These reproductions create temporary files at the repository root. The recorded errors use `/build/gencmu/worktrees/howto` as that root. Your errors will name your own path.
+If an include fails, resolve its path against the document that contains it. If a rule extension fails, make sure that the selected stage defines that rule. If a rule is unreachable, connect it from `text` or correct its name.
 
-### A missing include
+If a stage ties, inspect both reported readings. Ordinary alternative order gives no priority. Remove unintended overlap or express an intended same-span preference with a ranked choice. Private ranked captures cannot feed parent recipes.
 
-Create `missing-include.md` with a nonexistent include:
+If an image loses verbatim spelling inside a compound, move its recipe to the body constituent. If a compound duplicates spaces, inspect surviving gap tags and their end. If a missing capture fails a recipe, separate the optional cases into alternatives.
 
-````sh
-cat > missing-include.md <<'EOF'
-```jbogenbau
-%include "grammars/dialects/missing.md"
-```
-EOF
-````
-
-Run the file:
-
-````sh
-node lib/js/cli.js parse --pipeline missing-include.md "broda"
-````
-
-The command exits with `2`:
-
-````text
-gencmu: /build/gencmu/worktrees/howto/missing-include.md:2:1: /build/gencmu/worktrees/howto/grammars/dialects/missing.md was not found (/build/gencmu/worktrees/howto/missing-include.md → /build/gencmu/worktrees/howto/grammars/dialects/missing.md)
-````
-
-If you see `was not found`, correct `%include` relative to its containing document. Before you select its stages, include the base dialect.
-
-### A rule extended in the wrong stage
-
-Create `wrong-stage.md` with a syntax rule extension in forms:
-
-````sh
-cat > wrong-stage.md <<'EOF'
-```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
-%extend-stage forms
-%extend-rule paragraph
-  KIhEI
-```
-EOF
-````
-
-Run the file:
-
-````sh
-node lib/js/cli.js parse --pipeline wrong-stage.md "broda"
-````
-
-The command exits with `2`:
-
-````text
-gencmu: /build/gencmu/worktrees/howto/wrong-stage.md:4: %extend-rule paragraph extends a rule that is not defined before it
-````
-
-If you see this error, replace `%extend-stage forms` with `%extend-stage syntax`. A stage can only extend its own existing rules.
-
-### An ambiguity that makes a tie
-
-An additional alternative can duplicate an existing reading.
-
-Create `tied.md` with an extra route to `statement`:
-
-````sh
-cat > tied.md <<'EOF'
-```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
-%extend-stage syntax
-%extend-rule paragraph
-  statement
-```
-EOF
-````
-
-Run the file:
-
-````sh
-node lib/js/cli.js parse --pipeline tied.md "broda"
-````
-
-The command exits with `1`. Its error starts with this line:
-
-````text
-The syntax stage is ambiguous: its grammar reads the text in two ways, and no rule ranks one above the other.
-````
-
-If you see a tie, inspect the two readings in the CLI output. In the playground, inspect them in the Tree tab.
-
-A span is a range of input tokens. A ranked choice prefers alternatives for the same span.
-
-Remove an accidental overlap. If both alternatives belong, express their intended preference with rules or [ranked choices](notation.md#ranked-choices).
-
-The order of `|` alternatives does not settle a tie. Ordinary alternatives have no priority by position.
-
-### An unreachable rule
-
-An unreachable rule has no route from `text`. A stage starts at its entry rule, `text`.
-
-Create `unreachable.md` with a rule that nothing uses:
-
-````sh
-cat > unreachable.md <<'EOF'
-```jbogenbau
-%include "grammars/dialects/cll-ebnf.md"
-%extend-stage syntax
-%rule unused-frame
-  KOhA
-```
-EOF
-````
-
-Run the audit, a report on the assembled grammar:
-
-````sh
-node lib/js/cli.js audit --pipeline unreachable.md
-````
-
-The report includes this line:
-
-````text
-  unreachable from text: unused-frame
-````
-
-If your rule appears here, connect it to an existing rule. If its name is wrong, correct the definition.
-
-The Audit tab reports the same problem for the dialect selected in the playground. An audit can exit with `0` despite unreachable rules.
+An empty image never removes an input part or its ownership. `%erased` removes counted parts. Avoid covering an attached input token together with another surviving input token. Use named attachment carriers to keep ownership explicit.
 
 ## Read further
 
-Read [Pipelines](notation.md#pipelines) for dialects, stage order, `%include`, `%extend-stage`, and `%redefine-stage`.
+[Stage contracts and pipelines](notation.md#directives-and-pipelines) explain inclusion and stage selectors. [Stitching](notation.md#stitching-documents) explains definitions and extensions. [Recipes](engine.md#11-emission) define channels, dependencies, and source gaps.
 
-Read [Stitching documents](notation.md#stitching-documents) for `%rule`, `%extend-rule`, and `%redefine-rule`.
-
-Read [Classifiers](notation.md#classifiers) for lexicons, class membership, and sound keys.
-
-Read [Names and terminals](notation.md#names-and-terminals) for classes, terminals, and tags.
-
-Read [Feature guards](notation.md#feature-guards) for gates, warnings, and feature switches.
-
-Read [Ambiguity](notation.md#ambiguity) for ties and the rules that rank parses.
-
-Read [Corpus cases](../tests/README.md#corpus-cases) for expected results and shared tests.
+[Classifiers](notation.md#classifiers) define exact keys and memberships. [Terminals](notation.md#names-and-terminals) define values and stored tags. [Ambiguity](notation.md#ambiguity) defines ranking and ties. [Corpus cases](../tests/README.md#corpus-cases) define shared expectations.
