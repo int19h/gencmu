@@ -3,6 +3,7 @@ package gencmu
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -118,5 +119,36 @@ func TestReviewPropertyWrapper(t *testing.T) {
 	result, err := dialect.Parse("a", ParseOptions{})
 	if err != nil || !result.OK {
 		t.Fatalf("wrapped string terminal: %v %+v", err, result)
+	}
+}
+
+func TestReviewRecipeCyclePath(t *testing.T) {
+	for _, c := range []struct {
+		grammar string
+		path    string
+	}{
+		{`%rule text := $.emitted.value | "a" %emits`, "text.value -> text.value"},
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "text.value -> text.image -> text.value"},
+		{`%rule text := "x" :- $.emitted.image | "a" %emits`, "text.image -> text.image"},
+		{`%rule text := $.emitted.image | "a" %emits`, "text.value -> text.image -> text.image"},
+	} {
+		t.Run(c.path, func(t *testing.T) {
+			_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || !strings.Contains(e.Message, c.path) {
+				t.Fatalf("expected a recipe cycle with path %q, got %v", c.path, err)
+			}
+		})
+	}
+	// Cross-channel dependencies remain valid when the other channel is independent.
+	for _, grammar := range []string{
+		`%rule text := $.emitted.image :- "x" | "a" %emits $`,
+		`%rule text := "x" :- $.emitted.value | "a" %emits $`,
+	} {
+		dialect := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+grammar))
+		result, err := dialect.Parse("a", ParseOptions{})
+		if err != nil || !result.OK || len(result.Stages[0].Output) != 1 || result.Stages[0].Output[0].Value != "x" || result.Stages[0].Output[0].Image != "x" {
+			t.Fatalf("acyclic recipe: %v %+v", err, result)
+		}
 	}
 }

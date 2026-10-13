@@ -1,5 +1,7 @@
 package gencmu
 
+import "strings"
+
 // Emission overlap depends on structural consumption, never on successful
 // conditions, enabled gates, recipes, or erasure (engine §9.3).
 func (g *stageGrammar) validateEmissionOverlap() *Error {
@@ -120,26 +122,33 @@ func (g *stageGrammar) validateRecipeCycles() *Error {
 				}
 			}
 			var state [2]byte
+			var active []int
+			var path []string
 			var visit func(int) bool
 			visit = func(channel int) bool {
 				if state[channel] == 1 {
+					for _, step := range append(active, channel) {
+						path = append(path, r.name+"."+[2]string{"value", "image"}[step])
+					}
 					return true
 				}
 				if state[channel] == 2 {
 					return false
 				}
 				state[channel] = 1
+				active = append(active, channel)
 				for _, target := range edges[channel] {
 					if visit(target) {
 						return true
 					}
 				}
 				state[channel] = 2
+				active = active[:len(active)-1]
 				return false
 			}
 			for channel, recipe := range recipes {
 				if recipe != nil && visit(channel) {
-					return g.constError(a.doc, recipe.At, "string recipe dependency cycle through constituent value or image")
+					return g.constError(a.doc, recipe.At, "string recipe dependency cycle: %s", strings.Join(path, " -> "))
 				}
 			}
 		}
