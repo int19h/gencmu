@@ -7,6 +7,11 @@ export declare class RankedAdmission {
             furthest: number;
             context: import("./earley.js").ParseContext;
             closeRequested?: boolean;
+            family?: import("./family-summaries.js").FamilySummaries | null;
+            familyTrace?: Map<import("./earley.js").Item, {
+                event: import("./close-observations.js").CloseEvent;
+                permitted: boolean;
+            }[]> | null;
             sets: {
                 position: number;
                 index: Map<number | string, import("./earley.js").Item>;

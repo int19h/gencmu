@@ -48,6 +48,14 @@ export type ElisionCheckWatch = {
 };
 export type WorkCounts = {
     /**
+     * distinct family summaries taken by items
+     */
+    familySummaries: number;
+    /**
+     * deletion automaton transitions and relation rows
+     */
+    familySteps: number;
+    /**
      * shared close and cycle summaries interned
      */
     closeStates: number;
@@ -173,7 +181,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -201,6 +209,8 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
 /**
  * The counts of `hooks.work`.
  * @typedef {object} WorkCounts
+ * @property {number} familySummaries distinct family summaries taken by items
+ * @property {number} familySteps deletion automaton transitions and relation rows
  * @property {number} closeStates shared close and cycle summaries interned
  * @property {number} closeSequences shared close sequence links interned
  * @property {number} structuralStates finite structural states interned
@@ -252,7 +262,7 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**
@@ -275,8 +285,9 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
+/** @type {{familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
 export declare const hooks: {
+    familyAlignment: ((summary: boolean, direct: boolean) => void) | null;
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
     work: WorkCounts | null;
     slotAdmission: ((statistics: {

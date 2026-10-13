@@ -1,9 +1,10 @@
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
+import { FamilySummaries } from "./family-summaries.js";
 import { restoreTokens } from "./restoration.js";
 import { Sources } from "./tokens.js";
 import type { Argument, Condition, Edge, Expectation, LoweredGrammar, Production, Scope, Captured, SpanValue, SymbolTest, TagSet, TermValue } from "./types.js";
-import type { CloseObservation } from "./close-observations.js";
+import type { CloseEvent, CloseObservation } from "./close-observations.js";
 import type { Token } from "./tokens.js";
 import type { UnicodeTable } from "./unicode.js";
 export type Chart = {
@@ -21,6 +22,11 @@ export type Chart = {
     furthest: number;
     context: ParseContext;
     closeRequested?: boolean;
+    family?: FamilySummaries | null;
+    familyTrace?: Map<Item, {
+        event: CloseEvent;
+        permitted: boolean;
+    }[]> | null;
 };
 /**
  * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
@@ -39,6 +45,8 @@ export type Chart = {
  * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
  * @property {boolean} [closeRequested]
+ * @property {FamilySummaries|null} [family]
+ * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
  */
 export declare class TagInterner {
     /** @type {TagSet[]} */
@@ -57,6 +65,8 @@ export declare class TagInterner {
      */
     get(id: number): TagSet;
 }
+/** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
+export declare function omissionAllowed(production: Pick<Production, "elided" | "elidedTest">): boolean;
 /** @param {ParseContext} context @param {string} terminal @param {number} at @returns {number} */
 export declare function structuralRead(context: ParseContext, terminal: string, at: number): number;
 /**
@@ -223,6 +233,8 @@ export declare class Item {
     observationPrefix: CloseObservation | null;
     /** @type {CloseObservation|null} */
     observation: CloseObservation | null;
+    /** @type {import("./family-summaries.js").FamilySummary|null} */
+    familySummary: import("./family-summaries.js").FamilySummary | null;
     tagId: number;
     end: number;
     previous: Item | null;

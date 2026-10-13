@@ -218,6 +218,8 @@
   /**
    * The counts of `hooks.work`.
    * @typedef {object} WorkCounts
+   * @property {number} familySummaries distinct family summaries taken by items
+   * @property {number} familySteps deletion automaton transitions and relation rows
    * @property {number} closeStates shared close and cycle summaries interned
    * @property {number} closeSequences shared close sequence links interned
    * @property {number} structuralStates finite structural states interned
@@ -270,10 +272,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -305,8 +307,9 @@
     if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
   }
 
-  /** @type {{elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
-  const hooks = { elisionCheck: null, work: null, slotAdmission: null };
+  /** @type {{familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
+  const hooks = { elisionCheck: null, work: null, slotAdmission: null,
+    /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null };
 
   /**
    * Whether a fault is on, at one of its sites. A fault that is on counts the
@@ -1453,6 +1456,93 @@
     return [];
   }
 
+  // ---- close-families.js
+  // Close families read written, stitched structure, before feature gates or
+  // capture expansion. Lowering helpers keep their named rule's ownership.
+
+
+
+  /** @param {import("./types.js").Expr} expr @returns {string[]} */
+  function memberEdges(expr) {
+    const names = [];
+    const pending = [expr];
+    while (pending.length) {
+      const node = /** @type {import("./types.js").Expr} */ (pending.pop());
+      if ("ref" in node && !/^[A-Z_]/.test(node.ref)) names.push(node.ref);
+      else if ("capture" in node || "test" in node) pending.push(node.expr);
+      else if ("choice" in node) for (let index = node.choice.length - 1; index >= 0; index--) pending.push(node.choice[index]);
+    }
+    return names;
+  }
+
+  /**
+   * Clauses follow the reference check's order. Shared definition clauses
+   * occur only with that definition's first surviving alternative.
+   * @param {Map<string,import("./grammar.js").StitchedRule>} rules
+   * @returns {IterableIterator<{rule:string, alternative:import("./grammar.js").StitchedAlternative, node:any}>}
+   */
+  function* familyCalls(rules) {
+    const seen = new Set();
+    for (const [rule, definition] of rules) for (const alternative of definition.alternatives) {
+      /** @type {unknown[]} */
+      const roots = [alternative.tags];
+      if (!seen.has(alternative.clauses)) {
+        seen.add(alternative.clauses);
+        const {tags, conditions, emit} = alternative.clauses;
+        roots.push(tags, conditions, emit?.items.map(item => item.tags));
+      }
+      const pending = roots.reverse();
+      while (pending.length) {
+        const node = /** @type {any} */ (pending.pop());
+        if (!node || typeof node !== "object") continue;
+        if (node.method === "without-elision-except") yield {rule, alternative, node};
+        const children = clauseChildren(node);
+        for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
+      }
+    }
+  }
+
+  /**
+   * @param {Map<string,import("./grammar.js").StitchedRule>} rules
+   * @param {string} family
+   * @returns {Set<string>}
+   */
+  function familyMembers(rules, family) {
+    const members = new Set([family]);
+    // Set iteration visits appended members, giving breadth-first order.
+    for (const name of members) for (const alternative of rules.get(name)?.alternatives ?? []) {
+      for (const target of memberEdges(alternative.expr)) members.add(target);
+    }
+    return members;
+  }
+
+  /**
+   * @param {Map<string,import("./grammar.js").StitchedRule>} rules
+   * @returns {Map<string,Set<string>>}
+   */
+  function closeFamilies(rules) {
+    const families = new Map();
+    for (const {node} of familyCalls(rules)) {
+      const name = node.args[0].rule;
+      if (!families.has(name)) families.set(name, familyMembers(rules, name));
+    }
+    return families;
+  }
+
+  /**
+   * @param {import("./types.js").Expr} expr
+   * @returns {IterableIterator<import("./types.js").Expr & {optional:import("./types.js").Expr}>}
+   */
+  function* ownedOptionals(expr) {
+    const pending = [expr];
+    while (pending.length) {
+      const node = /** @type {import("./types.js").Expr} */ (pending.pop());
+      if ("optional" in node && node.elidable) yield node;
+      const children = expressionChildren(node);
+      for (let index = children.length - 1; index >= 0; index--) pending.push(children[index]);
+    }
+  }
+
   // ---- close-observations.js
   // Shared close observations for aligned queries. The chart keeps summaries
   // of proofs, not completed trees. A cyclic summary remains available to
@@ -1744,7 +1834,7 @@
       const node = stack.pop();
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
-      if (/** @type {any} */ (node).method === "without-elision") return true;
+      if (["without-elision", "without-elision-except"].includes(/** @type {any} */ (node).method)) return true;
       for (const child of clauseChildren(node)) stack.push(child);
     }
     return false;
@@ -1782,7 +1872,7 @@
             pending.push(node.args[0].rule);
             if (needsCloseObservations(node.receiver)) wanted.add(node.args[0].rule);
           }
-          if (node.method === "without-elision") {
+          if (node.method === "without-elision" || node.method === "without-elision-except") {
             const capture = node.receiver.capture;
             const part = production.captures.find(c => c.name === capture);
             if (capture === "" || !part || production.rhs.some(s => s.slot)) {
@@ -1837,7 +1927,7 @@
       const value = ["matches","begins","tags"].includes(node.method) ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
       const queryRule = node.args?.[0]?.rule;
-      if (aligned?.method === "without-elision" && typeof queryRule === "string") {
+      if (["without-elision", "without-elision-except"].includes(aligned?.method) && typeof queryRule === "string") {
         const part = base.captures.find(capture => capture.name === aligned.receiver.capture);
         if (part) {
           result.parts.add(part.index);
@@ -1846,7 +1936,7 @@
           continue;
         }
       }
-      if (node.method === "without-elision") {
+      if (node.method === "without-elision" || node.method === "without-elision-except") {
         const name = node.receiver.capture;
         if (name === "") result.whole = true;
         else {
@@ -2230,6 +2320,204 @@
         ...(this.expression === undefined ? {} : {expression:this.expression}),
         ...(this.inheritance === undefined ? {} : {inheritance:this.inheritance}),
       };
+    }
+  }
+
+  // ---- family-summaries.js
+  // The deletion automaton of engine §4.1. Items retain sets and relations,
+  // never permission-marked close sequences. Dead summaries filter witnesses
+  // only. The chart and its omission blockers still retain every item.
+
+
+
+  /**
+   * A null relation is the identity of a record-free empty item.
+   * @typedef {{id:number, dead:boolean, first:bigint, last:bigint, relation:bigint[]|null}} FamilySummary
+   */
+  /** @typedef {import("./close-observations.js").CloseEvent} Event */
+
+  /** @param {Event} left @param {Event} right @returns {boolean} */
+  function sameRecord(left, right) {
+    return left.kind === right.kind && (left.kind === "close"
+      ? left.terminal === /** @type {Extract<Event,{kind:"close"}>} */ (right).terminal && left.at === /** @type {Extract<Event,{kind:"close"}>} */ (right).at
+      : left.key === /** @type {Extract<Event,{kind:"block"}>} */ (right).key && left.start === /** @type {Extract<Event,{kind:"block"}>} */ (right).start && left.end === /** @type {Extract<Event,{kind:"block"}>} */ (right).end);
+  }
+
+  /**
+   * Independent whole-group test for the library's conformance switch. It
+   * reads each witness record directly, without item sets or relation joins.
+   * @param {Event[]} candidate
+   * @param {{event:Event, permitted:boolean}[]} witness
+   * @param {number} start @param {number} end
+   * @returns {boolean}
+   */
+  function deletionTest(candidate, witness, start, end) {
+    /** @type {(event:Event) => number} */
+    const position = event => event.kind === "close" ? event.at : event.start;
+    /** @type {(event:Event) => boolean} */
+    const inside = event => position(event) <= end && !(event.kind === "block" && event.start === end && event.end > end);
+    for (const {event} of witness) if (event.kind === "block" && event.start < end && event.end > end) return false;
+    const kept = candidate.filter(inside);
+    const records = witness.filter(record => inside(record.event));
+    // A state records matched candidate records and whether the last step
+    // deleted one. A later match or a following token supplies its right anchor.
+    let states = new Set(["0/0"]);
+    for (const {event, permitted} of records) {
+      const next = new Set();
+      for (const state of states) {
+        const [index, trailing] = state.split("/").map(Number);
+        const at = position(event);
+        // Candidate records before this boundary must already be matched.
+        if (index < kept.length && position(kept[index]) < at) continue;
+        if (index < kept.length && sameRecord(event, kept[index])) next.add(`${index+1}/0`);
+        const earlierRecord = index > 0 && position(kept[index-1]) === at;
+        if (permitted && event.kind === "close" && (at > start || earlierRecord)) next.add(`${index}/1`);
+        // `trailing` stays relevant only at the final boundary.
+        void trailing;
+      }
+      states = next;
+    }
+    return states.has(`${kept.length}/0`) || (records.length !== 0 && position(records[records.length-1].event) < end && states.has(`${kept.length}/1`));
+  }
+
+  class FamilySummaries {
+    /**
+     * @param {import("./close-observations.js").CloseObservations} closes
+     * @param {import("./close-observations.js").CloseObservation} candidate
+     * @param {number} start
+     * @param {number} end
+     */
+    constructor(closes, candidate, start, end) {
+      this.start = start;
+      this.end = end;
+      /** @type {Map<number,Event[]>} */ this.groups = new Map();
+      for (const event of closes.raw.values(candidate.sequence)) {
+        const at = event.kind === "close" ? event.at : event.start;
+        const group = this.groups.get(at);
+        if (group) group.push(event);
+        else this.groups.set(at, [event]);
+      }
+      /** @type {Map<string,FamilySummary>} */ this.summaries = new Map();
+      /** @type {Set<number>} */ this.taken = new Set();
+      /** @type {Map<string,bigint[]>} */ this.records = new Map();
+      /** @type {Map<string,FamilySummary>} */ this.joins = new Map();
+      this.identity = this.intern(false, 0n, 0n, null);
+      this.dead = this.intern(true, 0n, 0n, null);
+    }
+
+    /** @param {number} at @returns {Event[]} */
+    group(at) { return this.groups.get(at) ?? []; }
+
+    /** @param {boolean} dead @param {bigint} first @param {bigint} last @param {bigint[]|null} relation @returns {FamilySummary} */
+    intern(dead, first, last, relation) {
+      const key = dead ? "dead" : `${first}/${last}/${relation?.join(",") ?? "identity"}`;
+      let summary = this.summaries.get(key);
+      if (!summary) {
+        summary = {id:this.summaries.size, dead, first, last, relation};
+        this.summaries.set(key, summary);
+      }
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @returns {FamilySummary} */
+    take(summary) {
+      if (!this.taken.has(summary.id)) {
+        this.taken.add(summary.id);
+        if (hooks.work) countWork(hooks.work, "familySummaries");
+      }
+      return summary;
+    }
+
+    /** @param {number} at @param {boolean} final @returns {bigint} */
+    accept(at, final = false) {
+      if (at > this.end) return 1n;
+      const group = this.group(at);
+      let count = group.length;
+      if (final && count && group[count-1].kind === "block" && /** @type {Extract<Event,{kind:"block"}>} */ (group[count-1]).end > at) count--;
+      return (final || at === this.end ? 1n : 3n) << BigInt(2*count);
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    image(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (set & (1n << BigInt(index))) result |= relation[index];
+      return result;
+    }
+
+    /** @param {bigint[]|null} relation @param {bigint} set @returns {bigint} */
+    preimage(relation, set) {
+      if (relation === null) return set;
+      if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+      let result = 0n;
+      for (let index = 0; index < relation.length; index++) if (relation[index] & set) result |= 1n << BigInt(index);
+      return result;
+    }
+
+    /** @param {Event} event @param {boolean} permitted @returns {FamilySummary} */
+    record(event, permitted) {
+      const at = event.kind === "close" ? event.at : event.start;
+      if (at > this.end || event.kind === "block" && at === this.end && event.end > at) return this.identity;
+      const key = JSON.stringify([event.kind === "close" ? [event.terminal,event.at] : [event.key,event.start,event.end], permitted]);
+      let relation = this.records.get(key);
+      if (!relation) {
+        const group = this.group(at);
+        relation = Array(2*(group.length+1)).fill(0n);
+        if (hooks.work) countWork(hooks.work, "familySteps", relation.length);
+        for (let i = 0; i <= group.length; i++) {
+          let targets = 0n;
+          if (i < group.length && sameRecord(event, group[i])) targets |= 1n << BigInt(2*(i+1));
+          if (permitted && event.kind === "close" && (i > 0 || at > this.start)) targets |= 1n << BigInt(2*i+1);
+          relation[2*i] = relation[2*i+1] = targets;
+        }
+        this.records.set(key, relation);
+      }
+      return this.intern(false, 0n, 0n, relation);
+    }
+
+    /**
+     * A token or an opaque block reads an interval. Its interior has no
+     * visible records. Candidate records there therefore make it dead.
+     * @param {number} start @param {number} end @returns {FamilySummary}
+     */
+    tokens(start, end) {
+      if (start < this.end && this.end < end) return this.dead;
+      for (const at of this.groups.keys()) if (start < at && at < end && at <= this.end) return this.dead;
+      return this.intern(false, this.accept(start), 1n, null);
+    }
+
+    /**
+     * @param {FamilySummary} left @param {FamilySummary} right
+     * @param {number} start @param {number} middle @param {number} end
+     * @returns {FamilySummary}
+     */
+    join(left, right, start, middle, end) {
+      if (left.dead || right.dead) return this.dead;
+      const key = `${left.id}/${right.id}/${start === middle}/${middle === end}`;
+      const known = this.joins.get(key);
+      if (known) return known;
+      let summary;
+      if (start === middle && middle === end) {
+        const relation = left.relation === null ? right.relation : right.relation === null ? left.relation : left.relation.map(row => this.image(right.relation, row));
+        summary = this.intern(false, 0n, 0n, relation);
+      } else if (start === middle) {
+        summary = this.intern(false, this.preimage(left.relation, right.first), right.last, null);
+      } else if (middle === end) {
+        summary = this.intern(false, left.first, this.image(right.relation, left.last), null);
+      } else {
+        summary = left.last & right.first ? this.intern(false, left.first, right.last, null) : this.dead;
+      }
+      this.joins.set(key, summary);
+      return summary;
+    }
+
+    /** @param {FamilySummary} summary @param {number} end @returns {boolean} */
+    accepts(summary, end) {
+      if (summary.dead) return false;
+      const accepting = this.accept(end, true);
+      return end === this.start ? !!(this.image(summary.relation, 1n) & accepting)
+        : !!(summary.first & 1n) && (end > this.end || !!(summary.last & accepting));
     }
   }
 
@@ -5381,6 +5669,7 @@
 
 
 
+
   /**
    * @import { Condition, ConstantTerm, DomAlternative, DomClassifier, DomEntry, DomConstant, DomImplication, DomRule, Emission, ErrorLocation, Expr, GrammarDom, Guard, LoweredGrammar, Production, Resolution, SymbolTest, TagSet, Term, TermValue, TestOp } from "./types.js"
    * @import { TermType } from "./dom.js"
@@ -5544,6 +5833,7 @@
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
       this.checkReferences();
+      this.families = closeFamilies(this.rules);
       this.ranked = new RankedGroups(this.rules);
       if (this.ranked.groups.length) {
         // Validate every surviving variant without enumerating feature assignments.
@@ -6289,6 +6579,7 @@
         byLhs: this.byLhs,
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
+        families: this.grammar.families,
       };
     }
 
@@ -6901,6 +7192,7 @@
 
 
 
+
   /**
    * @import { Argument, CharacterClass, Condition, Edge, Expectation, GrammarSymbol, LoweredGrammar, Production, ReadyCondition, Scope, Captured, SpanValue, SymbolTest, TagSet, Term, TermValue } from "./types.js"
    * @import { CloseEvent, CloseObservation } from "./close-observations.js"
@@ -6919,6 +7211,8 @@
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
    * @property {boolean} [closeRequested]
+   * @property {FamilySummaries|null} [family]
+   * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
    */
 
   // Interns tag sets, so that an item names a captured part's tags by number.
@@ -6997,7 +7291,7 @@
     return found;
   }
 
-  /** @param {Production} production @returns {boolean} */
+  /** @param {Pick<Production,"elided"|"elidedTest">} production @returns {boolean} */
   function omissionAllowed(production) {
     const test = production.elidedTest;
     if (!test) return true;
@@ -7246,6 +7540,36 @@
     return { prefix, observation };
   }
 
+  /**
+   * The raw close step supplies cycle validity. This separate step records
+   * only the query family's deletion states and replaces ranked interiors
+   * with the same opaque block that the outside observation reads.
+   * @param {ParseContext} context @param {FamilySummaries|null} family
+   * @param {Set<string>|null|undefined} members @param {Production} production
+   * @param {number} dot @param {number} origin
+   * @param {Item|null} previous @param {Item|null} child @param {number} end
+   * @param {{observation:CloseObservation}|null} close
+   * @returns {import("./family-summaries.js").FamilySummary|null}
+   */
+  function familyStep(context, family, members, production, dot, origin, previous, child, end, close) {
+    if (!family || !context.closes) return null;
+    if (close && !close.observation.valid) return family.dead;
+    if (!previous) {
+      if (production.helper && production.rhs.length === 0 && production.elided !== null && close) {
+        return family.record(context.closes.list(close.observation.sequence)[0], !!members?.has(production.owner));
+      }
+      return family.identity;
+    }
+    let part;
+    if (child && production.rhs[dot-1].slot) {
+      const block = closeChild(context, previous, child);
+      part = block?.valid ? family.join(family.record(context.closes.list(block.sequence)[0], false),
+        child.origin === child.end ? family.identity : family.tokens(child.origin, child.end),
+        child.origin, child.origin, child.end) : family.dead;
+    } else part = child ? child.familySummary ?? family.identity : family.tokens(previous.end, end);
+    return family.join(previous.familySummary ?? family.identity, part, origin, previous.end, end);
+  }
+
   // What a parse and every nested parse it starts share.
   class ParseContext {
     /**
@@ -7386,6 +7710,8 @@
       this.observationPrefix = null;
       /** @type {CloseObservation|null} */
       this.observation = null;
+      /** @type {import("./family-summaries.js").FamilySummary|null} */
+      this.familySummary = null;
       this.tagId = -1;
       this.end = -1;
       this.previous = previous;
@@ -7694,7 +8020,17 @@
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       const qualified = eligibleWitnesses(chart, witnesses);
-      const aligned = qualified.filter(item => item.observation && context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+      const aligned = qualified.filter(item => {
+        const answer = !!item.observation && (chart.family
+          ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
+          : !!context.closes?.aligned(constraint.observation,item.observation,Math.min(constraint.candidateEnd,item.end)));
+        if (chart.familyTrace && hooks.familyAlignment && context.closes) {
+          const direct = !!item.observation?.valid && deletionTest(context.closes.list(constraint.observation.sequence),
+            chart.familyTrace.get(item) ?? [], start, Math.min(constraint.candidateEnd, item.end));
+          hooks.familyAlignment(answer, direct);
+        }
+        return answer;
+      });
       if (kind === "tags") {
         const tags = new TagUnion();
         for (const item of aligned) tags.add(context.interner.get(item.tagId));
@@ -7767,6 +8103,12 @@
     const setAt = (position) => sets[position - start] || (sets[position - start] = new ChartSet(position));
     const dots = context.dots;
     const width = end - start + 1;
+    const members = query?.aligned?.family ? lowered.families.get(query.aligned.family) : null;
+    const family = members && query?.aligned && context.closes
+      ? new FamilySummaries(context.closes, query.aligned.observation, start, query.aligned.candidateEnd) : null;
+    // Only the conformance switch retains a marked proof for the independent
+    // deletion test. Production runs retain only unmarked observations.
+    const familyTrace = family && hooks.familyAlignment ? new Map() : null;
     // Ordinary and observed uses share the grammar, but have different
     // prediction and completion identities. Otherwise a demand inside a
     // parenthesis also splits unrelated paragraphs into all close sequences.
@@ -7831,11 +8173,13 @@
       if (strict && dot === production.rhs.length) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
+      const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
       let key = itemKey((production.id * dots + dot) * width + origin - start, slots);
       if (production.closeRequested) key = `${key}/observed`;
       if (production.lexicalFrame) key = `${key}/f${production.lexicalFrame.id}`;
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
+      if (summary) key = `${key}/family${summary.id}`;
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
@@ -7889,6 +8233,17 @@
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
       item.observation = close?.observation ?? null;
+      item.familySummary = summary && family ? family.take(summary) : null;
+      if (familyTrace && context.closes) {
+        let records = previous ? familyTrace.get(previous) ?? [] : [];
+        if (previous && child) {
+          const block = production.rhs[dot-1].slot && closeChild(context, previous, child);
+          records = records.concat(block ? context.closes.list(block.sequence).map(event => ({event, permitted:false})) : familyTrace.get(child) ?? []);
+        } else if (!previous && production.helper && production.rhs.length === 0 && production.elided !== null && close?.observation.valid) {
+          records = context.closes.list(close.observation.sequence).map(event => ({event, permitted:!!members?.has(production.owner)}));
+        }
+        familyTrace.set(item, records);
+      }
       item.strict = strict;
       if (hooks.work) { countWork(hooks.work, "items"); countWork(hooks.work, "packedEdges"); }
       item.end = set.position;
@@ -8340,7 +8695,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned };
+          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned, family, familyTrace };
         }
         step = kind;
         item = entry;
@@ -8971,14 +9326,16 @@
    * @param {number} candidateEnd
    * @param {number} contextEnd
    * @param {number} [matchEnd]
+   * @param {string|null} [family]
    * @returns {import("./types.js").AlignedSpan}
    */
-  function alignedSpan(context, observation, candidateEnd, contextEnd, matchEnd = candidateEnd) {
+  function alignedSpan(context, observation, candidateEnd, contextEnd, matchEnd = candidateEnd, family = null) {
     return {
       observation,
       candidateEnd,
       contextEnd,
       matchEnd,
+      family,
       get view() { return restoredView(context, observation); },
     };
   }
@@ -8992,7 +9349,7 @@
   function spanOf(context, span, scope) {
     if (hooks.work) countWork(hooks.work, "visits");
     if ("capture" in span) return scope.capture(span.capture);
-    if ("method" in span && span.method === "without-elision") {
+    if ("method" in span && (span.method === "without-elision" || span.method === "without-elision-except")) {
       const captured = scope.capture(/** @type {{capture:string}} */ (span.receiver).capture);
       const inner = projectedArgument(captured,scope,span.method);
       const machine = context.closes;
@@ -9002,7 +9359,8 @@
       const r = reconstructionOf(scope);
       const contextEnd = r ? originalPosition(r,r.inputEnd) : context.inputEnd;
       return { start: inner.start, end: inner.end,
-        aligned: alignedSpan(context, observation, inner.end, contextEnd) };
+        aligned: alignedSpan(context, observation, inner.end, contextEnd, inner.end,
+          span.method === "without-elision-except" ? /** @type {{rule:string}} */ (span.args[0]).rule : null) };
     }
     if ("method" in span && (span.method === "first-token" || span.method === "tokens-after-first" || span.method === "last-token")) {
       // In the check, the projection comes first, then the function (engine
@@ -9027,7 +9385,7 @@
         const aligned = argument.aligned;
         return span.method === "onward"
           ? { start: argument.start, end: aligned.contextEnd,
-            aligned: alignedSpan(context, aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd) }
+            aligned: alignedSpan(context, aligned.observation, aligned.candidateEnd, aligned.contextEnd, aligned.contextEnd, aligned.family) }
           : {start:argument.end,end:aligned.contextEnd};
       }
       const first = functionFirst(argument, scope, span.method);
@@ -9728,7 +10086,7 @@
     const at = target === null ? null : target.key;
     const aligned = target?.aligned;
     if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
-    const key = aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,context.closes?.identity(aligned.observation)])
+    const key = aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", kind, rule, at[0], at[1]])
         : nestedKey(context, kind, rule, start, end);
@@ -9834,6 +10192,7 @@
   // Diagnostics for people: what went wrong with a text or a grammar, said in
   // the grammar's own terms. The CLI and the playground print these; nothing
   // here changes what a parse computes.
+
 
 
 
@@ -10331,6 +10690,7 @@
    * @typedef {object} StageAudit
    * @property {string} name
    * @property {string} resolution
+   * @property {FamilyAudit[]} families close families in first-call order
    * @property {import("./pipeline.js").StageChange[]} stageChanges
    * @property {number} rules
    * @property {string[]} unreachable rules no derivation of `text` can reach
@@ -10342,6 +10702,70 @@
    *   that an entry of a classifier adds or removes, in the order of the
    *   first entry that touches it
    */
+
+  /** @typedef {{terminal:string, owner:string, document:string, line:number, column:number}} PermittedOptional */
+  /** @typedef {{kind:"empty"} | ({kind:"never-omitted"} & PermittedOptional) | {kind:"inert-member"|"unnamed-member", rule:string}} FamilyNote */
+  /**
+   * @typedef {object} FamilyAudit
+   * @property {string} family
+   * @property {{rule:string, document:string, line:number, column:number}[]} calls
+   * @property {string[]} members
+   * @property {PermittedOptional[]} permitted
+   * @property {FamilyNote[]} notes
+   */
+
+  /** @param {import("./grammar.js").Grammar} grammar @returns {FamilyAudit[]} */
+  function auditFamilies(grammar) {
+    if (grammar.families.size === 0) return [];
+    /** @type {Map<string,FamilyAudit>} */
+    const reports = new Map();
+    for (const {rule, alternative, node} of familyCalls(grammar.rules)) {
+      const family = node.args[0].rule;
+      let report = reports.get(family);
+      if (!report) {
+        report = {family, calls:[], members:[.../** @type {Set<string>} */ (grammar.families.get(family))], permitted:[], notes:[]};
+        reports.set(family, report);
+      }
+      const {document, at} = alternative;
+      if (!report.calls.some(call => call.rule === rule && call.document === document && call.line === at.line && call.column === at.column)) {
+        report.calls.push({rule, document, line:at.line ?? 0, column:at.column ?? 0});
+      }
+    }
+    // Body references, whatever their tests or conditions, decide whether
+    // a rule outside a family names a member. Clause names do not count.
+    const references = new Map([...grammar.rules].map(([name, rule]) => {
+      const names = new Set();
+      for (const alternative of rule.alternatives) referencedRules(alternative.expr, names);
+      return [name, names];
+    }));
+    for (const report of reports.values()) {
+      for (const owner of report.members) {
+        const rule = /** @type {import("./grammar.js").StitchedRule} */ (grammar.rules.get(owner));
+        let owns = false, edges = false;
+        for (const alternative of rule.alternatives) {
+          edges ||= memberEdges(alternative.expr).length !== 0;
+          for (const optional of ownedOptionals(alternative.expr)) {
+            owns = true;
+            let first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
+            const test = "test" in first ? grammar.symbolTest(first, alternative.document, alternative.at) : null;
+            while ("test" in first) first = first.expr;
+            const terminal = /** @type {{ref:string}} */ (first).ref;
+            const permitted = {terminal, owner, document:alternative.document, line:alternative.at.line ?? 0, column:alternative.at.column ?? 0};
+            report.permitted.push(permitted);
+            if (!omissionAllowed({elided:terminal, elidedTest:test})) report.notes.push({kind:"never-omitted", ...permitted});
+          }
+        }
+        if (owner !== report.family && !owns && !edges) report.notes.push({kind:"inert-member", rule:owner});
+      }
+      if (!report.permitted.length) report.notes.unshift({kind:"empty"});
+      for (const member of report.members) {
+        if (member !== report.family && ![...references].some(([name, names]) => !report.members.includes(name) && names.has(member))) {
+          report.notes.push({kind:"unnamed-member", rule:member});
+        }
+      }
+    }
+    return [...reports.values()];
+  }
 
   /**
    * Where the entries of a classifier add and remove one membership of a key
@@ -10610,6 +11034,7 @@
         changes: grammar.changes.slice(),
         idleErasures,
         memberships: [...memberships.values()],
+        families: auditFamilies(grammar),
       };
     });
   }
@@ -10631,6 +11056,15 @@
         lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})${note}`);
       }
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
+      for (const family of stage.families) {
+        lines.push(`  family ${family.family}, named by ${family.calls.map(call => call.rule).join(", ")}: members ${family.members.join(", ")}`);
+        for (const optional of family.permitted) lines.push(`    permits ${optional.terminal} of ${optional.owner} at ${optional.document}:${optional.line}:${optional.column}`);
+        for (const note of family.notes) {
+          if (note.kind === "empty") lines.push("    empty: queries equal without-elision");
+          else if (note.kind === "never-omitted") lines.push(`    never-omitted: ${note.terminal} of ${note.owner} at ${note.document}:${note.line}:${note.column}`);
+          else lines.push(`    ${note.kind}: ${note.rule}`);
+        }
+      }
       // A classifier: how many memberships its entries make, and each one that
       // a gate guards or that more than one entry touches, with every place
       // that adds or removes it.
@@ -16461,6 +16895,7 @@
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
    * @property {import("./ranked.js").RankedGroups} ranked
+   * @property {Map<string,Set<string>>} families static members from written rules
    * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
    *   of the stage, resolved for these features: each key's classes (engine
    *   §2)
@@ -16526,6 +16961,7 @@
    * @property {number} candidateEnd
    * @property {number} matchEnd
    * @property {number} contextEnd
+   * @property {string|null} family
    * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
    */
 
