@@ -130,7 +130,8 @@ func TestReviewRecipeCyclePath(t *testing.T) {
 		{`%rule text := $.emitted.value | "a" %emits`, "text.value -> text.value"},
 		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "text.value -> text.image -> text.value"},
 		{`%rule text := "x" :- $.emitted.image | "a" %emits`, "text.image -> text.image"},
-		{`%rule text := $.emitted.image | "a" %emits`, "text.value -> text.image -> text.image"},
+		// Engine §11.3 identifies an implied image with the value recipe it reuses.
+		{`%rule text := $.emitted.image | "a" %emits`, "text.value -> text.value"},
 	} {
 		t.Run(c.path, func(t *testing.T) {
 			_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")

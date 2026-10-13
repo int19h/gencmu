@@ -123,11 +123,17 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 	}{
 		{`%rule text := $.emitted.value | "a" %emits`, "$.emitted.value", 3},
 		{`%rule text := $.emitted.image | "a" %emits`, "$.emitted.image", 3},
-		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.image", 3},
+		// The image recipe closes the cycle, so §11.3 now selects its first atom.
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
 		{`%rule text := "independent" :- $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text := $.emitted.image :- "prefix" $.emitted.value | "a" %emits`, `"prefix"`, 3},
+		{`%rule text := $.emitted.image $.emitted.value :- "image first" $.emitted.image | "a" %emits`, `"image first"`, 3},
+		{`%rule text := $.emitted.value $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image :- "header"
+  | "a" :- $.emitted.value %emits`, "$.emitted.value", 4},
 		{`%rule text "a" := $.emitted.value %emits`, "$.emitted.value", 3},
 		{`%rule text := $.emitted.value | "a" := "override" :- $.emitted.image %emits`, "$.emitted.image", 3},
-		{`%rule text := "unused" | "a" := $.emitted.image :- $.emitted.value %emits`, "$.emitted.image", 3},
+		{`%rule text := "unused" | "a" := $.emitted.image :- $.emitted.value %emits`, "$.emitted.value", 3},
 		{`%rule text := "header" | "a"
 %extend-rule text "b" := $.emitted.value`, "$.emitted.value", 4},
 	} {
@@ -176,4 +182,61 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 	if _, err := l.dialect("p.md"); err != nil {
 		t.Fatalf("valid cache reparsed: %v", err)
 	}
+}
+
+func TestReviewRecipeProductionOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, grammar string
+		line          int
+	}{
+		{"extension", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 4},
+		{"replacement", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text := $.emitted.image | "c"`, 4},
+		{"removed cycle", `%rule text := $.emitted.value | "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text "a"`, 4},
+		{"resolved constant", `%const $K "k"
+%rule text "a"
+%rule other := $K $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 5},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			sources := reviewSources(c.grammar, bundled.sources["notation/bootstrap.json"])
+			_, fresh := LoadDialectSources(sources, "p.md")
+			var e *Error
+			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
+				t.Fatalf("production order: %v", fresh)
+			}
+			sources["compiled.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+	t.Run("document order", func(t *testing.T) {
+		sources := map[string]string{
+			"p.md":                    block("%stage main", "%ambiguity-resolution greedy", `%include "base.md"`, `%include "earlier.md"`, `%include "later.md"`),
+			"base.md":                 block(`%rule text "a"`),
+			"earlier.md":              block(`%rule other := $.emitted.value | "b"`),
+			"later.md":                block(`%extend-rule text := $.emitted.image | "c"`),
+			"notation/bootstrap.json": bundled.sources["notation/bootstrap.json"],
+		}
+		_, fresh := LoadDialectSources(sources, "p.md")
+		var e *Error
+		if !errors.As(fresh, &e) || e.Document != "earlier.md" || e.Line != 2 || e.Column != 16 {
+			t.Fatalf("document order: %v", fresh)
+		}
+		sources["compiled.json"] = reviewCache(t, sources)
+		_, cached := LoadDialectSources(sources, "p.md")
+		if !reflect.DeepEqual(fresh, cached) {
+			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)
+		}
+	})
 }

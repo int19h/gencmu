@@ -60,6 +60,7 @@ type sRule struct {
 type sAlt struct {
 	written              jobj
 	writtenAlternative   int
+	textOrder            int // order of alternatives across the stage documents
 	alt                  *domAlt
 	ruleTags             *domTerm
 	emit                 *domEmit
@@ -105,6 +106,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return e
 	}
 	var ambiguity []*domDirective
+	textOrder := 0
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
 			if r.deferredEmission != "" && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
@@ -128,7 +130,8 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
-				alts[i] = &sAlt{written: written, writtenAlternative: i, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+				alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+				textOrder++
 			}
 			existing := g.byName[r.Name]
 			// Each way of stating a rule says what it expects to be there

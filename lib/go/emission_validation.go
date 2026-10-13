@@ -1,6 +1,9 @@
 package gencmu
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Emission overlap depends on structural consumption, never on successful
 // conditions, enabled gates, recipes, or erasure (engine §9.3).
@@ -88,71 +91,95 @@ func (g *stageGrammar) validateEmissionOverlap() *Error {
 	return nil
 }
 
+// Rule stitching retains the original rule slots, but cycles follow the text
+// order of the surviving alternatives, including extensions and replacements.
 func (g *stageGrammar) validateRecipeCycles() *Error {
+	type alternative struct {
+		rule string
+		alt  *sAlt
+	}
+	var alternatives []alternative
 	for _, r := range g.rules {
 		for _, a := range r.alts {
-			value, image := a.alt.Value, a.alt.Image
-			if value == nil {
-				value = a.ruleValue
+			alternatives = append(alternatives, alternative{r.name, a})
+		}
+	}
+	sort.Slice(alternatives, func(i, j int) bool {
+		return alternatives[i].alt.textOrder < alternatives[j].alt.textOrder
+	})
+	for _, a := range alternatives {
+		if err := g.validateAlternativeRecipeCycle(a.rule, a.alt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *stageGrammar) validateAlternativeRecipeCycle(rule string, a *sAlt) *Error {
+	value, image := a.alt.Value, a.alt.Image
+	if value == nil {
+		value = a.ruleValue
+	}
+	if image == nil {
+		image = a.ruleImage
+	}
+	impliedImage := image == nil
+	if impliedImage {
+		image = value
+	}
+	recipes := [2]*domTerm{value, image}
+	var edges [2][]int
+	for channel, recipe := range recipes {
+		if recipe == nil {
+			continue
+		}
+		for _, atom := range recipe.Items {
+			if atom.Kind != tmCall || len(atom.Items) != 1 {
+				continue
 			}
-			if image == nil {
-				image = a.ruleImage
+			receiver := atom.Items[0]
+			if receiver.Kind == tmCall && receiver.Str == "emitted" && receiver.Items[0].Kind == tmCapture && receiver.Items[0].Str == "" {
+				target := 0
+				if atom.Str == "image" && !impliedImage {
+					target = 1
+				}
+				edges[channel] = append(edges[channel], target)
 			}
-			if image == nil {
-				image = value
+		}
+	}
+	var state [2]byte
+	var active []int
+	var path []string
+	var visit func(int) *domTerm
+	visit = func(channel int) *domTerm {
+		if state[channel] == 2 {
+			return nil
+		}
+		state[channel] = 1
+		active = append(active, channel)
+		for _, target := range edges[channel] {
+			if state[target] == 1 {
+				for _, step := range append(active, target) {
+					path = append(path, rule+"."+[2]string{"value", "image"}[step])
+				}
+				return recipes[channel]
 			}
-			recipes := [2]*domTerm{value, image}
-			var edges [2][]int
-			for channel, recipe := range recipes {
-				if recipe == nil {
-					continue
-				}
-				for _, atom := range recipe.Items {
-					if atom.Kind != tmCall || len(atom.Items) != 1 {
-						continue
-					}
-					receiver := atom.Items[0]
-					if receiver.Kind == tmCall && receiver.Str == "emitted" && receiver.Items[0].Kind == tmCapture && receiver.Items[0].Str == "" {
-						target := 0
-						if atom.Str == "image" {
-							target = 1
-						}
-						edges[channel] = append(edges[channel], target)
-					}
-				}
+			if closing := visit(target); closing != nil {
+				return closing
 			}
-			var state [2]byte
-			var active []int
-			var path []string
-			var visit func(int) bool
-			visit = func(channel int) bool {
-				if state[channel] == 1 {
-					for _, step := range append(active, channel) {
-						path = append(path, r.name+"."+[2]string{"value", "image"}[step])
-					}
-					return true
-				}
-				if state[channel] == 2 {
-					return false
-				}
-				state[channel] = 1
-				active = append(active, channel)
-				for _, target := range edges[channel] {
-					if visit(target) {
-						return true
-					}
-				}
-				state[channel] = 2
-				active = active[:len(active)-1]
-				return false
-			}
-			for channel, recipe := range recipes {
-				if recipe != nil && visit(channel) {
-					err := g.constError(a.doc, recipe.At, "string recipe dependency cycle: %s", strings.Join(path, " -> "))
-					err.recipeCycle = true
-					return err
-				}
-			}
+		}
+		state[channel] = 2
+		active = active[:len(active)-1]
+		return nil
+	}
+	for channel, recipe := range recipes {
+		if recipe == nil || channel == 1 && impliedImage {
+			continue
+		}
+		if closing := visit(channel); closing != nil {
+			err := g.constError(a.doc, closing.At, "string recipe dependency cycle: %s", strings.Join(path, " -> "))
+			err.recipeCycle = true
+			return err
 		}
 	}
 	return nil
