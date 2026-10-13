@@ -675,6 +675,15 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 				b.fail(n, "a malformed pattern atom")
 			}
 			first := xs[0]
+			// Groups and nested literals cannot take tests. Reject those tests
+			// before scheduling their contents for conversion (engine §9.3).
+			if first.Kind == KindToken && b.text(first) == "(" || first.Rule == "pattern-literal" {
+				for _, part := range ruleParts(n) {
+					if part.Rule == "tag-test" || part.Rule == "value-test" {
+						b.fail(part, "invalid pattern test target or order")
+					}
+				}
+			}
 			if first.Kind == KindToken && b.text(first) == "(" {
 				children = ofRule(n, "pattern-union")
 			} else if first.Rule == "pattern-literal" {
