@@ -130,11 +130,6 @@ python -m build
 
 ### Tests of close families
 
-The shared engine runner enables the private `family_check` hook for `.without-elision-except` queries.
-It compares each eligible witness with an independent deletion test over the complete observation.
-Only this test retains permission marks, which say whether a family permits an omitted terminator.
-The engine stores unmarked close observations and candidate-sized summaries instead.
+The shared engine runner enables the private `family_check` hook for `.without-elision-except` queries. It compares each eligible witness with an independent deletion test over the complete observation. Only this test retains permission marks, which say whether a family permits an omitted terminator. The engine stores unmarked close observations and candidate-sized summaries instead.
 
-`tests/test_close_families.py` runs each family growth case beside its strict twin at every specified size.
-It stops before the first count past a shared bound.
-It records the seven work counts, elapsed time, and peak traced memory.
+`tests/test_close_families.py` runs each family growth case beside its strict twin at every specified size. It stops before the first count past a shared bound. It records the seven work counts, elapsed time, and peak traced memory.
