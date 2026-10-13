@@ -201,6 +201,18 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 		}
 		return false
 	}
+	// The same transition qualifies ordinary proofs and paths through a
+	// logical optional. Permission cannot borrow an ineligible route (§4).
+	advanceE := func(it *item, l link) bool {
+		b := r.before(it, l)
+		if l.sym == nil {
+			return E[e.index[b]]
+		}
+		if e.omission(l) {
+			return P[e.index[b]] && childE(l.sym)
+		}
+		return E[e.index[b]] && childE(l.sym)
+	}
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
@@ -214,16 +226,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 			}
 			for _, l := range it.links {
 				b := r.before(it, l)
-				var ok bool
-				switch {
-				case l.sym == nil:
-					ok = E[e.index[b]]
-				case e.omission(l):
-					ok = P[e.index[b]] && childE(l.sym)
-				default:
-					ok = E[e.index[b]] && childE(l.sym)
-				}
-				if !ok {
+				if !advanceE(it, l) {
 					continue
 				}
 				a = true
@@ -243,12 +246,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 				}
 			}
 			if a && next[x] == nextLogicalOptional {
-				for _, prefix := range logical.prefixes(it) {
-					if E[e.index[prefix]] && logical.permits(it, prefix) {
-						p = true
-						break
-					}
-				}
+				p = logical.permitsEligible(it, advanceE)
 			}
 			if a && !E[x] {
 				E[x], changed = true, true

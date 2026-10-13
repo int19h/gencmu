@@ -142,6 +142,35 @@ func (l *logicalPriority) permits(it, prefix *item) bool {
 	return !exists || end < it.set
 }
 
+// permitsEligible follows only eligible advances from a candidate to its
+// own fixed prefix. Blocker discovery still uses prefixes on the raw chart.
+// E/P grow during the fixed point, so these filtered paths are not memoized.
+func (l *logicalPriority) permitsEligible(it *item, advance func(*item, link) bool) bool {
+	g := it.prod.precedingLogicalOptional(int(it.dot))
+	seen := map[*item]bool{}
+	stack := []*item{it}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
+		if int(p.dot) == g.start {
+			if l.permits(it, p) {
+				return true
+			}
+			continue
+		}
+		for _, edge := range p.links {
+			if advance(p, edge) {
+				stack = append(stack, l.r.before(p, edge))
+			}
+		}
+	}
+	return false
+}
+
 // logicalBody keeps optional helper structure after capture expansion.
 // Markers affect inheritance and visible closes, but consume no symbol.
 func logicalBody(body []slot) ([]slot, int, int) {
