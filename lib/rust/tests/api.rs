@@ -1233,3 +1233,23 @@ fn private_ranked_exports_precede_recipe_cycles_and_absence() {
         assert!(plain.group.is_some() && plain.option.is_some() && plain.expression.is_some());
     }
 }
+
+/// Inserted tags must satisfy the same declaration checks as covering
+/// tags, even when a runtime guard could suppress their evaluation.
+#[test]
+fn inserted_tag_clauses_validate_rules_and_delimiters() {
+    for (rules, message) in [
+        ("%rule text A\n%emits ε :: ($.matches(missing) ⟹ X)", "rule missing"),
+        ("%rule text A\n%emits ε :: $.tags(missing)", "rule missing"),
+        ("%rule text A\n%emits ε :: $.value.classify(missing)", "classify names missing"),
+        (
+            "%const $Z \"\"\n%rule text A\n%emits ε :: ($.value.split($Z) = $.value.split(\"!\") ⟹ X)",
+            "split has an empty delimiter",
+        ),
+    ] {
+        let sources = single(&format!("%ambiguity-resolution greedy\n{rules}"));
+        let error = gencmu::load_dialect_sources(sources, "p.md").unwrap_err();
+        assert_eq!(error.kind, ErrorKind::Grammar, "{rules}: {error}");
+        assert!(error.message.contains(message), "{rules}: {error}");
+    }
+}

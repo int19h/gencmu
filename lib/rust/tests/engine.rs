@@ -641,3 +641,43 @@ fn empty_optionals_do_not_make_recursion_initial() {
         }
     }
 }
+
+/// Inserted tag clauses observe restored captures just as covering tags
+/// do. Discovery retains both the close records and their query prefixes.
+#[test]
+fn inserted_tags_keep_restored_query_observations() {
+    for view in [".without-elision", ".without-elision.onward"] {
+        for method in ["matches", "begins", "tags"] {
+            let condition =
+                if method == "tags" { format!("Seen ⊆ $r{view}.tags(r)") } else { format!("$r{view}.{method}(r)") };
+            let grammar = format!("%rule text $r:r\n%emits ε :: ({condition} ⟹ X) := \"v\"\n%rule r :: Seen | B [+T]");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{{"text":"b","tags":["B"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":["X"],"value":"v","insertedBy":"text"}}]}}]}}}}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|error| panic!("{grammar}: {error}"));
+        }
+    }
+}
+
+/// Constant simplification removes an absent capture from inserted tags
+/// when an intersection is empty (engine §3.6).
+#[test]
+fn inserted_tags_simplify_constants_before_capture_validation() {
+    let case = parse_json(r#"{"grammar":"%const $Z X ∖ X\n%rule text [$x:A] B\n%emits ε :: $x.tags ∩ $Z := \"v\"","tokens":[{"text":"b","tags":["B"]}],"expect":{"result":{"ok":true,"stages":[{"output":[{"tags":[],"value":"v","insertedBy":"text"}]}]}}}"#).unwrap();
+    run_engine_case(&case).unwrap();
+}
+
+/// A pattern name tests structural identity. It does not request a parse
+/// as that rule, unlike matches() or tags(rule) (engine §§10 and 12).
+#[test]
+fn inserted_patterns_test_names_without_parsing_them() {
+    for (comparison, tags) in [("≅", "[]"), ("≇", r#"["X"]"#)] {
+        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} @missing ⟹ X)");
+        let case = format!(
+            r#"{{"grammar":{},"tokens":[{{"text":"a","tags":["A"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":{tags},"insertedBy":"text"}}]}}]}}}}}}"#,
+            common::Value::String(grammar).to_text()
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
+}
