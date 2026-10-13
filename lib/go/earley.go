@@ -241,7 +241,7 @@ type recognizer struct {
 	// linkSets holds, in the check of elision-only, the links of each item
 	// that has many, so that a duplicate is found without a scan of them.
 	linkSets map[*item]map[link]struct{}
-	// lo and hi are the input that initial(), from() and after() see
+	// lo and hi are the input that starts-input, onward and following-tokens see
 	// while this recognition runs (§10).
 	lo, hi int
 	// at is the set whose queue the recognition takes entries from, and
@@ -326,8 +326,8 @@ func (r *recognizer) set(k int) *eset {
 }
 
 // recognize runs the recognizer over tokens [base, base+n) of the stage with
-// start as the start rule. While it runs, the input that initial(), from()
-// and after() see is [base, base+n), and a nested recognition sets its own.
+// start as the start rule. While it runs, the input that starts-input, onward
+// and following-tokens see is [base, base+n), and a nested recognition sets its own.
 func (run *stageRun) recognize(g *lowered, start int32, base, n int) *recognizer {
 	r := &recognizer{run: run, g: g, base: base, n: n, lo: base, hi: base + n}
 	r.loop(start)

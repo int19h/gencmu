@@ -8,8 +8,7 @@ import (
 	"testing"
 )
 
-// silentRun is a stage run over n tokens without phonemes, but for the last,
-// which sounds like "a".
+// silentRun has n tokens with empty stored values, except the last value "a".
 func silentRun(t *testing.T, n int) *stageRun {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
 	toks := make([]Token, n)
@@ -21,9 +20,8 @@ func silentRun(t *testing.T, n int) *stageRun {
 	return ps.newRun("main", d.stages[0], toks)
 }
 
-// TestSilentValueWork: a sound test and phonemes() over a span of tokens
-// without phonemes skip them, so their work is bounded by the sound, not by
-// the span (engine §4, §5).
+// TestSilentValueWork: value tests and span.value skip empty token values.
+// Their work depends on the nonempty values rather than the span (engine §4, §5).
 func TestSilentValueWork(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		run := silentRun(t, n)
@@ -36,7 +34,7 @@ func TestSilentValueWork(t *testing.T) {
 					t.Fatalf("%d tokens: the wrong sound from %d", n, i)
 				}
 				if got := run.spanValue(spanVal{a: i, b: n}); got != "a" {
-					t.Fatalf("%d tokens: phonemes from %d are %q", n, i, got)
+					t.Fatalf("%d tokens: value from %d are %q", n, i, got)
 				}
 			}
 		})
@@ -79,7 +77,7 @@ func tagRun(t *testing.T, n int) *stageRun {
 	return ps.newRun("main", d.stages[0], toks)
 }
 
-// TestUnionsLinear: tags() of a long span, a union of many parts and a
+// TestUnionsLinear: span.tags over a long span, a union of many parts and a
 // constant of many parts gather their members once, without copying and
 // interning a growing set at each part (engine §10).
 func TestUnionsLinear(t *testing.T) {

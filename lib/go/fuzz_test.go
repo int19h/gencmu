@@ -23,7 +23,16 @@ func FuzzPrecompiledDOM(f *testing.F) {
 	}
 	format := `{"format":` + strconv.Itoa(domFormat)
 	f.Add(format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[]}}],"conditions":[],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}],"constants":[],"classifiers":[],"implications":[]}`, "ab")
-	f.Add(format+`,"rules":[{"name":"text","op":"define","flags":[],"tags":{"method":"tags","receiver":{"capture":"x"},"args":[{"rule":"text"}]},"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"literal":{"string":"a"}}}}],"emit":{"items":[{"capture":"x"},{"insert":"/a/"}]},"conditions":[{"not":{"matches":{"method":"first-token","receiver":{"capture":"x"},"args":[]},"rule":"text"}}],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["lazy","elision-only"],"at":[1,1]}],"constants":[],"classifiers":[],"implications":[]}`, "aa")
+	methodSeed := format + `,"rules":[{"name":"text","op":"define","flags":[],"tags":{"method":"tags","receiver":{"capture":"x"},"args":[{"rule":"text"}]},"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"literal":{"string":"a"}}}}],"emit":{"items":[{"capture":"x"},{"insert":true,"value":{"concat":[{"string":"a"}]}}]},"conditions":[{"not":{"method":"matches","receiver":{"method":"first-token","receiver":{"capture":"x"},"args":[]},"args":[{"rule":"text"}]}}],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["lazy","elision-only"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
+	// This seed must reach parsing rather than return during schema or grammar validation.
+	methodDOM, err := decodeDOM(json.RawMessage(methodSeed), bundled.uni)
+	if err != nil {
+		f.Fatal(err)
+	}
+	if _, err := stitch("main", []docDOM{{path: "g.md", dom: methodDOM}}, bundled.uni); err != nil {
+		f.Fatal(err)
+	}
+	f.Add(methodSeed, "aa")
 	// Elidable optionals and a capture in a plain
 	// optional.
 	f.Add(format+`,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"optional":{"capture":"x","expr":{"literal":{"string":"b"}}}},{"optional":{"ref":"KU"},"elidable":true},{"optional":{"seq":[{"ref":"VAU"},{"literal":{"string":"a"}}]},"elidable":true}]}}],"conditions":[{"if":{"captured":"x"},"then":{"op":"=","left":{"method":"value","receiver":{"capture":"x"},"args":[]},"right":{"string":"b"}}}],"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["late-elision","elision-only"],"at":[1,1]}],"constants":[],"classifiers":[],"implications":[]}`, "ab")

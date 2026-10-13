@@ -1127,8 +1127,8 @@ func (c *domChecker) constituentTags(t *domTerm) {
 }
 
 // readsOwnTags says whether a term reads the tags of $, the constituent
-// whose tags it may be defining: $ itself as a value, tags($) or
-// classes($), anywhere in it, the conditions of its guards included.
+// whose tags it defines: $.tags or $.classes anywhere in the term,
+// including the conditions of its guards.
 func readsOwnTags(t *domTerm) bool {
 	// The parts to look at, with an explicit stack: a term is as deep as
 	// its document nests until the check of its depth (§9).
@@ -1143,7 +1143,7 @@ func readsOwnTags(t *domTerm) bool {
 			if p.c.Kind == cdCompare && (p.c.Op == "≅" || p.c.Op == "≇") {
 				continue
 			}
-			// matches() and begins() parse the tokens again, initial()
+			// .matches and .begins parse the tokens again, .starts-input
 			// reads where they begin, and a presence test reads no tags.
 			switch p.c.Kind {
 			case cdCompare, cdNot, cdAny, cdAll, cdIf:

@@ -367,8 +367,8 @@ func TestMarshalResult(t *testing.T) {
 	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
 		t.Fatalf("%s", data)
 	}
-	// "label" follows "phonemes" on every token. An opaque part sounds ?
-	// and shows its text, and nothing marks it.
+	// An emitted token stores the recipe value "?" and the source-text image.
+	// Its JSON fields follow the format 12 order.
 	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"é\"\n%emits $ :: W := \"?\" :- $.source-text"))
 	res, _ = d.Parse("éx", ParseOptions{})
 	data, _ = MarshalResult(res)
@@ -444,9 +444,8 @@ func TestBracketsImage(t *testing.T) {
 	}
 }
 
-// split(phonemes(s), ".") is the set of the runs between pauses (engine
-// §10), each run whole: a run may hold a space, so {"a b", "c"} is not
-// {"a", "b c"}.
+// s.value.split(".") keeps each exact substring whole (engine §10).
+// A substring can hold a space, so {"a b", "c"} differs from {"a", "b c"}.
 func TestSplitKeepsSpaces(t *testing.T) {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%const $RUNS \".\"\n%rule text $x:A $y:A\n%conditions $x.value.split($RUNS) ≠ $y.value.split(\".\"), \"a b\" ∈ $x.value.split($RUNS), \"a\" ∉ $x.value.split(\".\")"))
 	toks := []Token{{Text: "x", Tags: []string{"A"}, Value: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Value: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}

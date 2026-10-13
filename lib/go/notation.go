@@ -731,7 +731,7 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 }
 
 // constituentTags reads a rule's or an alternative's tag term, which cannot
-// be made of the tags it defines: tags($) or classes($) (§9).
+// be made of the tags it defines: $.tags or $.classes (§9).
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
 	t := b.tagTerm(b.only(n, "term"))
 	if readsOwnTags(t) {

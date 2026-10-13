@@ -84,7 +84,7 @@ func toStr(v value) string {
 	return v.s
 }
 
-// spanTags is tags(s): the captured part's tags for a whole capture, else
+// spanTags is s.tags: the captured part's tags for a whole capture, else
 // the union of its tokens' tags. A lazy $ has its tags by now.
 func (ev *evaluator) spanTags(s spanVal) *tagset {
 	if s.whole && s.tags == nil && s.lazy != nil {
@@ -409,7 +409,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 				}
 			}
 			if len(t.Items) == 2 {
-				// The same parse, and the same answer, as matches().
+				// The same parse, and the same answer, as .matches.
 				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s)
 				if q != nil {
 					return q
@@ -619,7 +619,7 @@ func (run *stageRun) spanValue(s spanVal) string {
 	return b.String()
 }
 
-// spanText is text(span): the original text over the source of the span's
+// spanText is span.source-text: the original text over the source of the span's
 // tokens (§1).
 func (run *stageRun) spanText(s spanVal) string {
 	if s.b <= s.a {
@@ -632,13 +632,13 @@ func (run *stageRun) spanText(s spanVal) string {
 // contentKeyLimit is the longest span whose nested parses are remembered by
 // content, so that a word repeated at many places is parsed once; a longer
 // span is remembered by position, since a key of content costs as much as
-// the span is long, and the span of from() or after() runs to the end of
+// the span is long, and the span of onward or following-tokens runs to the end of
 // the input (engine §4).
 const contentKeyLimit = 64
 
 // nested is the answer of a nested parse of tokens [s.a, s.b) alone as
 // rule (engine §4, nested parses), for a query of one kind: cdMatches,
-// which also gives the tags of tags(span, rule), or cdBegins, whether a
+// which also gives the tags of span.tags(rule), or cdBegins, whether a
 // prefix of the span, the empty one included, parses as rule. The answer
 // is remembered for the whole parse. Where it is not yet known, nested
 // gives the query instead, which halts the walk that asked it. The
@@ -900,7 +900,7 @@ func (run *stageRun) spanContent(s spanVal) string {
 		field(t.Value)
 		field(t.Image)
 		field(run.tagsets[i].key)
-		// Where the token begins and ends in that text, which text() of a
+		// Where the token begins and ends in that text, which .source-text of a
 		// part of the span reads.
 		field(strconv.Itoa(t.Source[0] - low))
 		field(strconv.Itoa(t.Source[1] - low))

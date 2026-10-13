@@ -322,7 +322,7 @@ func TestNotationNestedCaptures(t *testing.T) {
 }
 
 // TestNotationManyCaptures reads a rule of many alternatives, each with a
-// capture of its own name that its tags use, $ci(A) <tags($ci)>. The
+// capture of its own name that its tags use, $ci:A :: $ci.tags. The
 // checks of the definition find each mentioned name among the productions
 // by one lookup, so four times the alternatives cost at most five times
 // the steps. A search of every production for each name would cost their

@@ -488,7 +488,7 @@ func simplifiedOutcome(start clausePart, has func(string) bool, req *[]string) o
 				}
 				o = first(left, right)
 			default:
-				// matches(), begins() and initial(), as written.
+				// Span predicate methods, as written.
 				o = asWritten(p)
 			}
 		}
@@ -553,7 +553,7 @@ func definitionProblem(r *domRule) string {
 	if r.Emit != nil {
 		items = r.Emit.Items
 	}
-	// A constituent that does not count is never an opaque part (engine §9).
+	// An erased definition cannot carry recipes or emission (engine §9).
 	if r.Erased && (hasRecipes(r) || r.Emit != nil) {
 		return "an erased definition cannot carry recipes or emission"
 	}
