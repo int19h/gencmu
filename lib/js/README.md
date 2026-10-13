@@ -40,6 +40,8 @@ npm run types           # rewrites types/ after a change to the annotations
 
 CI runs automated tests for every change. It fails if `types/` is not what `npm run types` writes.
 
+The Node test runner runs files in separate processes. Its default concurrency is one fewer than the available CPUs. From `lib/js`, use `node --test --test-concurrency=4` to select four processes. Use `GENCMU_CORPUS_WORKERS=1 node --test --test-concurrency=1` for a serial suite. `GENCMU_CORPUS_WORKERS` controls the existing pool for corpus cases separately.
+
 ## Tests of elision-only
 
 `src/testing.js` holds switches and a hook for the library's own tests, which the API does not export. After each check of `elision-only`, the shared and corpus runners ask whether the hook retains the chosen derivation (`tests/README.md`, `test/witness.js`). `test/faults.test.js` turns on one fault at a time and runs the cases of the fault table (`tests/README.md`). `test/faults.json` records which cases catch each fault, and how. `GENCMU_FAULTS_WRITE=1 node --test test/faults.test.js` writes the record again.

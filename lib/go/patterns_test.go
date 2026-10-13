@@ -12,6 +12,7 @@ import (
 // A shared source DOM must resolve independently in each stage, including
 // when a matching format-26 cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +28,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 	} {
 		for _, comparator := range []string{"≅", "≇"} {
 			t.Run(c.name+comparator, func(t *testing.T) {
+				t.Parallel()
 				condition := "$ " + comparator + " " + c.pattern
 				sources := map[string]string{
 					"p.md": block("%stage before", "%ambiguity-resolution greedy", `%include "before.md"`, `%include "shared.md"`,
@@ -84,6 +86,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 }
 
 func TestPatternDOM(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -122,6 +125,7 @@ func TestPatternDOM(t *testing.T) {
 	}
 }
 func TestPatternDepth(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -134,6 +138,7 @@ func TestPatternDepth(t *testing.T) {
 	}
 }
 func TestPatternStateGrowth(t *testing.T) {
+	t.Parallel()
 	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
 	m := newPatternMachine([]*domPattern{p})
 	leaf := m.node("", m.empty, "A", "a", newInterner().single("A"))
@@ -148,6 +153,7 @@ func TestPatternStateGrowth(t *testing.T) {
 }
 
 func TestPatternMachineBeyondWordSize(t *testing.T) {
+	t.Parallel()
 	var roots []*domPattern
 	for i := 0; i < 150; i++ {
 		roots = append(roots, &domPattern{Kind: "terminal", Name: "A" + strconv.Itoa(i)})

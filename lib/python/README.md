@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 26 and writes result format 12. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 26 and writes result format 12. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -88,11 +88,21 @@ A terminal in a token node, witness, or expected list is a tag, canonical string
 
 `node tools/sync.js` generates the grammar copy under `src/gencmu/grammars/`. After you change `grammars/`, run `node tools/sync.js` at the repository root.
 
-The tests use only `unittest` and run from this directory against the sources in `src/`:
+The tests keep their `unittest` assertions. pytest with pytest-xdist runs them in separate processes. Each shared engine and notation fixture has a separate test method. The `test` dependency group pins the runner dependencies, which the wheel does not require.
+
+From `lib/python`, create an environment and install the test runner:
 
 ```sh
-python -m unittest
+uv venv --python 3.14
+uv pip install --group test
+.venv/bin/python -m pytest
 ```
+
+Local tests read the sources in `src/`. The runner selects its worker count from the available CPU cores through `-n auto`. The `worksteal` scheduler moves queued tests from busy workers to idle workers. Use `.venv/bin/python -m pytest -n 4` to select four workers. Use `.venv/bin/python -m pytest -n 1` for a serial suite. Use `-n 0` to investigate one test in the main process.
+
+Corpus cases use the same pytest workers as the other tests.
+
+CI builds and installs the wheel, then runs the suite once with `GENCMU_INSTALLED=1`. The import guard refuses a source import in that mode. CI uses Python 3.14.
 
 The tests cover these items:
 
@@ -106,7 +116,7 @@ The tests cover these items:
 - A property test of the ranking against brute-force enumeration
 - The core sample of the Lojban corpus (`tests/core.txt`)
 
-`GENCMU_CORPUS=full` runs every corpus case, on a pool of processes. `GENCMU_CORPUS_WORKERS` sets the size of the pool. A book chapter of about 15,000 characters takes up to a minute and about a gigabyte. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a larger sweep of the property test. `GENCMU_INSTALLED=1` tests an installed package instead of `src/`.
+`GENCMU_CORPUS=full` runs every corpus case. The `-n` flag controls its workers too. A book chapter of about 15,000 characters takes up to a minute and about a gigabyte. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a larger sweep of the property test. `GENCMU_INSTALLED=1` tests an installed package instead of `src/`.
 
 The wheel build needs `build` and setuptools, at build time only. To build the wheel, run this command:
 

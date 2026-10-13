@@ -12,6 +12,7 @@ import (
 )
 
 func TestSharedJSONKeys(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../tests/json-keys.json")
 	if err != nil {
 		t.Fatal(err)
@@ -120,6 +121,7 @@ func TestSharedJSONKeys(t *testing.T) {
 }
 
 func TestJSONStructKeysAreExact(t *testing.T) {
+	t.Parallel()
 	var out struct {
 		Name  string `json:"name"`
 		Upper string `json:"K"`
@@ -149,6 +151,7 @@ func TestJSONStructKeysAreExact(t *testing.T) {
 
 // Ignored and raw values require syntax validation, not value conversion.
 func TestJSONRawAndIgnored(t *testing.T) {
+	// AllocsPerRun measures process-wide allocations and changes GOMAXPROCS.
 	var docs [][]byte
 	for _, pattern := range []string{"../../tests/*.json", "../../tests/*/*.json", "../../tests/corpus/*.jsonl"} {
 		files, _ := filepath.Glob(pattern)

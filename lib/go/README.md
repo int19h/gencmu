@@ -80,6 +80,10 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
+The Go test runner runs independent tests and shared engine and notation cases in parallel. The `-parallel` flag sets the limit, which defaults to `GOMAXPROCS`. From `lib/go`, run `go test -parallel 4 ./...` to select four concurrent tests. Run `GENCMU_CORPUS_WORKERS=1 go test -count=1 -parallel 1 ./...` for a serial suite. The `-count=1` flag prevents Go from reusing a cached result.
+
+Tests that use process-wide controls or allocation counts stay serial. These tests use work counters, stack limits, allocation counts, or changes to the working directory. Go finishes these tests before it starts the parallel tests. The corpus uses its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
+
 The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's configuration in turn.
 
 An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.

@@ -11,6 +11,7 @@ import (
 // otherwise empty DOM of the current format, checked as a precompiled DOM
 // is (engine §9).
 func TestDOMMalformed(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}

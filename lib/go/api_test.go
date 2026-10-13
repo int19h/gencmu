@@ -36,6 +36,7 @@ func oneStage(grammar string) map[string]string {
 }
 
 func TestReplacementsRecordFlagChanges(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule(leftmost-longest) text A\n%extend-rule text B\n%redefine-rule text C\n%redefine-rule(leftmost-longest) text D\n%redefine-rule(leftmost-longest) text E\n%redefine-rule text F\n%redefine-rule text G"))
 	changes := d.stages[0].changes
 	if len(changes) != 6 {
@@ -55,6 +56,7 @@ func TestReplacementsRecordFlagChanges(t *testing.T) {
 }
 
 func TestLoadDialectBundled(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
@@ -80,6 +82,7 @@ func TestLoadDialectBundled(t *testing.T) {
 }
 
 func TestLoadDialectFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "dialects"), 0o755)
 	os.MkdirAll(filepath.Join(dir, "syntax"), 0o755)
@@ -103,6 +106,7 @@ func TestLoadDialectFile(t *testing.T) {
 }
 
 func TestLoadErrors(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		sources map[string]string
 		line    int
@@ -143,6 +147,7 @@ func TestLoadErrors(t *testing.T) {
 }
 
 func TestParseOptions(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%features base", "%stage one", `%include "g.md"`, "%stage two", `%include "h.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{w}]\n%rule w base? \"a\" :: A | extra? \"b\" :: B\n%emits $\n```\n",
@@ -204,6 +209,7 @@ func stringPtr(s string) *string { return &s }
 // document, line and column of the definition at fault (engine §3,
 // tests/README.md).
 func TestLoweringFault(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text c\n%rule c {... A} | f? B"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	res, err := d.parseStoredTokens("a", toks, ParseOptions{Features: []string{"f"}})
@@ -223,6 +229,7 @@ func TestLoweringFault(t *testing.T) {
 // and each at the definition that wrote its alternative, whatever document
 // makes the item empty.
 func TestLoweringFaultOrder(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%stage main", `%include "a.md"`, `%include "b.md"`),
 		"a.md": block("%ambiguity-resolution greedy", "%rule text {r} | c", "%rule c {... A} | f? B"),
@@ -260,6 +267,7 @@ func TestLoweringFaultOrder(t *testing.T) {
 // A words stage whose word has the class SA: auto features run the parse
 // again with sa-su (engine §13).
 func TestAutoFeatures(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%stage sounds", `%include "g.md"`, "%stage words", `%include "h.md"`, "%stage syntax", `%include "s.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c \"s\" := \"s\" | \"a\" := \"a\" | \"u\" := \"u\" | sa-su? \"x\" := \"x\"\n%emits $\n```\n",
@@ -304,6 +312,7 @@ func TestAutoFeatures(t *testing.T) {
 // default, which auto features need (engine §13); a dialect's list of
 // features is the caller's own copy.
 func TestDialectFeatures(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"cll-ebnf", "bpfk", "experimental", "zantufa"} {
 		d, err := LoadDialect(name)
 		if err != nil {
@@ -334,6 +343,7 @@ func TestDialectFeatures(t *testing.T) {
 }
 
 func TestMarshalResult(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"é\" [+KU]"))
 	res, _ := d.Parse("é", ParseOptions{})
 	data, err := MarshalResult(res)
@@ -382,6 +392,7 @@ func TestMarshalResult(t *testing.T) {
 // [ ] and { } give none. A chain's levels are rule nodes, and each gives
 // the warnings of its alternative, parent before children (engine §12).
 func TestWarningsSpliced(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		grammar, text string
 		want          []Warning
@@ -416,6 +427,7 @@ func TestWarningsSpliced(t *testing.T) {
 }
 
 func TestBracketsDepth(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text a a\n%rule a \"x\" b\n%rule b \"y\" c\n%rule c \"z\" \"w\""))
 	res, _ := d.Parse("xyzwxyzw", ParseOptions{})
 	if b := Brackets(res, BracketOptions{}); b != "([x {y (z w)}] [x {y (z w)}])" {
@@ -427,6 +439,7 @@ func TestBracketsDepth(t *testing.T) {
 // (docs/output.md, docs/api.md). Values and images remain independent.
 // ParseTokens leaves the caller's tokens as they are.
 func TestBracketsImage(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A A"))
 	toks := []Token{{Text: "x", Tags: []string{"A"}, Value: "a.b", Image: "z", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Value: "c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	res, err := d.parseStoredTokens("xy", toks, ParseOptions{})
@@ -447,6 +460,7 @@ func TestBracketsImage(t *testing.T) {
 // s.value.split(".") keeps each exact substring whole (engine §10).
 // A substring can hold a space, so {"a b", "c"} differs from {"a", "b c"}.
 func TestSplitKeepsSpaces(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%const $RUNS \".\"\n%rule text $x:A $y:A\n%conditions $x.value.split($RUNS) ≠ $y.value.split(\".\"), \"a b\" ∈ $x.value.split($RUNS), \"a\" ∉ $x.value.split(\".\")"))
 	toks := []Token{{Text: "x", Tags: []string{"A"}, Value: "a b.c", Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "y", Tags: []string{"A"}, Value: "a.b c", Span: [2]int{1, 2}, Source: [2]int{1, 2}}}
 	if res, err := d.parseStoredTokens("xy", toks, ParseOptions{}); err != nil || !res.OK {
@@ -457,6 +471,7 @@ func TestSplitKeepsSpaces(t *testing.T) {
 // TestConcurrentParses shares one dialect among goroutines; run it with
 // -race.
 func TestConcurrentParses(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
@@ -504,6 +519,7 @@ func TestConcurrentParses(t *testing.T) {
 // TestConcurrentFeatures shares one dialect among goroutines that turn
 // gates and warnings on and off; run it with -race.
 func TestConcurrentFeatures(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%features g", "%stage main", `%include "g.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{item}]\n%rule item g? w! \"a\" | ¬g? \"a\" :: A | v! \"b\"\n```\n",
@@ -555,6 +571,7 @@ func TestConcurrentFeatures(t *testing.T) {
 // parses resolve its classifier for different features, one of which makes
 // an entry an error of the grammar (engine §2); run it with -race.
 func TestConcurrentClassifiers(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, map[string]string{
 		"p.md": block("%stage main", `%include "g.md"`),
 		"g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier lex\n  \"a\" ∈ A\n  f? \"a\" ∉ A\n  f? \"b\" ∈ A\n  g? \"a\" ∈ A\n" +
@@ -632,6 +649,7 @@ func TestDeepDerivations(t *testing.T) {
 // A bootstrap stage's name and a document's path are strings, and null is
 // refused as the other libraries refuse it.
 func TestBootstrapNulls(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	bootstrap := bundled.sources["notation/bootstrap.json"]
 	for _, change := range [][2]string{{`"name":"lexical"`, `"name":null`}, {`"path":"notation/lexical.md"`, `"path":null`}} {
@@ -652,6 +670,7 @@ func TestBootstrapNulls(t *testing.T) {
 // from the document instead, and a bad bootstrap is a load error; neither
 // panics (review of PR #8).
 func TestMalformedPrecompiled(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	gText := sources["g.md"]
@@ -774,6 +793,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 // bootstrap each is an error of the bootstrap (engine §9). Each keeps the
 // range 'b'..'c' first, so an entry used by mistake would reject "ab".
 func TestMalformedCharacterClasses(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\"..\"z\" _L")
 	gText := sources["g.md"]
@@ -847,6 +867,7 @@ func TestMalformedCharacterClasses(t *testing.T) {
 // Caller tokens whose source lies outside the text are a usage error, not
 // a panic (review of PR #8).
 func TestParseTokensOutOfRange(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"a\"\n%emits $"))
 	for _, src := range [][2]int{{100, 101}, {1, 0}, {-1, 0}, {0, 2}} {
 		toks := []Token{{Text: "a", Value: "a", Tags: []string{}, Span: [2]int{0, 1}, Source: src}}
@@ -881,6 +902,7 @@ func TestParseTokensOutOfRange(t *testing.T) {
 // mistake (engine §1, §11). The source of a run of them runs from the least
 // start among them to the greatest end, and its text is the text there.
 func TestParseTokensOutOfOrder(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%emits $"))
 	for _, c := range []struct {
 		text       string
@@ -912,6 +934,7 @@ func TestParseTokensOutOfOrder(t *testing.T) {
 // values, so it is a usage error, refused before any character token
 // (engine §1). "\xed\xa0\x80" encodes the surrogate U+D800.
 func TestInvalidUTF8(t *testing.T) {
+	t.Parallel()
 	isUsage := func(err error) bool {
 		var e *Error
 		return errors.As(err, &e) && e.Kind == ErrorUsage
@@ -945,6 +968,7 @@ func TestInvalidUTF8(t *testing.T) {
 // column, found before any hash or compiled DOM. U+FFFD, supplementary
 // characters and a byte order mark decode as themselves.
 func TestFileUTF8(t *testing.T) {
+	t.Parallel()
 	const pipeline = "# A dialect\n\n```jbogenbau\n%stage main\n%include \"g.md\"\n```\n"
 	grammar := func(rule string) string {
 		return "# A grammar\n\n```jbogenbau\n%ambiguity-resolution greedy\n" + rule + "\n```\n"
@@ -1021,6 +1045,7 @@ func TestFileUTF8(t *testing.T) {
 
 // Engine §1 permits empty string terminals. They still consume one token.
 func TestEmptyCharacterTag(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"\" | \"a\""))
 	for _, c := range []struct {
 		text   string
@@ -1045,6 +1070,7 @@ func TestEmptyCharacterTag(t *testing.T) {
 // no position (engine §13, docs/output.md). Failed emission queries cover
 // carriers and inserted tokens. Active queries cover their own spans.
 func TestGrammarFaultHasNoPosition(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ grammar, message string }{
 		{`%rule text $w:W %emits $w :: $.tags(bad)
 %rule bad ε %conditions "x" ∈ $.value.split($.value)`, "stage main: split has an empty delimiter"},
@@ -1084,6 +1110,7 @@ func TestGrammarFaultHasNoPosition(t *testing.T) {
 // After is a usage error, and empty ones are accepted and dropped. The
 // caller's tokens stay as they are (docs/api.md).
 func TestCallerAttachments(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A"))
 	inner := []Token{{Text: "i", Tags: []string{"I"}, Source: [2]int{0, 1}}}
 	for _, tok := range []Token{
@@ -1114,6 +1141,7 @@ func TestCallerAttachments(t *testing.T) {
 // canonical JSON writes an attached token without its span
 // (docs/output.md).
 func TestAttachmentsRendered(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
@@ -1142,6 +1170,7 @@ func TestAttachmentsRendered(t *testing.T) {
 // Within one item, the before-attachments come before the carrier's tag
 // term, so of two errors the attachment's ends the emission (engine §11).
 func TestAttachmentErrorOrder(t *testing.T) {
+	t.Parallel()
 	c := loadCase(t, "../../tests/engine/attach-error-order.json")
 	d, err := caseDialect(c, false)
 	if err != nil {
@@ -1156,6 +1185,7 @@ func TestAttachmentErrorOrder(t *testing.T) {
 // An inserted token is made when its item's turn comes, so the error of an
 // earlier item's attachment comes before the inserted token's (engine §11).
 func TestInsertedAfterAttachmentErrorOrder(t *testing.T) {
+	t.Parallel()
 	c := loadCase(t, "../../tests/engine/attach-error-insert-order.json")
 	d, err := caseDialect(c, false)
 	if err != nil {
@@ -1196,6 +1226,7 @@ func hasTag(token Token, tag string) bool {
 // The empty zoi body has empty value. The stream grammar supplies spaces
 // through gap recipes instead of the removed pause join (words/stream.md).
 func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
@@ -1218,6 +1249,7 @@ func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 // phonemes/zbalermorna.md: the token of the vowel after the shorthand mark
 // covers the mark, so a word that begins with the shorthand begins at it.
 func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("bpfk")
 	if err != nil {
 		t.Fatal(err)
@@ -1236,6 +1268,7 @@ func TestZbalermornaShorthandCoversItsMark(t *testing.T) {
 // general join of run-words, a continued word before an onset, never joins a
 // Cy letter to the word after it, and only the Cy rule joins two letters.
 func TestCyLetterIsNeverContinued(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
@@ -1256,6 +1289,7 @@ func TestCyLetterIsNeverContinued(t *testing.T) {
 // after a quotation opener as at the start of the text. No condition decides it,
 // so each of these texts has the verdict resolved in the indicator stage.
 func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
@@ -1294,6 +1328,7 @@ func TestRankingReadsLeadingNaiIntoTheRun(t *testing.T) {
 // experimental lexicon has it. A probe document after the lexicon moves la
 // from LE to LA, and then no rule reads la mlatu ku.
 func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
+	t.Parallel()
 	sources := map[string]string{}
 	root := "grammars"
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
@@ -1346,6 +1381,7 @@ func TestExperimentalSyntaxReadsNoLA(t *testing.T) {
 // uses. They share one lowered grammar and one classifier table (engine
 // §13).
 func TestUnusedFeaturesShareALowering(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text f? \"x\" | \"y\""))
 	for i := 0; i < 50; i++ {
 		name := "unused-" + strconv.Itoa(i)
@@ -1366,6 +1402,7 @@ func TestUnusedFeaturesShareALowering(t *testing.T) {
 // no more than maxLowered lowered grammars. Two gates on make a tie, which
 // is an error, but the stage still accepts its input.
 func TestLoweredBounded(t *testing.T) {
+	t.Parallel()
 	names := []string{"a", "b", "c", "d", "e", "f", "g"}
 	var alts []string
 	for _, name := range names {
@@ -1395,6 +1432,7 @@ func TestLoweredBounded(t *testing.T) {
 // TestCallerTokensShareNothing changes the caller's token after a parse,
 // and then the result. Neither change reaches the other (docs/api.md).
 func TestCallerTokensShareNothing(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A"))
 	tokens := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}
 	res, err := d.parseStoredTokens("a", tokens, ParseOptions{NoAutoFeatures: true})
@@ -1416,6 +1454,7 @@ func TestCallerTokensShareNothing(t *testing.T) {
 // gates, twice. The second round resolves again the tables that the first
 // round dropped, and each gives the same classes.
 func TestClassifierTablesBounded(t *testing.T) {
+	t.Parallel()
 	names := []string{"a", "b", "c", "d", "e"}
 	entries := ""
 	for _, name := range names {
@@ -1451,6 +1490,7 @@ func TestClassifierTablesBounded(t *testing.T) {
 // chosen tree and completion after its message, with the sound only for a
 // tested terminator (docs/output.md). No other error has a code.
 func TestMarshalWitnessLost(t *testing.T) {
+	t.Parallel()
 	chosen := &Node{Kind: KindRule, Rule: "text", Span: [2]int{0, 1}, Source: [2]int{0, 1}, Children: []*Node{
 		{Kind: KindToken, Terminal: "A", Token: 0, Span: [2]int{0, 1}, Source: [2]int{0, 1}},
 		{Kind: KindElided, Terminal: "T", Span: [2]int{1, 1}, Source: [2]int{1, 1}, sound: "ta", tested: true},

@@ -8,6 +8,7 @@ import (
 
 // A count stays exact across the int64 boundary (engine §6).
 func TestCountExact(t *testing.T) {
+	t.Parallel()
 	big62 := countOf(1 << 62)
 	sum := big62.add(big62) // 2^63, which no int64 holds
 	if sum.big == nil || sum.cmp(countOf(math.MaxInt64)) != 1 || sum.cmp(sum.add(countOne)) != -1 {
@@ -26,6 +27,7 @@ func TestCountExact(t *testing.T) {
 // run is built apart, as two chains of rules build them, so that no node is
 // shared and the comparison must take runs whole (engine §6).
 func TestCompareElisionRuns(t *testing.T) {
+	t.Parallel()
 	// run is 2^k elisions at a position, built from a leaf of its own.
 	run := func(at int32, k int) *elSeq {
 		s := &elSeq{first: at, last: at, size: countOne}

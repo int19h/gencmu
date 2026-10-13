@@ -73,17 +73,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.12", "3.x"]
+        python: ["3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - name: Tests
-        working-directory: lib/python
-        run: python -m unittest -v
-      # The build backend is needed to build the wheel only; the package and
-      # its tests use the standard library alone.
+      # Build tools and the parallel test runner are development dependencies.
       - name: Build the wheel
         working-directory: lib/python
         run: |
@@ -100,8 +96,12 @@ jobs:
           grep -q "gencmu/grammars/compiled.json" wheel.txt
           grep -q "gencmu/grammars/notation/bootstrap.json" wheel.txt
           python -m venv "$RUNNER_TEMP/installed"
-          "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
-          GENCMU_INSTALLED=1 "$RUNNER_TEMP/installed/bin/python" -m unittest
+          "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl --group test
+      - name: Tests against the installed wheel
+        working-directory: lib/python
+        env:
+          GENCMU_INSTALLED: "1"
+        run: '"$RUNNER_TEMP/installed/bin/python" -m pytest'
 
   corpus:
     name: The whole corpus in JavaScript
@@ -172,7 +172,9 @@ jobs:
       - name: Tests
         run: cargo test
       - name: The crate holds everything it needs
-        run: cargo package
+        run: |
+          cargo package
+          sh ../../tools/check-rust-package.sh target/package/gencmu-*.crate
       # The whole Lojban corpus, on each pull request (design, "Tests"):
       # about a minute on a hosted runner's cores, under 2 GB.
       - name: The whole corpus

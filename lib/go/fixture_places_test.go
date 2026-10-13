@@ -100,6 +100,7 @@ func positionOf(text, needle string) (int, int, error) {
 // TestPlaces checks these helpers against tests/places.json, which every
 // library's runner shares.
 func TestPlaces(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../tests/places.json")
 	if err != nil {
 		t.Fatal(err)

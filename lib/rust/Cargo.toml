@@ -15,3 +15,6 @@ include = ["src/**/*.rs", "build.rs", "grammars/**", "README.md", "LICENSE", "Ca
 [dependencies]
 
 [dev-dependencies]
+
+[profile.test]
+opt-level = 3

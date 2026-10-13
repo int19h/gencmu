@@ -14,6 +14,7 @@ import (
 // of each rule that it knows. tests/notation-shapes.json holds the outcome
 // that every library gives.
 func TestNotationShapes(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../tests/notation-shapes.json")
 	if err != nil {
 		t.Fatal(err)
@@ -173,6 +174,7 @@ func TestNotationShapes(t *testing.T) {
 // lexical stage, the check finds the ambiguity that greedy settled in
 // `...`, which is also three `.`, and the document does not load.
 func TestNotationStageRunsTheCheck(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../grammars/notation/bootstrap.json")
 	if err != nil {
 		t.Fatal(err)

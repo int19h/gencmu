@@ -69,6 +69,7 @@ func catchOf(t *testing.T, fault, file string, hits map[string]bool) string {
 }
 
 func TestFaultsAreCaught(t *testing.T) {
+	t.Parallel()
 	hookOnly := false
 	for _, fault := range faults {
 		files := faultCatches[fault]
@@ -113,6 +114,7 @@ func TestFaultsAreCaught(t *testing.T) {
 // TestListFaultCatches lists every case that catches each fault, and how,
 // with -v and GENCMU_FAULTS_LIST set, to choose the cases of the table.
 func TestListFaultCatches(t *testing.T) {
+	t.Parallel()
 	if !testing.Verbose() || os.Getenv("GENCMU_FAULTS_LIST") == "" {
 		t.Skip("set GENCMU_FAULTS_LIST and -v to list every catch")
 	}

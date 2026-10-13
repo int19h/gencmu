@@ -14,6 +14,7 @@ import gencmu
 
 from .shared import (
     CaseTimeout,
+    add_case_tests,
     apply_mutant,
     case_features,
     case_tokens,
@@ -38,28 +39,28 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features")
 
 
 class EngineCases(unittest.TestCase):
-    def test_cases(self) -> None:
+    def test_cases_are_present(self) -> None:
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")
-        for path in paths:
-            # A case that hangs fails, and the other cases go on.
-            with self.subTest(case=path.name), deadline(path.name):
-                case = load_case(path)
-                if path.name in ("values-null-value.json", "values-null-image.json"):
-                    self.skipTest("Python Token uses None as the documented string default, so explicit JSON null cannot express an invalid string through this constructor")
-                if "parses" in case:
-                    # The case parses its input several times with the one
-                    # loaded dialect (tests/README.md).
-                    dialect, error = load_case_dialect(case)
-                    if dialect is None:
-                        raise AssertionError(f"{path.name}: the dialect did not load: {error}")
-                    features = case_features(dialect)
-                    for index, run in enumerate(case["parses"]):
-                        value, result, error = parse_case(dialect, case, run)
-                        self.check(f"{path.name} parse {index}", run["expect"], value, result, error, features)
-                    continue
-                value, result, error, features = run_case(case)
-                self.check(path.name, case["expect"], value, result, error, features)
+
+    def check_case(self, path: Path) -> None:
+        with deadline(path.name):
+            case = load_case(path)
+            if path.name in ("values-null-value.json", "values-null-image.json"):
+                self.skipTest("Python Token uses None as the documented string default, so explicit JSON null cannot express an invalid string through this constructor")
+            if "parses" in case:
+                # The case parses its input several times with the one
+                # loaded dialect (tests/README.md).
+                dialect, error = load_case_dialect(case)
+                if dialect is None:
+                    raise AssertionError(f"{path.name}: the dialect did not load: {error}")
+                features = case_features(dialect)
+                for index, run in enumerate(case["parses"]):
+                    value, result, error = parse_case(dialect, case, run)
+                    self.check(f"{path.name} parse {index}", run["expect"], value, result, error, features)
+                return
+            value, result, error, features = run_case(case)
+            self.check(path.name, case["expect"], value, result, error, features)
 
     def check(
         self,
@@ -228,6 +229,9 @@ class EngineCases(unittest.TestCase):
                 self.assertNotEqual(result_problems(changed), [])
                 with self.assertRaisesRegex(AssertionError, "breaks an invariant"):
                     self.check("mutant", {"error": "ambiguous"}, changed, result, error, features)
+
+
+add_case_tests(EngineCases, "engine")
 
 
 if __name__ == "__main__":
