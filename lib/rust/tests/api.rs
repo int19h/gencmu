@@ -1127,12 +1127,16 @@ fn ranked_syntax_codes_and_retirement_are_specific() {
 
 #[test]
 fn ranked_validation_never_builds_invalid_runtime_bindings() {
-    for (prefix, code) in [("%rule text later\n", "ranked-choice-export"), ("%rule text a ≻ b\n", "ranked-choice-tags")]
-    {
+    // Engine §11.4 reports private exports before competing tag bindings.
+    for prefix in ["%rule text later\n", "%rule text a ≻ b\n"] {
         let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
         let error = gencmu::load_dialect_sources(&single(&text), "p.md").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some(code));
+        assert_eq!(error.code.as_deref(), Some("ranked-choice-export"));
     }
+    // Retain an independent refusal of incompatible ranked tags.
+    let text = "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y";
+    let error = gencmu::load_dialect_sources(&single(text), "p.md").unwrap_err();
+    assert_eq!(error.code.as_deref(), Some("ranked-choice-tags"));
 }
 
 #[test]
@@ -1166,5 +1170,36 @@ fn emitted_pairs_cannot_supply_source_observations() {
             let at = common::position_of(&grammar(&text), "$.emitted");
             (Some(at.0), Some(at.1))
         });
+    }
+}
+
+#[test]
+fn private_ranked_exports_precede_recipe_cycles_and_absence() {
+    for text in [
+        "%rule text ($x:A ≻ $x:B) := $.emitted.value $x.value %emits",
+        "%rule text ($x:A ≻ B) := $x.value %emits",
+        "%rule text ($x:A ≻ B) := $.emitted.value %emits $x",
+        "%rule text ($x:A ≻ $x:B) := $x.value %emits",
+    ] {
+        let text = format!("%ambiguity-resolution greedy\n{text}");
+        let mut sources = single(&text);
+        let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text));
+        // Public reader validation retains its missing-capture check.
+        // The cached fixture uses the competing cycle as an absence-free DOM.
+        let dom = match dom {
+            Ok(dom) => dom,
+            Err(_) => {
+                let control = text.replace("($x:A ≻ B)", "($x:A ≻ $x:B)");
+                gencmu::tools::read_grammar_document(&grammar(&control))
+                    .unwrap()
+                    .replace(r#"{"capture":"x","expr":{"ref":"B"}}"#, r#"{"ref":"B"}"#)
+            }
+        };
+        sources.insert("compiled.json".into(), compiled(&text, &dom));
+        let cached = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
+        assert_eq!(plain, cached, "{text}");
+        assert_eq!(plain.code.as_deref(), Some("ranked-choice-export"), "{text}: {plain}");
+        assert!(plain.group.is_some() && plain.option.is_some() && plain.expression.is_some());
     }
 }

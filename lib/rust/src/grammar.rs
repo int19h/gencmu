@@ -397,12 +397,8 @@ pub(crate) fn stitch(
             })?;
         }
     }
-    for rule in &grammar.rules {
-        for alternative in &rule.alternatives {
-            recipe_cycles(alternative)?;
-        }
-    }
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
+    grammar.ranked.validate_scope()?;
     if !grammar.ranked.groups.is_empty() {
         let lowered =
             crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;
@@ -410,6 +406,11 @@ pub(crate) fn stitch(
     }
     if let Some(error) = deferred.into_iter().next() {
         return Err(error);
+    }
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            recipe_cycles(alternative)?;
+        }
     }
     emission_overlap(&grammar)?;
     Ok(grammar)

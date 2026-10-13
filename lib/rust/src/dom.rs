@@ -2077,5 +2077,9 @@ impl Drop for Cond {
 }
 
 pub(crate) fn deferred_emission_problem(s: &str) -> bool {
-    s.starts_with("%emits of ") && s.ends_with("leaves a production nothing to emit")
+    s.starts_with("%emits of ")
+        || s.starts_with("a selected recipe of ")
+        || s.starts_with("an item recipe of ")
+        || s.starts_with("a tag term of ")
+        || s.starts_with("a condition of ") && s.ends_with("applies to no production")
 }
