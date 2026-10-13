@@ -858,12 +858,20 @@ Every library runs the whole corpus. On a pull request, a core of about 3,520 ca
 
 ## CI
 
-CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language. These jobs use the toolchains listed below:
+CI has two workflows.
+`ci.yml` runs for each pull request and each push to `main`.
+Each toolchain in this list gets its own test job:
 
-- JavaScript: Node 24, the bundle freshness check, `node --test`, and `npm pack --dry-run` to make sure that the package holds its files
-- Python: 3.14, `python -m build` for the wheel, and one parallel test run against that installed wheel with `python -m pytest`
-- Go: 1.22, the minimum of the module, and current, `go vet`, `go test`, `go test -race` for concurrent parses, and a build of the module alone
-- Rust: its minimum version and stable, `cargo fmt --check`, `cargo clippy`, optimized `cargo test`, `cargo package` to make sure that the crate is self-contained, and the whole corpus on stable
+- JavaScript: Node 24. The job tests generated files, runs `node --test`, and examines the package with `npm pack --dry-run`.
+- Python: 3.14. The job builds the wheel with `python -m build`, installs it, and runs `python -m pytest` once against it.
+- Go: 1.22 and stable. The job runs `go vet`, `go test`, and `go test -race` for concurrent parses. It also builds the module alone.
+- Rust: 1.75 and stable. The job runs `cargo fmt --check`, `cargo clippy`, optimized `cargo test`, and `cargo package`.
+
+The workflow also tests the playground in Chromium and Firefox.
+It runs the whole corpus in JavaScript and in the stable Rust job.
+A separate job makes sure that the JavaScript types and generated declarations agree.
+`nightly.yml` runs the whole corpus in all four languages each night and on demand.
+Nightly Python uses an installed wheel on 3.14 with four pytest workers.
 
 Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures.
 JavaScript uses the Node runner to schedule files.
