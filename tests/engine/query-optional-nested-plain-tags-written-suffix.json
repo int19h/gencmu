@@ -1,0 +1,42 @@
+{
+  "description": "The plain optional contains a nested plain optional. The optional contains no capture. The written [T U] cannot complete in this span, so .tags(r) returns Queried (engine §4).",
+  "grammar": "%rule text $r:input :: $r.tags(r)\n%rule input B {D} T\n%rule r :: Queried | B [[c]] [+T U] D T\n%rule c D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "rule": "text",
+        "tags": [
+          "Queried"
+        ]
+      }
+    }
+  }
+}

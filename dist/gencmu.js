@@ -2462,20 +2462,37 @@
    */
 
 
-  /** @type {WeakMap<LoweredGrammar, Set<string>>} */
-  const elidableHelpers = new WeakMap();
+  /** @type {WeakMap<LoweredGrammar, {elidable:Set<string>,optional:Map<string,object>}>} */
+  const helperSites = new WeakMap();
 
   /**
-   * The helpers of a grammar's elidable optionals (engine §3.8), by name.
+   * Elidable helpers and the written sites of split plain optional helpers. A
+   * captured optional can have separate helpers for its expanded routes.
    * @param {LoweredGrammar} lowered
-   * @returns {Set<string>}
+   * @returns {{elidable:Set<string>,optional:Map<string,object>}}
    */
   function helpersOf(lowered) {
-    let helpers = elidableHelpers.get(lowered);
+    let helpers = helperSites.get(lowered);
     if (!helpers) {
-      helpers = new Set();
-      for (const production of lowered.productions) if (production.helper && production.elided !== null) helpers.add(production.lhs);
-      elidableHelpers.set(lowered, helpers);
+      helpers = {elidable:new Set(),optional:new Map()};
+      /** @type {Map<object,Set<string>>} */
+      const sites = new Map();
+      for (const production of lowered.productions) {
+        if (!production.helper) continue;
+        if (production.elided !== null) helpers.elidable.add(production.lhs);
+        const expression = production.writtenExpression;
+        if (expression && "optional" in expression && expression.elidable !== true) {
+          let names = sites.get(expression);
+          if (!names) sites.set(expression,names=new Set());
+          names.add(production.lhs);
+        }
+      }
+      // One helper already joins all its optional's routes in the chart.
+      // Only distinct names of one written site need the logical group key.
+      for (const [expression,names] of sites) {
+        if (names.size > 1) for (const name of names) helpers.optional.set(name,expression);
+      }
+      helperSites.set(lowered, helpers);
     }
     return helpers;
   }
@@ -2550,7 +2567,7 @@
    */
   function eligibleWitnesses(chart, witnesses) {
     if (witnesses.length === 0) return witnesses;
-    const helpers = helpersOf(chart.context.lowered);
+    const {elidable:helpers,optional:optionals} = helpersOf(chart.context.lowered);
     if (helpers.size === 0) return witnesses;
     // The items the witnesses rest on, children before the items made from
     // them where the edges allow, so that one sweep settles most of them.
@@ -2630,7 +2647,13 @@
       if (logical) {
         const previous = logical.node;
         if (!previous || previous.symbol?.terminal) return "alone";
-        if (previous.children) { precedingGroups.set(item,previous); return "group"; }
+        const optional = previous.symbol && optionals.get(previous.symbol.name);
+        if (previous.children || optional) {
+          // Both physical helper variants and inline expansions retain one
+          // optional boundary for the fixed prefix and all blocker routes.
+          precedingGroups.set(item,optional ? {...previous,written:optional} : previous);
+          return "group";
+        }
         if (logical.initial && previous.symbol?.name === item.production.lhs) return "alone";
         return "constituent";
       }
@@ -2660,7 +2683,10 @@
       // Only the preceding optional's route varies. Every outside expansion
       // remains part of the same logical production and fixed prefix.
       const outside = [...symbols.slice(0,group.from),["optional"],...symbols.slice(group.to)];
-      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),item.production.lhs,identity(group.written),
+      // A surrounding optional can also have one helper per expanded route.
+      const owner = optionals.get(item.production.lhs);
+      const scope = owner ? ["optional",identity(owner)] : item.production.lhs;
+      return JSON.stringify([identity(item.production.logicalSource ?? item.production.source),scope,identity(group.written),
         item.origin,item.end,item.structure,item.observationPrefix?.sequence,outside,captures.reverse()]);
     };
     /** @param {Item} item @param {number} dot @returns {Item[]} */

@@ -1,0 +1,42 @@
+{
+  "description": "The preceding optional and its terminator lie inside another plain optional with a ranked group. Capturing c changes neither the blocker nor its logical parent. The written [T U] cannot complete in this span, so .begins(r) is true (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.begins(r)\n%rule input B D T Z\n%rule r :: Queried | B [[($c:c ≻ c)] [+T U] D T] Z\n%rule c D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}
