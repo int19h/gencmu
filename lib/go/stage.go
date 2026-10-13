@@ -351,7 +351,7 @@ func (run *stageRun) rejectedAt(k int, expected []Expected) *ParseError {
 		e := run.toks[len(run.toks)-1].Source[1]
 		src = [2]int{e, e}
 	} else {
-		src = [2]int{len(run.ps.text), len(run.ps.text)}
+		src = [2]int{0, 0}
 	}
 	line, col := run.ps.lineColumn(src[0])
 	tok := k
