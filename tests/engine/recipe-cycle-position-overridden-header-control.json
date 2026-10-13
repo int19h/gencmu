@@ -1,0 +1,23 @@
+{
+  "description": "The alternative replaces both channels of the cyclic header. Inactive header dependencies cause no cycle (engine §11.3).",
+  "grammar": "%rule text := $.emitted.value :- $.emitted.image\n  | \"a\" := \"v\" :- \"i\" %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "v",
+              "image": "i"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

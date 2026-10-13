@@ -1,0 +1,13 @@
+{
+  "description": "The final replacement removes the original cyclic production. The remaining other production reports its own cycle in text order (engine §11.3 and §9.3).",
+  "grammar": "%rule text := $.emitted.value | \"a\"\n%rule other := $.emitted.value | \"b\"\n%redefine-rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 16
+    }
+  }
+}

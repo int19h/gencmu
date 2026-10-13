@@ -1,0 +1,19 @@
+{
+  "description": "An earlier included document supplies the first cyclic production. A later extension stays later in stage text order, including across document boundaries (engine §11.3 and §9.3).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%include \"base.md\"\n%include \"earlier.md\"\n%include \"later.md\"\n```\n",
+    "base.md": "```jbogenbau\n%rule text \"a\"\n```\n",
+    "earlier.md": "```jbogenbau\n%rule other := $.emitted.value | \"b\"\n```\n",
+    "later.md": "```jbogenbau\n%extend-rule text := $.emitted.image | \"c\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "earlier.md",
+      "line": 2,
+      "column": 16
+    }
+  }
+}

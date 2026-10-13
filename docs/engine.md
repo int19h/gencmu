@@ -1596,6 +1596,10 @@ Each of the following is an error of the document too, and the reader reports it
 - An inserted item whose next covering item has an absent named carrier is a document error. The next covering item is the first following `$` or named capture item, skipping inserted items.
 - A production for which every item of the emission is dropped is an error. It emits nothing although the rule lists what to emit. A rule that erases its constituent says so with `%erased`. So `A [$b:B]` with `%emits $b` is an error, because the production `A` emits nothing.
 
+An active constituent recipe cycle is a document error (§11.3). The loader checks productions in text order, with value before image. It follows effective recipe dependencies depth first in the atoms' written order.
+
+The error stands at the first atom of the recipe whose dependency reaches a channel still active on the current path. The dependency path runs from the first active channel to that recipe. An implied image counts as the value recipe that it reuses.
+
 Two of these checks depend on simplification (§3.6). They are the check that a condition applies to a production, and the check of the captures that a tag term uses. In simplification, a constant is its value, and the reader does not know that value. So the reader leaves these two checks to the loader for each clause that holds a constant. The loader makes them after it gives the constants their values (§2), and it reports an error at the definition. The check that some alternative captures each mentioned capture does not depend on a value, so the reader makes it for every clause.
 
 Emission overlap uses a conservative structural analysis of the final stitched stage. The loader runs it after all other stitching checks, including ranked-choice validation, and before lowering. All remaining rules participate, including unreachable rules. Replaced rule definitions do not participate.
@@ -1903,7 +1907,11 @@ A cycle exists when a requested constituent channel depends on that same occurre
 
 The loader analyzes each production's effective constituent recipes after alternative and definition channel selection. It validates these two channels before considering item overrides. Overridden definition recipes remain inactive on the channels replaced by alternative recipes. Tests and feature gates excuse no active document cycle.
 
-Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports a cycle as a document error at its recipe, with the dependency path.
+Only alternative or definition recipes can cycle. A captured child's dependencies cannot reach its parent. Item dependencies read before their own override and cannot reach that override. The loader reports a cycle as a document error.
+
+The loader checks productions in text order. Within each production, it checks the value channel before the image channel. From each channel, it follows effective recipe dependencies depth first, in the written order of the recipe's atoms.
+
+A cycle closes when a recipe reads a channel still active on the current path. The error stands at the first atom of that recipe. Its dependency reaches the active channel. The dependency path runs from the first active channel to the recipe that closes the cycle. An implied image counts as the value recipe that it reuses.
 
 The following definition is a document error, despite its item override:
 

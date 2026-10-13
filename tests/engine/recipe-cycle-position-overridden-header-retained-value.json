@@ -1,0 +1,13 @@
+{
+  "description": "The alternative replaces only the cyclic header image. The active header value still cycles and reports its own first atom (engine §11.3 and §9.3).",
+  "grammar": "%rule text := $.emitted.value :- $.emitted.image\n  | \"a\" :- \"i\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

@@ -15,6 +15,7 @@ export type StitchedAlternative = DomAlternative & {
     clauses: RuleClauses;
     document: string;
     at: ErrorLocation;
+    order: number;
 };
 export type RuleClauses = {
     tags: Term | undefined;
@@ -81,6 +82,7 @@ export declare class Grammar {
     }[];
     /** @type {Map<string, StitchedRule>} */
     rules: Map<string, StitchedRule>;
+    alternativeOrder: number;
     /** @type {RuleChange[]} */
     changes: RuleChange[];
     /** @type {Resolution | null} */

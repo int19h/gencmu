@@ -1,0 +1,88 @@
+{
+  "description": "The captured-prefix predecessor keeps each proof's own fixed prefix through its logical optional. The first proof forbids T omission, and the second forbids U omission, so tags(r) fails (engine §4).",
+  "grammar": "%rule text $all:input\n%conditions Queried ⊆ $all.tags(r)\n%rule input A B C T U\n%rule r :: Queried | [$a:A] [y $c:empty] [+T] C T U\n%rule y A B | A B C | B z [+U]\n%rule z ε | C T\n%rule empty ε",
+  "input": "abctu",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "span": [
+        0,
+        1
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "span": [
+        1,
+        2
+      ],
+      "source": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ],
+      "span": [
+        2,
+        3
+      ],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ],
+      "span": [
+        3,
+        4
+      ],
+      "source": [
+        3,
+        4
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ],
+      "span": [
+        4,
+        5
+      ],
+      "source": [
+        4,
+        5
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    },
+    "error": "rejected"
+  }
+}
