@@ -12,9 +12,7 @@ use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
-use crate::tags::{
-    character_tag, difference, intersection, is_name, is_subset, union_all, SetId, TagId, TagList, Tags,
-};
+use crate::tags::{character_tag, difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
@@ -48,12 +46,12 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
 pub(crate) struct Tok {
     pub text: String,
     pub tags: SetId,
-    pub phonemes: Option<String>,
+    pub value: String,
     pub source: (usize, usize),
     /// What it shows to people (§5).
-    pub label: String,
-    /// Its phonemes in canonical form, for the sound tests of symbols and for
-    /// `phonemes()`, computed when one first looks at the token (§4, §5).
+    pub image: String,
+    /// Its value in canonical form, for the sound tests of symbols and for
+    /// `value()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
     /// How many tokens from this one on, in its sequence, have no sound, so
     /// that a sound test skips them at once. Zero where it is not known,
@@ -73,12 +71,12 @@ impl Tok {
 }
 
 impl Tok {
-    /// The token's phonemes in canonical form, or nothing if it has none
+    /// The token's value in canonical form, or nothing if it has none
     /// (§5). The lowercase mapping and the removal of commas act on each
     /// code point alone, so the canonical sound of a span is its tokens'
     /// joined.
     pub(crate) fn sound(&self, _unicode: &Unicode) -> &str {
-        self.sound.get_or_init(|| self.phonemes.as_deref().unwrap_or("").into())
+        self.sound.get_or_init(|| self.value.as_str().into())
     }
 }
 
@@ -93,7 +91,7 @@ pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
 }
 
 /// Whether `tokens` sound like a string: their canonical sound is exactly
-/// it (§4, §5). A token with no phonemes adds nothing, so an empty span
+/// it (§4, §5). A token with no value adds nothing, so an empty span
 /// sounds like the empty string. Runs of such tokens are skipped whole, so
 /// the test costs the length of the string, not of the span.
 fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
@@ -119,15 +117,9 @@ fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
 /// (§4). A tag the table has never seen is in no set.
 pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], unicode: &Unicode, tags: &Tags, set: SetId) -> bool {
     let has = |tag: &String| tags.lookup(tag).is_some_and(|tag| tags.contains(set, tag));
-    match test.op {
-        TestOp::Is | TestOp::IsNot => {
-            sounds_like(tokens, unicode, test.sound.as_deref().unwrap_or("")) == (test.op == TestOp::Is)
-        }
-        TestOp::Superset => test.tags.iter().all(has),
-        TestOp::NotSuperset => !test.tags.iter().all(has),
-        TestOp::Disjoint => !test.tags.iter().any(has),
-        TestOp::Meets => test.tags.iter().any(has),
-    }
+    test.tags.iter().all(has)
+        && !test.negative.iter().any(has)
+        && test.sound.as_ref().map_or(true, |value| sounds_like(tokens, unicode, value) == (test.op == TestOp::Is))
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
@@ -659,13 +651,13 @@ type Place = (u32, usize, usize);
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
-type ObservedToken = (SetId, String, Option<String>, usize, usize);
+type ObservedToken = (SetId, String, String, String, usize, usize);
 
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
     /// A short span: its rule, the original text that holds its tokens'
-    /// sources, and each token's tags, text, phonemes, and where its
+    /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
     /// `text` of a part of the span reads: everything its parse can observe.
     Content(u32, String, Vec<ObservedToken>),
@@ -742,10 +734,10 @@ impl<'a> Shared<'a> {
     pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
         match matcher {
             Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
-            Matcher::Value(value) => token.phonemes.as_deref().unwrap_or("") == self.tags.name(value),
+            Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
             Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
             Matcher::Characters(Characters::Range(first, last)) => {
-                let mut chars = token.phonemes.as_deref().unwrap_or("").chars();
+                let mut chars = token.value.as_str().chars();
                 chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
             }
             Matcher::Characters(characters) => self.carries(characters, token.tags),
@@ -796,6 +788,8 @@ pub(crate) struct Recon<'o> {
     pub project: Vec<u32>,
     /// For each token of R, whether it is synthetic, by its provenance.
     pub synthetic: Vec<bool>,
+    /// Saved equality operands retain absent versus explicit empty values.
+    pub saved_values: Vec<Option<String>>,
 }
 
 /// A term's value (§10).
@@ -1058,7 +1052,6 @@ enum Task<'n> {
     Split(&'n LTerm),
     /// `split` with the string's value.
     SplitBy(String),
-    TagOf,
     Classify(&'n str),
     /// The term of `⟹` in a term, which its guard's value decides on.
     Guarded(&'n LTerm),
@@ -1311,7 +1304,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     term(a, out);
                     term(b, out);
                 }
-                LTerm::TagOf(t) | LTerm::Classify(t, _) => term(t, out),
+                LTerm::Classify(t, _) => term(t, out),
                 _ => {}
             }
         }
@@ -1442,7 +1435,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         let observed = self.recon.map_or(tokens, |r| r.observed);
                         let sound = if let Some(recon) = self.recon {
                             if set > item.origin as usize && recon.synthetic[item.origin as usize] {
-                                tokens[item.origin as usize].phonemes.clone()
+                                recon.saved_values[item.origin as usize].clone()
                             } else {
                                 None
                             }
@@ -1534,7 +1527,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 name.clone(),
                 recon.project[e] as usize,
                 recon.observed,
-                token.phonemes.clone(),
+                recon.saved_values[e].clone(),
             );
             record.at += base;
             let observation = m.observations.as_mut().unwrap().close(record);
@@ -2123,9 +2116,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let synthetic = Tok {
                     text: String::new(),
                     tags: set,
-                    phonemes: Some(sound),
+                    value: sound,
                     source: (0, 0),
-                    label: String::new(),
+                    image: String::new(),
                     sound: std::cell::OnceCell::new(),
                     quiet: 0,
                     before: vec![],
@@ -2471,7 +2464,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .iter()
             .map(|token| {
                 let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.phonemes.clone(), from - low, to - low)
+                (token.tags, token.text.clone(), token.value.clone(), token.image.clone(), from - low, to - low)
             })
             .collect();
         NestedKey::Content(rule, self.shared.source_text(low, high), observed)
@@ -2486,7 +2479,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The canonical sound of the span (§5). Runs of tokens without sound
     /// are skipped whole, as in a sound test.
-    fn phonemes(&self, tokens: &[Tok], start: usize, end: usize) -> String {
+    fn value(&self, tokens: &[Tok], start: usize, end: usize) -> String {
         let mut sound = String::new();
         let mut at = start;
         while at < end {
@@ -2564,6 +2557,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let class = |&id: &TagId| {
             work::count(Work::Listed, 1);
             tags.name(id).starts_with(|c: char| c.is_ascii_uppercase())
+                && tags.name(id).ends_with(|c: char| c.is_ascii_uppercase())
         };
         Value::set(list.iter().copied().filter(class).collect())
     }
@@ -2834,9 +2828,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::DiffLeft(right), Task::Term(left));
                             continue;
                         }
-                        LTerm::Phonemes(span) => {
+                        LTerm::Value(span) => {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
-                            Value::Str(self.phonemes(tokens, start, end))
+                            Value::Str(self.value(tokens, start, end))
+                        }
+                        LTerm::Image(span) => {
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
+                            Value::Str(tokens[start..end].iter().map(|t| t.image.as_str()).collect())
                         }
                         LTerm::Text(span) => {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
@@ -2844,10 +2842,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         }
                         LTerm::Split(string, delimiter) => {
                             eval.push(Task::Split(delimiter), Task::Term(string));
-                            continue;
-                        }
-                        LTerm::TagOf(name) => {
-                            eval.push(Task::TagOf, Task::Term(name));
                             continue;
                         }
                         LTerm::Tags(span) => match self.checked_bounds(span, frame, tokens.len())? {
@@ -2988,17 +2982,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     list.dedup();
                     Out::Value(Value::set(list))
                 }
-                Task::TagOf => {
-                    let name = Self::as_string(took(&mut last).value())?;
-                    if !is_name(&name) {
-                        return Err(EngineError {
-                            message: format!("tag({name:?}): the string is not a name"),
-                            rule: None,
-                        }
-                        .into());
-                    }
-                    Out::Value(Value::set(vec![self.shared.tags.tag(&name)]))
-                }
                 // The classes that the classifier gives the string, for the
                 // features of the parse, or none for an unknown key (§10).
                 Task::Classify(classifier) => {
@@ -3123,9 +3106,9 @@ mod tests {
                 .map(|index| Tok {
                     text: "x".to_string(),
                     tags: 0,
-                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    value: (index + 1 == n).then(|| "a".to_string()),
                     source: (index, index + 1),
-                    label: "x".to_string(),
+                    image: "x".to_string(),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -3170,9 +3153,9 @@ mod tests {
                     .map(|name| Tok {
                         text: "x".to_string(),
                         tags: shared.tags.set_of([name.as_str()]),
-                        phonemes: None,
+                        value: None,
                         source: (0, 0),
-                        label: "x".to_string(),
+                        image: "x".to_string(),
                         sound: Default::default(),
                         quiet: 0,
                         before: Vec::new(),
@@ -3309,9 +3292,9 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                phonemes: None,
+                value: None,
                 source: (index * 2, index * 2 + 1),
-                label: "a".to_string(),
+                image: "a".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
@@ -3508,9 +3491,9 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                phonemes: Some("a".to_string()),
+                value: Some("a".to_string()),
                 source: (index, index + 1),
-                label: "a".to_string(),
+                image: "a".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
@@ -3541,13 +3524,13 @@ mod tests {
             });
         };
         stops(Work::Spanned, split(LTerm::Text(Span::Whole)));
-        stops(Work::Spanned, split(LTerm::Phonemes(Span::Whole)));
+        stops(Work::Spanned, split(LTerm::Value(Span::Whole)));
         stops(Work::Listed, split(LTerm::Str(vec!["x"; n].join(" "))));
         stops(Work::Listed, LTerm::Classes(Span::Cap(0)));
         stops(Work::Listed, LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1));
     }
 
-    /// The phonemes of each suffix of a run of tokens without sound, and
+    /// The value of each suffix of a run of tokens without sound, and
     /// the text of the whole run, cost about what they read: the run is
     /// skipped whole, and the text's bounds are found in one walk.
     #[test]
@@ -3567,9 +3550,9 @@ mod tests {
                 .map(|index| Tok {
                     text: "a".to_string(),
                     tags: 0,
-                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    value: (index + 1 == n).then(|| "a".to_string()),
                     source: (index, index + 1),
-                    label: "a".to_string(),
+                    image: "a".to_string(),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -3578,7 +3561,7 @@ mod tests {
                 .collect();
             mark_quiet(&mut tokens, &dialect.unicode);
             for start in 0..n {
-                assert_eq!(recognizer.phonemes(&tokens, start, n), "a");
+                assert_eq!(recognizer.value(&tokens, start, n), "a");
             }
             assert_eq!(recognizer.text(&tokens, 0, n).len(), n);
         });

@@ -9,7 +9,7 @@ pub(crate) fn dom_problem(dom: &crate::json::Json, unicode: &crate::unicode::Uni
 
 use crate::fxhash::FxSet;
 use crate::json::{write_str, Json};
-use crate::tags::{character_code, is_name, is_tag};
+use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
@@ -191,7 +191,6 @@ pub(crate) enum Term {
     /// A tag literal: the set of one tag, in its canonical spelling.
     Tag(String),
     /// A range `'a'..'z'`, the set of its character tags (engine §1).
-    Range(String, String),
     EmptySet,
     Union(Vec<Term>),
     Intersection(Vec<Term>),
@@ -256,6 +255,8 @@ pub(crate) struct Attachments {
 pub(crate) struct Channels {
     pub value: Option<Term>,
     pub image: Option<Term>,
+    pub value_at: Option<(usize, usize)>,
+    pub image_at: Option<(usize, usize)>,
 }
 
 impl Attachments {
@@ -459,7 +460,7 @@ pub(crate) fn engine_scalar(name: &str) -> Option<char> {
 
 pub(crate) fn method_alias(name: &str) -> &str {
     match name {
-        "value" => "phonemes",
+        "value" => "value",
         "source-text" => "text",
         "first-token" => "head",
         "tokens-after-first" => "tail",
@@ -473,7 +474,7 @@ pub(crate) fn method_alias(name: &str) -> &str {
 
 fn method_spelling(name: &str) -> &str {
     match name {
-        "phonemes" => "value",
+        "value" => "value",
         "text" => "source-text",
         "head" => "first-token",
         "tail" => "tokens-after-first",
@@ -489,6 +490,7 @@ fn channels_from_json(value: &Json) -> R<Channels> {
     Ok(Channels {
         value: value.get("value").map(term_from_json).transpose()?,
         image: value.get("image").map(term_from_json).transpose()?,
+        ..Channels::default()
     })
 }
 
@@ -595,94 +597,150 @@ fn expr_from_json(value: &Json) -> R<Expr> {
 }
 
 /// A range's two ends, from `{"range":[START,END]}`.
-fn range_from_json(value: &Json) -> R<(String, String)> {
-    match array(value, "range")? {
-        [Json::Str(start), Json::Str(end)] => Ok((start.clone(), end.clone())),
-        _ => Err("a malformed range".to_string()),
+pub(crate) fn term_from_json(value: &Json) -> R<Term> {
+    match read_value(value, false)? {
+        ReadValue::Term(term) => Ok(term),
+        _ => unreachable!(),
     }
 }
 
-pub(crate) fn term_from_json(value: &Json) -> R<Term> {
-    let list = |key: &str| -> R<Vec<Term>> { array(value, key)?.iter().map(term_from_json).collect() };
-    Ok(match first_key(value)? {
-        "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
-        "string" => Term::Str(string(value, "string")?),
-        "tag" => Term::Tag(string(value, "tag")?),
-        "range" => {
-            let (start, end) = range_from_json(value)?;
-            Term::Range(start, end)
-        }
-        "emptySet" => Term::EmptySet,
-        "union" => Term::Union(list("union")?),
-        "intersection" => Term::Intersection(list("intersection")?),
-        "difference" => match &list("difference")?[..] {
-            [left, right] => Term::Difference(Box::new(left.clone()), Box::new(right.clone())),
-            _ => return Err("a difference of other than two terms".to_string()),
-        },
-        "capture" => Term::Capture(string(value, "capture")?),
-        "const" => Term::Const(string(value, "const")?, position(value)?),
-        "if" => {
-            Term::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(term_from_json(field(value, "then")?)?))
-        }
-        "interpolate" | "concat" => {
-            Term::Call(first_key(value)?.into(), list(first_key(value)?)?.into_iter().map(Arg::Term).collect())
-        }
-        "method" => {
-            let mut args = vec![Arg::Term(term_from_json(field(value, "receiver")?)?)];
-            for arg in array(value, "args")? {
-                args.push(match (arg.get("rule"), arg.get("classifier")) {
-                    (Some(Json::Str(name)), _) => Arg::Rule(name.clone()),
-                    (_, Some(Json::Str(name))) => Arg::Classifier(name.clone()),
-                    _ => Arg::Term(term_from_json(arg)?),
-                });
-            }
-            Term::Call(method_alias(&string(value, "method")?).into(), args)
-        }
-        "call" => Term::Call(
-            string(value, "call")?,
-            array(value, "args")?
-                .iter()
-                .map(|arg| match (arg.get("rule"), arg.get("classifier")) {
-                    (Some(Json::Str(rule)), _) => Ok(Arg::Rule(rule.clone())),
-                    (_, Some(Json::Str(classifier))) => Ok(Arg::Classifier(classifier.clone())),
-                    _ => term_from_json(arg).map(Arg::Term),
-                })
-                .collect::<R<Vec<_>>>()?,
-        ),
-        other => return Err(format!("an unknown term {other:?}")),
-    })
+fn cond_from_json(value: &Json) -> R<Cond> {
+    match read_value(value, true)? {
+        ReadValue::Cond(cond) => Ok(cond),
+        _ => unreachable!(),
+    }
 }
 
-fn cond_from_json(value: &Json) -> R<Cond> {
-    Ok(match first_key(value)? {
-        "op" => Cond::Compare(
-            string(value, "op")?,
-            term_from_json(field(value, "left")?)?,
-            term_from_json(field(value, "right")?)?,
-        ),
-        "method" => {
-            let name = string(value, "method")?;
-            let receiver = term_from_json(field(value, "receiver")?)?;
-            let args = array(value, "args")?;
-            match (name.as_str(), args) {
-                ("starts-input", []) => Cond::Initial(receiver),
-                ("matches", [arg]) => Cond::Matches(receiver, string(arg, "rule")?),
-                ("begins", [arg]) => Cond::Begins(receiver, string(arg, "rule")?),
-                _ => return Err("a malformed predicate method".into()),
+enum ReadValue {
+    Term(Term),
+    Cond(Cond),
+}
+impl ReadValue {
+    fn term(self) -> Term {
+        match self {
+            Self::Term(term) => term,
+            _ => unreachable!(),
+        }
+    }
+    fn cond(self) -> Cond {
+        match self {
+            Self::Cond(cond) => cond,
+            _ => unreachable!(),
+        }
+    }
+}
+
+/// Conversion moves finished operands once. Deep legal DOMs need no deep stack.
+fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
+    let mut pending = vec![(root, condition, false)];
+    let mut values: Vec<ReadValue> = Vec::new();
+    while let Some((value, condition, ready)) = pending.pop() {
+        let key = first_key(value)?;
+        let mut children = Vec::new();
+        if condition {
+            match key {
+                "op" => {
+                    children.push((field(value, "left")?, false));
+                    children.push((field(value, "right")?, false));
+                }
+                "method" => children.push((field(value, "receiver")?, false)),
+                "not" => children.push((field(value, "not")?, true)),
+                "any" | "all" => children.extend(array(value, key)?.iter().map(|child| (child, true))),
+                "if" => {
+                    children.push((field(value, "if")?, true));
+                    children.push((field(value, "then")?, true));
+                }
+                "captured" => {}
+                _ => return Err(format!("an unknown condition {key:?}")),
+            }
+        } else {
+            match key {
+                "union" | "intersection" | "difference" | "interpolate" | "concat" => {
+                    children.extend(array(value, key)?.iter().map(|child| (child, false)))
+                }
+                "if" => {
+                    children.push((field(value, "if")?, true));
+                    children.push((field(value, "then")?, false));
+                }
+                "method" => {
+                    children.push((field(value, "receiver")?, false));
+                    children.extend(
+                        array(value, "args")?
+                            .iter()
+                            .filter(|arg| arg.get("rule").is_none() && arg.get("classifier").is_none())
+                            .map(|arg| (arg, false)),
+                    );
+                }
+                "pattern" | "string" | "tag" | "emptySet" | "capture" | "const" => {}
+                _ => return Err(format!("an unknown term {key:?}")),
             }
         }
-        "matches" => Cond::Matches(term_from_json(field(value, "matches")?)?, string(value, "rule")?),
-        "begins" => Cond::Begins(term_from_json(field(value, "begins")?)?, string(value, "rule")?),
-        "initial" => Cond::Initial(term_from_json(field(value, "initial")?)?),
-        "not" => Cond::Not(Box::new(cond_from_json(field(value, "not")?)?)),
-        "any" => Cond::Any(array(value, "any")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
-        "all" => Cond::All(array(value, "all")?.iter().map(cond_from_json).collect::<R<Vec<_>>>()?),
-        "captured" => Cond::Captured(string(value, "captured")?),
-        "if" => {
-            Cond::If(Box::new(cond_from_json(field(value, "if")?)?), Box::new(cond_from_json(field(value, "then")?)?))
+        if !ready {
+            pending.push((value, condition, true));
+            pending.extend(children.iter().rev().map(|&(child, condition)| (child, condition, false)));
+            continue;
         }
-        other => return Err(format!("an unknown condition {other:?}")),
-    })
+        let mut operands = values.split_off(values.len() - children.len()).into_iter();
+        let built = if condition {
+            ReadValue::Cond(match key {
+                "op" => Cond::Compare(
+                    string(value, "op")?,
+                    operands.next().unwrap().term(),
+                    operands.next().unwrap().term(),
+                ),
+                "method" => {
+                    let receiver = operands.next().unwrap().term();
+                    let name = string(value, "method")?;
+                    match (name.as_str(), array(value, "args")?) {
+                        ("starts-input", []) => Cond::Initial(receiver),
+                        ("matches", [arg]) => Cond::Matches(receiver, string(arg, "rule")?),
+                        ("begins", [arg]) => Cond::Begins(receiver, string(arg, "rule")?),
+                        _ => return Err("a malformed predicate method".into()),
+                    }
+                }
+                "not" => Cond::Not(Box::new(operands.next().unwrap().cond())),
+                "any" => Cond::Any(operands.map(ReadValue::cond).collect()),
+                "all" => Cond::All(operands.map(ReadValue::cond).collect()),
+                "captured" => Cond::Captured(string(value, "captured")?),
+                "if" => Cond::If(Box::new(operands.next().unwrap().cond()), Box::new(operands.next().unwrap().cond())),
+                _ => unreachable!(),
+            })
+        } else {
+            ReadValue::Term(match key {
+                "pattern" => Term::Pattern(Box::new(crate::patterns::Pattern::from_json(field(value, "pattern")?)?)),
+                "string" => Term::Str(string(value, "string")?),
+                "tag" => Term::Tag(string(value, "tag")?),
+                "emptySet" => Term::EmptySet,
+                "capture" => Term::Capture(string(value, "capture")?),
+                "const" => Term::Const(string(value, "const")?, position(value)?),
+                "union" => Term::Union(operands.map(ReadValue::term).collect()),
+                "intersection" => Term::Intersection(operands.map(ReadValue::term).collect()),
+                "difference" => {
+                    let left = operands.next().ok_or("a difference lacks its left operand")?.term();
+                    let right = operands.next().ok_or("a difference lacks its right operand")?.term();
+                    Term::Difference(Box::new(left), Box::new(right))
+                }
+                "if" => Term::If(Box::new(operands.next().unwrap().cond()), Box::new(operands.next().unwrap().term())),
+                "interpolate" | "concat" => {
+                    Term::Call(key.into(), operands.map(|value| Arg::Term(value.term())).collect())
+                }
+                "method" => {
+                    let mut args = vec![Arg::Term(operands.next().unwrap().term())];
+                    for arg in array(value, "args")? {
+                        args.push(match (arg.get("rule"), arg.get("classifier")) {
+                            (Some(Json::Str(name)), _) => Arg::Rule(name.clone()),
+                            (_, Some(Json::Str(name))) => Arg::Classifier(name.clone()),
+                            _ => Arg::Term(operands.next().unwrap().term()),
+                        });
+                    }
+                    Term::Call(method_alias(&string(value, "method")?).into(), args)
+                }
+                _ => unreachable!(),
+            })
+        };
+        values.push(built);
+    }
+    Ok(values.pop().expect("the root value"))
 }
 
 fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
@@ -726,78 +784,6 @@ fn emit_from_json(value: &Json) -> R<Vec<EmitItem>> {
 /// number of such ancestors, counted from the root at 0.
 pub(crate) const DOM_MAX_DEPTH: usize = 256;
 
-fn is_object(value: &Json) -> bool {
-    matches!(value, Json::Obj(_))
-}
-
-fn has(value: &Json, key: &str) -> bool {
-    value.get(key).is_some()
-}
-
-/// The forms of an expression, each as its members (docs/output.md). The
-/// first member names the form.
-const EXPR_FORMS: [&[&str]; 13] = [
-    &["seq"],
-    &["choice"],
-    &["ranked"],
-    &["and"],
-    &["optional", "elidable?"],
-    &["repeat", "separator?", "chain?"],
-    &["ref"],
-    &["terminal"],
-    &["capture", "expr"],
-    &["range"],
-    &["property"],
-    &["test", "value", "expr"],
-    &["empty"],
-];
-
-/// The forms of a term, each as its members (docs/output.md). The first
-/// member names the form.
-const TERM_FORMS: [&[&str]; 12] = [
-    &["pattern"],
-    &["union"],
-    &["intersection"],
-    &["difference"],
-    &["if", "then"],
-    &["call", "args"],
-    &["string"],
-    &["tag"],
-    &["range"],
-    &["emptySet"],
-    &["capture"],
-    &["const", "at"],
-];
-
-/// The forms of a condition, each as its members (docs/output.md). The
-/// first member names the form.
-const COND_FORMS: [&[&str]; 9] = [
-    &["op", "left", "right"],
-    &["matches", "rule"],
-    &["begins", "rule"],
-    &["initial"],
-    &["not"],
-    &["any"],
-    &["all"],
-    &["captured"],
-    &["if", "then"],
-];
-
-/// Whether a node has exactly the members of one of its forms, and no
-/// other. So a node that joins two forms, such as `{"tag":…,"string":…}`,
-/// is refused before it is read, whatever the order of its members. A
-/// member that ends in `?` may be absent.
-fn has_one_form(value: &Json, forms: &[&[&str]]) -> bool {
-    let Some(members) = value.as_object() else {
-        return false;
-    };
-    let Some(form) = forms.iter().find(|form| has(value, form[0])) else {
-        return false;
-    };
-    form.iter().all(|member| member.ends_with('?') || has(value, member))
-        && members.iter().all(|(key, _)| form.iter().any(|member| member.trim_end_matches('?') == key))
-}
-
 fn is_str(value: Option<&Json>) -> bool {
     matches!(value, Some(Json::Str(_)))
 }
@@ -811,35 +797,6 @@ fn is_position(value: Option<&Json>) -> bool {
 }
 
 /// A rule's name: a name, or `#`, the free-modifier slot (engine §2).
-fn is_rule_name(name: &str) -> bool {
-    let mut chars = name.chars();
-    name == "#"
-        || chars.next().is_some_and(|c| c.is_ascii_alphabetic())
-            && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
-
-/// `$`, the whole constituent, as a span or a term.
-fn is_whole(value: &Json) -> bool {
-    matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "capture" && name.is_empty())
-}
-
-/// A span: a capture, or `head`, `tail`, `last`, `from` or `after` of
-/// something.
-fn is_span_json(value: &Json) -> bool {
-    is_object(value)
-        && (is_str(value.get("capture"))
-            || matches!(
-                value.get("call").and_then(Json::as_str),
-                Some("head" | "tail" | "last" | "from" | "after" | "without-elision")
-            ))
-}
-
-/// Whether a JSON value is a tag in its canonical spelling (engine §1).
-fn is_tag_json(value: Option<&Json>, unicode: &Unicode) -> bool {
-    matches!(value, Some(Json::Str(tag)) if is_tag(tag, unicode))
-}
-
-/// A capture's name is all lower case (engine §9).
 pub(crate) fn is_capture_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars.next().is_some_and(|c| c.is_ascii_lowercase())
@@ -854,12 +811,6 @@ fn is_rule_arg(value: &Json) -> bool {
 /// member (engine §9).
 fn is_classifier_arg(value: &Json) -> bool {
     matches!(value.as_object(), Some([(key, Json::Str(name))]) if key == "classifier" && is_classifier_name(name))
-}
-
-/// An argument that stands for a value: neither a rule's name, nor a
-/// classifier's, nor a span (engine §9).
-fn is_value_arg(value: &Json) -> bool {
-    !is_rule_arg(value) && !is_classifier_arg(value) && !is_span_json(value)
 }
 
 /// The comparators of a test in a body (engine §2): the two sound tests
@@ -896,59 +847,6 @@ pub(crate) fn sound_problem(_: &str, _: &Unicode) -> Option<&'static str> {
     None
 }
 
-/// What is wrong with a range (engine §1, §9), or `None`: its ends must be
-/// two character tags in their canonical spelling, the start not above the
-/// end.
-pub(crate) fn range_problem(start: &str, end: &str, unicode: &Unicode) -> Option<String> {
-    match (character_code(start, unicode), character_code(end, unicode)) {
-        (Some(first), Some(last)) if first > last => Some(format!("the range {start}..{end} starts above its end")),
-        (Some(_), Some(_)) => None,
-        _ => Some("a range's ends are two character tags".to_string()),
-    }
-}
-
-/// What is wrong with a property's name (engine §1, §9), or `None`.
-pub(crate) fn property_problem(name: &str) -> Option<String> {
-    (!is_property_name(name)).then(|| {
-        format!(
-            "'\\p{{{name}}}' is not a property: a property is a General_Category value in its short form, \
-             a one-letter group of them, White_Space or Any"
-        )
-    })
-}
-
-/// Whether a JSON value is `[START,END]`, a range the DOM allows.
-fn is_range_json(value: Option<&Json>, unicode: &Unicode) -> bool {
-    matches!(value.and_then(Json::as_array), Some([Json::Str(start), Json::Str(end)])
-        if range_problem(start, end, unicode).is_none())
-}
-
-/// Whether an expression is a range or a property that the DOM allows, with
-/// no other member.
-fn is_character_class_json(value: &Json, unicode: &Unicode) -> bool {
-    match value.as_object() {
-        Some([(key, range)]) if key == "range" => is_range_json(Some(range), unicode),
-        Some([(key, Json::Str(name))]) if key == "property" => property_problem(name).is_none(),
-        _ => false,
-    }
-}
-
-/// Whether a JSON expression is one a test may follow (engine §2): a
-/// reference other than `#`, a terminal, a range or a property, with no
-/// other member, so that no node is read one way here and another way when
-/// it is built.
-fn is_testable_json(value: &Json, unicode: &Unicode) -> bool {
-    match value.as_object() {
-        Some([(key, Json::Str(name))]) if key == "ref" => name != "#" && is_rule_name(name),
-        Some([(key, Json::Str(tag))]) if key == "terminal" => is_tag(tag, unicode),
-        _ => is_character_class_json(value, unicode),
-    }
-}
-
-/// The terminal at the head of an elidable optional's expression, or
-/// `None` where it has none (engine §3.8, §9): a `ref` whose name begins
-/// with a capital, a `terminal` whose tag is a name, or an `=` test of one
-/// of these, alone or first in a `seq`.
 fn elidable_head_json(expr: &Json) -> Option<&Json> {
     let head = match expr.get("seq").and_then(Json::as_array) {
         Some([head, ..]) => head,
@@ -964,711 +862,7 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
     }
 }
 
-/// What is wrong with a test's value (engine §9), or `None`: it must be a
-/// closed term, of type string for a sound test and tag set for a tag test,
-/// and a string literal of a sound test must be a canonical sound. The
-/// shape of the value must already be checked, and its nesting bounded.
-fn test_value_problem(op: &str, value: &Json, unicode: &Unicode) -> Option<&'static str> {
-    if !is_closed_json(value) {
-        return Some("a test's operand is a closed term, and reads no capture or span");
-    }
-    let Ok(term) = term_from_json(value) else {
-        return Some("a malformed term");
-    };
-    match term_type(&term) {
-        Err(_) => return Some("a term or a condition whose types do not agree"),
-        Ok(ty) if test_type_problem(op, ty).is_some() => return Some("a test's value is of the wrong type"),
-        Ok(_) => {}
-    }
-    match &term {
-        Term::Str(sound) if is_sound_test(op) => sound_problem(sound, unicode),
-        _ => None,
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind {
-    /// An expression: `whole` where it is its alternative's whole
-    /// expression, where a chain may stand, and `sealed` where it is inside
-    /// braces or an elidable optional, where no capture stands (engine §9).
-    Expr {
-        whole: bool,
-        sealed: bool,
-    },
-    Term,
-    /// A rule's or an alternative's tag term, which may not read the tags
-    /// it defines: `$`, `tags($)` or `classes($)` (engine §9).
-    TagTerm,
-    /// A function's argument: a term where a span may stand.
-    Argument,
-    Condition,
-    /// A condition inside a tag term, a guard's, which may not read the
-    /// tags the term defines either.
-    TagCondition,
-    Emission,
-    Pattern,
-}
-
-/// Why a JSON value is not a DOM the reader could have produced (engine
-/// §9, docs/output.md "A grammar DOM"), or `None` when it is one. A DOM
-/// from the bootstrap or from `compiled.json` is held to every rule the
-/// reader enforces, so that no cache entry can change a result.
-/// The strings of sound tests are checked against `unicode`'s lowercase
-/// mapping, the one the match uses.
-#[allow(dead_code)]
-fn legacy_dom_problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
-    if !is_object(dom)
-        || dom.get("format").and_then(Json::as_int) != Some(DOM_FORMAT)
-        || dom.get("rules").and_then(Json::as_array).is_none()
-        || dom.get("directives").and_then(Json::as_array).is_none()
-        || dom.get("constants").and_then(Json::as_array).is_none()
-        || dom.get("classifiers").and_then(Json::as_array).is_none()
-        || dom.get("implications").and_then(Json::as_array).is_none()
-    {
-        return Some("not a DOM of this format");
-    }
-    for directive in dom.get("directives").and_then(Json::as_array).unwrap_or(&[]) {
-        let args = directive.get("args").and_then(Json::as_array);
-        if !is_object(directive)
-            || !is_str(directive.get("name"))
-            || !args.is_some_and(|args| args.iter().all(|arg| matches!(arg, Json::Str(_))))
-            || !is_position(directive.get("at"))
-        {
-            return Some("a malformed directive");
-        }
-        // The operands the notation's syntax allows these directives
-        // (engine §9).
-        let args: Vec<&str> = args.unwrap_or(&[]).iter().filter_map(Json::as_str).collect();
-        let is_name = |arg: &&str| *arg != "#" && is_rule_name(arg);
-        // The notation accepts stage selectors, and `%elidable` is none of them
-        // (engine §9).
-        let operands_ok = match directive.get("name").and_then(Json::as_str) {
-            Some("stage" | "extend-stage" | "redefine-stage") => args.len() == 1 && args.iter().all(is_name),
-            Some("include") => args.len() == 1,
-            Some("features") => !args.is_empty() && args.iter().all(is_name),
-            Some("ambiguity-resolution") => true,
-            _ => false,
-        };
-        // No directive has the member `maximal` (engine §9).
-        if !operands_ok
-            || has(directive, "maximal")
-            || (directive.get("name").and_then(Json::as_str) == Some("ambiguity-resolution")
-                && args.contains(&"maximal"))
-        {
-            return Some("a malformed directive");
-        }
-    }
-    let mut pending: Vec<(Kind, &Json, usize)> = Vec::new();
-    // The tested symbols, whose values are checked once the nesting is
-    // bounded.
-    let mut tests: Vec<&Json> = Vec::new();
-    // A constant's definition: its name, its op, its position and a value
-    // that is a closed term (engine §2, §10).
-    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
-        let well_formed = constant.as_object().is_some_and(|members| members.len() == 4)
-            && constant.get("name").and_then(Json::as_str).is_some_and(is_constant_name)
-            && matches!(constant.get("op").and_then(Json::as_str), Some("define" | "redefine"))
-            && is_position(constant.get("at"));
-        let Some(value) = constant.get("value").filter(|_| well_formed) else {
-            return Some("a malformed constant");
-        };
-        pending.push((Kind::Term, value, 0));
-    }
-    // A classifier: its name, and entries of gates, canonical keys, an
-    // operator and a class (engine §2, §9).
-    for classifier in dom.get("classifiers").and_then(Json::as_array).unwrap_or(&[]) {
-        let entries = classifier.get("entries").and_then(Json::as_array);
-        if !classifier.as_object().is_some_and(|members| members.len() == 3)
-            || !classifier.get("name").and_then(Json::as_str).is_some_and(is_classifier_name)
-            || !is_position(classifier.get("at"))
-        {
-            return Some("a malformed classifier");
-        }
-        let Some(entries) = entries else {
-            return Some("a malformed classifier");
-        };
-        for entry in entries {
-            let gates_ok = entry.get("guards").and_then(Json::as_array).is_some_and(|guards| {
-                guards.iter().all(|guard| {
-                    guard.as_object().is_some_and(|members| members.len() == 3)
-                        && guard.get("feature").and_then(Json::as_str).is_some_and(is_name)
-                        && guard.get("kind").and_then(Json::as_str) == Some("gate")
-                        && matches!(guard.get("negated"), Some(Json::Bool(_)))
-                })
-            });
-            let keys_ok = entry.get("keys").and_then(Json::as_array).is_some_and(|keys| {
-                !keys.is_empty()
-                    && keys.iter().all(|key| matches!(key, Json::Str(key) if sound_problem(key, unicode).is_none()))
-            });
-            if !entry.as_object().is_some_and(|members| members.len() == 5)
-                || !is_position(entry.get("at"))
-                || !matches!(entry.get("op").and_then(Json::as_str), Some("∈" | "∉"))
-                || !entry.get("class").and_then(Json::as_str).is_some_and(is_constant_name)
-                || !gates_ok
-                || !keys_ok
-            {
-                return Some("a malformed entry of a classifier");
-            }
-        }
-    }
-    // An implication: two closed terms whose type is a tag set, checked
-    // once the nesting is bounded (engine §2, §9).
-    for implication in dom.get("implications").and_then(Json::as_array).unwrap_or(&[]) {
-        let (Some(antecedent), Some(consequent)) = (implication.get("if"), implication.get("then")) else {
-            return Some("a malformed implication");
-        };
-        if !implication.as_object().is_some_and(|members| members.len() == 3) || !is_position(implication.get("at")) {
-            return Some("a malformed implication");
-        }
-        pending.push((Kind::Term, antecedent, 0));
-        pending.push((Kind::Term, consequent, 0));
-    }
-    for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
-        let alternatives = rule.get("alternatives").and_then(Json::as_array);
-        let conditions = rule.get("conditions").and_then(Json::as_array);
-        if !is_object(rule)
-            || !rule.get("name").and_then(Json::as_str).is_some_and(is_rule_name)
-            || !matches!(rule.get("op").and_then(Json::as_str), Some("define" | "redefine" | "extend"))
-            || !rule.get("flags").and_then(Json::as_array).is_some_and(|flags| {
-                flags.len() <= 1 && flags.iter().all(|flag| flag.as_str() == Some("leftmost-longest"))
-                    && (rule.get("op").and_then(Json::as_str) != Some("extend") || flags.is_empty())
-            })
-            || !alternatives.is_some_and(|alternatives| !alternatives.is_empty())
-            || conditions.is_none()
-            || !is_position(rule.get("at"))
-            // `opaque` is present only as true (docs/output.md).
-            || !matches!(rule.get("opaque"), None | Some(Json::Bool(true)))
-        {
-            return Some("a malformed rule");
-        }
-        if let Some(tags) = rule.get("tags") {
-            pending.push((Kind::TagTerm, tags, 0));
-        }
-        if let Some(emit) = rule.get("emit") {
-            pending.push((Kind::Emission, emit, 0));
-        }
-        for condition in conditions.unwrap_or(&[]) {
-            pending.push((Kind::Condition, condition, 0));
-        }
-        for alternative in alternatives.unwrap_or(&[]) {
-            // A guard is a gate, negated or not, or a warning, which never
-            // is, of a feature that is a name (§9), with no other member.
-            let guards = alternative.get("guards").and_then(Json::as_array);
-            let guards_ok = guards.is_some_and(|guards| {
-                guards.iter().all(|guard| {
-                    guard.as_object().is_some_and(|members| members.len() == 3)
-                        && guard.get("feature").and_then(Json::as_str).is_some_and(is_name)
-                        && match (guard.get("kind").and_then(Json::as_str), guard.get("negated")) {
-                            (Some("gate"), Some(Json::Bool(_))) => true,
-                            (Some("warning"), Some(Json::Bool(negated))) => !negated,
-                            _ => false,
-                        }
-                })
-            });
-            if !is_object(alternative) || !guards_ok {
-                return Some("a malformed alternative");
-            }
-            // The alternative's whole expression, where a chain may stand
-            // (engine §9).
-            match alternative.get("expr") {
-                Some(expr) => pending.push((Kind::Expr { whole: true, sealed: false }, expr, 0)),
-                None => return Some("a malformed alternative"),
-            }
-            if let Some(tags) = alternative.get("tags") {
-                pending.push((Kind::TagTerm, tags, 0));
-            }
-        }
-    }
-    let list = |items: Option<&Json>, least: usize, most: usize| {
-        items.and_then(Json::as_array).is_some_and(|items| items.len() >= least && items.len() <= most)
-    };
-    while let Some((kind, value, depth)) = pending.pop() {
-        if depth > DOM_MAX_DEPTH {
-            return Some("nested too deeply");
-        }
-        if !is_object(value) {
-            return Some(match kind {
-                Kind::Expr { .. } => "a malformed expression",
-                Kind::Term | Kind::TagTerm | Kind::Argument => "a malformed term",
-                Kind::Condition | Kind::TagCondition => "a malformed condition",
-                Kind::Emission => "a malformed emission",
-                Kind::Pattern => "a malformed pattern",
-            });
-        }
-        let next = depth + 1;
-        match kind {
-            Kind::Pattern => {
-                if let Some(test_value) = value.get("value") {
-                    pending.push((Kind::Term, test_value, next));
-                    tests.push(value);
-                }
-                for key in ["pattern", "children", "node", "optional", "repeat", "separator", "expr"] {
-                    if let Some(child) = value.get(key) {
-                        pending.push((Kind::Pattern, child, next));
-                    }
-                }
-                for key in ["union", "intersection", "difference", "sequence"] {
-                    if let Some(xs) = value.get(key).and_then(Json::as_array) {
-                        pending.extend(xs.iter().map(|x| (Kind::Pattern, x, next)));
-                    }
-                }
-            }
-            Kind::Expr { whole, sealed } => {
-                // An expression has exactly the members of one form
-                // (docs/output.md).
-                if !has_one_form(value, &EXPR_FORMS) {
-                    return Some(if has(value, "ranked") {
-                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                    } else {
-                        "a malformed expression"
-                    });
-                }
-                let expr = |item, inside: bool| (Kind::Expr { whole: false, sealed: sealed || inside }, item, next);
-                if has(value, "range") || has(value, "property") {
-                    if !is_character_class_json(value, unicode) {
-                        return Some(if has(value, "ranked") {
-                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                        } else {
-                            "a malformed expression"
-                        });
-                    }
-                } else if has(value, "choice") || has(value, "ranked") || has(value, "seq") {
-                    let items = value.get("choice").or_else(|| value.get("ranked")).or_else(|| value.get("seq"));
-                    if !list(items, 2, usize::MAX) {
-                        return Some(if has(value, "ranked") {
-                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                        } else {
-                            "a malformed expression"
-                        });
-                    }
-                    pending.extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)));
-                } else if has(value, "and") {
-                    if !list(value.get("and"), 2, crate::grammar::MAX_AND) {
-                        return Some(if has(value, "ranked") {
-                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                        } else {
-                            "a malformed expression"
-                        });
-                    }
-                    pending.extend(
-                        value.get("and").and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| expr(item, false)),
-                    );
-                } else if let Some(inner) = value.get("repeat") {
-                    // A chain is the whole expression of its alternative,
-                    // and its direction is left or right (engine §9). The
-                    // separator counts on from the depth of its repeat, as
-                    // the item does, and neither holds a capture.
-                    if let Some(chain) = value.get("chain") {
-                        if !whole || !matches!(chain.as_str(), Some("left" | "right")) {
-                            return Some(if has(value, "ranked") {
-                                "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                            } else {
-                                "a malformed expression"
-                            });
-                        }
-                    }
-                    pending.push(expr(inner, true));
-                    if let Some(separator) = value.get("separator") {
-                        pending.push(expr(separator, true));
-                    }
-                } else if let Some(inner) = value.get("optional") {
-                    // An elidable optional is marked true; its expression begins with its terminal
-                    // (engine §3.8, §9).
-                    let elidable = value.get("elidable");
-                    if elidable.is_some_and(|marked| *marked != Json::Bool(true)) {
-                        return Some(if has(value, "ranked") {
-                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                        } else {
-                            "a malformed expression"
-                        });
-                    }
-                    if elidable.is_some() && elidable_head_json(inner).is_none() {
-                        return Some("a malformed elidable optional");
-                    }
-                    pending.push(expr(inner, elidable.is_some()));
-                } else if has(value, "capture") {
-                    // A capture stands anywhere but in braces or an elidable
-                    // optional, and wraps one symbol: a reference, a
-                    // terminal, a range, a property or a tested one of these
-                    // (engine §3.5, §9).
-                    if sealed {
-                        return Some("a capture inside braces or an elidable optional");
-                    }
-                    let inner = value.get("expr").filter(|inner| {
-                        ["ref", "terminal", "range", "property", "test"].iter().any(|member| has(inner, member))
-                    });
-                    // `$` is the whole constituent and wraps nothing, and a
-                    // name is all lower case.
-                    let named = value.get("capture").and_then(Json::as_str).is_some_and(is_capture_name);
-                    let Some(inner) = inner.filter(|_| named) else {
-                        return Some("a malformed capture");
-                    };
-                    // A capture is a compound node, and its symbol below it
-                    // is checked as any expression is.
-                    pending.push(expr(inner, false));
-                } else if let Some(op) = value.get("test") {
-                    // A compound node (engine §9) over one symbol; its value
-                    // counts on from its depth, and is checked once the
-                    // nesting is bounded.
-                    if !op.as_str().is_some_and(|op| TEST_OPS.contains(&op)) {
-                        return Some("a malformed test");
-                    }
-                    let (Some(inner), Some(test_value)) = (value.get("expr"), value.get("value")) else {
-                        return Some(if has(value, "ranked") {
-                            "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                        } else {
-                            "a malformed expression"
-                        });
-                    };
-                    if !is_testable_json(inner, unicode) {
-                        return Some("a test follows only a reference other than # or a terminal");
-                    }
-                    pending.push(expr(inner, false));
-                    pending.push((Kind::Term, test_value, next));
-                    tests.push(value);
-                } else if !(value.get("ref").and_then(Json::as_str).is_some_and(is_rule_name)
-                    || is_tag_json(value.get("terminal"), unicode)
-                    || is_true(value.get("empty")))
-                {
-                    // A reference is a name or `#` (§9).
-                    return Some(if has(value, "ranked") {
-                        "ranked-choice-syntax: A ranked expression requires at least two operands and no other form."
-                    } else {
-                        "a malformed expression"
-                    });
-                }
-            }
-            Kind::Emission => {
-                // `$` only with `$`, a capture other than `$` listed once,
-                // tags only on a capture, never `<∅>`, and no member but
-                // those; no items is `ε` (§9). Attachments are lists of
-                // named captures, present only when not empty, and only on
-                // a named capture, and they count as listed.
-                if !list(value.get("items"), 0, usize::MAX) || value.as_object().map_or(0, <[_]>::len) != 1 {
-                    return Some("a malformed emission");
-                }
-                let items = value.get("items").and_then(Json::as_array).unwrap_or(&[]);
-                let mut whole = 0;
-                let mut captures: FxSet<&str> = FxSet::default();
-                for item in items {
-                    let known = item.as_object().is_some_and(|members| {
-                        members
-                            .iter()
-                            .all(|(key, _)| matches!(key.as_str(), "capture" | "insert" | "tags" | "before" | "after"))
-                    });
-                    if !known {
-                        return Some("a malformed emission");
-                    }
-                    if let Some(name) = item.get("capture").and_then(Json::as_str) {
-                        if has(item, "insert") {
-                            return Some("a malformed emission");
-                        }
-                        let sides = [item.get("before"), item.get("after")];
-                        if name.is_empty() {
-                            if sides.iter().any(Option::is_some) {
-                                return Some("a malformed emission");
-                            }
-                            whole += 1;
-                        }
-                        let mut named = if name.is_empty() { Vec::new() } else { vec![name] };
-                        for side in sides.into_iter().flatten() {
-                            if !list(Some(side), 1, usize::MAX) {
-                                return Some("a malformed emission");
-                            }
-                            for attachment in side.as_array().unwrap_or(&[]) {
-                                match attachment.as_str() {
-                                    Some(attachment) if is_capture_name(attachment) => named.push(attachment),
-                                    _ => return Some("a malformed emission"),
-                                }
-                            }
-                        }
-                        for name in named {
-                            if !captures.insert(name) {
-                                return Some("a malformed emission");
-                            }
-                        }
-                    } else if is_tag_json(item.get("insert"), unicode) {
-                        if has(item, "tags") || has(item, "before") || has(item, "after") {
-                            return Some("a malformed emission");
-                        }
-                    } else {
-                        return Some("a malformed emission");
-                    }
-                    if let Some(tags) = item.get("tags") {
-                        if is_true(tags.get("emptySet")) {
-                            return Some("a malformed emission");
-                        }
-                        // The emission is no node of the term: its depth
-                        // counts from the term's own root (§9).
-                        pending.push((Kind::Term, tags, 0));
-                    }
-                }
-                if whole > 0 && whole < items.len() {
-                    return Some("a malformed emission");
-                }
-            }
-            Kind::Condition | Kind::TagCondition => {
-                // A guard's condition inside a tag term may not read the
-                // term's own tags either (§9).
-                let (conditions, terms) =
-                    if kind == Kind::TagCondition { (kind, Kind::TagTerm) } else { (kind, Kind::Term) };
-                // A condition has exactly the members of one form
-                // (docs/output.md).
-                if !has_one_form(value, &COND_FORMS) {
-                    return Some("a malformed condition");
-                }
-                if has(value, "any") || has(value, "all") {
-                    let items = value.get("any").or_else(|| value.get("all"));
-                    if !list(items, 2, usize::MAX) {
-                        return Some("a malformed condition");
-                    }
-                    pending.extend(
-                        items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (conditions, item, next)),
-                    );
-                } else if let Some(inner) = value.get("not") {
-                    pending.push((conditions, inner, next));
-                } else if let Some(name) = value.get("captured") {
-                    if !matches!(name, Json::Str(_)) || value.as_object().map_or(0, <[_]>::len) != 1 {
-                        return Some("a malformed condition");
-                    }
-                } else if let Some(inner) = value.get("if") {
-                    let Some(then) = value.get("then").filter(|_| value.as_object().map_or(0, <[_]>::len) == 2) else {
-                        return Some("a malformed condition");
-                    };
-                    pending.push((conditions, inner, next));
-                    pending.push((conditions, then, next));
-                } else if let Some(span) = value.get("matches").or_else(|| value.get("begins")) {
-                    let both = has(value, "matches") && has(value, "begins");
-                    if !is_str(value.get("rule")) || !is_span_json(span) || both {
-                        return Some("a malformed condition");
-                    }
-                    pending.push((Kind::Argument, span, next));
-                } else if let Some(span) = value.get("initial") {
-                    if value.as_object().map_or(0, <[_]>::len) != 1 || !is_span_json(span) {
-                        return Some("a malformed condition");
-                    }
-                    pending.push((Kind::Argument, span, next));
-                } else {
-                    if !matches!(
-                        value.get("op").and_then(Json::as_str),
-                        Some("=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "≅" | "≇")
-                    ) {
-                        return Some("a malformed condition");
-                    }
-                    match (value.get("left"), value.get("right")) {
-                        (Some(left), Some(right)) => {
-                            if matches!(value.get("op").and_then(Json::as_str), Some("≅" | "≇")) {
-                                if !matches!(left.as_object(),Some([(k,Json::Str(_))]) if k=="capture") {
-                                    return Some("a tree comparison reads one bare capture");
-                                }
-                                pending.push((Kind::Argument, left, next));
-                            } else {
-                                pending.push((terms, left, next));
-                            }
-                            pending.push((terms, right, next));
-                        }
-                        _ => return Some("a malformed condition"),
-                    }
-                }
-            }
-            Kind::Term | Kind::TagTerm | Kind::Argument => {
-                // A term has exactly the members of one form, so that no
-                // node is read as one form here and another elsewhere.
-                if !has_one_form(value, &TERM_FORMS) {
-                    return Some("a malformed term");
-                }
-                let own = kind == Kind::TagTerm;
-                if own && is_whole(value) {
-                    return Some("a tag term that reads the tags it defines");
-                }
-                let inner = if own { Kind::TagTerm } else { Kind::Term };
-                if let Some(pattern) = value.get("pattern") {
-                    pending.push((Kind::Pattern, pattern, next));
-                } else if let Some(cond) = value.get("if") {
-                    let Some(then) = value.get("then").filter(|_| value.as_object().map_or(0, <[_]>::len) == 2) else {
-                        return Some("a malformed term");
-                    };
-                    pending.push((if own { Kind::TagCondition } else { Kind::Condition }, cond, next));
-                    pending.push((inner, then, next));
-                } else if has(value, "union") || has(value, "intersection") || has(value, "difference") {
-                    let items = value.get("union").or_else(|| value.get("intersection"));
-                    let (items, most) = match items {
-                        Some(items) => (Some(items), usize::MAX),
-                        None => (value.get("difference"), 2),
-                    };
-                    if !list(items, 2, most) {
-                        return Some("a malformed term");
-                    }
-                    pending
-                        .extend(items.and_then(Json::as_array).unwrap_or(&[]).iter().map(|item| (inner, item, next)));
-                } else if has(value, "call") {
-                    // The reader's signatures, with a span where one is due.
-                    let args = value.get("args").and_then(Json::as_array).unwrap_or(&[]);
-                    let call = value.get("call").and_then(Json::as_str);
-                    let ok = match call {
-                        Some("without-elision") => {
-                            matches!(args, [capture] if matches!(capture.as_object(), Some([(name, Json::Str(_))]) if name == "capture"))
-                        }
-                        Some("tags") => match args {
-                            [span] => is_span_json(span),
-                            [span, rule] => is_span_json(span) && is_rule_arg(rule),
-                            _ => false,
-                        },
-                        // Their arguments' types are checked with the others'.
-                        Some("split") => {
-                            matches!(args, [a, b] if [a, b].iter().all(|arg| is_value_arg(arg)))
-                        }
-                        Some("tag") => matches!(args, [string] if is_value_arg(string)),
-                        Some("classify") => {
-                            matches!(args, [string, classifier] if is_value_arg(string) && is_classifier_arg(classifier))
-                        }
-                        Some("phonemes" | "text" | "classes" | "head" | "tail" | "last" | "from" | "after") => {
-                            matches!(args, [span] if is_span_json(span))
-                        }
-                        // `matches`, `begins` and `initial` are conditions,
-                        // never terms.
-                        _ => false,
-                    };
-                    let span_call =
-                        matches!(call, Some("head" | "tail" | "last" | "from" | "after" | "without-elision"));
-                    if !ok || (kind != Kind::Argument && span_call) {
-                        return Some("a malformed term");
-                    }
-                    if own && matches!(call, Some("tags" | "classes")) && matches!(args, [span] if is_whole(span)) {
-                        return Some("a tag term that reads the tags it defines");
-                    }
-                    if let Some(problem) = call.and_then(|call| literal_call_problem_json(call, args)) {
-                        return Some(problem);
-                    }
-                    for arg in args {
-                        if !is_rule_arg(arg) && !is_classifier_arg(arg) {
-                            pending.push((Kind::Argument, arg, next));
-                        }
-                    }
-                } else if !(is_str(value.get("string"))
-                    || is_tag_json(value.get("tag"), unicode)
-                    || is_range_json(value.get("range"), unicode)
-                    || is_true(value.get("emptySet"))
-                    || is_str(value.get("capture"))
-                    || (value.get("const").and_then(Json::as_str).is_some_and(is_constant_name)
-                        && is_position(value.get("at"))))
-                {
-                    return Some("a malformed term");
-                }
-            }
-        }
-    }
-    // Pattern conversion starts only after the complete DOM is bounded.
-    let mut nodes = vec![dom];
-    while let Some(node) = nodes.pop() {
-        match node {
-            Json::Obj(members) => {
-                if let Some(pattern) = node.get("pattern") {
-                    if node.as_object().is_some_and(|xs| xs.len() == 1)
-                        && crate::patterns::Pattern::from_json(pattern).is_err()
-                    {
-                        return Some("a malformed pattern");
-                    }
-                }
-                nodes.extend(members.iter().map(|(_, v)| v));
-            }
-            Json::Arr(xs) => nodes.extend(xs),
-            _ => {}
-        }
-    }
-    // The walks below recurse, so they run only once the nesting is
-    // bounded.
-    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
-        if !constant.get("value").is_some_and(is_closed_json) {
-            return Some("a constant's value is not a closed term");
-        }
-    }
-    for implication in dom.get("implications").and_then(Json::as_array).unwrap_or(&[]) {
-        for side in [implication.get("if"), implication.get("then")].into_iter().flatten() {
-            if !is_closed_json(side) {
-                return Some("a side of an implication is not a closed term");
-            }
-            match term_from_json(side).map(|term| term_type(&term)) {
-                Ok(Ok(ty)) if expected_problem(ty, Type::Tags).is_none() => {}
-                Ok(Ok(_)) => return Some("a side of an implication is not a tag set"),
-                Ok(Err(_)) => return Some("a term or a condition whose types do not agree"),
-                Err(_) => return Some("a malformed implication"),
-            }
-        }
-    }
-    for test in tests {
-        let op = test.get("test").and_then(Json::as_str).unwrap_or("");
-        if let Some(problem) = test_value_problem(op, test.get("value").unwrap_or(&Json::Null), unicode) {
-            return Some(problem);
-        }
-    }
-    // Terms and conditions whose types do not agree (engine §10).
-    for rule in dom.get("rules").and_then(Json::as_array).unwrap_or(&[]) {
-        // A capture name stands at most once in each production (engine
-        // §3.5).
-        let twice = |rule: &RuleDef| {
-            rule.alternatives
-                .iter()
-                .any(|alternative| !crate::clauses::duplicate_captures(&alternative.expr).is_empty())
-        };
-        match rule_from_json(rule) {
-            Ok(rule) if twice(&rule) => return Some("a capture name used twice in one production"),
-            Ok(rule) if rule_type_problem(&rule).is_none() => {}
-            Ok(_) => return Some("a term or a condition whose types do not agree"),
-            Err(_) => return Some("a malformed rule"),
-        }
-    }
-    for constant in dom.get("constants").and_then(Json::as_array).unwrap_or(&[]) {
-        let redefine = constant.get("op").and_then(Json::as_str) == Some("redefine");
-        match constant.get("value").map(term_from_json) {
-            Some(Ok(value)) if constant_value_type(&value, redefine, &|_| Type::Any).is_ok() => {}
-            Some(Ok(_)) => return Some("a term or a condition whose types do not agree"),
-            _ => return Some("a malformed constant"),
-        }
-    }
-    // The order of a document's items is the order of their positions, so
-    // no two items share one (engine §9).
-    let mut positions = std::collections::HashSet::new();
-    for kind in ["rules", "directives", "constants", "classifiers", "implications"] {
-        for item in dom.get(kind).and_then(Json::as_array).unwrap_or(&[]) {
-            if let Some([Json::Int(line), Json::Int(column)]) = item.get("at").and_then(Json::as_array) {
-                if !positions.insert((*line, *column)) {
-                    return Some("two items at one position");
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Whether a term's JSON is closed (engine §10): no capture, no guarded
-/// term, and no call but `split` and `tag` of closed terms. The shape of
-/// the term need not be checked.
-fn is_closed_json(term: &Json) -> bool {
-    let mut todo = vec![term];
-    while let Some(node) = todo.pop() {
-        match node {
-            Json::Obj(xs) => {
-                if has(node, "capture") || has(node, "if") {
-                    return false;
-                }
-                if let Some(call) = node.get("call") {
-                    if !matches!(call.as_str(), Some("split" | "tag")) {
-                        return false;
-                    }
-                }
-                todo.extend(xs.iter().map(|(_, x)| x));
-            }
-            Json::Arr(xs) => todo.extend(xs),
-            _ => {}
-        }
-    }
-    true
-}
-
-/// What is wrong with a call of `split` or `tag` whose argument the reader
-/// sees as a string literal (engine §9, §10), or `None`: an empty
-/// delimiter, or a tag's string that is not a name.
+/// A literal empty split delimiter is a document error (engine §9).
 pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static str> {
     fn literal(arg: Option<&Arg>) -> Option<&str> {
         match arg {
@@ -1678,22 +872,6 @@ pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static 
     }
     match call {
         "split" if literal(args.get(1)) == Some("") => Some("split has an empty delimiter"),
-        "tag" if literal(args.first()).is_some_and(|name| !is_name(name)) => Some("the string of tag() is not a name"),
-        _ => None,
-    }
-}
-
-/// `literal_call_problem` over a DOM's JSON.
-fn literal_call_problem_json(call: &str, args: &[Json]) -> Option<&'static str> {
-    fn literal(arg: Option<&Json>) -> Option<&str> {
-        match arg.and_then(Json::as_object) {
-            Some([(key, Json::Str(text))]) if key == "string" => Some(text),
-            _ => None,
-        }
-    }
-    match call {
-        "split" if literal(args.get(1)) == Some("") => Some("split has an empty delimiter"),
-        "tag" if literal(args.first()).is_some_and(|name| !is_name(name)) => Some("the string of tag() is not a name"),
         _ => None,
     }
 }
@@ -2018,7 +1196,6 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
             write_str(out, tag);
             out.push('}');
         }
-        Term::Range(start, end) => write_range(out, start, end),
         Term::EmptySet => out.push_str("{\"emptySet\":true}"),
         Term::Union(items) => write_list(out, "union", items, write_term),
         Term::Intersection(items) => write_list(out, "intersection", items, write_term),
@@ -2219,7 +1396,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>)
                     Arg::Term(term) => Some(Nested::Term(term)),
                     _ => None,
                 })),
-                Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+                Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
             },
             Nested::Cond(cond) => match cond {
                 Cond::Compare(_, left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
@@ -2300,7 +1477,6 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                 Term::Pattern(_)
                 | Term::Str(_)
                 | Term::Tag(_)
-                | Term::Range(..)
                 | Term::EmptySet
                 | Term::Capture(_)
                 | Term::Const(..) => {}
@@ -2391,25 +1567,74 @@ pub(crate) fn tests_in(expr: &Expr) -> Vec<(&str, &Term, &Expr)> {
 /// tags, its alternatives' tests and tags, its emission and its conditions.
 pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
     let mut out = Vec::new();
-    rule.tags.iter().for_each(|term| constants_in_term(term, &mut out));
+    for term in rule.tags.iter().chain(rule.strings.value.iter()).chain(&rule.strings.image) {
+        references_in_term(term, &mut out);
+    }
     for alternative in &rule.alternatives {
-        for (_, value, _) in tests_in(&alternative.expr) {
-            constants_in_term(value, &mut out);
+        let mut pending = vec![&alternative.expr];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::Literal(term) => references_in_term(term, &mut out),
+                Expr::ScalarRange(a, b) => {
+                    references_in_term(a, &mut out);
+                    references_in_term(b, &mut out);
+                }
+                Expr::Tested(_, value, inner) => {
+                    references_in_term(value, &mut out);
+                    pending.push(inner);
+                }
+                Expr::Seq(xs) | Expr::Choice(xs) | Expr::Ranked(xs) | Expr::And(xs) => pending.extend(xs.iter().rev()),
+                Expr::Capture(_, x) | Expr::Optional(x, _) => pending.push(x),
+                Expr::Repeat(x, s, _) => {
+                    pending.extend(s.as_deref());
+                    pending.push(x);
+                }
+                _ => {}
+            }
         }
-        alternative.tags.iter().for_each(|term| constants_in_term(term, &mut out));
+        for term in alternative.tags.iter().chain(&alternative.strings.value).chain(&alternative.strings.image) {
+            references_in_term(term, &mut out);
+        }
     }
     for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(term), ..) = item {
-            constants_in_term(term, &mut out);
+        let (tags, strings) = match item {
+            EmitItem::Capture(_, tags, a) => (tags, &a.strings),
+            EmitItem::Insert(tags, s) => (tags, s),
+        };
+        for term in tags.iter().chain(&strings.value).chain(&strings.image) {
+            references_in_term(term, &mut out);
         }
     }
     rule.conditions.iter().for_each(|cond| constants_in_cond(cond, &mut out));
     out
 }
 
+fn references_in_term<'a>(root: &'a Term, out: &mut Vec<(&'a str, (usize, usize))>) {
+    constants_in_term(root, out);
+    let mut pending = vec![root];
+    while let Some(term) = pending.pop() {
+        match term {
+            Term::Const(name, at) if name.starts_with('_') => out.push((name, *at)),
+            Term::Union(items) | Term::Intersection(items) => pending.extend(items.iter().rev()),
+            Term::Difference(a, b) => {
+                pending.push(b);
+                pending.push(a);
+            }
+            Term::If(_, term) => pending.push(term),
+            Term::Call(_, args) => {
+                pending.extend(
+                    args.iter().rev().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }),
+                )
+            }
+            _ => {}
+        }
+    }
+    out.sort_by_key(|reference| reference.1);
+}
+
 pub(crate) fn first_constant_in_term(term: &Term) -> Option<(usize, usize)> {
     let mut out = Vec::new();
-    constants_in_term(term, &mut out);
+    references_in_term(term, &mut out);
     out.first().map(|&(_, at)| at)
 }
 
@@ -2424,7 +1649,7 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "phonemes" | "text" | "image" | "verbatim-text" | "concat" | "interpolate" => Type::String,
+        "value" | "text" | "image" | "verbatim-text" | "concat" | "interpolate" => Type::String,
         "split" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
@@ -2549,7 +1774,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
             None => Ok(Type::Pattern),
         },
         Term::Str(_) => Ok(Type::String),
-        Term::Tag(_) | Term::Range(..) => Ok(Type::Tags),
+        Term::Tag(_) => Ok(Type::Tags),
         Term::EmptySet => Ok(Type::Set),
         Term::Capture(_) => Ok(Type::Span),
         Term::Const(name, _) => Ok(if engine_scalar(name).is_some() { Type::String } else { constants(name) }),
@@ -2819,13 +2044,7 @@ impl Term {
                 stack.push(Dropping::Cond(std::mem::replace(&mut **cond, Cond::Captured(String::new()))));
                 stack.push(Dropping::Term(std::mem::replace(&mut **then, Term::EmptySet)));
             }
-            Term::Pattern(_)
-            | Term::Str(_)
-            | Term::Tag(_)
-            | Term::Range(..)
-            | Term::EmptySet
-            | Term::Capture(_)
-            | Term::Const(..) => {}
+            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
         }
     }
 }

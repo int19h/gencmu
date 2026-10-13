@@ -7,9 +7,9 @@ use crate::result::Restoration;
 pub(crate) const INVALID: u32 = u32::MAX;
 
 /// The source mapping used by both restoration representations (§7.2).
-pub(crate) fn record(terminal: String, at: usize, tokens: &[Tok], sound: Option<String>) -> Restoration {
+pub(crate) fn record(terminal: String, at: usize, tokens: &[Tok], value: Option<String>) -> Restoration {
     let source = if at > 0 { tokens[at - 1].source.1 } else { tokens.first().map_or(0, |t| t.source.0) };
-    Restoration { terminal, at, source: source..source, sound }
+    Restoration { terminal, at, source: source..source, value }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -401,7 +401,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn term(t: &LTerm, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match t {
             LTerm::TagsRule(s, r) => query(s, *r, p, w, todo),
-            LTerm::Text(s) | LTerm::Phonemes(s) | LTerm::Tags(s) | LTerm::Classes(s) => span(s, p, w),
+            LTerm::Text(s) | LTerm::Value(s) | LTerm::Image(s) | LTerm::Tags(s) | LTerm::Classes(s) => span(s, p, w),
             LTerm::If(c, t) => {
                 cond(c, p, w, todo);
                 term(t, p, w, todo);
@@ -415,7 +415,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                 term(a, p, w, todo);
                 term(b, p, w, todo);
             }
-            LTerm::TagOf(t) | LTerm::Classify(t, _) => term(t, p, w, todo),
+            LTerm::Classify(t, _) => term(t, p, w, todo),
             _ => {}
         }
     }
@@ -516,7 +516,7 @@ mod tests {
             let mut observations = Observations::new();
             let mut prefix = 0;
             for at in 0..n {
-                let close = observations.close(Restoration { terminal: "T".into(), at, source: at..at, sound: None });
+                let close = observations.close(Restoration { terminal: "T".into(), at, source: at..at, value: None });
                 prefix = observations.join(prefix, close);
             }
             assert_eq!(observations.aligned.values(observations.normalized(prefix)).len(), n);
@@ -553,7 +553,7 @@ mod tests {
             let mut prefix = 0;
             for at in 0..n {
                 let child =
-                    observations.close(Restoration { terminal: "T".into(), at: at + 1, source: at..at, sound: None });
+                    observations.close(Restoration { terminal: "T".into(), at: at + 1, source: at..at, value: None });
                 let child = observations.complete(child, Some(7), at, at + 1);
                 prefix = observations.join(prefix, child);
                 prefix = observations.complete(prefix, None, 0, at + 1);
@@ -621,7 +621,7 @@ mod tests {
                         .iter()
                         .map(|t| t.as_str().unwrap().into())
                         .collect(),
-                    phonemes: t.get("phonemes").and_then(Json::as_str).map(str::to_owned),
+                    value: t.get("value").and_then(Json::as_str).map(str::to_owned),
                 })
                 .collect::<Vec<_>>();
             work::reset();
@@ -733,9 +733,12 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     }
     fn term(t: &LTerm, out: &mut LocalDemand) {
         match t {
-            LTerm::TagsRule(s, _) | LTerm::Text(s) | LTerm::Phonemes(s) | LTerm::Tags(s) | LTerm::Classes(s) => {
-                span(s, out)
-            }
+            LTerm::TagsRule(s, _)
+            | LTerm::Text(s)
+            | LTerm::Value(s)
+            | LTerm::Image(s)
+            | LTerm::Tags(s)
+            | LTerm::Classes(s) => span(s, out),
             LTerm::If(c, t) => {
                 cond(c, out);
                 term(t, out);
@@ -749,7 +752,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 term(a, out);
                 term(b, out);
             }
-            LTerm::TagOf(t) | LTerm::Classify(t, _) => term(t, out),
+            LTerm::Classify(t, _) => term(t, out),
             _ => {}
         }
     }

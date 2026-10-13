@@ -8,13 +8,13 @@ use std::sync::Arc;
 use crate::clauses::definition_problem;
 use crate::dom::{
     constant_value_type, constants_in_rule, constants_in_term, expected_problem, is_sound_test, rule_type_fault,
-    sound_problem, term_type_in, tests_in, Alternative, Arg, ClassifierDef, Cond, ConstDef, Dom, EmitItem, Expr, Fault,
-    FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
+    sound_problem, term_type_in, tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Dom, EmitItem,
+    Expr, Fault, FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
 use crate::patterns::Pattern;
-use crate::tags::{character_tag, code_of_character_tag, is_name};
+use crate::tags::character_tag;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
 
@@ -37,6 +37,7 @@ pub(crate) enum Lean {
 #[derive(Debug, Clone)]
 pub(crate) struct RuleClauses {
     pub tags: Option<Term>,
+    pub strings: Channels,
     pub emit: Option<Vec<EmitItem>>,
     pub conditions: Vec<Cond>,
 }
@@ -49,7 +50,7 @@ pub(crate) struct StitchedAlternative {
     pub written: Option<Arc<crate::json::Json>>,
     pub written_alternative: usize,
     pub clauses: Arc<RuleClauses>,
-    pub opaque: bool,
+    pub erased: bool,
     pub document: Arc<str>,
     pub at: (usize, usize),
 }
@@ -89,6 +90,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub unicode: Arc<Unicode>,
     pub name: String,
     pub rules: Vec<StitchedRule>,
     pub index: HashMap<String, usize>,
@@ -213,6 +215,7 @@ pub(crate) fn stitch(
     unicode: &Unicode,
 ) -> Result<StageGrammar, Error> {
     let mut grammar = StageGrammar {
+        unicode: Arc::new(unicode.clone()),
         name: stage.to_string(),
         rules: Vec::new(),
         index: HashMap::new(),
@@ -237,14 +240,13 @@ pub(crate) fn stitch(
             if let Some(problem) = &rule.deferred_emission {
                 deferred.push(located(problem.clone(), document, rule.at));
             }
-            if !constants_in_rule(rule).is_empty() {
-                users.push((document, rule));
-            }
+            users.push((document, rule));
             // The clauses are copied once for the rule, not for each
             // alternative. Each condition counts as it is copied.
             let copy_clauses = || {
                 Arc::new(RuleClauses {
                     tags: rule.tags.clone(),
+                    strings: rule.strings.clone(),
                     emit: rule.emit.clone(),
                     conditions: rule.conditions.iter().inspect(|_| work::count(Work::Stitched, 1)).cloned().collect(),
                 })
@@ -270,7 +272,7 @@ pub(crate) fn stitch(
                     } else {
                         clauses.clone()
                     },
-                    opaque: false,
+                    erased: rule.erased,
                     document: document.clone(),
                     at: rule.at,
                 })
@@ -393,6 +395,11 @@ pub(crate) fn stitch(
             })?;
         }
     }
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            recipe_cycles(alternative)?;
+        }
+    }
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
         let lowered =
@@ -402,7 +409,198 @@ pub(crate) fn stitch(
     if let Some(error) = deferred.into_iter().next() {
         return Err(error);
     }
+    emission_overlap(&grammar)?;
     Ok(grammar)
+}
+
+/// Potential input consumption ignores gates, tests, and productivity.
+fn consuming(expr: &Expr, rules: &FxSet<String>) -> bool {
+    let mut pending = vec![expr];
+    while let Some(expr) = pending.pop() {
+        match expr {
+            Expr::Ref(name) if is_terminal_name(name) || rules.contains(name) => return true,
+            Expr::Terminal(_) | Expr::Literal(_) | Expr::ScalarRange(..) | Expr::Range(..) | Expr::Property(_) => {
+                return true
+            }
+            Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => pending.extend(items),
+            Expr::Capture(_, inner) | Expr::Optional(inner, _) | Expr::Tested(_, _, inner) => pending.push(inner),
+            Expr::Repeat(item, separator, _) => {
+                pending.push(item);
+                pending.extend(separator.as_deref());
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+#[derive(Clone, Default)]
+struct OwnershipShape {
+    consuming: bool,
+    captures: FxMap<String, bool>,
+}
+fn ownership_shapes(expr: &Expr, rules: &FxSet<String>) -> Vec<OwnershipShape> {
+    let join = |left: Vec<OwnershipShape>, right: &[OwnershipShape]| {
+        let mut out = Vec::new();
+        for first in left {
+            for second in right {
+                let mut combined = first.clone();
+                combined.consuming |= second.consuming;
+                combined.captures.extend(second.captures.clone());
+                out.push(combined);
+            }
+        }
+        out
+    };
+    match expr {
+        Expr::Seq(items) => {
+            let mut shapes = vec![OwnershipShape::default()];
+            for item in items {
+                shapes = join(shapes, &ownership_shapes(item, rules));
+            }
+            shapes
+        }
+        Expr::Choice(items) | Expr::Ranked(items) => {
+            items.iter().flat_map(|item| ownership_shapes(item, rules)).collect()
+        }
+        Expr::Optional(inner, crate::dom::Mark::Plain) => {
+            let mut shapes = vec![OwnershipShape::default()];
+            shapes.extend(ownership_shapes(inner, rules));
+            shapes
+        }
+        Expr::And(items) => {
+            let expanded: Vec<_> = items.iter().map(|item| ownership_shapes(item, rules)).collect();
+            let mut shapes = Vec::new();
+            for first in 0..items.len() {
+                let mut selected = expanded[first].clone();
+                for next in &expanded[first + 1..] {
+                    let mut optional = vec![OwnershipShape::default()];
+                    optional.extend(next.clone());
+                    selected = join(selected, &optional);
+                }
+                shapes.extend(selected);
+            }
+            shapes
+        }
+        Expr::Capture(name, symbol) => vec![OwnershipShape {
+            consuming: consuming(symbol, rules),
+            captures: FxMap::from_iter([(name.clone(), consuming(symbol, rules))]),
+        }],
+        _ => vec![OwnershipShape { consuming: consuming(expr, rules), captures: FxMap::default() }],
+    }
+}
+
+fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
+    let mut reads = FxSet::default();
+    loop {
+        let mut changed = false;
+        for rule in &grammar.rules {
+            if !reads.contains(&rule.name) && rule.alternatives.iter().any(|a| consuming(&a.alternative.expr, &reads)) {
+                reads.insert(rule.name.clone());
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    for rule in &grammar.rules {
+        for alternative in &rule.alternatives {
+            let Some(items) = &alternative.clauses.emit else { continue };
+            if items.len() < 2
+                || !items.iter().any(|item| matches!(item, EmitItem::Capture(name, ..) if name.is_empty()))
+            {
+                continue;
+            }
+            for shape in ownership_shapes(&alternative.alternative.expr, &reads) {
+                let retained: Vec<_> = items
+                    .iter()
+                    .filter(|item| match item {
+                        EmitItem::Capture(name, ..) => name.is_empty() || shape.captures.contains_key(name),
+                        EmitItem::Insert(..) => true,
+                    })
+                    .collect();
+                for (first, item) in retained.iter().enumerate() {
+                    for other in &retained[first + 1..] {
+                        let parts = |item: &EmitItem| -> Vec<(bool, bool)> {
+                            match item {
+                                EmitItem::Capture(name, _, _) if name.is_empty() => vec![(true, shape.consuming)],
+                                EmitItem::Capture(name, _, attachments) => attachments
+                                    .before
+                                    .iter()
+                                    .chain(std::iter::once(name))
+                                    .chain(&attachments.after)
+                                    .filter_map(|name| shape.captures.get(name).map(|&reads| (false, reads)))
+                                    .collect(),
+                                EmitItem::Insert(..) => Vec::new(),
+                            }
+                        };
+                        if parts(item).iter().any(|a| parts(other).iter().any(|b| (a.0 && b.1) || (b.0 && a.1))) {
+                            return Err(located(
+                                "emission carriers can overlap input positions".into(),
+                                &alternative.document,
+                                alternative.at,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Only whole-occurrence emitted reads can return to their own channel.
+fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
+    let a = &alternative.alternative.strings;
+    let d = &alternative.clauses.strings;
+    let value = a.value.as_ref().or(d.value.as_ref());
+    let image = a.image.as_ref().or(d.image.as_ref());
+    let edges = |recipe: Option<&Term>| {
+        let mut dependencies = [false; 2];
+        let Some(Term::Call(_, atoms)) = recipe else { return dependencies };
+        for atom in atoms {
+            if let Arg::Term(Term::Call(channel, args)) = atom {
+                if let [Arg::Term(Term::Call(emitted, args))] = &args[..] {
+                    if emitted == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
+                    {
+                        dependencies[usize::from(channel == "image")] = true;
+                    }
+                }
+            }
+        }
+        dependencies
+    };
+    let v = edges(value);
+    let i = if image.is_some() { edges(image) } else { [value.is_some(), false] };
+    let value_cycle = v[0] || v[1] && i[0];
+    let image_cycle = i[1] || i[0] && v[1];
+    if value_cycle || image_cycle {
+        let at = if value_cycle {
+            if a.value.is_some() {
+                a.value_at
+            } else {
+                d.value_at
+            }
+        } else if a.image.is_some() {
+            a.image_at
+        } else {
+            d.image_at
+        };
+        let path = if v[0] {
+            "value -> value"
+        } else if i[1] {
+            "image -> image"
+        } else {
+            "value -> image -> value"
+        };
+        return Err(located(
+            format!("a constituent recipe cycles: {path}"),
+            &alternative.document,
+            at.unwrap_or(alternative.at),
+        ));
+    }
+    Ok(())
 }
 
 /// A constant's value (engine §2, §10): a string, or a set of strings or
@@ -705,7 +903,65 @@ impl Constants<'_> {
         }
         false
     }
+    fn evaluate_test(&self, value: &Term, op: &str, document: &str, at: (usize, usize)) -> Result<Term, Error> {
+        if op == "tags" {
+            let Term::Call(name, requirements) = value else { unreachable!("a signed requirement list") };
+            let mut bound = Vec::new();
+            for requirement in requirements {
+                let Arg::Term(requirement) = requirement else { unreachable!() };
+                let (negative, term) = match requirement {
+                    Term::Call(name, args) if name == "forbid" => {
+                        let [Arg::Term(term)] = &args[..] else { unreachable!() };
+                        (true, term)
+                    }
+                    term => (false, term),
+                };
+                let term = self.evaluate(term, document, at)?.term();
+                bound.push(Arg::Term(if negative { Term::Call("forbid".into(), vec![Arg::Term(term)]) } else { term }));
+            }
+            return Ok(Term::Call(name.clone(), bound));
+        }
+        Ok(self.evaluate(value, document, at)?.term())
+    }
+
     fn evaluate_pattern_value(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
+        if let Term::Pattern(root) = term {
+            enum Part<'a> {
+                Pattern(&'a Pattern),
+                Children(&'a crate::patterns::Children),
+            }
+            use crate::patterns::Children;
+            let mut pending = vec![Part::Pattern(root)];
+            while let Some(part) = pending.pop() {
+                match part {
+                    Part::Pattern(pattern) => match pattern {
+                        Pattern::Range(a, b, at) => {
+                            self.scalar_endpoints(a, b, document, *at)?;
+                        }
+                        Pattern::Union(items) | Pattern::Intersection(items) => {
+                            pending.extend(items.iter().map(Part::Pattern))
+                        }
+                        Pattern::Difference(a, b) => {
+                            pending.push(Part::Pattern(a));
+                            pending.push(Part::Pattern(b));
+                        }
+                        Pattern::Test(_, _, inner) | Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                        Pattern::Children(children) => pending.push(Part::Children(children)),
+                        _ => {}
+                    },
+                    Part::Children(children) => match children {
+                        Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
+                        Children::Sequence(items) => pending.extend(items.iter().map(Part::Children)),
+                        Children::Optional(inner) => pending.push(Part::Children(inner)),
+                        Children::Repeat(item, separator) => {
+                            pending.push(Part::Children(item));
+                            pending.extend(separator.as_deref().map(Part::Children));
+                        }
+                        Children::Siblings => {}
+                    },
+                }
+            }
+        }
         let pattern = match term {
             Term::Pattern(p) => p.map_values(
                 &|n, at| match &self.values[n].value {
@@ -714,6 +970,9 @@ impl Constants<'_> {
                     _ => Err(located("a pattern or string is needed here".into(), document, at)),
                 },
                 &|v, op| {
+                    if op == "tags" {
+                        return self.evaluate_test(v, op, document, item);
+                    }
                     let result = self.evaluate(v, document, item)?;
                     if matches!(op, "literal" | "endpoint") {
                         let Value::Str(value) = result else {
@@ -760,76 +1019,73 @@ impl Constants<'_> {
         };
         Ok(Value::Pattern(pattern))
     }
-    fn evaluate_plain(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
-        let set = |part: &Term| self.evaluate_plain(part, document, item).map(Value::set);
-        let string = |part: &Term| self.evaluate_plain(part, document, item).map(Value::string);
-        Ok(match term {
-            Term::Pattern(_) => unreachable!(),
-            Term::Str(text) => Value::Str(text.clone()),
-            Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
-            Term::Range(start, end) => {
-                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
-                let (first, last) = codes.expect("a range of two character tags, which reading checks");
-                Value::Set((first..=last).filter_map(char::from_u32).map(|c| character_tag(c, self.unicode)).collect())
-            }
-            Term::EmptySet => Value::Set(BTreeSet::new()),
-            Term::Const(name, _) => match crate::dom::engine_scalar(name) {
-                Some(c) => Value::Str(c.to_string()),
-                None => self.values.get(name).expect("a constant defined before").value.clone(),
-            },
-            Term::Union(items) => {
-                let mut out = BTreeSet::new();
-                for item in items {
-                    out.extend(set(item)?);
+    fn evaluate_plain(&self, root: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
+        let mut pending = vec![(root, false)];
+        let mut values: Vec<Value> = Vec::new();
+        while let Some((term, ready)) = pending.pop() {
+            let children: Vec<&Term> = match term {
+                Term::Union(items) | Term::Intersection(items) => items.iter().collect(),
+                Term::Difference(a, b) => vec![a, b],
+                Term::Call(_, args) => {
+                    args.iter().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }).collect()
                 }
-                Value::Set(out)
+                _ => Vec::new(),
+            };
+            if !ready {
+                pending.push((term, true));
+                pending.extend(children.iter().rev().map(|&term| (term, false)));
+                continue;
             }
-            Term::Intersection(items) => {
-                let mut out: Option<BTreeSet<String>> = None;
-                for item in items {
-                    let next = set(item)?;
-                    out = Some(match out {
-                        None => next,
-                        Some(out) => out.intersection(&next).cloned().collect(),
-                    });
-                }
-                Value::Set(out.unwrap_or_default())
-            }
-            // Left to right, as a parse evaluates a term (§10).
-            Term::Difference(left, right) => {
-                let left = set(left)?;
-                let right = set(right)?;
-                Value::Set(left.into_iter().filter(|member| !right.contains(member)).collect())
-            }
-            Term::Call(call, args) => match (call.as_str(), &args[..]) {
-                ("split", [Arg::Term(text), Arg::Term(delimiter)]) => {
-                    let text = string(text)?;
-                    let seen = string(delimiter)?;
-                    if seen.is_empty() {
-                        let fault = Fault { problem: "split has an empty delimiter".to_string(), at: None };
-                        return Err(fault_error(fault, document, first_constant(delimiter).unwrap_or(item)));
+            let mut operands = values.split_off(values.len() - children.len()).into_iter();
+            let value = match term {
+                Term::Str(text) => Value::Str(text.clone()),
+                Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
+                Term::EmptySet => Value::Set(BTreeSet::new()),
+                Term::Const(name, _) => match crate::dom::engine_scalar(name) {
+                    Some(c) => Value::Str(c.to_string()),
+                    None => self.values.get(name).expect("a bound constant").value.clone(),
+                },
+                Term::Union(_) => Value::Set(operands.flat_map(|value| value.set()).collect()),
+                Term::Intersection(_) => {
+                    let mut sets = operands.map(Value::set);
+                    let mut common = sets.next().unwrap_or_default();
+                    for next in sets {
+                        common.retain(|tag| next.contains(tag));
                     }
-                    Value::Set(
-                        text.split(seen.as_str()).filter(|piece| !piece.is_empty()).map(str::to_string).collect(),
-                    )
+                    Value::Set(common)
                 }
-                ("tag", [Arg::Term(name)]) => {
-                    let seen = string(name)?;
-                    if !is_name(&seen) {
-                        return Err(located(
-                            format!("tag({seen:?}): the string is not a name"),
-                            document,
-                            first_constant(name).unwrap_or(item),
-                        ));
+                Term::Difference(..) => {
+                    let mut left = operands.next().unwrap().set();
+                    let right = operands.next().unwrap().set();
+                    left.retain(|tag| !right.contains(tag));
+                    Value::Set(left)
+                }
+                Term::Call(name, args) => match (name.as_str(), &args[..]) {
+                    ("interpolate", _) => Value::Str(operands.map(Value::string).collect()),
+                    ("split", [_, Arg::Term(delimiter)]) => {
+                        let text = operands.next().unwrap().string();
+                        let delimiter_value = operands.next().unwrap().string();
+                        if delimiter_value.is_empty() {
+                            return Err(located(
+                                "split has an empty delimiter".into(),
+                                document,
+                                first_constant(delimiter).unwrap_or(item),
+                            ));
+                        }
+                        Value::Set(
+                            text.split(&delimiter_value).filter(|piece| !piece.is_empty()).map(str::to_owned).collect(),
+                        )
                     }
-                    Value::Set(BTreeSet::from([seen]))
+                    _ => return Err(located("a constant's value is not a closed term".into(), document, item)),
+                },
+                Term::Pattern(_) => unreachable!("pattern values use their own evaluation"),
+                Term::Capture(_) | Term::If(..) => {
+                    return Err(located("a constant's value is not a closed term".into(), document, item))
                 }
-                _ => return Err(located("a constant's value is not a closed term".to_string(), document, item)),
-            },
-            Term::Capture(_) | Term::If(..) => {
-                return Err(located("a constant's value is not a closed term".to_string(), document, item));
-            }
-        })
+            };
+            values.push(value);
+        }
+        Ok(values.pop().expect("the requested constant value"))
     }
 
     fn evaluate_pattern(&self, t: &Term, document: &str, at: (usize, usize)) -> Result<Pattern, Error> {
@@ -853,7 +1109,7 @@ impl Constants<'_> {
             let mut references = Vec::new();
             constants_in_term(side, &mut references);
             for (name, at) in references {
-                if !self.values.contains_key(name) {
+                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
@@ -884,12 +1140,15 @@ impl Constants<'_> {
     ) -> Result<(), Error> {
         for &(document, rule) in users {
             for (name, at) in constants_in_rule(rule) {
-                if !self.values.contains_key(name) {
+                if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
                     return Err(located(format!("${name} is not defined in stage {}", self.stage), document, at));
                 }
             }
             if let Some(fault) = rule_type_fault(rule, &|name| self.ty(name)) {
                 return Err(fault_error(fault, document, rule.at));
+            }
+            for alternative in &rule.alternatives {
+                self.check_body_strings(&alternative.expr, document, rule.at)?;
             }
             enum Part<'a> {
                 Term(&'a Term),
@@ -899,7 +1158,7 @@ impl Constants<'_> {
             todo.extend(rule.tags.iter().map(Part::Term));
             todo.extend(rule.alternatives.iter().filter_map(|a| a.tags.as_ref()).map(Part::Term));
             for item in rule.emit.iter().flatten() {
-                if let EmitItem::Capture(_, Some(t), ..) = item {
+                if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
                     todo.push(Part::Term(t));
                 }
             }
@@ -974,21 +1233,34 @@ impl Constants<'_> {
             let mut calls = Vec::new();
             calls_in_rule(rule, &mut calls);
             for (call, args) in calls {
-                let argument = match (call, args) {
-                    ("split", [_, Arg::Term(Term::Const(name, at))]) | ("tag", [Arg::Term(Term::Const(name, at))]) => {
-                        (name, *at)
+                if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
+                    let mut pending = vec![delimiter];
+                    let mut closed = true;
+                    while let Some(term) = pending.pop() {
+                        match term {
+                            Term::Str(_) | Term::Const(..) => {}
+                            Term::Call(name, args) if name == "interpolate" => {
+                                pending.extend(args.iter().filter_map(|arg| {
+                                    if let Arg::Term(term) = arg {
+                                        Some(term)
+                                    } else {
+                                        None
+                                    }
+                                }))
+                            }
+                            _ => {
+                                closed = false;
+                                break;
+                            }
+                        }
                     }
-                    _ => continue,
-                };
-                let seen = match &self.values[argument.0].value {
-                    Value::Str(text) => text.as_str(),
-                    Value::Set(_) | Value::Pattern(_) => "",
-                };
-                if call == "split" && seen.is_empty() {
-                    return Err(located("split has an empty delimiter".to_string(), document, argument.1));
-                }
-                if call == "tag" && !is_name(seen) {
-                    return Err(located(format!("tag({seen:?}): the string is not a name"), document, argument.1));
+                    if closed && self.evaluate(delimiter, document, rule.at)?.string().is_empty() {
+                        return Err(located(
+                            "split has an empty delimiter".into(),
+                            document,
+                            first_constant(delimiter).unwrap_or(rule.at),
+                        ));
+                    }
                 }
             }
         }
@@ -1002,6 +1274,11 @@ impl Constants<'_> {
                 if let Some(tags) = alternative.alternative.tags.as_mut() {
                     self.substitute_term(tags);
                 }
+                for recipe in
+                    alternative.alternative.strings.value.iter_mut().chain(&mut alternative.alternative.strings.image)
+                {
+                    self.substitute_term(recipe);
+                }
                 let clauses = substituted
                     .entry(Arc::as_ptr(&alternative.clauses))
                     .or_insert_with(|| {
@@ -1009,11 +1286,23 @@ impl Constants<'_> {
                         let terms = clauses.tags.iter_mut().chain(clauses.emit.iter_mut().flatten().filter_map(
                             |item| match item {
                                 EmitItem::Capture(_, tags, ..) => tags.as_mut(),
-                                EmitItem::Insert(..) => None,
+                                EmitItem::Insert(tags, _) => tags.as_mut(),
                             },
                         ));
                         for term in terms {
                             self.substitute_term(term);
+                        }
+                        for recipe in clauses.strings.value.iter_mut().chain(&mut clauses.strings.image) {
+                            self.substitute_term(recipe);
+                        }
+                        for item in clauses.emit.iter_mut().flatten() {
+                            let strings = match item {
+                                EmitItem::Capture(_, _, a) => &mut a.strings,
+                                EmitItem::Insert(_, s) => s,
+                            };
+                            for recipe in strings.value.iter_mut().chain(&mut strings.image) {
+                                self.substitute_term(recipe);
+                            }
                         }
                         for cond in &mut clauses.conditions {
                             self.substitute_cond(cond);
@@ -1023,6 +1312,70 @@ impl Constants<'_> {
                     .1
                     .clone();
                 alternative.clauses = clauses;
+            }
+        }
+        for (document, classifier) in &mut grammar.classifiers {
+            for entry in &mut classifier.entries {
+                for key in &mut entry.keys {
+                    let ty =
+                        term_type_in(key, &|name| self.ty(name)).map_err(|f| fault_error(f, document, entry.at))?;
+                    if let Some(problem) = expected_problem(ty, Type::String) {
+                        return Err(located(problem, document, first_constant(key).unwrap_or(entry.at)));
+                    }
+                    *key = self.evaluate(key, document, entry.at)?.term();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn scalar_endpoints(
+        &self,
+        left: &Term,
+        right: &Term,
+        document: &str,
+        at: (usize, usize),
+    ) -> Result<(char, char), Error> {
+        let scalar = |term: &Term| -> Result<char, Error> {
+            let value = self.evaluate(term, document, at)?.string();
+            let mut chars = value.chars();
+            match (chars.next(), chars.next()) {
+                (Some(c), None) => Ok(c),
+                _ => Err(located(
+                    "a range endpoint must be one scalar".into(),
+                    document,
+                    first_constant(term).unwrap_or(at),
+                )),
+            }
+        };
+        let a = scalar(left)?;
+        let b = scalar(right)?;
+        if a > b {
+            return Err(located(
+                "range starts above its end".into(),
+                document,
+                first_constant(left).or_else(|| first_constant(right)).unwrap_or(at),
+            ));
+        }
+        Ok((a, b))
+    }
+
+    fn check_body_strings(&self, root: &Expr, document: &str, at: (usize, usize)) -> Result<(), Error> {
+        let mut pending = vec![root];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::ScalarRange(a, b) => {
+                    self.scalar_endpoints(a, b, document, at)?;
+                }
+                Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
+                    pending.extend(items.iter().rev())
+                }
+                Expr::Optional(inner, _) | Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => pending.push(inner),
+                Expr::Repeat(item, separator, _) => {
+                    pending.extend(separator.as_deref());
+                    pending.push(item);
+                }
+                _ => {}
             }
         }
         Ok(())
@@ -1045,8 +1398,8 @@ impl Constants<'_> {
                             stack.push(item);
                             stack.extend(separator.as_deref_mut());
                         }
-                        Expr::Tested(_, value, inner) => {
-                            *value = self.evaluate(value, &alternative.document, alternative.at)?.term();
+                        Expr::Tested(op, value, inner) => {
+                            *value = self.evaluate_test(value, op, &alternative.document, alternative.at)?;
                             stack.push(inner);
                         }
                         Expr::Literal(value) => {
@@ -1054,27 +1407,7 @@ impl Constants<'_> {
                             *expr = Expr::Terminal(crate::tags::string_name(&value, self.unicode));
                         }
                         Expr::ScalarRange(left, right) => {
-                            let a = self.evaluate(left, &alternative.document, alternative.at)?.string();
-                            let b = self.evaluate(right, &alternative.document, alternative.at)?.string();
-                            let scalar = |s: &str| {
-                                let mut cs = s.chars();
-                                let c = cs.next()?;
-                                cs.next().is_none().then_some(c)
-                            };
-                            let (Some(a), Some(b)) = (scalar(&a), scalar(&b)) else {
-                                return Err(located(
-                                    "range endpoints must be single scalars".into(),
-                                    &alternative.document,
-                                    alternative.at,
-                                ));
-                            };
-                            if a > b {
-                                return Err(located(
-                                    "range starts above its end".into(),
-                                    &alternative.document,
-                                    alternative.at,
-                                ));
-                            }
+                            let (a, b) = self.scalar_endpoints(left, right, &alternative.document, alternative.at)?;
                             *expr = Expr::Range(character_tag(a, self.unicode), character_tag(b, self.unicode));
                         }
                         Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => {}
@@ -1126,14 +1459,17 @@ impl Constants<'_> {
                 self.substitute_cond(cond);
                 self.substitute_term(then);
             }
-            Term::Call(_, args) => {
-                for arg in args {
+            Term::Call(name, args) => {
+                for arg in args.iter_mut() {
                     if let Arg::Term(term) = arg {
                         self.substitute_term(term);
                     }
                 }
+                if name == "interpolate" {
+                    *term = self.evaluate_plain(term, "", (0, 0)).expect("a checked interpolation").term();
+                }
             }
-            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Capture(_) => {}
+            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
         }
     }
 
@@ -1194,13 +1530,7 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
                 cond(c, out);
                 term(then, out);
             }
-            Term::Pattern(_)
-            | Term::Str(_)
-            | Term::Tag(_)
-            | Term::Range(..)
-            | Term::EmptySet
-            | Term::Capture(_)
-            | Term::Const(..) => {}
+            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
         }
     }
     fn cond<'r>(c: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
@@ -1322,7 +1652,7 @@ fn check_span(term: &Term) -> Result<(), String> {
 fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
         // Stitching has checked every constant (engine §2).
-        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => Ok(()),
+        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => Ok(()),
         Term::Union(items) | Term::Intersection(items) => {
             for item in items {
                 check_term(grammar, item)?;
@@ -1339,7 +1669,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
-            ("phonemes" | "text" | "classes" | "tags", [Arg::Term(span)]) => check_span(span),
+            ("value" | "image" | "text" | "classes" | "tags", [Arg::Term(span)]) => check_span(span),
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
                 check_span(span)?;
                 check_rule(grammar, rule)
@@ -1348,7 +1678,15 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_term(grammar, string)?;
                 check_term(grammar, delimiter)
             }
-            ("tag", [Arg::Term(inner)]) => check_term(grammar, inner),
+            ("concat" | "interpolate", args) => {
+                for arg in args {
+                    if let Arg::Term(term) = arg {
+                        check_term(grammar, term)?;
+                    }
+                }
+                Ok(())
+            }
+            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span(span),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
                 check_term(grammar, string)?;
@@ -1361,11 +1699,9 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             ("head" | "tail" | "last" | "from" | "after" | "without-elision", _) => {
                 Err(format!("{name}() is a span, not a value"))
             }
-            (
-                "phonemes" | "text" | "classes" | "tags" | "split" | "tag" | "classify" | "matches" | "begins"
-                | "initial",
-                _,
-            ) => Err(format!("{name}() is called with the wrong arguments")),
+            ("value" | "text" | "classes" | "tags" | "split" | "classify" | "matches" | "begins" | "initial", _) => {
+                Err(format!("{name}() is called with the wrong arguments"))
+            }
             _ => Err(format!("an unknown function {name}()")),
         },
     }
@@ -1435,7 +1771,7 @@ mod tests {
                     .collect(),
                 emit: None,
                 conditions: (0..n).map(|_| same()).collect(),
-                opaque: false,
+                erased: false,
                 at: (0, 0),
             };
             let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };

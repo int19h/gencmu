@@ -162,8 +162,7 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Term::If(cond, then) => stack.extend([Part::Term(then), Part::Cond(cond)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {
-                }
+                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
             },
             Part::Cond(cond) => match cond {
                 Cond::Captured(name) => {
@@ -1403,7 +1402,12 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     term_presences(term, &mut mentioned);
                 }
             }
-            EmitItem::Insert(..) => {}
+            EmitItem::Insert(tags, _) => {
+                if let Some(term) = tags {
+                    term_captures(term, &mut mentioned);
+                    term_presences(term, &mut mentioned);
+                }
+            }
         }
     }
     for recipe in rule
@@ -1483,8 +1487,13 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
         .iter()
         .map(|alternative| alternative.tags.as_ref().filter(|term| !term_waits(term)))
         .collect();
-    let item_waits: Vec<bool> =
-        items.iter().map(|item| matches!(item, EmitItem::Capture(_, Some(term), ..) if term_waits(term))).collect();
+    let item_waits: Vec<bool> = items
+        .iter()
+        .map(|item| match item {
+            EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) => term_waits(term),
+            _ => false,
+        })
+        .collect();
     // The items of the emission, indexed once by their carriers and their
     // attachments.
     let emit_index = EmitIndex::new(items);
@@ -1598,7 +1607,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                     return Some(format!("an item recipe of {} uses absent capture ${missing}", rule.name));
                 }
             }
-            if let EmitItem::Capture(_, Some(term), ..) = item {
+            if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
                 if waits {
                     continue;
                 }
@@ -1787,7 +1796,7 @@ mod tests {
                 }],
                 emit: Some(emit),
                 conditions: Vec::new(),
-                opaque: false,
+                erased: false,
                 at: (0, 0),
             }
         }

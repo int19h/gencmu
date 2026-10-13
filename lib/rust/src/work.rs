@@ -57,7 +57,7 @@ pub(crate) enum Work {
     /// intersections, differences, classes and the pieces of a split. Each
     /// is counted as it is written or read.
     Listed,
-    /// The tokens of spans that `text` and `phonemes` terms read, each
+    /// The tokens of spans that `text` and `value` terms read, each
     /// counted as it is read.
     Spanned,
     /// The implications, and their consequents, that the closure of a
@@ -424,7 +424,7 @@ mod tests {
             let token = |tag: &str| InputToken {
                 text: tag.to_lowercase(),
                 tags: [tag.to_string()].into_iter().collect(),
-                phonemes: None,
+                value: None,
             };
             let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
             reset();
@@ -473,7 +473,7 @@ mod tests {
         let token = |tag: &str| InputToken {
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         // One KU can stand in either place, so the stage chooses one
         // derivation, and the check restores the elided one.
@@ -508,7 +508,7 @@ mod tests {
         let token = |tag: &str| InputToken {
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         let tokens = [token("A0"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {

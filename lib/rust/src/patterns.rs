@@ -1,5 +1,5 @@
 //! Finite observations of structural trees (engine §4.1).
-use crate::dom::{self, Term};
+use crate::dom::{self, Arg, Term};
 use crate::json::{write_str, Json};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -462,7 +462,7 @@ struct Nfa {
 enum Predicate {
     Name(String),
     Terminal(String),
-    Test(String, Term, String),
+    Test(Vec<(String, Term)>, String),
     Children(usize),
     Path(String, usize),
     Union(Vec<usize>),
@@ -549,9 +549,15 @@ impl Machine {
         let pred = match p {
             Pattern::Name(s, _) => Predicate::Name(s.clone()),
             Pattern::Terminal(s, _) => Predicate::Terminal(s.clone()),
-            Pattern::Test(op, v, n) => {
-                let Pattern::Terminal(t, _) = &**n else { unreachable!() };
-                Predicate::Test(op.clone(), v.clone(), t.clone())
+            Pattern::Test(..) => {
+                let mut tests = Vec::new();
+                let mut base = p;
+                while let Pattern::Test(op, value, inner) = base {
+                    tests.push((op.clone(), value.clone()));
+                    base = inner;
+                }
+                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
+                Predicate::Test(tests, terminal.clone())
             }
             Pattern::Children(c) => {
                 let n = self.sequence(c);
@@ -727,9 +733,9 @@ impl Machine {
             let mut holds = match p {
                 Predicate::Name(n) => name == Some(n),
                 Predicate::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                Predicate::Test(op, v, t) => {
-                    leaf.is_some_and(|(n, sound, tags)| n == t && leaf_test(op, v, sound, tags))
-                }
+                Predicate::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
+                    name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
+                }),
                 Predicate::Children(id) => {
                     let n = &self.machines[*id];
                     bit(&s.relations[*id][n.start], n.end)
@@ -820,32 +826,34 @@ impl Machine {
     }
 }
 fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
-    if let Term::Str(v) = value {
-        return (sound == v) == (op == "=");
+    if let Term::Str(value) = value {
+        return (sound == value) == (op == "=");
     }
-    fn literals<'a>(v: &'a Term, out: &mut Vec<&'a str>) {
-        match v {
-            Term::Tag(t) => out.push(t),
-            Term::Union(xs) => {
-                for x in xs {
-                    literals(x, out);
-                }
+    let Term::Call(_, requirements) = value else { unreachable!("a signed requirement list") };
+    requirements.iter().all(|requirement| {
+        let Arg::Term(requirement) = requirement else { unreachable!() };
+        let (negative, term) = match requirement {
+            Term::Call(name, args) if name == "forbid" => {
+                let [Arg::Term(term)] = &args[..] else { unreachable!() };
+                (true, term)
             }
-            Term::EmptySet => {}
-            _ => unreachable!("evaluated tag set"),
+            term => (false, term),
+        };
+        let mut pending = vec![term];
+        while let Some(term) = pending.pop() {
+            match term {
+                Term::Tag(tag) => {
+                    if tags.contains(tag) == negative {
+                        return false;
+                    }
+                }
+                Term::Union(items) => pending.extend(items),
+                Term::EmptySet => {}
+                _ => unreachable!("a bound tag requirement"),
+            }
         }
-    }
-    let mut values = vec![];
-    literals(value, &mut values);
-    let all = values.iter().all(|v| tags.iter().any(|t| t == v));
-    let any = values.iter().any(|v| tags.iter().any(|t| t == v));
-    match op {
-        "⊇" => all,
-        "⊉" => !all,
-        "∩=∅" => !any,
-        "∩≠∅" => any,
-        _ => unreachable!(),
-    }
+        true
+    })
 }
 
 impl Pattern {

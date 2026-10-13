@@ -1766,9 +1766,13 @@ impl<'a> Reader<'a> {
 
     fn channels(&self, node: &'a Node) -> R<Channels> {
         let mut channels = Channels::default();
-        for (name, target) in [("value-clause", &mut channels.value), ("image-clause", &mut channels.image)] {
+        for (name, target, at) in [
+            ("value-clause", &mut channels.value, &mut channels.value_at),
+            ("image-clause", &mut channels.image, &mut channels.image_at),
+        ] {
             if let Some(clause) = Self::rules(node, name).next() {
                 let recipe = self.one(clause, "recipe")?;
+                *at = Some(self.first(recipe));
                 let mut atoms = Vec::new();
                 self.in_recipe.set(true);
                 for atom in self.some(recipe, "recipe-atom", 1)? {
@@ -1785,7 +1789,7 @@ impl<'a> Reader<'a> {
                         Term::Str(_) | Term::Const(..) => true,
                         Term::Call(name, args) if name == "interpolate" => !args.is_empty(),
                         Term::Call(name, args)
-                            if matches!(name.as_str(), "phonemes" | "image" | "text" | "verbatim-text") =>
+                            if matches!(name.as_str(), "value" | "image" | "text" | "verbatim-text") =>
                         {
                             matches!(&args[..], [Arg::Term(Term::Capture(_))])
                                 || matches!(&args[..], [Arg::Term(Term::Call(name, args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
@@ -2299,7 +2303,7 @@ fn is_capital(name: &str) -> bool {
 
 /// Whether a tag term, or a condition inside one, reads the tags of `$`,
 /// the constituent whose tags it defines: `$` as a value, `tags($)` or
-/// `classes($)` (§9). A span argument such as `phonemes($)` reads tokens,
+/// `classes($)` (§9). A span argument such as `value($)` reads tokens,
 /// and `tags($, R)` parses them again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // The parts to look at, with an explicit stack: a term is as deep as
@@ -2324,8 +2328,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
                 Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
                 Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {
-                }
+                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
             },
             Part::Cond(cond) => match cond {
                 Cond::Compare(op, left, right) => {
@@ -2458,5 +2461,46 @@ fn as_pattern(c: crate::patterns::Children) -> crate::patterns::Pattern {
     match c {
         crate::patterns::Children::Node(p) => *p,
         _ => crate::patterns::Pattern::Children(c),
+    }
+}
+
+/// Cached DOMs omit source annotations. Recover recipe positions only for a failed load.
+pub(crate) fn restore_recipe_locations(
+    dom: &mut Dom,
+    tokens: &[crate::result::Token],
+    position: &dyn Fn(usize) -> (usize, usize),
+) {
+    for rule in &mut dom.rules {
+        let Some(start) = tokens.iter().position(|token| {
+            matches!(token.text.as_str(), "%rule" | "%extend-rule" | "%redefine-rule")
+                && position(token.source.start) == rule.at
+        }) else {
+            continue;
+        };
+        let mut values = Vec::new();
+        let mut images = Vec::new();
+        for index in start + 1..tokens.len() {
+            let token = &tokens[index];
+            if token.text.starts_with('%') {
+                break;
+            }
+            if let Some(next) = tokens.get(index + 1) {
+                match token.text.as_str() {
+                    ":=" => values.push(position(next.source.start)),
+                    ":-" => images.push(position(next.source.start)),
+                    _ => {}
+                }
+            }
+        }
+        let mut values = values.into_iter();
+        let mut images = images.into_iter();
+        for channels in std::iter::once(&mut rule.strings).chain(rule.alternatives.iter_mut().map(|a| &mut a.strings)) {
+            if channels.value.is_some() {
+                channels.value_at = values.next();
+            }
+            if channels.image.is_some() {
+                channels.image_at = images.next();
+            }
+        }
     }
 }

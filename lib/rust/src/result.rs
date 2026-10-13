@@ -15,10 +15,10 @@ pub struct Token {
     /// The original text over [`source`](Token::source).
     pub text: String,
     /// What the token sounds like (engine §5), if anything.
-    pub phonemes: Option<String>,
+    pub value: String,
     /// What the token shows to people (engine §5): for a character token
     /// or one that a caller supplies, its text.
-    pub label: String,
+    pub image: String,
     /// The token's tags.
     pub tags: Tags,
     /// The range of the previous stage's tokens this token covers; for the
@@ -44,9 +44,9 @@ pub struct Attachment {
     /// The original text over [`source`](Attachment::source).
     pub text: String,
     /// What the token sounds like (engine §5), if anything.
-    pub phonemes: Option<String>,
+    pub value: String,
     /// What the token shows to people (engine §5).
-    pub label: String,
+    pub image: String,
     /// The token's tags.
     pub tags: Tags,
     /// The range of the original text this token covers, in code points.
@@ -63,8 +63,8 @@ impl Attachment {
     fn shallow(&self) -> Attachment {
         Attachment {
             text: self.text.clone(),
-            phonemes: self.phonemes.clone(),
-            label: self.label.clone(),
+            value: self.value.clone(),
+            image: self.image.clone(),
             tags: self.tags.clone(),
             source: self.source.clone(),
             inserted_by: self.inserted_by.clone(),
@@ -75,8 +75,8 @@ impl Attachment {
 
     fn same_shallow(&self, other: &Attachment) -> bool {
         self.text == other.text
-            && self.phonemes == other.phonemes
-            && self.label == other.label
+            && self.value == other.value
+            && self.image == other.image
             && self.tags == other.tags
             && self.source == other.source
             && self.inserted_by == other.inserted_by
@@ -179,6 +179,8 @@ pub struct Node {
     pub source: Range<usize>,
     /// For a rule node, its constituent's tags; empty otherwise.
     pub tags: Tags,
+    /// The saved equality operand of an elided terminator.
+    pub value: Option<String>,
     /// For a rule node, its children in text order; empty otherwise.
     pub children: Vec<Node>,
 }
@@ -193,6 +195,7 @@ impl Node {
             span: self.span.clone(),
             source: self.source.clone(),
             tags: self.tags.clone(),
+            value: self.value.clone(),
             children: Vec::new(),
         }
     }
@@ -205,6 +208,7 @@ impl Node {
             && self.span == other.span
             && self.source == other.source
             && self.tags == other.tags
+            && self.value == other.value
             && self.children.len() == other.children.len()
     }
 }
@@ -385,9 +389,8 @@ pub struct Restoration {
     pub at: usize,
     /// The empty source of its elided node.
     pub source: Range<usize>,
-    /// The string of the terminator's `=` test, its saved sound; `None`
-    /// for a terminator with no such test.
-    pub sound: Option<String>,
+    /// The saved equality operand. None denotes no equality test.
+    pub value: Option<String>,
 }
 
 /// A terminal a rejected stage could have read next, with the rules whose

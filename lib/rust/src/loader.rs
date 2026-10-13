@@ -215,6 +215,7 @@ impl Context {
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
                 crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
+                crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
         }
         Ok(dom)
@@ -483,6 +484,9 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             // Retry only a failed load, with locations for its diagnostic document.
             let document = error.group.as_ref().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
+        }
+        Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         result => result,
     }

@@ -16,8 +16,28 @@ fn engine_cases() {
             eprintln!("case {}", file.display());
         }
         let text = std::fs::read_to_string(file).expect("a case");
-        let case = parse_json(&text).expect("a case is JSON");
+        let case = match parse_json(&text) {
+            Ok(case) => case,
+            Err(error)
+                if error == "a bad code point"
+                    && matches!(
+                        file.file_name().and_then(|n| n.to_str()),
+                        Some("values-surrogate-value.json" | "values-surrogate-image.json")
+                    ) =>
+            {
+                eprintln!("skip {}: Rust strings cannot contain lone surrogates", file.display());
+                skipped += 1;
+                continue;
+            }
+            Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
+        };
+        if let Some(reason) = common::unexpressible_tokens(&case) {
+            eprintln!("skip {}: {reason}", file.display());
+            skipped += 1;
+            continue;
+        }
         if has_caller_attachments(&case) {
+            eprintln!("skip {}: Rust InputToken has no attachment fields", file.display());
             skipped += 1;
             continue;
         }
@@ -32,7 +52,7 @@ fn engine_cases() {
         }
     }
     eprintln!(
-        "{} engine cases in {:?}, {skipped} skipped for caller tokens with attachments",
+        "{} engine cases in {:?}, {skipped} skipped because Rust cannot express the supplied fields",
         files.len() - skipped,
         started.elapsed()
     );
@@ -321,7 +341,12 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
     let dialect =
         gencmu::load_dialect_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
             .expect("an error of lowering is no load error");
-    let token = gencmu::InputToken { text: "a".into(), tags: ["A".to_string()].into_iter().collect(), phonemes: None };
+    let token = gencmu::InputToken {
+        text: "a".into(),
+        tags: ["A".to_string()].into_iter().collect(),
+        value: None,
+        image: None,
+    };
     let options = gencmu::ParseOptions {
         features: features.iter().map(|feature| feature.to_string()).collect(),
         auto_features: false,

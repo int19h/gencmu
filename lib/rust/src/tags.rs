@@ -169,16 +169,6 @@ pub(crate) fn is_subset(small: &TagList, large: &TagList) -> bool {
     small.iter().all(|&id| listed(found(large, id)))
 }
 
-/// Whether a tag is a phoneme tag `/p/`, exactly three code points, and if
-/// so its phoneme `p`; the pause, `/./`, is `.` (engine §5).
-pub(crate) fn phoneme_of(tag: &str) -> Option<&str> {
-    if tag.chars().count() == 3 && tag.starts_with('/') && tag.ends_with('/') {
-        Some(&tag[1..tag.len() - 1])
-    } else {
-        None
-    }
-}
-
 /// Whether a string is a name (engine §9), and so an identifier tag: an
 /// ASCII letter followed by ASCII letters, digits and hyphens.
 pub(crate) fn is_name(tag: &str) -> bool {
@@ -219,50 +209,6 @@ pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
         (Some(c), None) => Some(c as u32),
         _ => None,
     }
-}
-
-/// The scalar value of a character tag in its canonical spelling, or
-/// `None` for any other string.
-pub(crate) fn character_code(tag: &str, unicode: &Unicode) -> Option<u32> {
-    let inner = tag.strip_prefix('\'').and_then(|rest| rest.strip_suffix('\''))?;
-    let code = match inner.strip_prefix("\\u{").and_then(|rest| rest.strip_suffix('}')) {
-        Some(digits)
-            if (1..=6).contains(&digits.len())
-                && digits.chars().all(|c| c.is_ascii_digit() || ('A'..='F').contains(&c)) =>
-        {
-            u32::from_str_radix(digits, 16).ok()
-        }
-        _ => {
-            let mut chars = inner.chars();
-            match (chars.next(), chars.next()) {
-                (Some(c), None) => Some(c as u32),
-                _ => None,
-            }
-        }
-    };
-    code.and_then(char::from_u32).filter(|&c| character_tag(c, unicode) == tag).map(|c| c as u32)
-}
-
-/// Whether a string is a character tag in its canonical spelling.
-fn is_character_tag(tag: &str, unicode: &Unicode) -> bool {
-    character_code(tag, unicode).is_some()
-}
-
-/// The written form of a range, its identity as a terminal (engine §4): its
-/// two ends, in their canonical spelling, joined by `..`.
-pub(crate) fn range_name(start: &str, end: &str) -> String {
-    format!("{start}..{end}")
-}
-
-/// The written form of a property, its identity as a terminal (engine §4).
-pub(crate) fn property_name(name: &str) -> String {
-    format!("'\\p{{{name}}}'")
-}
-
-/// Whether a string is a tag in its canonical spelling: a name, a phoneme
-/// tag or a character tag (engine §1).
-pub(crate) fn is_tag(tag: &str, unicode: &Unicode) -> bool {
-    is_name(tag) || phoneme_of(tag).is_some() || is_character_tag(tag, unicode)
 }
 
 #[cfg(test)]

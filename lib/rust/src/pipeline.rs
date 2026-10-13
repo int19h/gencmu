@@ -341,7 +341,7 @@ mod tests {
                 }],
                 emit: None,
                 conditions: Vec::new(),
-                opaque: false,
+                erased: false,
                 at: (2 * index + 3, 1),
             };
             let features = directive("features", (0..n).map(|index| format!("f{index}")).collect());

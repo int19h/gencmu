@@ -734,7 +734,7 @@ fn closed(root: &Term) -> bool {
     let mut pending = vec![root];
     while let Some(term) = pending.pop() {
         match term {
-            Term::Capture(_) | Term::If(..) | Term::Range(..) => return false,
+            Term::Capture(_) | Term::If(..) => return false,
             Term::Call(name, args) => {
                 if !matches!(name.as_str(), "split" | "interpolate") {
                     return false;

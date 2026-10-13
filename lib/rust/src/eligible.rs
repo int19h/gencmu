@@ -790,9 +790,9 @@ mod tests {
             .map(|(index, &terminal)| Tok {
                 text: "x".to_string(),
                 tags: shared.tags.set_of([terminal]),
-                phonemes: None,
+                value: None,
                 source: (index * 2, index * 2 + 1),
-                label: "x".to_string(),
+                image: "x".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
@@ -873,7 +873,7 @@ mod tests {
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
             text: text.to_string(),
             tags: tags.into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         let tokens: Vec<_> = [token("a", starts.clone()), token("ku", vec!["KU".to_string()])]
             .into_iter()
@@ -914,9 +914,9 @@ mod tests {
                 } else {
                     "B"
                 }]),
-                phonemes: None,
+                value: None,
                 source: (index * 2, index * 2 + 1),
-                label: "x".to_string(),
+                image: "x".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
