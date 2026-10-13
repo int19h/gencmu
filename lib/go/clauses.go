@@ -790,5 +790,10 @@ func ruleHasRanked(r *domRule) bool {
 }
 
 func deferredEmissionProblem(message string) bool {
-	return strings.Contains(message, "leaves a production nothing to emit")
+	return strings.Contains(message, "leaves a production nothing to emit") || deferredRecipeProblem(message)
+}
+
+// Recipe absence waits for ranked name analysis, which precedes pruning (§11.4).
+func deferredRecipeProblem(message string) bool {
+	return strings.HasPrefix(message, "a selected recipe reads an absent capture $")
 }

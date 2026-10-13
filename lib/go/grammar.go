@@ -212,9 +212,6 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if err := g.resolveClassifierKeys(); err != nil {
 		return nil, err
 	}
-	if err := g.validateRecipeCycles(); err != nil {
-		return nil, err
-	}
 	if err := g.addImplications(implications); err != nil {
 		return nil, err
 	}
@@ -269,6 +266,15 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		if err := g.ranked.validateTags(lowered); err != nil {
 			return nil, err
 		}
+	}
+	// Ranked scope errors precede recipe absence, pruning, and cycle analysis (§11.4).
+	for _, err := range g.deferredEmissions {
+		if deferredRecipeProblem(err.Message) {
+			return nil, err
+		}
+	}
+	if err := g.validateRecipeCycles(); err != nil {
+		return nil, err
 	}
 	if err := g.validateEmissionOverlap(); err != nil {
 		return nil, err
