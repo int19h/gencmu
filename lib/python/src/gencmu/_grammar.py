@@ -148,6 +148,7 @@ class Grammar:
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
+    families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -779,6 +780,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     # checked: an error in one would have stopped the first check, at the
     # same document and place.
     checked: set[int] = set()
+    family_names: list[str] = []
 
     def unchecked(clause: Any) -> Any:
         if clause is None or id(clause) in checked:
@@ -792,6 +794,10 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
+                    if value.get("method") == "without-elision-except":
+                        family = value["args"][0]["rule"]
+                        if family not in family_names:
+                            family_names.append(family)
                     ref = value.get("ref")
                     if isinstance(ref, str) and not is_terminal_name(ref) and ref not in rules:
                         raise _error(f"{ref} is not a rule of stage {stage}", alt.document, alt.at, stage)
@@ -810,6 +816,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                     stack.extend(reversed(list(value.values())))
                 elif isinstance(value, list):
                     stack.extend(reversed(value))
+    from ._families import members
     grammar = Grammar(
         stage,
         rules,
@@ -819,6 +826,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         changes=changes,
         classifier_items=classifier_items,
         implications=implications,
+        families=members(rules, family_names),
     )
 
     grammar.ranked = RankedGroups(stage, rules)
@@ -937,6 +945,7 @@ class Production:
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
     elided_test: SymbolTest | None = None
+    elided_owner: str | None = None
     # The test of each symbol, which reads its own span and its own tags,
     # or None for a symbol without one (engine §4); None when no symbol has
     # one. The test is not part of the symbol's identity.
@@ -1336,6 +1345,7 @@ class _Lowerer:
             leftmost_longest=alt is not None and "leftmost-longest" in self.grammar.rules[self.rule_names[lhs]].flags,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
+            elided_owner=self.rule_display[lhs] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
             logical=getattr(expansion, "logical", tuple(("symbol", i) for i in range(len(expansion)))),
