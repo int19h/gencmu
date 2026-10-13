@@ -9,6 +9,7 @@ import (
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
 type stageGrammar struct {
+	families          map[string]map[string]bool
 	ranked            *rankedGroups
 	deferredEmissions []*Error
 	name              string
@@ -241,6 +242,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 		}
 	}
+	g.resolveFamilies()
 	if err := g.makeTests(); err != nil {
 		return nil, err
 	}
@@ -393,6 +395,12 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 		}
 		if w := work.Load(); w != nil {
 			w.clauseSteps.add("clause steps")
+		}
+		if t.Kind == tmCall && t.Str == "without-elision-except" {
+			if g.families == nil {
+				g.families = map[string]map[string]bool{}
+			}
+			g.families[t.Items[1].Str] = nil
 		}
 		if t.Kind == tmRule && g.byName[t.Str] == nil {
 			return fail("%s is not a rule of stage %s", t.Str, g.name)

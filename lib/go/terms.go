@@ -24,6 +24,7 @@ type spanVal struct {
 type alignedSpan struct {
 	end, contextEnd, observation int
 	arena                        *closeArena
+	family                       string
 }
 
 // A term's value is a string or a set, of strings or of tags (§10). The
@@ -213,7 +214,7 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		if wc := work.Load(); wc != nil {
 			wc.visits.add("visits")
 		}
-		if t.Kind != tmCall || len(t.Items) != 1 {
+		if t.Kind != tmCall || !isSpanFunction(t.Str) {
 			break
 		}
 		w.chain = append(w.chain, t)
@@ -230,11 +231,14 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 		call := w.chain[i]
 		s.whole, s.tags, s.lazy = false, nil, nil
 		switch call.Str {
-		case "without-elision":
+		case "without-elision", "without-elision-except":
 			if s.arena != nil && s.closes == invalidCloses {
 				w.invalidObservation = true
 			}
 			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
+			if call.Str == "without-elision-except" {
+				s.aligned.family = call.Items[1].Str
+			}
 		case "first-token":
 			s.aligned = nil
 			if s.b > s.a {
@@ -653,6 +657,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 			return false, ps.in.empty(), nil
 		}
 		k.aligned, k.observation, k.fixedEnd = true, s.aligned.observation, s.aligned.end
+		k.family = s.aligned.family
 		contextEnd, k.contextEnd = s.aligned.contextEnd, s.aligned.contextEnd
 	} else if s.b-s.a <= contentKeyLimit {
 		k.content, k.a, k.b = run.spanContent(s), -1, -1
@@ -694,17 +699,25 @@ type nestedQuery struct {
 // Qualification does not depend on an outer close constraint. Summaries
 // retain only eligible observations, after recognizing the whole context.
 type qualifiedQueryKey struct {
-	at            spanKey
-	parentContext int
+	family                string
+	observation, fixedEnd int
+	at                    spanKey
+	parentContext         int
 }
 
 type qualifiedProof struct {
 	end, observation int
+	summary          int
+	family           *familyArena
 	tags             *tagset
 }
 
 func (q *nestedQuery) qualifiedKey() qualifiedQueryKey {
-	return qualifiedQueryKey{q.at, q.parentContext}
+	key := qualifiedQueryKey{at: q.at, parentContext: q.parentContext}
+	if q.aligned != nil && q.aligned.family != "" {
+		key.family, key.observation, key.fixedEnd = q.aligned.family, q.aligned.observation, q.aligned.end
+	}
+	return key
 }
 
 func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
@@ -722,7 +735,10 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 	}
 	proofs := []qualifiedProof{}
 	for _, it := range rec.eligibleItems(items) {
-		proofs = append(proofs, qualifiedProof{rec.base + int(it.set), it.closes, tags[it]})
+		if rec.family != nil && run.ps.private != nil && run.ps.private.familyOracle != nil {
+			run.ps.private.familyOracle(rec, it)
+		}
+		proofs = append(proofs, qualifiedProof{end: rec.base + int(it.set), observation: it.closes, tags: tags[it], summary: it.familySummary, family: rec.family})
 	}
 	return proofs
 }
@@ -734,7 +750,11 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 		if p.end > q.matchEnd || q.key.kind != cdBegins && p.end != q.matchEnd {
 			continue
 		}
-		if q.aligned.arena.aligned(q.aligned.observation, p.observation, min(q.aligned.end, p.end)) {
+		matches := q.aligned.arena.aligned(q.aligned.observation, p.observation, min(q.aligned.end, p.end))
+		if p.family != nil {
+			matches = p.family.matches(p.summary, q.at.a, p.end) && p.observation != invalidCloses
+		}
+		if matches {
 			answer.holds = true
 			if q.key.kind != cdBegins {
 				sets = append(sets, p.tags)
@@ -750,6 +770,9 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 	a, b := q.at.a, q.at.b
 	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk()}
+	if q.aligned != nil && q.aligned.family != "" {
+		r.family = newFamilyArena(q.aligned.arena, q.aligned.observation, a, q.aligned.end, q.g.stage.families[q.aligned.family])
+	}
 	r.begin(q.start)
 	return r
 }
@@ -927,6 +950,7 @@ type nestedKey struct {
 	rule                              int32
 	content                           string // a short span's content, or ""
 	a, b                              int    // a long span's position, or -1 where content keys it
+	family                            string
 	aligned                           bool
 	observation, fixedEnd, contextEnd int
 	queryContext                      int

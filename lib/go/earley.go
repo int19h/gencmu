@@ -26,6 +26,7 @@ type itemKey struct {
 	more              int32
 	prefix, structure int
 	closes            int
+	familySummary     int
 }
 
 // capStep is the sequence of the capture slots after the first, extended
@@ -179,6 +180,7 @@ type symNode struct {
 	option         int
 	structure      int
 	closes         int
+	familySummary  int
 	rule           int32
 	start, end     int32
 	tags           *tagset
@@ -192,6 +194,7 @@ type symKey struct {
 	rule, origin, tags int32
 	structure          int
 	closes             int
+	familySummary      int
 }
 
 type eset struct {
@@ -215,6 +218,7 @@ const (
 )
 
 type recognizer struct {
+	family            *familyArena
 	closeRequested    bool
 	closeVariants     map[closeVariantKey]*production
 	closeDemands      map[*production]closeDemand
@@ -643,6 +647,9 @@ func countCondition() {
 // and one ordinary step makes an item ordinary, which is then processed
 // again for what its strictness held back.
 func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
+	if r.family != nil {
+		r.family.taking(key.familySummary)
+	}
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
 	}
@@ -826,14 +833,14 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes}
+	key := symKey{requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -894,6 +901,21 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			_, oldEnd := r.observed(it.origin, it.set)
 			x, y := r.observed(cv.start, cv.end)
 			key.closes = r.closes.join(it.closes, child, oldEnd == b, x == a && y == b)
+			if r.family != nil {
+				a, p0 := r.observed(it.origin, it.set)
+				_, b := r.observed(it.origin, int32(k))
+				child := 0
+				if l.sym == nil {
+					child = r.family.token(p0, b)
+				} else {
+					child = l.sym.familySummary
+				}
+				if l.sym != nil && r.g.rankedHelpers[l.sym.rule] != nil {
+					event := r.blockEvent(l.sym)
+					child = r.family.join(r.family.record(event, false), r.family.token(p0, b), p0, p0, b)
+				}
+				key.familySummary = r.family.join(it.familySummary, child, a, p0, b)
+			}
 			r.finishCloses(&key, int32(k))
 		}
 		if r.machine != nil {

@@ -299,10 +299,17 @@ func (r *recognizer) finishCloses(key *itemKey, end int32) {
 	p := key.prod
 	a, _ := r.observed(key.origin, end)
 	if p.restoration() {
-		key.closes = r.closes.event(key.closes, closeEvent{record: r.closeRecord(p.elided, a, p.elidedTest)})
+		event := closeEvent{record: r.closeRecord(p.elided, a, p.elidedTest)}
+		key.closes = r.closes.event(key.closes, event)
+		if r.family != nil {
+			key.familySummary = r.family.join(key.familySummary, r.family.record(event, r.family.members[p.ruleName]), a, a, a)
+		}
 	}
 	if !p.helper && (r.recon != nil || r.g.rules[p.lhs].scc >= 0) {
 		key.closes = r.closes.named(key.closes, p.lhs)
+	}
+	if r.family != nil && key.closes == invalidCloses {
+		key.familySummary = 1
 	}
 }
 
@@ -418,7 +425,7 @@ func demandedCloses(g *lowered) map[int32]bool {
 			uses := func(t *domTerm) bool {
 				found := false
 				walkClause(clausePart{t: t}, func(n clausePart) bool {
-					if n.t != nil && n.t.Kind == tmCall && n.t.Str == "without-elision" {
+					if n.t != nil && n.t.Kind == tmCall && isRestorationMethod(n.t.Str) {
 						found = true
 					}
 					return true
@@ -442,7 +449,7 @@ func demandedCloses(g *lowered) map[int32]bool {
 						}
 					}
 				}
-				if n.t != nil && n.t.Kind == tmCall && n.t.Str == "without-elision" {
+				if n.t != nil && n.t.Kind == tmCall && isRestorationMethod(n.t.Str) {
 					name := n.t.Items[0].Str
 					at, ok := p.posOf[name]
 					if name == "" || !ok || p.contextual {
@@ -515,7 +522,7 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 			if span != nil && span.Kind == tmCall && span.Str == "onward" {
 				span = span.Items[0]
 			}
-			if span != nil && span.Kind == tmCall && span.Str == "without-elision" {
+			if span != nil && span.Kind == tmCall && isRestorationMethod(span.Str) {
 				if at, ok := p.posOf[span.Items[0].Str]; ok {
 					d.positions[at] = true
 					if _, known := d.queries[at]; !known {
@@ -528,7 +535,7 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 				}
 			}
 		}
-		if n.t != nil && n.t.Kind == tmCall && n.t.Str == "without-elision" {
+		if n.t != nil && n.t.Kind == tmCall && isRestorationMethod(n.t.Str) {
 			name := n.t.Items[0].Str
 			if name == "" {
 				d.whole = true
