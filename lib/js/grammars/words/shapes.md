@@ -509,7 +509,7 @@ A syllabic consonant is a consonant pronounced as a syllable. The stress of a wo
 
 A brivla is a predicate word. It is stressed on its penultimate counted syllable. If a capital vowel marks the stress, every capital vowel of the brivla must be in that syllable, and exactly one counted syllable follows it. So `BAjykla` is right, because CLL[^cll-s3-9] does not count the `y`, and `bAIkla` is right, because `aI` is one syllable. A capital `Y` never stands in a brivla.
 
-`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. A vowel can stand alone before another vowel only if the two form no diphthong. So the reading is unique, and it is CLL's grouping. The tags are:
+`brivla-scan` reads the letters of a brivla one syllable nucleus at a time, from the left. Its tags, the names that it puts on what it reads, say where the stress is. A nucleus is a vowel or a diphthong of a brivla. The lookahead requires a vowel that stands alone as a nucleus to form no diphthong with the vowel after it. So the reading is unique, and it is CLL's grouping. The tags are:
 
 - `S0`, `S1` and `S2` track the marked nucleus. `S0` holds before the scan reads a capital vowel, and `S1` after the one marked nucleus. `S2` holds after the marked nucleus and one more counted nucleus. A second marked nucleus removes all three tags. A second counted nucleus after the marked one does too.
 - `N0`, `N1`, `N2` and `N3`, for no counted nucleus, one, two, and three or more
@@ -538,11 +538,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
        ∪ (N0 ⊆ $s.tags ∧ Marked ⊆ $j.tags ⟹ First-Marked)
        ∪ Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags
-    ∨ ¬$j.first-token.matches(vowel)
-    ∨ ¬$s.last-token.matches(i-or-u)
-      ∧ ($s.last-token.value ≠ "a" ∨ ¬$j.first-token.matches(i-or-u))
-      ∧ (¬$s.last-token.matches(e-or-o) ∨ $j.first-token.value ≠ "i")
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong)
 
 %rule brivla-item
   | consonant | "y"<¬Stressed> | "'" | Syllable-Break
@@ -561,7 +557,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 
 
 
-A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
+A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. `name-diphthong` also admits `iy` and `uy`. Its tags are:
 
 - `N0` to `N3` and `Single-End`, as above
 - `V0` before the scan reads a nucleus, and `V1` after the first nucleus
@@ -592,11 +588,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
        ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
        ∪ Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags
-    ∨ ¬$j.first-token.matches(name-vowel)
-    ∨ ¬$s.last-token.matches(i-or-u)
-      ∧ ($s.last-token.value ≠ "a" ∨ ¬$j.first-token.matches(i-or-u))
-      ∧ (¬$s.last-token.matches(e-or-o) ∨ $j.first-token.value ≠ "i")
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(name-diphthong)
 
 %rule name-item
   | consonant | "'" | Syllable-Break
@@ -607,12 +599,16 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 
 %rule name-vowel
   vowel | "y"
+
+%rule name-diphthong
+  brivla-diphthong | y-diphthong
 ```
 
-<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code> and <code>name-vowel</code></summary>
+<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code>, <code>name-vowel</code> and <code>name-diphthong</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/name-scan.svg" alt="Railroad diagram of the rule name-scan"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-item.svg" alt="Railroad diagram of the rule name-item"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-vowel.svg" alt="Railroad diagram of the rule name-vowel"></p>
+<p><img src="../../docs/diagrams/words/shapes/name-diphthong.svg" alt="Railroad diagram of the rule name-diphthong"></p>
 </details>
 
 
