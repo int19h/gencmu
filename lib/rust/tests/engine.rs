@@ -55,7 +55,7 @@ fn engine_cases() {
         }
     }
     eprintln!(
-        "{} engine cases in {:?}, {skipped} skipped because Rust cannot express the supplied fields",
+        "{} engine cases in {:?}, {skipped} skips for unavailable caller fields; 0 skips for unavailable engine behavior",
         files.len() - skipped,
         started.elapsed()
     );
@@ -436,6 +436,152 @@ fn written_terminators_keep_logical_optional_boundaries() {
             }
         }
     }
+}
+
+/// Explicit ranges equal to the API defaults need no unavailable fields.
+#[test]
+fn the_runner_accepts_generated_caller_ranges() {
+    let case = parse_json(r#"{"grammar":"%rule text _ _", "input":"é 🙂", "tokens":[{"text":"é","tags":[],"source":[0,1],"span":[0,1]},{"text":"🙂","tags":[],"source":[2,3],"span":[1,2]}],"expect":{"result":{"ok":true}}}"#).unwrap();
+    assert_eq!(common::unexpressible_tokens(&case), None);
+    run_engine_case(&case).unwrap();
+    let wrong = common::apply_mutant(&case, &parse_json(r#"{"path":["tokens",1,"source"],"set":[1,2]}"#).unwrap());
+    assert!(common::unexpressible_tokens(&wrong).unwrap().starts_with("unavailable caller fields:"));
+}
+
+/// The caller cannot provide these source ranges. Preparatory grammar
+/// stages produce them, so the downstream engine behavior stays covered.
+#[test]
+fn skipped_source_cases_have_stage_equivalents() {
+    use common::Value;
+    let names = [
+        "attach-error-in-attachment",
+        "attach-error-insert-order",
+        "attach-error-order",
+        "emit-fault-keeps-verdict",
+        "memo-source-enclosing",
+        "order-emission-before-elision-only",
+        "source-out-of-order-emit",
+        "source-out-of-order-inserted",
+        "source-out-of-order-text",
+        "source-out-of-order-tree",
+        "source-out-of-order-witness",
+        "values-reparse-original-nonmonotonic-sources",
+        "values-verbatim-out-of-order",
+        "values-verbatim-overridden",
+        "values-verbatim-source",
+        "rejection-empty-supplied-slice",
+        "rejection-supplied-slice-before-text-end",
+        "rejection-supplied-slice-last-source",
+    ];
+    for name in names {
+        let file = common::repository().join("tests/engine").join(format!("{name}.json"));
+        let case = parse_json(&std::fs::read_to_string(file).unwrap()).unwrap();
+        assert!(common::unexpressible_tokens(&case).is_some(), "{name}: retain the API skip");
+        let input = case.get("input").and_then(Value::str).unwrap();
+        let supplied = case.get("tokens").unwrap().array();
+        let nonmonotonic = name.starts_with("source-out-of-order") || name == "memo-source-enclosing";
+        let bodies = if name == "rejection-empty-supplied-slice" {
+            vec!["%rule text _ %erased".to_string()]
+        } else if name == "rejection-supplied-slice-before-text-end" {
+            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"$(_000A)\" \"b\"".to_string()]
+        } else if name == "rejection-supplied-slice-last-source" {
+            // Empty generated tokens can reverse their source points. This
+            // reaches the same EOF assertion as the reversed caller slice.
+            vec![
+                "%rule text \"a\" $s:anchor \" \" \"b\" $e:anchor \" \" \"c\" %emits $s :: Start, $e :: End\n%rule anchor ε".to_string(),
+                "%rule text Start End $x:anchor %emits $x :: A, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text $a:A $c:Carrier $z:anchor %emits $a :: A, ε :: B, ($c) $z :: Hidden\n%rule anchor ε".to_string(),
+                "%rule text $a:A $b:B Hidden %emits $a, $b".to_string(),
+            ]
+        } else if nonmonotonic {
+            vec![
+                "%rule text {letter}\n%rule letter _ $x:anchor %emits $x :: X, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text {letter}\n%rule letter $x:X $y:Carrier $z:anchor %emits $x :: X, ε :: Y, ($y) $z :: Z\n%rule anchor ε".to_string(),
+            ]
+        } else if name == "values-reparse-original-nonmonotonic-sources" {
+            vec![
+                "%rule text _ $x:anchor $y:anchor %emits $x :: X, $y :: Y, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text $x:X $y:Y $c:Carrier $z:anchor %emits $x :: X, $y :: Y, ε :: Z, ($c) $z :: Hidden\n%rule anchor ε".to_string(),
+                "%rule text $x:X $y:Y $z:Z Hidden %emits $x, $y, $z".to_string(),
+            ]
+        } else {
+            let mut letters = std::collections::BTreeMap::new();
+            for token in supplied {
+                letters.insert(token.get("text").and_then(Value::str).unwrap(), token.get("tags").unwrap().array());
+            }
+            let alternatives = letters
+                .iter()
+                .map(|(text, tags)| {
+                    let tags = tags.iter().map(|tag| tag.str().unwrap()).collect::<Vec<_>>().join(" ∪ ");
+                    format!(
+                        "{} :: {}",
+                        Value::String(text.to_string()).to_text(),
+                        if tags.is_empty() { "∅" } else { &tags }
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let gaps = input
+                .chars()
+                .filter(|c| !letters.contains_key(c.to_string().as_str()))
+                .map(|c| Value::String(c.to_string()).to_text())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            vec![format!("%rule text {{piece}}\n%rule piece letter | gap\n%rule letter {alternatives} %emits $\n%rule gap ({gaps}) %erased")]
+        };
+        let (mut documents, pipeline) = common::case_documents(&case);
+        let mut prelude = String::new();
+        for (index, body) in bodies.iter().enumerate() {
+            let name = format!("local-input-{index}");
+            documents
+                .insert(format!("{name}.md"), format!("```jbogenbau\n%ambiguity-resolution greedy\n{body}\n```\n"));
+            prelude.push_str(&format!("%stage {name}\n%include \"{name}.md\"\n"));
+        }
+        let entry = documents.get_mut(&pipeline).unwrap();
+        let at = entry.find("```jbogenbau\n").unwrap() + "```jbogenbau\n".len();
+        entry.insert_str(at, &prelude);
+        let dialect = gencmu::load_dialect_sources(documents, &pipeline).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let (result, checks) =
+            gencmu::tools::with_elision_checks(|| dialect.parse(input, &common::case_options(&case)));
+        let mut result = result.unwrap();
+        assert_eq!(common::witness_problem(&result, &checks), None, "{name}");
+        let generated = result.stages[bodies.len() - 1].output.as_ref().expect("preparatory output");
+        assert_eq!(generated.len(), supplied.len(), "{name}");
+        if name == "rejection-supplied-slice-last-source" {
+            assert!(generated[0].source.end > generated[1].source.end);
+        }
+        if !matches!(
+            name,
+            "values-verbatim-out-of-order" | "values-verbatim-overridden" | "rejection-supplied-slice-last-source"
+        ) {
+            for (generated, supplied) in generated.iter().zip(supplied) {
+                let range = supplied.get("source").unwrap().array();
+                assert_eq!(
+                    generated.source,
+                    range[0].number().unwrap() as usize..range[1].number().unwrap() as usize,
+                    "{name}"
+                );
+                assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                assert_eq!(
+                    generated.tags,
+                    supplied.get("tags").unwrap().array().iter().map(|t| t.str().unwrap().to_string()).collect(),
+                    "{name}"
+                );
+            }
+        }
+        // Keep every downstream grammar and assertion. Remove only the
+        // added stage from the canonical comparison.
+        result.stages.drain(..bodies.len());
+        let actual = parse_json(&gencmu::to_json(&result)).unwrap();
+        let expect = case.get("expect").unwrap();
+        assert_eq!(common::check_json(expect, &actual).unwrap(), "", "{name}: {}", actual.to_text());
+        assert_eq!(
+            result.error.as_ref().map(|e| common::error_kind(e.kind)),
+            expect.get("error").and_then(Value::str),
+            "{name}"
+        );
+    }
+    eprintln!("{} unavailable caller-source cases have local stage equivalents", names.len());
 }
 
 /// Nested per-route helpers retain their logical parent in aligned queries.

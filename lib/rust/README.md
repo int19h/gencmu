@@ -72,6 +72,7 @@ The grammars of the crate, `grammars/`, are a copy of the grammars of the reposi
 - The bootstrap fixpoint
 - The DOM cache
 - The API
+- Local stage equivalents for unavailable caller source ranges, with unchanged downstream assertions
 - The core sample of the Lojban corpus
 - The ranking property test in `tests/ranking.rs` compares results with every derivation of small random grammars. These grammars contain optionals, marked optionals, flat braces, separated lists, and chains.
 - The tests in `tests/engine.rs` compare the place and order of lowering errors. The tests in `src/earley.rs` measure captures with many ends, which keep one completed item per end.
