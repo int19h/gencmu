@@ -224,6 +224,8 @@ pub(crate) struct Prod {
     /// whose alternative introduced it.
     pub owner: u32,
     pub syms: Vec<Sym>,
+    /// Plain optional boundaries, including routes expanded for captures (§4).
+    pub optionals: Vec<OptionalBoundary>,
     /// The physical symbol supplying logical unary inheritance.
     pub inherited: Option<usize>,
     /// For each position, its capture slot.
@@ -378,11 +380,20 @@ impl Lowered {
     }
 }
 
+/// A logical plain optional and its physical range in one production.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OptionalBoundary {
+    pub expression: usize,
+    pub start: usize,
+    pub end: usize,
+}
+
 /// A symbol, its capture name and the id of its test.
 type Item = (Sym, Option<String>, Option<u32>);
 #[derive(Clone, Default)]
 struct Sequence {
     items: Vec<Item>,
+    optionals: Vec<OptionalBoundary>,
     logical_width: usize,
     inherited: Option<usize>,
 }
@@ -391,7 +402,14 @@ impl Sequence {
         Self::default()
     }
     fn one(item: Item) -> Self {
-        Self { items: vec![item], logical_width: 1, inherited: Some(0) }
+        Self { items: vec![item], logical_width: 1, inherited: Some(0), optionals: Vec::new() }
+    }
+    fn optional(&mut self, expr: &Expr) {
+        self.optionals.push(OptionalBoundary {
+            expression: expr as *const Expr as usize,
+            start: 0,
+            end: self.items.len(),
+        });
     }
     fn append(&mut self, other: &Self) {
         self.inherited = if self.logical_width == 0 {
@@ -401,6 +419,12 @@ impl Sequence {
         } else {
             None
         };
+        let offset = self.items.len();
+        self.optionals.extend(other.optionals.iter().map(|boundary| OptionalBoundary {
+            expression: boundary.expression,
+            start: boundary.start + offset,
+            end: boundary.end + offset,
+        }));
         self.logical_width += other.logical_width;
         self.items.extend(other.items.iter().cloned());
     }
@@ -670,6 +694,7 @@ impl<'a> Lowerer<'a> {
                         sequence.inherited = None;
                     }
                     sequence.logical_width = 1;
+                    sequence.optional(expr);
                 }
                 out
             }
@@ -685,7 +710,9 @@ impl<'a> Lowerer<'a> {
                     .map(|route| {
                         self.enter();
                         let sym = self.helper(vec![route], None, expr);
-                        Sequence::one((sym, None, None))
+                        let mut sequence = Sequence::one((sym, None, None));
+                        sequence.optional(expr);
+                        sequence
                     })
                     .collect()
             }
@@ -698,7 +725,11 @@ impl<'a> Lowerer<'a> {
                 let mut prods = vec![Sequence::new()];
                 prods.extend(body);
                 let sym = self.helper(prods, elided, expr);
-                vec![Sequence::one((sym, None, None))]
+                let mut sequence = Sequence::one((sym, None, None));
+                if *mark == Mark::Plain {
+                    sequence.optional(expr);
+                }
+                vec![sequence]
             }
             // Flat braces are a helper, `h → x | h s x` (§3.2).
             Expr::Repeat(item, separator, _) => {
@@ -1185,6 +1216,7 @@ fn lower_mode(
             rule: pending.rule,
             owner,
             inherited: pending.sequence.inherited,
+            optionals: pending.sequence.optionals.clone(),
             visible: !helper && pending.sequence.logical_width != 1,
             syms,
             cap_at,

@@ -25,7 +25,10 @@ fn engine_cases() {
                         Some("values-surrogate-value.json" | "values-surrogate-image.json")
                     ) =>
             {
-                eprintln!("skip {}: Rust strings cannot contain lone surrogates", file.display());
+                eprintln!(
+                    "skip {}: unavailable caller fields: Rust strings cannot contain lone surrogates",
+                    file.display()
+                );
                 skipped += 1;
                 continue;
             }
@@ -37,7 +40,7 @@ fn engine_cases() {
             continue;
         }
         if has_caller_attachments(&case) {
-            eprintln!("skip {}: Rust InputToken has no attachment fields", file.display());
+            eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
             skipped += 1;
             continue;
         }
@@ -405,3 +408,33 @@ fn a_chain_beside_an_alternative_comes_before_an_empty_item() {
     let message = lowering_error(&sources, &[]);
     assert!(message.starts_with("g.md:4:1: an item of braces in r"), "{message}");
 }
+
+/// Engine §4 holds the prefix before a logical plain optional fixed,
+/// regardless of captures or ranked groups inside that optional.
+#[test]
+fn written_terminators_keep_logical_optional_boundaries() {
+    for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]"] {
+        for method in ["matches", "begins"] {
+            for view in ["", ".without-elision", ".without-elision.onward"] {
+                let suffix = if optional == "[$c:c D]" { "D D T" } else { "D T" };
+                let grammar = format!(
+                    "%rule text $r:r\n%conditions $r{view}.{method}(r)\n%rule r B {optional} [+T] {suffix}\n%rule c D"
+                );
+                let tokens = if optional == "[$c:c D]" { "B D D T" } else { "B D T" };
+                let token_json = tokens
+                    .split(' ')
+                    .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                // The written optional route reaches T and blocks omission,
+                // even though that route cannot finish the queried rule.
+                let case = format!(
+                    r#"{{"grammar": {}, "tokens": [{token_json}], "expect": {{"error":"rejected"}}}}"#,
+                    common::Value::String(grammar.clone()).to_text()
+                );
+                run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|error| panic!("{grammar}: {error}"));
+            }
+        }
+    }
+}
+
