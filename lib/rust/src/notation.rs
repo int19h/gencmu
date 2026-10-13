@@ -45,14 +45,14 @@ impl<'a> Reader<'a> {
 
     /// The first token of a construct.
     fn first(&self, node: &Node) -> (usize, usize) {
-        let mut current = node;
-        while current.kind == NodeKind::Rule {
-            match current.children.first() {
-                Some(child) => current = child,
-                None => break,
+        let mut pending = vec![node];
+        while let Some(current) = pending.pop() {
+            if current.kind == NodeKind::Token {
+                return self.at(current);
             }
+            pending.extend(current.children.iter().rev());
         }
-        self.at(current)
+        self.at(node)
     }
 
     fn error(&self, node: &Node, message: impl Into<String>) -> Error {
@@ -1207,6 +1207,15 @@ impl<'a> Reader<'a> {
                 _ => return Err(self.unknown(node, kind)),
             };
             if !ready {
+                if kind == "pattern-atom" {
+                    let base =
+                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
+                    let testable =
+                        matches!(rule_name(base), "tag" | "string" | "wildcard" | "range" | "constant-reference")
+                            || base.kind == NodeKind::Token
+                                && (is_capital(self.text(base)) || self.text(base).starts_with('_'));
+                    self.pattern_test_nodes(node, testable)?;
+                }
                 pending.push((node, true));
                 pending.extend(children.iter().rev().map(|&n| (n, false)));
                 continue;
@@ -1335,15 +1344,8 @@ impl<'a> Reader<'a> {
         Ok(values.remove(&(root as *const Node)).expect("finished pattern"))
     }
 
-    /// A call, with its arguments: in a term, of a function that gives a
-    /// value or a span, and in a condition, of `matches`, `begins` or
-    /// `initial`.
-    fn pattern_tests(
-        &self,
-        node: &'a Node,
-        mut pattern: crate::patterns::Pattern,
-        testable: bool,
-    ) -> R<crate::patterns::Pattern> {
+    /// Inspect the target and complete test sequence before any base conversion.
+    fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
         let tests: Vec<_> =
             Self::parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
         let mut tags = false;
@@ -1359,6 +1361,16 @@ impl<'a> Reader<'a> {
                 value = true;
             }
         }
+        Ok(tests)
+    }
+
+    fn pattern_tests(
+        &self,
+        node: &'a Node,
+        mut pattern: crate::patterns::Pattern,
+        testable: bool,
+    ) -> R<crate::patterns::Pattern> {
+        let tests = self.pattern_test_nodes(node, testable)?;
         for test in tests {
             let (op, operand) = if rule_name(test) == "tag-test" {
                 let mut requirements = Vec::new();

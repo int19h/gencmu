@@ -290,3 +290,51 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         assert_eq!(error.column, column, "{description}: {error}");
     }
 }
+
+#[test]
+fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
+    fn field<'a>(value: &'a mut Value, name: &str) -> &'a mut Value {
+        let Value::Object(fields) = value else { panic!("object") };
+        &mut fields.iter_mut().find(|(key, _)| key == name).unwrap().1
+    }
+    let mut bootstrap = parse_json(&read("notation/bootstrap.json")).unwrap();
+    let Value::Array(stages) = field(&mut bootstrap, "stages") else { panic!("stages") };
+    for stage in stages {
+        let Value::Array(documents) = field(stage, "documents") else { panic!("documents") };
+        for document in documents {
+            let Value::Array(rules) = field(field(document, "dom"), "rules") else { panic!("rules") };
+            let mut padding = false;
+            for rule in rules.iter_mut() {
+                match rule.get("name").and_then(Value::str) {
+                    Some("feature-character") => {
+                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                        alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
+                    }
+                    Some("guard")
+                        if rule.get("alternatives").unwrap().array()[0]
+                            .get("expr")
+                            .unwrap()
+                            .get("ref")
+                            .and_then(Value::str)
+                            == Some("Guard") =>
+                    {
+                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                        *field(&mut alternatives[0], "expr") =
+                            parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Guard"}]}"#).unwrap();
+                        padding = true;
+                    }
+                    _ => {}
+                }
+            }
+            if padding {
+                rules.push(parse_json(r#"{"name":"padding","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
+            }
+        }
+    }
+    let error = load_with_bootstrap(
+        bootstrap.to_text(),
+        "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A\n```\n",
+    )
+    .unwrap_err();
+    assert_eq!((error.line, error.column), (Some(3), Some(12)), "{error}");
+}
