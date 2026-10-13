@@ -17,7 +17,6 @@ from ._tags import (
     Gathered,
     difference,
     intersection,
-    is_name,
     split_string,
 )
 from ._trampoline import Walk, run
@@ -1150,9 +1149,9 @@ class _Lowerer:
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
         test: SymbolTest | None = first[RESOLVED] if "test" in first else None
         symbol = first["expr"] if "test" in first else first
-        name = symbol.get("terminal")
-        if name is None and is_terminal_name(symbol.get("ref", "")):
-            name = symbol["ref"]
+        name = symbol.get("ref")
+        if not is_terminal_name(name or ""):
+            name = None
         if not isinstance(name, str):
             raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
         return (name, test)
@@ -1267,8 +1266,6 @@ class _Lowerer:
             return [Expansion()]
         if "ref" in expr:
             return [Expansion([(self.symbol(expr["ref"]), None)])]
-        if "terminal" in expr:
-            return [Expansion([(("t", expr["terminal"]), None)])]
         if any(k in expr for k in ("range", "literal", "wildcard")):
             return [Expansion([(self.character_class(expr), None)])]
         if "test" in expr:

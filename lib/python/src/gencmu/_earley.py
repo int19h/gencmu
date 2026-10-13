@@ -15,7 +15,7 @@ from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, is_name, split_string
+from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable

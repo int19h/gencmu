@@ -29,7 +29,6 @@ from ._validate import (
     CLASSIFIER_NAME,
     FORMAT,
     Marks,
-    literal_call_problem,
     range_problem,
     term_reads_own_tags,
 )
@@ -418,7 +417,7 @@ class DomBuilder:
         it defines (engine §9)."""
         tags = self.tag_term(self.only(node, "term"))
         if term_reads_own_tags(tags):
-            raise self.fail(node, "a constituent's tags cannot be made of its own: tags($) or classes($)")
+            raise self.fail(node, "a constituent's tags cannot be made of its own: $.tags or $.classes")
         return tags
 
     def tag_term(self, node: Node) -> Dom:

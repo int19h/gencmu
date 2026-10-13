@@ -5,8 +5,7 @@ A tag is an identifier string. A tag set stores membership without strength.
 
 from __future__ import annotations
 
-import re
-from typing import Iterable, Protocol
+from typing import Iterable
 
 from ._model import Tags
 
@@ -68,25 +67,13 @@ def sorted_tags(tags: Iterable[str]) -> list[str]:
 
 
 def split_string(string: str, delimiter: str) -> Tags:
-    """The value of split(string, delimiter) (engine §10): the pieces
+    """The value of string.split(delimiter) (engine §10): the pieces
     between the occurrences of the delimiter, found from the left without
     overlap, with the empty pieces dropped. The delimiter is not empty."""
     return frozenset(piece for piece in string.split(delimiter) if piece)
 
 
-_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
-
-
-def is_name(tag: str) -> bool:
-    """Whether a string is a name, and so an identifier tag (engine §1)."""
-    return _NAME.fullmatch(tag) is not None
-
-
-class Marks(Protocol):
-    def is_mark(self, code: int) -> bool: ...
-
-
-def is_tag(tag: object, unicode: Marks | None = None) -> bool:
+def is_tag(tag: object) -> bool:
     from ._strings import ENGINE_TAGS, USER_NAME
     return isinstance(tag, str) and (USER_NAME.fullmatch(tag) is not None or tag in ENGINE_TAGS)
 

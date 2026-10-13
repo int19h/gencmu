@@ -21,7 +21,7 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._pipeline import Pipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
-from ._tags import is_name, is_tag
+from ._tags import is_tag
 from ._unicode import UnicodeTable
 from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
@@ -335,9 +335,8 @@ def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
 
 
 def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
-    """The precompiled DOMs usable with this bootstrap, by text hash. Their
-    value tests are checked with the lowercase mapping that the match uses
-    (engine §9)."""
+    """The precompiled DOMs usable with this bootstrap, by text hash.
+    Their schema and exact string values follow engine §9."""
     if not compiled:
         return {}
     key = (compiled, bootstrap_hash, unicode_text)

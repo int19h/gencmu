@@ -123,10 +123,6 @@ def range_problem(ends: Any, unicode: Marks) -> str | None:
     return None
 
 
-def literal_call_problem(name: str, args: list[Any]) -> str | None:
-    return "split has an empty delimiter" if name == "split" and args and literal_string(args[-1]) == "" else None
-
-
 def _contains_engine(root: Any) -> bool:
     pending = [root]
     while pending:
