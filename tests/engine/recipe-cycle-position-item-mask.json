@@ -1,0 +1,13 @@
+{
+  "description": "The item-mask cycle reports the first atom of the effective recipe that closes its dependency path (engine §11.3 and §9.3).",
+  "grammar": "%rule text := $.emitted.value | \"a\" %emits $ := \"x\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

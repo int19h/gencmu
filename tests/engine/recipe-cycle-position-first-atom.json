@@ -1,0 +1,13 @@
+{
+  "description": "A direct cycle follows a literal prefix in the value recipe. The error reports the literal, not the later cyclic reference (engine §11.3 and §9.3).",
+  "grammar": "%rule text := \"prefix\" $.emitted.value | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

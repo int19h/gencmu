@@ -2851,11 +2851,13 @@
    */
   function validateRecipeCycles(value,image,document) {
     const selected = {value, image:image ?? value};
+    const impliedImage = image === undefined && value !== undefined;
     /** @type {("value"|"image")[]} */
     const path = [];
     const done = new Set();
     /** @param {"value"|"image"} channel */
     const visit = channel => {
+      if (channel === "image" && impliedImage) channel = "value";
       if (done.has(channel)) return;
       const recipe = selected[channel];
       if (!recipe) { done.add(channel); return; }
@@ -2864,7 +2866,7 @@
         if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
         const receiver = atom.receiver;
         if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
-        const next = /** @type {"value"|"image"} */ (atom.method);
+        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
         if (path.includes(next)) {
           const at = recipeLocations.get(recipe);
           const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
@@ -5342,7 +5344,7 @@
   /**
    * A rule body's alternative as stitched: its own parts, its rule's clauses,
    * and the document and position of the definition that wrote it.
-   * @typedef {DomAlternative & {clauses: RuleClauses, document: string, at: ErrorLocation}} StitchedAlternative
+   * @typedef {DomAlternative & {clauses: RuleClauses, document: string, at: ErrorLocation, order: number}} StitchedAlternative
    */
 
   /**
@@ -5426,6 +5428,8 @@
       this.emissionUsers = [];
       /** @type {Map<string, StitchedRule>} */
       this.rules = new Map();
+      // Written alternative order survives grouping, replacement and binding.
+      this.alternativeOrder = 0;
       /** @type {RuleChange[]} */
       this.changes = [];
       /** @type {Resolution | null} */
@@ -5478,9 +5482,6 @@
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
-      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
-        validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
-      }
       this.checkReferences();
       this.ranked = new RankedGroups(this.rules);
       if (this.ranked.groups.length) {
@@ -5494,6 +5495,12 @@
       for (const { path, rule } of this.emissionUsers) {
         const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
         if (problem) throw this.documentError(path, rule.at, problem);
+      }
+      // Recipe name analysis precedes effective channel dependencies (§11.4).
+      const recipeAlternatives = [...this.rules.values()].flatMap(rule => rule.alternatives);
+      recipeAlternatives.sort((a,b) => a.order - b.order);
+      for (const alternative of recipeAlternatives) {
+        validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
       }
       /**
        * The features that gate an alternative or an entry of a classifier.
@@ -5522,7 +5529,7 @@
         if (deferredEmissionProblem(rule) || deferredRecipeProblem(rule)) this.emissionUsers.push({path, rule});
         const at = { document: path, line: rule.at[0], column: rule.at[1] };
         const clauses = { tags: rule.tags, emit: rule.emit, conditions: rule.conditions || [], erased: rule.erased === true, value:rule.value, image:rule.image };
-        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at }));
+        const alternatives = rule.alternatives.map((alternative) => ({ ...alternative, clauses, document: path, at, order:this.alternativeOrder++ }));
         const previous = this.rules.get(rule.name);
         if (rule.op === "define") {
           if (previous) {

@@ -1,0 +1,13 @@
+{
+  "description": "Both effective channels cycle directly. The loader checks value before image and reports the value recipe first (engine §11.3 and §9.3).",
+  "grammar": "%rule text := $.emitted.value :- $.emitted.image | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}
