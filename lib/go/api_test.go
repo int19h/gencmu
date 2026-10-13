@@ -462,11 +462,17 @@ func TestConcurrentParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	texts := []string{"%rule a A", "%rule b [{B}] C & D", "%rule c :: X | $x:C %conditions $x.source-text = \"c\" ⟹ $x %emits $", "%rule e {... A \\ [+KU]}"}
+	texts := []string{"%rule a A", "%rule b [{B}] C & D", "%rule c :: X | $x:C %conditions $x.source-text = \"c\" ⟹ $x %emits $", "%rule e {... A / [+KU]}"}
 	want := make([]string, len(texts))
 	for i, text := range texts {
-		res, _ := d.Parse(text, ParseOptions{})
-		data, _ := MarshalResult(res)
+		res, err := d.Parse(text, ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("baseline fixture %q must accept: %v %+v", text, err, res)
+		}
+		data, err := MarshalResult(res)
+		if err != nil {
+			t.Fatal(err)
+		}
 		want[i] = string(data)
 	}
 	var wg sync.WaitGroup
