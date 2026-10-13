@@ -1216,7 +1216,7 @@ union = ["∪"] intersection {("∪" | "∖") intersection}
 intersection = ["∩"] term-atom {"∩" term-atom}
 tag-run = tag tag {tag}
 term-atom = plain-term-atom | method-chain
-plain-term-atom = tag-run | tag | lowercase-name | string-literal | constant-reference | range
+plain-term-atom = tag-run | tag | lowercase-name | "#" | string-literal | constant-reference | range
                 | capture-reference | "∅" | pattern-literal | "(" term ")"
 method-chain = method-receiver method-selector {method-selector}
 method-receiver = term-atom

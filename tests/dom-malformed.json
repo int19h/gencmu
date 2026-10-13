@@ -708,5 +708,330 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "The rule name # is a supplied without-elision-except argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "#"
+              }
+            ]
+          },
+          "args": [
+            {
+              "rule": "rival"
+            }
+          ]
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The rule name # is a supplied matches argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "#"
+            }
+          ]
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The rule name # is a supplied begins argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "#"
+            }
+          ]
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The rule name # is a supplied tags argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "⊆",
+          "left": {
+            "tag": "X"
+          },
+          "right": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "#"
+              }
+            ]
+          }
+        }
+      ],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "The name # cannot be a supplied classifier through a classifier argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ],
+      "tags": {
+        "method": "classify",
+        "receiver": {
+          "capture": ""
+        },
+        "args": [
+          {
+            "classifier": "#"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "The name # cannot be a supplied classifier through a rule argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ],
+      "tags": {
+        "method": "classify",
+        "receiver": {
+          "capture": ""
+        },
+        "args": [
+          {
+            "rule": "#"
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A definition tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ],
+      "tags": {
+        "method": "tags",
+        "receiver": {
+          "capture": ""
+        },
+        "args": [
+          {
+            "rule": "#"
+          }
+        ]
+      }
+    },
+    "malformed": false
+  },
+  {
+    "description": "An alternative tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          },
+          "tags": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "#"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An emission tag clause accepts # as its supplied rule argument (engine §9.3 and §10).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        3,
+        1
+      ],
+      "emit": {
+        "items": [
+          {
+            "capture": "x",
+            "tags": {
+              "method": "tags",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "rule": "#"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "malformed": false
   }
 ]
