@@ -8,9 +8,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from typing import Any
 
 import gencmu
+from gencmu import _testing
+
+from .family_oracle import FamilyOracle
 
 from .shared import (
     CaseTimeout,
@@ -44,6 +48,10 @@ class EngineCases(unittest.TestCase):
         self.assertTrue(paths, "no engine cases found")
 
     def check_case(self, path: Path) -> None:
+        with patch.object(_testing, "family_check", FamilyOracle()):
+            self.check_family_case(path)
+
+    def check_family_case(self, path: Path) -> None:
         with deadline(path.name):
             case = load_case(path)
             if path.name in ("values-null-value.json", "values-null-image.json"):

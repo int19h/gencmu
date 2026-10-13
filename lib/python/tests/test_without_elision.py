@@ -23,7 +23,9 @@ def tokens(*tags):
 class WithoutElision(unittest.TestCase):
     def test_shared_aligned_queries(self):
         paths = [path for path in cases("engine") if path.name.startswith("without-elision-")]
-        self.assertEqual(len(paths), 99)
+        # DOM 27 adds family queries and their strict growth twins. Keep
+        # the presence assertion and run every aligned fixture.
+        self.assertEqual(len(paths), 229)
         checker = engine_cases.EngineCases()
         for path in paths:
             with self.subTest(case=path.name):
@@ -197,8 +199,8 @@ class WithoutElision(unittest.TestCase):
                 dialect, error = load_case_dialect(case)
                 self.assertIsNone(error)
 
-                def bounded_count(name):
-                    original_count(name)
+                def bounded_count(name, amount=1):
+                    original_count(name, amount)
                     if name == "close_sequence_nodes":
                         self.assertLessEqual(_testing.work[name], shared["maxCloseNodes"])
 
@@ -228,8 +230,8 @@ class WithoutElision(unittest.TestCase):
                 if witness:
                     grammar = grammar.replace("$x.without-elision.matches(empty)", f"¬$x.without-elision.matches(r{depth})")
 
-                def bounded_count(name):
-                    original_count(name)
+                def bounded_count(name, amount=1):
+                    original_count(name, amount)
                     if name == "close_sequence_nodes":
                         self.assertLessEqual(_testing.work[name], budget)
 
@@ -251,8 +253,8 @@ class WithoutElision(unittest.TestCase):
             context = StageContext(dialect.lowered(0, frozenset()), input_tokens, text, dialect.unicode)
             self.assertIsNone(context.closes)
 
-            def unused_count(name):
-                original_count(name)
+            def unused_count(name, amount=1):
+                original_count(name, amount)
                 self.assertNotIn(name, ("close_sequence_nodes", "close_observation_states"))
 
             _testing.work = {}
@@ -279,8 +281,8 @@ class WithoutElision(unittest.TestCase):
                     "items": shared["itemsPerUnit"] * length + shared["slack"],
                 }
 
-                def bounded_count(name):
-                    original_count(name)
+                def bounded_count(name, amount=1):
+                    original_count(name, amount)
                     if name in limits:
                         self.assertLessEqual(_testing.work[name], limits[name])
 
