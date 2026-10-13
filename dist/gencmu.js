@@ -1395,10 +1395,69 @@
     return null;
   }
 
+  // ---- clause-walk.js
+  // The term-bearing fields of clauses. Source locations, patterns and
+  // lowered grammar links contain no open term or nested condition.
+
+  /**
+   * Children of a term, condition, recipe, emission or clause container.
+   * @param {unknown} value
+   * @returns {unknown[]}
+   */
+  function clauseChildren(value) {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== "object") return [];
+    const node = /** @type {Record<string, any>} */ (value);
+    if (node.pattern) return [];
+    if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
+    if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
+    if (node.method) return [node.receiver, ...node.args];
+    if (node.op) return [node.left, node.right];
+    if (node.if) return [node.if, node.then];
+    if (node.not) return [node.not];
+    for (const key of ["any", "all", "union", "intersection", "difference", "interpolate", "concat", "items"]) {
+      if (node[key]) return node[key];
+    }
+    if (node.const) return node.value === undefined ? [] : [node.value];
+    if (node.condition) return [node.condition];
+    if (!node.conditions && !node.tags && !node.emit && !node.value && !node.image) return [];
+    return [node.conditions, node.tags, node.emit, node.value, node.image].filter(child => child !== undefined);
+  }
+
+  /**
+   * The clauses that query and close discovery must inspect. Written clauses
+   * keep conditions deferred to a ranked frame or simplified for a capture.
+   * @param {import("./types.js").Production} production
+   * @returns {unknown[]}
+   */
+  function productionClauses(production) {
+    return [production.conditions, production.tags, production.emit,
+      production.rankedDeferred, production.parentTags,
+      production.writtenTagClauses?.alternative, production.writtenTagClauses?.definition,
+      production.source?.clauses];
+  }
+
+  /**
+   * Only the body expressions of a rule, without terminal operands.
+   * @param {import("./types.js").Expr} expr
+   * @returns {import("./types.js").Expr[]}
+   */
+  function expressionChildren(expr) {
+    if ("seq" in expr) return expr.seq;
+    if ("choice" in expr) return expr.choice;
+    if ("ranked" in expr) return expr.ranked;
+    if ("and" in expr) return expr.and;
+    if ("optional" in expr) return [expr.optional];
+    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
+    if ("capture" in expr || "test" in expr) return [expr.expr];
+    return [];
+  }
+
   // ---- close-observations.js
   // Shared close observations for aligned queries. The chart keeps summaries
   // of proofs, not completed trees. A cyclic summary remains available to
   // ordinary query eligibility, but cannot supply an aligned observation.
+
 
 
 
@@ -1686,7 +1745,7 @@
       if (!node || typeof node !== "object" || seen.has(node)) continue;
       seen.add(node);
       if (/** @type {any} */ (node).method === "without-elision") return true;
-      for (const child of Object.values(node)) stack.push(child);
+      for (const child of clauseChildren(node)) stack.push(child);
     }
     return false;
   }
@@ -1713,9 +1772,7 @@
       reachable.add(name);
       for (const production of lowered.byLhs.get(name) ?? []) {
         for (const symbol of production.rhs) if (!symbol.terminal) pending.push(symbol.name);
-        const stack = [production.conditions,production.tags,production.emit,
-          production.rankedDeferred,production.parentTags,production.writtenTagClauses,
-          production.source?.clauses];
+        const stack = productionClauses(production);
         const seen = new Set();
         while (stack.length) {
           const node = /** @type {any} */ (stack.pop());
@@ -1736,7 +1793,7 @@
               if (!symbol.terminal) wanted.add(symbol.name);
             }
           }
-          for (const value of Object.values(node)) stack.push(value);
+          for (const value of clauseChildren(node)) stack.push(value);
         }
       }
     }
@@ -1771,8 +1828,7 @@
     const old = localDemands.get(base);
     if (old) return old;
     const result = {whole:false, parts:new Set(), queries:new Map()};
-    const stack = [base.conditions, base.tags, base.emit, base.rankedDeferred,
-      base.parentTags, base.writtenTagClauses, base.source?.clauses.conditions];
+    const stack = [...productionClauses(base).slice(0, -1), base.source?.clauses.conditions];
     const seen = new Set();
     while (stack.length) {
       const node = /** @type {any} */ (stack.pop());
@@ -1801,7 +1857,7 @@
           }
         }
       }
-      for (const value of Object.values(node)) stack.push(value);
+      for (const value of clauseChildren(node)) stack.push(value);
     }
     localDemands.set(base, result);
     return result;
@@ -2959,6 +3015,7 @@
 
 
 
+
   /** @import { Argument, GrammarDom, Term } from "./types.js" */
   /** @import { Step } from "./trampoline.js" */
 
@@ -3321,7 +3378,7 @@
       if (!value || typeof value !== "object") continue;
       if (typeof value.tag === "string" && value.tag.startsWith("_")) return true;
       if (value.pattern) continue;
-      for (const child of Object.values(value)) if (child && typeof child === "object") pending.push(child);
+      for (const child of clauseChildren(value)) if (child && typeof child === "object") pending.push(child);
     }
     return false;
   }
@@ -3531,7 +3588,7 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && "captured" in current) return false;
-      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
     }
     return true;
   }
@@ -3854,7 +3911,7 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.capture === "string" && Object.keys(current).length === 1) names.push(current.capture);
-      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
     }
     return names;
   }
@@ -3871,7 +3928,7 @@
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!isDomObject(current) && !Array.isArray(current)) continue;
       if (isDomObject(current) && typeof current.captured === "string") names.push(current.captured);
-      for (const value of Object.values(current)) if (value && typeof value === "object") stack.push(value);
+      for (const value of clauseChildren(current)) if (value && typeof value === "object") stack.push(value);
     }
     return names;
   }
@@ -4134,10 +4191,7 @@
       const expr = pending.pop();
       if (!expr || typeof expr !== 'object') continue;
       if ('ranked' in expr) return true;
-      for (const value of Object.values(expr)) {
-        if (Array.isArray(value)) for (const child of value) pending.push(child);
-        else if (value && typeof value === 'object') pending.push(value);
-      }
+      for (const child of expressionChildren(expr)) pending.push(child);
     }
     return false;
   }
@@ -4839,6 +4893,7 @@
 
   // ---- ranked.js
 
+
   // Written ranked groups and their local loading rules.
 
 
@@ -5074,7 +5129,7 @@
       // Emission carriers and attachments use capture names as strings.
       if (typeof node.take === "string") found.add(node.take);
       for (const key of ["before","after"]) if (Array.isArray(node[key])) for (const name of node[key]) if (typeof name === "string") found.add(name);
-      for (const child of Object.values(node)) if (child && typeof child === "object") pending.push(child);
+      for (const child of clauseChildren(node)) if (child && typeof child === "object") pending.push(child);
     }
     return found;
   }
@@ -5311,6 +5366,7 @@
 
   // A stage's grammar: its documents stitched together (engine §2) and
   // lowered to productions for one set of features (engine §3).
+
 
 
 
@@ -5970,7 +6026,7 @@
       /** @type {(expr: Expr, rule: StitchedRule, alternative: StitchedAlternative) => void} */
       const visit = (expr, rule, alternative) => {
         if ("ref" in expr && !isTerminalName(expr.ref)) check(expr.ref, rule, alternative);
-        for (const child of childExpressions(expr)) visit(child, rule, alternative);
+        for (const child of expressionChildren(expr)) visit(child, rule, alternative);
       };
       // The stage's classifiers by name, rather than a scan of them for each
       // classifier a clause names.
@@ -6143,10 +6199,9 @@
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseRules(item);
     } else if (value !== null && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "rule" && typeof child === "string") yield child;
-        else yield* clauseRules(child);
-      }
+      const node = /** @type {Record<string, unknown>} */ (value);
+      if (typeof node.rule === "string") yield node.rule;
+      for (const child of clauseChildren(node)) yield* clauseRules(child);
     }
   }
 
@@ -6160,26 +6215,10 @@
     if (Array.isArray(value)) {
       for (const item of value) yield* clauseClassifiers(item);
     } else if (value !== null && typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "classifier" && typeof child === "string") yield child;
-        else yield* clauseClassifiers(child);
-      }
+      const node = /** @type {Record<string, unknown>} */ (value);
+      if (typeof node.classifier === "string") yield node.classifier;
+      for (const child of clauseChildren(node)) yield* clauseClassifiers(child);
     }
-  }
-
-  /**
-   * @param {Expr} expr
-   * @returns {Expr[]}
-   */
-  function childExpressions(expr) {
-    if ("seq" in expr) return expr.seq;
-    if ("choice" in expr) return expr.choice;
-    if ("ranked" in expr) return expr.ranked;
-    if ("and" in expr) return expr.and;
-    if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
-    if ("capture" in expr || "test" in expr) return [expr.expr];
-    return [];
   }
 
   // The lowered grammar: productions, numbered as engine §3 says.
@@ -6786,7 +6825,7 @@
   function holdsCapture(expr, includeRanked = false) {
     if ("ranked" in expr && !includeRanked) return false;
     if ("capture" in expr) return true;
-    return childExpressions(expr).some(child => holdsCapture(child, includeRanked));
+    return expressionChildren(expr).some(child => holdsCapture(child, includeRanked));
   }
 
   /**
@@ -6811,7 +6850,7 @@
       if (!node || typeof node !== "object") return;
       const record = /** @type {Record<string, unknown>} */ (node);
       if (typeof record.capture === "string" && Object.keys(record).length === 1) names.push(record.capture);
-      for (const value of Object.values(record)) {
+      for (const value of clauseChildren(record)) {
         if (Array.isArray(value)) value.forEach(visit);
         else if (value && typeof value === "object") visit(value);
       }
@@ -6831,6 +6870,7 @@
   // ---- earley.js
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -6914,22 +6954,29 @@
     else index.set(previous, new Set([child]));
   }
 
-  /** @type {WeakMap<object, any[]>} */
+  /** @type {WeakMap<Production[], any[]>} */
   const patternDemands = new WeakMap();
-  /** @param {any} node @returns {any[]} */
-  function demandedPatterns(node) {
-    const old = patternDemands.get(node);
+  /** @param {Production[]} productions @returns {any[]} */
+  function demandedPatterns(productions) {
+    const old = patternDemands.get(productions);
     if (old) return old;
+    // Clauses share terms across expansions. Deduplicate only those terms,
+    // never the productions, captures, logical symbols or their metadata.
     const seen = new WeakSet();
-    const found = [], stack = [node];
-    while (stack.length) {
-      const value = stack.pop();
-      if (!value || typeof value !== "object" || value instanceof Set || seen.has(value)) continue;
-      seen.add(value);
-      if (value.op === "≅" || value.op === "≇") found.push(value.right.pattern);
-      else for (const child of Object.values(value)) stack.push(child);
+    const found = [];
+    for (let index = productions.length - 1; index >= 0; index--) {
+      const production = productions[index];
+      const stack = [...productionClauses(production), production.value, production.image,
+        production.writtenTags, production.source?.tags, production.source?.value, production.source?.image];
+      while (stack.length) {
+        const value = /** @type {any} */ (stack.pop());
+        if (!value || typeof value !== "object" || seen.has(value)) continue;
+        seen.add(value);
+        if (value.op === "≅" || value.op === "≇") found.push(value.right.pattern);
+        else for (const child of clauseChildren(value)) stack.push(child);
+      }
     }
-    patternDemands.set(node, found);
+    patternDemands.set(productions, found);
     return found;
   }
 
@@ -7070,10 +7117,7 @@
       const node = pending.pop();
       if (!node || typeof node !== "object") continue;
       if (typeof node.capture === "string") names.add(node.capture);
-      for (const child of Object.values(node)) {
-        if (Array.isArray(child)) for (const item of child) pending.push(item);
-        else if (child && typeof child === "object") pending.push(child);
-      }
+      for (const child of expressionChildren(node)) pending.push(child);
     }
     blockPrivateCaptures.set(group, names);
     return names;
@@ -9782,6 +9826,7 @@
 
 
 
+
   /**
    * @import { WitnessAction, Condition, Expr, ParseResult, ResultNode, Span, StageReport, TagSet, Term, Argument, Production } from "./types.js"
    * @import { Token } from "./tokens.js"
@@ -10261,7 +10306,7 @@
       if (!current || typeof current !== "object") continue;
       const record = /** @type {Record<string, unknown>} */ (current);
       if (typeof record.rule === "string") into.add(record.rule);
-      for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+      for (const value of clauseChildren(record)) if (value && typeof value === "object") stack.push(value);
     }
   }
 
