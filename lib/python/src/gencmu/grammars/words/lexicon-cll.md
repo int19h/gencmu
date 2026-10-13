@@ -2,6 +2,8 @@
 
 This document is the lexicon of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. A lexicon is a list of words, each with its classes. The forms stage follows normalization. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 This lexicon holds the cmavo of *The Complete Lojban Language* (CLL) with their selma'o. Each entry uses the class from the CLL dictionary. This document collapses the numbered subclasses of the dictionary (`UI3a`, `KOhA7`) to the selma'o that the syntax grammar names. Its maintainers edit it by hand in this repository.
 
 The lexicon below is a classifier. Each of its entries lists words and gives them one class, as `"mi" "do" ∈ KOhA` does. The forms stage looks a cmavo up with `$c.value.classify(lexicon)`, and tags the cmavo with its classes. A tag marks a token by an identifier. The lexicon writes each word as its normalized value, in lower case, with `'` for the apostrophe. Cmavo stress is free, so a stressed vowel finds the same word as a plain one.

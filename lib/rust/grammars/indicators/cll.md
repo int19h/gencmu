@@ -2,9 +2,11 @@
 
 This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
 
-A token is one unit that a stage reads or emits. This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
+This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
 A cmavo is a particle, a short structure word. An attitudinal expresses an attitude. A discursive comments on the discourse.
 
@@ -65,8 +67,8 @@ A leading indicator run also stays in the stream at the start of the whole text.
 An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
 
 ```jbogenbau
-%rule item :: $w.tags
-  | [$b:bahe-run] $w:unit [$a:indicator-run]
+%rule item
+  [$b:bahe-run] $w:unit [$a:indicator-run] :: $w.tags
 %conditions
   $a ⟹ $w.classes ∩ $QUOTE-OPENERS = ∅
 %emits
@@ -106,33 +108,33 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   | [fuhe] indicator | [fuhe] attitudinal-nai
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
 
-%rule indicator :: $i.tags
-  | [$b:bahe-run] $i:Word
+%rule indicator
+  [$b:bahe-run] $i:Word :: $i.tags
 %conditions
   Indicator ⊆ $i.tags,
   FUhE ⊈ $i.classes
 %emits
   ($b) $i
 
-%rule fuhe :: $i.tags
-  | [$b:bahe-run] $i:Word
+%rule fuhe
+  [$b:bahe-run] $i:Word :: $i.tags
 %conditions
   FUhE ⊆ $i.classes
 %emits
   ($b) $i
 
-%rule attitudinal-nai :: $u.tags
-  | [$b:bahe-run] $u:attitudinal $n:nai
+%rule attitudinal-nai
+  [$b:bahe-run] $u:attitudinal $n:nai :: $u.tags
 %emits
   ($b) $u ($n)
 
-%rule attitudinal :: $i.tags
-  | $i:Word
+%rule attitudinal
+  $i:Word :: $i.tags
 %conditions
   $i.classes ∩ (UI ∪ CAI) ≠ ∅
 
-%rule nai :: $m.tags
-  | [$b:bahe-run] $m:Word<NAI>
+%rule nai
+  [$b:bahe-run] $m:Word<NAI> :: $m.tags
 %emits
   ($b) $m
 ```

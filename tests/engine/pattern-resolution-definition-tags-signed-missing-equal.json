@@ -1,0 +1,54 @@
+{
+  "description": "A definition tag clause resolves @(A<Extra ¬Blocked>) before ≅ and assigns no tags. The signed-missing pattern does not match A under engine §§2 and 10.",
+  "grammar": "%rule text :: ($ ≅ @(A<Extra ¬Blocked>) ⟹ X)\n  | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

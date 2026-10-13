@@ -2,6 +2,8 @@
 
 This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) explains the notation of the rules below.
 
 A unit is one item on which an operation acts. A token is one emitted item for the next stage. An opaque unit hides its internal words from later operations. Every quote and compound is one opaque unit, even when its emission contains several tokens.
@@ -23,8 +25,6 @@ An erased region emits nothing. Later operators skip that region and use the sur
 A dangling `bu` creates a unit with a missing-base fault. A dangling `le'u` creates a unit with an unopened-quote fault. Constructors preserve these faults, and erasers remove the whole units.
 
 A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. If a fault survives to the text end or an active `fa'o`, the word stage rejects the text.
-
-Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
 An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'o` or a right operand of `zei` does not end the text.
 
@@ -71,18 +71,6 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 %rule unit
   word | quote | lerfu-word | zei-compound | fault-unit | su-survivor
 
-%rule spacing
-  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
-
-%rule skipped
-  $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
-
-%rule erasures
-  | erasure :: ∅
-  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
-
 %rule erasure
   si-erasure | sa-su? sa-erasure
 
@@ -91,15 +79,6 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   | lehu-marker :: Word ∪ LEhU ∪ Fault
 %emits
   $
-
-%rule hesitation
-  $h:y-run :: ∅
-%conditions
-  ¬$h.onward.begins(y-bu-word)
-%erased
-
-%rule y-run
-  Hesitation
 
 %rule faho-group
   faho-word [raw-tokens]
@@ -114,23 +93,67 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
   ¬$.following-tokens.begins(read-word)
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>text</code> to <code>sa-tail</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>sa-tail</code></summary>
 <p><img src="../../docs/diagrams/words/stream/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/words/stream/text-start.svg" alt="Railroad diagram of the rule text-start"></p>
 <p><img src="../../docs/diagrams/words/stream/empty.svg" alt="Railroad diagram of the rule empty"></p>
 <p><img src="../../docs/diagrams/words/stream/su-cleared.svg" alt="Railroad diagram of the rule su-cleared"></p>
 <p><img src="../../docs/diagrams/words/stream/stream.svg" alt="Railroad diagram of the rule stream"></p>
 <p><img src="../../docs/diagrams/words/stream/unit.svg" alt="Railroad diagram of the rule unit"></p>
-<p><img src="../../docs/diagrams/words/stream/spacing.svg" alt="Railroad diagram of the rule spacing"></p>
-<p><img src="../../docs/diagrams/words/stream/skipped.svg" alt="Railroad diagram of the rule skipped"></p>
-<p><img src="../../docs/diagrams/words/stream/erasures.svg" alt="Railroad diagram of the rule erasures"></p>
 <p><img src="../../docs/diagrams/words/stream/erasure.svg" alt="Railroad diagram of the rule erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/fault-unit.svg" alt="Railroad diagram of the rule fault-unit"></p>
-<p><img src="../../docs/diagrams/words/stream/hesitation.svg" alt="Railroad diagram of the rule hesitation"></p>
-<p><img src="../../docs/diagrams/words/stream/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 <p><img src="../../docs/diagrams/words/stream/faho-group.svg" alt="Railroad diagram of the rule faho-group"></p>
 <p><img src="../../docs/diagrams/words/stream/faho-word.svg" alt="Railroad diagram of the rule faho-word"></p>
 <p><img src="../../docs/diagrams/words/stream/sa-tail.svg" alt="Railroad diagram of the rule sa-tail"></p>
+</details>
+
+### Spacing and hesitation
+
+Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
+
+`spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
+
+`Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
+
+A pause token has value `" "`, and `$PAUSE` names that string. Gap recipes use it to contribute one space for surviving pauses.
+
+```jbogenbau
+%const $PAUSE " "
+
+%rule spacing
+  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
+
+%rule skipped
+  $s:spacing [$e:erasures $t:spacing]
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
+
+%rule erasures
+  | erasure :: ∅
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
+
+%rule hesitation
+  $h:y-run :: ∅
+%conditions
+  ¬$h.onward.begins(y-bu-word)
+%erased
+
+%rule y-run
+  Hesitation
+
+%rule hesitations
+  | hesitation :: ∅
+  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
+```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>spacing</code> to <code>hesitations</code></summary>
+<p><img src="../../docs/diagrams/words/stream/spacing.svg" alt="Railroad diagram of the rule spacing"></p>
+<p><img src="../../docs/diagrams/words/stream/skipped.svg" alt="Railroad diagram of the rule skipped"></p>
+<p><img src="../../docs/diagrams/words/stream/erasures.svg" alt="Railroad diagram of the rule erasures"></p>
+<p><img src="../../docs/diagrams/words/stream/hesitation.svg" alt="Railroad diagram of the rule hesitation"></p>
+<p><img src="../../docs/diagrams/words/stream/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
+<p><img src="../../docs/diagrams/words/stream/hesitations.svg" alt="Railroad diagram of the rule hesitations"></p>
 </details>
 
 ## Words
@@ -147,9 +170,9 @@ The lexicon gives each cmavo its classes. Operators use these classes rather tha
 
 The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The libraries turn on `sa-su` for a text that needs it ([engine §13](../../docs/engine.md#13-the-pipeline)). The rule `word` identifies such texts by tagging SA and SU only when that feature is off.
 
-```jbogenbau
-%const $PAUSE " "
+`$MAGIC-WORDS` lists the operation classes that an ordinary word cannot carry.
 
+```jbogenbau
 %const $MAGIC-WORDS
   ZO ∪ ZOI ∪ LOhU ∪ LEhU ∪ ZOhOI ∪ MEhOI ∪ FAhO ∪ BU ∪ ZEI ∪ SI ∪ SA ∪ SU
 
@@ -159,8 +182,10 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   | $n:CMEVLA :: $n.tags
   | $y:y-bu-word :: $y.tags
 
-%rule y-bu-word :: Word ∪ BY ∪ Y-Letter ∪ $b.tags ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
-  | $b:y-key [PAUSE] $u:bu-word
+%rule y-bu-word
+  $b:y-key [PAUSE] $u:bu-word
+    :: Word ∪ BY ∪ Y-Letter ∪ $b.tags
+     ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
 %emits
   $
 
@@ -177,7 +202,6 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 %rule cmavo-token
   $c:Cmavo :: $c.tags
-
 ```
 
 <details><summary>Railroad diagrams of <code>read-word</code>, <code>y-bu-word</code>, <code>word</code> and <code>cmavo-token</code></summary>
@@ -193,44 +217,50 @@ Every complete quote is one opaque unit. Later operations see its opening marker
 
 A quote marker keeps its word kind and classes but drops the `Indicator` mark. Otherwise the indicator stage can detach a marker from its quoted contents.
 
-`quote-spacing` partitions the gap before the word in `quoted-word`. Hesitation without a pause contributes no string. A gap with a surviving pause contributes one space, even when hesitation separates its pauses. The quote executes no erasure in this gap.
-
-ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
-
-ZOhOI and MEhOI quote one raw run in the experimental dialect. `zohoi-gap` starts with a pause and skips hesitation through `zohoi-hesitation`. The gap contributes one space, including pauses around erased hesitation. The quote must finish at the end of its run.
-
-In `zo'oi .y. bu`, the quote takes the raw y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged raw run in `zo'oi .yyy. bu`.
-
-The words of ZOI, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. `delimiter-quiet-gap` reads hesitation without a pause and contributes no string. The other `delimiter-gap` alternative reads the first pause and contributes one space for the whole gap. Both use `delimiter-hesitation`, which refuses the opening y letteral. Hesitation never serves as a delimiter. The quotes close at the first matching whole run by exact value.
-
-Normalization lowers stressed vowels and empties syllable comma values before this stage. Foreign values remain exact, so different foreign runs do not compare through a placeholder.
-
-The y letteral used as a delimiter can close on one `ybu` run or adjacent `y` and `bu` runs. The reader accepts both opening spellings. The closing test preserves adjacency and never joins the body into words.
-
-Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it. Neither can a raw prolonged y run followed by BU.
-
-Thus `zoi .yy. bu. foo .yy. bu.` fails, and `zoi .yy. bu. foo .y. bu.` succeeds. The opening reader drops extra y sounds, and the raw closing comparison keeps them.
-
-The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
-
-The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
-
-Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes emit a body token with empty value and image. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
-
-A LOhU quote ends at the first LEhU. Its body reads Lojban words through the shared reader without executing operations. No magic word acts there, including BU, ZEI, and FAhO. A foreign run makes the quote fail.
-
-`quiet-gap` reads hesitation without a surviving pause and emits no string. `pause-gap` reads the first surviving pause and gives the whole gap one space. `quote-spacing` also admits an empty gap at the quote edges. `lohu-stream` separates pause, quiet and absent gaps, so each gap has one reading. These rules never execute an eraser inside a quote.
-
-`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts. An outer body recipe stops descendant image evaluation, so recursive bodies claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
-
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
 ```jbogenbau
 %rule quote
   quoted-word | zoi-y-quote | zoi-quote | lohu-quote | single-word-quote
+```
 
+<details><summary>Railroad diagram of <code>quote</code></summary>
+<p><img src="../../docs/diagrams/words/stream/quote.svg" alt="Railroad diagram of the rule quote"></p>
+</details>
+
+### Shared word gaps
+
+`word-gap` partitions a gap of ordinary hesitation and pauses. A quiet gap contributes no string. A gap with a surviving pause contributes `$PAUSE`, one space.
+
+Quotes and the right operand of ZEI share this rule. It executes no erasure. Quotes use its empty route at their edges.
+
+```jbogenbau
+%rule quiet-gap
+  | hesitation
+  | quiet-gap hesitation
+
+%rule pause-gap
+  [quiet-gap] PAUSE [hesitations [PAUSE]] := $PAUSE
+
+%rule word-gap
+  ε | quiet-gap | pause-gap
+```
+
+<details><summary>Railroad diagrams of <code>quiet-gap</code>, <code>pause-gap</code> and <code>word-gap</code></summary>
+<p><img src="../../docs/diagrams/words/stream/quiet-gap.svg" alt="Railroad diagram of the rule quiet-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/pause-gap.svg" alt="Railroad diagram of the rule pause-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/word-gap.svg" alt="Railroad diagram of the rule word-gap"></p>
+</details>
+
+### One-word quotes
+
+ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
+
+`quoted-word` reads `word-gap` before its word. The gap supplies one space for surviving pauses, even when hesitation separates them.
+
+```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker quote-spacing $w:read-word :: $m.tags
+  $m:word-quote-marker word-gap $w:read-word :: $m.tags
 %emits
   $m, $w :: Word
 
@@ -238,7 +268,22 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   ZO ⊆ $q.classes
+```
 
+<details><summary>Railroad diagrams of <code>quoted-word</code> and <code>word-quote-marker</code></summary>
+<p><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
+<p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
+</details>
+
+### Single-run quotes
+
+ZOhOI and MEhOI quote one raw run in the experimental dialect. The quote must finish at the end of its run.
+
+`zohoi-gap` starts with a pause and skips hesitation through `zohoi-hesitation`. It contributes one space, including pauses around erased hesitation.
+
+The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
+
+```jbogenbau
 %rule single-word-quote
   | $m:single-marker $r:zohoi-payload :: $m.tags
   | $m:single-marker zohoi-gap $s:zohoi-payload :: $m.tags
@@ -253,6 +298,49 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
   $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅
+
+%rule raw-y-letter
+  raw-y-base [PAUSE] bu-word
+
+%rule zohoi-hesitation
+  $h:y-run
+%conditions
+  ¬$h.onward.begins(raw-y-letter)
+%erased
+
+%rule zohoi-hesitations
+  zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
+
+%rule zohoi-gap
+  PAUSE [zohoi-hesitations [PAUSE]] := $PAUSE
+```
+
+<details><summary>Railroad diagrams of the 6 rules from <code>single-word-quote</code> to <code>zohoi-gap</code></summary>
+<p><img src="../../docs/diagrams/words/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></p>
+<p><img src="../../docs/diagrams/words/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
+<p><img src="../../docs/diagrams/words/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
+<p><img src="../../docs/diagrams/words/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
+<p><img src="../../docs/diagrams/words/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></p>
+<p><img src="../../docs/diagrams/words/stream/zohoi-gap.svg" alt="Railroad diagram of the rule zohoi-gap"></p>
+</details>
+
+### Delimited quotes
+
+The ZOI words, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter.
+
+`delimiter-gap` partitions quiet and paused gaps. The quiet route contributes no string. The paused route contributes one space for the whole gap.
+
+Both routes use `delimiter-hesitation`, which refuses the opening y letteral. This rule stays separate because Zantufa's ordinary hesitation also requires a spacing boundary.
+
+The quotes close at the first matching whole run by exact value. ZOI compares foreign runs by their exact values too.
+
+The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
+
+Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes emit a body token with empty value and image. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
+
+```jbogenbau
+%const $Y-PROPERTIES
+  Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule zoi-y-quote :: $m.tags
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:raw-tokens PAUSE $close:raw-close
@@ -274,8 +362,10 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %emits
   $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
-%const $Y-PROPERTIES
-  Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
+%rule zoi-marker
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+%conditions
+  ZOI ⊆ $q.classes
 
 %rule delimiter
   $w:read-word
@@ -284,7 +374,7 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 
 %rule delimiter-gap
   | [delimiter-quiet-gap]
-  | [delimiter-quiet-gap] PAUSE [delimiter-hesitations [PAUSE]] := " "
+  | [delimiter-quiet-gap] PAUSE [delimiter-hesitations [PAUSE]] := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation
@@ -298,8 +388,39 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   ¬$h.onward.begins(y-bu-word)
 %erased
 
-%rule y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
-  | $y:y-run
+%rule empty-zoi-body
+  ε
+```
+
+<details><summary>Railroad diagrams of the 9 rules from <code>zoi-y-quote</code> to <code>empty-zoi-body</code></summary>
+<p><img src="../../docs/diagrams/words/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
+<p><img src="../../docs/diagrams/words/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
+<p><img src="../../docs/diagrams/words/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
+<p><img src="../../docs/diagrams/words/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
+<p><img src="../../docs/diagrams/words/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/delimiter-quiet-gap.svg" alt="Railroad diagram of the rule delimiter-quiet-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/delimiter-hesitations.svg" alt="Railroad diagram of the rule delimiter-hesitations"></p>
+<p><img src="../../docs/diagrams/words/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></p>
+<p><img src="../../docs/diagrams/words/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
+</details>
+
+### Closing delimiter runs
+
+The y letteral can close on one `ybu` run or adjacent `y` and `bu` runs. The opening reader accepts both spellings. The closing test preserves adjacency and never joins the body into words.
+
+Extra y sounds before the opening BU remain hesitation, even across a pause. The delimiter then sounds like ybu. A raw yybu or yyybu run cannot close it. Neither can a raw prolonged y run followed by BU.
+
+Thus `zoi .yy. bu. foo .yy. bu.` fails, and `zoi .yy. bu. foo .y. bu.` succeeds. The opening reader drops extra y sounds, and the raw closing comparison keeps them.
+
+The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes the quote. The preceding y remains body text.
+
+The opening `y-key` uses `Y-Key` for value `y` and `Ieho` for value `ie'o`. The forms stage separates the last opening y from preceding hesitation. `raw-y-key` applies the same tests but keeps every raw y value. A longer run gets neither key tag, so it cannot close the delimiter.
+
+The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation. `$Y-PROPERTIES` lists the word marks that the closing-key comparison excludes.
+
+```jbogenbau
+%rule y-key
+  $y:y-run :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
 
 %rule raw-close
   raw-run | raw-y-close
@@ -315,8 +436,8 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 %rule matched-close-token
   cmavo-token | payload-token<¬Cmavo>
 
-%rule raw-y-close :: $y.tags
-  | $y:raw-y-key [PAUSE] $b:matched-close-token
+%rule raw-y-close
+  $y:raw-y-key [PAUSE] $b:matched-close-token :: $y.tags
 %conditions
   $b.value = "bu",
   Run-Initial ⊆ $y.first-token.tags,
@@ -329,21 +450,14 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
   $b.value ≠ "ie'o",
   $h.value ≠ "ie'o"
 
+%rule raw-y-key
+  $y:raw-y-base :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
+
+%rule body-with-y-close
+  [raw-tokens] $c:raw-y-close [raw-tokens] :: $c.tags
 ```
 
-<details><summary>Railroad diagrams of the 19 rules from <code>quote</code> to <code>raw-y-base</code></summary>
-<p><img src="../../docs/diagrams/words/stream/quote.svg" alt="Railroad diagram of the rule quote"></p>
-<p><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
-<p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
-<p><img src="../../docs/diagrams/words/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></p>
-<p><img src="../../docs/diagrams/words/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
-<p><img src="../../docs/diagrams/words/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
-<p><img src="../../docs/diagrams/words/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
-<p><img src="../../docs/diagrams/words/stream/delimiter.svg" alt="Railroad diagram of the rule delimiter"></p>
-<p><img src="../../docs/diagrams/words/stream/delimiter-gap.svg" alt="Railroad diagram of the rule delimiter-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/delimiter-quiet-gap.svg" alt="Railroad diagram of the rule delimiter-quiet-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/delimiter-hesitations.svg" alt="Railroad diagram of the rule delimiter-hesitations"></p>
-<p><img src="../../docs/diagrams/words/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></p>
+<details><summary>Railroad diagrams of the 9 rules from <code>y-key</code> to <code>body-with-y-close</code></summary>
 <p><img src="../../docs/diagrams/words/stream/y-key.svg" alt="Railroad diagram of the rule y-key"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-close.svg" alt="Railroad diagram of the rule raw-close"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-run.svg" alt="Railroad diagram of the rule raw-run"></p>
@@ -351,55 +465,20 @@ The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supp
 <p><img src="../../docs/diagrams/words/stream/matched-close-token.svg" alt="Railroad diagram of the rule matched-close-token"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-close.svg" alt="Railroad diagram of the rule raw-y-close"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-base.svg" alt="Railroad diagram of the rule raw-y-base"></p>
+<p><img src="../../docs/diagrams/words/stream/raw-y-key.svg" alt="Railroad diagram of the rule raw-y-key"></p>
+<p><img src="../../docs/diagrams/words/stream/body-with-y-close.svg" alt="Railroad diagram of the rule body-with-y-close"></p>
 </details>
 
-The opening `y-key` uses fixed `Y-Key` for value `y` and `Ieho` for value `ie'o`. The forms stage separates the last opening y from preceding hesitation. `raw-y-key` uses the same tests but keeps every raw y value. A longer run gets neither key tag, so it cannot close the delimiter.
+### Ungrammatical quotes
 
-The raw rule rejoins every piece of one y run. A drawn-out raw run retains its extra y sounds and cannot close a ybu delimiter. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation.
+A LOhU quote ends at the first LEhU. Its body reads Lojban words through the shared reader without executing operations. No magic word acts there, including BU, ZEI, and FAhO. A foreign run makes the quote fail.
+
+`lohu-stream` separates paused, quiet, and absent gaps, so each gap has one reading. The shared gap rules execute no eraser inside the quote.
 
 ```jbogenbau
-%rule raw-y-key :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
-  | $y:raw-y-base
-
-%rule raw-y-letter
-  raw-y-base [PAUSE] bu-word
-
-%rule zohoi-hesitation
-  $h:y-run
-%conditions
-  ¬$h.onward.begins(raw-y-letter)
-%erased
-
-%rule zohoi-hesitations
-  zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
-
-%rule zohoi-gap := " "
-  | PAUSE [zohoi-hesitations [PAUSE]]
-
-%rule body-with-y-close
-  [raw-tokens] $c:raw-y-close [raw-tokens] :: $c.tags
-
-%rule empty-zoi-body
-  ε
-
-%rule zoi-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
-%conditions
-  ZOI ⊆ $q.classes
-
-%rule quiet-gap
-  | hesitation
-  | quiet-gap hesitation
-
-%rule pause-gap := " "
-  | [quiet-gap] PAUSE [hesitations [PAUSE]]
-
-%rule quote-spacing
-  ε | quiet-gap | pause-gap
-
 %rule lohu-quote :: $m.tags
-  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
-  | $m:lohu-marker quote-spacing lehu-marker
+  | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
+  | $m:lohu-marker word-gap lehu-marker
 
 %rule lohu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -427,12 +506,23 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   LEhU ⊈ $w.classes
 %emits
   $ :: Word
+```
 
-%rule hesitations
-  | hesitation :: ∅
-  | $h:hesitations PAUSE hesitation :: Gap-Pause
-  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
+<details><summary>Railroad diagrams of the 5 rules from <code>lohu-quote</code> to <code>lohu-word</code></summary>
+<p><img src="../../docs/diagrams/words/stream/lohu-quote.svg" alt="Railroad diagram of the rule lohu-quote"></p>
+<p><img src="../../docs/diagrams/words/stream/lohu-marker.svg" alt="Railroad diagram of the rule lohu-marker"></p>
+<p><img src="../../docs/diagrams/words/stream/lehu-marker.svg" alt="Railroad diagram of the rule lehu-marker"></p>
+<p><img src="../../docs/diagrams/words/stream/lohu-stream.svg" alt="Railroad diagram of the rule lohu-stream"></p>
+<p><img src="../../docs/diagrams/words/stream/lohu-word.svg" alt="Railroad diagram of the rule lohu-word"></p>
+</details>
 
+### Raw payloads
+
+`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts.
+
+An outer body recipe stops descendant image evaluation. Recursive bodies therefore claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
+
+```jbogenbau
 %rule raw-tokens :- $.verbatim-text
   | any-token
   | raw-tokens any-token
@@ -448,24 +538,7 @@ The raw rule rejoins every piece of one y run. A drawn-out raw run retains its e
   Word | Hesitation | FOREIGN
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>raw-y-key</code> to <code>payload-token</code></summary>
-<p><img src="../../docs/diagrams/words/stream/raw-y-key.svg" alt="Railroad diagram of the rule raw-y-key"></p>
-<p><img src="../../docs/diagrams/words/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
-<p><img src="../../docs/diagrams/words/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
-<p><img src="../../docs/diagrams/words/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></p>
-<p><img src="../../docs/diagrams/words/stream/zohoi-gap.svg" alt="Railroad diagram of the rule zohoi-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/body-with-y-close.svg" alt="Railroad diagram of the rule body-with-y-close"></p>
-<p><img src="../../docs/diagrams/words/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
-<p><img src="../../docs/diagrams/words/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
-<p><img src="../../docs/diagrams/words/stream/quiet-gap.svg" alt="Railroad diagram of the rule quiet-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/pause-gap.svg" alt="Railroad diagram of the rule pause-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/quote-spacing.svg" alt="Railroad diagram of the rule quote-spacing"></p>
-<p><img src="../../docs/diagrams/words/stream/lohu-quote.svg" alt="Railroad diagram of the rule lohu-quote"></p>
-<p><img src="../../docs/diagrams/words/stream/lohu-marker.svg" alt="Railroad diagram of the rule lohu-marker"></p>
-<p><img src="../../docs/diagrams/words/stream/lehu-marker.svg" alt="Railroad diagram of the rule lehu-marker"></p>
-<p><img src="../../docs/diagrams/words/stream/lohu-stream.svg" alt="Railroad diagram of the rule lohu-stream"></p>
-<p><img src="../../docs/diagrams/words/stream/lohu-word.svg" alt="Railroad diagram of the rule lohu-word"></p>
-<p><img src="../../docs/diagrams/words/stream/hesitations.svg" alt="Railroad diagram of the rule hesitations"></p>
+<details><summary>Railroad diagrams of the 4 rules from <code>raw-tokens</code> to <code>payload-token</code></summary>
 <p><img src="../../docs/diagrams/words/stream/raw-tokens.svg" alt="Railroad diagram of the rule raw-tokens"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-payload.svg" alt="Railroad diagram of the rule zohoi-payload"></p>
 <p><img src="../../docs/diagrams/words/stream/any-token.svg" alt="Railroad diagram of the rule any-token"></p>
@@ -482,19 +555,19 @@ The constructors can repeat and combine without exposing their operands. Each re
 
 Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
 
-`Gap-Pause` means that a gap contains a surviving pause. `spacing` and `hesitations` introduce it, while `skipped` and `erasures` carry it across erased children. `compound-gap` and `spacing-gap` use complementary tag tests to contribute one space or no string. This keeps unspaced `abu` unspaced and collapses surviving pause runs inside compounds.
+`compound-gap` reads erased regions through `skipped`. Complementary `Gap-Pause` tests contribute one space or no string. `word-gap` supplies the gap before ZEI's right word without executing erasure.
+
+`Trailing-Pause` marks a surviving SU boundary whose strings already end with a space. BU and ZEI then use `suppressed-gap` to avoid a second contribution. [Erasure by `sa` and `su`](#erasure-by-sa-and-su) explains that boundary and its recipes.
 
 The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 
 ```jbogenbau
 %rule compound-gap
-  skipped<¬Gap-Pause> | skipped<Gap-Pause> := " "
+  | skipped<¬Gap-Pause>
+  | skipped<Gap-Pause> := $PAUSE
 
-%rule spacing-gap
-  spacing<¬Gap-Pause> | spacing<Gap-Pause> := " "
-
-%rule suppressed-gap := ""
-  | skipped
+%rule suppressed-gap
+  skipped := ""
 
 %rule lerfu-word :: Word ∪ BY ∪ Fault ∩ $u.tags
   | $u:unit<¬Trailing-Pause> compound-gap bu-word
@@ -508,8 +581,8 @@ The CLL dialect requires pauses around a direct name base of BU. It tests the so
   BU ⊆ $q.classes
 
 %rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
-  | $l:unit<¬Trailing-Pause> compound-gap zei-word spacing-gap $r:read-word
-  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap zei-word spacing-gap $r:read-word
+  | $l:unit<¬Trailing-Pause> compound-gap zei-word word-gap $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap zei-word word-gap $r:read-word
 %emits
   $
 
@@ -519,15 +592,16 @@ The CLL dialect requires pauses around a direct name base of BU. It tests the so
   ZEI ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
 <p><img src="../../docs/diagrams/words/stream/compound-gap.svg" alt="Railroad diagram of the rule compound-gap"></p>
-<p><img src="../../docs/diagrams/words/stream/spacing-gap.svg" alt="Railroad diagram of the rule spacing-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/suppressed-gap.svg" alt="Railroad diagram of the rule suppressed-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/bu-word.svg" alt="Railroad diagram of the rule bu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-word.svg" alt="Railroad diagram of the rule zei-word"></p>
 </details>
+
+
 
 ## Erasure by `si`
 
@@ -550,6 +624,8 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
 <p><img src="../../docs/diagrams/words/stream/si-erasure.svg" alt="Railroad diagram of the rule si-erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/si-word.svg" alt="Railroad diagram of the rule si-word"></p>
 </details>
+
+
 
 ## Erasure by `sa` and `su`
 
@@ -600,8 +676,8 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %conditions
   $.classes ≠ ∅
 
-%rule sa-key :: $.following-tokens.tags(next-word-class)
-  | ε
+%rule sa-key
+  ε :: $.following-tokens.tags(next-word-class)
 %conditions
   SA ⊈ $.tags
 
@@ -642,7 +718,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %rule su-survivor := $b.emitted.value :- $b.emitted.image
   | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value $PAUSE :- $b.emitted.image $PAUSE
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
@@ -679,6 +755,8 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 <p><img src="../../docs/diagrams/words/stream/su-reach.svg" alt="Railroad diagram of the rule su-reach"></p>
 <p><img src="../../docs/diagrams/words/stream/su-word.svg" alt="Railroad diagram of the rule su-word"></p>
 </details>
+
+
 
 ## Choosing among parses
 

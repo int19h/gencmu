@@ -1,0 +1,74 @@
+{
+  "description": "An inserted emission tag clause resolves @(\"a\"..\"z\") before ≅ and assigns X. The range pattern matches \"a\"..\"z\" under engine §§2 and 10 and §11.",
+  "grammar": "%rule text \"a\"..\"z\"\n%emits ε :: ($ ≅ @(\"a\"..\"z\") ⟹ X) := \"v\" :- \"i\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "",
+              "value": "v",
+              "image": "i",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                1,
+                1
+              ],
+              "source": [
+                1,
+                1
+              ],
+              "insertedBy": "text"
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "A"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "\"a\"..\"z\"",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

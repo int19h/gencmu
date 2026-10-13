@@ -1,0 +1,56 @@
+{
+  "description": "An alternative tag clause resolves @(\"a\") before ≇ and assigns X. The string-identity pattern does not match _ under engine §§2 and 10.",
+  "grammar": "%rule text _ :: ($ ≇ @(\"a\") ⟹ X)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "X"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "_",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

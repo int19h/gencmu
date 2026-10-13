@@ -1,0 +1,56 @@
+{
+  "description": "A definition tag clause resolves @(\"a\"..\"z\") before ≇ and assigns X. The range-identity pattern does not match \"a\"..\"m\" under engine §§2 and 10.",
+  "grammar": "%rule text :: ($ ≇ @(\"a\"..\"z\") ⟹ X)\n  | \"a\"..\"m\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "X"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "\"a\"..\"m\"",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

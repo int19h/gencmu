@@ -42,12 +42,22 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
   $
 
 %rule cll-cyrillic-plain-vowel :: ∅
-  | "а" := "a" | "е" := "e" | "и" := "i" | "о" := "o" | "у" := "u" | "ъ" := "y"
+  | "а" := "a"
+  | "е" := "e"
+  | "и" := "i"
+  | "о" := "o"
+  | "у" := "u"
+  | "ъ" := "y"
 %emits
   $
 
 %rule cll-cyrillic-stressed-vowel :: Stressed
-  | "А" := "A" | "Е" := "E" | "И" := "I" | "О" := "O" | "У" := "U" | "Ъ" := "Y"
+  | "А" := "A"
+  | "Е" := "E"
+  | "И" := "I"
+  | "О" := "O"
+  | "У" := "U"
+  | "Ъ" := "Y"
 %emits
   $
 ```

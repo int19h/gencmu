@@ -2,6 +2,8 @@
 
 This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them after latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 Most conventions here admit spellings that latin-strict.md rejects. Two change how it reads an existing spelling: a comma between vowels, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
@@ -17,7 +19,7 @@ A punctuation character is a pause when no letter, vowel or apostrophe rule read
 
 Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. A token is one unit that a stage reads or emits. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#verbatim-text) defines for verbatim images.
+A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#verbatim-text) defines for verbatim images.
 
 Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
 
@@ -97,7 +99,8 @@ A comma between vowels is ignored, as it is between other letters. It creates no
   | letters-after-consonant [commas] vowel-group
 
 %extend-rule vowel-group-plain
-  | vowel-group<¬Syllabic> commas $v:vowel :: $v.tags | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> :: $w.tags
+  | vowel-group<¬Syllabic> commas $v:vowel :: $v.tags
+  | vowel-group<Syllabic> commas $w:vowel<¬Syllabic> :: $w.tags
 
 %extend-rule vowel-group-joined
   vowel-group<Syllabic> commas $v:joined-vowel<Syllabic> :: $v.tags
@@ -115,7 +118,7 @@ The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban par
 
 ```jbogenbau
 %extend-rule apostrophe
-  "h" | "H"
+  ("h" | "H")
 %emits
   $ :: ∅ := "'"
 ```
@@ -181,7 +184,12 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
   ε :: ∅ := "'", $v
 
 %rule folded-vowel :: ∅
-  | "A" := "a" | "E" := "e" | "I" := "i" | "O" := "o" | "U" := "u" | "Y" := "y"
+  | "A" := "a"
+  | "E" := "e"
+  | "I" := "i"
+  | "O" := "o"
+  | "U" := "u"
+  | "Y" := "y"
 %emits
   $
 ```

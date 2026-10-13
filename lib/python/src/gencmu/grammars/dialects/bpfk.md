@@ -2,6 +2,8 @@
 
 This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms use a parsing expression grammar (PEG).
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
@@ -55,16 +57,18 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
 
 ## Stage 2: normalize
 
-This stage maps stressed vowel values to lowercase and preserves their images and tags. Forms reads stress through `Stressed`. The shared normalization document also maps syllable comma values to empty. Here `latin.md` reads every comma as nothing, so only the stress mappings apply.
-
 ```jbogenbau
 %stage normalize
 ```
 
-- [Phoneme values](../phonemes/normalize.md)
+- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
   ```jbogenbau
   %include "../phonemes/normalize.md"
   ```
+
+A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+
+The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
 
 ## Stage 3: forms
 

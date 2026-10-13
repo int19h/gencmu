@@ -2,6 +2,8 @@
 
 This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](../dialects/cll-ebnf.md) dialect and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. It also supplies the base for the [experimental](../dialects/experimental.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). The closing section lists differences from the printed grammar.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by an identifier. A free modifier is a phrase permitted in designated syntax slots.

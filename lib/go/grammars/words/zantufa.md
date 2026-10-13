@@ -81,8 +81,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ $p.tags ∨ ¬$r.matches(rahoi-rest),
   RAhOI ⊆ $q.tags
 
-%extend-rule word-run :: $s.tags
-  | run-words<RAhOI> $s:rahoi-rest
+%extend-rule word-run
+  run-words<RAhOI> $s:rahoi-rest :: $s.tags
 
 %redefine-rule run-words
   | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)

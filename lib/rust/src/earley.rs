@@ -1295,7 +1295,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
                 crate::lower::LEmit::Items(xs) => {
                     for e in xs {
-                        if let crate::lower::LEmitItem::Cap(_, Some(t), ..) = e {
+                        if let crate::lower::LEmitItem::Cap(_, Some(t), ..)
+                        | crate::lower::LEmitItem::Insert(Some(t), _) = e
+                        {
                             term(t, &mut roots);
                         }
                     }

@@ -2,7 +2,9 @@
 
 This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
-This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A tag marks a token by an identifier. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -75,10 +77,10 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   vowel | falling-vowels
 
 %rule letter-cmavo
-  consonant any-y
+  consonant "y"
 
 %rule y-pair-cmavo
-  any-y "'" any-y | vowel "'" any-y | any-y "'" vowel
+  "y" "'" "y" | vowel "'" "y" | "y" "'" vowel
 
 %rule warned-cmavo
   | $w:warned-units
@@ -87,27 +89,27 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
   ¬$w.matches(y-pair-cmavo)
 
 %rule warned-units
-  | any-y "'" any-units
+  | "y" "'" any-units
   | cmavo-unit "'" warned-tail
 
 %rule warned-tail
-  | any-y | any-y "'" any-units
+  | "y" | "y" "'" any-units
   | cmavo-unit "'" warned-tail
 
 %rule any-units
   any-unit | any-units "'" any-unit
 
 %rule any-unit
-  cmavo-unit | any-y
+  cmavo-unit | "y"
 
 %rule y-letters
   [consonant] y-units
 
 %rule y-units
-  any-y | y-units "'" any-y
+  "y" | y-units "'" "y"
 
 %rule cmavo-nucleus
-  cmavo-unit | any-y | rising-diphthong
+  cmavo-unit | "y" | rising-diphthong
 
 %rule first-marked-cmavo
   [consonant] $u:cmavo-nucleus ["'" any-letters]
@@ -144,6 +146,8 @@ A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital
 <p><img src="../../docs/diagrams/words/cll/name-intro-cmavo.svg" alt="Railroad diagram of the rule name-intro-cmavo"></p>
 </details>
 
+
+
 These rules read lowercase vowel values with or without `Stressed`. The lexicon looks a cmavo up by its normalized value, so a stressed vowel finds the same entry as a plain vowel.
 
 ## Brivla
@@ -176,6 +180,8 @@ A brivla is a gismu, a lujvo or a borrowing (CLL[^cll-s4-3]). It ends in a vowel
 <p><img src="../../docs/diagrams/words/cll/brivla-word.svg" alt="Railroad diagram of the rule brivla-word"></p>
 </details>
 
+
+
 A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL[^cll-s4-4]).
 
 ```jbogenbau
@@ -187,6 +193,8 @@ A gismu is CVCCV with a permissible pair, or CCVCV with an initial pair (CLL[^cl
 <details><summary>Railroad diagram of <code>gismu-form</code></summary>
 <p><img src="../../docs/diagrams/words/cll/gismu-form.svg" alt="Railroad diagram of the rule gismu-form"></p>
 </details>
+
+
 
 ## Lujvo
 
@@ -302,6 +310,8 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 <p><img src="../../docs/diagrams/words/cll/pair-across-y.svg" alt="Railroad diagram of the rule pair-across-y"></p>
 </details>
 
+
+
 The tosmabru test of CLL[^cll-s4-11] decides whether a lujvo whose first rafsi is CVC needs one more `y` after it. Without that `y`, the word can fall apart into a cmavo and a shorter lujvo: `tosmabru` is `to smabru`, and the lujvo is `tosymabru`. The test starts from the lujvo with its required hyphens. It follows the CVC rafsi from the first one, across joints with no hyphen. It stops at the first required `y` or at the first rafsi that is not CVC.
 
 If the test stops at a required `y`, it examines the joints before that `y`. So `tospatyta'a` needs `tosypatyta'a`, but `patyta'a` examines no joint and gets no second `y`.
@@ -392,6 +402,8 @@ If the test examines at least one pair and every examined pair is an initial pai
 <p><img src="../../docs/diagrams/words/cll/initial-pair-across-y.svg" alt="Railroad diagram of the rule initial-pair-across-y"></p>
 </details>
 
+
+
 No lujvo made this way breaks up, which is why the algorithm is as it is. A word's stress falls on its penultimate syllable, so a brivla inside it must reach its end. The words before that brivla must then be cmavo.
 
 An initial CC leaves no cmavo to take. An initial CVCC or CVV rafsi leaves, after its hyphen, a rest that no word begins with. The CVV-CCV exception leaves a rest of one syllable. The tosmabru test catches an initial CVC whose rest reads as a lujvo. A rest that otherwise fits a borrowing fails the slinku'i test below, because the CV cmavo, put back in front of it, makes the lujvo.
@@ -466,6 +478,8 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
 <p><img src="../../docs/diagrams/words/cll/combination-rest.svg" alt="Railroad diagram of the rule combination-rest"></p>
 </details>
 
+
+
 ## Cmevla
 
 A name is a nonempty run of letters that ends in a consonant (CLL[^cll-s4-8]), so `.rl.` is one. Every adjacent pair of its consonants is permissible, at its start too, and it can hold the four `n` triples (CLL[^cll-s3-7]). It can have `y` as a vowel, the diphthongs `iy` and `uy`, and an apostrophe or a comma between any two of its vowels.
@@ -513,6 +527,8 @@ Pauses surround a name (rules 2 and 4), so its shape carries neither `Onset` nor
 <p><img src="../../docs/diagrams/words/cll/la-or-doi.svg" alt="Railroad diagram of the rule la-or-doi"></p>
 </details>
 
+
+
 ## Commas
 
 A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). Phonemes gives it value `,` and tag `Syllable-Break`, and a comma anywhere else is no phoneme. Normalization empties that value and keeps its tag and image. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". So a comma never makes a word, and it never changes the class of a word.
@@ -559,6 +575,8 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 <p><img src="../../docs/diagrams/words/cll/syllable-vowels.svg" alt="Railroad diagram of the rule syllable-vowels"></p>
 <p><img src="../../docs/diagrams/words/cll/has-comma.svg" alt="Railroad diagram of the rule has-comma"></p>
 </details>
+
+
 
 ## Where the book leaves a choice
 

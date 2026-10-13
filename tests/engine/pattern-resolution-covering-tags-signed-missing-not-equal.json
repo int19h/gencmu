@@ -1,0 +1,73 @@
+{
+  "description": "A covering emission tag clause resolves @(A<Extra ¬Blocked>) before ≇ and assigns X. The signed-missing pattern does not match A under engine §§2 and 10 and §11.",
+  "grammar": "%rule text A\n%emits $ :: ($ ≇ @(A<Extra ¬Blocked>) ⟹ X)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "X"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "A"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

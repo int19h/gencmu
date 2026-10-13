@@ -1,0 +1,47 @@
+{
+  "description": "An alternative tag clause resolves patterns inside Boolean conjunction, disjunction, and negation before ≅. Engine §10 assigns X to the A reading.",
+  "grammar": "%rule text A :: ((($ ≅ @(A) ∧ ¬($ ≅ @(B))) ∨ ($ ≅ @(A) ∧ ($ ≅ @(A)))) ⟹ X)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "X"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

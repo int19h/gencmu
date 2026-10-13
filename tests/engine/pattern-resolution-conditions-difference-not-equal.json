@@ -1,0 +1,19 @@
+{
+  "description": "A condition resolves (@(A) ∖ @(B)) before ≇ and rejects the reading. The difference pattern matches A under engine §§2 and 10.",
+  "grammar": "%rule text A\n%conditions $ ≇ (@(A) ∖ @(B))",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null
+    }
+  }
+}
