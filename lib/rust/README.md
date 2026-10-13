@@ -66,6 +66,25 @@ A capture can stand anywhere in an alternative but inside braces or an elidable 
 
 The grammars of the crate, `grammars/`, are a copy of the grammars of the repository. `node tools/sync.js` writes this copy. To change the grammars, edit the `grammars/` of the repository. From the repository root, run `node tools/sync.js`.
 
+`cargo test` uses optimization level 3, both locally and in CI.
+The standard Rust test harness runs each shared engine and notation fixture as a separate test.
+The harness defaults to the number of available CPUs.
+
+From `lib/rust`, run these commands:
+
+```sh
+cargo test
+cargo test -- --test-threads=4
+GENCMU_CORPUS_WORKERS=1 cargo test -- --test-threads=1
+CARGO_PROFILE_TEST_OPT_LEVEL=0 cargo test --test engine engine_case_deep_left_recursion -- --nocapture
+```
+
+`RUST_TEST_THREADS` also sets the harness concurrency.
+The corpus keeps its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
+The last command disables optimization for one test, so you can investigate it with a debug build.
+Replace the test name with the fixture name, with hyphens replaced by underscores and the `engine_case_` prefix.
+Cargo regenerates the list of tests when you add or remove a fixture.
+
 `cargo test` runs these tests:
 
 - The shared engine and notation cases of the repository's `tests/`, apart from cases with supplied fields that `InputToken` cannot express. The runner prints the reason for each skip

@@ -4,68 +4,58 @@ mod common;
 
 use common::{case_files, has_caller_attachments, parse_json, run_engine_case};
 
+include!(concat!(env!("OUT_DIR"), "/engine_cases.rs"));
+
 #[test]
-fn engine_cases() {
-    let started = std::time::Instant::now();
-    let files = case_files("engine");
-    assert!(!files.is_empty(), "no engine cases found");
-    let mut failures = Vec::new();
-    let mut skipped = 0;
-    for file in &files {
-        if std::env::var_os("GENCMU_CASE_TRACE").is_some() {
-            eprintln!("case {}", file.display());
-        }
-        let text = std::fs::read_to_string(file).expect("a case");
-        let case = match parse_json(&text) {
-            Ok(case) => case,
-            Err(error)
-                if error == "a bad code point"
-                    && matches!(
-                        file.file_name().and_then(|n| n.to_str()),
-                        Some("values-surrogate-value.json" | "values-surrogate-image.json")
-                    ) =>
-            {
-                eprintln!(
-                    "skip {}: unavailable caller fields: Rust strings cannot contain lone surrogates",
-                    file.display()
-                );
-                skipped += 1;
-                continue;
-            }
-            Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
-        };
-        if let Some(reason) = common::unexpressible_tokens(&case) {
-            eprintln!("skip {}: {reason}", file.display());
-            skipped += 1;
-            continue;
-        }
-        if has_caller_attachments(&case) {
-            eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
-            skipped += 1;
-            continue;
-        }
-        // A case that hangs is a failure, and the others still run.
-        let limit = common::case_timeout();
-        let outcome = common::within(limit, move || {
-            std::panic::catch_unwind(|| run_engine_case(&case)).unwrap_or_else(|_| Err("the case panicked".to_string()))
-        });
-        let outcome = outcome.unwrap_or_else(|| Err(format!("the case did not finish in {limit:?}")));
-        if let Err(problem) = outcome {
-            failures.push(format!("{}:\n{problem}", file.display()));
-        }
+fn engine_cases_are_present() {
+    // Count all fixtures, even when a local run filters their execution.
+    let files = std::fs::read_dir(common::repository().join("tests/engine"))
+        .expect("the shared cases")
+        .map(|entry| entry.expect("a case entry").path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "json"))
+        .count();
+    assert!(files > 0, "no engine cases found");
+    assert_eq!(files, SHARED_CASE_COUNT, "every fixture has a harness test");
+    assert!(!case_files("engine").is_empty(), "no engine cases found");
+}
+
+fn run_shared_case(name: &str) {
+    if std::env::var("GENCMU_CASE_FILTER").is_ok_and(|filter| !name.contains(&filter)) {
+        return;
     }
-    eprintln!(
-        "{} engine cases in {:?}, {skipped} skips for unavailable caller fields; 0 skips for unavailable engine behavior",
-        files.len() - skipped,
-        started.elapsed()
-    );
-    assert!(
-        failures.is_empty(),
-        "{} of {} engine cases failed:\n\n{}",
-        failures.len(),
-        files.len(),
-        failures.join("\n\n")
-    );
+    let file = common::repository().join("tests/engine").join(name);
+    if std::env::var_os("GENCMU_CASE_TRACE").is_some() {
+        eprintln!("case {}", file.display());
+    }
+    let text = std::fs::read_to_string(&file).expect("a case");
+    let case = match parse_json(&text) {
+        Ok(case) => case,
+        Err(error)
+            if error == "a bad code point"
+                && matches!(name, "values-surrogate-value.json" | "values-surrogate-image.json") =>
+        {
+            eprintln!(
+                "skip {}: unavailable caller fields: Rust strings cannot contain lone surrogates",
+                file.display()
+            );
+            return;
+        }
+        Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
+    };
+    if let Some(reason) = common::unexpressible_tokens(&case) {
+        eprintln!("skip {}: {reason}", file.display());
+        return;
+    }
+    if has_caller_attachments(&case) {
+        eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
+        return;
+    }
+    let limit = common::case_timeout();
+    let outcome = common::within(limit, move || {
+        std::panic::catch_unwind(|| run_engine_case(&case)).unwrap_or_else(|_| Err("the case panicked".to_string()))
+    });
+    let outcome = outcome.unwrap_or_else(|| Err(format!("the case did not finish in {limit:?}")));
+    assert!(outcome.is_ok(), "{}:\n{}", file.display(), outcome.unwrap_err());
 }
 
 /// The runner's JSON reader and its comparisons walk with explicit stacks,

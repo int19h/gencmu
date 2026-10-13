@@ -26,27 +26,29 @@ fn run(case: &Value) -> Result<(), String> {
     }
 }
 
+include!(concat!(env!("OUT_DIR"), "/notation_cases.rs"));
+
 #[test]
-fn notation_cases() {
-    let started = std::time::Instant::now();
-    let files = case_files("notation");
-    assert!(!files.is_empty(), "no notation cases found");
-    let mut failures = Vec::new();
-    for file in &files {
-        let text = std::fs::read_to_string(file).expect("a case");
-        let case = parse_json(&text).expect("a case is JSON");
-        if let Err(problem) = run(&case) {
-            failures.push(format!("{}:\n{problem}", file.display()));
-        }
+fn notation_cases_are_present() {
+    let files = std::fs::read_dir(common::repository().join("tests/notation"))
+        .expect("the shared cases")
+        .map(|entry| entry.expect("a case entry").path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "json"))
+        .count();
+    assert!(files > 0, "no notation cases found");
+    assert_eq!(files, SHARED_CASE_COUNT, "every fixture has a harness test");
+    assert!(!case_files("notation").is_empty(), "no notation cases found");
+}
+
+fn run_shared_case(name: &str) {
+    if std::env::var("GENCMU_CASE_FILTER").is_ok_and(|filter| !name.contains(&filter)) {
+        return;
     }
-    eprintln!("{} notation cases in {:?}", files.len(), started.elapsed());
-    assert!(
-        failures.is_empty(),
-        "{} of {} notation cases failed:\n\n{}",
-        failures.len(),
-        files.len(),
-        failures.join("\n\n")
-    );
+    let file = common::repository().join("tests/notation").join(name);
+    let text = std::fs::read_to_string(&file).expect("a case");
+    let case = parse_json(&text).expect("a case is JSON");
+    let outcome = run(&case);
+    assert!(outcome.is_ok(), "{}:\n{}", file.display(), outcome.unwrap_err());
 }
 
 /// The reader reads every form of a test in a body, with spaces inside it
