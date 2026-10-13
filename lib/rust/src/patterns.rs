@@ -836,6 +836,7 @@ impl Machine {
     pub(crate) fn concat(&mut self, left: u32, right: u32) -> u32 {
         let key = format!("c{left},{right}");
         if let Some(&id) = self.transitions.get(&key) {
+            self.families.charge_join(self.states[left as usize].family, self.states[right as usize].family);
             return id;
         }
         let a = &self.states[left as usize];

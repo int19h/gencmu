@@ -237,9 +237,6 @@ impl Families {
     }
     pub(crate) fn record(&mut self, context: u32, record: Aligned, permitted: bool) -> u32 {
         let key = (context, record.clone(), permitted);
-        if let Some(&id) = self.records.get(&key) {
-            return id;
-        }
         let at = match &record {
             Aligned::Close(_, at) => *at,
             Aligned::Block(b) => b.start,
@@ -257,6 +254,9 @@ impl Families {
         let group = c.group(at);
         let size = c.size(at);
         count(Work::FamilySteps, size as u64);
+        if let Some(&id) = self.records.get(&key) {
+            return id;
+        }
         let mut rows = vec![vec![false; size]; size];
         for (state, row) in rows.iter_mut().enumerate() {
             let i = state / 2;
@@ -281,6 +281,18 @@ impl Families {
             self.join(record, span)
         }
     }
+    /// A cached join has the same stipulated charge as its relation operation.
+    pub(crate) fn charge_join(&self, left: u32, right: u32) {
+        if left == 0 || right == 0 {
+            return;
+        }
+        let steps = match (&self.get(left).ends, &self.get(right).ends) {
+            (Ends::Empty(Some(a)), Ends::Empty(Some(b))) => a.len() * b.len(),
+            (Ends::Empty(Some(rows)), Ends::Span { .. }) | (Ends::Span { .. }, Ends::Empty(Some(rows))) => rows.len(),
+            _ => 0,
+        };
+        count(Work::FamilySteps, steps as u64);
+    }
     pub(crate) fn join(&mut self, left: u32, right: u32) -> u32 {
         if left == 0 {
             return right;
@@ -289,6 +301,7 @@ impl Families {
             return left;
         }
         if let Some(&id) = self.joins.get(&(left, right)) {
+            self.charge_join(left, right);
             return id;
         }
         let a = self.get(left).clone();
@@ -426,6 +439,79 @@ mod tests {
         ]
         .map(work::counted)
     }
+    /// The fixture supplies one unit at the first requested size and a fixed suffix.
+    fn growth_tokens(tokens: &[Json], unit_size: usize, size: usize) -> impl Iterator<Item = &Json> {
+        let (unit, suffix) = tokens.split_at(unit_size);
+        unit.iter().cycle().take(size).chain(suffix)
+    }
+
+    #[test]
+    fn mixed_terminal_growth_repeats_the_written_unit() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/engine");
+        for name in ["without-elision-except-nested-two-terminals.json", "without-elision-nested-two-terminals.json"] {
+            let fixture = crate::json::parse(&std::fs::read_to_string(root.join(name)).unwrap()).unwrap();
+            let tokens = fixture.get("tokens").unwrap().as_array().unwrap();
+            for size in [4, 32] {
+                let actual: Vec<_> = growth_tokens(tokens, 4, size)
+                    .map(|t| t.get("tags").unwrap().as_array().unwrap()[0].as_str().unwrap())
+                    .collect();
+                let expected: Vec<_> = (0..size).map(|i| if i % 2 == 0 { "X" } else { "Y" }).chain(["B"]).collect();
+                assert_eq!(actual, expected, "{name} at {size}");
+            }
+        }
+    }
+
+    #[test]
+    fn cached_operations_keep_their_specified_charges() {
+        let mut observations = Observations::new();
+        let candidate =
+            observations.close(crate::result::Restoration { terminal: "T".into(), at: 1, source: 1..1, value: None });
+        let mut f = Families::default();
+        let c = f.context(&observations, candidate, 0, 2, 0);
+        let t = Aligned::Close("T".into(), 1);
+        let u = Aligned::Close("U".into(), 1);
+        work::reset();
+        let first = f.record(c, t.clone(), true);
+        assert_eq!(work::counted(Work::FamilySteps), 4);
+        work::reset();
+        assert_eq!(f.record(c, t, true), first);
+        assert_eq!(work::counted(Work::FamilySteps), 4);
+        let second = f.record(c, u, true);
+        let before = f.token(c, 0, 1);
+        let after = f.token(c, 1, 2);
+        for (left, right, cost) in
+            [(first, second, 16), (before, first, 4), (first, after, 4), (0, first, 0), (first, 0, 0)]
+        {
+            for _ in 0..2 {
+                work::reset();
+                f.join(left, right);
+                assert_eq!(work::counted(Work::FamilySteps), cost);
+            }
+        }
+        // The structural transition cache must not bypass a family relation charge.
+        let mut machine = crate::patterns::Machine::new(&[]);
+        let context = machine.families.context(&observations, candidate, 0, 2, 0);
+        let a = machine.families.record(context, Aligned::Close("T".into(), 1), true);
+        let b = machine.families.record(context, Aligned::Close("U".into(), 1), true);
+        let left = machine.with_family(machine.empty, a);
+        let right = machine.with_family(machine.empty, b);
+        for _ in 0..2 {
+            work::reset();
+            machine.concat(left, right);
+            assert_eq!(work::counted(Work::FamilySteps), 16);
+        }
+        for _ in 0..2 {
+            work::reset();
+            assert_eq!(f.record(c, Aligned::Close("T".into(), 3), true), 0);
+            assert_eq!(
+                f.record(c, Aligned::Block(super::super::Block { group: 0, start: 2, end: 3, entry: 0 }), false),
+                0
+            );
+            assert_eq!(work::counted(Work::FamilySteps), 0);
+        }
+        work::reset();
+    }
+
     fn growth_run(
         root: &std::path::Path,
         shared: &Json,
@@ -473,8 +559,8 @@ mod tests {
         let result = if depth {
             dialect.parse("", &crate::ParseOptions::default()).unwrap()
         } else if let Some(tokens) = fixture.get("tokens").and_then(Json::as_array) {
-            let repeated = &tokens[0];
-            let all = std::iter::repeat(repeated).take(size).chain(tokens.iter().skip_while(|t| *t == repeated));
+            let unit_size = shared.get("lengths").unwrap().as_array().unwrap()[0].as_int().unwrap() as usize;
+            let all = growth_tokens(tokens, unit_size, size);
             let input: Vec<_> = all
                 .map(|t| crate::InputToken {
                     text: t.get("text").unwrap().as_str().unwrap().into(),
