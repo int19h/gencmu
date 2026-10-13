@@ -506,8 +506,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		return give(&domTerm{Kind: tmTag, Str: tag, At: b.at(n)})
 	case "range":
 		b.fail(n, "a range is a terminal, not a term")
-	case "property":
-		b.fail(n, "a property is not a tag set, and stands only as a terminal in a body")
 	case "name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.

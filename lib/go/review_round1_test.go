@@ -87,3 +87,36 @@ func TestReviewGuardValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestReviewPropertyWrapper(t *testing.T) {
+	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
+		if path != "notation/syntax.md" {
+			return
+		}
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if rule["name"] != "untested-primary" {
+				continue
+			}
+			for _, alternative := range rule["alternatives"].([]any) {
+				expr := alternative.(map[string]any)["expr"].(map[string]any)
+				if expr["ref"] == "string-terminal" {
+					expr["ref"] = "property"
+				}
+			}
+		}
+		dom["rules"] = append(dom["rules"].([]any), map[string]any{
+			"name": "property", "op": "define", "flags": []any{},
+			"alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"ref": "string-terminal"}}},
+			"conditions":   []any{}, "at": []any{1, 1},
+		})
+	})
+	dialect, err := LoadDialectSources(reviewSources(`%rule text "a" %emits $`, bootstrap), "p.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := dialect.Parse("a", ParseOptions{})
+	if err != nil || !result.OK {
+		t.Fatalf("wrapped string terminal: %v %+v", err, result)
+	}
+}

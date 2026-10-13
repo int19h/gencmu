@@ -278,7 +278,7 @@ var domRules = map[string]bool{
 	"presence": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
-	"comparator": true, "range": true, "property": true,
+	"comparator": true, "range": true,
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
 	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
@@ -395,13 +395,13 @@ func (b *domBuilder) token(n *Node) *Node {
 	return nil
 }
 
-// symbolPart is the first part of a node: a token, a range or a property.
+// symbolPart is the first part of a node: a token or a range.
 func (b *domBuilder) symbolPart(n *Node) *Node {
 	ps := parts(n)
-	if len(ps) > 0 && (ps[0].Kind == KindToken || ps[0].Rule == "range" || ps[0].Rule == "property") {
+	if len(ps) > 0 && (ps[0].Kind == KindToken || ps[0].Rule == "range") {
 		return ps[0]
 	}
-	b.lacks(n, "token, range or property")
+	b.lacks(n, "token or range")
 	return nil
 }
 
@@ -489,23 +489,14 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					}
 					kinds = append(kinds, operandString)
 				case "argument-tag":
-					// A tag literal is its name; a phoneme or character tag,
-					// a range or a property is refused below.
+					// Tags and ranges retain their operand kinds for directive refusal.
 					t := b.symbolPart(p)
 					if t.Kind == KindRule {
-						// A range or a property, which has no tag.
 						dir.Args = append(dir.Args, b.text(t))
-						kinds = append(kinds, t.Rule)
-						continue
-					}
-					dir.Args = append(dir.Args, b.tagOf(t))
-					switch b.text(t)[0] {
-					case '~':
+						kinds = append(kinds, operandRange)
+					} else {
+						dir.Args = append(dir.Args, b.tagOf(t))
 						kinds = append(kinds, operandTag)
-					case '/':
-						kinds = append(kinds, operandPhoneme)
-					default:
-						kinds = append(kinds, operandCharacter)
 					}
 				}
 			}
@@ -925,18 +916,13 @@ func (b *domBuilder) attachment(n *Node) string {
 	return ""
 }
 
-// The kinds of a directive's operand: a bare name, lower case or with a
-// capital, a string, a tag literal ~name, a phoneme tag, a character tag,
-// a range or a property.
+// Directive operands are names, classes, strings, tags or ranges.
 const (
-	operandName      = "name"
-	operandClass     = "class"
-	operandString    = "string"
-	operandTag       = "tag"
-	operandPhoneme   = "phoneme"
-	operandCharacter = "character"
-	operandRange     = "range"
-	operandProperty  = "property"
+	operandName   = "name"
+	operandClass  = "class"
+	operandString = "string"
+	operandTag    = "tag"
+	operandRange  = "range"
 )
 
 // operandProblem says what is wrong with a directive's operands, given the
