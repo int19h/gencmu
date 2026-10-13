@@ -398,7 +398,6 @@ pub(crate) fn stitch(
         }
     }
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
-    grammar.ranked.validate_scope()?;
     if !grammar.ranked.groups.is_empty() {
         let lowered =
             crate::lower::lower_for_slots(&grammar).map_err(|e| located(e.message, &e.document, (e.line, e.column)))?;

@@ -160,16 +160,6 @@ impl RankedGroups {
         }
         Ok(out)
     }
-    /// Capture scope precedes pruning and selected recipe dependencies (§11.4).
-    pub fn validate_scope(&self) -> Result<(), Error> {
-        for group in &self.groups {
-            if let Some(error) = self.clause_errors.get(&group.id) {
-                return Err(error.clone());
-            }
-        }
-        Ok(())
-    }
-
     fn validate_clauses(&self, grammar: &StageGrammar, group: &Group) -> Result<(), Error> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
         for route in routes(&source.alternative.expr, self) {

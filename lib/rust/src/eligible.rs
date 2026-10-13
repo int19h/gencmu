@@ -56,6 +56,9 @@ enum Next {
 /// place, in the order of their sets.
 type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
 
+/// Logical parent, optional occurrence, origin and capture scope.
+type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
+
 /// The chart of one nested parse, with what reading it needs.
 pub(crate) struct Proofs<'a> {
     g: &'a Lowered,
@@ -67,7 +70,7 @@ pub(crate) struct Proofs<'a> {
     /// The completed items of the whole chart by rule and origin, built
     /// once, when the first search for a blocking path needs it.
     index: OnceCell<CompletedIndex>,
-    optional_index: OnceCell<FxMap<(u32, usize), Vec<Place>>>,
+    optional_index: OnceCell<OptionalIndex>,
 }
 
 impl<'a> Proofs<'a> {
@@ -200,21 +203,27 @@ impl<'a> Proofs<'a> {
 
     /// All raw chart routes through the same logical optional. The index
     /// includes partial parent readings: a blocker need not finish its rule.
-    fn optional_routes(&self, rule: u32, expression: usize) -> &[Place] {
+    fn optional_routes(&self, fixed: Item, expression: usize) -> &[Place] {
         let index = self.optional_index.get_or_init(|| {
-            let mut index: FxMap<(u32, usize), Vec<Place>> = FxMap::default();
+            let mut index = OptionalIndex::default();
             for (set, entries) in self.chart.sets.iter().enumerate() {
                 for (at, &item) in entries.items.iter().enumerate() {
                     self.count();
                     if let Next::Optional { expression, .. } = self.next(item) {
                         let rule = self.g.prods[item.prod as usize].rule;
-                        index.entry((rule, expression)).or_default().push((set as u32, at as u32));
+                        let family = self.g.rules[rule as usize].family;
+                        index
+                            .entry((family, expression, item.origin, item.lexical))
+                            .or_default()
+                            .push((set as u32, at as u32));
                     }
                 }
             }
             index
         });
-        index.get(&(rule, expression)).map_or(&[], Vec::as_slice)
+        let rule = self.g.prods[fixed.prod as usize].rule;
+        let family = self.g.rules[rule as usize].family;
+        index.get(&(family, expression, fixed.origin, fixed.lexical)).map_or(&[], Vec::as_slice)
     }
 
     /// A sibling expansion retains the fixed prefix's symbols, tests and
@@ -238,9 +247,8 @@ impl<'a> Proofs<'a> {
     /// measured from this proof's own prefix before the logical optional.
     fn optional_blocked_until(&self, prefix: Place, expression: usize) -> Option<u32> {
         let fixed = self.item(prefix);
-        let rule = self.g.prods[fixed.prod as usize].rule;
         let mut until = None;
-        for &after in self.optional_routes(rule, expression) {
+        for &after in self.optional_routes(fixed, expression) {
             self.count();
             if !self.reads_written(after) {
                 continue;
@@ -865,7 +873,10 @@ mod tests {
             let original = &self.g.prods[prefix.0 as usize];
             for &after in &self.chart {
                 let production = &self.g.prods[after.0 as usize];
-                if production.rule != original.rule || after.3 < p || !self.reads_written(after) {
+                if self.g.rules[production.rule as usize].family != self.g.rules[original.rule as usize].family
+                    || after.3 < p
+                    || !self.reads_written(after)
+                {
                     continue;
                 }
                 let Some(boundary) =
@@ -900,10 +911,16 @@ mod tests {
     /// per-route helper optionals, including a multi-symbol logical route.
     #[test]
     fn the_oracle_keeps_optional_blocker_routes() {
-        for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]"] {
+        for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent"] {
             let tokens = if optional == "[$c:c D]" { vec!["B", "D", "D", "T"] } else { vec!["B", "D", "T"] };
+            let tokens = if optional == "parent" { vec!["B", "D", "T", "Z"] } else { tokens };
             let suffix = tokens[1..].join(" ");
-            let document = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r B {optional} [+T] {suffix}\n%rule c D\n```\n");
+            let body = if optional == "parent" {
+                "B [[($c:c ≻ c)] [+T] D T] Z".to_string()
+            } else {
+                format!("B {optional} [+T] {suffix}")
+            };
+            let document = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r {body}\n%rule c D\n```\n");
             let dialect = crate::load_dialect_sources([("main.md", document)], "main.md").unwrap();
             let g = dialect.lowered_stage(0);
             let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).unwrap() as u32;

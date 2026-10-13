@@ -438,3 +438,27 @@ fn written_terminators_keep_logical_optional_boundaries() {
     }
 }
 
+/// Nested per-route helpers retain their logical parent in aligned queries.
+#[test]
+fn nested_optional_priority_survives_alignment() {
+    for view in [".without-elision", ".without-elision.onward"] {
+        for method in ["matches", "begins", "tags"] {
+            let (clause, expect) = if method == "tags" {
+                (format!(" :: $r{view}.tags(r)"), r#"{"result":{"ok":true,"tree":{"tags":[]}}}"#)
+            } else {
+                (format!("\n%conditions $r{view}.{method}(r)"), r#"{"error":"rejected"}"#)
+            };
+            let grammar = format!("%rule text $r:input{clause}\n%rule input B D T Z\n%rule r :: Queried | B [[($c:c ≻ c)] [+T] D T] Z\n%rule c D");
+            let tokens = ["B", "D", "T", "Z"]
+                .iter()
+                .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                .collect::<Vec<_>>()
+                .join(",");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{tokens}],"expect":{expect}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|e| panic!("{grammar}: {e}"));
+        }
+    }
+}

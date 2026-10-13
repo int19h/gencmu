@@ -273,6 +273,8 @@ pub(crate) struct SlotMetadata {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LRule {
+    /// Helpers split into physical routes retain one logical identity.
+    pub family: u32,
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
@@ -1064,7 +1066,9 @@ fn lower_mode(
     let mut rules: Vec<LRule> = grammar
         .rules
         .iter()
-        .map(|rule| LRule {
+        .enumerate()
+        .map(|(index, rule)| LRule {
+            family: index as u32,
             name: rule.name.clone(),
             helper: false,
             leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
@@ -1073,8 +1077,11 @@ fn lower_mode(
             elided_test: None,
         })
         .collect();
+    let mut families = FxMap::default();
     for helper in &lowerer.helpers {
+        let family = *families.entry(helper.expr).or_insert(rules.len() as u32);
         rules.push(LRule {
+            family,
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
             leftmost_longest: false,
@@ -1340,8 +1347,13 @@ fn lower_mode(
             };
             // The reader has made sure a tag term uses only captures its
             // alternative has, and so every production of it has (§3.3).
-            production.tags = tags
-                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
+            // Validation reads the symbolic slot clauses. Private names
+            // are diagnosed in group order before runtime binding (§2.1).
+            production.tags = if validation {
+                None
+            } else {
+                tags.map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")))
+            };
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
             let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);

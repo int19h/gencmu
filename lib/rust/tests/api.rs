@@ -1127,11 +1127,12 @@ fn ranked_syntax_codes_and_retirement_are_specific() {
 
 #[test]
 fn ranked_validation_never_builds_invalid_runtime_bindings() {
-    // Engine §11.4 reports private exports before competing tag bindings.
-    for prefix in ["%rule text later\n", "%rule text a ≻ b\n"] {
+    // Engine §2.1 keeps the first group ahead of later private exports.
+    for (prefix, code) in [("%rule text later\n", "ranked-choice-export"), ("%rule text a ≻ b\n", "ranked-choice-tags")]
+    {
         let text = format!("%ambiguity-resolution late-elision\n{prefix}%rule later :: $x.tags |  Q ($x:a ≻ $x:b) Z\n%rule a X\n%rule b Y");
         let error = gencmu::load_dialect_sources(&single(&text), "p.md").unwrap_err();
-        assert_eq!(error.code.as_deref(), Some("ranked-choice-export"));
+        assert_eq!(error.code.as_deref(), Some(code));
     }
     // Retain an independent refusal of incompatible ranked tags.
     let text = "%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a X\n%rule b Y";
