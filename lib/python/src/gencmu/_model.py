@@ -14,7 +14,7 @@ Range = tuple[int, int]
 """A half-open range ``(start, end)``."""
 
 
-@dataclass
+@dataclass(init=False)
 class Token:
     """A token a stage reads or writes (engine §1).
 
@@ -31,20 +31,36 @@ class Token:
     """
 
     text: str
-    tags: Tags
+    tags: Tags | set[str]
     span: Range | None
     source: Range
-    value: str = None  # type: ignore[assignment]
+    value: str
     inserted_by: str | None = None
-    image: str = None  # type: ignore[assignment]
+    image: str
     before: list[Token] = field(default_factory=list)
     after: list[Token] = field(default_factory=list)
 
-    def __post_init__(self) -> None:
-        if self.value is None:
-            self.value = self.text
-        if self.image is None:
-            self.image = self.text
+    def __init__(
+        self,
+        text: str,
+        tags: Tags | set[str],
+        span: Range | None,
+        source: Range,
+        value: str | None = None,
+        inserted_by: str | None = None,
+        image: str | None = None,
+        before: list[Token] | None = None,
+        after: list[Token] | None = None,
+    ) -> None:
+        self.text = text
+        self.tags = tags
+        self.span = span
+        self.source = source
+        self.value = text if value is None else value
+        self.inserted_by = inserted_by
+        self.image = text if image is None else image
+        self.before = [] if before is None else before
+        self.after = [] if after is None else after
 
     # Attachments nest as deep as a text is long, so equality and the
     # representation walk them with a list for a stack. They give what the
