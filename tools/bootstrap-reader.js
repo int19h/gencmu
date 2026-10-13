@@ -714,6 +714,9 @@ class Parser {
     else switch (this.kindAt()) {
       case "@": base = yield this.patternLiteral(); break;
       case "string": base = this.leaf("string"); break;
+      case "#":
+        if (!runs) return this.fail("expected a term");
+        base = this.leaf("name"); break;
       case "identifier": case "tag": {
         const tags = [];
         const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().text));
