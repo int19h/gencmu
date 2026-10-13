@@ -464,7 +464,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case "split":
 		valid = len(args) == 1 && b.isStringTerm(receiver) && b.isStringTerm(args[0])
 	case "classify":
-		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule
+		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule && classifierName.MatchString(args[0].Str)
 		if valid {
 			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
 		}
