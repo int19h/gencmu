@@ -1,5 +1,5 @@
 """The tests of the gencmu package. They run from a checkout with
-``python -m unittest`` in ``lib/python/``, against the package in ``src/``
+``python -m pytest`` in ``lib/python/``, against the package in ``src/``
 unless an installed one is asked for with GENCMU_INSTALLED=1."""
 
 from __future__ import annotations
@@ -10,3 +10,8 @@ from pathlib import Path
 
 if not os.environ.get("GENCMU_INSTALLED"):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+else:
+    import gencmu
+
+    if Path(gencmu.__file__).resolve().is_relative_to(Path(__file__).resolve().parents[1] / "src"):
+        raise AssertionError("GENCMU_INSTALLED must load the installed package, not src/")

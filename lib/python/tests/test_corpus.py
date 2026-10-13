@@ -1,19 +1,19 @@
 """The shared Lojban corpus (tests/README.md, "Corpus cases").
 
 The core sample of tests/core.txt runs by default; GENCMU_CORPUS=full runs
-every case. Cases run on a pool of processes, each loading the bundled
-dialects once; GENCMU_CORPUS_WORKERS sets their number (default: the CPUs
-less one), and GENCMU_CORPUS_REPORT a file to which every case's outcome
-and time are written.
+every case. Each case is a separate unittest method, which pytest-xdist schedules.
+Each worker caches its bundled dialects. GENCMU_CORPUS_REPORT names a file
+that records every case's outcome and time.
 """
 
 from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
+import sys
 import time
 import unittest
-from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
 from .shared import (
@@ -120,29 +120,29 @@ def mismatch(case: dict[str, Any], got: dict[str, Any] | str) -> str | None:
 
 
 class Corpus(unittest.TestCase):
-    def test_corpus(self) -> None:
+    def test_corpus_selection(self) -> None:
         cases = all_cases()
         if os.environ.get("GENCMU_CORPUS") != "full":
             with open(SHARED / "core.txt", encoding="utf-8") as file:
                 core = {line.strip() for line in file if line.strip()}
             cases = [case for case in cases if case["id"] in core]
             self.assertEqual(len(cases), len(core), "every id of core.txt names a case")
-        by_id = {case["id"]: case for case in cases}
-        # The longest texts first, so that the pool is not left waiting on one.
-        queue = sorted(cases, key=lambda case: -len(case["text"]))
-        workers = int(os.environ.get("GENCMU_CORPUS_WORKERS") or max(1, (os.cpu_count() or 2) - 1))
+
+    def check_corpus_case(self, case: dict[str, Any]) -> None:
+        cases = [case]
+        by_id = {case["id"]: case}
         failures: list[str] = []
-        report = os.environ.get("GENCMU_CORPUS_REPORT")
         lines: list[str] = []
-        if workers <= 1:
-            results = map(run, queue)
-            self.collect(results, by_id, failures, lines)
-        else:
-            with ProcessPoolExecutor(max_workers=workers) as pool:
-                self.collect(pool.map(run, queue, chunksize=1), by_id, failures, lines)
-        if report:
-            with open(report, "w", encoding="utf-8") as file:
-                file.writelines(lines)
+        self.collect([run(case)], by_id, failures, lines)
+        if report := os.environ.get("GENCMU_CORPUS_REPORT"):
+            # One append write keeps records separate across processes.
+            data = lines[0].encode("utf-8")
+            fd = os.open(report, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+            try:
+                if os.write(fd, data) != len(data):
+                    raise OSError("a short corpus report write")
+            finally:
+                os.close(fd)
         self.assertEqual(failures[:20], [], f"{len(failures)} of {len(cases)} cases differ")
 
     @staticmethod
@@ -208,6 +208,31 @@ class Corpus(unittest.TestCase):
             result = dialect.parse(case["text"])
         with self.assertRaisesRegex(AssertionError, "elision-witness-lost"):
             outcome(case, result=result)
+
+
+def add_corpus_tests() -> None:
+    def test_for(case: dict[str, Any]) -> Callable[[Corpus], None]:
+        def test(self: Corpus) -> None:
+            self.check_corpus_case(case)
+        return test
+
+    cases = all_cases()
+    if os.environ.get("GENCMU_CORPUS") != "full":
+        core = {line.strip() for line in (SHARED / "core.txt").read_text(encoding="utf-8").splitlines() if line.strip()}
+        cases = [case for case in cases if case["id"] in core]
+    # Schedule long texts first, as the previous pool did.
+    cases.sort(key=lambda case: -len(case["text"]))
+    for index, case in enumerate(cases):
+        # The index keeps names unique even when IDs normalize alike.
+        label = "".join(ch if ch.isalnum() else "_" for ch in case["id"])
+        setattr(Corpus, f"test_case_{index:05d}_{label}", test_for(case))
+
+    # pytest starts the report through conftest.py before workers run.
+    if (report := os.environ.get("GENCMU_CORPUS_REPORT")) and "pytest" not in sys.modules:
+        Path(report).write_text("", encoding="utf-8")
+
+
+add_corpus_tests()
 
 
 if __name__ == "__main__":

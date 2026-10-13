@@ -854,15 +854,27 @@ A corpus case can include provenance fields, `seeded` and `reason`. The reason s
 
 Update a case's expectations in the same commit as the grammar change that affects them. Explain the expectation in the commit message. Changes to `words` or `brackets` need no additional field.
 
-Every library runs the whole corpus. On a pull request, a core of about 1,650 cases (`tests/core.txt`) runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, a core of about 3,520 cases (`tests/core.txt`) runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 
 CI has two workflows. `nightly.yml` runs the whole corpus in all four languages each night and on demand. `ci.yml` runs on each pull request and each push to `main`. It has three additional jobs: the playground in two browsers, the whole corpus in JavaScript, and the JavaScript types. It also has one job for each language. These jobs use the toolchains listed below:
 
 - JavaScript: Node 24, the bundle freshness check, `node --test`, and `npm pack --dry-run` to make sure that the package holds its files
-- Python: 3.12 and current, `python -m unittest`, `python -m build` for the wheel, and the tests again from the installed wheel
+- Python: 3.14, `python -m build` for the wheel, and one parallel test run against that installed wheel with `python -m pytest`
 - Go: 1.22, the minimum of the module, and current, `go vet`, `go test`, `go test -race` for concurrent parses, and a build of the module alone
-- Rust: its minimum version and stable, `cargo fmt --check`, `cargo clippy`, `cargo test`, `cargo package` to make sure that the crate is self-contained, and the whole corpus on stable
+- Rust: its minimum version and stable, `cargo fmt --check`, `cargo clippy`, optimized `cargo test`, `cargo package` to make sure that the crate is self-contained, and the whole corpus on stable
 
-The Python build backend is the only tool outside the standard library, and only at build time. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.
+Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures.
+JavaScript uses the Node runner to schedule files.
+Python uses pytest with pytest-xdist to schedule tests in separate processes.
+The `test` dependency group pins these Python development tools.
+The Python package keeps no runtime dependencies.
+
+Rust tests use optimization level 3 through `[profile.test]`.
+The runner controls are `--test-threads` or `RUST_TEST_THREADS`, Go's `-parallel`, pytest's `-n`, and Node's `--test-concurrency`.
+Rust, Go, and JavaScript keep the separate `GENCMU_CORPUS_WORKERS` control for their corpus pools.
+Python uses its pytest worker count for corpus cases too.
+The library READMEs and `tests/README.md` give local commands, including serial runs and Rust debug builds.
+
+The Python build backend is a build dependency. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.

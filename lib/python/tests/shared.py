@@ -677,6 +677,20 @@ def deadline(label: str, seconds: float = CASE_SECONDS) -> Iterator[None]:
         signal.signal(signal.SIGALRM, previous)
 
 
+def add_case_tests(cls: Any, kind: str) -> None:
+    """Give each fixture a unittest method that runners can schedule."""
+    def test_for(path: Path) -> Callable[[Any], None]:
+        def test(self: Any) -> None:
+            self.check_case(path)
+        return test
+
+    for path in cases(kind):
+        name = "test_case_" + path.stem.replace("-", "_")
+        if hasattr(cls, name):
+            raise AssertionError(f"duplicate test name: {name}")
+        setattr(cls, name, test_for(path))
+
+
 def cases(kind: str) -> list[Path]:
     return [p for p in sorted((SHARED / kind).glob("*.json")) if not os.environ.get("GENCMU_CASE_FILTER") or os.environ["GENCMU_CASE_FILTER"] in p.name]
 

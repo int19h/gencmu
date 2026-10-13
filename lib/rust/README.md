@@ -82,7 +82,7 @@ CARGO_PROFILE_TEST_OPT_LEVEL=0 cargo test --test engine engine_case_deep_left_re
 `RUST_TEST_THREADS` also sets the harness concurrency.
 The corpus keeps its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
 The last command disables optimization for one test, so you can investigate it with a debug build.
-Replace the test name with the fixture name, with hyphens replaced by underscores and the `engine_case_` prefix.
+Use a lowercase fixture name, with hyphens replaced by underscores and the `engine_case_` prefix.
 Cargo regenerates the list of tests when you add or remove a fixture.
 
 `cargo test` runs these tests:

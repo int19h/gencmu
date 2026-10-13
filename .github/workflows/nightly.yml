@@ -43,13 +43,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.x"
+          python-version: "3.14"
+      - name: Build and install the wheel and test runner
+        working-directory: lib/python
+        run: |
+          python -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/python" -m pip install build
+          "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/dist"
+          python -m venv "$RUNNER_TEMP/installed"
+          "$RUNNER_TEMP/installed/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl --group test
       - name: Every corpus case
         working-directory: lib/python
         env:
           GENCMU_CORPUS: full
-          GENCMU_CORPUS_WORKERS: "4"
-        run: python -m unittest -v tests.test_corpus
+          GENCMU_INSTALLED: "1"
+        run: '"$RUNNER_TEMP/installed/bin/python" -m pytest -n 4 -v tests/test_corpus.py'
 
   go:
     name: The whole corpus in Go

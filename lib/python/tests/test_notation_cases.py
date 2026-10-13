@@ -2,35 +2,36 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import json
 import unittest
 
 import gencmu
 from gencmu._dialect import read_document
 
-from .shared import cases, load_case, mismatch, write_json
+from .shared import add_case_tests, cases, load_case, mismatch, write_json
 
 
 class NotationCases(unittest.TestCase):
-    def test_cases(self) -> None:
+    def test_cases_are_present(self) -> None:
         paths = cases("notation")
         self.assertTrue(paths, "no notation cases found")
-        for path in paths:
-            with self.subTest(case=path.name):
-                case = load_case(path)
-                expect = case["expect"]
-                if "dom" in expect:
-                    dom = read_document(case["document"], path.name)
-                    problem = mismatch(expect["dom"], dom)
-                    self.assertIsNone(problem, f"{path.name}: {problem}\n{write_json(dom)[:2000]}")
-                else:
-                    with self.assertRaises(gencmu.GencmuError) as caught:
-                        read_document(case["document"], path.name)
-                    error = caught.exception
-                    self.assertEqual(error.kind, "grammar")
-                    for key in ("line", "column"):
-                        if key in expect["error"]:
-                            self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
+
+    def check_case(self, path: Path) -> None:
+        case = load_case(path)
+        expect = case["expect"]
+        if "dom" in expect:
+            dom = read_document(case["document"], path.name)
+            problem = mismatch(expect["dom"], dom)
+            self.assertIsNone(problem, f"{path.name}: {problem}\n{write_json(dom)[:2000]}")
+        else:
+            with self.assertRaises(gencmu.GencmuError) as caught:
+                read_document(case["document"], path.name)
+            error = caught.exception
+            self.assertEqual(error.kind, "grammar")
+            for key in ("line", "column"):
+                if key in expect["error"]:
+                    self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
 
 
 class NotationTies(unittest.TestCase):
@@ -58,6 +59,9 @@ class NotationTies(unittest.TestCase):
             gencmu.load_dialect_sources({**sources, "t.md": "```jbogenbau\na\n```\n"}, "t.md", use_cache=False)
         error = caught.exception
         self.assertEqual((error.kind, error.document, error.line, error.column), ("grammar", "t.md", None, None))
+
+
+add_case_tests(NotationCases, "notation")
 
 
 if __name__ == "__main__":
