@@ -571,12 +571,11 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 func (b *domBuilder) entry(n *Node) *domEntry {
 	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
 	for _, p := range ofRule(n, "guard") {
-		g := b.text(b.token(p))
-		if strings.HasSuffix(g, "!") {
+		g := b.guard(p)
+		if g.Kind != FeatureGate {
 			b.fail(p, "an entry of a classifier takes gates only, not a warning")
 		}
-		neg := strings.HasPrefix(g, "¬")
-		e.Guards = append(e.Guards, domGuard{Feature: strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), Kind: FeatureGate, Negated: neg})
+		e.Guards = append(e.Guards, g)
 	}
 	for _, p := range b.some(n, "classifier-key", 1) {
 		key := b.stringTerm(b.token(b.only(p, "string")))
@@ -686,20 +685,34 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	return r
 }
 
+// guard validates the complete token before the constructor reads later parts (§9.3).
+func (b *domBuilder) guard(n *Node) domGuard {
+	spelling := b.text(b.token(n))
+	g := domGuard{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
+	name := strings.TrimPrefix(spelling, "¬")
+	switch {
+	case strings.HasSuffix(name, "?"):
+		g.Feature = strings.TrimSuffix(name, "?")
+	case strings.HasSuffix(name, "!"):
+		g.Kind = FeatureWarning
+		g.Feature = strings.TrimSuffix(name, "!")
+	default:
+		b.fail(n, "a guard is a feature name followed by ? or !")
+	}
+	if !nameSyntaxFeature.MatchString(g.Feature) {
+		b.fail(n, "a guard's feature is not a feature name")
+	}
+	if g.Kind == FeatureWarning && g.Negated {
+		b.fail(n, "a warning cannot be negated")
+	}
+	return g
+}
+
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Guards: []domGuard{}}
 	b.captureNodes = map[*domExpr]*Node{}
 	for _, p := range ofRule(n, "guard") {
-		// A guard's token is its spelling: f? or ¬f? for a gate, f! for a
-		// warning (§9).
-		g := b.text(b.token(p))
-		kind := FeatureGate
-		if strings.HasSuffix(g, "!") {
-			kind = FeatureWarning
-		}
-		neg := strings.HasPrefix(g, "¬")
-		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
-		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
+		a.Guards = append(a.Guards, b.guard(p))
 	}
 	if n.Rule == "ranked-alternative" {
 		a.Expr = b.expr(b.only(n, "ranked-choice"))
