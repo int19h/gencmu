@@ -468,7 +468,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                 }
                 LEmit::Items(es) => {
                     for e in es {
-                        if let LEmitItem::Cap(_, Some(t), _, _) = e {
+                        if let LEmitItem::Cap(_, Some(t), _, _) | LEmitItem::Insert(Some(t), _) = e {
                             term(t, p, &mut local, &mut todo);
                         }
                     }
@@ -807,7 +807,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
             }
             LEmit::Items(es) => {
                 for e in es {
-                    if let LEmitItem::Cap(_, Some(t), _, _) = e {
+                    if let LEmitItem::Cap(_, Some(t), _, _) | LEmitItem::Insert(Some(t), _) = e {
                         term(t, d);
                     }
                 }
