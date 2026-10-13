@@ -1113,10 +1113,7 @@ impl<'a> Reader<'a> {
             // A span may stand in parentheses where a span is due.
             "term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
             "pattern-literal" => {
-                let part = Self::rules(inner, "pattern-union")
-                    .next()
-                    .or_else(|| Self::rules(inner, "pattern-atom").next())
-                    .ok_or_else(|| self.shape_error(inner, "pattern-union or pattern-atom"))?;
+                let part = self.pattern_literal_part(inner)?;
                 let c = self.pattern_children(part, 0)?;
                 let p = as_pattern(c);
                 if let Some(problem) = p.problem() {
@@ -1177,45 +1174,104 @@ impl<'a> Reader<'a> {
         }
     }
 
+    fn pattern_literal_part(&self, node: &'a Node) -> R<&'a Node> {
+        Self::parts(node)
+            .into_iter()
+            .find(|part| matches!(rule_name(part), "pattern-union" | "pattern-atom"))
+            .ok_or_else(|| self.shape_error(node, "pattern-union or pattern-atom"))
+    }
+
+    /// Constructor parts determine the base, independently of delimiters.
+    fn pattern_atom_base(&self, node: &'a Node) -> R<&'a Node> {
+        Self::parts(node)
+            .into_iter()
+            .find(|part| {
+                matches!(
+                    rule_name(part),
+                    "name"
+                        | "reference"
+                        | "tag"
+                        | "string"
+                        | "string-terminal"
+                        | "wildcard"
+                        | "range"
+                        | "constant-reference"
+                        | "pattern-literal"
+                        | "pattern-union"
+                ) || part.kind == NodeKind::Token
+                    && (self.text(part) == "#"
+                        || self.text(part).starts_with('_')
+                        || self.text(part).as_bytes().first().is_some_and(u8::is_ascii_alphabetic))
+            })
+            .ok_or_else(|| self.shape_error(node, "pattern atom"))
+    }
+
+    fn pattern_path_token(&self, node: &'a Node) -> R<&'a Node> {
+        Self::tokens_of(node)
+            .find(|token| matches!(self.text(token), "⋮" | "⋰" | "⋱"))
+            .ok_or_else(|| self.shape_error(node, "path token"))
+    }
+
     fn pattern_children(&self, root: &'a Node, _depth: usize) -> R<crate::patterns::Children> {
         use crate::patterns::{Children as C, Pattern as P};
         let mut values: std::collections::HashMap<*const Node, C> = std::collections::HashMap::new();
         let mut pending = vec![(root, false)];
         while let Some((node, ready)) = pending.pop() {
             let kind = rule_name(node);
+            if !ready && kind == "pattern-atom" {
+                let base = self.pattern_atom_base(node)?;
+                let name = if matches!(rule_name(base), "name" | "reference") {
+                    Some(self.token(base)?)
+                } else if base.kind == NodeKind::Token {
+                    Some(base)
+                } else {
+                    None
+                };
+                let testable = matches!(
+                    rule_name(base),
+                    "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
+                ) || name
+                    .is_some_and(|name| is_capital(self.text(name)) || self.text(name).starts_with('_'));
+                self.pattern_test_nodes(node, testable)?;
+            }
             let children: Vec<&Node> = match kind {
-                "pattern-union" => Self::rules(node, "pattern-intersection").collect(),
-                "pattern-intersection" => Self::rules(node, "pattern-sequence").collect(),
-                "pattern-sequence" => Self::rules(node, "pattern-item").collect(),
-                "pattern-item" => Self::parts(node).into_iter().filter(|n| n.kind != NodeKind::Token).collect(),
-                "pattern-brackets" | "pattern-repeat" => Self::rules(node, "pattern-union").collect(),
-                "pattern-path" => Self::rules(node, "pattern-atom").collect(),
+                "pattern-union" => {
+                    let operands = self.some(node, "pattern-intersection", 1)?;
+                    let operators = Self::tokens_of(node).filter(|token| matches!(self.text(token), "∪" | "∖")).count();
+                    if operators < operands.len() - 1 {
+                        return Err(self.shape_error(node, "union operators"));
+                    }
+                    operands
+                }
+                "pattern-intersection" => self.some(node, "pattern-sequence", 1)?,
+                "pattern-sequence" => self.some(node, "pattern-item", 1)?,
+                "pattern-item" => Self::parts(node)
+                    .into_iter()
+                    .filter(|part| {
+                        matches!(
+                            rule_name(part),
+                            "pattern-atom" | "pattern-brackets" | "pattern-repeat" | "pattern-path"
+                        )
+                    })
+                    .take(1)
+                    .collect(),
+                "pattern-brackets" => vec![self.one(node, "pattern-union")?],
+                "pattern-repeat" => self.some(node, "pattern-union", 1)?.into_iter().take(2).collect(),
+                "pattern-path" => {
+                    self.pattern_path_token(node)?;
+                    vec![self.one(node, "pattern-atom")?]
+                }
                 "pattern-atom" => {
-                    let first =
-                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
-                    if first.kind == NodeKind::Token && self.text(first) == "(" {
-                        Self::rules(node, "pattern-union").collect()
-                    } else if rule_name(first) == "pattern-literal" {
-                        Self::parts(first)
-                            .into_iter()
-                            .filter(|node| matches!(rule_name(node), "pattern-union" | "pattern-atom"))
-                            .collect()
-                    } else {
-                        Vec::new()
+                    let base = self.pattern_atom_base(node)?;
+                    match rule_name(base) {
+                        "pattern-union" => vec![base],
+                        "pattern-literal" => vec![self.pattern_literal_part(base)?],
+                        _ => Vec::new(),
                     }
                 }
                 _ => return Err(self.unknown(node, kind)),
             };
             if !ready {
-                if kind == "pattern-atom" {
-                    let base =
-                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
-                    let testable =
-                        matches!(rule_name(base), "tag" | "string" | "wildcard" | "range" | "constant-reference")
-                            || base.kind == NodeKind::Token
-                                && (is_capital(self.text(base)) || self.text(base).starts_with('_'));
-                    self.pattern_test_nodes(node, testable)?;
-                }
                 pending.push((node, true));
                 pending.extend(children.iter().rev().map(|&n| (n, false)));
                 continue;
@@ -1231,7 +1287,10 @@ impl<'a> Reader<'a> {
                     } else {
                         let mut xs = parts.into_iter();
                         let mut p = as_pattern(xs.next().ok_or_else(|| self.shape_error(node, "pattern operand"))?);
-                        let ops = Self::tokens_of(node).map(|t| self.text(t)).collect::<Vec<_>>();
+                        let ops = Self::tokens_of(node)
+                            .map(|t| self.text(t))
+                            .filter(|op| matches!(*op, "∪" | "∖"))
+                            .collect::<Vec<_>>();
                         for (i, x) in xs.enumerate() {
                             p = if kind == "pattern-intersection" {
                                 P::Intersection(vec![p, as_pattern(x)])
@@ -1267,15 +1326,16 @@ impl<'a> Reader<'a> {
                     }
                 }
                 "pattern-item" => {
-                    if parts.is_empty() {
+                    if let Some(part) = parts.pop() {
+                        part
+                    } else if Self::tokens_of(node).any(|token| self.text(token) == "⋯") {
                         C::Siblings
                     } else {
-                        parts.pop().unwrap()
+                        return Err(self.shape_error(node, "pattern item or sibling ellipsis"));
                     }
                 }
                 "pattern-atom" => {
-                    let first =
-                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
+                    let first = self.pattern_atom_base(node)?;
                     if !parts.is_empty() {
                         let c = parts.pop().unwrap();
                         if rule_name(first) == "pattern-literal" {
@@ -1287,6 +1347,11 @@ impl<'a> Reader<'a> {
                         let (pattern, tested) = match rule_name(first) {
                             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
                             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
+                            "string-terminal" => {
+                                let symbol = self.symbol(first)?;
+                                let Expr::Literal(term) = &symbol else { unreachable!() };
+                                (P::Literal(term.clone(), self.first(first)), true)
+                            }
                             "wildcard" => (P::Wildcard(self.first(first)), true),
                             "range" => {
                                 let symbol = self.symbol(first)?;
@@ -1302,12 +1367,13 @@ impl<'a> Reader<'a> {
                                     (P::Constant(self.text(token)[1..].into(), self.at(token)), true)
                                 }
                             }
-                            _ if first.kind == NodeKind::Token => {
-                                let name = self.text(first);
+                            _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
+                                let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
+                                let name = self.text(token);
                                 if is_capital(name) || crate::dom::is_engine_tag(name) {
-                                    (P::Terminal(name.into(), self.at(first)), true)
+                                    (P::Terminal(name.into(), self.at(token)), true)
                                 } else {
-                                    (P::Name(name.into(), self.at(first)), false)
+                                    (P::Name(name.into(), self.at(token)), false)
                                 }
                             }
                             _ => return Err(self.shape_error(node, "pattern atom")),
@@ -1322,8 +1388,9 @@ impl<'a> Reader<'a> {
                     C::Repeat(Box::new(item), xs.next().map(Box::new))
                 }
                 "pattern-path" => {
-                    // The direct operator token can follow the named atom.
-                    let operator = self.text(self.token(node)?);
+                    // The path token can precede or follow the atom. Ignore
+                    // delimiter tokens that are not constructor parts.
+                    let operator = self.text(self.pattern_path_token(node)?);
                     C::Node(Box::new(P::Path(
                         match operator {
                             "⋮" => "descendant",
@@ -2208,7 +2275,6 @@ const KNOWN: &[&str] = &[
     "pattern-brackets",
     "pattern-repeat",
     "pattern-path",
-    "pattern-separator",
     "directive",
     "argument-word",
     "argument-string",
