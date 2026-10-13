@@ -17,9 +17,9 @@ type familyGrowthBounds struct {
 	StrictCase     string `json:"strictCase"`
 	Lengths        []int  `json:"lengths"`
 	Depths         []int  `json:"depths"`
-	ItemsPerUnit   int64  `json:"itemsPerUnit"`
+	ItemsPerUnit   *int64 `json:"itemsPerUnit"`
 	Slack          int64  `json:"slack"`
-	NodesPerDepth  int64  `json:"nodesPerDepth"`
+	NodesPerDepth  *int64 `json:"nodesPerDepth"`
 	MaxCloseNodes  *int64 `json:"maxCloseNodes"`
 	MaxCloseStates *int64 `json:"maxCloseStates"`
 	EqualsStrict   bool   `json:"equalsStrict"`
@@ -49,6 +49,13 @@ func growFamilyCase(t *testing.T, file string, n int, depth bool) *engineCase {
 	c := loadCase(t, filepath.Join("../../tests", file))
 	if depth {
 		grammar := *c.Grammar
+		var family string
+		for _, line := range strings.Split(grammar, "\n") {
+			if strings.HasPrefix(line, "%rule fam ") {
+				family = line
+				break
+			}
+		}
 		first, lines := 16, 5
 		if strings.Contains(file, "ranked-sibling") {
 			first, lines = 10, 7
@@ -60,8 +67,8 @@ func growFamilyCase(t *testing.T, file string, n int, depth bool) *engineCase {
 				grammar += " | [+V]"
 			}
 		}
-		if strings.Contains(file, "without-elision-except") {
-			grammar += "\n%rule fam r0"
+		if family != "" {
+			grammar += "\n" + family
 		}
 		c.Grammar = &grammar
 	} else if c.Tokens == nil {
@@ -126,90 +133,159 @@ func TestFamilyGrowth(t *testing.T) {
 				t.Fatal("incomplete family growth fixture")
 			}
 			for _, n := range lengths {
-				counts := []*workCounts{}
-				for _, file := range []string{bound.StrictCase, bound.Case} {
-					c := growFamilyCase(t, file, n, depth)
-					d, err := caseDialect(c, true)
-					if err != nil {
-						t.Fatal(err)
-					}
-					w := &workCounts{}
-					var before, after runtime.MemStats
-					runtime.ReadMemStats(&before)
-					start := time.Now()
-					peak := before.HeapAlloc
-					stop, stopped := make(chan struct{}), make(chan struct{})
-					go func() {
-						defer close(stopped)
-						tick := time.NewTicker(time.Millisecond)
-						defer tick.Stop()
-						for {
-							select {
-							case <-stop:
-								return
-							case <-tick.C:
-								var sample runtime.MemStats
-								runtime.ReadMemStats(&sample)
-								peak = max(peak, sample.HeapAlloc)
-							}
-						}
-					}()
-					func() {
-						defer func() { close(stop); <-stopped }()
-						countWorkIn(w, func() {
-							if err := checkGrowthParse(d, c); err != nil {
-								t.Fatal(err)
-							}
-						})
-					}()
-					runtime.ReadMemStats(&after)
-					peak = max(peak, after.HeapAlloc)
-					counts = append(counts, w)
-					t.Logf("%s, %d units: %d items, %d edges, %d close states, %d close nodes, %d cycle contexts, %d summaries, %d steps, %s, %d allocated bytes, %d peak live heap bytes", file, n, w.items.Load(), w.packedEdges.Load(), w.closeStates.Load(), w.closeLinks.Load(), w.closeContexts.Load(), w.familySummaries.Load(), w.familySteps.Load(), time.Since(start), after.TotalAlloc-before.TotalAlloc, peak)
-					if bound.MaxCloseNodes != nil && w.closeLinks.Load() > *bound.MaxCloseNodes {
-						t.Fatalf("close nodes exceed %d", *bound.MaxCloseNodes)
-					}
-					if bound.MaxCloseStates != nil && w.closeStates.Load() > *bound.MaxCloseStates {
-						t.Fatalf("close states exceed %d", *bound.MaxCloseStates)
-					}
-					if bound.NodesPerDepth > 0 && w.closeLinks.Load() > bound.NodesPerDepth*int64(n+1)+bound.Slack {
-						t.Fatal("shared doubling node bound")
-					}
-					if bound.ItemsPerUnit > 0 && w.items.Load() > bound.ItemsPerUnit*int64(n)+bound.Slack {
-						t.Fatal("linear item bound")
-					}
-				}
-				strict, family := counts[0], counts[1]
-				if strict.familySummaries.Load() != 0 || strict.familySteps.Load() != 0 {
-					t.Fatal("family state leaks into a strict query")
-				}
-				length := int64(n)
-				if b := bound.StrictBound; b != nil && strict.closeStates.Load() > b.CloseStatesPerUnit*length+b.CloseStatesSlack {
-					t.Fatal("strict owner observation bound")
-				}
-				if b := bound.OverStrict; b != nil {
-					limit := strict.items.Load()*(b.ItemsPercent+b.ItemsPercentPerUnit*length)/100 + b.ItemsSlack
-					if family.items.Load() > limit {
-						t.Fatalf("%d family items exceed %d", family.items.Load(), limit)
-					}
-					if family.closeStates.Load() > strict.closeStates.Load()+b.CloseStatesPerUnit*length {
-						t.Fatal("family raw observation bound")
-					}
-				}
-				if bound.EqualsStrict && (family.items.Load() != strict.items.Load() || family.closeStates.Load() != strict.closeStates.Load()) {
-					t.Fatal("irrelevant family changes strict counts")
-				}
-				if bound.AtMostStrict && (family.items.Load() > strict.items.Load() || family.closeStates.Load() > strict.closeStates.Load()) {
-					t.Fatal("family exceeds strict counts")
-				}
-				if b := bound.Summaries; b != nil && family.familySummaries.Load() > b.PerSquare*length*length+b.Slack {
-					t.Fatalf("%d summaries exceed bound", family.familySummaries.Load())
-				}
-				if b := bound.Steps; b != nil && family.familySteps.Load() > b.PerCube*length*length*length+b.Slack {
-					t.Fatalf("%d steps exceed bound", family.familySteps.Load())
+				runFamilyGrowth(t, bound, n, depth, false)
+				if depth && bound.NodesPerDepth != nil {
+					runFamilyGrowth(t, bound, n, depth, true)
 				}
 			}
 		})
+	}
+}
+
+// A fixed upper counter supports zero and combines bounds by their minimum.
+func boundFamilyWork(c *workCount, limit int64) {
+	if c.under != nil && c.under.Load() <= limit {
+		return
+	}
+	c.under = &workCount{}
+	c.under.n.Store(limit)
+}
+
+func familyGrowthCounters(b familyGrowthBounds, n int, strict *workCounts) *workCounts {
+	w := &workCounts{}
+	length := int64(n)
+	if b.ItemsPerUnit != nil {
+		boundFamilyWork(&w.items, *b.ItemsPerUnit*length+b.Slack)
+	}
+	if b.NodesPerDepth != nil {
+		boundFamilyWork(&w.closeLinks, *b.NodesPerDepth*(length+1)+b.Slack)
+	}
+	if b.MaxCloseNodes != nil {
+		boundFamilyWork(&w.closeLinks, *b.MaxCloseNodes)
+	}
+	if b.MaxCloseStates != nil {
+		boundFamilyWork(&w.closeStates, *b.MaxCloseStates)
+	}
+	if strict == nil {
+		if v := b.StrictBound; v != nil {
+			boundFamilyWork(&w.closeStates, v.CloseStatesPerUnit*length+v.CloseStatesSlack)
+		}
+		boundFamilyWork(&w.familySummaries, 0)
+		boundFamilyWork(&w.familySteps, 0)
+		return w
+	}
+	if v := b.OverStrict; v != nil {
+		boundFamilyWork(&w.items, strict.items.Load()*(v.ItemsPercent+v.ItemsPercentPerUnit*length)/100+v.ItemsSlack)
+		boundFamilyWork(&w.closeStates, strict.closeStates.Load()+v.CloseStatesPerUnit*length)
+	}
+	if b.EqualsStrict || b.AtMostStrict {
+		boundFamilyWork(&w.items, strict.items.Load())
+		boundFamilyWork(&w.closeStates, strict.closeStates.Load())
+	}
+	if v := b.Summaries; v != nil {
+		boundFamilyWork(&w.familySummaries, v.PerSquare*length*length+v.Slack)
+	}
+	if v := b.Steps; v != nil {
+		boundFamilyWork(&w.familySteps, v.PerCube*length*length*length+v.Slack)
+	}
+	return w
+}
+
+func runFamilyGrowth(t *testing.T, bound familyGrowthBounds, n int, depth, witness bool) {
+	t.Helper()
+	counts := []*workCounts{}
+	for _, file := range []string{bound.StrictCase, bound.Case} {
+		c := growFamilyCase(t, file, n, depth)
+		if witness {
+			grammar := strings.ReplaceAll(*c.Grammar, ".matches(empty)", fmt.Sprintf(".matches(r%d)", n))
+			grammar = strings.ReplaceAll(grammar, "$x.without-elision", "¬$x.without-elision")
+			c.Grammar = &grammar
+		}
+		d, err := caseDialect(c, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var strict *workCounts
+		if len(counts) > 0 {
+			strict = counts[0]
+		}
+		w := familyGrowthCounters(bound, n, strict)
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		start := time.Now()
+		peak := before.HeapAlloc
+		stop, stopped := make(chan struct{}), make(chan struct{})
+		go func() {
+			defer close(stopped)
+			tick := time.NewTicker(time.Millisecond)
+			defer tick.Stop()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-tick.C:
+					var sample runtime.MemStats
+					runtime.ReadMemStats(&sample)
+					peak = max(peak, sample.HeapAlloc)
+				}
+			}
+		}()
+		func() {
+			defer func() { close(stop); <-stopped }()
+			countWorkIn(w, func() {
+				if err := checkGrowthParse(d, c); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}()
+		runtime.ReadMemStats(&after)
+		peak = max(peak, after.HeapAlloc)
+		counts = append(counts, w)
+		t.Logf("%s, %d units, demanded witness %t: %d items, %d edges, %d close states, %d close nodes, %d cycle contexts, %d summaries, %d steps, %s, %d allocated bytes, %d peak live heap bytes", file, n, witness, w.items.Load(), w.packedEdges.Load(), w.closeStates.Load(), w.closeLinks.Load(), w.closeContexts.Load(), w.familySummaries.Load(), w.familySteps.Load(), time.Since(start), after.TotalAlloc-before.TotalAlloc, peak)
+		if witness && (w.closeLinks.Load() == 0 || w.closeStates.Load() == 0) {
+			t.Fatal("doubled witness created no close observations")
+		}
+		if bound.MaxCloseNodes != nil && w.closeLinks.Load() > *bound.MaxCloseNodes {
+			t.Fatalf("close nodes exceed %d", *bound.MaxCloseNodes)
+		}
+		if bound.MaxCloseStates != nil && w.closeStates.Load() > *bound.MaxCloseStates {
+			t.Fatalf("close states exceed %d", *bound.MaxCloseStates)
+		}
+		if bound.NodesPerDepth != nil && w.closeLinks.Load() > *bound.NodesPerDepth*int64(n+1)+bound.Slack {
+			t.Fatal("shared doubling node bound")
+		}
+		if bound.ItemsPerUnit != nil && w.items.Load() > *bound.ItemsPerUnit*int64(n)+bound.Slack {
+			t.Fatal("linear item bound")
+		}
+	}
+	strict, family := counts[0], counts[1]
+	if strict.familySummaries.Load() != 0 || strict.familySteps.Load() != 0 {
+		t.Fatal("family state leaks into a strict query")
+	}
+	length := int64(n)
+	if b := bound.StrictBound; b != nil && strict.closeStates.Load() > b.CloseStatesPerUnit*length+b.CloseStatesSlack {
+		t.Fatal("strict owner observation bound")
+	}
+	if b := bound.OverStrict; b != nil {
+		limit := strict.items.Load()*(b.ItemsPercent+b.ItemsPercentPerUnit*length)/100 + b.ItemsSlack
+		if family.items.Load() > limit {
+			t.Fatalf("%d family items exceed %d", family.items.Load(), limit)
+		}
+		if family.closeStates.Load() > strict.closeStates.Load()+b.CloseStatesPerUnit*length {
+			t.Fatal("family raw observation bound")
+		}
+	}
+	if bound.EqualsStrict && (family.items.Load() != strict.items.Load() || family.closeStates.Load() != strict.closeStates.Load()) {
+		t.Fatal("irrelevant family changes strict counts")
+	}
+	if bound.AtMostStrict && (family.items.Load() > strict.items.Load() || family.closeStates.Load() > strict.closeStates.Load()) {
+		t.Fatal("family exceeds strict counts")
+	}
+	if b := bound.Summaries; b != nil && family.familySummaries.Load() > b.PerSquare*length*length+b.Slack {
+		t.Fatalf("%d summaries exceed bound", family.familySummaries.Load())
+	}
+	if b := bound.Steps; b != nil && family.familySteps.Load() > b.PerCube*length*length*length+b.Slack {
+		t.Fatalf("%d steps exceed bound", family.familySteps.Load())
 	}
 }
 

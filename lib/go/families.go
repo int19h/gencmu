@@ -184,14 +184,14 @@ func (f *familyArena) record(event closeEvent, permitted bool) int {
 	if event.block != nil && p < f.b && event.end > f.b {
 		return 1
 	}
+	size := f.size(p)
+	familySteps(size)
 	event.record = Restoration{Terminal: event.record.Terminal, At: p}
 	key := familyRecord{event, permitted}
 	if id, ok := f.records[key]; ok {
 		return id
 	}
-	size := f.size(p)
 	rows := make([]*big.Int, size)
-	familySteps(size)
 	for state := 0; state < size; state++ {
 		i := state / 2
 		row := new(big.Int)
