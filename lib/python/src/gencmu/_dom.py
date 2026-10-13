@@ -828,8 +828,9 @@ class DomBuilder:
             kind, problem = term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
-            if name == "without-elision" and set(receiver) != {"capture"}:
-                problem = ".without-elision requires a bare capture; use $x.without-elision.onward"
+            if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
+                call = name + ("(F)" if name == "without-elision-except" else "")
+                problem = f".{name} requires a bare capture; use $x.{call}.onward"
             if problem is not None:
                 raise self.fail(node, problem)
             if name == "split" and literal_string(args[0]) == "":

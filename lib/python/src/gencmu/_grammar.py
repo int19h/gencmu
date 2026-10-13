@@ -788,7 +788,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
 
     for rule in rules.values():
         for alt in rule.alternatives:
-            stack: list[Any] = [alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.emit), unchecked(alt.conditions)]
+            stack: list[Any] = list(reversed([alt.expr, alt.tags, unchecked(alt.rule_tags), unchecked(alt.conditions), unchecked(alt.emit)]))
             while stack:
                 value = stack.pop()
                 if isinstance(value, dict):
@@ -807,9 +807,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                             alt.at,
                             stage,
                         )
-                    stack.extend(value.values())
+                    stack.extend(reversed(list(value.values())))
                 elif isinstance(value, list):
-                    stack.extend(value)
+                    stack.extend(reversed(value))
     grammar = Grammar(
         stage,
         rules,

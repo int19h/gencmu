@@ -76,8 +76,10 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         result, arity = "string", 0
     elif name == "emitted":
         valid, result, arity = recipe and bare, "emitted", 0
-    elif name == "without-elision":
-        valid, result, arity = bare, "restored", 0
+    elif name in ("without-elision", "without-elision-except"):
+        valid, result, arity = bare, "restored", 0 if name == "without-elision" else 1
+        if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
+            valid = False
     elif name in _SPAN_METHODS:
         valid = receiver in spans
         result = "restored" if name == "onward" and receiver == "restored" else "span"
