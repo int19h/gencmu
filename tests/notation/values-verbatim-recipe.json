@@ -47,5 +47,5 @@
       "implications": []
     }
   },
-  "description": "A verbatim recipe keeps its span receiver (engine §11.6)."
+  "description": "A verbatim recipe retains its capture receiver and extends only the image's uncovered source gaps (engine §9.3, §11.1)."
 }

@@ -1,5 +1,5 @@
 {
-  "description": "The close of r → A, an expansion of r → A [$b(B)] with one symbol, is transparent: text → r [B] on a b ties under greedy (engine §3.2, §6).",
+  "description": "The close of r → A [$b:B] has two logical symbols even when B is absent. On a b, greedy prefers r to consume B, so text → r [B] resolves (engine §3.2, §6).",
   "grammar": "%rule text (r [B])\n%rule r (A [$b:B])",
   "tokens": [
     {

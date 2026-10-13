@@ -1,5 +1,5 @@
 {
-  "description": "The retired stage-wide maximal operand is a document error, regardless of operand order.",
+  "description": "The retired stage-wide maximal operand is a document error, regardless of operand order (engine §3.8 and §4).",
   "grammar": "%ambiguity-resolution greedy maximal elision-only\n%rule text x\n%rule x A [ + T ]",
   "tokens": [
     {

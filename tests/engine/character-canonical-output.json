@@ -1,5 +1,5 @@
 {
-  "description": "The output writes a character tag in its canonical spelling: the character itself, or \\u{h…} for a control character, a nonspacing mark, a private-use character, the quote and the backslash. A character token carries its character tag and nothing else (engine §1, docs/output.md).",
+  "description": "Stage zero stores Unicode category tags, with _White_Space on the tab. Forwarded character tokens retain these tags rather than character tags (engine §1, docs/output.md).",
   "grammar": "%rule text [{c}]\n%rule c \"a\" | \"́\" | \"'\" | $_005C | \"\" | $_0009 | \"é\" %emits $\n",
   "input": "á'\\\té",
   "expect": {

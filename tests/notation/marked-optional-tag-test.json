@@ -1,5 +1,5 @@
 {
-  "description": "A tag test on an elidable terminator is legal. Its omission is inert when the restoration tags fail the test.",
+  "description": "A tag test on an elidable terminator is legal. Its omission is inert when the restoration tags fail the test (engine §9.3).",
   "document": "```jbogenbau\n%rule a [+KU<X>]\n```\n",
   "expect": {
     "dom": {

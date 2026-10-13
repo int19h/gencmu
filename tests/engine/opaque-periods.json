@@ -1,5 +1,5 @@
 {
-  "description": "Pauses are counted by part, not by character: the join keeps the periods in the label of an opaque part, makes each run of pause parts one, and leaves out a pause part at either end. The phonemes join in the same way, with `?` for the part (engine §5).",
+  "description": "Ordinary concatenation keeps every pause contribution, including adjacent pauses and pauses at either end. A child's verbatim image preserves its internal periods independently of the value channel (engine §11.2).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part v | pause | y\n%rule v :- $.verbatim-text | (\"a\" \".\" \".\" \"b\") %emits $ :: V\n\n\n%rule pause \"-\" %emits $ :: (P ∪ Sound-002E-s) := \".\" :- \" \"\n\n%rule y \"y\" %emits $ :: (Y ∪ Sound-0079-s) := \"y\"\n\n```\n",

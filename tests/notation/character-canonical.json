@@ -1,5 +1,5 @@
 {
-  "description": "A character tag's identity is its scalar value, and the DOM holds it in its canonical spelling: the character itself, or \\u{h…} in upper case with no leading zeros for a control character, a nonspacing mark, a private-use character, the quote and the backslash (engine §1, §9).",
+  "description": "String terminals preserve literal scalars, and engine scalar constants retain their unresolved constant references. Combining marks, backslashes and controls no longer form character tags (engine §9.1, docs/output.md format 26).",
   "document": "```jbogenbau\n%rule a (\"a\" \"́\" \"́\" \"'\" $_005C \"\" $_0009 \"é\" \"é\")\n```\n",
   "expect": {
     "dom": {

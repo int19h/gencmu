@@ -6,5 +6,5 @@
       "column": 16
     }
   },
-  "description": "A capture reports the tested target’s second tag test (coordinator N16)."
+  "description": "A capture accepts the tested target, but the target permits only one tag test. The reader reports its second tag test at that test (engine §9.3)."
 }

@@ -1,5 +1,5 @@
 {
-  "description": "A capture wraps a reference, a tag literal, a character tag or a phoneme tag; a group, even of one symbol, is an error at the capture (engine §9).",
+  "description": "A capture can wrap one symbol, including a tested symbol, but not a group even when it contains one symbol. The error is at the binder (engine §9.3).",
   "document": "```jbogenbau\n%rule a $x:( B )\n```\n",
   "expect": {
     "error": {

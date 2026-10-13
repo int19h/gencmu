@@ -1,5 +1,5 @@
 {
-  "description": "An inserted tag before an item with a before-attachment reads in an alternative with that attachment and in one without it (engine §9, §11).",
+  "description": "An inserted item before an item with a before-attachment reads in an alternative with that attachment and in one without it (engine §9, §11).",
   "document": "```jbogenbau\n%rule a ($b:B $w:W) | $w:W %emits ε :: X, ($b) $w\n```\n",
   "expect": {
     "dom": {

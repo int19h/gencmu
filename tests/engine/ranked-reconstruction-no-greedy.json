@@ -1,5 +1,5 @@
 {
-  "description": "Reconstruction uses projected flags without the greedy directive or a diagnostic lean.",
+  "description": "Reconstruction uses projected flags without the greedy directive or a diagnostic lean (engine §7.10).",
   "grammar": "%ambiguity-resolution greedy elision-only\n%rule text (w ≻ missing) | old | c\n%rule (leftmost-longest) w (X [+T])\n%rule missing (M N)\n%rule old ([+U] X)\n%rule (leftmost-longest) c (r T)\n%rule r (X e)\n%rule e ε",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "The chosen derivation uses the last sibling. Reconstruction reports it first and the first bare sibling second. The hook counts the concrete chosen derivation separately.",
+  "description": "The chosen derivation uses the last sibling. Reconstruction reports it first and the first bare sibling second. The hook counts the concrete chosen derivation separately (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a (A T B) | (A T B) | (A [+T] B)\n%rule b (A [+T] [+T] B)",
   "tokens": [
     {

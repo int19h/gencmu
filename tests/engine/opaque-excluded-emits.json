@@ -1,5 +1,5 @@
 {
-  "description": "The opaque parts are chosen over the whole derivation, and a %opaque constituent that the choice leaves out is ordinary, even when a token is emitted over it (engine §11). The first `inner` lies inside the opaque part `outer`, whose rule has no emission clause. So the walk reaches it and its own emission runs. The second lies inside the opaque part `held`, whose capture item emits a token over it. Each token has the source of its input token and sounds `b`, not `?`. `skipped` lies inside `gone`, which emits ε, so the walk does not reach it, and it emits nothing. It is no opaque part, so it takes in no text, and `tail`, the next opaque part, takes the space before it.",
+  "description": "The emission walk reaches both inner carriers despite the outer image recipes. Their selected verbatim calls claim the same uncovered gap, so emission fails with no output (engine §11.1, §11.2).",
   "grammar": "%rule text (outer held gone tail)\n%rule outer :- $.verbatim-text | (A inner)\n\n%rule held :- $.verbatim-text | $i:inner %emits $i :: J\n\n\n%rule inner :- $.verbatim-text | B %emits $ :: I\n\n\n%rule gone skipped %erased\n\n%rule skipped :- $.verbatim-text | C %emits $ :: S\n\n\n%rule tail :- $.verbatim-text | D %emits $ :: T\n\n",
   "tokens": [
     {

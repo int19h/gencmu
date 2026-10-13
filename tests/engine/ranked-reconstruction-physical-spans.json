@@ -1,5 +1,5 @@
 {
-  "description": "Distinct physical spans remain separate when their projected spans coincide.",
+  "description": "Distinct physical spans remain separate when their projected spans coincide (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (q ≻ neutral)\n%rule q (T p Z)\n%rule p ((a ≻ b) [T])\n%rule a ε\n%rule b :: ∅ | [+T]\n\n%rule neutral ([+T] [+T] Z) | ([+T] [+T] [+U] Z)",
   "tokens": [
     {

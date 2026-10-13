@@ -1,5 +1,5 @@
 {
-  "description": "Selected routes settle skipped captures while future ranked groups remain unknown.",
+  "description": "Selected routes settle skipped captures while future ranked groups remain unknown (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text ((X [($x:Y ≻ V)] [+T]) ≻ (Z W)) %conditions $x\n",
   "tokens": [
     {

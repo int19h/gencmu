@@ -1,0 +1,10 @@
+{
+  "description": "The reader rejects the invalid range endpoint with two scalars before the later tag-test operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule text \"ab\"..\"z\"<\"bad\">\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 12
+    }
+  }
+}

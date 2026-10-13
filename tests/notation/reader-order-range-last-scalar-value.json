@@ -1,0 +1,10 @@
+{
+  "description": "The reader rejects the invalid scalar reference in the second range endpoint before the later value-test operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule text \"a\"..$_D800=UI\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "description": "from and after give spans, which are not values (engine §9).",
+  "description": "A following-tokens span can convert to an input string, not a tag set. Its comparison with B is a type error at the comparison (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B%conditions $x.following-tokens= B\n```\n",
   "expect": {
     "error": {

@@ -1,5 +1,5 @@
 {
-  "description": "Two phoneme tags on one emitted token are an error of the grammar, even on a token over an opaque part (engine §5).",
+  "description": "Two ordinary Sound tags can coexist on an emitted token. They do not change its default value or verbatim image a (engine §11.1, §11.2).",
   "grammar": "%rule text word\n%rule word :- $.verbatim-text | \"a\" %emits $ :: (Sound-0061-s ∪ Sound-0062-s)\n\n",
   "input": "a",
   "expect": {

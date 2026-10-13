@@ -1,5 +1,5 @@
 {
-  "description": "initial($) on a rule with no symbols holds only where the input begins, so the rule is read nowhere else (engine §4, §10).",
+  "description": "$.starts-input on a rule with no symbols holds only where the input begins, so the rule is read nowhere else (engine §4, §10).",
   "grammar": "%rule text a | (W a)\n%rule a (begin W)\n%rule begin ε %conditions $.starts-input",
   "tokens": [
     {

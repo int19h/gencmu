@@ -1,5 +1,5 @@
 {
-  "description": "A range skips the surrogates, which are not scalar values: '\\u{D7FF}'..'\\u{E000}' holds two tags, and a token over U+D7FF or U+E000 matches it as a terminal (engine §1, §10).",
+  "description": "A scalar range is valid as a terminal, but cannot stand in a tag clause. The clause is a document error at its range separator (engine §9.3, §10).",
   "grammar": "%rule text $c:c :: \"퟿\"..\"\"\n%rule c \"퟿\"..\"\" %emits $\n",
   "input": "",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "split() takes a delimiter of several characters, and a single character of it alone does not cut (engine §10).",
+  "description": ".split takes a delimiter of several characters, and a single character of it alone does not cut (engine §10).",
   "grammar": "%rule text $x:A %conditions $x.value.split(\".i.\") = \"la mi.ko\".split(\" \"), \"la\" ∈ $x.value.split(\".i.\")\n",
   "tokens": [
     {

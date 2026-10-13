@@ -1,5 +1,5 @@
 {
-  "description": "tag() of a constant whose value is not a name is an error of the document, which the loader reports at the constant (engine §2, §10).",
+  "description": "The retired .tag method is a document error at its receiver, even when its receiver is a string constant (engine §9.3, §10).",
   "grammar": "%const $N \"ko'a\"\n%rule text A :: $N.tag",
   "tokens": [
     {

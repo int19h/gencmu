@@ -1,5 +1,5 @@
 {
-  "description": "The retired directive reports an unknown directive and points to ranked choices.",
+  "description": "The retired directive reports an unknown directive and points to ranked choices (engine §9.3).",
   "document": "```jbogenbau\n%prefer a b\n```\n",
   "expect": {
     "error": {

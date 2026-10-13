@@ -1,5 +1,5 @@
 {
-  "description": "Inside a nested parse over a captured span, from and after end where that span ends, not where the stage's input ends (engine §4, §10).",
+  "description": "Inside a nested parse over a captured span, onward and following-tokens end where that span ends, not where the stage's input ends (engine §4, §10).",
   "grammar": "%rule text ($w:word C) %conditions $w.matches(probe)\n%rule word (A B)\n%rule probe ($a:A B) %conditions $a.following-tokens.matches(justb)\n%rule justb B",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "An earlier tag failure precedes a later private tag export, without compiling invalid runtime bindings.",
+  "description": "An earlier tag failure precedes a later private tag export, without compiling invalid runtime bindings (engine §2.1 and §9.3).",
   "grammar": "%ambiguity-resolution late-elision\n%rule text (a ≻ b)\n%rule a X\n%rule b Y\n%rule later :: $x.tags | (Q ($x:a ≻ $x:b) Z)\n",
   "input": "",
   "expect": {

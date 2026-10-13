@@ -1,5 +1,5 @@
 {
-  "description": "The key under which a nested parse's answer is remembered must tell every field of every token apart, even when a token's phonemes hold characters that a key might use as separators: the two pairs here differ only in how their phonemes split between the tokens (engine §4, nested parses).",
+  "description": "The key under which a nested parse's answer is remembered must tell every field of every token apart, even when a token's value hold characters that a key might use as separators: the two pairs here differ only in how their values split between the tokens (engine §4, nested parses).",
   "grammar": "%rule text ($x:pair $y:pair) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"x\"\n",
   "tokens": [
     {

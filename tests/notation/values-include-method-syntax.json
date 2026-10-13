@@ -1,5 +1,5 @@
 {
-  "description": "N29 reads directive names as separate operands and excludes include paths from method receivers and ranges. Syntax errors precede reader errors.",
+  "description": "An include path is not a method receiver or range endpoint. Its syntax error precedes any reader validation (engine §9.1, §9.2, §9.3).",
   "document": "```jbogenbau\n%include \"a.md\".x\n```\n",
   "expect": {
     "error": {

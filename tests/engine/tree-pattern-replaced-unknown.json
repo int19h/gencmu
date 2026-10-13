@@ -1,5 +1,5 @@
 {
-  "description": "The loader rejects an invalid constant dependency or pattern type.",
+  "description": "The loader rejects an invalid constant dependency or pattern type (engine §4.1 and §10).",
   "grammar": "%const $P $Q\n%redefine-const $P @A\n%rule text ε",
   "input": "",
   "expect": {

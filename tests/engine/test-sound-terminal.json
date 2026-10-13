@@ -1,5 +1,5 @@
 {
-  "description": "X=\"s\" holds where the canonical sound of the token is s, and X≠\"s\" exactly where it is not: each token is read by one of the two, so the parse is unique. A stressed lA sounds la (engine §2, §4).",
+  "description": "Exact equality and inequality tests partition the X tokens. Only la passes X=\"la\"; lo, lA and lai pass X≠\"la\" without normalization (engine §4, §10).",
   "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit X=\"la\"\n%rule miss X≠\"la\"",
   "tokens": [
     {

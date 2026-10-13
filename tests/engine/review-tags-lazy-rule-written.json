@@ -1,5 +1,5 @@
 {
-  "description": "A lazy tag read uses the completed candidate structure.",
+  "description": "A lazy tag read uses the completed candidate structure (engine §10).",
   "grammar": "%rule text :: ($ ≅ @text ⟹ X) | A %conditions $.tags = X\n\n",
   "tokens": [
     {

@@ -6,5 +6,5 @@
       "column": 7
     }
   },
-  "description": "A rule name starts with a lowercase letter (coordinator N18)."
+  "description": "A rule name must start with an ASCII lowercase letter. A capital-initial name fails at that name (engine §9.3)."
 }

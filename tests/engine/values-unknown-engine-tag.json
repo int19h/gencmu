@@ -1,5 +1,5 @@
 {
-  "description": "Invalid caller strings or tags fail before recognition (engine §§1 and 13).",
+  "description": "An unknown engine tag on a caller token is a usage error before recognition (engine §1, docs/api.md).",
   "grammar": "%rule text _",
   "tokens": [
     {

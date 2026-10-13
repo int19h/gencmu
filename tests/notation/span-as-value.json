@@ -1,5 +1,5 @@
 {
-  "description": "head, tail and last give spans, which are not values (engine §9).",
+  "description": "A first-token span can convert to an input string, not a tag set. Comparing it with B is a type error at the comparison (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B%conditions $x.first-token= B\n```\n",
   "expect": {
     "error": {

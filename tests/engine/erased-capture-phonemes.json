@@ -1,5 +1,5 @@
 {
-  "description": "A constituent whose own rule emits ε, emitted by its parent as a capture, is a token that counts for nothing: its phonemes leave out everything it covers (engine §5, §11).",
+  "description": "A parent can emit an erased capture as a token. Its source and text cover the input, but its default strings are empty and it supplies no counted parts (engine §11.1, §11.4).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($a:x $b:y) %emits $a :: X, $b\n%rule x A %erased\n%rule y B\n```\n",

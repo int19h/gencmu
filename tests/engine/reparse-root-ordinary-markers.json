@@ -1,5 +1,5 @@
 {
-  "description": "Reconstruction retains the competing reading after restoring ordinary terminators.",
+  "description": "Reconstruction retains the competing reading after restoring ordinary terminators (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%rule a (A [+T] [+T])\n%rule b (A [+T] [+T] [+T])\n%rule c (y [+T] T)\n%rule y A | (A T)",
   "tokens": [
     {

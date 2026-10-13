@@ -1,5 +1,5 @@
 {
-  "description": "One alternative may not capture two parts under one name (engine §9).",
+  "description": "One production cannot capture two parts under one name (engine §3.5, §9.3).",
   "grammar": "%rule text $a:A$a:B",
   "tokens": [
     {

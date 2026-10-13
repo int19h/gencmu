@@ -1,5 +1,5 @@
 {
-  "description": "Braces nest, in the item and in the separator, and every flat helper is spliced: {{A} \\ S} and {A \\ {S}} (engine §3.2, §12).",
+  "description": "Braces nest, in the item and in the separator, and every flat helper is spliced: {{A} / S} and {A / {S}} (engine §3.2, §12).",
   "grammar": "%rule text (p Z q)\n%rule p {{A} / S}\n%rule q {A / {S}}",
   "tokens": [
     {

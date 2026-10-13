@@ -1,5 +1,5 @@
 {
-  "description": "after($x) is not empty before the end of the input (engine §10).",
+  "description": "$x.following-tokens is not empty before the end of the input (engine §10).",
   "grammar": "%rule text (A $x:B C) %conditions $x.following-tokens.matches(nothing)\n%rule nothing ε",
   "tokens": [
     {

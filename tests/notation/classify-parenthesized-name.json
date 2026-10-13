@@ -1,5 +1,5 @@
 {
-  "description": "A bare name in parentheses is still a bare name. As the second argument of classify it names a classifier, and as that of tags or matches it names a rule (engine §9).",
+  "description": "The .classify argument names a classifier, while .tags and .matches arguments name rules. All three methods retain their string or span receivers in the DOM (engine §9.3, §10).",
   "document": "```jbogenbau\n%classifier lex \n%rule text $w:W :: (\"mi\".classify(lex) ∪ $w.value.classify(lex) ∪ $w.tags(text)) %conditions $w.matches(text)\n\n```\n",
   "expect": {
     "dom": {

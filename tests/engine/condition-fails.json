@@ -1,5 +1,5 @@
 {
-  "description": "The same grammar rejects two different words.",
+  "description": "The same grammar rejects two different words (engine §4).",
   "grammar": "%rule text ($a:W $b:W) %conditions $a.source-text = $b.source-text",
   "tokens": [
     {

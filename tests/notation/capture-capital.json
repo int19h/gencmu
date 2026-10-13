@@ -1,5 +1,5 @@
 {
-  "description": "A capture's name is all lower case: $X is an error at the capture (design §2, engine §9).",
+  "description": "A capture name starts lowercase and contains no capital letters. A constant token used as its binder is rejected at that binder (engine §9.3).",
   "document": "```jbogenbau\n%rule a $X:A\n```\n",
   "expect": {
     "error": {

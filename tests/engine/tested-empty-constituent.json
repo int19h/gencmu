@@ -1,5 +1,5 @@
 {
-  "description": "A sound test whose string is not empty never holds of a constituent that completed empty, whose canonical sound is the empty string (engine §4).",
+  "description": "A value test whose string is not empty never holds of a constituent that completed empty, whose exact value is the empty string (engine §4).",
   "grammar": "%rule text (opt=\"a\" B)\n%rule opt [A]",
   "tokens": [
     {

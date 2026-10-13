@@ -1,5 +1,5 @@
 {
-  "description": "A selected route establishes absence for every nested group that it excludes.",
+  "description": "A selected route establishes absence for every nested group that it excludes (engine §2.1 and §6.1).",
   "grammar": "%rule text ((X [(($x:Y ≻ V) | U)]) ≻ (Z W)) %conditions ($x ∨ $.source-text = \"never\")\n",
   "tokens": [
     {

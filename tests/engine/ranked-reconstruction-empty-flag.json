@@ -1,5 +1,5 @@
 {
-  "description": "A synthetic-only flagged occurrence has zero weight, so the canonical competing reading remains c.",
+  "description": "A synthetic-only flagged occurrence has zero weight, so the canonical competing reading remains c (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (w ≻ missing) | c | d\n%rule (leftmost-longest) w (X [+T]) | ([+U] X)\n%rule missing (M N)\n%rule (leftmost-longest) c (X T)\n%rule (leftmost-longest) d (X empty)\n%rule (leftmost-longest) empty T",
   "tokens": [
     {

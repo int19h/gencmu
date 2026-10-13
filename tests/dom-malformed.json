@@ -233,7 +233,7 @@
     "malformed": false
   },
   {
-    "description": "from accepts a restored span. Engine §9.",
+    "description": "onward accepts a restored span. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -275,7 +275,7 @@
     "malformed": false
   },
   {
-    "description": "A restored span rejects an empty argument list. Engine §9.",
+    "description": "A restored span rejects an empty receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -310,7 +310,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects two captures. Engine §9.",
+    "description": "A restored span rejects an array of two captures as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -390,7 +390,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects from as its argument. Engine §9.",
+    "description": "A restored span rejects an onward span as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -432,7 +432,7 @@
     "malformed": true
   },
   {
-    "description": "A restored span rejects another restoration as its argument. Engine §9.",
+    "description": "A restored span rejects another restoration as its receiver. Engine §9.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -511,5 +511,202 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects an underscore in a guard feature (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "bad_name",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a guard feature that starts with a digit (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "1f",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a guard suffix inside its feature name (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f?",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a negated warning guard (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f",
+              "kind": "warning",
+              "negated": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects an extra guard member (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f",
+              "kind": "gate",
+              "negated": false,
+              "extra": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM accepts a negated gate whose feature starts with a capital (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "Cbm",
+              "kind": "gate",
+              "negated": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A supplied DOM accepts an unnegated warning whose feature starts with a capital (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "Cbm",
+              "kind": "warning",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

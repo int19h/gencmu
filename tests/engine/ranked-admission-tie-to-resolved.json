@@ -1,5 +1,5 @@
 {
-  "description": "Ranked admission uses the same finite eligibility channel through every generated helper.",
+  "description": "Ranked admission uses the same finite eligibility channel through every generated helper (engine §2.1 and §6.1).",
   "grammar": "%ambiguity-resolution late-elision\n%rule text (((X [+U]) | (X [+T] [+U])) ≻ (X [+U]))",
   "tokens": [
     {

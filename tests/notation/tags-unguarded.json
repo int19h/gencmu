@@ -1,5 +1,5 @@
 {
-  "description": "%tags that uses a capture some alternative lacks, unguarded, is an error at the rule (engine §9).",
+  "description": ":: that uses a capture some alternative lacks, unguarded, is an error at the rule (engine §9).",
   "document": "```jbogenbau\n%rule a $x:A| B :: T ∪ $x.tags\n```\n",
   "expect": {
     "error": {

@@ -1,5 +1,5 @@
 {
-  "description": "An emitted token whose tag term gives no tags is an error of the grammar, found while parsing (engine §11).",
+  "description": "An emitted token with an empty tag set is legal. Its value, image and source remain those of its captured carrier (engine §11.1).",
   "grammar": "%rule text $a:A %emits $a :: ($a.tags ∩ Z)",
   "tokens": [
     {

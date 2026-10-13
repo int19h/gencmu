@@ -1,5 +1,5 @@
 {
-  "description": "The first-path operator follows its operand. The former prefix spelling is refused.",
+  "description": "The first-path operator follows its operand. The former prefix spelling is refused (engine §9.3).",
   "document": "```jbogenbau\n%const $P @ ( ⋰ A )\n```\n",
   "expect": {
     "error": {}

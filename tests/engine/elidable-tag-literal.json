@@ -1,5 +1,5 @@
 {
-  "description": "An elidable optional's terminator can be a tag literal: [+~ku] marks the terminal ku, and [+~KU] and [+KU] mark one terminal (design §15, engine §3.8).",
+  "description": "Ku and KU are distinct identifier terminals. Each can mark an elidable optional, and its omitted node keeps that terminal's spelling (engine §3.8, §12).",
   "grammar": "%rule text (A [+Ku] [+KU])",
   "tokens": [
     {

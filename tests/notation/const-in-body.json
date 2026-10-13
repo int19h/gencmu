@@ -1,5 +1,5 @@
 {
-  "description": "A constant cannot stand in a body, even where its value is a tag set. The error is at the constant (engine §9).",
+  "description": "A range cannot be a constant's value. This declaration fails at the range separator before the reader reaches its later body reference (engine §9.3, §10).",
   "document": "```jbogenbau\n%const $DIGITS \"0\" .. \"9\"\n%rule digit $DIGITS\n```\n",
   "expect": {
     "error": {

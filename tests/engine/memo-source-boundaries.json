@@ -1,5 +1,5 @@
 {
-  "description": "A nested parse's answer depends on where each token of the span begins and ends in the original text, since text() of a part of the span reads it; two spans with the same whole text and the same tokens but different boundaries inside do not share an answer (engine §4, nested parses).",
+  "description": "A nested parse's answer depends on where each token of the span begins and ends in the original text, since .source-text of a part of the span reads it; two spans with the same whole text and the same tokens but different boundaries inside do not share an answer (engine §4, nested parses).",
   "documents": {
     "p.md": "## Letters\n\n```jbogenbau\n%stage letters\n```\n\n- [a](a.md)\n  ```jbogenbau\n  %include \"a.md\"\n  ```\n\n## Triples\n\n```jbogenbau\n%stage triples\n```\n\n- [b](b.md)\n  ```jbogenbau\n  %include \"b.md\"\n  ```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (\"L\" first \"R\" second)\n%rule first ($a:\"a\" $b:\"a\" \"a\" $d:\"a\") %emits $a :: A, $b :: A, $d :: A\n\n%rule second ($a:\"a\" \"a\" $c:\"a\" $d:\"a\") %emits $a :: A, $c :: A, $d :: A\n\n```\n",

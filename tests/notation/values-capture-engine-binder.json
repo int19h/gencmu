@@ -1,5 +1,5 @@
 {
-  "description": "N28 accepts constant tokens as binders during recognition. The reader rejects the name at the binder, in reader order.",
+  "description": "Recognition admits a constant or engine-constant token as a binder. The reader requires a lowercase capture name and rejects this binder at its name (engine §9.2, §9.3).",
   "document": "```jbogenbau\n%rule r $_0041:A\n```\n",
   "expect": {
     "error": {

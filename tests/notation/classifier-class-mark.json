@@ -1,5 +1,5 @@
 {
-  "description": "~indicator is a mark, not a class, so it is an error of the document as the class of an entry (engine §9).",
+  "description": "Indicator begins with a capital but ends with a lowercase letter, so it is a mark rather than a class. A classifier entry rejects it at the class (engine §1, §9.3).",
   "document": "```jbogenbau\n%classifier lex\n\"ui\" ∈ Indicator\n```\n",
   "expect": {
     "error": {
