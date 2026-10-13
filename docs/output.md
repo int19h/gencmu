@@ -262,7 +262,7 @@ Engine constants resolve directly as scalar strings outside the user constant ve
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`. `.tags`, `.matches`, `.begins` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms.
+Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags`, `.matches`, `.begins` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
 
 `.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
 

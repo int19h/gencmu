@@ -3338,6 +3338,8 @@
   // A classifier's name begins with a lower-case letter, and a class with a
   // capital (engine §2, §9).
   const CLASSIFIER_NAME = /^[a-z][A-Za-z0-9_-]*$/;
+  // A rule has the same spelling as a classifier, or the name # (engine §9).
+  const RULE_NAME = /^(?:[a-z][A-Za-z0-9_-]*|#)$/;
   const CLASS_NAME = /^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/;
   const FEATURE_NAME = /^[A-Za-z][A-Za-z0-9-]*$/;
 
@@ -3499,7 +3501,7 @@
       push("term", implication.if); push("term", implication.then);
     }
     for (const rule of dom.rules) {
-      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(rule.name === "#" || typeof rule.name === "string" && CLASSIFIER_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => flag !== "leftmost-longest") || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && RULE_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => flag !== "leftmost-longest") || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
       if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
       if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true });
       if (rule.value !== undefined) push("recipe", rule.value);
@@ -3619,7 +3621,7 @@
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except"].includes(value.method) || !CLASSIFIER_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
           }
@@ -15153,7 +15155,7 @@
         const args = [];
         const argumentsNode = one(selector, "arguments");
         if (argumentsNode) for (const argument of some(argumentsNode, "argument")) args.push(yield readTerm(only(argument, "term"), true));
-        if (name === "classify" && args.length === 1 && args[0].rule) args[0] = { classifier: args[0].rule };
+        if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
         const found = termType(receiver);
         if ("problem" in found) fail(found.problem, node);
         const types = [];
