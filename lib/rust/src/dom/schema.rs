@@ -1,4 +1,4 @@
-//! Schema validation for format 26. The work list bounds the complete DOM
+//! Schema validation for format 27. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 

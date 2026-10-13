@@ -15,7 +15,7 @@ class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 26
+FORMAT = 27
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME

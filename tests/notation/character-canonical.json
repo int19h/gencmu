@@ -1,5 +1,5 @@
 {
-  "description": "String terminals preserve literal scalars, and engine scalar constants retain their unresolved constant references. Combining marks, backslashes and controls no longer form character tags (engine §9.1, docs/output.md format 26).",
+  "description": "String terminals preserve literal scalars, and engine scalar constants retain their unresolved constant references. Combining marks, backslashes and controls no longer form character tags (engine §9.1, docs/output.md format 27).",
   "document": "```jbogenbau\n%rule a (\"a\" \"́\" \"́\" \"'\" $_005C \"\" $_0009 \"é\" \"é\")\n```\n",
   "expect": {
     "dom": {

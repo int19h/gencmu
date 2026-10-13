@@ -2450,7 +2450,7 @@
   // ---- methods.js
   // Receiver-first method signatures (engine §10).
 
-  const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision"]);
+  const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
@@ -2473,6 +2473,11 @@
       if (args.length || typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
         return "without-elision requires a bare capture: write $x.without-elision.onward";
       }
+    } else if (name === "without-elision-except") {
+      if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) {
+        return "without-elision-except requires a bare capture: write $x.without-elision-except(family).onward";
+      }
+      if (args.length !== 1 || !rule(0)) return "without-elision-except requires one rule name";
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return `${name} requires a span and no arguments`;
     } else if (name === "matches" || name === "begins") {
@@ -3029,7 +3034,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 26;
+  const DOM_FORMAT = 27;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3316,7 +3321,7 @@
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins"].includes(value.method) || !CLASSIFIER_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except"].includes(value.method) || !CLASSIFIER_NAME.test(arg.rule)) return "a malformed rule argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
           }
