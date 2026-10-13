@@ -817,6 +817,10 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
                         stack.extend(reversed([value["receiver"], *value["args"]]))
+                    elif "if" in value:
+                        stack.extend((value["then"], value["if"]))
+                    elif "op" in value and "left" in value and "right" in value:
+                        stack.extend((value["right"], value["left"]))
                     else:
                         stack.extend(reversed(list(value.values())))
                 elif isinstance(value, list):

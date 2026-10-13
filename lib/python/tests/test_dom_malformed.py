@@ -18,8 +18,13 @@ class DomMalformed(unittest.TestCase):
     def test_family_reference_order_ignores_dom_object_order(self) -> None:
         unicode = _unicode_table(_resources().unicode)
         family = {"method": "without-elision-except", "receiver": {"capture": "x"}, "args": [{"rule": "missing_family"}]}
+        other = {**family, "args": [{"rule": "other_family"}]}
         query = {"method": "matches", "receiver": family, "args": [{"rule": "missing_rival"}]}
-        for fields in permutations(query.items()):
+        implication = {"if": query, "then": {**query, "receiver": other}}
+        comparison = {"op": "=", "left": {"method": "value", "receiver": family, "args": []},
+                      "right": {"method": "value", "receiver": other, "args": []}}
+        variants = [fields for clause in (query, implication, comparison) for fields in permutations(clause.items())]
+        for fields in variants:
             with self.subTest(fields=[name for name, _ in fields]):
                 dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                        "constants": [], "classifiers": [], "implications": [],
