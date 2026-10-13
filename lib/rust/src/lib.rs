@@ -86,6 +86,8 @@ pub mod tools {
     pub use crate::dom::DOM_FORMAT;
     pub use crate::json::fnv1a64;
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
+    #[doc(hidden)]
+    pub use crate::restoration::family::with_family_conformance;
     pub use crate::slot_stats::{with_slot_statistics, SlotStatistics};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the

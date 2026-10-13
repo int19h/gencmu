@@ -7,6 +7,28 @@ use crate::fxhash::FxSet;
 use crate::work::{count, Work};
 use std::collections::BTreeMap;
 
+thread_local! {
+    static CONFORMANCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static COMPARISONS: std::cell::Cell<(u64,u64)> = const { std::cell::Cell::new((0,0)) };
+}
+
+/// Enable the independent family test on this thread, including nested parses.
+/// This hook belongs to conformance tests, outside the documented API.
+pub fn with_family_conformance<T>(run: impl FnOnce() -> T) -> (T, (u64, u64)) {
+    struct Guard(bool, (u64, u64));
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            CONFORMANCE.with(|c| c.set(self.0));
+            COMPARISONS.with(|c| c.set(self.1));
+        }
+    }
+    let guard = Guard(CONFORMANCE.with(|c| c.replace(true)), COMPARISONS.with(|c| c.replace((0, 0))));
+    let result = run();
+    let counts = COMPARISONS.with(std::cell::Cell::get);
+    drop(guard);
+    (result, counts)
+}
+
 type Set = Vec<bool>;
 type Relation = Vec<Set>;
 
@@ -85,7 +107,7 @@ pub(crate) struct Families {
 }
 impl Families {
     pub(crate) fn enable_oracle(&mut self) {
-        if std::env::var_os("GENCMU_FAMILY_CONFORMANCE").is_some() {
+        if CONFORMANCE.with(std::cell::Cell::get) || std::env::var_os("GENCMU_FAMILY_CONFORMANCE").is_some() {
             self.oracle = Some(Sequence::new());
         }
     }
@@ -138,6 +160,10 @@ impl Families {
                 }
             }
         }
+        COMPARISONS.with(|counts| {
+            let (yes, no) = counts.get();
+            counts.set((yes + u64::from(valid), no + u64::from(!valid)));
+        });
         assert_eq!(actual, valid, "family summaries disagree with the whole-observation deletion test");
     }
 
