@@ -264,14 +264,14 @@ type bnode struct {
 type enumerator struct {
 	g      *lowered
 	tags   []map[string]bool
-	sounds []string // each token's phonemes
+	sounds []string // each token's stored value
 	memo   map[string][]*bnode
 	work   int
 	budget int
 }
 
-// soundHolds says whether a sound test holds of the tokens [i, j): their
-// phonemes joined are its string, or are not, for ≠ (engine §4, §5).
+// soundHolds compares the exact concatenated token values over [i, j)
+// with the test string, using = or ≠ (engine §4, §5).
 func (en *enumerator) soundHolds(t *symTest, i, j int) bool {
 	if t.op != "=" && t.op != "≠" {
 		panic("the generator makes only sound tests")
@@ -679,7 +679,7 @@ func TestRankingProperty(t *testing.T) {
 			if r.Intn(10) >= 6 {
 				sounds[i] = "y"
 			}
-			toks[i] = Token{Text: "x", Phonemes: sounds[i], Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
+			toks[i] = Token{Text: "x", Value: sounds[i], Tags: list, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 			texts = append(texts, "x")
 			tagMaps[i] = tags
 		}

@@ -251,10 +251,11 @@ type domBuilder struct {
 	toks           []Token
 	gt             *grammarText
 	doc            string
-	uni            *unicodeTable // the lowercase mapping the strings of sound tests are checked against
+	uni            *unicodeTable // configured Unicode data for input and diagnostics
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor string
+	inRecipe  bool
 	// types keeps the types found of the terms and conditions read, each
 	// found once (§10).
 	types *typeMemo
@@ -264,32 +265,43 @@ type domBuilder struct {
 // §9). Every other rule is a wrapper, and the reader reads its parts in its
 // place.
 var domRules = map[string]bool{
+
 	"rule-name": true, "body": true, "primary": true, "emit-target": true, "condition": true, "argument": true, "term-atom": true,
 	"directive": true, "rule": true, "definer": true, "rule-flags": true, "rule-flag": true, "alternative": true, "choice": true, "ranked-alternative": true, "ranked-choice": true,
 	"conjunction": true, "sequence": true, "repetition": true, "reference": true,
-	"string": true, "tag": true, "character": true, "phoneme": true, "name": true,
+	"string": true, "tag": true, "name": true,
 	"tested": true, "test": true, "test-operand": true, "capture": true, "group": true, "optional": true,
 	"empty": true, "tags-clause": true, "conditions-clause": true, "emits-clause": true,
-	"opaque-clause": true, "emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
+	"emit-item": true, "emit-tags": true, "emit-before": true, "emit-after": true, "implication": true,
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
-	"presence": true, "call": true, "term": true, "guarded-term": true, "union": true,
+	"presence": true, "term": true, "guarded-term": true, "union": true,
 	"intersection": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
-	"comparator": true, "range": true, "property": true,
+	"comparator": true, "range": true,
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
 	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
+	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true,
+	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
+	"method": true, "method-receiver": true, "method-selector": true, "method-name": true, "arguments": true,
+	"argument-term": true, "tag-run": true, "tree-comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
-	for n.Kind == KindRule {
-		if len(n.Children) == 0 {
-			return b.gt.at(n.Source[0])
+	stack := []*Node{n}
+	for len(stack) > 0 {
+		part := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if part.Kind == KindToken {
+			return b.gt.at(b.toks[part.Token].Source[0])
 		}
-		n = n.Children[0]
+		for i := len(part.Children) - 1; i >= 0; i-- {
+			stack = append(stack, part.Children[i])
+		}
 	}
-	return b.gt.at(b.toks[n.Token].Source[0])
+	// A construct with no token keeps its own anchor, including end of input.
+	return b.gt.at(n.Source[0])
 }
 
 func (b *domBuilder) fail(n *Node, format string, args ...any) {
@@ -389,13 +401,13 @@ func (b *domBuilder) token(n *Node) *Node {
 	return nil
 }
 
-// symbolPart is the first part of a node: a token, a range or a property.
+// symbolPart is the first part of a node: a token or a range.
 func (b *domBuilder) symbolPart(n *Node) *Node {
 	ps := parts(n)
-	if len(ps) > 0 && (ps[0].Kind == KindToken || ps[0].Rule == "range" || ps[0].Rule == "property") {
+	if len(ps) > 0 && (ps[0].Kind == KindToken || ps[0].Rule == "range") {
 		return ps[0]
 	}
-	b.lacks(n, "token, range or property")
+	b.lacks(n, "token or range")
 	return nil
 }
 
@@ -416,10 +428,10 @@ func (b *domBuilder) knownOf(n *Node, kinds []string) *Node {
 // What a primary, a condition, a term and a term atom hold: the one rule
 // among their parts is one of these (engine §9).
 var (
-	primaryRules   = []string{"reference", "tag", "character", "phoneme", "range", "property", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
-	conditionRules = []string{"comparison", "tree-comparison", "call", "negation", "presence", "implication"}
+	primaryRules   = []string{"reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
+	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "character", "phoneme", "range", "property", "name", "empty-set", "term", "call", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 func (b *domBuilder) text(n *Node) string {
@@ -459,10 +471,13 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			for _, p := range ps {
 				// The operands are the argument parts alone. The reader
 				// ignores any other part (engine §9).
-				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag") {
+				if p.Kind != KindRule || (p.Rule != "argument-word" && p.Rule != "argument-string" && p.Rule != "argument-tag" && p.Rule != "argument-term") {
 					continue
 				}
 				switch p.Rule {
+				case "argument-term":
+					dir.Args = append(dir.Args, "")
+					kinds = append(kinds, "term")
 				case "argument-word":
 					dir.Args = append(dir.Args, b.text(b.token(p)))
 					if isCapital(b.text(b.token(p))) {
@@ -472,26 +487,22 @@ func (b *domBuilder) document(root *Node) *domDoc {
 					}
 				case "argument-string":
 					// A string operand is decoded, as a string of a rule is.
-					dir.Args = append(dir.Args, b.decode(b.token(p)))
+					operand := b.text(b.token(p))
+					if dir.Name == "include" && len(dir.Args) == 0 {
+						dir.Args = append(dir.Args, operand[1:len(operand)-1])
+					} else {
+						dir.Args = append(dir.Args, operand)
+					}
 					kinds = append(kinds, operandString)
 				case "argument-tag":
-					// A tag literal is its name; a phoneme or character tag,
-					// a range or a property is refused below.
+					// Tags and ranges retain their operand kinds for directive refusal.
 					t := b.symbolPart(p)
 					if t.Kind == KindRule {
-						// A range or a property, which has no tag.
 						dir.Args = append(dir.Args, b.text(t))
-						kinds = append(kinds, t.Rule)
-						continue
-					}
-					dir.Args = append(dir.Args, b.tagOf(t))
-					switch b.text(t)[0] {
-					case '~':
+						kinds = append(kinds, operandRange)
+					} else {
+						dir.Args = append(dir.Args, b.tagOf(t))
 						kinds = append(kinds, operandTag)
-					case '/':
-						kinds = append(kinds, operandPhoneme)
-					default:
-						kinds = append(kinds, operandCharacter)
 					}
 				}
 			}
@@ -504,6 +515,9 @@ func (b *domBuilder) document(root *Node) *domDoc {
 						b.fail(keyword, "the maximal operand is retired")
 					}
 				}
+			}
+			if !directiveOperandsOK(dir) {
+				b.fail(keyword, "invalid directive operands")
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -521,6 +535,9 @@ func (b *domBuilder) constant(n *Node) *domConst {
 	k := &domConst{Name: strings.TrimPrefix(b.text(reference), "$"), Op: "define", At: b.at(n)}
 	if b.text(definer) == "%redefine-const" {
 		k.Op = "redefine"
+	}
+	if _, scalar := engineScalar(k.Name); scalar || !constName.MatchString(k.Name) {
+		b.fail(reference, "an engine constant cannot be declared")
 	}
 	b.closedFor = "a constant's value"
 	k.Value = b.value(valueNode)
@@ -551,25 +568,21 @@ func (b *domBuilder) classifier(n *Node) *domClassifier {
 func (b *domBuilder) entry(n *Node) *domEntry {
 	e := &domEntry{Guards: []domGuard{}, At: b.at(n)}
 	for _, p := range ofRule(n, "guard") {
-		g := b.text(b.token(p))
-		if strings.HasSuffix(g, "!") {
+		g := b.guard(p)
+		if g.Kind != FeatureGate {
 			b.fail(p, "an entry of a classifier takes gates only, not a warning")
 		}
-		neg := strings.HasPrefix(g, "¬")
-		e.Guards = append(e.Guards, domGuard{Feature: strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), Kind: FeatureGate, Negated: neg})
+		e.Guards = append(e.Guards, g)
 	}
 	for _, p := range b.some(n, "classifier-key", 1) {
-		key := b.decode(b.token(p))
-		if msg := soundProblem(key, b.uni); msg != "" {
-			b.fail(p, "a key is a canonical sound: %s", msg)
-		}
-		e.Keys = append(e.Keys, key)
+		key := b.stringTerm(b.token(b.only(p, "string")))
+		e.KeyTerms = append(e.KeyTerms, key)
 	}
 	e.Op = b.text(b.token(b.only(n, "classifier-operator")))
 	classNode := b.only(n, "classifier-class")
 	written := b.text(b.token(classNode))
-	e.Class = strings.TrimPrefix(written, "~")
-	if !isCapital(e.Class) {
+	e.Class = written
+	if !isClass(e.Class) {
 		b.fail(classNode, "%s is not a class: a class is an identifier tag that begins with a capital", written)
 	}
 	return e
@@ -601,6 +614,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
 	r := &domRule{Name: b.text(b.token(b.only(n, "rule-name"))), At: b.at(definer), Conditions: []*domCond{}, Flags: []string{}}
+	if !classifierName.MatchString(r.Name) && r.Name != "#" {
+		b.fail(b.only(n, "rule-name"), "a rule name starts lowercase")
+	}
 	switch b.text(definer) {
 	case "%redefine-rule":
 		r.Op = "redefine"
@@ -627,7 +643,14 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	// The parts of a definition are read in the order written: the body,
 	// then its clauses in their fixed order, and the checks of the whole
 	// definition last (engine §9).
-	body := b.only(n, "body")
+	if p := one(n, "tags-clause"); p != nil {
+		r.Tags = b.constituentTags(p)
+	}
+	r.Value, r.Image = b.recipes(n)
+	body := one(n, "body")
+	if body == nil {
+		body = b.only(n, "headed-body")
+	}
 	var alternatives []*Node
 	if ranked := one(body, "ranked-alternative"); ranked != nil {
 		alternatives = []*Node{ranked}
@@ -636,9 +659,6 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	for _, p := range alternatives {
 		r.Alternatives = append(r.Alternatives, b.alternative(p))
-	}
-	if p := one(n, "tags-clause"); p != nil {
-		r.Tags = b.constituentTags(p)
 	}
 	if p := one(n, "conditions-clause"); p != nil {
 		// Each item of the list is one condition (§9).
@@ -649,7 +669,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	if p := one(n, "emits-clause"); p != nil {
 		r.Emit = b.emission(p)
 	}
-	r.Opaque = one(n, "opaque-clause") != nil
+	r.Erased = one(n, "erased-clause") != nil
 	flattenGroups(r)
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
@@ -662,20 +682,34 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	return r
 }
 
+// guard validates the complete token before the constructor reads later parts (§9.3).
+func (b *domBuilder) guard(n *Node) domGuard {
+	spelling := b.text(b.token(n))
+	g := domGuard{Kind: FeatureGate, Negated: strings.HasPrefix(spelling, "¬")}
+	name := strings.TrimPrefix(spelling, "¬")
+	switch {
+	case strings.HasSuffix(name, "?"):
+		g.Feature = strings.TrimSuffix(name, "?")
+	case strings.HasSuffix(name, "!"):
+		g.Kind = FeatureWarning
+		g.Feature = strings.TrimSuffix(name, "!")
+	default:
+		b.fail(n, "a guard is a feature name followed by ? or !")
+	}
+	if !nameSyntaxFeature.MatchString(g.Feature) {
+		b.fail(n, "a guard's feature is not a feature name")
+	}
+	if g.Kind == FeatureWarning && g.Negated {
+		b.fail(n, "a warning cannot be negated")
+	}
+	return g
+}
+
 func (b *domBuilder) alternative(n *Node) *domAlt {
 	a := &domAlt{Guards: []domGuard{}}
 	b.captureNodes = map[*domExpr]*Node{}
 	for _, p := range ofRule(n, "guard") {
-		// A guard's token is its spelling: f? or ¬f? for a gate, f! for a
-		// warning (§9).
-		g := b.text(b.token(p))
-		kind := FeatureGate
-		if strings.HasSuffix(g, "!") {
-			kind = FeatureWarning
-		}
-		neg := strings.HasPrefix(g, "¬")
-		name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(g, "¬"), "?"), "!")
-		a.Guards = append(a.Guards, domGuard{Feature: name, Kind: kind, Negated: neg})
+		a.Guards = append(a.Guards, b.guard(p))
 	}
 	if n.Rule == "ranked-alternative" {
 		a.Expr = b.expr(b.only(n, "ranked-choice"))
@@ -698,11 +732,12 @@ func (b *domBuilder) alternative(n *Node) *domAlt {
 	if p := one(n, "alternative-tags"); p != nil {
 		a.Tags = b.constituentTags(p)
 	}
+	a.Value, a.Image = b.recipes(n)
 	return a
 }
 
 // constituentTags reads a rule's or an alternative's tag term, which cannot
-// be made of the tags it defines: tags($) or classes($) (§9).
+// be made of the tags it defines: $.tags or $.classes (§9).
 func (b *domBuilder) constituentTags(n *Node) *domTerm {
 	t := b.tagTerm(b.only(n, "term"))
 	if readsOwnTags(t) {
@@ -715,6 +750,18 @@ func (b *domBuilder) constituentTags(n *Node) *domTerm {
 // item's tags (§10). The error stands at the term.
 func (b *domBuilder) tagTerm(n *Node) *domTerm {
 	t := b.value(n)
+	var retained *[2]int
+	for _, occurrences := range literalEngineTags(t) {
+		for _, at := range occurrences {
+			at := at
+			if retained == nil || before(at, *retained) {
+				retained = &at
+			}
+		}
+	}
+	if retained != nil {
+		panic(grammarError(b.doc, *retained, "a tag clause introduces an engine tag"))
+	}
 	if f := tagTermFault(t, nil); f != nil {
 		b.fail(n, "%s", f.problem)
 	}
@@ -726,8 +773,7 @@ func before(a, c [2]int) bool {
 	return a[0] < c[0] || (a[0] == c[0] && a[1] < c[1])
 }
 
-// comparator is a test's comparator, its tokens: =, ≠, ⊇ or ⊉, or ∩ and
-// =∅ or ≠∅ around the operand.
+// comparator reads the written equality or inequality of a value test.
 func (b *domBuilder) comparator(testNode *Node) string {
 	var op strings.Builder
 	for _, p := range parts(testNode) {
@@ -740,7 +786,7 @@ func (b *domBuilder) comparator(testNode *Node) string {
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).
 var capturedRules = map[string]bool{
-	"reference": true, "tag": true, "character": true, "phoneme": true, "range": true, "property": true, "tested": true,
+	"reference": true, "tag": true, "string-terminal": true, "wildcard": true, "constant-reference": true, "range": true, "tested": true,
 }
 
 // firstOfRule is the first node of a rule at or below a node, in the order
@@ -764,100 +810,12 @@ func firstOfRule(n *Node, name string) *Node {
 	return nil
 }
 
-// readRange reads a range's two ends, each a character tag in its canonical
-// spelling; its start must not be above its end (engine §1, §9).
-func (b *domBuilder) readRange(n *Node) [2]string {
-	var ends []string
-	for _, c := range b.some(n, "character", 2)[:2] {
-		ends = append(ends, b.tagOf(b.token(c)))
-	}
-	r := [2]string{ends[0], ends[1]}
-	if msg := rangeProblem(r, b.uni); msg != "" {
-		b.fail(n, "%s", msg)
-	}
-	return r
-}
-
-// readProperty reads a property's name: its token is '\p{Name}', with a
-// name of engine §1.
-func (b *domBuilder) readProperty(n *Node) string {
-	written := b.text(n)
-	if !strings.HasPrefix(written, `'\p{`) || !strings.HasSuffix(written, "}'") || strings.Count(written, "}") != 1 {
-		b.fail(n, `a property is written '\p{Name}'`)
-	}
-	name := written[4 : len(written)-2]
-	if msg := propertyProblem(name); msg != "" {
-		b.fail(n, "%s", msg)
+func (b *domBuilder) tagOf(n *Node) string {
+	name := b.text(n)
+	if !isTag(name, b.uni) {
+		b.fail(n, "%s is not a tag identifier", name)
 	}
 	return name
-}
-
-// decode decodes a string or a character tag token (engine §9). A string
-// escapes its double quote, and a character tag its quote.
-func (b *domBuilder) decode(n *Node) string {
-	s := b.text(n)
-	rs := []rune(s)
-	if len(rs) < 2 {
-		b.fail(n, "a malformed string")
-	}
-	quote := rs[0]
-	rs = rs[1 : len(rs)-1]
-	var out strings.Builder
-	for i := 0; i < len(rs); i++ {
-		c := rs[i]
-		if c != '\\' {
-			out.WriteRune(c)
-			continue
-		}
-		if i+1 >= len(rs) {
-			b.fail(n, "a string ends in a backslash")
-		}
-		i++
-		switch rs[i] {
-		case '\\', quote:
-			out.WriteRune(rs[i])
-		case 'u':
-			end := -1
-			if i+1 < len(rs) && rs[i+1] == '{' {
-				for j := i + 2; j < len(rs); j++ {
-					if rs[j] == '}' {
-						end = j
-						break
-					}
-				}
-			}
-			if end < 0 {
-				b.fail(n, "\\u must be followed by {hex}")
-			}
-			v, err := strconv.ParseUint(string(rs[i+2:end]), 16, 32)
-			// One to six hexadecimal digits of a Unicode scalar value (engine §9).
-			if err != nil || end == i+2 || end-(i+2) > 6 || v > 0x10FFFF || (v >= 0xD800 && v <= 0xDFFF) {
-				b.fail(n, "\\u{%s} is not a code point", string(rs[i+2:end]))
-			}
-			out.WriteRune(rune(v))
-			i = end
-		default:
-			b.fail(n, "\\%c is not an escape; a string knows \\\\, \\\" and \\u{hex}, and a character tag \\\\, \\' and \\u{hex}", rs[i])
-		}
-	}
-	return out.String()
-}
-
-// tagOf is the tag of a tag literal ~name, a character tag or a phoneme
-// tag token: a character tag in its canonical spelling (engine §1, §9).
-func (b *domBuilder) tagOf(n *Node) string {
-	written := b.text(n)
-	switch {
-	case strings.HasPrefix(written, "~"):
-		return written[1:]
-	case strings.HasPrefix(written, "/"):
-		return written
-	}
-	decoded := []rune(b.decode(n))
-	if len(decoded) != 1 {
-		b.fail(n, "a character tag holds exactly one character")
-	}
-	return characterTag(decoded[0], b.uni.isMark)
 }
 
 func isSpanTerm(t *domTerm) bool {
@@ -871,13 +829,7 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 		return false
 	}
 	ty, problem := b.typeOf(t)
-	return problem == "" && (ty == tyString || ty == tyAny)
-}
-
-// notationFunctions are the functions of the notation (§10).
-var notationFunctions = map[string]bool{
-	"phonemes": true, "text": true, "split": true, "tag": true, "tags": true, "classes": true, "classify": true, "head": true, "tail": true,
-	"last": true, "from": true, "after": true, "without-elision": true, "matches": true, "begins": true, "initial": true,
+	return problem == "" && (ty == tyString || ty == tyAny || ty == tySpan)
 }
 
 // typeOf is a term's type, or why its parts do not agree, through the
@@ -891,75 +843,53 @@ func (b *domBuilder) typeOf(t *domTerm) (termType, string) {
 }
 
 func (b *domBuilder) emission(n *Node) *domEmit {
-	first := n
-	e := &domEmit{}
-	whole := 0
-	// %emits ε emits nothing, and the constituent does not count.
-	var items []*Node
-	empty := false
-	for _, p := range parts(n) {
-		if p.Kind == KindToken && b.text(p) == "ε" {
-			empty = true
-		}
-	}
-	if !empty {
-		items = b.some(n, "emit-item", 1)
-	}
-	for _, item := range items {
-		it := &domEmitItem{}
-		target := b.symbolPart(b.only(item, "emit-target"))
-		tagsNode := one(item, "emit-tags")
-		before, after := ofRule(item, "emit-before"), ofRule(item, "emit-after")
-		// Errors of the item stand at the item, whose first part can be an
-		// attachment (engine §9).
-		text := b.text(target)
-		switch {
-		case target.Kind == KindRule && (target.Rule == "range" || target.Rule == "property"):
-			b.fail(item, "an inserted item is one tag, not a range or a property")
-		case strings.HasPrefix(text, "$"):
-			it.Capture = text[1:]
-			if it.Capture == "" {
-				whole++
-			}
-		case strings.HasPrefix(text, "~"), strings.HasPrefix(text, "/"), strings.HasPrefix(text, "'"):
-			// An inserted tag is a single tag literal (§9).
-			it.IsInsert, it.Insert = true, b.tagOf(target)
-		case isCapital(text):
-			it.IsInsert, it.Insert = true, text
-		default:
-			b.fail(item, "%s names a rule; an inserted tag is a tag literal, such as ~%s", text, text)
-		}
-		if tagsNode != nil {
-			if it.IsInsert {
-				b.fail(item, "an inserted tag takes no tags")
-			}
-			it.Tags = b.tagTerm(b.only(tagsNode, "term"))
-			if it.Tags.Kind == tmEmptySet {
-				b.fail(item, "<∅> emits a token no terminal can read; %%emits ε emits nothing")
-			}
-		}
-		// Attachments: named captures in parentheses, before the item and
-		// after it, carried only by a named capture (engine §9, §11).
-		for _, a := range before {
-			it.Before = append(it.Before, b.attachment(a))
-		}
-		for _, a := range after {
-			it.After = append(it.After, b.attachment(a))
-		}
-		if len(it.Before)+len(it.After) > 0 {
-			if it.IsInsert {
-				b.fail(item, "an inserted tag carries no attachments")
-			}
-			if it.Capture == "" {
-				b.fail(item, "$ carries no attachments; name a capture")
-			}
+	e := &domEmit{Items: []*domEmitItem{}}
+	items := ofRule(n, "emit-item")
+	if len(items) == 0 {
+		value, image := b.recipes(n)
+		it := &domEmitItem{Value: value, Image: image}
+		if tags := one(n, "emit-tags"); tags != nil {
+			it.Tags = b.tagTerm(b.only(tags, "term"))
 		}
 		e.Items = append(e.Items, it)
 	}
-	if whole > 0 && whole != len(e.Items) {
-		b.fail(first, "$ is used with items other than $")
+	for _, item := range items {
+		it := &domEmitItem{}
+		target := b.only(item, "emit-target")
+		text := b.text(target)
+		if text == "" {
+			text = b.text(b.token(target))
+		}
+		switch {
+		case strings.HasPrefix(text, "$"):
+			it.Capture = strings.TrimPrefix(text, "$")
+		case text == "ε":
+			it.IsInsert = true
+		default:
+			b.fail(item, "an emission target requires a capture or ε")
+		}
+		for _, side := range []struct {
+			name string
+			into *[]string
+		}{{"emit-before", &it.Before}, {"emit-after", &it.After}} {
+			for _, attachment := range ofRule(item, side.name) {
+				for _, capture := range b.some(attachment, "capture-reference", 1) {
+					if b.text(b.token(capture)) == "$" {
+						b.fail(attachment, "an attachment requires a named capture")
+					}
+					*side.into = append(*side.into, b.attachment(capture))
+				}
+			}
+		}
+		if len(it.Before)+len(it.After) > 0 && (it.IsInsert || it.Capture == "") {
+			b.fail(item, "only a named capture carries attachments")
+		}
+		if tags := one(item, "emit-tags"); tags != nil {
+			it.Tags = b.tagTerm(b.only(tags, "term"))
+		}
+		it.Value, it.Image = b.recipes(item)
+		e.Items = append(e.Items, it)
 	}
-	// A capture stands once in an emission, as an item or as an attachment.
 	listed := map[string]bool{}
 	for _, it := range e.Items {
 		if it.IsInsert || it.Capture == "" {
@@ -967,7 +897,7 @@ func (b *domBuilder) emission(n *Node) *domEmit {
 		}
 		for _, name := range it.captures() {
 			if listed[name] {
-				b.fail(first, "an emission lists $%s twice", name)
+				b.fail(n, "an emission lists $%s twice", name)
 			}
 			listed[name] = true
 		}
@@ -992,18 +922,13 @@ func (b *domBuilder) attachment(n *Node) string {
 	return ""
 }
 
-// The kinds of a directive's operand: a bare name, lower case or with a
-// capital, a string, a tag literal ~name, a phoneme tag, a character tag,
-// a range or a property.
+// Directive operands are names, classes, strings, tags or ranges.
 const (
-	operandName      = "name"
-	operandClass     = "class"
-	operandString    = "string"
-	operandTag       = "tag"
-	operandPhoneme   = "phoneme"
-	operandCharacter = "character"
-	operandRange     = "range"
-	operandProperty  = "property"
+	operandName   = "name"
+	operandClass  = "class"
+	operandString = "string"
+	operandTag    = "tag"
+	operandRange  = "range"
 )
 
 // operandProblem says what is wrong with a directive's operands, given the

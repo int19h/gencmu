@@ -42,26 +42,23 @@
 // document, line and column of the definition at fault (engine §3).
 // Parse returns an error only for a
 // caller's mistake, such as an unknown stage in ParseOptions.Until.
-// ParseTokens feeds pre-built tokens to the first stage in place of the
-// text's characters; it is for tests and tools. Each of those tokens has
-// its text as its label. A caller cannot supply attachments: a token with
-// a non-empty Before or After is a usage error, and empty ones are dropped.
+// ParseTokens feeds []InputToken to the first stage instead of scalar text
+// tokens. Its Value and Image pointers default independently to Text when
+// nil. Pointers to empty strings preserve empty values. The API rejects
+// nonempty Before or After attachments and drops empty attachment lists.
 //
-// A token has its phonemes, what it sounds like, and its label, what it
-// shows to people (engine §5). A token over an opaque part, such as the
-// body of a zoi quote, sounds ? and has the part's text as its label.
-// A token can also carry attachments, Before and After: tokens that belong
-// to it and that no later stage reads, such as the indicators after a word
-// (engine §11). An attached token has no span; the canonical JSON leaves
-// it out. Brackets shows each token by its label, and a token with
-// attachments as a group of its before-attachments, its label and its
-// after-attachments, so mi ui klama is ([mi ui] klama).
+// A token stores Value for recognition and Image for brackets (engine §1).
+// Grammar recipes compute each output channel independently. Concatenation
+// adds no separator, and the engine applies no comparison normalization.
+// A token can carry Before and After attachments that later stages do not
+// read (engine §11). Canonical JSON omits an attached token's Span.
+// Brackets shows the attachments around the carrier's Image.
 //
-// Every position in a result counts Unicode code points of the text, not
-// bytes: Go's UTF-8 is converted at the edge. The tags of a token or a
-// node are a list in code point order, each tag once and in its canonical
-// spelling (engine §1): a name such as KOhA, a phoneme tag such as /a/, or
-// a character tag such as 'a' or '\u{301}'. A tag has no strength.
+// Result format 12 and grammar DOM format 26 follow docs/output.md.
+// Source positions count Unicode code points, rather than UTF-8 bytes.
+// Spans and token indices count tokens of the relevant stage. Tags occur
+// once in code point order. User tags start with uppercase ASCII letters.
+// Reserved Unicode tags include _L, _Ll, and _White_Space (engine §1).
 //
 // # Features
 //

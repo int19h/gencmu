@@ -147,7 +147,7 @@ func corpusOutcomeOf(res *ParseResult, canonical any) (map[string]any, error) {
 			// A case writes each word as its label (tests/README.md).
 			words := make([]any, len(s.Output))
 			for i, tok := range s.Output {
-				words[i] = tok.Label
+				words[i] = tok.Image
 			}
 			got["words"] = words
 		}

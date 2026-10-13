@@ -8,23 +8,21 @@ import (
 	"testing"
 )
 
-// silentRun is a stage run over n tokens without phonemes, but for the last,
-// which sounds like "a".
+// silentRun has n tokens with empty stored values, except the last value "a".
 func silentRun(t *testing.T, n int) *stageRun {
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A}"))
 	toks := make([]Token, n)
 	for i := range toks {
 		toks[i] = Token{Text: "x", Tags: []string{"A"}, Span: [2]int{i, i + 1}, Source: [2]int{2 * i, 2*i + 1}}
 	}
-	toks[n-1].Phonemes = "a"
+	toks[n-1].Value = "a"
 	ps := newParseState(d.uni, []rune(strings.TrimSpace(strings.Repeat("x ", n))))
 	return ps.newRun("main", d.stages[0], toks)
 }
 
-// TestSilentSoundWork: a sound test and phonemes() over a span of tokens
-// without phonemes skip them, so their work is bounded by the sound, not by
-// the span (engine §4, §5).
-func TestSilentSoundWork(t *testing.T) {
+// TestSilentValueWork: value tests and span.value skip empty token values.
+// Their work depends on the nonempty values rather than the span (engine §4, §5).
+func TestSilentValueWork(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		run := silentRun(t, n)
 		// A walk of the silent tokens would cost n at each of n starts.
@@ -35,8 +33,8 @@ func TestSilentSoundWork(t *testing.T) {
 				if !run.soundIs("a", i, n) || run.soundIs("", i, n) || !run.soundIs("", i, n-1) {
 					t.Fatalf("%d tokens: the wrong sound from %d", n, i)
 				}
-				if got := run.phonemes(spanVal{a: i, b: n}); got != "a" {
-					t.Fatalf("%d tokens: phonemes from %d are %q", n, i, got)
+				if got := run.spanValue(spanVal{a: i, b: n}); got != "a" {
+					t.Fatalf("%d tokens: value from %d are %q", n, i, got)
 				}
 			}
 		})
@@ -79,7 +77,7 @@ func tagRun(t *testing.T, n int) *stageRun {
 	return ps.newRun("main", d.stages[0], toks)
 }
 
-// TestUnionsLinear: tags() of a long span, a union of many parts and a
+// TestUnionsLinear: span.tags over a long span, a union of many parts and a
 // constant of many parts gather their members once, without copying and
 // interning a growing set at each part (engine §10).
 func TestUnionsLinear(t *testing.T) {
@@ -141,7 +139,7 @@ func TestEmissionLinear(t *testing.T) {
 		items := make([]string, 0, 4*n)
 		for i := range seq {
 			seq[i] = fmt.Sprintf(`{"capture":"c%d","expr":{"ref":"A"}}`, i)
-			items = append(items, `{"insert":"X"}`, `{"insert":"X"}`, `{"insert":"X"}`)
+			items = append(items, `{"insert":true,"tags":{"tag":"X"}}`, `{"insert":true,"tags":{"tag":"X"}}`, `{"insert":true,"tags":{"tag":"X"}}`)
 		}
 		for i := range seq {
 			items = append(items, fmt.Sprintf(`{"capture":"c%d"}`, i))
@@ -156,7 +154,7 @@ func TestEmissionLinear(t *testing.T) {
 		}
 		text := strings.TrimSpace(strings.Repeat("a ", n))
 		parse := func() {
-			res, err := d.ParseTokens(text, toks, ParseOptions{})
+			res, err := d.parseStoredTokens(text, toks, ParseOptions{})
 			if err != nil || !res.OK || len(res.Stages[0].Output) != 4*n {
 				t.Fatalf("%d captures: %v", n, err)
 			}
@@ -261,7 +259,7 @@ func TestCaptureSequencesOutputBound(t *testing.T) {
 func TestSharedClausesOnce(t *testing.T) {
 	for _, n := range []int{100, 400} {
 		alts := strings.TrimSuffix(strings.Repeat(`{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}},`, n), ",")
-		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"const":"K","at":[3,1]}},`, n), ",")
+		conds := strings.TrimSuffix(strings.Repeat(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"const":"K","at":[3,1]}},`, n), ",")
 		dom := fmt.Sprintf(`{"format":%d,"rules":[{"name":"text","op":"define","flags":[],"tags":{"union":[{"tag":"T"},{"tag":"U"}]},"alternatives":[%s],"conditions":[%s],"at":[3,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[1,1]}],"constants":[{"name":"K","op":"define","value":{"string":"a"},"at":[2,1]}],"classifiers":[],"implications":[]}`, domFormat, alts, conds)
 		w := &workCounts{}
 		w.clauseSteps.most = 20 * int64(n)
@@ -346,10 +344,10 @@ func TestClassesLinear(t *testing.T) {
 	for _, n := range []int{1000, 4000} {
 		c := &domClassifier{Name: "c"}
 		for i := range n {
-			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∈", Class: fmt.Sprintf("C%d", n-i)})
+			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∈", Class: fmt.Sprintf("C%dX", n-i)})
 		}
 		for i := range n / 2 {
-			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∉", Class: fmt.Sprintf("C%d", 2*i+1)})
+			c.Entries = append(c.Entries, &domEntry{Keys: []string{"a"}, Op: "∉", Class: fmt.Sprintf("C%dX", 2*i+1)})
 		}
 		// Each entry looks at a bounded number of classes, and the sort at
 		// the end makes n log n comparisons. A copy of the key's classes at
@@ -448,8 +446,8 @@ func conditionsRun(t *testing.T, n int) func() *recognizer {
 	names := make([]string, n)
 	conditions := make([]string, n)
 	for i := range names {
-		names[i] = fmt.Sprintf("$c%d(A)", i)
-		conditions[i] = fmt.Sprintf("text($c%d) = \"a\"", i)
+		names[i] = fmt.Sprintf("$c%d:A", i)
+		conditions[i] = fmt.Sprintf("$c%d.source-text = \"a\"", i)
 	}
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
 	lg := d.lower(0, map[string]bool{})
@@ -499,7 +497,7 @@ func TestConditionsByDotMutation(t *testing.T) {
 // predicted at each token, with a condition on its empty span.
 func TestPredictionConditionsStopAtFirst(t *testing.T) {
 	const n = 50
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions text($) = \"\""))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions $.source-text = \"\""))
 	lg := d.lower(0, map[string]bool{})
 	if len(lg.rules[lg.byName["e"]].prods[0].predictConds) == 0 {
 		t.Fatal("e has no condition at prediction")
@@ -528,7 +526,7 @@ func TestPredictionConditionsStopAtFirst(t *testing.T) {
 // with three conditions on its empty span. One asks a nested parse, which
 // halts the evaluation and resumes it where it halted.
 func TestPredictionConditionsLinear(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions text($) = \"\", ¬matches($, f), text($) = \"\"\n%rule f A"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text {A e}\n%rule e ε\n%conditions $.source-text = \"\", ¬$.matches(f), $.source-text = \"\"\n%rule f A"))
 	lg := d.lower(0, map[string]bool{})
 	if len(lg.rules[lg.byName["e"]].prods[0].predictConds) != 3 {
 		t.Fatal("e has not three conditions at prediction")

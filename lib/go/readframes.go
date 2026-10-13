@@ -85,8 +85,6 @@ type exprFrame struct {
 	inWhole bool
 	pass    bool
 	capture string
-	test    *domExpr
-	operand *Node
 	marked  bool
 	elide   *domExpr
 	repeat  *domExpr
@@ -109,27 +107,6 @@ func (f *exprFrame) resume(b *domBuilder, in any) readStep {
 		e := &domExpr{Kind: exCapture, Name: f.capture, Inner: in.(*domExpr)}
 		b.captureNodes[e] = n
 		return give(e)
-	case f.test != nil:
-		b.closedFor = ""
-		value := in.(*domTerm)
-		ty, problem := b.typeOf(value)
-		if problem == "" {
-			problem = testTypeProblem(f.test.Op, ty)
-		}
-		if problem != "" {
-			b.fail(f.operand, "%s", problem)
-		}
-		if isSoundTest(f.test.Op) && value.Kind == tmString {
-			if msg := soundProblem(value.Str, b.uni); msg != "" {
-				at := firstOfRule(f.operand, "string")
-				if at == nil {
-					at = f.operand
-				}
-				b.fail(at, "%s", msg)
-			}
-		}
-		f.test.Value = value
-		return give(f.test)
 	case f.elide != nil:
 		if f.marked {
 			b.marked--
@@ -195,37 +172,18 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		return f.startRepetition(b)
 	case "reference":
 		return give(&domExpr{Kind: exRef, Name: b.text(b.token(n))})
-	case "tag", "character", "phoneme":
-		return give(&domExpr{Kind: exTerminal, Name: b.tagOf(b.token(n))})
+	case "tag":
+		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n))})
+	case "string-terminal":
+		p := b.knownOf(n, []string{"string", "constant-reference"})
+		return give(&domExpr{Kind: exLiteral, Value: b.term(p)})
+	case "wildcard":
+		b.token(n)
+		return give(&domExpr{Kind: exWildcard})
 	case "range":
-		return give(&domExpr{Kind: exRange, Range: b.readRange(n)})
-	case "property":
-		return give(&domExpr{Kind: exProperty, Name: b.readProperty(b.token(n))})
+		return give(&domExpr{Kind: exRange, Ends: b.stringRange(n)})
 	case "tested":
-		// A reference other than # or a terminal, and one test on its own
-		// span (engine §2, §9). The syntax grammar reads a test after any
-		// primary, so that the reader can name the reason. The test is
-		// checked before anything the primary holds.
-		testNode := b.only(n, "test")
-		symbol := b.knownOf(b.only(n, "primary"), primaryRules)
-		switch symbol.Rule {
-		case "constant-reference":
-			b.fail(symbol, "%s", constantInBody)
-		case "reference", "tag", "character", "phoneme", "range", "property":
-		default:
-			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test")
-		}
-		if symbol.Rule == "reference" && b.text(b.token(symbol)) == "#" {
-			b.fail(testNode, "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test")
-		}
-		// A symbol, which holds no construct.
-		inner := b.expr(symbol)
-		// The comparator is the test's tokens: =, ≠, ⊇ or ⊉, or ∩ and =∅
-		// or ≠∅ around the operand.
-		f.test = &domExpr{Kind: exTest, Op: b.comparator(testNode), Inner: inner}
-		f.operand = b.only(testNode, "test-operand")
-		b.closedFor = "a test's operand"
-		return ask(&termFrame{n: f.operand})
+		return give(b.tested(n))
 	case "capture":
 		// Its place, then $, its name and its symbol, each at the capture,
 		// before what it wraps (engine §9).
@@ -245,11 +203,15 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 			b.fail(n, "a capture's name is all lower case")
 		}
 		wrapped := b.knownOf(inner, primaryRules)
-		if wrapped.Rule == "constant-reference" {
-			b.fail(wrapped, "%s", constantInBody)
+		base := wrapped
+		if wrapped.Rule == "tested" {
+			base = b.testBase(wrapped)
+		}
+		if !capturedRules[base.Rule] || base.Rule == "tested" {
+			b.fail(n, "a capture wraps one symbol")
 		}
 		if !capturedRules[wrapped.Rule] {
-			b.fail(n, "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a tested one")
+			b.fail(n, "a capture wraps one reference, tag, string, range, wildcard, or tested symbol")
 		}
 		f.capture = name
 		return ask(&exprFrame{n: wrapped})
@@ -261,7 +223,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "empty":
 		return give(&domExpr{Kind: exEmpty})
 	case "constant-reference":
-		b.fail(n, "%s", constantInBody)
+		return give(&domExpr{Kind: exLiteral, Value: b.term(n)})
 	}
 	b.fail(n, "unexpected %s in an expression", n.Rule)
 	return readStep{}
@@ -308,13 +270,13 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 	}
 	isTerminal := func(symbol *Node) bool {
-		return symbol.Rule == "tag" || (symbol.Rule == "reference" && isTerminalName(b.text(b.token(symbol))))
+		return (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.text(b.token(symbol)))
 	}
 	switch {
 	case head == nil:
 		b.fail(n, form)
 	case head.Rule == "tested":
-		if !isTerminal(b.knownOf(b.only(head, "primary"), primaryRules)) {
+		if !isTerminal(b.testBase(head)) {
 			b.fail(n, form)
 		}
 	case !isTerminal(head):
@@ -466,9 +428,13 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			result = &domTerm{Kind: tmDifference, Items: []*domTerm{result, next}}
 			open = false
 		case open:
-			result.Items = append(result.Items, next)
+			if next.Kind == tmUnion {
+				result.Items = append(result.Items, next.Items...)
+			} else {
+				result.Items = append(result.Items, next)
+			}
 		default:
-			result = &domTerm{Kind: tmUnion, Items: []*domTerm{result, next}}
+			result = unionTerm(result, next)
 			open = true
 		}
 	}
@@ -481,10 +447,12 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "term":
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, termRules), argument: f.argument})
-	case "test-operand", "term-atom":
+	case "test-operand", "term-atom", "method-receiver":
 		// A test's operand is one term, as a term-atom reads it (§9).
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, atomRules), argument: f.argument})
+	case "tag-run":
+		return give(b.tagRun(n))
 	case "guarded-term":
 		// A ⟹ t: its any-ofs, each guarding the rest, and then its union,
 		// or the term of a notation that writes one after ⟹ (§9, §10).
@@ -522,16 +490,22 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		f.parts, f.ops = ps, []string{"∩"}
 		return ask(&valueFrame{n: ps[0]})
 	case "pattern-literal":
-		c := b.readPattern(b.only(n, "pattern-union"))
+		part := one(n, "pattern-union")
+		if part == nil {
+			part = b.only(n, "pattern-atom")
+		}
+		c := b.readPattern(part)
 		return give(&domTerm{Kind: tmPattern, Pattern: patternNode(c)})
 	case "string":
-		return give(&domTerm{Kind: tmString, Str: b.decode(b.token(n))})
-	case "tag", "character", "phoneme":
-		return give(&domTerm{Kind: tmTag, Str: b.tagOf(b.token(n))})
+		return give(b.stringTerm(b.token(n)))
+	case "tag":
+		tag := b.tagOf(b.token(n))
+		if b.closedFor != "" && engineTag(tag) {
+			b.fail(n, "an engine tag literal is not legal in a closed value")
+		}
+		return give(&domTerm{Kind: tmTag, Str: tag, At: b.at(n)})
 	case "range":
-		return give(&domTerm{Kind: tmRange, Range: b.readRange(n)})
-	case "property":
-		b.fail(n, "a property is not a tag set, and stands only as a terminal in a body")
+		b.fail(n, "a range is a terminal, not a term")
 	case "name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.
@@ -546,19 +520,16 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "empty-set":
 		return give(&domTerm{Kind: tmEmptySet})
 	case "constant-reference":
-		return give(&domTerm{Kind: tmConst, Str: strings.TrimPrefix(b.text(b.token(n)), "$"), At: b.at(n)})
+		return give(b.constantRef(n))
 	case "capture-reference":
 		name := strings.TrimPrefix(b.text(b.token(n)), "$")
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
-		if !f.argument {
-			b.fail(n, "a span is not a value: tags($%s) is the tag set of $%s", name, name)
-		}
 		return give(&domTerm{Kind: tmCapture, Str: name})
-	case "call":
+	case "method":
 		f.pass = true
-		return ask(&callFrame{n: n})
+		return ask(&methodFrame{n: n})
 	}
 	b.fail(n, "unexpected %s in a term", n.Rule)
 	return readStep{}
@@ -576,106 +547,7 @@ func (f *valueFrame) resume(b *domBuilder, in any) readStep {
 		return ask(&termFrame{n: f.n})
 	}
 	t := in.(*domTerm)
-	if t.Kind == tmCall && isSpanFunction(t.Str) {
-		b.fail(f.n, "%s() gives a span, which is not a value", t.Str)
-	}
 	return give(t)
-}
-
-// callFrame reads a call in a term, or, in a condition, matches(), begins()
-// or initial().
-type callFrame struct {
-	n           *Node
-	inCondition bool
-	started     bool
-	name        *Node
-	arguments   []*Node
-	args        []*domTerm
-}
-
-func (f *callFrame) resume(b *domBuilder, in any) readStep {
-	if !f.started {
-		f.started = true
-		f.name = b.token(f.n)
-		name := b.text(f.name)
-		// A closed term calls only split and tag, the closed functions (§9,
-		// §10).
-		if b.closedFor != "" && name != "split" && name != "tag" {
-			if !notationFunctions[name] {
-				b.fail(f.name, "%s() is not a function of the notation", name)
-			}
-			if name == "classify" {
-				b.fail(f.name, "%s is a closed term, and classify() depends on the features", b.closedFor)
-			}
-			b.fail(f.name, "%s is a closed term, and %s() is not closed", b.closedFor, name)
-		}
-		f.arguments = ofRule(f.n, "argument")
-	} else {
-		f.args = append(f.args, in.(*domTerm))
-	}
-	if len(f.args) < len(f.arguments) {
-		return ask(&termFrame{n: b.only(f.arguments[len(f.args)], "union"), argument: true})
-	}
-	return give(b.finishCall(f.name, f.args, f.inCondition))
-}
-
-// finishCall checks a call's arguments against its function's signature.
-func (b *domBuilder) finishCall(nameNode *Node, args []*domTerm, inCondition bool) *domTerm {
-	name := b.text(nameNode)
-	shape := func(ok bool) {
-		if !ok {
-			b.fail(nameNode, "%s() is not called with the arguments it takes", name)
-		}
-	}
-	span := func(i int) bool { return i < len(args) && isSpanTerm(args[i]) }
-	rule := func(i int) bool { return i < len(args) && args[i].Kind == tmRule }
-	// A bare name in another slot is a call with the wrong arguments, so
-	// the error is the call's, as for any other signature (§9).
-	for i, a := range args {
-		if a.Kind == tmRule && !(i == 1 && (name == "tags" || name == "matches" || name == "begins" || name == "classify")) {
-			b.fail(nameNode, "a bare name is an argument only as the rule of tags(), matches() or begins(), or the classifier of classify()")
-		}
-	}
-	if inCondition {
-		switch name {
-		case "matches", "begins":
-			shape(len(args) == 2 && span(0) && rule(1))
-		case "initial":
-			shape(len(args) == 1 && span(0))
-		default:
-			b.fail(nameNode, "a condition calls only matches(), begins() or initial(); %s() is a term", name)
-		}
-		return &domTerm{Kind: tmCall, Str: name, Items: args}
-	}
-	switch name {
-	case "without-elision":
-		shape(len(args) == 1)
-		if args[0].Kind != tmCapture {
-			b.fail(nameNode, "without-elision() requires a bare capture. Use from(without-elision($x)) for an extended span.")
-		}
-	case "phonemes", "text", "classes", "head", "tail", "last", "from", "after":
-		shape(len(args) == 1 && span(0))
-	case "tags":
-		shape((len(args) == 1 && span(0)) || (len(args) == 2 && span(0) && rule(1)))
-	case "split":
-		shape(len(args) == 2 && b.isStringTerm(args[0]) && b.isStringTerm(args[1]))
-	case "tag":
-		shape(len(args) == 1 && b.isStringTerm(args[0]))
-	case "classify":
-		// A string, and a bare name, which names a classifier and not a
-		// rule (§9).
-		shape(len(args) == 2 && b.isStringTerm(args[0]) && rule(1))
-		return &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{args[0], {Kind: tmClassifier, Str: args[1].Str}}}
-	case "matches", "begins", "initial":
-		b.fail(nameNode, "%s() is a condition, not a term", name)
-	default:
-		b.fail(nameNode, "%s() is not a function of the notation", name)
-	}
-	// An empty delimiter or a tag's name that the reader sees (§9).
-	if msg := literalCallProblem(name, args); msg != "" {
-		b.fail(nameNode, "%s", msg)
-	}
-	return &domTerm{Kind: tmCall, Str: name, Items: args}
 }
 
 // implicationFrame reads its any-ofs in order, and after them the
@@ -772,14 +644,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
 			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(b.token(b.only(n, "capture-reference"))), "$")}}
-			for _, p := range parts(n) {
-				if p.Kind == KindToken {
-					x := b.text(p)
-					if x == "≅" || x == "≇" {
-						f.compare.Op = x
-					}
-				}
-			}
+			f.compare.Op = b.text(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
 				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.text(b.token(name)), b.text(b.token(name)))
@@ -790,7 +655,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.compare = &domCond{Kind: cdCompare}
 			f.right = ps[1]
 			return ask(&valueFrame{n: ps[0]})
-		case "negation", "call", "implication":
+		case "negation", "method", "implication":
 		case "presence":
 			return give(&domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(b.token(n)), "$")})
 		default:
@@ -799,8 +664,8 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		switch n.Rule {
 		case "negation":
 			return ask(&conditionFrame{n: b.only(n, "condition")})
-		case "call":
-			return ask(&callFrame{n: n, inCondition: true})
+		case "method":
+			return ask(&methodFrame{n: n, inCondition: true})
 		}
 		// Between parentheses, which make no node.
 		f.pass = true
@@ -834,7 +699,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
-	if t.Str == "initial" {
+	if t.Str == "starts-input" {
 		return give(&domCond{Kind: cdInitial, Span: t.Items[0]})
 	}
 	kind := cdMatches

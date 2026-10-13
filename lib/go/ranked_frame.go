@@ -454,9 +454,20 @@ func baseProduction(p *production) *production {
 	return p
 }
 
+// Prefix identities include every stacked predicate and signed requirement.
 func rankedTestKey(t *symTest) string {
-	if t == nil {
-		return ""
+	var b strings.Builder
+	for ; t != nil; t = t.other {
+		fmt.Fprintf(&b, "%q:%q:[", t.op, t.sound)
+		var last *resolvedRequirement
+		for i, req := range t.requirements {
+			if last != nil && *last == req {
+				continue
+			}
+			fmt.Fprintf(&b, "%t:%q;", req.negated, req.name)
+			last = &t.requirements[i]
+		}
+		b.WriteByte(']')
 	}
-	return fmt.Sprintf("%s/%q/%q", t.op, t.sound, t.tags)
+	return b.String()
 }

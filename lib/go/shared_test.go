@@ -31,7 +31,8 @@ type engineCase struct {
 	} `json:"parses"`
 	// fault, which no case file sets, is a fault of the library's own
 	// paths that the parses of the case turn on (faults_test.go).
-	fault string
+	fault      string
+	skipReason string
 	// noHook, which no case file sets either, ignores the witness hook's
 	// answer, so that only the result can fail the case, and onlyHook
 	// ignores everything but the hook's answer (faults_test.go).
@@ -46,11 +47,14 @@ type engineCase struct {
 // and after, which a caller cannot supply, go to the library as they
 // stand, so that it refuses them or drops empty ones.
 type caseToken struct {
-	Text     string      `json:"text"`
-	Tags     []string    `json:"tags"`
-	Phonemes *string     `json:"phonemes"`
-	Before   []caseToken `json:"before"`
-	After    []caseToken `json:"after"`
+	Text   string      `json:"text"`
+	Tags   []string    `json:"tags"`
+	Value  *string     `json:"value"`
+	Image  *string     `json:"image"`
+	Span   *[2]int     `json:"span"`
+	Source *[2]int     `json:"source"`
+	Before []caseToken `json:"before"`
+	After  []caseToken `json:"after"`
 }
 
 type caseOptions struct {
@@ -133,7 +137,24 @@ func loadCase(t testing.TB, file string) *engineCase {
 		t.Fatal(err)
 	}
 	c := &engineCase{}
+	raw, decodeErr := decodeJSON(data)
+	if decodeErr != nil {
+		t.Fatalf("%s: %v", file, decodeErr)
+	}
+	usage := false
+	if object, ok := raw.(map[string]any); ok {
+		if expect, ok := object["expect"].(map[string]any); ok {
+			usage = expect["error"] == ErrorUsage
+		}
+		if usage {
+			c.skipReason = unrepresentableTokenField(object["tokens"])
+		}
+	}
 	if err := unmarshalJSON(data, c); err != nil {
+		if usage {
+			c.skipReason = "Go input records cannot express this field: " + err.Error()
+			return c
+		}
 		t.Fatalf("%s: %v", file, err)
 	}
 	return c
@@ -205,14 +226,17 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	}
 	var res *ParseResult
 	var err error
-	if c.Input != nil {
+	if c.Input != nil && c.Tokens == nil {
 		res, err = d.Parse(*c.Input, opts)
 	} else {
 		toks, text, terr := caseTokens(c.Tokens)
 		if terr != nil {
 			return nil, nil, terr
 		}
-		res, err = d.ParseTokens(text, toks, opts)
+		if c.Input != nil {
+			text = *c.Input
+		}
+		res, err = d.ParseTokens(text, inputTokensOf(toks), opts)
 	}
 	return res, log, err
 }
@@ -236,15 +260,19 @@ func caseTokens(specs []caseToken) ([]Token, string, error) {
 		for i, tk := range j.specs {
 			// Each tag in its canonical spelling, as the output writes it
 			// (tests/README.md).
-			for _, tag := range tk.Tags {
-				if !isTag(tag, bundled.uni) {
-					return nil, "", fmt.Errorf("a case token's tag %s is not a tag", tag)
-				}
-			}
 			n := len([]rune(tk.Text))
-			toks[i] = Token{Text: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
-			if tk.Phonemes != nil {
-				toks[i].Phonemes = *tk.Phonemes
+			toks[i] = Token{Text: tk.Text, Value: tk.Text, Image: tk.Text, Tags: tk.Tags, Span: [2]int{i, i + 1}, Source: [2]int{pos, pos + n}}
+			if tk.Value != nil {
+				toks[i].Value = *tk.Value
+			}
+			if tk.Image != nil {
+				toks[i].Image = *tk.Image
+			}
+			if tk.Source != nil {
+				toks[i].Source = *tk.Source
+			}
+			if tk.Span != nil {
+				toks[i].Span = *tk.Span
 			}
 			if tk.Before != nil {
 				work = append(work, job{tk.Before, &toks[i].Before})
@@ -669,8 +697,11 @@ func TestEngineCases(t *testing.T) {
 		t.Fatal("no engine cases in ../../tests/engine")
 	}
 	for _, f := range files {
-		c := loadCase(t, f)
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
+			c := loadCase(t, f)
+			if c.skipReason != "" {
+				t.Skip(c.skipReason)
+			}
 			if err := checkCaseWithin(c, timeout); err != nil {
 				t.Errorf("%s\n%v", c.Description, err)
 			}
@@ -718,4 +749,47 @@ func TestEngineCaseDeep(t *testing.T) {
 	if err := checkCase(c, true); err != nil {
 		t.Fatalf("%.500v", err)
 	}
+}
+
+func inputTokensOf(tokens []Token) []InputToken {
+	out := make([]InputToken, len(tokens))
+	for i, t := range tokens {
+		value, image := t.Value, t.Image
+		out[i] = InputToken{Text: t.Text, Value: &value, Image: &image, Tags: t.Tags, Span: t.Span, Source: t.Source}
+		if t.Before != nil {
+			out[i].Before = inputTokensOf(t.Before)
+		}
+		if t.After != nil {
+			out[i].After = inputTokensOf(t.After)
+		}
+	}
+	return out
+}
+
+func unrepresentableTokenField(raw any) string {
+	tokens, _ := raw.([]any)
+	for _, raw := range tokens {
+		token, ok := raw.(map[string]any)
+		if !ok {
+			return "Go []InputToken cannot express a non-record token"
+		}
+		for _, field := range []string{"text", "value", "image", "tags", "span", "source", "before", "after"} {
+			if value, exists := token[field]; exists && value == nil {
+				return "Go InputToken cannot distinguish explicit null " + field + " from its default"
+			}
+		}
+		for _, field := range []string{"before", "after"} {
+			if reason := unrepresentableTokenField(token[field]); reason != "" {
+				return reason
+			}
+		}
+	}
+	return ""
+}
+
+// parseStoredTokens adapts output-shaped fixtures to the caller API.
+func (d *Dialect) parseStoredTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
+	inputs := inputTokensOf(tokens)
+
+	return d.ParseTokens(text, inputs, options)
 }

@@ -1,0 +1,242 @@
+package gencmu
+
+import (
+	"encoding/json"
+	"errors"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+func TestReviewEmptyGuardWrapper(t *testing.T) {
+	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
+		for _, value := range dom["rules"].([]any) {
+			rule := value.(map[string]any)
+			if path == "notation/lexical.md" && rule["name"] == "feature-character" {
+				rule["alternatives"] = append(rule["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "_"}}})
+			}
+			if path == "notation/syntax.md" && rule["name"] == "guard" {
+				rule["alternatives"].([]any)[0].(map[string]any)["expr"] = map[string]any{"seq": []any{map[string]any{"ref": "padding"}, map[string]any{"ref": "Guard"}}}
+			}
+		}
+		if path == "notation/syntax.md" {
+			dom["rules"] = append(dom["rules"].([]any), map[string]any{"name": "padding", "op": "define", "flags": []any{}, "alternatives": []any{map[string]any{"guards": []any{}, "expr": map[string]any{"empty": true}}}, "conditions": []any{}, "at": []any{1, 1}})
+		}
+	})
+	for _, c := range []struct {
+		grammar string
+		column  int
+	}{
+		{`%rule text bad_name? A`, 12},
+		{`%rule text bad_name? [A]="x"`, 12},
+		{"%classifier c bad_name? \"a\" ∈ A\n%rule text _", 15},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadDialectSources(reviewSources(c.grammar, bootstrap), "p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Kind != ErrorGrammar || e.Document != "main.md" || e.Line != 3 || e.Column != c.column {
+				t.Fatalf("guard at 3:%d: %v", c.column, err)
+			}
+		})
+	}
+}
+
+func TestReviewEmptyConstructorAnchor(t *testing.T) {
+	gt := extractGrammarText(block("A"))
+	b := &domBuilder{gt: gt}
+	end := len(gt.text)
+	node := &Node{Kind: KindRule, Source: [2]int{end, end}, Children: []*Node{{Kind: KindRule, Source: [2]int{0, 0}}}}
+	if got := b.at(node); got != gt.at(end) {
+		t.Fatalf("empty constructor anchor %v, want %v", got, gt.at(end))
+	}
+}
+
+func TestReviewPrivateRecipeExports(t *testing.T) {
+	for _, c := range []struct{ grammar, expression string }{
+		{`%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) %emits`, "concat"},
+		{`%rule text :: ∅ :- $x.image | ($x:A ≻ $x:B) %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) := $x.value %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) :- $x.emitted.image %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ := $x.value`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ :- $x.emitted.image`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε := $x.value`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :- $x.image`, "items"},
+		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :: $x ⟹ $x.tags`, "items"},
+		{`%rule text ($x:A ≻ $x:B) := $.emitted.value $x.value %emits`, "concat"},
+		{`%rule text ($x:A ≻ B) := $x.value %emits`, "concat"},
+		{`%rule text :: ∅ := $x.value | ($x:A ≻ B) := "overridden" %emits`, "concat"},
+		{`%rule text :: ∅ | ($x:A ≻ B) [$carrier:C] %emits $carrier := $x.value`, "items"},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+c.grammar), "p.md")
+			var e *Error
+			if !errors.As(err, &e) || e.Code != "ranked-choice-export" || e.Group == nil || e.Group.Path != "" && e.Group.Path != "/seq/0" || e.Option == nil || *e.Option != 0 || !strings.Contains(string(e.Expression), `"`+c.expression+`"`) {
+				t.Fatalf("private recipe load diagnostic: %v %+v", err, e)
+			}
+		})
+	}
+	// Common captures and the whole parent remain legal in recipes.
+	for _, grammar := range []string{
+		`%rule text :: ∅ | $before:C (A ≻ B) := $before.value %emits $`,
+		`%rule text :: ∅ | (A ≻ B) $after:C := $after.image %emits ε := $.value`,
+	} {
+		if _, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+grammar), "p.md"); err != nil {
+			t.Fatalf("common recipe capture: %v", err)
+		}
+	}
+	// Earlier local constructors still reject invalid recipe methods.
+	_, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n"+`%rule text ($x:A ≻ B) := $x.tags %emits`), "p.md")
+	var e *Error
+	if !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
+		t.Fatalf("local recipe constructor: %v", err)
+	}
+}
+
+func reviewCache(t *testing.T, sources map[string]string) string {
+	t.Helper()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	documents := map[string]any{}
+	for path, text := range sources {
+		dom, err := bundled.reader.readMode(text, path, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
+	}
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "documents": documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestReviewCachedRecipeCyclePositions(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		grammar, receiver string
+		line              int
+	}{
+		{`%rule text := $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		// The image recipe closes the cycle, so §11.3 now selects its first atom.
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := "independent" :- $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text := $.emitted.image :- "prefix" $.emitted.value | "a" %emits`, `"prefix"`, 3},
+		{`%rule text := $.emitted.image $.emitted.value :- "image first" $.emitted.image | "a" %emits`, `"image first"`, 3},
+		{`%rule text := $.emitted.value $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image :- "header"
+  | "a" :- $.emitted.value %emits`, "$.emitted.value", 4},
+		{`%rule text "a" := $.emitted.value %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.value | "a" := "override" :- $.emitted.image %emits`, "$.emitted.image", 3},
+		{`%rule text := "unused" | "a" := $.emitted.image :- $.emitted.value %emits`, "$.emitted.value", 3},
+		{`%rule text := "header" | "a"
+%extend-rule text "b" := $.emitted.value`, "$.emitted.value", 4},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			grammar := c.grammar
+			sources := reviewSources(grammar, bundled.sources["notation/bootstrap.json"])
+			_, fresh := LoadDialectSources(sources, "p.md")
+			var e *Error
+			sourceLine := strings.Split(grammar, "\n")[c.line-3]
+			column := strings.Index(sourceLine, c.receiver) + 1
+			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
+				t.Fatalf("fresh recipe position: %v", fresh)
+			}
+			sources["compiled.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+}
+func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	// A matching cache still owns the recipe, even when the source spells another value.
+	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["notation/bootstrap.json"])
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.readMode(original["main.md"], "main.md", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["notation/bootstrap.json"])
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, failure := LoadDialectSources(sources, "p.md")
+	var e *Error
+	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
+		t.Fatalf("cache semantics or location changed: %v", failure)
+	}
+	// A valid cached recipe needs no source reader for location recovery.
+	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["notation/bootstrap.json"])
+	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash)
+	l := &loader{uni: bundled.uni, compiled: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
+	if _, err := l.dialect("p.md"); err != nil {
+		t.Fatalf("valid cache reparsed: %v", err)
+	}
+}
+
+func TestReviewRecipeProductionOrder(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, grammar string
+		line          int
+	}{
+		{"extension", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 4},
+		{"replacement", `%rule text "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text := $.emitted.image | "c"`, 4},
+		{"removed cycle", `%rule text := $.emitted.value | "a"
+%rule other := $.emitted.value | "b"
+%redefine-rule text "a"`, 4},
+		{"resolved constant", `%const $K "k"
+%rule text "a"
+%rule other := $K $.emitted.value | "b"
+%extend-rule text := $.emitted.image | "c"`, 5},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			sources := reviewSources(c.grammar, bundled.sources["notation/bootstrap.json"])
+			_, fresh := LoadDialectSources(sources, "p.md")
+			var e *Error
+			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != 16 || !strings.Contains(e.Message, "other.value -> other.value") {
+				t.Fatalf("production order: %v", fresh)
+			}
+			sources["compiled.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache production order differs:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+	t.Run("document order", func(t *testing.T) {
+		sources := map[string]string{
+			"p.md":                    block("%stage main", "%ambiguity-resolution greedy", `%include "base.md"`, `%include "earlier.md"`, `%include "later.md"`),
+			"base.md":                 block(`%rule text "a"`),
+			"earlier.md":              block(`%rule other := $.emitted.value | "b"`),
+			"later.md":                block(`%extend-rule text := $.emitted.image | "c"`),
+			"notation/bootstrap.json": bundled.sources["notation/bootstrap.json"],
+		}
+		_, fresh := LoadDialectSources(sources, "p.md")
+		var e *Error
+		if !errors.As(fresh, &e) || e.Document != "earlier.md" || e.Line != 2 || e.Column != 16 {
+			t.Fatalf("document order: %v", fresh)
+		}
+		sources["compiled.json"] = reviewCache(t, sources)
+		_, cached := LoadDialectSources(sources, "p.md")
+		if !reflect.DeepEqual(fresh, cached) {
+			t.Fatalf("fresh/cache document order differs:\n%+v\n%+v", fresh, cached)
+		}
+	})
+}

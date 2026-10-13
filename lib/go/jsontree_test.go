@@ -194,7 +194,7 @@ func TestJSONTreeAgrees(t *testing.T) {
 			t.Errorf("%.200s: encoding/json gives %v, decodeJSON %v", data, werr, gerr)
 			continue
 		}
-		if werr == nil && !reflect.DeepEqual(got, want) {
+		if werr == nil && !reflect.DeepEqual(standardSurrogates(got), want) {
 			t.Errorf("%.200s: decoded as %s", data, shown(got))
 		}
 	}
@@ -266,4 +266,36 @@ func TestJSONTreeDeep(t *testing.T) {
 	if depth != n {
 		t.Errorf("tokens %d deep, not %d", depth, n)
 	}
+}
+
+// Unlike encoding/json, the scalar API keeps unpaired UTF-16 surrogates
+// invalid, so the API can refuse them. Compare all other decoder behavior
+// with encoding/json after mapping only those preserved triples to U+FFFD.
+func standardSurrogates(v any) any {
+	switch x := v.(type) {
+	case string:
+		var b strings.Builder
+		for i := 0; i < len(x); i++ {
+			if i+2 < len(x) && x[i] == 0xed && x[i+1] >= 0xa0 && x[i+1] <= 0xbf && x[i+2] >= 0x80 && x[i+2] <= 0xbf {
+				b.WriteRune('\uFFFD')
+				i += 2
+			} else {
+				b.WriteByte(x[i])
+			}
+		}
+		return b.String()
+	case []any:
+		out := make([]any, len(x))
+		for i, y := range x {
+			out[i] = standardSurrogates(y)
+		}
+		return out
+	case map[string]any:
+		out := map[string]any{}
+		for k, y := range x {
+			out[k] = standardSurrogates(y)
+		}
+		return out
+	}
+	return v
 }

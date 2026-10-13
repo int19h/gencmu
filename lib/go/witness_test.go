@@ -69,8 +69,8 @@ func keeps(res *rankResult, rk *ranker, w *dn) bool {
 func lostCase(t *testing.T) (*Dialect, *engineCase) {
 	c := &engineCase{
 		Documents: map[string]string{"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n" +
-			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
-			"%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
+			"%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: X\n%rule b A [+T=\"ta\"] [+U] [+U]\n" +
+			"%stage later\n%ambiguity-resolution greedy\n%rule text X\n```\n"},
 		Pipeline: "p.md",
 		Tokens:   []caseToken{{Text: "a", Tags: []string{"A"}}},
 		Options:  caseOptions{Features: []string{"w"}},
@@ -133,7 +133,7 @@ func TestWitnessLost(t *testing.T) {
 		// The members in their order, and the records in their order of
 		// insertion, with the sound only for the tested terminator.
 		want := `"error":{"kind":"grammar","stage":"main","code":"elision-witness-lost","message":"the main stage could not reconstruct its chosen derivation for elision-only","chosen":`
-		if !strings.Contains(string(data), want) || !strings.Contains(string(data), `,"completion":[{"terminal":"T","at":1,"source":[1,1],"sound":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}`) {
+		if !strings.Contains(string(data), want) || !strings.Contains(string(data), `,"completion":[{"terminal":"T","at":1,"source":[1,1],"value":"ta"},{"terminal":"U","at":1,"source":[1,1]}]}`) {
 			t.Fatalf("%s: %s", lose, data)
 		}
 		// The stage keeps its verdict and warnings, has no output, and no

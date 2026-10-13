@@ -87,6 +87,7 @@ type loader struct {
 	compiled           map[string]json.RawMessage
 	noCache            bool
 	diagnosticDocument string
+	recipeDocument     string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
 	// the document, not a usage error (engine §1).
@@ -112,6 +113,9 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
+				}
+				if p == l.recipeDocument {
+					l.reader.restoreRecipeLocations(text, p, dom)
 				}
 				return dom, nil
 			}
@@ -156,10 +160,17 @@ func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
 
 func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	d, err := l.loadMode(pipelinePath)
-	if failure, ok := err.(*Error); ok && strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "" {
-		// Retry only a failed load, with locations for its diagnostic document.
+	if failure, ok := err.(*Error); ok {
+		// Retry only a failed load, retaining the cached DOM's semantics.
 		diagnostic := *l
-		diagnostic.diagnosticDocument = failure.Group.Document
+		switch {
+		case strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "":
+			diagnostic.diagnosticDocument = failure.Group.Document
+		case failure.recipeCycle && failure.Line == 0 && failure.Document != "":
+			diagnostic.recipeDocument = failure.Document
+		default:
+			return d, err
+		}
 		return diagnostic.loadMode(pipelinePath)
 	}
 	return d, err
@@ -476,44 +487,48 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // Source ranges index, in code points.
 // Each token's Source must lie within the text. The sources of two tokens
 // can overlap or lie out of order (engine §11). Each token's Span must
-// start at 0 or later and must not end before it starts. A token that the caller supplies has
-// its Text as its label (engine §5), whatever its Label says. It cannot
+// start at 0 or later and must not end before it starts. Value and Image
+// default independently to Text when their pointers are nil. A caller cannot
 // supply attachments: a token with a non-empty Before or After is a usage
 // error, and empty ones are dropped (docs/api.md). The parse copies the
 // tokens and leaves the caller's unchanged.
-func (d *Dialect) ParseTokens(text string, tokens []Token, options ParseOptions) (*ParseResult, error) {
+func (d *Dialect) ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error) {
 	if err := textProblem(text); err != nil {
 		return nil, err
 	}
-	// A caller cannot supply attachments: a list that is not empty is the
-	// caller's mistake, and an empty one is dropped (docs/api.md).
-	for i := range tokens {
-		if hasAttachments(&tokens[i]) {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d has attachments, which a caller cannot supply", i)}
-		}
-	}
 	runes := []rune(text)
-	// Bounds only, so that no index panics: the sources need not lie in
-	// order (engine §11).
-	for i, t := range tokens {
-		// A source counts code points of the text.
-		if s := t.Source; s[0] < 0 || s[0] > s[1] || s[1] > len(runes) {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: the source %v is not a range within a text of %d code points", i, s, len(runes))}
-		}
-		// A span counts tokens of the stage before, which a caller's
-		// tokens have none of, so only its order is checked.
-		if s := t.Span; s[0] < 0 || s[0] > s[1] {
-			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: the span %v is not a range of tokens: it starts below 0 or ends before it starts", i, s)}
-		}
-	}
-	// A copy, so that the caller's tokens stay as they are, and the result
-	// shares no slice with them.
 	own := make([]Token, len(tokens))
 	for i, t := range tokens {
-		t.Tags = append([]string(nil), t.Tags...)
-		t.Label = t.Text
-		t.Before, t.After = nil, nil
-		own[i] = t
+		fail := func(message string) (*ParseResult, error) {
+			return nil, &Error{Kind: ErrorUsage, Message: fmt.Sprintf("token %d: %s", i, message)}
+		}
+		if len(t.Before) > 0 || len(t.After) > 0 {
+			return fail("a caller cannot supply attachments")
+		}
+		if s := t.Source; s[0] < 0 || s[0] > s[1] || s[1] > len(runes) {
+			return fail("the source is outside the text")
+		}
+		if s := t.Span; s[0] < 0 || s[0] > s[1] {
+			return fail("the span is not a range")
+		}
+		value, image := t.Text, t.Text
+		if t.Value != nil {
+			value = *t.Value
+		}
+		if t.Image != nil {
+			image = *t.Image
+		}
+		for _, s := range []string{t.Text, value, image} {
+			if !utf8.ValidString(s) {
+				return fail("a string is not valid UTF-8")
+			}
+		}
+		for _, tag := range t.Tags {
+			if !isTag(tag, d.uni) {
+				return fail("invalid stored tag " + tag)
+			}
+		}
+		own[i] = Token{Text: t.Text, Value: value, Image: image, Tags: append([]string(nil), t.Tags...), Span: t.Span, Source: t.Source}
 	}
 	return d.parse(runes, own, options)
 }

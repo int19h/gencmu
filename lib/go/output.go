@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 11
+const resultFormat = 12
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -123,10 +123,10 @@ func writeTokenAs(w *jsonWriter, t *Token, isAttached bool) {
 	open := func(t *Token, isAttached bool) {
 		w.raw(`{"text":`)
 		w.str(t.Text)
-		w.raw(`,"phonemes":`)
-		w.str(t.Phonemes)
-		w.raw(`,"label":`)
-		w.str(t.Label)
+		w.raw(`,"value":`)
+		w.str(t.Value)
+		w.raw(`,"image":`)
+		w.str(t.Image)
 		w.raw(`,"tags":`)
 		writeTags(w, t.Tags)
 		if !isAttached {
@@ -232,6 +232,10 @@ func writeNode(w *jsonWriter, root *Node) {
 		w.pair(n.Span)
 		w.raw(`,"source":`)
 		w.pair(n.Source)
+		if n.Kind == KindElided && n.Value != nil {
+			w.raw(`,"value":`)
+			w.str(*n.Value)
+		}
 		if n.Kind == KindRule {
 			w.raw(`,"tags":`)
 			writeTags(w, n.Tags)
@@ -358,8 +362,8 @@ func writeError(w *jsonWriter, e *ParseError) {
 			w.raw(`,"source":`)
 			w.pair(r.Source)
 			if r.Tested {
-				w.raw(`,"sound":`)
-				w.str(r.Sound)
+				w.raw(`,"value":`)
+				w.str(r.Value)
 			}
 			w.raw("}")
 		}
@@ -412,11 +416,11 @@ func Brackets(result *ParseResult, options BracketOptions) string {
 			var k *Token
 			switch {
 			case !hasAttachments(f.t):
-				done = &rendered{leaf: f.t.Label}
+				done = &rendered{leaf: f.t.Image}
 			case f.next < len(f.t.Before):
 				k = &f.t.Before[f.next]
 			case f.next == len(f.t.Before):
-				f.group = append(f.group, &rendered{leaf: f.t.Label})
+				f.group = append(f.group, &rendered{leaf: f.t.Image})
 				f.next++
 				continue
 			case f.next <= len(f.t.Before)+len(f.t.After):

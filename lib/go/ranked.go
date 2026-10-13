@@ -245,16 +245,31 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Err
 				return r.fail(g, group, "ranked-choice-export", "A tag term cannot read a private ranked capture.").rankedDetail(end.option, rankedWrittenClause(group.source, []string{"alternative-tags", "tags"}[termIndex], -1))
 			}
 		}
+		// Scope belongs to every written recipe, before channel selection or pruning.
+		for _, recipe := range []struct {
+			term *domTerm
+			key  string
+		}{
+			{group.source.ruleValue, "value"}, {group.source.ruleImage, "image"},
+			{group.source.alt.Value, "alternative-value"}, {group.source.alt.Image, "alternative-image"},
+		} {
+			reads := map[string]bool{}
+			rankedTermReads(recipe.term, reads)
+			if private(reads) {
+				return r.fail(g, group, "ranked-choice-export", "A recipe cannot read a private ranked capture.").rankedDetail(end.option, rankedWrittenClause(group.source, recipe.key, -1))
+			}
+		}
 		reads := map[string]bool{}
 		if group.source.emit != nil {
 			for _, item := range group.source.emit.Items {
-				if item.IsInsert {
-					continue
-				}
-				for _, name := range item.captures() {
-					reads[name] = true
+				if !item.IsInsert {
+					for _, name := range item.captures() {
+						reads[name] = true
+					}
 				}
 				rankedTermReads(item.Tags, reads)
+				rankedTermReads(item.Value, reads)
+				rankedTermReads(item.Image, reads)
 			}
 		}
 		if private(reads) {
@@ -268,14 +283,14 @@ func rankedWrittenClause(source *sAlt, key string, index int) json.RawMessage {
 		return nil
 	}
 	value := source.written[key]
-	if key == "alternative-tags" {
+	if strings.HasPrefix(key, "alternative-") {
 		var alternatives []json.RawMessage
 		_ = json.Unmarshal(source.written["alternatives"], &alternatives)
 		if source.writtenAlternative >= len(alternatives) {
 			return nil
 		}
 		alt, _ := decodeObj(alternatives[source.writtenAlternative])
-		value = alt["tags"]
+		value = alt[strings.TrimPrefix(key, "alternative-")]
 	}
 	if index >= 0 {
 		var items []json.RawMessage
