@@ -684,6 +684,546 @@
         "line": 3,
         "column": 7
       }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c bad_name? \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied gate feature contains an underscore. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c bad_name? \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬bad_name? A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬bad_name? [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬bad_name? A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬bad_name? [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c ¬bad_name? \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied negated gate feature contains an underscore. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c ¬bad_name? \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name! A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name! [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name! A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name! [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c bad_name! \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied warning feature contains an underscore. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"b\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"d\"}},{\"literal\":{\"string\":\"_\"}},{\"literal\":{\"string\":\"n\"}},{\"literal\":{\"string\":\"a\"}},{\"literal\":{\"string\":\"m\"}},{\"literal\":{\"string\":\"e\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c bad_name! \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬f! A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬f! [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬f! A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ¬f! [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c ¬f! \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard is a negated warning. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"¬\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"!\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c ¬f! \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f. A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f. [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f. A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text f. [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c f. \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard has an invalid suffix. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\".\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c f. \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 1f? A\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 1f? [A]=\"x\"\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the ranked alternative's body (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 1f? A ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the ranked alternative's invalid body test (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 1f? [A]=\"x\" ≻ B\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 12
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the classifier entry's keys (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c 1f? \"a\" ∈ A\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
+    },
+    {
+      "description": "The supplied guard's feature starts with a digit. The reader reports it at the guard, before the classifier entry's invalid class name (engine §9.1, §9.3).",
+      "find": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"piece\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"ref\":\"word\"}},{\"guards\":[],\"expr\":{\"ref\":\"string\"}},{\"guards\":[],\"expr\":{\"ref\":\"engine-tag\"}},{\"guards\":[],\"expr\":{\"ref\":\"capture-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"constant-token\"}},{\"guards\":[],\"expr\":{\"ref\":\"guard\"}},{\"guards\":[],\"expr\":{\"ref\":\"include\"}},{\"guards\":[],\"expr\":{\"ref\":\"keyword\"}},{\"guards\":[],\"expr\":{\"ref\":\"symbol\"}},{\"guards\":[],\"expr\":{\"ref\":\"negation\"}},{\"guards\":[],\"expr\":{\"ref\":\"layout\"}},{\"guards\":[],\"expr\":{\"ref\":\"supplied-guard\"}}],\"conditions\":[],\"at\":[*]},{\"name\":\"supplied-guard\",\"op\":\"define\",\"flags\":[\"leftmost-longest\"],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"1\"}},{\"literal\":{\"string\":\"f\"}},{\"literal\":{\"string\":\"?\"}}]}}],\"emit\":{\"items\":[{\"capture\":\"\",\"tags\":{\"tag\":\"Guard\"}}]},\"conditions\":[],\"at\":[9999,1]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%classifier c 1f? \"a\" ∈ bad\n%rule text _\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 15
+      }
     }
   ]
 }
