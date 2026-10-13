@@ -666,6 +666,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
     controls canonical terminal spellings in diagnostics."""
     rules: dict[str, Rule] = {}
+    written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
@@ -703,6 +704,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                 )
                 for alternative_index,alt in enumerate(rule.get("alternatives", []))
             ]
+            written_alternatives.extend(alternatives)
             previous = rules.get(name)
             op = rule.get("op")
             if op == "extend":
@@ -826,19 +828,21 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
     from ._recipes import cycle
-    for rule in rules.values():
-        for alternative in rule.alternatives:
-            value = alternative.value if alternative.value is not None else alternative.rule_value
-            image = alternative.image if alternative.image is not None else alternative.rule_image
-            found = cycle(value, image)
-            if found is not None:
-                recipe, path = found
-                at = getattr(recipe, "at", alternative.at)
-                error = _error("recipe dependency cycle: " + " → ".join(path), alternative.document, at, stage)
-                if not hasattr(recipe, "at"):
-                    field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
-                    error._recipe_location = alternative.at, alternative.index, field
-                raise error
+    retained = {id(alternative) for rule in rules.values() for alternative in rule.alternatives}
+    for alternative in written_alternatives:
+        if id(alternative) not in retained:
+            continue
+        value = alternative.value if alternative.value is not None else alternative.rule_value
+        image = alternative.image if alternative.image is not None else alternative.rule_image
+        found = cycle(value, image)
+        if found is not None:
+            recipe, path = found
+            at = getattr(recipe, "at", alternative.at)
+            error = _error("recipe dependency cycle: " + " → ".join(path), alternative.document, at, stage)
+            if not hasattr(recipe, "at"):
+                field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
+                error._recipe_location = alternative.at, alternative.index, field
+            raise error
     from ._overlap import conflict
     faulty = conflict(grammar)
     if faulty is not None:

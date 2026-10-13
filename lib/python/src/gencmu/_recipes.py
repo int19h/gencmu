@@ -36,12 +36,27 @@ def own_dependencies(recipe: Any) -> list[str]:
 
 def cycle(value: Any, image: Any) -> tuple[Any, list[str]] | None:
     recipes = dict(zip(("value", "image"), selected(value, image)))
+    done: set[str] = set()
+
+    def channel(name: str) -> str:
+        return "value" if name == "image" and image is None else name
+
     for start in ("value", "image"):
-        stack = [(start, [start])]
+        start = channel(start)
+        if start in done:
+            continue
+        stack = [(start, iter(own_dependencies(recipes[start])))]
         while stack:
-            channel, path = stack.pop()
-            for dependency in own_dependencies(recipes[channel]):
-                if dependency in path:
-                    return recipes[channel], [*path, dependency]
-                stack.append((dependency, [*path, dependency]))
+            current, dependencies = stack[-1]
+            dependency = next(dependencies, None)
+            if dependency is None:
+                done.add(current)
+                stack.pop()
+                continue
+            dependency = channel(dependency)
+            path = [name for name, _ in stack]
+            if dependency in path:
+                return recipes[current], [*path, dependency]
+            if dependency not in done:
+                stack.append((dependency, iter(own_dependencies(recipes[dependency]))))
     return None
