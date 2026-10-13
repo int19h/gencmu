@@ -12,6 +12,7 @@ import (
 // A shared source DOM must resolve independently in each stage, including
 // when a matching format-26 cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +28,7 @@ func TestPatternResolutionCachedStages(t *testing.T) {
 	} {
 		for _, comparator := range []string{"≅", "≇"} {
 			t.Run(c.name+comparator, func(t *testing.T) {
+				t.Parallel()
 				condition := "$ " + comparator + " " + c.pattern
 				sources := map[string]string{
 					"p.md": block("%stage before", "%ambiguity-resolution greedy", `%include "before.md"`, `%include "shared.md"`,
