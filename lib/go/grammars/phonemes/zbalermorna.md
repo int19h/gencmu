@@ -2,6 +2,8 @@
 
 This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The dialect of [CLL](../dialects/cll-ebnf.md), *The Complete Lojban Language*, omits this script. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The phoneme stage is the first stage of the pipeline. The document adds alternatives to the rules of [latin-strict.md](latin-strict.md) and [latin.md](latin.md) with `%extend-rule`. It defines no frame of its own. It uses the shared text, pause and run rules. [The notation document](../../docs/notation.md) explains the notation.
 
 A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a consonant, with a diacritic above it for the vowel that follows. A vowel with no consonant before it stands on the radical for the period, which the script uses as a null onset. A null onset marks a syllable with no consonant before its vowel. The script writes a word-initial vowel on that radical too. The script also has these forms:
@@ -18,9 +20,23 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 
 ```jbogenbau
 %extend-rule consonant :: ∅
-  | $_ED80 := "p" | $_ED81 := "t" | $_ED82 := "k" | $_ED83 := "f" | $_ED90 := "b" | $_ED91 := "d"
-  | $_ED92 := "g" | $_ED93 := "v" | $_ED84 := "l" | $_ED85 := "s" | $_ED86 := "c" | $_ED87 := "m"
-  | $_ED94 := "r" | $_ED95 := "z" | $_ED96 := "j" | $_ED97 := "n" | $_ED88 := "x"
+  | $_ED80 := "p"
+  | $_ED81 := "t"
+  | $_ED82 := "k"
+  | $_ED83 := "f"
+  | $_ED90 := "b"
+  | $_ED91 := "d"
+  | $_ED92 := "g"
+  | $_ED93 := "v"
+  | $_ED84 := "l"
+  | $_ED85 := "s"
+  | $_ED86 := "c"
+  | $_ED87 := "m"
+  | $_ED94 := "r"
+  | $_ED95 := "z"
+  | $_ED96 := "j"
+  | $_ED97 := "n"
+  | $_ED88 := "x"
 %emits
   $
 
@@ -47,7 +63,7 @@ A vowel diacritic and its full-vowel form are the same phoneme. The stress mark 
 
 A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
 
-The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. A token is one unit that a stage reads or emits. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
+The shorthand U+ED8B followed by a vowel, plain or stressed, is that vowel and an apostrophe. The vowel's token covers the shorthand too, as a stressed vowel's token covers its stress mark. The rule emits the apostrophe as a token with an empty span.
 
 The shorthand stands where a non-vowel stands, because the apostrophe closes the vowel group. The shorthand's vowel is always a single vowel. `zbalermorna-marked-vowel` takes its strings from the reconstructed vowel through `.emitted`. This excludes the written shorthand mark from both strings without erasing its source ownership. A diphthong diacritic cannot directly follow the mark.
 
@@ -144,8 +160,9 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 %emits
   $v, ε :: ∅ := "'"
 
-%rule zbalermorna-marked-vowel :: $v.tags := $v.emitted.value :- $v.emitted.image
-  | zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
+%rule zbalermorna-marked-vowel
+  zbalermorna-shorthand-mark $v:zbalermorna-shorthand-vowel
+    :: $v.tags := $v.emitted.value :- $v.emitted.image
 
 %rule zbalermorna-shorthand-vowel
   plain-vowel | stressed-vowel

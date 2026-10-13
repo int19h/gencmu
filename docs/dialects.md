@@ -538,17 +538,19 @@ Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer wi
   | hesitation
   | quiet-gap hesitation
 
-%rule pause-gap := " "
-  | [quiet-gap] PAUSE [hesitations [PAUSE]]
+%const $PAUSE " "
 
-%rule quote-spacing
+%rule pause-gap
+  [quiet-gap] PAUSE [hesitations [PAUSE]] := $PAUSE
+
+%rule word-gap
   | ε
   | quiet-gap
   | pause-gap
 
 %rule lohu-quote :: $m.tags
-  | $m:lohu-marker quote-spacing lohu-stream quote-spacing lehu-marker
-  | $m:lohu-marker quote-spacing lehu-marker
+  | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
+  | $m:lohu-marker word-gap lehu-marker
 
 %rule lohu-stream
   | lohu-word
@@ -557,7 +559,7 @@ Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer wi
   | lohu-stream lohu-word
 ```
 
-`PAUSE` marks the first surviving pause of a nonempty pause run. `quiet-gap` contains no surviving pause and contributes empty concatenation. `pause-gap` contributes one space. Only `quote-spacing` permits an empty run. `lohu-stream` has a separate no-gap route.
+`PAUSE` marks the first surviving pause of a nonempty pause run. `quiet-gap` contains no surviving pause and contributes empty concatenation. `pause-gap` contributes `$PAUSE`, the value of a pause token. Only `word-gap` permits an empty run. `lohu-stream` has a separate no-gap route.
 
 Use the same partition for lohai streams and quote edges. Preserve their marker-only alternative without adding another empty-body route. Delimiter and single-word quote gaps keep their own hesitation conditions. An erasure-aware gap inside lo'u incorrectly removes quoted `si`.
 
@@ -585,16 +587,13 @@ Compound recognition retains spacing, skipped text, and erasures before BU and Z
 
 %rule compound-gap
   | skipped<¬Gap-Pause>
-  | skipped<Gap-Pause> := " "
+  | skipped<Gap-Pause> := $PAUSE
 
-%rule spacing-gap
-  | spacing<¬Gap-Pause>
-  | spacing<Gap-Pause> := " "
 ```
 
-`hesitations` and `spacing` introduce `Gap-Pause` only for surviving pauses. `erasures` and `skipped` forward it while ignoring erased children. `compound-gap`, `spacing-gap`, and `su-survivor` read it. Their complementary tests admit each skipped derivation once.
+`hesitations` and `spacing` introduce `Gap-Pause` only for surviving pauses. `erasures` and `skipped` forward it while ignoring erased children. `compound-gap` and `su-survivor` read it. Their complementary tests admit each skipped derivation once.
 
-Put `compound-gap` before BU and before ZEI. Put `spacing-gap` after ZEI, where erasures change the recognized language. Do not insert a space unconditionally. The form `abu` has no pause and keeps no space.
+Put `compound-gap` before BU and before ZEI. Put `word-gap` after ZEI. It reads the same ordinary spacing as quote gaps and executes no erasure. Do not insert a space unconditionally. The form `abu` has no pause and keeps no space.
 
 ## Preserve SU survivors
 
@@ -604,13 +603,13 @@ In BPFK and experimental, SU can stop at a boundary such as ni'o. A survivor gro
 %rule su-survivor := $b.emitted.value :- $b.emitted.image
   | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value " " :- $b.emitted.image " "
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value $PAUSE :- $b.emitted.image $PAUSE
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅
 
-%rule suppressed-gap := ""
-  | skipped
+%rule suppressed-gap
+  skipped := ""
 
 %rule lerfu-word :: Word BY ∪ (Fault ∩ $u.tags)
   | $u:unit<¬Trailing-Pause> compound-gap bu-word

@@ -2,9 +2,13 @@
 
 This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects use [bpfk.md](bpfk.md), the word forms of the BPFK, the Lojban language planning committee, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 
-Before this stage, phonemes folds consonants to lowercase and writes each apostrophe with value `'`. A token is one unit that a stage reads or emits. Normalization gives every vowel a lowercase value and keeps stress through `Stressed`. It gives the syllable comma an empty value and keeps its tag `Syllable-Break`. The written images retain capitals and commas.
+The phoneme stage folds consonants to lowercase and writes each apostrophe with value `'`. Normalization gives every vowel a lowercase value and keeps stress through `Stressed`. It gives the syllable comma an empty value and keeps its tag `Syllable-Break`.
+
+Images spell phonemes in Latin letters. Only stressed vowels are capitals, and the syllable comma stays.
 
 ## Consonants
 
@@ -128,6 +132,8 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
 <p><img src="../../docs/diagrams/words/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
 <p><img src="../../docs/diagrams/words/shapes/has-n-affricate.svg" alt="Railroad diagram of the rule has-n-affricate"></p>
 </details>
+
+
 
 A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]), and so can the middle of a borrowing (CLL[^cll-s4-7]). A run that ends in a consonant C is C alone. Or it is a run that ends in a consonant that can precede C, followed by C. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
@@ -281,6 +287,8 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 <p><img src="../../docs/diagrams/words/shapes/run-before-z.svg" alt="Railroad diagram of the rule run-before-z"></p>
 </details>
 
+
+
 Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin a word. `long-initial-run` adds one consonant and makes a cluster of at least three.
 
 ```jbogenbau
@@ -424,15 +432,17 @@ Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin 
 <p><img src="../../docs/diagrams/words/shapes/initial-run-z.svg" alt="Railroad diagram of the rule initial-run-z"></p>
 </details>
 
+
+
 ## Vowels
 
 A vowel of a word form has one of the lowercase values `a e i o u`, with or without `Stressed`. `y` is not one of them. It is a hyphen in a compound word (lujvo), a vowel of a name, a letter of a few particles (cmavo), and hesitation. A capital vowel marks stress, and nothing else about the word changes with the case of a letter.
 
 The diphthongs of CLL[^cll-s3-4] are the falling `ai ei oi au` and the rising `ia ie ii io iu ua ue ui uo uu`. The rising ones can stand only in names and borrowings, and in a cmavo only as the whole word. A name can also have `iy` and `uy`. A diphthong can have a capital on either letter or on both, and it then marks one stressed syllable.
 
-A vowel letter reads its lowercase value with or without `Stressed`, since the stress of a cmavo is free (CLL[^cll-s3-9]). `capital-vowel` tests `Stressed` on `vowel`, and `capital-letter` also tests stressed `y`. [forms.md](forms.md) reads `any-y` with or without `Stressed`.
+Cmavo stress is free.[^cll-s3-9] `capital-vowel` reads a stressed vowel, and `capital-letter` also reads stressed `y`.
 
-`any-letter`, `brivla-item` and `name-item` read syllable boundaries through `Syllable-Break`. This keeps the syllable scans tied to written commas after normalization empties their values. `brivla-item` reads an unstressed `y`, while `name-item` reads `y` with or without `Stressed`.
+The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahead.
 
 ```jbogenbau
 %rule vowel
@@ -457,7 +467,7 @@ A vowel letter reads its lowercase value with or without `Stressed`, since the s
   i-or-u vowel
 
 %rule y-diphthong
-  i-or-u any-y
+  i-or-u "y"
 
 %rule r-letter
   "r"
@@ -466,7 +476,7 @@ A vowel letter reads its lowercase value with or without `Stressed`, since the s
   any-letter | any-letters any-letter
 
 %rule any-letter
-  consonant | vowel | any-y | "'" | Syllable-Break
+  consonant | vowel | "y" | "'" | Syllable-Break
 
 %rule stress-mark
   [any-letters] capital-letter [any-letters]
@@ -487,7 +497,11 @@ A vowel letter reads its lowercase value with or without `Stressed`, since the s
 <p><img src="../../docs/diagrams/words/shapes/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 </details>
 
+
+
 ## Syllables and stress
+
+The syllable scans read commas through `Syllable-Break`, because a comma token has an empty value. `brivla-item` permits only unstressed `y`. `name-item` permits stressed `y` too.
 
 A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL[^cll-s3-5]). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
 
@@ -545,6 +559,8 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 <p><img src="../../docs/diagrams/words/shapes/brivla-diphthong.svg" alt="Railroad diagram of the rule brivla-diphthong"></p>
 </details>
 
+
+
 A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. Its tags are:
 
 - `N0` to `N3` and `Single-End`, as above
@@ -585,12 +601,12 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 %rule name-item
   | consonant | "'" | Syllable-Break
   | $v:vowel :: Nucleus ∪ Counted ∪ Single-End ∪ ($v.matches(capital-vowel) ⟹ Marked)
-  | $y:any-y :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
+  | $y:"y" :: Nucleus ∪ ($y.matches(stress-mark) ⟹ Marked)
   | $d:brivla-diphthong :: Nucleus ∪ Counted ∪ ($d.matches(stress-mark) ⟹ Marked)
   | $e:y-diphthong :: Nucleus ∪ ($e.matches(stress-mark) ⟹ Marked)
 
 %rule name-vowel
-  vowel | any-y
+  vowel | "y"
 ```
 
 <details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code> and <code>name-vowel</code></summary>
@@ -598,6 +614,8 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 <p><img src="../../docs/diagrams/words/shapes/name-item.svg" alt="Railroad diagram of the rule name-item"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-vowel.svg" alt="Railroad diagram of the rule name-vowel"></p>
 </details>
+
+
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 

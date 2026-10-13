@@ -7,7 +7,7 @@
 <g class="rule"><rect x="40" y="34" width="58" height="24" rx="0"/><text x="69" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">vowel</text></g>
 <path d="M98 46H118"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="58" height="24" rx="0"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">any-y</text></g>
-<path d="M98 80H98a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;y&quot;</text></g>
+<path d="M82 80H98a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M118 46h6m0 -8v16m4 -16v16"/>
 </svg>

@@ -2,6 +2,8 @@
 
 This document is a layer over [the CLL grammar](cll.md), the grammar of *The Complete Lojban Language* (CLL), edition 1.1. A layer is a document that changes earlier rules. A dialect is a pipeline of stages, defined by one pipeline document. The [experimental](../dialects/experimental.md) dialect stitches this layer after that grammar, that is, combines their rules into one grammar.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its reference is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
@@ -300,11 +302,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
-%rule term-bo-link :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-  | term-connective [stag] BO # $u:term-3
+%rule term-bo-link
+  term-connective [stag] BO # $u:term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
-%rule term-link :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-  | $c:term-connective $g:term-bo-group
+%rule term-link
+  $c:term-connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -364,11 +366,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
-%rule listed-term-bo-link :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-  | term-connective [stag] BO # $u:listed-term-3
+%rule listed-term-bo-link
+  term-connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
-%rule listed-term-link :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-  | $c:term-connective $g:listed-term-bo-group
+%rule listed-term-link
+  $c:term-connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -526,8 +528,8 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | sumti-2
   | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
-%redefine-rule sumti-2 :: $EXTENSIBLE-END
-  | {... sumti-3 / sumti-connective}
+%redefine-rule sumti-2
+  {... sumti-3 / sumti-connective} :: $EXTENSIBLE-END
 
 %redefine-rule sumti-3
   {sumti-4 ... / sumti-connective [stag] BO #}

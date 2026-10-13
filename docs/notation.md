@@ -59,6 +59,8 @@ Line breaks and indentation mean nothing. So a long list of alternatives can put
   | VUhU #
 ```
 
+The bundled grammars put a sole alternative's clauses after its body. Shared clauses stay on headers for multiple alternatives. Each alternative with its own clause occupies a separate line.
+
 These separators can also stand first: `&` in bodies, `∪` and `∩` in terms, `∧` and `∨` in conditions, and clause-list commas. `∖` in terms, `/` in braces, and `≻` in ranked choices cannot stand first.
 
 A clause assigns tags or strings. Clauses come in the order `:: T`, `:= value`, then `:- image`, with each optional. `T` is a tag term, a term whose value is a set of tags. Clauses can stand after an alternative or on the definition header. A header with any clause requires a leading `|` before its first alternative.

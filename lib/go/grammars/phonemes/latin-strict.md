@@ -2,11 +2,13 @@
 
 This document opens the phoneme stage for the Latin orthography of *The Complete Lojban Language* (CLL). A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3] and no more. The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
-The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A token is one unit that a stage reads or emits. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any ordinary token without requiring a universal tag.
+The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
 The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant values are lowercase. Stressed vowels carry uppercase values and `Stressed`, while unstressed vowels carry lowercase values. The following normalization stage lowers stressed values and keeps their images and tags.
 
@@ -131,7 +133,8 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   vowel | vowel-group-plain | vowel-group-joined
 
 %rule vowel-group-plain
-  | vowel-group<¬Syllabic> $v:vowel :: $v.tags | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
+  | vowel-group<¬Syllabic> $v:vowel :: $v.tags
+  | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
 
 %rule vowel-group-joined
   vowel-group<Syllabic> $v:joined-vowel<Syllabic> :: $v.tags
@@ -216,23 +219,23 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 
 ```jbogenbau
 %rule consonant :: ∅
-  | "b" | "B" := "b"
-  | "c" | "C" := "c"
-  | "d" | "D" := "d"
-  | "f" | "F" := "f"
-  | "g" | "G" := "g"
-  | "j" | "J" := "j"
-  | "k" | "K" := "k"
-  | "l" | "L" := "l"
-  | "m" | "M" := "m"
-  | "n" | "N" := "n"
-  | "p" | "P" := "p"
-  | "r" | "R" := "r"
-  | "s" | "S" := "s"
-  | "t" | "T" := "t"
-  | "v" | "V" := "v"
-  | "x" | "X" := "x"
-  | "z" | "Z" := "z"
+  | ("b" | "B") := "b"
+  | ("c" | "C") := "c"
+  | ("d" | "D") := "d"
+  | ("f" | "F") := "f"
+  | ("g" | "G") := "g"
+  | ("j" | "J") := "j"
+  | ("k" | "K") := "k"
+  | ("l" | "L") := "l"
+  | ("m" | "M") := "m"
+  | ("n" | "N") := "n"
+  | ("p" | "P") := "p"
+  | ("r" | "R") := "r"
+  | ("s" | "S") := "s"
+  | ("t" | "T") := "t"
+  | ("v" | "V") := "v"
+  | ("x" | "X") := "x"
+  | ("z" | "Z") := "z"
 %emits
   $
 

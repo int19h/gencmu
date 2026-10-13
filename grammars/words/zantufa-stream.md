@@ -2,7 +2,9 @@
 
 A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
-This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The dialect includes this document after [the word stream](stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -36,7 +38,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker quote-spacing $f:Rafsi-Form :: $m.tags
+  $m:rahoi-marker word-gap $f:Rafsi-Form :: $m.tags
 %emits
   $m, $f :: Quoted-Text
 

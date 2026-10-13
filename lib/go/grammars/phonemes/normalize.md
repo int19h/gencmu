@@ -1,6 +1,8 @@
 # Phoneme values
 
-This document defines the normalization stage of every bundled Lojban dialect. A stage is one step of a pipeline. Normalization stands after phonemes and before forms. It changes the values that exact comparisons read and keeps the written images.
+This document defines the normalization stage of every bundled Lojban dialect. A stage is one step of a pipeline. Normalization follows phonemes and precedes forms.
+
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 A stressed vowel enters with an uppercase value and the tag `Stressed`. Each vowel mapping tests both of those fields. It writes the corresponding lowercase value. The syllable comma enters with value `,` and the tag `Syllable-Break`. Its mapping writes an empty value so that comparisons ignore the syllable boundary.
 
@@ -15,8 +17,12 @@ The stage keeps token order, count, text, image, tags, source and attachments. I
   [{unit}]
 
 %rule unit :- $.image
-  | "A"<Stressed> := "a" | "E"<Stressed> := "e" | "I"<Stressed> := "i"
-  | "O"<Stressed> := "o" | "U"<Stressed> := "u" | "Y"<Stressed> := "y"
+  | "A"<Stressed> := "a"
+  | "E"<Stressed> := "e"
+  | "I"<Stressed> := "i"
+  | "O"<Stressed> := "o"
+  | "U"<Stressed> := "u"
+  | "Y"<Stressed> := "y"
   | ","<Syllable-Break> := ""
   | _<¬Stressed ¬Syllable-Break>
 %emits

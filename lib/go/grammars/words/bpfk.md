@@ -2,6 +2,8 @@
 
 This document is the family part of the forms stage in the [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The loader stitches this document in after [forms.md](forms.md). The experimental dialect stitches [experimental.md](experimental.md) after it, and the Zantufa dialect stitches [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains jbogenbau, the notation of these grammars.
 
 This document gives the working word-form grammar of the BPFK, the Lojban language planning committee. It translates the morphology part of `camxes.peg`, a parsing expression grammar (PEG). The executable baseline is ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg). [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) (*The Complete Lojban Language*) prints that grammar in appendix A2.
@@ -69,7 +71,7 @@ A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a ru
   $h.matches(y-letters)
 
 %rule y-letters               (* a run of y letters, which a condition tests *)
-  any-y | any-y y-letters
+  "y" | "y" y-letters
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>cmevla-shape</code> to <code>y-letters</code></summary>
@@ -79,6 +81,8 @@ A `y` is a nucleus exactly where no nucleus follows it. So the first `y` of a ru
 <p><img src="../../docs/diagrams/words/bpfk/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 <p><img src="../../docs/diagrams/words/bpfk/y-letters.svg" alt="Railroad diagram of the rule y-letters"></p>
 </details>
+
+
 
 The PEG's `lojban_word` is what `post_word` looks for after a word.
 
@@ -134,6 +138,8 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 <p><img src="../../docs/diagrams/words/bpfk/end-of-text.svg" alt="Railroad diagram of the rule end-of-text"></p>
 <p><img src="../../docs/diagrams/words/bpfk/nothing.svg" alt="Railroad diagram of the rule nothing"></p>
 </details>
+
+
 
 ## Cmevla
 
@@ -193,6 +199,8 @@ A name is a run of letters that ends in a consonant and is followed by a pause. 
 <p><img src="../../docs/diagrams/words/bpfk/more-any-syllables.svg" alt="Railroad diagram of the rule more-any-syllables"></p>
 </details>
 
+
+
 ## Cmavo
 
 A cmavo is not the start of a name, and not the start of a lujvo that begins with a CVC rafsi and a y-hyphen. Its form is an onset and nuclei joined by apostrophes, or a run of `y`. A pause or another word follows it. `CVCy_lujvo` is what keeps `bajykla` one lujvo, and not `ba jy kla`.
@@ -240,6 +248,8 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 <p><img src="../../docs/diagrams/words/bpfk/nucleus-h-pair.svg" alt="Railroad diagram of the rule nucleus-h-pair"></p>
 </details>
 
+
+
 The last nucleus of a cmavo is unstressed, or it is not followed by a consonant cluster. So `MIklama` is not `mI klama`. The second alternative of the PEG's choice applies where the first does not begin: where a nucleus begins, that is where it is stressed.
 
 ```jbogenbau
@@ -266,6 +276,8 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 <p><img src="../../docs/diagrams/words/bpfk/ys.svg" alt="Railroad diagram of the rule ys"></p>
 <p><img src="../../docs/diagrams/words/bpfk/more-ys.svg" alt="Railroad diagram of the rule more-ys"></p>
 </details>
+
+
 
 ## Brivla
 
@@ -313,6 +325,8 @@ A brivla is not a cmavo. It is any number of rafsi followed by a core. The core 
 <p><img src="../../docs/diagrams/words/bpfk/stressed-initial-rafsi.svg" alt="Railroad diagram of the rule stressed-initial-rafsi"></p>
 </details>
 
+
+
 A rafsi without a y-hyphen stands before the core only where neither it nor the part after it begins an extended rafsi or a borrowing. So `spageti'ybroda` begins with the extended rafsi `spageti'y`, and `selspageti` is one borrowing.
 
 ```jbogenbau
@@ -335,6 +349,8 @@ A rafsi without a y-hyphen stands before the core only where neither it nor the 
 <p><img src="../../docs/diagrams/words/bpfk/initial-rafsi.svg" alt="Railroad diagram of the rule initial-rafsi"></p>
 <p><img src="../../docs/diagrams/words/bpfk/any-extended-rafsi.svg" alt="Railroad diagram of the rule any-extended-rafsi"></p>
 </details>
+
+
 
 ## Borrowings and extended rafsi
 
@@ -422,6 +438,8 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 <p><img src="../../docs/diagrams/words/bpfk/slinkuhi.svg" alt="Railroad diagram of the rule slinkuhi"></p>
 </details>
 
+
+
 The slinku'i test and a borrowing's head look for a string of rafsi. That is any number of rafsi without a y-hyphen, and then a part that can end a lujvo or that has a y-hyphen. The PEG uses it only in lookaheads.
 
 ```jbogenbau
@@ -457,6 +475,8 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
 <p><img src="../../docs/diagrams/words/bpfk/rafsi-string-end.svg" alt="Railroad diagram of the rule rafsi-string-end"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-y-less-rafsi-opt.svg" alt="Railroad diagram of the rule stressed-y-less-rafsi-opt"></p>
 </details>
+
+
 
 ## Rafsi
 
@@ -552,6 +572,8 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 <p><img src="../../docs/diagrams/words/bpfk/y-less-rafsi-body.svg" alt="Railroad diagram of the rule y-less-rafsi-body"></p>
 </details>
 
+
+
 A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string of rafsi, so it builds no lujvo.
 
 ```jbogenbau
@@ -625,6 +647,8 @@ A rafsi followed by `'y` is a `hy_rafsi`. The PEG uses it only to end a string o
 <p><img src="../../docs/diagrams/words/bpfk/r-hyphen.svg" alt="Railroad diagram of the rule r-hyphen"></p>
 <p><img src="../../docs/diagrams/words/bpfk/r-hyphen-opt.svg" alt="Railroad diagram of the rule r-hyphen-opt"></p>
 </details>
+
+
 
 ## Syllables and stress
 
@@ -725,6 +749,8 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 <p><img src="../../docs/diagrams/words/bpfk/stressed.svg" alt="Railroad diagram of the rule stressed"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stress-mark.svg" alt="Railroad diagram of the rule stress-mark"></p>
 </details>
+
+
 
 A syllable is an onset, a nucleus and an optional coda. A consonantal syllable is a consonant before a syllabic consonant, and a coda. A coda is a consonant before another syllable, or at most a syllabic consonant and a consonant before a pause.
 
@@ -846,6 +872,8 @@ A syllable is an onset, a nucleus and an optional coda. A consonantal syllable i
 <p><img src="../../docs/diagrams/words/bpfk/vowel-letter.svg" alt="Railroad diagram of the rule vowel-letter"></p>
 </details>
 
+
+
 ## Letters
 
 A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `i`, `o` and `u` rules each read one value. `stress-mark` tests `Stressed` on those five values, so it finds the written stress. A `y` is not followed by a nucleus, unless that nucleus is another `y`. An apostrophe is followed by a nucleus.
@@ -867,7 +895,7 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
   "u"
 
 %rule y                       (* y <- comma* [yY] !(!y nucleus) *)
-  $y:any-y
+  $y:"y"
 %conditions
   ¬$y.following-tokens.begins(non-y-nucleus)
 
@@ -892,6 +920,8 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
 <p><img src="../../docs/diagrams/words/bpfk/non-y-nucleus.svg" alt="Railroad diagram of the rule non-y-nucleus"></p>
 <p><img src="../../docs/diagrams/words/bpfk/h.svg" alt="Railroad diagram of the rule h"></p>
 </details>
+
+
 
 ## Consonants
 
@@ -973,6 +1003,8 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
 <p><img src="../../docs/diagrams/words/bpfk/voiced.svg" alt="Railroad diagram of the rule voiced"></p>
 <p><img src="../../docs/diagrams/words/bpfk/unvoiced.svg" alt="Railroad diagram of the rule unvoiced"></p>
 </details>
+
+
 
 Each consonant letter refuses a following apostrophe that begins a syllable, a glide, or the same consonant. Each voiced or unvoiced letter also refuses consonants of the other voicing, and some letters refuse other letters, as CLL[^cll-s3-6] says.
 
@@ -1140,6 +1172,8 @@ Each consonant letter refuses a following apostrophe that begins a syllable, a g
 <p><img src="../../docs/diagrams/words/bpfk/t.svg" alt="Railroad diagram of the rule t"></p>
 </details>
 
+
+
 ## Greedy optionals
 
 Each optional of the PEG is a rule that reads the optional part wherever it begins.
@@ -1197,6 +1231,8 @@ Each optional of the PEG is a rule that reads the optional part wherever it begi
 <p><img src="../../docs/diagrams/words/bpfk/other-opt.svg" alt="Railroad diagram of the rule other-opt"></p>
 <p><img src="../../docs/diagrams/words/bpfk/liquid-opt.svg" alt="Railroad diagram of the rule liquid-opt"></p>
 </details>
+
+
 
 ## Differences from CLL and the reference PEG
 

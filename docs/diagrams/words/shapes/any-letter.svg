@@ -10,8 +10,8 @@
 <g class="rule"><rect x="40" y="68" width="58" height="24" rx="0"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">vowel</text></g>
 <path d="M98 80H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="58" height="24" rx="0"/><text x="69" y="119" textLength="42" lengthAdjust="spacingAndGlyphs">any-y</text></g>
-<path d="M98 114H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;y&quot;</text></g>
+<path d="M82 114H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M82 148H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

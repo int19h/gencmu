@@ -38,7 +38,7 @@ The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings 
   $
 
 %rule cyrillic-apostrophe
-  "һ" | "Һ"
+  ("һ" | "Һ")
 %emits
   $ :: ∅ := "'"
 
@@ -72,12 +72,16 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   $
 
 %rule cyrillic-stressed-vowel :: Stressed ∪ Syllabic
-  | "А" := "A" | ("а" | "А") stress-mark := "A"
+  | "А" := "A"
+  | ("а" | "А") stress-mark := "A"
   | ("Е" | "Э" | "Є") := "E"
   | ("е" | "э" | "є" | "Е" | "Э" | "Є") stress-mark := "E"
-  | "И" := "I" | "І" := "I" | ("и" | "і" | "И" | "І") stress-mark := "I"
-  | "О" := "O" | ("о" | "О") stress-mark := "O"
-  | "У" := "U" | ("у" | "У") stress-mark := "U"
+  | ("И" | "І") := "I"
+  | ("и" | "і" | "И" | "І") stress-mark := "I"
+  | "О" := "O"
+  | ("о" | "О") stress-mark := "O"
+  | "У" := "U"
+  | ("у" | "У") stress-mark := "U"
   | ("Ъ" | "Ы" | "Ә") := "Y"
   | ("ъ" | "ы" | "ә" | "Ъ" | "Ы" | "Ә") stress-mark := "Y"
 %emits

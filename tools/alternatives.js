@@ -4,11 +4,12 @@
 // A rule is eligible when its DOM has two or more alternatives, and each is a
 // single symbol with no guard and no tags of its own. A single symbol is a
 // reference, a terminal, a range, a property, a tested symbol or ε. An
-// eligible rule does not put exactly one symbol on each of its lines when it
+// eligible rule with no alternative recipe does not put one symbol on each line when it
 // has more than one, unless no two adjacent symbols fit on one line. Each line
 // that a symbol of its body occupies holds at most LINE_LIMIT code points. A
 // symbol can run over several lines, and each of them counts. A rule chooses
-// its own grouping otherwise.
+// its own grouping otherwise. Each alternative with its own recipe occupies a
+// separate line.
 //
 // The rules and their lines come from the Markdown extraction of the engine
 // and the DOM's positions. From a rule's position, a small scanner finds
@@ -328,6 +329,16 @@ export function layoutProblems(markdown, dom, path, limit = LINE_LIMIT) {
     for (const number of bodyLines) {
       const width = [...lines[number - 1]].length;
       if (width > limit) problems.push(`${path}:${number}: a line of ${keyword} ${rule.name} holds ${width} characters, more than ${limit}`);
+    }
+    const ownRecipes = rule.alternatives.map((alternative) => alternative.value !== undefined || alternative.image !== undefined);
+    if (ownRecipes.some(Boolean)) {
+      const shared = new Set();
+      symbols.forEach((symbol, index) => {
+        if (!ownRecipes[index]) return;
+        for (const number of symbol.lines) if (occupants.get(number) > 1) shared.add(number);
+      });
+      for (const number of shared) problems.push(`${path}:${number}: put alternatives with their own recipes on separate lines`);
+      continue;
     }
     if (bodyLines.length < 2 || [...occupants.values()].some((count) => count !== 1)) continue;
     const header = rule.tags !== undefined || rule.value !== undefined || rule.image !== undefined;

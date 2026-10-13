@@ -2,9 +2,11 @@
 
 This document opens the forms stage. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
-The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their original images and tags.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The stage divides the text into its source words and tags each word with its class. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
+The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their phoneme images and tags.
+
+The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
 This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
@@ -27,7 +29,9 @@ A lookahead tests following input without consuming it. The word forms of the BP
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A foreign run is not an error here. The word stage decides whether a foreign run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects an foreign run ([stream.md](stream.md)). So this stage never rejects a text.
+A foreign run is not an error here. The word stage decides whether a foreign run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
+
+The comma has an empty value, so `nonpause-phoneme` reads it by its `Syllable-Break` tag.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -88,9 +92,11 @@ A run that divides into words divides in one way only. The word forms of each fa
 <p><img src="../../docs/diagrams/words/forms/nonpause-phoneme.svg" alt="Railroad diagram of the rule nonpause-phoneme"></p>
 </details>
 
+
+
 The stage covers every input token. It passes pauses and the foreign runs of the phoneme stage through, and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
-A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value concatenates normalized phoneme values, while its image concatenates their written images. A `zoi` delimiter compares with that value exactly as with the same phonemes read as words. The token's text retains what the author wrote.
+A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value concatenates normalized phoneme values, while its image concatenates their phoneme images. A `zoi` delimiter compares with that value exactly as with the same phonemes read as words. The token's text retains what the author wrote.
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
 
@@ -128,11 +134,15 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 <p><img src="../../docs/diagrams/words/forms/run-words.svg" alt="Railroad diagram of the rule run-words"></p>
 </details>
 
+
+
 A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
+
+The y rules read syllable commas by `Syllable-Break`, because those tokens have empty values.
 
 Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
@@ -159,8 +169,8 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 %emits
   $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
-%rule split-first-y :: $.tags(source-word)
-  | $p:y-prefix $y:y-atom
+%rule split-first-y
+  $p:y-prefix $y:y-atom :: $.tags(source-word)
 %conditions
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
@@ -168,8 +178,8 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $p :: $.tags(source-word) ∪ Run-Initial,
   $y :: $.tags(source-word) ∪ Spacing ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
-%rule split-later-y :: $.tags(source-word)
-  | $p:y-prefix $y:y-atom
+%rule split-later-y
+  $p:y-prefix $y:y-atom :: $.tags(source-word)
 %conditions
   $.matches(hesitation-shape),
   $.following-tokens.begins(bu-form-ahead)
@@ -181,7 +191,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   y-atom | y-prefix y-atom
 
 %rule y-atom
-  [Syllable-Break] any-y
+  [Syllable-Break] "y"
 
 %rule bu-form-ahead
   [PAUSE] bu-form
@@ -204,6 +214,8 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 <p><img src="../../docs/diagrams/words/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></p>
 </details>
 
+
+
 ## Words
 
 A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on with its kind: `Word` and `Cmavo`, `BRIVLA` or `CMEVLA` for a word, and `Hesitation` for hesitation. A cmavo also carries the selma'o that the lexicon gives it: `$c.value.classify(lexicon)` looks the cmavo's normalized value up in the lexicon. A cmavo unknown to the lexicon is still a word, of no class.
@@ -220,16 +232,18 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 <p><img src="../../docs/diagrams/words/forms/source-word.svg" alt="Railroad diagram of the rule source-word"></p>
 </details>
 
+
+
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 
 ```jbogenbau
 %rule hesitation-shape
   $h:y-run :: Continued ∪ Uncounted ∪ $h.tags
 
 %rule y-run
-  any-y | any-y y-run | any-y Syllable-Break y-run
+  "y" | "y" y-run | "y" Syllable-Break y-run
 ```
 
 <details><summary>Railroad diagrams of <code>hesitation-shape</code> and <code>y-run</code></summary>
@@ -237,16 +251,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 <p><img src="../../docs/diagrams/words/forms/y-run.svg" alt="Railroad diagram of the rule y-run"></p>
 </details>
 
-A `y` here has value `y`, with or without `Stressed`. `any-y` therefore needs one terminal. `y-atom` and `y-run` read the empty-valued comma through `Syllable-Break`. `nonpause-phoneme` uses lowercase vowel values and the same boundary tag, so the comma token stays readable through its tag although its value is empty.
 
-```jbogenbau
-%rule any-y
-  "y"
-```
-
-<details><summary>Railroad diagram of <code>any-y</code></summary>
-<p><img src="../../docs/diagrams/words/forms/any-y.svg" alt="Railroad diagram of the rule any-y"></p>
-</details>
 
 ## Differences from camxes
 
