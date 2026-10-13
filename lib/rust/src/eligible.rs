@@ -339,7 +339,11 @@ impl<'a> Proofs<'a> {
                 }
                 match (dot, production.syms.get(dot.wrapping_sub(1))) {
                     (0, _) | (_, Some(Sym::T(_))) => Next::Alone,
-                    (1, Some(&Sym::N(first))) if first == production.rule => Next::Alone,
+                    (1, Some(&Sym::N(first)))
+                        if first == production.rule && !production.optionals.iter().any(|b| b.end == 0) =>
+                    {
+                        Next::Alone
+                    }
                     _ => Next::Constituent,
                 }
             }
@@ -747,8 +751,14 @@ mod tests {
             }
             let alone = dot == 0
                 || matches!(syms[dot as usize - 1], Sym::T(_))
-                || (dot == 1 && syms[0] == Sym::N(self.g.prods[prod as usize].rule));
-            Some((!alone).then(|| dot as usize - 1))
+                || (dot == 1
+                    && syms[0] == Sym::N(self.g.prods[prod as usize].rule)
+                    && !self.g.prods[prod as usize].optionals.iter().any(|b| b.end == 0));
+            if alone {
+                Some(None)
+            } else {
+                Some(Some(dot as usize - 1))
+            }
         }
 
         /// The advances that make an item: the item before and the
@@ -911,11 +921,13 @@ mod tests {
     /// per-route helper optionals, including a multi-symbol logical route.
     #[test]
     fn the_oracle_keeps_optional_blocker_routes() {
-        for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent"] {
+        for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent", "recursive-prefix"] {
             let tokens = if optional == "[$c:c D]" { vec!["B", "D", "D", "T"] } else { vec!["B", "D", "T"] };
             let tokens = if optional == "parent" { vec!["B", "D", "T", "Z"] } else { tokens };
             let suffix = tokens[1..].join(" ");
-            let body = if optional == "parent" {
+            let body = if optional == "recursive-prefix" {
+                "[$c:c] r [+T] D T | B | B D".to_string()
+            } else if optional == "parent" {
                 "B [[($c:c ≻ c)] [+T] D T] Z".to_string()
             } else {
                 format!("B {optional} [+T] {suffix}")

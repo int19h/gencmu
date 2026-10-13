@@ -608,3 +608,24 @@ fn nested_optional_priority_survives_alignment() {
         }
     }
 }
+
+/// An absent captured optional still precedes the recursive reference in
+/// logical structure. The reference is not an initial self-reference (§4).
+#[test]
+fn empty_optionals_do_not_make_recursion_initial() {
+    for optional in ["[A]", "[$a:A]", "[[$a:A]]", "[($a:A ≻ A)]"] {
+        for view in ["", ".without-elision", ".without-elision.onward"] {
+            let grammar = format!("%rule text $x:input\n%conditions $x{view}.matches(r)\n%rule input B D T\n%rule r {optional} r [+T] D T | B | B D");
+            let tokens = ["B", "D", "T"]
+                .iter()
+                .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                .collect::<Vec<_>>()
+                .join(",");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{tokens}],"expect":{{"error":"rejected"}}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|e| panic!("{grammar}: {e}"));
+        }
+    }
+}

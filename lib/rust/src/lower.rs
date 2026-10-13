@@ -406,12 +406,8 @@ impl Sequence {
     fn one(item: Item) -> Self {
         Self { items: vec![item], logical_width: 1, inherited: Some(0), optionals: Vec::new() }
     }
-    fn optional(&mut self, expr: &Expr) {
-        self.optionals.push(OptionalBoundary {
-            expression: expr as *const Expr as usize,
-            start: 0,
-            end: self.items.len(),
-        });
+    fn optional(&mut self, expression: usize) {
+        self.optionals.push(OptionalBoundary { expression, start: 0, end: self.items.len() });
     }
     fn append(&mut self, other: &Self) {
         self.inherited = if self.logical_width == 0 {
@@ -464,6 +460,8 @@ struct Lowerer<'a> {
     /// The id of each test, so that a test met again is found at once.
     test_index: FxMap<SymbolTest, u32>,
     helpers: Vec<HelperDef>,
+    /// Stable occurrence numbers retain identity across route expansion.
+    optional_ids: FxMap<usize, usize>,
     owner: u32,
     alternative: usize,
     /// For each place of sugar being expanded, and the alternative itself at
@@ -508,6 +506,11 @@ fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
 }
 
 impl<'a> Lowerer<'a> {
+    fn optional_id(&mut self, expr: &Expr) -> usize {
+        let next = self.optional_ids.len();
+        *self.optional_ids.entry(expr as *const Expr as usize).or_insert(next)
+    }
+
     /// A terminal's id, by its name; `characters` for a range or a
     /// property, whose name is its written form, which no tag has.
     fn terminal(&mut self, name: &str, characters: Option<Characters>) -> u32 {
@@ -696,7 +699,7 @@ impl<'a> Lowerer<'a> {
                         sequence.inherited = None;
                     }
                     sequence.logical_width = 1;
-                    sequence.optional(expr);
+                    sequence.optional(self.optional_id(expr));
                 }
                 out
             }
@@ -713,7 +716,7 @@ impl<'a> Lowerer<'a> {
                         self.enter();
                         let sym = self.helper(vec![route], None, expr);
                         let mut sequence = Sequence::one((sym, None, None));
-                        sequence.optional(expr);
+                        sequence.optional(self.optional_id(expr));
                         sequence
                     })
                     .collect()
@@ -729,7 +732,7 @@ impl<'a> Lowerer<'a> {
                 let sym = self.helper(prods, elided, expr);
                 let mut sequence = Sequence::one((sym, None, None));
                 if *mark == Mark::Plain {
-                    sequence.optional(expr);
+                    sequence.optional(self.optional_id(expr));
                 }
                 vec![sequence]
             }
@@ -990,6 +993,7 @@ fn lower_mode(
         tests: Vec::new(),
         test_index: FxMap::default(),
         helpers: Vec::new(),
+        optional_ids: FxMap::default(),
         owner: 0,
         alternative: 0,
         places: Vec::new(),
