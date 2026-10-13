@@ -276,5 +276,28 @@
     "itemsPerUnit": 24,
     "slack": 64,
     "atMostStrict": true
+  },
+  "familyNestedTwoTerminals": {
+    "case": "engine/without-elision-except-nested-two-terminals.json",
+    "strictCase": "engine/without-elision-nested-two-terminals.json",
+    "lengths": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "overStrict": {
+      "itemsPercent": 250,
+      "itemsSlack": 64,
+      "closeStatesPerUnit": 1
+    },
+    "summaries": {
+      "perSquare": 2,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 8,
+      "slack": 1024
+    }
   }
 }
