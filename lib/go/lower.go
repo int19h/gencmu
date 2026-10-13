@@ -138,13 +138,12 @@ type slot struct {
 }
 
 // symTest is a test of a symbol in a body (engine §2, §4) with its value:
-// a string for a sound test, = or ≠, and a tag set for a tag test.
+// an exact string for = or ≠, or signed stored-tag requirements.
 type symTest struct {
 	op           string
 	other        *symTest
 	requirements []resolvedRequirement
 	sound        string
-	tags         []string // a tag test's tags, in code point order
 	// written is the test as an expected list writes it after its
 	// terminal, such as ="la" (docs/output.md).
 	written string

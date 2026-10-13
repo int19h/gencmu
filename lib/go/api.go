@@ -476,8 +476,8 @@ func (d *Dialect) Parse(text string, options ParseOptions) (*ParseResult, error)
 // Source ranges index, in code points.
 // Each token's Source must lie within the text. The sources of two tokens
 // can overlap or lie out of order (engine §11). Each token's Span must
-// start at 0 or later and must not end before it starts. A token that the caller supplies has
-// its Text as its label (engine §5), whatever its Label says. It cannot
+// start at 0 or later and must not end before it starts. Value and Image
+// default independently to Text when their pointers are nil. A caller cannot
 // supply attachments: a token with a non-empty Before or After is a usage
 // error, and empty ones are dropped (docs/api.md). The parse copies the
 // tokens and leaves the caller's unchanged.

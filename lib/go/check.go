@@ -66,7 +66,7 @@ func makeReading(g *lowered) *readingSets {
 type reconstruction struct {
 	records []Restoration
 	// tagsets and sounds are each token's recognition tags and, for a
-	// synthetic token, its recognition sound, in canonical form.
+	// synthetic token, its exact saved recognition value.
 	tagsets []*tagset
 	sounds  []string
 	// synthetic marks each token's provenance, original holds an original

@@ -92,8 +92,8 @@ func TestCaptureGrowth(t *testing.T) {
 		if got := wholeItems("%rule text t\n%rule t t t | A", n); got != 1 {
 			t.Errorf("t t over %d: %d completed items", n, got)
 		}
-		if got := wholeItems("%rule text t\n%rule t $l(t) $r(t) | A", n); got != n-1 {
-			t.Errorf("$l(t) $r(t) over %d: %d completed items, not %d", n, got, n-1)
+		if got := wholeItems("%rule text t\n%rule t $l:t $r:t | A", n); got != n-1 {
+			t.Errorf("$l:t $r:t over %d: %d completed items, not %d", n, got, n-1)
 		}
 	}
 }
@@ -104,14 +104,14 @@ func TestCaptureGrowth(t *testing.T) {
 func captureStorageRun(t *testing.T, n int) func() *recognizer {
 	names := make([]string, n)
 	for i := range names {
-		names[i] = fmt.Sprintf("$c%d(A)", i)
+		names[i] = fmt.Sprintf("$c%d:A", i)
 	}
 	// A tag term that reads every capture, the first last.
 	tags := make([]string, n)
 	for i := range tags {
-		tags[i] = fmt.Sprintf("tags($c%d)", n-1-i)
+		tags[i] = fmt.Sprintf("$c%d.tags", n-1-i)
 	}
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%tags ~x ∪ "+strings.Join(tags, " ∪ ")+"\n%conditions text($c0) = \"a\""))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+" :: X ∪ "+strings.Join(tags, " ∪ ")+"\n%conditions $c0.source-text = \"a\""))
 	lg := d.lower(0, map[string]bool{})
 	toks := make([]Token, n)
 	for i := range toks {
@@ -165,8 +165,8 @@ func captureSearchRun(t *testing.T, n int, far func(int) string) func() *recogni
 	names := make([]string, n)
 	conditions := make([]string, n)
 	for i := range names {
-		names[i] = fmt.Sprintf("$c%d(A)", i)
-		conditions[i] = fmt.Sprintf("text($c%d) = text(%s)", i, far(i))
+		names[i] = fmt.Sprintf("$c%d:A", i)
+		conditions[i] = fmt.Sprintf("$c%d.source-text = (%s).source-text", i, far(i))
 	}
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+strings.Join(names, " ")+"\n%conditions "+strings.Join(conditions, ", ")))
 	lg := d.lower(0, map[string]bool{})
@@ -295,11 +295,11 @@ func TestNotationNestedCaptures(t *testing.T) {
 	}
 	read := func(n int, items, steps int64) (w *workCounts, err *Error, stop any) {
 		var b strings.Builder
-		b.WriteString("```jbogenbau\n%rule text ")
+		b.WriteString("```jbogenbau\n%rule text :: T | ")
 		for i := range n {
-			fmt.Fprintf(&b, "$c%d(A) (", i)
+			fmt.Fprintf(&b, "$c%d:A (", i)
 		}
-		b.WriteString("A" + strings.Repeat(")", n) + " %tags ~T\n```\n")
+		b.WriteString("A" + strings.Repeat(")", n) + "\n```\n")
 		w = &workCounts{}
 		w.items.most, w.readerSteps.most = items, steps
 		defer func() { stop = recover() }()
@@ -334,7 +334,7 @@ func TestNotationManyCaptures(t *testing.T) {
 	read := func(n int, steps int64) (w *workCounts, err *Error, stop any) {
 		alts := make([]string, n)
 		for i := range alts {
-			alts[i] = fmt.Sprintf("$c%d(A) <tags($c%d)>", i, i)
+			alts[i] = fmt.Sprintf("$c%d:A :: $c%d.tags", i, i)
 		}
 		text := "```jbogenbau\n%rule text " + strings.Join(alts, " | ") + "\n```\n"
 		w = &workCounts{}
@@ -432,12 +432,12 @@ func TestQueryDepth(t *testing.T) {
 // in recognition and in emission, with the stack of a goroutine held to
 // 1 MiB. Each nested parse asks another over a span one token shorter.
 func TestNestedChainDeep(t *testing.T) {
-	chain := "%rule c 'a' %conditions ¬matches(after($), c)"
+	chain := "%rule c \"a\" %conditions ¬$.following-tokens.matches(c)"
 	text := strings.Repeat("a", 20000)
 	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
 	for _, grammar := range []string{
-		"%ambiguity-resolution greedy\n%rule text c {'a'}\n" + chain,
-		"%ambiguity-resolution greedy\n%rule text $x(s) %emits $ <T ∪ tags($x, c)>\n%rule s {'a'}\n" + chain,
+		"%ambiguity-resolution greedy\n%rule text c {\"a\"}\n" + chain,
+		"%ambiguity-resolution greedy\n%rule text $x:s %emits $ :: T ∪ $x.tags(c)\n%rule s {\"a\"}\n" + chain,
 	} {
 		d := mustLoad(t, oneStage(grammar))
 		res, err := d.Parse(text, ParseOptions{})
@@ -480,8 +480,8 @@ func TestDeepGrammar(t *testing.T) {
 		return b.String()
 	}
 	for _, c := range []struct{ name, grammar, text string }{
-		{"units", "%rule text r0\n" + chain(func(i int) string { return fmt.Sprintf("r%d", i+1) }) + fmt.Sprintf("%%rule r%d 'a'", n), "a"},
-		{"attachments", "%rule text w\n%rule w $y(w) $x('a') | $x('a')\n%emits\n  ($y) $x", strings.Repeat("a", n)},
+		{"units", "%rule text r0\n" + chain(func(i int) string { return fmt.Sprintf("r%d", i+1) }) + fmt.Sprintf("%%rule r%d \"a\"", n), "a"},
+		{"attachments", "%rule text w\n%rule w $y:w $x:\"a\" | $x:\"a\"\n%emits\n  ($y) $x", strings.Repeat("a", n)},
 	} {
 		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n"+c.grammar))
 		func() {

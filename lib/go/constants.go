@@ -376,23 +376,6 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, u.rule.At, "%s", msg)
 			}
 		}
-		// A string constant in a sound test must be a canonical sound (§2,
-		// §9); the error stands at the constant.
-		for _, a := range u.rule.Alternatives {
-			for _, t := range testsIn(a.Expr) {
-				refs := constRefs(t.Value)
-				if !isValueTest(t.Op) || len(refs) == 0 {
-					continue
-				}
-				v, err := g.evaluateClosed(u.doc, t.Value, u.rule.At)
-				if err != nil {
-					return err
-				}
-				if msg := soundProblem(v.s, g.uni); msg != "" {
-					return g.constError(u.doc, refs[0].At, "%s", msg)
-				}
-			}
-		}
 		for _, call := range closedCalls(u.rule) {
 			arg := call.Items[0]
 			if call.Str == "split" {
@@ -401,7 +384,11 @@ func (g *stageGrammar) resolveConstants() *Error {
 			if arg.Kind != tmConst {
 				continue
 			}
-			seen := g.constants[arg.Str].value.s
+			v, err := g.evaluateClosed(u.doc, arg, u.rule.At)
+			if err != nil {
+				return err
+			}
+			seen := v.s
 			if call.Str == "split" && seen == "" {
 				return g.constError(u.doc, arg.At, "split has an empty delimiter")
 			}
@@ -443,7 +430,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 	return nil
 }
 
-// closedCalls lists the calls of split and tag in a rule's clauses.
+// closedCalls lists split calls in a rule's clauses.
 func closedCalls(rule *domRule) []*domTerm {
 	var found []*domTerm
 	var term func(t *domTerm)

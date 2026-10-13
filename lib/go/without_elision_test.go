@@ -12,19 +12,19 @@ import (
 )
 
 func TestWithoutElisionEmission(t *testing.T) {
-	grammar := "%rule text $x(candidate)\n%emits $x<tags(without-elision($x), rival)>\n%rule candidate X [+T]\n%rule rival X [+T] <~aligned>"
+	grammar := "%rule text $x:candidate\n%emits $x:: $x.without-elision.tags(rival)\n%rule candidate X [+T]\n%rule rival X [+T] :: Aligned"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
 	res, err := d.parseStoredTokens("x", []Token{{Text: "x", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}}, ParseOptions{})
 	if err != nil || !res.OK || len(res.Stages[0].Output) != 1 {
 		t.Fatalf("emission: %v, %+v", err, res)
 	}
-	if got := res.Stages[0].Output[0].Tags; len(got) != 1 || got[0] != "aligned" {
+	if got := res.Stages[0].Output[0].Tags; len(got) != 1 || got[0] != "Aligned" {
 		t.Fatalf("emission tags: %v", got)
 	}
 }
 
 func TestWithoutElisionOriginalEmptySource(t *testing.T) {
-	grammar := "%rule text $x(candidate) Y\n%conditions matches(without-elision($x), rival)\n%rule candidate X [+T=\"a\"]\n%rule rival X [+T=\"b\"]\n%conditions text($) = \"\", phonemes($) = \"a\", initial($), begins(after($), suffix)\n%rule suffix Y"
+	grammar := "%rule text $x:candidate Y\n%conditions $x.without-elision.matches(rival)\n%rule candidate X [+T=\"a\"]\n%rule rival X [+T=\"b\"]\n%conditions $.source-text = \"\", $.value = \"a\", $.starts-input, $.following-tokens.begins(suffix)\n%rule suffix Y"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
 	tokens := []Token{
 		{Text: "", Value: "a", Tags: []string{"X"}, Span: [2]int{0, 1}, Source: [2]int{0, 0}},
@@ -37,7 +37,7 @@ func TestWithoutElisionOriginalEmptySource(t *testing.T) {
 }
 
 func TestWithoutElisionCommonEntryValue(t *testing.T) {
-	grammar := "%rule text Q $x(choice)\n%conditions matches(without-elision($x), choice)\n%rule choice $p(prefix) (a ≻ b)\n%rule prefix t | u\n%rule t X [+T=\"a\"]\n%conditions ¬initial($)\n%rule u X [+T=\"b\"]\n%conditions initial($)\n%rule a Y [+U]\n%rule b Y [+V]"
+	grammar := "%rule text Q $x:choice\n%conditions $x.without-elision.matches(choice)\n%rule choice $p:prefix (a ≻ b)\n%rule prefix t | u\n%rule t X [+T=\"a\"]\n%conditions ¬$.starts-input\n%rule u X [+T=\"b\"]\n%conditions $.starts-input\n%rule a Y [+U]\n%rule b Y [+V]"
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n"+grammar))
 	tokens := []Token{}
 	for i, tag := range []string{"Q", "X", "Y"} {
@@ -50,7 +50,7 @@ func TestWithoutElisionCommonEntryValue(t *testing.T) {
 }
 
 func TestWithoutElisionNestedWholeSeal(t *testing.T) {
-	grammar := "%ambiguity-resolution greedy\n%rule text Q $x(outer)\n%rule outer (X [+T] (a ≻ b)) ≻ (X [+U] c)\n%conditions ¬initial($) ⟹ matches(without-elision($), outer)\n%rule a Y [+V]\n%rule b Y [+W]\n%rule c Y [+Z]"
+	grammar := "%ambiguity-resolution greedy\n%rule text Q $x:outer\n%rule outer (X [+T] (a ≻ b)) ≻ (X [+U] c)\n%conditions ¬$.starts-input ⟹ $.without-elision.matches(outer)\n%rule a Y [+V]\n%rule b Y [+W]\n%rule c Y [+Z]"
 	d := mustLoad(t, oneStage(grammar))
 	tokens := []Token{}
 	for i, tag := range []string{"Q", "X", "Y"} {
@@ -69,8 +69,8 @@ func TestWithoutElisionNestedWholeSeal(t *testing.T) {
 func TestWithoutElisionAttachments(t *testing.T) {
 	d := mustLoad(t, map[string]string{
 		"p.md":      "```jbogenbau\n%stage words\n%include \"words.md\"\n%stage syntax\n%include \"syntax.md\"\n```\n",
-		"words.md":  "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word) $m(mark)\n%emits $w ($m)\n%rule word 'x' <X>\n%rule mark 'm' <M>\n%emits $\n```\n",
-		"syntax.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%emits $x\n%rule candidate X [+T]\n%rule rival X [+T]\n%conditions text($) = \"x\", tags(without-elision($)) = X\n```\n",
+		"words.md":  "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:word $m:mark\n%emits $w ($m)\n%rule word \"x\" :: X\n%rule mark \"m\" :: M\n%emits $\n```\n",
+		"syntax.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $x:candidate\n%conditions $x.without-elision.matches(rival)\n%emits $x\n%rule candidate X [+T]\n%rule rival X [+T]\n%conditions $.source-text = \"x\", $.without-elision.tags = X\n```\n",
 	})
 	res, err := d.Parse("xm", ParseOptions{})
 	if err != nil || !res.OK || len(res.Stages[1].Output) != 1 {
@@ -147,9 +147,9 @@ func TestWithoutElisionPrefixAncestryStorage(t *testing.T) {
 
 func TestWithoutElisionParserGrowth(t *testing.T) {
 	grammars := map[string]string{
-		"closes":   "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate {piece}\n%rule piece X [+T]\n%rule rival {piece}",
-		"blocks":   "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate {piece}\n%rule piece a ≻ b\n%rule a X [+T]\n%rule b X [+U]\n%rule rival {piece}",
-		"wrappers": "%rule text $x(candidate)\n%conditions matches(without-elision($x), candidate)\n%rule candidate X [candidate] [+T]",
+		"closes":   "%rule text $x:candidate\n%conditions $x.without-elision.matches(rival)\n%rule candidate {piece}\n%rule piece X [+T]\n%rule rival {piece}",
+		"blocks":   "%rule text $x:candidate\n%conditions $x.without-elision.matches(rival)\n%rule candidate {piece}\n%rule piece a ≻ b\n%rule a X [+T]\n%rule b X [+U]\n%rule rival {piece}",
+		"wrappers": "%rule text $x:candidate\n%conditions $x.without-elision.matches(candidate)\n%rule candidate X [candidate] [+T]",
 	}
 	for name, grammar := range grammars {
 		t.Run(name, func(t *testing.T) {
@@ -213,7 +213,7 @@ func TestWithoutElisionSharedDoublingBound(t *testing.T) {
 				grammar += fmt.Sprintf("\n%%rule r%d r%d r%d", i, i-1, i-1)
 			}
 			if witness {
-				grammar = strings.ReplaceAll(grammar, "matches(without-elision($x), empty)", fmt.Sprintf("¬matches(without-elision($x), r%d)", depth))
+				grammar = strings.ReplaceAll(grammar, "$x.without-elision.matches(empty)", fmt.Sprintf("¬$x.without-elision.matches(r%d)", depth))
 			}
 			c := *fixture
 			c.Grammar = &grammar
@@ -234,7 +234,7 @@ func TestWithoutElisionSharedDoublingBound(t *testing.T) {
 	}
 	for _, file := range shared.UnusedCases {
 		c := loadCase(t, filepath.Join("../../tests/engine", file))
-		grammar := *c.Grammar + "\n%rule unused $x(empty)\n%conditions matches(without-elision($x), empty)\n%rule empty ε"
+		grammar := *c.Grammar + "\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε"
 		c.Grammar = &grammar
 		d, err := caseDialect(c, true)
 		if err != nil {
@@ -285,7 +285,7 @@ func TestWithoutElisionUndemandedRankedSibling(t *testing.T) {
 			c := *fixture
 			rules := grammar
 			if !aligned {
-				rules = strings.ReplaceAll(rules, "without-elision($x)", "$x")
+				rules = strings.ReplaceAll(rules, "$x.without-elision", "$x")
 			}
 			c.Grammar = &rules
 			d, err := caseDialect(&c, true)

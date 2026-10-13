@@ -211,7 +211,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 			b.fail(n, "a capture wraps one symbol")
 		}
 		if !capturedRules[wrapped.Rule] {
-			b.fail(n, "a capture wraps a single symbol: a name, a tag literal, a character tag, a phoneme tag, a range or a property, or a tested one")
+			b.fail(n, "a capture wraps one reference, tag, string, range, wildcard, or tested symbol")
 		}
 		f.capture = name
 		return ask(&exprFrame{n: wrapped})

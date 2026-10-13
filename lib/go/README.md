@@ -36,11 +36,11 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 25 accepts `without-elision($x)`. A close is an omitted terminal at an original boundary. This span function restores captured omitted terminators for a query that preserves their closes.
+Grammar document object model (DOM) format 26 supports `$x.without-elision`. This method restores captured omitted terminators for a query.
 
-The query keeps original following input visible. `from(without-elision($x))` extends the match window through that input. Parse-result format 11 stays unchanged. No parse configuration controls this grammar facility.
+`$x.without-elision.onward` extends the query through the original following input. Parse results use format 12.
 
-For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds pre-built tokens to the first stage. Each of those tokens has its `Text` as its label, whatever its `Label` says. A caller cannot supply attachments: a token with a non-empty `Before` or `After` is a usage error, and empty ones are dropped. The parse copies the tokens, so the caller's stay as they are.
+For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string. The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 
 
 ## Results
@@ -49,20 +49,20 @@ A text that a stage reads in two or more best ways is a tie. Its result is not `
 
 A text that does not parse gives a result whose `OK` is false and whose `Error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`).
 
-Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x \ s}` beside another alternative, or a repeated item that can match no tokens. The dialect loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
+Lowering can find grammar defects for a parse's features (engine §3). Examples include a chain `{... x / s}` beside another alternative, or a repeated item that can match no tokens. The dialect loads. Parsing returns a result whose `Error` has kind `grammar`. The separate returned error is nil. The result error's `Message` starts with the faulty definition's document, line, and column, as `g.md:3:1:`.
 
-An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Sound`. `Tested` says whether it has such a test, since `Sound` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
+An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Value`. `Tested` says whether it has such a test, since `Value` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
 
 Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). No other error has a `Code`.
 
 
 `MarshalResult(result)` writes the canonical JSON.
 
-`Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Label`. A token with attachments is a group of its before-attachments, its label and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `cll-ebnf` dialect.
+`Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Image`. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `cll-ebnf` dialect.
 
-A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once in its canonical spelling, such as `KOhA`, `/a/` or `'a'`.
+A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Reserved Unicode tags include `_L`, `_Ll`, and `_White_Space`.
 
-A `Token` has `Phonemes`, what it sounds like, and `Label`, what it shows to people (engine §5). A token over an opaque part, such as the body of a `zoi` quote, sounds `?` and has the part's text as its label.
+A `Token` has `Value`, the string that recognition reads, and `Image`, the string that brackets show. Both strings remain exact. Each grammar recipe computes its chosen output channel. Ordinary concatenation adds no separator. The engine applies no lowercase conversion, comma removal, or pause join.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
@@ -80,7 +80,7 @@ go test ./...
 go test -race -run Concurrent ./...
 ```
 
-The tests read the shared cases in `../../tests/`. They run every engine and notation case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's configuration in turn.
+The tests read the shared cases in `../../tests/`. The runner skips the two explicit-null caller-string cases because Go pointer fields cannot distinguish null from an omitted field. They run every notation case and each representable engine case, the core sample of the corpus and the fixpoint of the bootstrap. For an engine case whose grammar cannot be loaded, they also compare where the error stands, when the case gives it. An engine case with `parses` loads its dialect once and parses its input with each item's configuration in turn.
 
 An engine case that takes longer than 30 seconds fails, so that a hang is a failure. `GENCMU_CASE_TIMEOUT` sets this time, as a Go duration such as `2m`. They also compare `compiled.json` with a fresh reading, with the cache both used and bypassed.
 
@@ -98,7 +98,7 @@ For longer inputs, add `GENCMU_PROPERTY_TOKENS`. To set the percentage of cases 
 
 `TestEligibleProperty` compares written-terminator priority (engine §4) with a search for eligible proof trees. It uses small random grammars with chained elidable optionals, `[+T]`. `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` set its sweep too.
 
-The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x \ s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
+The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` and `{x / s}`, left and right chains, and elidable optionals `[+T]`. The test skips a grammar that lowering refuses. One example repeats an item that can match no tokens.
 
 A captured part's span is part of an item's identity (engine §4), so the recognizer keys an item by its captures. A production can have any number of them: the key keeps the first inline and interns the rest. `TestCaptureGrowth` pins the cost of a capture of a rule that can end in many places.
 

@@ -192,7 +192,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 		for _, rule := range d["dom"].(map[string]any)["rules"].([]any) {
 			r := rule.(map[string]any)
 			if r["name"] == "symbol" {
-				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"terminal": "'.'"}})
+				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
 			}
 		}
 	}

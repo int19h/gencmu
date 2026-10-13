@@ -1,12 +1,10 @@
 package gencmu
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 // A set of tags or of strings (engine §1, §10): its members in code point
@@ -245,16 +243,6 @@ func subset(a, b *tagset) bool {
 	return true
 }
 
-// phonemeTag is the phoneme a tag /p/ names, the pause /./ being .: a
-// phoneme tag is exactly three code points, the first and last / (§1, §5).
-func phonemeTag(tag string) (string, bool) {
-	r := []rune(tag)
-	if len(r) == 3 && r[0] == '/' && r[2] == '/' {
-		return string(r[1]), true
-	}
-	return "", false
-}
-
 var nameSyntax = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*$`)
 
 // isName says whether a string is a name, and so an identifier tag
@@ -280,111 +268,9 @@ func isCapital(name string) bool {
 	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
 }
 
-// escapedInTag says whether a code point is written as \u{h…} in a
-// character tag's canonical spelling (engine §1): a control character, a
-// nonspacing mark, a private-use character, the quote or the backslash.
-func escapedInTag(c rune, isMark func(rune) bool) bool {
-	return c <= 0x1F || (c >= 0x7F && c <= 0x9F) || c == '\'' || c == '\\' ||
-		(c >= 0xE000 && c <= 0xF8FF) || (c >= 0xF0000 && c <= 0xFFFFD) || (c >= 0x100000 && c <= 0x10FFFD) ||
-		isMark(c)
-}
-
-// characterTag is the character tag of a Unicode scalar value in its
-// canonical spelling (engine §1): 'a', or '\u{301}' for a code point that
-// is escaped.
-func characterTag(c rune, isMark func(rune) bool) string {
-	if escapedInTag(c, isMark) {
-		return fmt.Sprintf(`'\u{%X}'`, c)
-	}
-	return "'" + string(c) + "'"
-}
-
-// characterOfTag is the scalar value that a character tag in its canonical
-// spelling names; ok is false for a string that is not one.
-func characterOfTag(tag string, isMark func(rune) bool) (rune, bool) {
-	if len(tag) < 3 || tag[0] != '\'' || tag[len(tag)-1] != '\'' {
-		return 0, false
-	}
-	inner := tag[1 : len(tag)-1]
-	var c rune
-	if strings.HasPrefix(inner, `\u{`) && strings.HasSuffix(inner, "}") {
-		hex := inner[3 : len(inner)-1]
-		if len(hex) < 1 || len(hex) > 6 || strings.ToUpper(hex) != hex {
-			return 0, false
-		}
-		v, err := strconv.ParseUint(hex, 16, 32)
-		if err != nil {
-			return 0, false
-		}
-		c = rune(v)
-	} else {
-		// An invalid byte decodes as RuneError with size 1. A correctly
-		// encoded U+FFFD decodes as RuneError with size 3 and is valid.
-		r, size := utf8.DecodeRuneInString(inner)
-		if size != len(inner) || (r == utf8.RuneError && size < 3) {
-			return 0, false
-		}
-		c = r
-	}
-	if c > 0x10FFFF || (c >= 0xD800 && c <= 0xDFFF) {
-		return 0, false
-	}
-	if characterTag(c, isMark) != tag {
-		return 0, false
-	}
-	return c, true
-}
-
-// isTag says whether a string is a tag in its canonical spelling: a name,
-// a phoneme tag or a character tag (engine §1). Without a table, which
-// says which code points are marks, a character tag passes in either
-// spelling that a table could make canonical.
+// isTag accepts user tags and reserved Unicode tags (engine §1).
 func isTag(tag string, uni *unicodeTable) bool {
 	return isCapital(tag) && isName(tag) || engineTag(tag)
-}
-
-// codeOfCharacterTag is the scalar value of a character tag in its
-// canonical spelling, or -1 for any other tag. The tag is not checked
-// beyond its form: every tag inside the engine is in its canonical spelling
-// (engine §1).
-func codeOfCharacterTag(tag string) rune {
-	if len(tag) < 3 || tag[0] != '\'' {
-		return -1
-	}
-	if tag[1] == '\\' {
-		v, err := strconv.ParseUint(tag[4:len(tag)-2], 16, 32)
-		if err != nil {
-			return -1
-		}
-		return rune(v)
-	}
-	r, _ := utf8.DecodeRuneInString(tag[1:])
-	return r
-}
-
-// rangeName is the written form of a range, its identity as a terminal
-// (engine §4): its two ends, in their canonical spelling, joined by "..".
-func rangeName(r [2]string) string { return r[0] + ".." + r[1] }
-
-// propertyName is the written form of a property, its identity as a
-// terminal (engine §4).
-func propertyName(name string) string { return `'\p{` + name + `}'` }
-
-// rangeTags lists the character tags of a range (engine §1), from its start
-// to its end by scalar value, the surrogates skipped.
-func rangeTags(r [2]string, isMark func(rune) bool) []string {
-	var out []string
-	last := codeOfCharacterTag(r[1])
-	for c := codeOfCharacterTag(r[0]); c <= last; c++ {
-		if c == 0xD800 {
-			c = 0xE000
-			if c > last {
-				break
-			}
-		}
-		out = append(out, characterTag(c, isMark))
-	}
-	return out
 }
 
 // charClass is the characters a range or a property terminal matches: a
@@ -393,50 +279,4 @@ type charClass struct {
 	from, to rune
 	literal  *string
 	wildcard bool
-	property string // "" for a range
-}
-
-// carries says whether a tag set holds a character tag of the class
-// (engine §4): the terminal then matches the token once, however many of
-// its tags qualify.
-func (cc *charClass) carries(uni *unicodeTable, ts *tagset) bool {
-	for _, tag := range ts.names {
-		c := codeOfCharacterTag(tag)
-		if c < 0 {
-			continue
-		}
-		if cc.property != "" {
-			if uni.hasProperty(cc.property, c) {
-				return true
-			}
-		} else if c >= cc.from && c <= cc.to {
-			return true
-		}
-	}
-	return false
-}
-
-// writtenTest is a test as an expected list writes it after its terminal
-// (docs/output.md): its comparator and its value in canonical form. A
-// string stands between double quotes, a backslash before each \ and ". A
-// tag set is ∅, its one tag, or its tags in code point order joined by
-// " ∪ " in parentheses.
-func writtenTest(op string, v *constValue) string {
-	var written string
-	if v.ty == tyString {
-		written = `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(v.s) + `"`
-	} else {
-		switch len(v.names) {
-		case 0:
-			written = "∅"
-		case 1:
-			written = v.names[0]
-		default:
-			written = "(" + strings.Join(v.names, " ∪ ") + ")"
-		}
-	}
-	if rest, ok := strings.CutPrefix(op, "∩"); ok {
-		return "∩" + written + rest
-	}
-	return op + written
 }

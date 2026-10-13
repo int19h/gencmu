@@ -303,7 +303,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		w.endTerm(value{kind: vString, s: v.s})
 		return nil
 	case tmCapture:
-		w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t))})
+		w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
 		return nil
 	case tmString:
 		w.endTerm(value{kind: vString, s: t.Str})
@@ -375,7 +375,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	case tmCall:
 		switch t.Str {
 		case "value":
-			w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t.Items[0]))})
+			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t.Items[0]))})
 			return nil
 		case "image":
 			w.endTerm(value{kind: vString, s: ev.run.spanImage(w.span(ev, t.Items[0]))})
@@ -607,9 +607,8 @@ func (run *stageRun) evaluate(ev *evaluator, t *domTerm) value {
 	}
 }
 
-// phonemes(span): the canonical sound of the span, its tokens' phonemes
-// joined, in lower case and without commas (§5).
-func (run *stageRun) phonemes(s spanVal) string {
+// spanValue concatenates exact stored token values (engine §10).
+func (run *stageRun) spanValue(s spanVal) string {
 	var b strings.Builder
 	for i := run.nextVoiced(s.a); i < s.b; i = run.nextVoiced(i + 1) {
 		if w := work.Load(); w != nil {
@@ -872,7 +871,7 @@ func (run *stageRun) settle(rec *recognizer) {
 
 // spanContent is everything a nested parse of a span can observe: the
 // original text that holds its tokens' sources, and each token's text,
-// phonemes, tags, and source.
+// values, images, tags, and source.
 func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
 	// Each field is written with its length before it, so that no two

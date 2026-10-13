@@ -19,9 +19,6 @@ type parseState struct {
 	inProgress    map[spanKey]bool
 	queryContext  int
 	queryContexts map[activeQueryParent]int
-	// ranges holds the tag set of each range a term has read, made once
-	// (engine §10).
-	ranges map[[2]string]*tagset
 	// consts holds the tag set of each constant's value a term has read,
 	// made once (engine §2).
 	consts map[*constValue]*tagset
@@ -31,7 +28,7 @@ type parseState struct {
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
-	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, ranges: map[[2]string]*tagset{}, consts: map[*constValue]*tagset{}}
+	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, consts: map[*constValue]*tagset{}}
 	ps.lineStarts = []int{0}
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
@@ -57,7 +54,7 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 }
 
 // characterTokens is the first stage's input (engine §1): one token per
-// code point, tagged with its character tag and nothing else.
+// code point, with stored General_Category, major category and White_Space tags.
 func (ps *parseState) characterTokens() []Token {
 	toks := make([]Token, len(ps.text))
 	for i, c := range ps.text {
@@ -87,9 +84,7 @@ type stageRun struct {
 	// first question (see spanSource); nil when toks are in order.
 	sources     *sourceTable
 	sourcesMade bool
-	// sounds holds each token's phonemes in canonical form, for the sound
-	// tests of symbols and for phonemes(), computed when one first
-	// looks at the token (§4, §5).
+	// sounds caches exact token values for value tests and concatenation.
 	sounds     []string
 	soundsMade []bool
 	// voiced[i] is the first token at or after i whose sound is not empty,
@@ -111,9 +106,7 @@ func (run *stageRun) walk() walk {
 	return walk{}
 }
 
-// sound is a token's phonemes in canonical form (§5). The lowercase mapping
-// and the removal of commas act on each code point alone, so the canonical
-// sound of a span is its tokens' joined.
+// sound returns a token's exact stored value (engine §1).
 func (run *stageRun) sound(i int) string {
 	if run.sounds == nil {
 		run.sounds = make([]string, len(run.toks))
@@ -150,8 +143,8 @@ func (run *stageRun) nextVoiced(i int) int {
 	return run.voiced[i]
 }
 
-// soundIs says whether the tokens [a, b) sound like a string: their
-// canonical sound is exactly it (§4, §5). A token with no phonemes adds
+// soundIs compares the exact concatenated values of tokens [a, b).
+// A token with an empty value adds
 // nothing, and an empty span sounds like the empty string. Each token
 // visited has a sound that is not empty, so the work is bounded by the
 // length of the string, not of the span.
@@ -177,8 +170,7 @@ func (run *stageRun) testHolds(t *symTest, a, b int, tags *tagset) bool {
 	return testHoldsOf(t, func(s string) bool { return run.soundIs(s, a, b) }, tags)
 }
 
-// testHoldsOf says whether a test holds of a symbol whose canonical sound
-// is the string that soundIs accepts, and whose own tags are tags (§4).
+// testHoldsOf evaluates stacked stored-tag and exact-value tests (§4).
 func testHoldsOf(t *symTest, soundIs func(string) bool, tags *tagset) bool {
 	if t.other != nil && !testHoldsOf(t.other, soundIs, tags) {
 		return false
@@ -191,33 +183,14 @@ func testHoldsOf(t *symTest, soundIs func(string) bool, tags *tagset) bool {
 		}
 		return true
 	}
-	switch t.op {
-	case "=", "≠":
-		return soundIs(t.sound) == (t.op == "=")
-	case "⊇", "⊉":
-		all := true
-		for _, name := range t.tags {
-			if !tags.has(name) {
-				all = false
-				break
-			}
-		}
-		return all == (t.op == "⊇")
-	}
-	meets := false
-	for _, name := range t.tags {
-		if tags.has(name) {
-			meets = true
-			break
-		}
-	}
-	return meets == (t.op == "∩≠∅")
+	return (t.op == "=" || t.op == "≠") && soundIs(t.sound) == (t.op == "=")
 }
 
 func (ps *parseState) newRun(name string, grammar *stageGrammar, toks []Token) *stageRun {
 	run := &stageRun{ps: ps, name: name, grammar: grammar, toks: toks, tagsets: make([]*tagset, len(toks)), inputEnd: len(toks)}
 	for i := range toks {
 		run.tagsets[i] = ps.in.fromList(toks[i].Tags)
+		toks[i].Tags = run.tagsets[i].list()
 	}
 	return run
 }

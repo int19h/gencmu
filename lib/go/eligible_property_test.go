@@ -311,7 +311,7 @@ func TestEligibleProperty(t *testing.T) {
 // A nested tags query over several tag sets searches eligibility once, over
 // the items of all of them (engine §4).
 func TestTagsQueryEligibleOnce(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%tags tags($, r)\n%rule r A [+T] B <X> | A [+T] B <Y> | A [+T] B <Z>"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text :: $.tags(r) | A B\n%rule r A [+T] B :: X | A [+T] B :: Y | A [+T] B :: Z"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{2, 3}}}
 	// A search for each tag set would pass this budget at the second.
 	w := countWork(t)

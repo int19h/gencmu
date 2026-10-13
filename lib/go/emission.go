@@ -170,7 +170,7 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 		s := spanVal{a: a, b: b}
 		switch atom.Str {
 		case "value":
-			result = literalParts(em.run.phonemes(s))
+			result = literalParts(em.run.spanValue(s))
 		case "image":
 			result = literalParts(em.run.spanImage(s))
 		case "source-text":
@@ -207,7 +207,7 @@ func (em *stringEmitter) recipe(o *occurrence, recipe *domTerm) string {
 		s := spanVal{a: a, b: b}
 		switch atom.Str {
 		case "value":
-			result.WriteString(em.run.phonemes(s))
+			result.WriteString(em.run.spanValue(s))
 		case "image":
 			result.WriteString(em.run.spanImage(s))
 		case "source-text":

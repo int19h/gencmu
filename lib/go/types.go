@@ -3,9 +3,8 @@ package gencmu
 // Token is a token a stage reads or emits (engine §1). Tags are its tags,
 // each in its canonical spelling, in code point order and each once; a tag
 // has no strength. Span is the range of the previous stage's tokens it
-// covers, Source the range of the original text, in code points. Phonemes is empty for a token that has none.
-// Label is what the token shows to people (engine §5). A character token and
-// a token that a caller supplies have their text as their label.
+// covers. Source is the original text range, in code points.
+// Value is the exact recognition string. Image is the exact display string.
 // InsertedBy names the rule whose emission clause inserted a token with an
 // empty span. Before and After are the token's attachments (engine §11):
 // tokens that belong to it and that no later stage reads, nil when there
@@ -57,8 +56,8 @@ type Node struct {
 	Value    *string
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
-	// has one, which elision-only gives the restored token as its phonemes
-	// (engine §7, §12); the output does not show it. tested says that the
+	// has one, which elision-only gives the restored token as its value
+	// (engine §7, §12). Value exposes it in result format 12. tested says that the
 	// terminator has an = test, so that sound holds, even where it is "".
 	sound  string
 	tested bool
@@ -139,15 +138,15 @@ const CodeElisionWitnessLost = "elision-witness-lost"
 // Restoration is an elided terminator that the check of elision-only wrote
 // back (engine §7.2, §7.9): its terminal, its position in the stage's input,
 // the empty source of its elided node, and, for a terminator with an = test,
-// that test's string, its saved sound. Sound is "" both for a terminator
+// that test's string, its saved value. Value is "" both for a terminator
 // with no test and for one whose test is T="", so Tested tells them apart.
 type Restoration struct {
 	Terminal string
 	At       int
 	Source   [2]int
 	Value    string
-	// Tested says that the terminator has an = test, so Sound is its
-	// saved sound and the output shows it, even where it is empty.
+	// Tested says that the terminator has an = test, so Value is its
+	// saved value and the output shows it, even where it is empty.
 	Tested bool
 }
 

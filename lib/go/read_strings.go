@@ -245,6 +245,9 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 	for _, p := range ruleParts(n) {
 		if p.Rule == "string" || p.Rule == "constant-reference" {
 			ends = append(ends, b.term(p))
+			if len(ends) == 2 {
+				break
+			}
 		}
 	}
 	if len(ends) < 2 {

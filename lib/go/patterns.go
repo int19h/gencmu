@@ -546,36 +546,6 @@ func (m *patternMachine) nodeState(bits *big.Int, empty bool) int {
 	}
 	return m.intern(s)
 }
-func patternLeafTest(p *domPattern, sound string, tags *tagset) bool {
-	v := p.Value
-	if isValueTest(p.Op) {
-		return (sound == v.Str) == (p.Op == "=")
-	}
-
-	in := newInterner()
-	var names []string
-	todo := []*domTerm{v}
-	for len(todo) > 0 {
-		t := todo[len(todo)-1]
-		todo = todo[:len(todo)-1]
-		if t.Kind == tmTag {
-			names = append(names, t.Str)
-		} else if t.Kind == tmUnion {
-			todo = append(todo, t.Items...)
-		}
-	}
-	set := in.fromList(names)
-	switch p.Op {
-	case "⊇":
-		return subset(set, tags)
-	case "⊉":
-		return !subset(set, tags)
-	case "∩≠∅":
-		return len(in.intersection(set, tags).names) > 0
-	default:
-		return len(in.intersection(set, tags).names) == 0
-	}
-}
 func (m *patternMachine) sealed() int { return m.nodeState(new(big.Int), false) }
 
 func (m *patternMachine) node(name string, children int, terminal, sound string, tags *tagset) int {
@@ -887,11 +857,6 @@ func (g *stageGrammar) resolvePatternValue(doc string, p *domPattern, at [2]int)
 		v, err := g.evaluateClosed(doc, p.Value, at)
 		if err != nil {
 			return nil, err
-		}
-		if isValueTest(p.Op) {
-			if msg := soundProblem(v.s, g.uni); msg != "" {
-				return nil, g.faultError(doc, p.Value, at, msg)
-			}
 		}
 		n.Value = patternLiteral(v)
 	}

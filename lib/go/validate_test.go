@@ -13,7 +13,7 @@ import (
 // entry it is a miss, so the document is read instead.
 func TestDOMRules(t *testing.T) {
 	loadBundled()
-	const good = `{"seq":[{"terminal":"a"},{"terminal":"b"}]}`
+	const good = `{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
 	rule := func(fields string) string {
 		return `{` + format + `,"rules":[{"name":"text","op":"define","flags":[],` + fields + `,"at":[1,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[2,1]}],"constants":[],"classifiers":[],"implications":[]}`
@@ -40,19 +40,19 @@ func TestDOMRules(t *testing.T) {
 		return classified(`{"name":"lex","entries":[`+e+`],"at":[3,1]}`, "")
 	}
 	implies := func(m string) string { return classified("", m) }
-	runs := `{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"string":"."}]}`
+	runs := `{"method":"split","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"string":"."}]}`
 	tagged := func(tags string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]},"tags":` + tags + `}],"conditions":[]`)
+		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]},"tags":` + tags + `}],"conditions":[]`)
 	}
 	emit := func(emission string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"y","expr":{"terminal":"b"}}]}}],"emit":` + emission + `,"conditions":[]`)
+		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":` + emission + `,"conditions":[]`)
 	}
 	cond := func(condition string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]}}],"conditions":[` + condition + `]`)
+		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"conditions":[` + condition + `]`)
 	}
 	// Two alternatives, the first capturing x and z, the second neither.
 	two := func(clauses string) string {
-		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"z","expr":{"terminal":"b"}}]}},{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],` + clauses)
+		return rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"z","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],` + clauses)
 	}
 	// n unions, each of a tag and the next: the innermost tag is n
 	// deep.
@@ -71,22 +71,22 @@ func TestDOMRules(t *testing.T) {
 		{"op is define, redefine or extend", strings.Replace(alt(good), `"define"`, `"replace"`, 1)},
 		// A compared term has exactly the members of one form, in either
 		// order: read as the string, either would reject "ab".
-		{"a compared tag that is also a string", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"tag":"Bad","string":"wrong"}}`)},
-		{"a compared string that is also a tag", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"wrong","tag":"Bad"}}`)},
+		{"a compared tag that is also a string", cond(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"tag":"Bad","string":"wrong"}}`)},
+		{"a compared string that is also a tag", cond(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"string":"wrong","tag":"Bad"}}`)},
 		{"a difference that is also a union", tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}],"union":[{"tag":"X"},{"tag":"Y"}]}`)},
 		{"a union that is also a difference", tagged(`{"union":[{"tag":"X"},{"tag":"Y"}],"difference":[{"tag":"X"},{"tag":"Y"}]}`)},
 		// A definition as a whole (engine §9, the end).
-		{"a mentioned capture is captured", cond(`{"matches":{"capture":"z"},"rule":"text"}`)},
+		{"a mentioned capture is captured", cond(`{"method":"matches","receiver":{"capture":"z"},"args":[{"rule":"text"}]}`)},
 		{"a tested capture is captured", cond(`{"captured":"z"}`)},
 		{"a condition applies to an alternative", cond(`{"captured":"x"}`)},
-		{"a rule's tags use captures every alternative has", two(`"tags":{"call":"tags","args":[{"capture":"x"}]},"conditions":[]`)},
-		{"an item's tags use captures its alternatives have", two(`"emit":{"items":[{"capture":"z","tags":{"call":"tags","args":[{"capture":"x"}]}}]},"conditions":[]`)},
+		{"a rule's tags use captures every alternative has", two(`"tags":{"method":"tags","receiver":{"capture":"x"},"args":[]},"conditions":[]`)},
+		{"an item's tags use captures its alternatives have", two(`"emit":{"items":[{"capture":"z","tags":{"method":"tags","receiver":{"capture":"x"},"args":[]}}]},"conditions":[]`)},
 		{"captures are emitted in text order", emit(`{"items":[{"capture":"y"},{"capture":"x"}]}`)},
 		{"an inserted tag's anchor is in every alternative", two(`"emit":{"items":[{"insert":"T"},{"capture":"x"}]},"conditions":[]`)},
 		{"every alternative emits something", two(`"emit":{"items":[{"capture":"x"}]},"conditions":[]`)},
 		{"an opaque rule does not emit ε", emit(`{"items":[]},"opaque":true`)},
 		{"opaque is true or absent", strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"opaque":false`, 1)},
-		{"a guard does not read the constituent's tags", tagged(`{"if":{"op":"⊆","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":""}]}},"then":{"tag":"T"}}`)},
+		{"a guard does not read the constituent's tags", tagged(`{"if":{"op":"⊆","left":{"tag":"a"},"right":{"method":"tags","receiver":{"capture":""},"args":[]}},"then":{"tag":"T"}}`)},
 		{"a guarded term has a term", tagged(`{"if":{"captured":"x"}}`)},
 		{"an implication has a consequent", cond(`{"if":{"captured":"x"}}`)},
 		{"a presence test names a capture", cond(`{"captured":"9"}`)},
@@ -104,21 +104,21 @@ func TestDOMRules(t *testing.T) {
 		{"a guard's negated is a boolean", guarded(`{"feature":"f","kind":"gate","negated":null}`)},
 		{"an alternative has a list of guards", rule(`"alternatives":[{"guards":null,"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative has guards", rule(`"alternatives":[{"expr":` + good + `}],"conditions":[]`)},
-		{"a seq has two items or more", alt(`{"seq":[{"terminal":"a"}]}`)},
+		{"a seq has two items or more", alt(`{"seq":[{"literal":{"string":"a"}}]}`)},
 		{"a seq is not empty", alt(`{"seq":[]}`)},
-		{"a choice has two items or more", alt(`{"choice":[{"terminal":"a"}]}`)},
-		{"an & has two items or more", alt(`{"and":[{"terminal":"a"}]}`)},
-		{"an & has at most 16 items", alt(`{"and":[` + strings.TrimSuffix(strings.Repeat(`{"terminal":"a"},`, 17), ",") + `]}`)},
-		{"a repeat has no min, which format 17 had", alt(`{"repeat":{"terminal":"a"},"min":1}`)},
-		{"a separated list has no min", alt(`{"repeat":{"terminal":"a"},"separator":{"terminal":"b"},"min":0}`)},
-		{"a separator is an expression", alt(`{"repeat":{"terminal":"a"},"separator":{"ref":"x y"}}`)},
-		{"a chain is the whole expression (sequence)", alt(`{"seq":[{"terminal":"a"},{"repeat":{"terminal":"b"},"chain":"left"}]}`)},
-		{"a chain is the whole expression (choice)", alt(`{"choice":[{"repeat":{"terminal":"b"},"chain":"left"},{"terminal":"a"}]}`)},
-		{"a chain is the whole expression (optional)", alt(`{"optional":{"repeat":{"terminal":"a"},"chain":"right"}}`)},
-		{"a chain is the whole expression (separator)", alt(`{"repeat":{"terminal":"a"},"separator":{"repeat":{"terminal":"b"},"chain":"left"}}`)},
-		{"a chain is the whole expression (item)", alt(`{"repeat":{"repeat":{"terminal":"a"},"chain":"left"}}`)},
-		{"a chain is left or right", alt(`{"repeat":{"terminal":"a"},"chain":"up"}`)},
-		{"a chain is a string", alt(`{"repeat":{"terminal":"a"},"chain":true}`)},
+		{"a choice has two items or more", alt(`{"choice":[{"literal":{"string":"a"}}]}`)},
+		{"an & has two items or more", alt(`{"and":[{"literal":{"string":"a"}}]}`)},
+		{"an & has at most 16 items", alt(`{"and":[` + strings.TrimSuffix(strings.Repeat(`{"literal":{"string":"a"}},`, 17), ",") + `]}`)},
+		{"a repeat has no min, which format 17 had", alt(`{"repeat":{"literal":{"string":"a"}},"min":1}`)},
+		{"a separated list has no min", alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}},"min":0}`)},
+		{"a separator is an expression", alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"ref":"x y"}}`)},
+		{"a chain is the whole expression (sequence)", alt(`{"seq":[{"literal":{"string":"a"}},{"repeat":{"literal":{"string":"b"}},"chain":"left"}]}`)},
+		{"a chain is the whole expression (choice)", alt(`{"choice":[{"repeat":{"literal":{"string":"b"}},"chain":"left"},{"literal":{"string":"a"}}]}`)},
+		{"a chain is the whole expression (optional)", alt(`{"optional":{"repeat":{"literal":{"string":"a"}},"chain":"right"}}`)},
+		{"a chain is the whole expression (separator)", alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"repeat":{"literal":{"string":"b"}},"chain":"left"}}`)},
+		{"a chain is the whole expression (item)", alt(`{"repeat":{"repeat":{"literal":{"string":"a"}},"chain":"left"}}`)},
+		{"a chain is left or right", alt(`{"repeat":{"literal":{"string":"a"}},"chain":"up"}`)},
+		{"a chain is a string", alt(`{"repeat":{"literal":{"string":"a"}},"chain":true}`)},
 		{"elidable is true (false)", alt(`{"optional":{"ref":"KU"},"elidable":false}`)},
 		{"elidable is true (a string)", alt(`{"optional":{"ref":"KU"},"elidable":"true"}`)},
 		{"elidable is true (null)", alt(`{"optional":{"ref":"KU"},"elidable":null}`)},
@@ -130,31 +130,31 @@ func TestDOMRules(t *testing.T) {
 		{"an elidable optional begins with its terminal (&)", alt(`{"optional":{"and":[{"ref":"KU"},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (rule)", alt(`{"optional":{"ref":"ku"},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (#)", alt(`{"optional":{"seq":[{"ref":"#"},{"ref":"KU"}]},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (phoneme)", alt(`{"optional":{"terminal":"/a/"},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (character)", alt(`{"optional":{"terminal":"'a'"},"elidable":true}`)},
-		{"an elidable optional begins with its terminal (range)", alt(`{"optional":{"range":["'a'","'z'"]},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (phoneme)", alt(`{"optional":{"literal":{"string":"/a/"}},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (character)", alt(`{"optional":{"literal":{"string":"a"}},"elidable":true}`)},
+		{"an elidable optional begins with its terminal (range)", alt(`{"optional":{"range":[{"string":"a"},{"string":"z"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (seq)", alt(`{"optional":{"seq":[{"seq":[{"ref":"KU"},{"ref":"#"}]},{"ref":"A"}]},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (optional)", alt(`{"optional":{"optional":{"ref":"KU"}},"elidable":true}`)},
 		{"an elidable optional begins with its terminal (ε)", alt(`{"optional":{"empty":true},"elidable":true}`)},
-		{"a capture wraps a reference or terminal", alt(`{"capture":"x","expr":{"optional":{"terminal":"a"}}}`)},
+		{"a capture wraps a reference or terminal", alt(`{"capture":"x","expr":{"optional":{"literal":{"string":"a"}}}}`)},
 		{"a capture stands not inside an elidable optional", alt(`{"optional":{"seq":[{"ref":"KU"},{"capture":"x","expr":{"ref":"A"}}]},"elidable":true}`)},
 		{"a capture stands not inside an elidable optional, at any depth", alt(`{"optional":{"seq":[{"ref":"KU"},{"optional":{"capture":"x","expr":{"ref":"A"}}}]},"elidable":true}`)},
-		{"a capture stands not inside braces (item)", alt(`{"seq":[{"terminal":"a"},{"repeat":{"capture":"x","expr":{"terminal":"b"}}}]}`)},
+		{"a capture stands not inside braces (item)", alt(`{"seq":[{"literal":{"string":"a"}},{"repeat":{"capture":"x","expr":{"literal":{"string":"b"}}}}]}`)},
 		{"a capture stands not inside braces (separator)", alt(`{"repeat":{"ref":"A"},"separator":{"capture":"s","expr":{"ref":"S"}}}`)},
 		{"a capture name once per production (optional)", alt(`{"seq":[{"optional":{"capture":"x","expr":{"ref":"A"}}},{"capture":"x","expr":{"ref":"B"}}]}`)},
 		{"a capture name once per production (&)", alt(`{"and":[{"capture":"x","expr":{"ref":"A"}},{"capture":"x","expr":{"ref":"B"}}]}`)},
 		{"a capture name once per production (two choices)", alt(`{"seq":[{"choice":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]},{"choice":[{"capture":"x","expr":{"ref":"C"}},{"ref":"D"}]}]}`)},
-		{"a capture's symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 255) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 255) + `,{"terminal":"b"}]}`)},
+		{"a capture's symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 255) + `{"capture":"x","expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 255) + `,{"literal":{"string":"b"}}]}`)},
 		{"a term nests at most 256 deep", tagged(unions(257))},
-		{"a condition nests at most 256 deep", cond(strings.Repeat(`{"not":`, 256) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 256))},
+		{"a condition nests at most 256 deep", cond(strings.Repeat(`{"not":`, 256) + `{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`}`, 256))},
 		{"an emitted item's term nests at most 256 deep", emit(`{"items":[{"capture":"","tags":` + unions(257) + `}]}`)},
-		{"a capture name once per production", alt(`{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"x","expr":{"terminal":"b"}}]}`)},
-		{"a flag is true", alt(`{"seq":[{"terminal":"a"},{"empty":false}]}`)},
-		{"# is not an expression", alt(`{"seq":[{"terminal":"a"},{"hash":true}]}`)},
-		{"$ wraps nothing", alt(`{"seq":[{"capture":"","expr":{"terminal":"a"}},{"terminal":"b"}]}`)},
-		{"an expression is known", alt(`{"seq":[{"terminal":"a"},{"what":"b"}]}`)},
-		{"a reference names something", alt(`{"seq":[{"terminal":"a"},{"ref":""}]}`)},
-		{"a captured reference names something", alt(`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"ref":""}}]}`)},
+		{"a capture name once per production", alt(`{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"x","expr":{"literal":{"string":"b"}}}]}`)},
+		{"a flag is true", alt(`{"seq":[{"literal":{"string":"a"}},{"empty":false}]}`)},
+		{"# is not an expression", alt(`{"seq":[{"literal":{"string":"a"}},{"hash":true}]}`)},
+		{"$ wraps nothing", alt(`{"seq":[{"capture":"","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}`)},
+		{"an expression is known", alt(`{"seq":[{"literal":{"string":"a"}},{"what":"b"}]}`)},
+		{"a reference names something", alt(`{"seq":[{"literal":{"string":"a"}},{"ref":""}]}`)},
+		{"a captured reference names something", alt(`{"seq":[{"literal":{"string":"a"}},{"capture":"x","expr":{"ref":""}}]}`)},
 		{"an emission has only items", emit(`{"items":[{"capture":"x"}],"what":true}`)},
 		{"$ only with $ (a capture)", emit(`{"items":[{"capture":""},{"capture":"x"}]}`)},
 		{"$ only with $ (an inserted tag)", emit(`{"items":[{"capture":""},{"insert":"/a/"}]}`)},
@@ -175,53 +175,53 @@ func TestDOMRules(t *testing.T) {
 		{"an attachment is listed once", emit(`{"items":[{"capture":"x","after":["y","y"]}]}`)},
 		{"attachments stand in the order of the captures", emit(`{"items":[{"capture":"x","before":["y"]}]}`)},
 		{"an attachment is a capture of the rule", emit(`{"items":[{"capture":"x","after":["z"]}]}`)},
-		{"an alternative without the carrier lacks its attachments", rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"y","expr":{"terminal":"b"}}]}},{"guards":[],"expr":{"seq":[{"terminal":"a"},{"capture":"y","expr":{"terminal":"b"}}]}}],"emit":{"items":[{"capture":"x","after":["y"]}]},"conditions":[]`)},
+		{"an alternative without the carrier lacks its attachments", rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}}],"emit":{"items":[{"capture":"x","after":["y"]}]},"conditions":[]`)},
 		// Tests in a body (engine §2, §9).
-		{"a test's comparator is known", alt(`{"seq":[{"terminal":"a"},{"test":"==","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
-		{"a test's comparator is a string", alt(`{"seq":[{"terminal":"a"},{"test":7,"value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
-		{"a sound test's string is in lower case", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"lA"},"expr":{"ref":"B"}}]}`)},
-		{"a sound test's string is in lower case (Cyrillic)", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"Ла"},"expr":{"ref":"B"}}]}`)},
-		{"a sound test's string has no comma", alt(`{"seq":[{"terminal":"a"},{"test":"≠","value":{"string":"l,a"},"expr":{"ref":"B"}}]}`)},
-		{"a sound test's value is a string", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"tag":"UI"},"expr":{"ref":"B"}}]}`)},
-		{"a tag test's value is a tag set", alt(`{"seq":[{"terminal":"a"},{"test":"⊇","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
-		{"a test's value is closed (tags)", alt(`{"seq":[{"terminal":"a"},{"test":"⊇","value":{"call":"tags","args":[{"capture":""}]},"expr":{"ref":"B"}}]}`)},
-		{"a test's value is closed (phonemes)", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"call":"phonemes","args":[{"capture":""}]},"expr":{"ref":"B"}}]}`)},
-		{"a test's value is closed (a capture)", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"capture":"x"},"expr":{"ref":"B"}}]}`)},
-		{"a test does not follow #", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
-		{"a test does not follow a group", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"seq":[{"ref":"B"},{"ref":"C"}]}}]}`)},
-		{"a test does not follow an optional", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"optional":{"ref":"B"}}}]}`)},
-		{"a test does not follow a test", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"test":"=","value":{"string":"b"},"expr":{"ref":"B"}}}]}`)},
-		{"a test does not follow a capture", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"capture":"x","expr":{"ref":"B"}}}]}`)},
-		{"a test does not follow ε", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"empty":true}}]}`)},
-		{"a tested reference is not also empty", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"empty":true,"ref":"B"}}]}`)},
-		{"a tested reference is not also a terminal", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"ref":"B","terminal":"b"}}]}`)},
-		{"a tested symbol is not also empty", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"expr":{"ref":"B"},"empty":true}]}`)},
-		{"a tested symbol has its symbol", alt(`{"seq":[{"terminal":"a"},{"test":"=","value":{"string":"b"},"ref":"B"}]}`)},
-		{"a tested symbol has its value", alt(`{"seq":[{"terminal":"a"},{"test":"=","expr":{"ref":"B"}}]}`)},
-		{"a tested symbol is not also a capture", alt(`{"seq":[{"terminal":"a"},{"capture":"x","test":"=","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
-		{"a tested symbol is not also an optional", alt(`{"seq":[{"terminal":"a"},{"optional":{"ref":"B"},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
-		{"a capture of a tested symbol is checked", alt(`{"seq":[{"terminal":"a"},{"capture":"x","expr":{"test":"=","value":{"string":"B"},"expr":{"ref":"B"}}}]}`)},
-		{"a tested symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 255) + `{"test":"=","value":{"string":"b"},"expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 255) + `,{"terminal":"b"}]}`)},
+		{"a test's comparator is known", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"==","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
+		{"a test's comparator is a string", alt(`{"seq":[{"literal":{"string":"a"}},{"test":7,"value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
+		{"a sound test's string is in lower case", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"lA"},"expr":{"ref":"B"}}]}`)},
+		{"a sound test's string is in lower case (Cyrillic)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"Ла"},"expr":{"ref":"B"}}]}`)},
+		{"a sound test's string has no comma", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"≠","value":{"string":"l,a"},"expr":{"ref":"B"}}]}`)},
+		{"a sound test's value is a string", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"tag":"UI"},"expr":{"ref":"B"}}]}`)},
+		{"a tag test's value is a tag set", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"⊇","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
+		{"a test's value is closed (tags)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"⊇","value":{"method":"tags","receiver":{"capture":""},"args":[]},"expr":{"ref":"B"}}]}`)},
+		{"a test's value is closed (phonemes)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"method":"value","receiver":{"capture":""},"args":[]},"expr":{"ref":"B"}}]}`)},
+		{"a test's value is closed (a capture)", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"capture":"x"},"expr":{"ref":"B"}}]}`)},
+		{"a test does not follow #", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
+		{"a test does not follow a group", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"seq":[{"ref":"B"},{"ref":"C"}]}}]}`)},
+		{"a test does not follow an optional", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"optional":{"ref":"B"}}}]}`)},
+		{"a test does not follow a test", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"test":"=","value":{"string":"b"},"expr":{"ref":"B"}}}]}`)},
+		{"a test does not follow a capture", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"capture":"x","expr":{"ref":"B"}}}]}`)},
+		{"a test does not follow ε", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"empty":true}}]}`)},
+		{"a tested reference is not also empty", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"empty":true,"ref":"B"}}]}`)},
+		{"a tested reference is not also a terminal", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"ref":"B","terminal":"b"}}]}`)},
+		{"a tested symbol is not also empty", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"expr":{"ref":"B"},"empty":true}]}`)},
+		{"a tested symbol has its symbol", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":"b"},"ref":"B"}]}`)},
+		{"a tested symbol has its value", alt(`{"seq":[{"literal":{"string":"a"}},{"test":"=","expr":{"ref":"B"}}]}`)},
+		{"a tested symbol is not also a capture", alt(`{"seq":[{"literal":{"string":"a"}},{"capture":"x","test":"=","value":{"string":"b"},"expr":{"ref":"B"}}]}`)},
+		{"a tested symbol is not also an optional", alt(`{"seq":[{"literal":{"string":"a"}},{"optional":{"ref":"B"},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}]}`)},
+		{"a capture of a tested symbol is checked", alt(`{"seq":[{"literal":{"string":"a"}},{"capture":"x","expr":{"test":"=","value":{"string":"B"},"expr":{"ref":"B"}}}]}`)},
+		{"a tested symbol counts toward the nesting", alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 255) + `{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 255) + `,{"literal":{"string":"b"}}]}`)},
 		{"a test's value counts on from the test", alt(strings.Repeat(`{"optional":`, 255) + `{"test":"⊇","value":{"union":[{"tag":"A"},{"tag":"B"}]},"expr":{"ref":"LE"}}` + strings.Repeat(`}`, 255))},
 		{"no tags on an inserted tag", emit(`{"items":[{"capture":"x"},{"insert":"y","tags":{"tag":"Z"}}]}`)},
 		{"an emission's items are a list", emit(`{"items":null}`)},
-		{"a function exists", tagged(`{"call":"size","args":[{"capture":"x"}]}`)},
-		{"phonemes takes one span", tagged(`{"call":"phonemes","args":[{"capture":"x"},{"capture":"x"}]}`)},
-		{"text takes a span", tagged(`{"call":"text","args":[{"string":"x"}]}`)},
-		{"tags takes a span and a rule name", tagged(`{"call":"tags","args":[{"capture":"x"},{"string":"r"}]}`)},
-		{"lowercase is not a function", tagged(`{"call":"lowercase","args":[{"string":"X"}]}`)},
-		{"runs is not a function", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"runs","args":[{"capture":"x"}]}}`)},
-		{"tag takes a string", tagged(`{"call":"tag","args":[{"tag":"X"}]}`)},
-		{"split takes two strings", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"}]}}`)},
-		{"split takes strings, not spans", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"capture":"x"},{"string":"."}]}}`)},
-		{"split has no empty delimiter", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"},{"string":""}]}}`)},
-		{"tag takes a name", tagged(`{"call":"tag","args":[{"string":"x y"}]}`)},
+		{"a function exists", tagged(`{"method":"size","receiver":{"capture":"x"},"args":[]}`)},
+		{"phonemes takes one span", tagged(`{"method":"value","receiver":{"capture":"x"},"args":[{"capture":"x"}]}`)},
+		{"text takes a span", tagged(`{"method":"source-text","receiver":{"string":"x"},"args":[]}`)},
+		{"tags takes a span and a rule name", tagged(`{"method":"tags","receiver":{"capture":"x"},"args":[{"string":"r"}]}`)},
+		{"lowercase is not a function", tagged(`{"method":"lowercase","receiver":{"string":"X"},"args":[]}`)},
+		{"runs is not a function", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"runs","receiver":{"capture":"x"},"args":[]}}`)},
+		{"tag takes a string", tagged(`{"method":"tag","receiver":{"tag":"X"},"args":[]}`)},
+		{"split takes two strings", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a"},"args":[]}}`)},
+		{"split takes strings, not spans", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"capture":"x"},"args":[{"string":"."}]}}`)},
+		{"split has no empty delimiter", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a"},"args":[{"string":""}]}}`)},
+		{"tag takes a name", tagged(`{"method":"tag","receiver":{"string":"x y"},"args":[]}`)},
 		{"a capture is not on the left of ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":{"capture":"x"}}`)},
-		{"tags() is not on the left of ∉", cond(`{"op":"∉","left":{"call":"tags","args":[{"capture":"x"}]},"right":{"string":"b"}}`)},
-		{"head is a span, not a value", tagged(`{"call":"head","args":[{"capture":"x"}]}`)},
-		{"head takes a span", tagged(`{"call":"tags","args":[{"call":"head","args":[{"tag":"x"}]}]}`)},
-		{"matches is never a term", tagged(`{"call":"matches","args":[{"capture":"x"},{"rule":"text"}]}`)},
-		{"initial is never a term", tagged(`{"call":"initial","args":[{"capture":"x"}]}`)},
+		{"tags() is not on the left of ∉", cond(`{"op":"∉","left":{"method":"tags","receiver":{"capture":"x"},"args":[]},"right":{"string":"b"}}`)},
+		{"head is a span, not a value", tagged(`{"method":"first-token","receiver":{"capture":"x"},"args":[]}`)},
+		{"head takes a span", tagged(`{"method":"tags","receiver":{"method":"first-token","receiver":{"tag":"x"},"args":[]},"args":[]}`)},
+		{"matches is never a term", tagged(`{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}`)},
+		{"initial is never a term", tagged(`{"method":"starts-input","receiver":{"capture":"x"},"args":[]}`)},
 		{"a union has two parts or more", tagged(`{"union":[{"tag":"X"}]}`)},
 		{"an intersection has two parts or more", tagged(`{"intersection":[]}`)},
 		{"a term is known", tagged(`{"what":"X"}`)},
@@ -235,13 +235,13 @@ func TestDOMRules(t *testing.T) {
 		{"a tag is a tag", tagged(`{"tag":"a b"}`)},
 		// The types of terms and conditions agree (engine §10).
 		{"a span is not a value in ∈", cond(`{"op":"∈","left":{"capture":"x"},"right":` + runs + `}`)},
-		{"∈ tests a string in a set of strings", cond(`{"op":"∈","left":{"string":"b"},"right":{"call":"tags","args":[{"capture":"x"}]}}`)},
+		{"∈ tests a string in a set of strings", cond(`{"op":"∈","left":{"string":"b"},"right":{"method":"tags","receiver":{"capture":"x"},"args":[]}}`)},
 		{"⊆ compares sets of one kind", cond(`{"op":"⊆","left":{"tag":"a"},"right":` + runs + `}`)},
-		{"= compares values of one type", cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"tag":"a"}}`)},
+		{"= compares values of one type", cond(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"tag":"a"}}`)},
 		{"the kind of ∅ = ∅ is given", cond(`{"op":"=","left":{"emptySet":true},"right":{"emptySet":true}}`)},
 		{"a tag term is a tag set", tagged(`{"string":"x"}`)},
-		{"a union joins sets of one kind", tagged(`{"union":[{"call":"tags","args":[{"capture":"x"}]},` + runs + `]}`)},
-		{"tag takes a string, not a span", tagged(`{"call":"tag","args":[{"capture":"x"}]}`)},
+		{"a union joins sets of one kind", tagged(`{"union":[{"method":"tags","receiver":{"capture":"x"},"args":[]},` + runs + `]}`)},
+		{"tag takes a string, not a span", tagged(`{"method":"tag","receiver":{"capture":"x"},"args":[]}`)},
 		// Constants and their definitions (engine §2, §9, §10).
 		{"a DOM has constants", strings.Replace(alt(good), `,"constants":[]`, ``, 1)},
 		{"constants are a list", strings.Replace(alt(good), `"constants":[]`, `"constants":null`, 1)},
@@ -251,7 +251,7 @@ func TestDOMRules(t *testing.T) {
 		{"a constant has no other member", constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[3,1],"x":1}`)},
 		{"a constant has a position", constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[3]}`)},
 		{"a constant's value holds no capture", constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"},{"capture":"x"}]},"at":[3,1]}`)},
-		{"a constant's value calls no phonemes", constant(`{"name":"A","op":"define","value":{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"string":"."}]},"at":[3,1]}`)},
+		{"a constant's value calls no phonemes", constant(`{"name":"A","op":"define","value":{"method":"split","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"string":"."}]},"at":[3,1]}`)},
 		{"a constant's value holds no guarded term", constant(`{"name":"A","op":"define","value":{"if":{"op":"⊆","left":{"tag":"X"},"right":{"tag":"Y"}},"then":{"tag":"Z"}},"at":[3,1]}`)},
 		{"a constant's value has a kind", constant(`{"name":"A","op":"define","value":{"emptySet":true},"at":[3,1]}`)},
 		{"a constant's value is well formed", constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"}]},"at":[3,1]}`)},
@@ -261,8 +261,8 @@ func TestDOMRules(t *testing.T) {
 		{"a constant's reference has a position", tagged(`{"const":"X"}`)},
 		// Capture names, terminals and inserted tags (engine §1, §9).
 		{"a capture name is lower case", alt(`{"seq":[{"capture":"X","expr":{"ref":"A"}},{"ref":"B"}]}`)},
-		{"a terminal is a tag", alt(`{"seq":[{"terminal":"é"},{"terminal":"b"}]}`)},
-		{"a terminal is one character", alt(`{"seq":[{"terminal":"'ab'"},{"terminal":"b"}]}`)},
+		{"a terminal is a tag", alt(`{"seq":[{"literal":{"string":"é"}},{"literal":{"string":"b"}}]}`)},
+		{"a terminal is one character", alt(`{"seq":[{"literal":{"string":"'ab'"}},{"literal":{"string":"b"}}]}`)},
 		{"an inserted tag is a tag", emit(`{"items":[{"insert":"a b"},{"capture":"x"}]}`)},
 		{"an inserted tag is canonical", emit(`{"items":[{"insert":"'\\u{61}'"},{"capture":"x"}]}`)},
 		{"elidable is no directive", directive(`{"name":"elidable","args":["KU"],"at":[3,1]}`)},
@@ -270,27 +270,27 @@ func TestDOMRules(t *testing.T) {
 		{"a call's arguments are a list", tagged(`{"call":"tags","args":null}`)},
 		{"a rule's tag term is well formed", rule(`"tags":{"call":"classes","args":null},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
 		{"an alternative's tags are not $", tagged(`{"union":[{"tag":"X"},{"capture":""}]}`)},
-		{"an alternative's tags are not tags($)", tagged(`{"call":"tags","args":[{"capture":""}]}`)},
-		{"an alternative's tags are not classes($)", tagged(`{"call":"classes","args":[{"capture":""}]}`)},
-		{"a rule's tags are not tags($)", rule(`"tags":{"call":"tags","args":[{"capture":""}]},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
+		{"an alternative's tags are not $.tags", tagged(`{"method":"tags","receiver":{"capture":""},"args":[]}`)},
+		{"an alternative's tags are not classes($)", tagged(`{"method":"classes","receiver":{"capture":""},"args":[]}`)},
+		{"a rule's tags are not $.tags", rule(`"tags":{"method":"tags","receiver":{"capture":""},"args":[]},"alternatives":[{"guards":[],"expr":` + good + `}],"conditions":[]`)},
 		{"a comparison is known", cond(`{"op":"<","left":{"string":"a"},"right":{"string":"b"}}`)},
 		{"a comparison has two terms", cond(`{"op":"=","left":{"string":"a"}}`)},
-		{"an any has two conditions or more", cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}}]}`)},
-		{"an all has two conditions or more", cond(`{"all":[{"not":{"matches":{"capture":"x"},"rule":"text"}}]}`)},
-		{"an all counts toward the nesting", cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 256) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 256))},
-		{"matches takes a span", cond(`{"matches":{"tag":"x"},"rule":"text"}`)},
+		{"an any has two conditions or more", cond(`{"any":[{"not":{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}}]}`)},
+		{"an all has two conditions or more", cond(`{"all":[{"not":{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}}]}`)},
+		{"an all counts toward the nesting", cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 256) + `{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`]}`, 256))},
+		{"matches takes a span", cond(`{"method":"matches","receiver":{"tag":"x"},"args":[{"rule":"text"}]}`)},
 		{"matches takes a rule", cond(`{"matches":{"capture":"x"}}`)},
-		{"begins takes a span", cond(`{"begins":{"tag":"x"},"rule":"text"}`)},
+		{"begins takes a span", cond(`{"method":"begins","receiver":{"tag":"x"},"args":[{"rule":"text"}]}`)},
 		{"begins takes a rule", cond(`{"begins":{"capture":"x"}}`)},
-		{"a condition is matches or begins, not both", cond(`{"matches":{"capture":"x"},"begins":{"capture":"x"},"rule":"text"}`)},
-		{"a capture begins mentions is captured", cond(`{"begins":{"call":"after","args":[{"capture":"z"}]},"rule":"text"}`)},
-		{"begins counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"begins":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 256))},
-		{"begins is never a term", tagged(`{"call":"begins","args":[{"capture":"x"},{"rule":"text"}]}`)},
-		{"from is a span, not a value", tagged(`{"call":"from","args":[{"capture":"x"}]}`)},
-		{"after takes a span", tagged(`{"call":"tags","args":[{"call":"after","args":[{"tag":"x"}]}]}`)},
-		{"initial takes a span", cond(`{"initial":{"tag":"x"}}`)},
-		{"initial has only its span", cond(`{"initial":{"capture":"x"},"rule":"text"}`)},
-		{"initial counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"initial":{"capture":"x"}}` + strings.Repeat(`}`, 256))},
+		{"a condition is matches or begins, not both", cond(`{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}],"begins":true}`)},
+		{"a capture begins mentions is captured", cond(`{"method":"begins","receiver":{"method":"following-tokens","receiver":{"capture":"z"},"args":[]},"args":[{"rule":"text"}]}`)},
+		{"begins counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"method":"begins","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`}`, 256))},
+		{"begins is never a term", tagged(`{"method":"begins","receiver":{"capture":"x"},"args":[{"rule":"text"}]}`)},
+		{"from is a span, not a value", tagged(`{"method":"onward","receiver":{"capture":"x"},"args":[]}`)},
+		{"after takes a span", tagged(`{"method":"tags","receiver":{"method":"following-tokens","receiver":{"tag":"x"},"args":[]},"args":[]}`)},
+		{"initial takes a span", cond(`{"method":"starts-input","receiver":{"tag":"x"},"args":[]}`)},
+		{"initial has only its span", cond(`{"method":"starts-input","receiver":{"capture":"x"},"args":[],"rule":"text"}`)},
+		{"initial counts toward the nesting", cond(strings.Repeat(`{"not":`, 256) + `{"method":"starts-input","receiver":{"capture":"x"},"args":[]}` + strings.Repeat(`}`, 256))},
 		{"nesting at most 256", alt(nested(256))},
 		{"a directive has arguments", strings.Replace(alt(good), `"args":["greedy"],`, ``, 1)},
 		{"a directive has a position", strings.Replace(alt(good), `"args":["greedy"],"at":[2,1]`, `"args":["greedy"],"at":[2,1,1]`, 1)},
@@ -307,19 +307,19 @@ func TestDOMRules(t *testing.T) {
 		{"a rule and a directive at one position", strings.Replace(alt(good), `"at":[2,1]`, `"at":[1,1]`, 1)},
 		// A range or a property is checked as the reader checks it
 		// (engine §1, §9).
-		{"a range starts at or below its end", alt(`{"range":["'z'","'a'"]}`)},
-		{"a range has two ends", alt(`{"range":["'a'"]}`)},
-		{"a range's ends are canonical", alt(`{"range":["'\\u{61}'","'z'"]}`)},
-		{"a range's ends are character tags", alt(`{"range":["A","'z'"]}`)},
-		{"a range's ends are strings", alt(`{"range":["'a'",1]}`)},
-		{"a range has no other member", alt(`{"range":["'a'","'z'"],"terminal":"A"}`)},
-		{"a property's name is a short form", alt(`{"property":"Letter"}`)},
-		{"a property's name has its case", alt(`{"property":"lu"}`)},
-		{"a property has no other member", alt(`{"property":"L","range":["'a'","'z'"]}`)},
-		{"a tested range is checked", alt(`{"test":"⊇","value":{"tag":"'a'"},"expr":{"range":["'z'","'a'"]}}`)},
-		{"a tested property is checked", alt(`{"test":"=","value":{"string":"a"},"expr":{"property":"Letter"}}`)},
-		{"a property is not a term", tagged(`{"property":"L"}`)},
-		{"a range in a term starts at or below its end", tagged(`{"range":["'z'","'a'"]}`)},
+		{"a range starts at or below its end", alt(`{"range":[{"string":"z"},{"string":"a"}]}`)},
+		{"a range has two ends", alt(`{"range":[{"string":"a"}]}`)},
+		{"a range's ends are canonical", alt(`{"range":[{"string":"a"},{"string":"z"}]}`)},
+		{"a range's ends are character tags", alt(`{"range":[{"string":"A"},{"string":"z"}]}`)},
+		{"a range's ends are strings", alt(`{"range":[{"string":"a"},1]}`)},
+		{"a range has no other member", alt(`{"range":[{"string":"a"},{"string":"z"}],"terminal":"A"}`)},
+		{"a property's name is a short form", alt(`{"ref":"_Letter"}`)},
+		{"a property's name has its case", alt(`{"ref":"_lu"}`)},
+		{"a property has no other member", alt(`{"property":"L","range":[{"string":"a"},{"string":"z"}]}`)},
+		{"a tested range is checked", alt(`{"test":"⊇","value":{"tag":"'a'"},"expr":{"range":[{"string":"z"},{"string":"a"}]}}`)},
+		{"a tested property is checked", alt(`{"test":"=","value":{"string":"a"},"expr":{"ref":"_Letter"}}`)},
+		{"a property is not a term", tagged(`{"ref":"_L"}`)},
+		{"a range in a term starts at or below its end", tagged(`{"range":[{"string":"z"},{"string":"a"}]}`)},
 		{"an inserted range is not one tag", emit(`{"items":[{"insert":"'a'..'z'"},{"capture":"x"}]}`)},
 		// Classifiers, implications and classify (engine §2, §9).
 		{"a DOM has classifiers", strings.Replace(alt(good), `,"classifiers":[]`, ``, 1)},
@@ -328,60 +328,60 @@ func TestDOMRules(t *testing.T) {
 		{"a classifier has a position", classified(`{"name":"lex","entries":[],"at":null}`, "")},
 		{"a classifier has no other member", classified(`{"name":"lex","entries":[],"at":[3,1],"x":true}`, "")},
 		{"a classifier's entries are a list", classified(`{"name":"lex","entries":null,"at":[3,1]}`, "")},
-		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry takes no warning", entry(`{"guards":[{"feature":"f","kind":"warning","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a rule's gate is not empty", guarded(`{"feature":"","kind":"gate","negated":false}`)},
 		{"a rule's gate is not a mark", guarded(`{"feature":"!","kind":"gate","negated":false}`)},
 		{"a rule's gate has no space", guarded(`{"feature":"bad name","kind":"gate","negated":true}`)},
 		{"a warning is not empty", guarded(`{"feature":"","kind":"warning","negated":false}`)},
 		{"a warning is not a mark", guarded(`{"feature":"!","kind":"warning","negated":false}`)},
 		{"a warning has no space", guarded(`{"feature":"bad name","kind":"warning","negated":false}`)},
-		{"a gate's feature is not empty", entry(`{"guards":[{"feature":"","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a gate's feature is not a mark", entry(`{"guards":[{"feature":"!","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a gate's feature has no space", entry(`{"guards":[{"feature":"bad name","kind":"gate","negated":false}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"an entry's guard has no other member", entry(`{"guards":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature is not empty", entry(`{"guards":[{"feature":"","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature is not a mark", entry(`{"guards":[{"feature":"!","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a gate's feature has no space", entry(`{"guards":[{"feature":"bad name","kind":"gate","negated":false}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"an entry's guard has no other member", entry(`{"guards":[{"feature":"f","kind":"gate","negated":false,"x":1}],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"an entry has a key", entry(`{"guards":[],"keys":[],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a key is in lower case", entry(`{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"a key has no comma", entry(`{"guards":[],"keys":["m,i"],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key is in lower case", entry(`{"guards":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
+		{"a key has no comma", entry(`{"guards":[],"keys":[{"string":"m,i"}],"op":"∈","class":"KOhA","at":[3,3]}`)},
 		{"a key is a string", entry(`{"guards":[],"keys":[1],"op":"∈","class":"KOhA","at":[3,3]}`)},
-		{"an entry's operator is ∈ or ∉", entry(`{"guards":[],"keys":["mi"],"op":"=","class":"KOhA","at":[3,3]}`)},
-		{"a class begins with a capital", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"koha","at":[3,3]}`)},
-		{"a class is a name", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"/a/","at":[3,3]}`)},
-		{"an entry has no other member", entry(`{"guards":[],"keys":["mi"],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
+		{"an entry's operator is ∈ or ∉", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"=","class":"KOhA","at":[3,3]}`)},
+		{"a class begins with a capital", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"koha","at":[3,3]}`)},
+		{"a class is a name", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"/a/","at":[3,3]}`)},
+		{"an entry has no other member", entry(`{"guards":[],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[3,3],"x":true}`)},
 		{"an implication has a position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":null}`)},
 		{"an implication has no other member", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[3,1],"x":true}`)},
 		{"an implication has two sides", implies(`{"if":{"tag":"UI"},"at":[3,1]}`)},
-		{"a side of an implication is closed", implies(`{"if":{"tag":"UI"},"then":{"call":"tags","args":[{"capture":"x"}]},"at":[3,1]}`)},
-		{"a side of an implication calls no classify", implies(`{"if":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"then":{"tag":"m"},"at":[3,1]}`)},
+		{"a side of an implication is closed", implies(`{"if":{"tag":"UI"},"then":{"method":"tags","receiver":{"capture":"x"},"args":[]},"at":[3,1]}`)},
+		{"a side of an implication calls no classify", implies(`{"if":{"method":"classify","receiver":{"string":"mi"},"args":[{"classifier":"lex"}]},"then":{"tag":"m"},"at":[3,1]}`)},
 		{"a side of an implication is a tag set", implies(`{"if":{"tag":"UI"},"then":{"string":"a"},"at":[3,1]}`)},
 		{"an implication and a rule at one position", implies(`{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[1,1]}`)},
 		{"a classifier and an implication at one position", classified(`{"name":"lex","entries":[],"at":[3,1]}`, `{"if":{"tag":"UI"},"then":{"tag":"m"},"at":[3,1]}`)},
-		{"classify names a classifier, not a rule", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"rule":"lex"}]}`)},
-		{"a classifier's name in classify begins with a lower-case letter", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"classifier":"Lex"}]}`)},
-		{"classify takes a string, not a span", tagged(`{"call":"classify","args":[{"capture":"x"},{"classifier":"lex"}]}`)},
-		{"classify takes a string, not a tag set", tagged(`{"call":"classify","args":[{"tag":"x"},{"classifier":"lex"}]}`)},
-		{"classify takes two arguments", tagged(`{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]}]}`)},
+		{"classify names a classifier, not a rule", tagged(`{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"rule":"lex"}]}`)},
+		{"a classifier's name in classify begins with a lower-case letter", tagged(`{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"classifier":"Lex"}]}`)},
+		{"classify takes a string, not a span", tagged(`{"method":"classify","receiver":{"capture":"x"},"args":[{"classifier":"lex"}]}`)},
+		{"classify takes a string, not a tag set", tagged(`{"method":"classify","receiver":{"tag":"x"},"args":[{"classifier":"lex"}]}`)},
+		{"classify takes two arguments", tagged(`{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[]}`)},
 		{"a classifier is not a term", tagged(`{"classifier":"lex"}`)},
-		{"split takes no classifier", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a"},{"classifier":"lex"}]}}`)},
-		{"split takes no classifier first", cond(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"classifier":"lex"},{"string":"."}]}}`)},
-		{"tag takes no classifier", cond(`{"op":"⊆","left":{"call":"tag","args":[{"classifier":"lex"}]},"right":{"tag":"a"}}`)},
-		{"a constant's value calls no classify", constant(`{"name":"A","op":"define","value":{"call":"classify","args":[{"string":"mi"},{"classifier":"lex"}]},"at":[3,1]}`)},
+		{"split takes no classifier", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a"},"args":[{"classifier":"lex"}]}}`)},
+		{"split takes no classifier first", cond(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"classifier":"lex"},"args":[{"string":"."}]}}`)},
+		{"tag takes no classifier", cond(`{"op":"⊆","left":{"method":"tag","receiver":{"classifier":"lex"},"args":[]},"right":{"tag":"a"}}`)},
+		{"a constant's value calls no classify", constant(`{"name":"A","op":"define","value":{"method":"classify","receiver":{"string":"mi"},"args":[{"classifier":"lex"}]},"at":[3,1]}`)},
 	}
 	// Each variation's well-formed twin decodes, so that the refusals are
 	// the rule's and not the test's.
 	for _, ok := range []string{alt(good), alt(nested(255)),
 		// A range, a property, each captured, and a range in a term.
-		alt(`{"range":["'a'","'z'"]}`), alt(`{"property":"White_Space"}`),
-		alt(`{"seq":[{"capture":"c","expr":{"range":["'\\u{300}'","'\\u{36F}'"]}},{"capture":"d","expr":{"property":"Cs"}}]}`),
-		tagged(`{"union":[{"range":["'a'","'c'"]},{"tag":"'x'"}]}`),
+		alt(`{"range":[{"string":"a"},{"string":"z"}]}`), alt(`{"ref":"_White_Space"}`),
+		alt(`{"seq":[{"capture":"c","expr":{"range":[{"string":"\u0300"},{"string":"\u036f"}]}},{"capture":"d","expr":{"ref":"_Cs"}}]}`),
+		tagged(`{"union":[{"tag":"A"},{"tag":"X"}]}`),
 		// Classifiers, entries, implications and classify.
-		classified(`{"name":"lex","entries":[{"guards":[],"keys":["mi","do"],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":["u'i"],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
-			`{"if":{"union":[{"tag":"UI"},{"const":"K","at":[6,15]}]},"then":{"tag":"indicator"},"at":[6,1]},{"if":{"range":["'a'","'c'"]},"then":{"union":[{"tag":"early"},{"tag":"/a/"}]},"at":[7,1]}`),
-		tagged(`{"union":[{"tag":"T"},{"call":"classify","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"classifier":"lex"}]}]}`),
+		classified(`{"name":"lex","entries":[{"guards":[],"keys":[{"string":"mi"},{"string":"do"}],"op":"∈","class":"KOhA","at":[3,3]},{"guards":[{"feature":"f","kind":"gate","negated":true}],"keys":[{"string":"u'i"}],"op":"∉","class":"UI","at":[4,3]}],"at":[3,1]},{"name":"empty","entries":[],"at":[5,1]}`,
+			`{"if":{"union":[{"tag":"UI"},{"const":"K","at":[6,15]}]},"then":{"tag":"Indicator"},"at":[6,1]},{"if":{"union":[{"tag":"A"},{"tag":"C"}]},"then":{"union":[{"tag":"Early"},{"tag":"A"}]},"at":[7,1]}`),
+		tagged(`{"union":[{"tag":"T"},{"method":"classify","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"classifier":"lex"}]}]}`),
 		// A gate, negated or not, and a warning.
 		guarded(`{"feature":"f","kind":"gate","negated":true}`), guarded(`{"feature":"f","kind":"gate","negated":false},{"feature":"g","kind":"warning","negated":false}`),
-		alt(`{"seq":[{"capture":"a","expr":{"terminal":"a"}},{"capture":"b","expr":{"terminal":"b"}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
+		alt(`{"seq":[{"capture":"a","expr":{"literal":{"string":"a"}}},{"capture":"b","expr":{"literal":{"string":"b"}}},{"capture":"c","expr":{"ref":"C"}},{"capture":"d","expr":{"ref":"D"}}]}`),
 		// Each at the bound: the deepest node below exactly 256 compound ones.
-		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"capture":"x","expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
+		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"capture":"x","expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
 		tagged(unions(256)),
 		strings.Replace(alt(good), `"name":"text"`, `"name":"#"`, 1),
 		// The pipeline directives with their operands; an include's path
@@ -391,11 +391,11 @@ func TestDOMRules(t *testing.T) {
 		directive(`{"name":"features","args":["f","g"],"at":[3,1]}`),
 		// Braces, chains, marked optionals, and captures anywhere but in
 		// braces or an elidable optional, of any number (engine §3.5, §9).
-		alt(`{"repeat":{"terminal":"a"}}`), alt(`{"repeat":{"terminal":"a"},"separator":{"terminal":"b"}}`), alt(`{"optional":{"repeat":{"terminal":"a"}}}`),
-		alt(`{"repeat":{"terminal":"a"},"chain":"left"}`), alt(`{"repeat":{"terminal":"a"},"separator":{"terminal":"b"},"chain":"right"}`),
+		alt(`{"repeat":{"literal":{"string":"a"}}}`), alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}}}`), alt(`{"optional":{"repeat":{"literal":{"string":"a"}}}}`),
+		alt(`{"repeat":{"literal":{"string":"a"}},"chain":"left"}`), alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}},"chain":"right"}`),
 		alt(`{"seq":[{"capture":"a","expr":{"ref":"A"}},{"repeat":{"ref":"B"}}]}`),
 		alt(`{"optional":{"ref":"KU"},"elidable":true}`),
-		alt(`{"optional":{"terminal":"KU"},"elidable":true}`), alt(`{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`),
+		alt(`{"optional":{"ref":"KU"},"elidable":true}`), alt(`{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`),
 		alt(`{"optional":{"test":"=","value":{"string":"ku"},"expr":{"ref":"KU"}},"elidable":true}`),
 		alt(`{"optional":{"seq":[{"ref":"KU"},{"choice":[{"ref":"A"},{"ref":"B"}]}]},"elidable":true}`),
 		alt(`{"seq":[{"optional":{"capture":"x","expr":{"ref":"A"}}},{"ref":"B"}]}`), alt(`{"choice":[{"capture":"x","expr":{"ref":"A"}},{"ref":"B"}]}`),
@@ -403,62 +403,89 @@ func TestDOMRules(t *testing.T) {
 		alt(`{"seq":[{"ref":"A"},{"optional":{"seq":[{"ref":"B"},{"optional":{"capture":"c","expr":{"ref":"C"}}}]}}]}`),
 		alt(`{"seq":[{"capture":"c","expr":{"ref":"A"}},{"capture":"d","expr":{"ref":"A"}},{"capture":"e","expr":{"ref":"A"}},{"capture":"f","expr":{"ref":"A"}},{"capture":"g","expr":{"ref":"A"}},{"capture":"h","expr":{"ref":"A"}}]}`),
 		// Terms of each type where they agree, and canonical tags.
-		tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}]}`), tagged(`{"tag":"'\\u{5C}'"}`),
-		cond(`{"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"wrong"}}`),
-		alt(`{"seq":[{"terminal":"'é'"},{"terminal":"'\\u{301}'"}]}`), emit(`{"items":[{"insert":"'a'"},{"capture":"x"}]}`),
-		cond(`{"op":"∈","left":{"call":"text","args":[{"capture":"x"}]},"right":` + runs + `}`),
-		cond(`{"op":"⊈","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":"x"}]}}`),
+		tagged(`{"difference":[{"tag":"X"},{"tag":"Y"}]}`), tagged(`{"tag":"Backslash"}`),
+		cond(`{"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"string":"wrong"}}`),
+		alt(`{"seq":[{"literal":{"string":"é"}},{"literal":{"string":"'\\u{301}'"}}]}`), emit(`{"items":[{"insert":true,"value":{"concat":[{"string":"a"}]}},{"capture":"x"}]}`),
+		cond(`{"op":"∈","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":` + runs + `}`),
+		cond(`{"op":"⊈","left":{"tag":"A"},"right":{"method":"tags","receiver":{"capture":"x"},"args":[]}}`),
 		cond(`{"op":"=","left":{"emptySet":true},"right":` + runs + `}`),
 		// An emission and its items are not compound: an item's term counts
 		// from the top.
 		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),
-		cond(strings.Repeat(`{"not":`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"capture":""},{"capture":""}]}`), emit(`{"items":[{"insert":"y"},{"capture":"x"}]}`),
+		cond(strings.Repeat(`{"not":`, 255) + `{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"capture":""},{"capture":""}]}`), emit(`{"items":[{"insert":true,"value":{"concat":[{"string":"y"}]}},{"capture":"x"}]}`),
 		// ε, no items, for one alternative and for several.
-		emit(`{"items":[]}`), two(`"emit":{"items":[]},"conditions":[]`),
-		emit(`{"items":[{"capture":"x"},{"insert":"y"},{"capture":"y","tags":{"call":"tags","args":[{"capture":""}]}}]}`),
-		tagged(`{"call":"tags","args":[{"capture":""},{"rule":"text"}]}`), tagged(`{"call":"tags","args":[{"call":"head","args":[{"capture":""}]}]}`),
-		cond(`{"all":[{"matches":{"capture":""},"rule":"text"},{"op":"⊆","left":{"tag":"a"},"right":{"call":"tags","args":[{"capture":""}]}}]}`),
-		cond(strings.Repeat(`{"all":[{"matches":{"capture":"x"},"rule":"text"},`, 255) + `{"matches":{"capture":"x"},"rule":"text"}` + strings.Repeat(`]}`, 255)),
-		cond(`{"op":"⊆","left":{"call":"tag","args":[{"call":"text","args":[{"call":"head","args":[{"capture":"x"}]}]}]},"right":{"tag":"a"}}`),
+		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"erased":true`, 1), two(`"erased":true,"conditions":[]`),
+		emit(`{"items":[{"capture":"x"},{"insert":true,"value":{"concat":[{"string":"y"}]}},{"capture":"y","tags":{"method":"tags","receiver":{"capture":""},"args":[]}}]}`),
+		tagged(`{"method":"tags","receiver":{"capture":""},"args":[{"rule":"text"}]}`), tagged(`{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":""},"args":[]},"args":[]}`),
+		cond(`{"all":[{"method":"matches","receiver":{"capture":""},"args":[{"rule":"text"}]},{"op":"⊆","left":{"tag":"A"},"right":{"method":"tags","receiver":{"capture":""},"args":[]}}]}`),
+		cond(strings.Repeat(`{"all":[{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]},`, 255) + `{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`]}`, 255)),
+		cond(`{"op":"⊆","left":{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":"x"},"args":[]},"args":[]},"right":{"tag":"A"}}`),
 		// Constants, their definitions and their references.
 		constant(`{"name":"A","op":"define","value":{"union":[{"tag":"X"},{"const":"B","at":[3,20]}]},"at":[3,1]}`),
 		constant(`{"name":"A","op":"redefine","value":{"emptySet":true},"at":[3,1]}`),
-		constant(`{"name":"A","op":"define","value":{"call":"split","args":[{"string":"a.b"},{"const":"P","at":[3,20]}]},"at":[3,1]}`),
-		constant(`{"name":"A","op":"define","value":{"call":"tag","args":[{"string":"X"}]},"at":[3,1]}`),
-		tagged(`{"union":[{"const":"A","at":[1,5]},{"call":"tag","args":[{"const":"S","at":[1,9]}]}]}`),
-		cond(`{"op":"∈","left":{"const":"S","at":[1,5]},"right":{"call":"split","args":[{"call":"phonemes","args":[{"capture":"x"}]},{"const":"P","at":[1,9]}]}}`),
-		cond(`{"any":[{"not":{"matches":{"capture":"x"},"rule":"text"}},{"op":"=","left":{"string":"a"},"right":{"string":"a"}}]}`),
-		cond(strings.Repeat(`{"not":`, 254) + `{"initial":{"call":"tail","args":[{"capture":"x"}]}}` + strings.Repeat(`}`, 254)),
+		constant(`{"name":"A","op":"define","value":{"method":"split","receiver":{"string":"a.b"},"args":[{"const":"P","at":[3,20]}]},"at":[3,1]}`),
+		constant(`{"name":"A","op":"define","value":{"tag":"X"},"at":[3,1]}`),
+		tagged(`{"union":[{"const":"A","at":[1,5]},{"const":"S","at":[1,9]}]}`),
+		cond(`{"op":"∈","left":{"const":"S","at":[1,5]},"right":{"method":"split","receiver":{"method":"value","receiver":{"capture":"x"},"args":[]},"args":[{"const":"P","at":[1,9]}]}}`),
+		cond(`{"any":[{"not":{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}},{"op":"=","left":{"string":"a"},"right":{"string":"a"}}]}`),
+		cond(strings.Repeat(`{"not":`, 254) + `{"method":"starts-input","receiver":{"method":"tokens-after-first","receiver":{"capture":"x"},"args":[]},"args":[]}` + strings.Repeat(`}`, 254)),
 		// A lookahead, at the bound, and the tokens' tags from $ on.
-		cond(strings.Repeat(`{"not":`, 254) + `{"begins":{"call":"after","args":[{"capture":"x"}]},"rule":"text"}` + strings.Repeat(`}`, 254)),
-		cond(`{"begins":{"call":"from","args":[{"call":"tail","args":[{"capture":""}]}]},"rule":"text"}`),
-		tagged(`{"call":"tags","args":[{"call":"from","args":[{"capture":""}]}]}`),
+		cond(strings.Repeat(`{"not":`, 254) + `{"method":"begins","receiver":{"method":"following-tokens","receiver":{"capture":"x"},"args":[]},"args":[{"rule":"text"}]}` + strings.Repeat(`}`, 254)),
+		cond(`{"method":"begins","receiver":{"method":"onward","receiver":{"method":"tokens-after-first","receiver":{"capture":""},"args":[]},"args":[]},"args":[{"rule":"text"}]}`),
+		tagged(`{"method":"tags","receiver":{"method":"onward","receiver":{"capture":""},"args":[]},"args":[]}`),
 		// Tested symbols, captured or not, of each comparator, and at the
 		// bound of the nesting.
-		alt(`{"seq":[{"capture":"x","expr":{"test":"=","value":{"string":"la'i"},"expr":{"ref":"LE"}}},{"test":"≠","value":{"string":"a"},"expr":{"terminal":"/a/"}}]}`),
-		alt(`{"seq":[{"test":"=","value":{"string":""},"expr":{"ref":"LE"}},{"test":"∩=∅","value":{"tag":"UI"},"expr":{"ref":"cmavo"}}]}`),
-		alt(`{"seq":[{"test":"⊇","value":{"union":[{"tag":"UI"},{"range":["'a'","'c'"]}]},"expr":{"range":["'a'","'z'"]}},{"test":"⊉","value":{"emptySet":true},"expr":{"property":"L"}}]}`),
-		alt(`{"seq":[{"test":"∩≠∅","value":{"const":"A","at":[1,1]},"expr":{"ref":"LE"}},{"test":"=","value":{"const":"S","at":[1,2]},"expr":{"ref":"LE"}}]}`),
+		alt(`{"seq":[{"capture":"x","expr":{"test":"=","value":{"string":"la'i"},"expr":{"ref":"LE"}}},{"test":"≠","value":{"string":"a"},"expr":{"literal":{"string":"/a/"}}}]}`),
+		alt(`{"seq":[{"test":"=","value":{"string":""},"expr":{"ref":"LE"}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"UI"}}],"expr":{"ref":"Cmavo"}}]}`),
+		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"tag":"UI"}},{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"C"}}],"expr":{"range":[{"string":"a"},{"string":"z"}]}},{"test":"tags","requirements":[{"negated":true,"value":{"tag":"X"}}],"expr":{"ref":"_L"}}]}`),
+		alt(`{"seq":[{"test":"tags","requirements":[{"negated":false,"value":{"const":"A","at":[1,1]}}],"expr":{"ref":"LE"}},{"test":"=","value":{"const":"S","at":[1,2]},"expr":{"ref":"LE"}}]}`),
 		alt(`{"seq":[{"capture":"l","expr":{"test":"=","value":{"string":"la"},"expr":{"ref":"LE"}}},{"repeat":{"test":"=","value":{"string":"ui"},"expr":{"ref":"UI"}}}]}`),
-		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"terminal":"a"},`, 254) + `{"test":"=","value":{"string":"b"},"expr":{"terminal":"b"}}` + strings.Repeat(`]}`, 254) + `,{"terminal":"b"}]}`),
-		alt(strings.Repeat(`{"optional":`, 254) + `{"test":"⊇","value":{"union":[{"tag":"A"},{"tag":"B"}]},"expr":{"ref":"LE"}}` + strings.Repeat(`}`, 254)),
+		alt(`{"seq":[` + strings.Repeat(`{"seq":[{"literal":{"string":"a"}},`, 254) + `{"test":"=","value":{"string":"b"},"expr":{"literal":{"string":"b"}}}` + strings.Repeat(`]}`, 254) + `,{"literal":{"string":"b"}}]}`),
+		alt(strings.Repeat(`{"optional":`, 254) + `{"test":"tags","requirements":[{"negated":false,"value":{"tag":"A"}},{"negated":false,"value":{"tag":"B"}}],"expr":{"ref":"LE"}}` + strings.Repeat(`}`, 254)),
 		strings.Replace(alt(good), `"define"`, `"redefine"`, 1),
-		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"opaque":true`, 1), emit(`{"items":[{"capture":"x"}]},"opaque":true`),
+		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"value":{"concat":[{"string":"?"}]}`, 1), emit(`{"items":[{"capture":"x"}]},"value":{"concat":[{"string":"?"}]}`),
 		// Clauses that serve alternatives with different captures.
-		two(`"tags":{"union":[{"tag":"T"},{"if":{"captured":"x"},"then":{"call":"tags","args":[{"capture":"x"}]}}]},"conditions":[]`),
-		two(`"conditions":[{"captured":"x"},{"if":{"captured":"z"},"then":{"matches":{"capture":"z"},"rule":"text"}}]`),
-		two(`"emit":{"items":[{"capture":"x"},{"insert":"T"}]},"conditions":[]`),
+		two(`"tags":{"union":[{"tag":"T"},{"if":{"captured":"x"},"then":{"method":"tags","receiver":{"capture":"x"},"args":[]}}]},"conditions":[]`),
+		two(`"conditions":[{"captured":"x"},{"if":{"captured":"z"},"then":{"method":"matches","receiver":{"capture":"z"},"args":[{"rule":"text"}]}}]`),
+		two(`"emit":{"items":[{"capture":"x"},{"insert":true,"value":{"concat":[{"string":"T"}]}}]},"conditions":[]`),
 		// Attachments before and after a carrier, and one that an
 		// alternative with the carrier lacks.
 		emit(`{"items":[{"capture":"y","before":["x"]}]}`), emit(`{"items":[{"capture":"x","after":["y"]}]}`),
-		rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"capture":"y","expr":{"terminal":"b"}}]}},{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"terminal":"a"}},{"terminal":"b"}]}}],"emit":{"items":[{"insert":"T"},{"capture":"x","after":["y"]}]},"conditions":[]`),
-		two(`"emit":{"items":[{"capture":"x","tags":{"call":"tags","args":[{"capture":"z"}]}},{"capture":"z"},{"insert":"T"}]},"conditions":[]`)} {
+		rule(`"alternatives":[{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"capture":"y","expr":{"literal":{"string":"b"}}}]}},{"guards":[],"expr":{"seq":[{"capture":"x","expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}}],"emit":{"items":[{"insert":true,"value":{"concat":[{"string":"T"}]}},{"capture":"x","after":["y"]}]},"conditions":[]`),
+		two(`"emit":{"items":[{"capture":"x","tags":{"method":"tags","receiver":{"capture":"z"},"args":[]}},{"capture":"z"},{"insert":true,"value":{"concat":[{"string":"T"}]}}]},"conditions":[]`)} {
 		if _, err := decodeDOM(json.RawMessage(ok), bundled.uni); err != nil {
 			t.Fatalf("a well-formed DOM is refused: %v\n%s", err, ok)
 		}
 	}
-	sources := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+	accepted := map[string]string{
+		"$ only with $ (a capture)":                         "Overlap is checked from the stitched consuming graph, rather than this local DOM.",
+		"no ∅ as an item's tags":                            "An emitted token can have an empty tag set (engine §1).",
+		"a sound test's string is in lower case":            "Stored values compare exactly and permit uppercase (engine §4).",
+		"a sound test's string is in lower case (Cyrillic)": "Stored values compare exactly and permit uppercase (engine §4).",
+		"a sound test's string has no comma":                "Stored values retain commas (engine §4).",
+		"a capture of a tested symbol is checked":           "Stored value tests permit uppercase operands (engine §4).",
+		"split takes strings, not spans":                    "A string method converts its span receiver to value (engine §10).",
+		"a span is not a value in ∈":                        "Value operations convert spans to stored values (engine §10).",
+		"a terminal is a tag":                               "A literal is a string terminal even when it is not a tag (engine §1).",
+		"a terminal is one character":                       "String terminals can contain several scalars (engine §1).",
+		"a range's ends are canonical":                      "String endpoints use their exact decoded scalar values (engine §9).",
+		"a range's ends are character tags":                 "Range endpoints are strings rather than character tags (engine §9).",
+		"a key has no comma":                                "Classifier keys are exact strings and retain commas (engine §2).",
+		"classify takes a string, not a span":               "A string method converts its span receiver to value (engine §10).",
+	}
 	for _, c := range cases {
+		if reason, ok := accepted[c.rule]; ok {
+			dom, err := decodeDOM(json.RawMessage(c.dom), bundled.uni)
+			if err != nil {
+				t.Errorf("%s: %s: %v", c.rule, reason, err)
+				continue
+			}
+			if _, err := decodeDOM(dom.json(), bundled.uni); err != nil {
+				t.Errorf("%s: accepted DOM does not round trip: %v", c.rule, err)
+			}
+			continue
+		}
 		if _, err := decodeDOM(json.RawMessage(c.dom), bundled.uni); err == nil {
 			t.Errorf("%s: a DOM breaking it decodes", c.rule)
 			continue
@@ -501,7 +528,7 @@ func TestReaderImplicationNesting(t *testing.T) {
 	// n differences, each of a tag and the next in parentheses: the
 	// innermost tag lies below n compound nodes.
 	doc := func(n int) string {
-		return "```jbogenbau\n\n%implies " + strings.Repeat("A ∖ (", n) + "B" + strings.Repeat(")", n) + " ⟹ ~m\n```\n"
+		return "```jbogenbau\n\n%implies " + strings.Repeat("A ∖ (", n) + "B" + strings.Repeat(")", n) + " ⟹ M\n```\n"
 	}
 	if _, err := bundled.reader.read(doc(256), "g.md"); err != nil {
 		t.Fatalf("256 deep: %v", err)
@@ -517,7 +544,7 @@ func TestReaderImplicationNesting(t *testing.T) {
 func bootstrapError(t *testing.T, list, item string) error {
 	t.Helper()
 	loadBundled()
-	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 	bootstrap := bundled.sources["notation/bootstrap.json"]
 	i := strings.Index(bootstrap, `"`+list+`":[`)
 	if i < 0 {
@@ -546,8 +573,8 @@ func assertGrammarError(t *testing.T, err error, want string) {
 // A bootstrap with a malformed classifier is an error of the grammar
 // (engine §9).
 func TestBootstrapMalformedClassifier(t *testing.T) {
-	bad := `{"name":"lex","entries":[{"guards":[],"keys":["Mi"],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
-	assertGrammarError(t, bootstrapError(t, "classifiers", bad), "canonical sound")
+	bad := `{"name":"lex","entries":[{"guards":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
+	assertGrammarError(t, bootstrapError(t, "classifiers", bad), "not valid UTF-8")
 }
 
 // A classifier's name stands only as the second argument of classify
@@ -556,13 +583,13 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 	rule := func(condition string) string {
 		return `{"name":"misplaced-classifier","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
 	}
-	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a.b"},{"string":"."}]}}`)); err != nil {
+	if err := bootstrapError(t, "rules", rule(`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"string":"."}]}}`)); err != nil {
 		t.Fatalf("a well-formed rule: %v", err)
 	}
 	for _, condition := range []string{
-		`{"op":"⊆","left":{"call":"tag","args":[{"classifier":"lex"}]},"right":{"tag":"a"}}`,
-		`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"classifier":"lex"},{"string":"."}]}}`,
-		`{"op":"∈","left":{"string":"a"},"right":{"call":"split","args":[{"string":"a.b"},{"classifier":"lex"}]}}`,
+		`{"op":"⊆","left":{"method":"tag","receiver":{"classifier":"lex"},"args":[]},"right":{"tag":"a"}}`,
+		`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"classifier":"lex"},"args":[{"string":"."}]}}`,
+		`{"op":"∈","left":{"string":"a"},"right":{"method":"split","receiver":{"string":"a.b"},"args":[{"classifier":"lex"}]}}`,
 	} {
 		assertGrammarError(t, bootstrapError(t, "rules", rule(condition)), "a malformed call")
 	}
@@ -575,8 +602,8 @@ func TestDeepConstant(t *testing.T) {
 	loadBundled()
 	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
-	src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
-	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
+	src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
+	dom := `{"format":` + strconv.Itoa(domFormat) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[4,1]}],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[` + k + `],"classifiers":[],"implications":[]}`
 	if _, err := decodeDOM(json.RawMessage(dom), bundled.uni); err == nil || !strings.Contains(err.Error(), "nested more than 256 deep") {
 		t.Fatalf("a deep constant: expected the nesting error, got %v", err)
 	}
@@ -613,7 +640,7 @@ func TestDeepConstant(t *testing.T) {
 func TestCachedClauseWaitsForConstant(t *testing.T) {
 	loadBundled()
 	grammar := func(first, last string) string {
-		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text 'b' | $x('a')\n%tags Y ∪ ($E ∩ tags($x))\n%redefine-const $E " + last
+		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text :: Y ∪ ($E ∩ $x.tags) | \"b\" | $x:\"a\"\n%redefine-const $E " + last
 	}
 	// The tags of the parse's tree, or the load error's position, with the
 	// cache entry given.
@@ -676,15 +703,15 @@ func TestGuardFeatureName(t *testing.T) {
 	format := `"format":` + strconv.Itoa(domFormat)
 	classifier := func(guard string, line int) string {
 		at := strconv.Itoa(line)
-		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":["mi"],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
+		return `{"name":"lex","entries":[{"guards":[` + guard + `],"keys":[{"string":"mi"}],"op":"∈","class":"KOhA","at":[` + at + `,3]}],"at":[` + at + `,1]}`
 	}
 	rule := func(guard, name string, line int) string {
-		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"terminal":"a"},{"terminal":"b"}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
+		return `{"name":"` + name + `","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}}],"conditions":[],"at":[` + strconv.Itoa(line) + `,1]}`
 	}
 	// features is the dialect's features, each as name:kind, when its
 	// compiled.json holds a DOM of the document with rules and classifiers.
 	features := func(rules, classifiers string) []string {
-		src := oneStage("%ambiguity-resolution greedy\n%rule text 'a' 'b'")
+		src := oneStage("%ambiguity-resolution greedy\n%rule text \"a\" \"b\"")
 		dom := `{` + format + `,"rules":[` + rules + `],"directives":[{"name":"ambiguity-resolution","args":["greedy"],"at":[3,1]}],"constants":[],"classifiers":[` + classifiers + `],"implications":[]}`
 		src["compiled.json"] = `{` + format + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(src["g.md"]) + `","dom":` + dom + `}}}`
 		d, err := LoadDialectSources(src, "p.md")
@@ -737,15 +764,15 @@ func TestGuardFeatureName(t *testing.T) {
 func TestMixedForms(t *testing.T) {
 	loadBundled()
 	format := `"format":` + strconv.Itoa(domFormat)
-	src := oneStage("%ambiguity-resolution greedy\n%rule text $x('a') 'b'\n%conditions text($x) = \"a\"")
+	src := oneStage("%ambiguity-resolution greedy\n%rule text $x:\"a\" \"b\"\n%conditions $x.source-text = \"a\"")
 	const (
-		a        = `{"terminal":"'a'"}`
-		b        = `{"terminal":"'b'"}`
-		c        = `{"terminal":"'c'"}`
+		a        = `{"literal":{"string":"a"}}`
+		b        = `{"literal":{"string":"b"}}`
+		c        = `{"literal":{"string":"c"}}`
 		captured = `{"capture":"x","expr":` + a + `}`
 		// A condition that wants "z", which the text does not give. So an
 		// entry used by mistake refuses the text.
-		compared = `"op":"=","left":{"call":"text","args":[{"capture":"x"}]},"right":{"string":"z"}`
+		compared = `"op":"=","left":{"method":"source-text","receiver":{"capture":"x"},"args":[]},"right":{"string":"z"}`
 	)
 	rule := func(name, expr, condition, emit string, line int) string {
 		if emit != "" {
@@ -793,7 +820,7 @@ func TestMixedForms(t *testing.T) {
 		{"a repetition with an optional of a bad reference", seq(captured, `{"repeat":`+b+`,"min":1,"optional":{"ref":["x"]}}`), "", ""},
 		{"a reference that is not a name", seq(captured, `{"ref":"x y"}`), "", ""},
 		{"a top-level sequence with a choice", `{"seq":[` + captured + `,` + b + `],"choice":[` + b + `,` + c + `]}`, "", ""},
-		{"a captured terminal not in its canonical spelling", seq(`{"capture":"x","expr":{"terminal":"'ab'"}}`, b), "", ""},
+		{"a captured terminal with invalid scalar contents", seq(`{"capture":"x","expr":{"literal":{"string":"\ud800"}}}`, b), "", ""},
 		{"a captured reference with a terminal", seq(`{"capture":"x","expr":{"ref":"A","terminal":"'a'"}}`, b), "", ""},
 		{"a captured terminal with a reference", seq(`{"capture":"x","expr":{"terminal":"'a'","ref":"A"}}`, b), "", ""},
 		{"a captured reference that is not a name", seq(`{"capture":"x","expr":{"ref":"x y"}}`, b), "", ""},
@@ -802,7 +829,7 @@ func TestMixedForms(t *testing.T) {
 		{"a negation with a comparison", "", `{"not":{"captured":"x"},` + compared + `}`, ""},
 		{"a presence test with a comparison", "", `{"captured":"x",` + compared + `}`, ""},
 		{"a comparison with a match", "", `{` + compared + `,"matches":{"capture":"x"}}`, ""},
-		{"a match with a rule and another member", "", `{"matches":{"capture":"x"},"rule":"text","initial":{"capture":"x"}}`, ""},
+		{"a match with a rule and another member", "", `{"method":"starts-input","receiver":{"capture":"x"},"args":[],"rule":"text"}`, ""},
 		{"an emission with another member", "", "", `{"items":[{"capture":"x"}],"extra":true}`},
 		{"another member with an emission", "", "", `{"extra":true,"items":[{"capture":"x"}]}`},
 	} {

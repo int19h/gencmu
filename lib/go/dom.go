@@ -103,7 +103,6 @@ const (
 	exTest     = "test"
 	exEmpty    = "empty"
 	exRange    = "range"
-	exProperty = "property"
 	exLiteral  = "literal"
 	exWildcard = "wildcard"
 )
@@ -117,10 +116,9 @@ type domExpr struct {
 	Sep          *domExpr
 	Chain        string
 	Elidable     bool
-	Name         string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
-	Range        [2]string // range: its two ends, character tags in their canonical spelling
-	Op           string    // test: its comparator, one of testOps
-	Value        *domTerm  // test: its value, a closed term
+	Name         string   // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Op           string   // test: its comparator, one of testOps
+	Value        *domTerm // test: its value, a closed term
 	Ends         [2]*domTerm
 	Requirements []tagRequirement
 }
@@ -130,13 +128,10 @@ type tagRequirement struct {
 	Value   *domTerm
 }
 
-// testOps are the comparators of a test in a body (engine §2): the two
-// sound tests and the four tag tests.
+// testOps are the two value comparators and signed tag requirements (§4).
 var testOps = map[string]bool{"=": true, "≠": true, "tags": true}
 
-// isValueTest says whether a test's comparator is a sound test, whose
-// value is a string, rather than a tag test, whose value is a tag set
-// (engine §2).
+// isValueTest identifies equality and inequality of stored strings (§4).
 func isValueTest(op string) bool {
 	return op == "=" || op == "≠"
 }
@@ -146,8 +141,8 @@ func isValueTest(op string) bool {
 // whole constituent, or a tmCall of head, tail, last, from or after; a rule
 // argument is tmRule, and the classifier that classify names is
 // tmClassifier. A difference, a ∖ b, has exactly two items. A guarded
-// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone. A range,
-// 'a'..'z', is tmRange, its ends in Range. A reference to a constant is
+// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
+// A reference to a constant is
 // tmConst, its name without $ in Str and its position in At.
 const (
 	tmString       = "string"
@@ -161,7 +156,6 @@ const (
 	tmRule         = "rule"
 	tmClassifier   = "classifier"
 	tmIf           = "if"
-	tmRange        = "range"
 	tmConst        = "const"
 	tmPattern      = "pattern"
 	tmInterpolate  = "interpolate"
@@ -173,7 +167,6 @@ type domTerm struct {
 	Str   string     // string, tag, call (the function), capture, rule, classifier
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
-	Range [2]string  // range: its two ends
 	At    [2]int     // const: the position of the reference
 	// value is a constant's final value in its stage, which only a
 	// stitched grammar's copy of the reference holds (engine §2).
@@ -499,21 +492,7 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw(`{"empty":true}`)
 	case exRange:
 		writeStringRange(w, e.Ends)
-	case exProperty:
-		w.raw(`{"property":`)
-		w.str(e.Name)
-		w.raw("}")
 	}
-}
-
-// writeRange writes a range, {"range":["'a'","'z'"]}, as an expression or
-// a term.
-func writeRange(w *jsonWriter, r [2]string) {
-	w.raw(`{"range":[`)
-	w.str(r[0])
-	w.raw(",")
-	w.str(r[1])
-	w.raw("]}")
 }
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
@@ -536,8 +515,6 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw(`,"at":`)
 		w.pair(t.At)
 		w.raw("}")
-	case tmRange:
-		writeRange(w, t.Range)
 	case tmUnion, tmIntersection, tmDifference, tmInterpolate, tmConcat:
 		w.raw("{")
 		w.str(t.Kind)
@@ -693,7 +670,7 @@ func decodeObj(raw json.RawMessage) (jobj, error) {
 }
 
 // decodeDOM reads a DOM that did not come from reading its document and
-// validates it; uni is the lowercase mapping that the strings of its sound
+// validates it; uni supplies the configured Unicode data for its string
 // tests are checked against (engine §9).
 func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	o, err := decodeObj(raw)
@@ -1015,9 +992,10 @@ func unmarshal(raw json.RawMessage, v any) error {
 }
 
 func decodeString(raw json.RawMessage) (string, error) {
-	var s string
-	err := unmarshal(raw, &s)
-	return s, err
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return "", fmt.Errorf("a null where the DOM holds a string")
+	}
+	return decodeJSONString(raw)
 }
 
 // decodePosition reads a [line, column] pair, each an integer.
@@ -1056,12 +1034,8 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	if v, ok := o[exRange]; ok {
-		r, err := decodeStringRange(v, depth+1)
+		r, err := decodeStringRange(v, depth)
 		return &domExpr{Kind: exRange, Ends: r}, err
-	}
-	if v, ok := o[exProperty]; ok {
-		name, err := decodeString(v)
-		return &domExpr{Kind: exProperty, Name: name}, err
 	}
 	for _, k := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if v, ok := o[k]; ok {
@@ -1142,7 +1116,7 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		}
 	}
 	if v, ok := o["literal"]; ok {
-		t, err := decodeTermAt(v, depth+1)
+		t, err := decodeTermAt(v, depth)
 		return &domExpr{Kind: exLiteral, Value: t}, err
 	}
 	if isTrue(o["wildcard"]) {
@@ -1170,16 +1144,6 @@ var termForms = [][]string{
 
 var condForms = [][]string{
 	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
-}
-
-// decodeRange decodes a range's two ends, which the checker then holds to
-// the reader's rules.
-func decodeRange(raw json.RawMessage) ([2]string, error) {
-	var ends []string
-	if err := unmarshal(raw, &ends); err != nil || len(ends) != 2 {
-		return [2]string{}, fmt.Errorf("a malformed range")
-	}
-	return [2]string{ends[0], ends[1]}, nil
 }
 
 // hasOneForm says whether a node has exactly the members of one of its
@@ -1239,10 +1203,6 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 		}
 		at, err := decodePosition(o["at"])
 		return &domTerm{Kind: tmConst, Str: name, At: at}, err
-	}
-	if v, ok := o[tmRange]; ok {
-		r, err := decodeRange(v)
-		return &domTerm{Kind: tmRange, Range: r}, err
 	}
 	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmInterpolate} {
 		if v, ok := o[k]; ok {

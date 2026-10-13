@@ -251,7 +251,7 @@ type domBuilder struct {
 	toks           []Token
 	gt             *grammarText
 	doc            string
-	uni            *unicodeTable // the lowercase mapping the strings of sound tests are checked against
+	uni            *unicodeTable // configured Unicode data for input and diagnostics
 	// closedFor is what the reader is reading as a closed term, a
 	// constant's value or a test's operand, or "" (§9, §10).
 	closedFor string
@@ -763,8 +763,7 @@ func before(a, c [2]int) bool {
 	return a[0] < c[0] || (a[0] == c[0] && a[1] < c[1])
 }
 
-// comparator is a test's comparator, its tokens: =, ≠, ⊇ or ⊉, or ∩ and
-// =∅ or ≠∅ around the operand.
+// comparator reads the written equality or inequality of a value test.
 func (b *domBuilder) comparator(testNode *Node) string {
 	var op strings.Builder
 	for _, p := range parts(testNode) {
