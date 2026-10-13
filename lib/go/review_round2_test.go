@@ -1,7 +1,10 @@
 package gencmu
 
 import (
+	"encoding/json"
 	"errors"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -87,5 +90,90 @@ func TestReviewPrivateRecipeExports(t *testing.T) {
 	var e *Error
 	if !errors.As(err, &e) || e.Code != "" || !strings.Contains(e.Message, "recipe") {
 		t.Fatalf("local recipe constructor: %v", err)
+	}
+}
+
+func reviewCache(t *testing.T, sources map[string]string) string {
+	t.Helper()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	documents := map[string]any{}
+	for path, text := range sources {
+		dom, err := bundled.reader.readMode(text, path, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documents[path] = map[string]any{"hash": fnv1a64(text), "dom": json.RawMessage(dom.json())}
+	}
+	raw, err := json.Marshal(map[string]any{"format": domFormat, "bootstrap": bundled.reader.hash, "documents": documents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+func TestReviewCachedRecipeCyclePositions(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		grammar, receiver string
+		line              int
+	}{
+		{`%rule text := $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text := "independent" :- $.emitted.image | "a" %emits`, "$.emitted.image", 3},
+		{`%rule text "a" := $.emitted.value %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.value | "a" := "override" :- $.emitted.image %emits`, "$.emitted.image", 3},
+		{`%rule text := "unused" | "a" := $.emitted.image :- $.emitted.value %emits`, "$.emitted.image", 3},
+		{`%rule text := "header" | "a"
+%extend-rule text "b" := $.emitted.value`, "$.emitted.value", 4},
+	} {
+		t.Run(c.grammar, func(t *testing.T) {
+			grammar := c.grammar
+			sources := reviewSources(grammar, bundled.sources["notation/bootstrap.json"])
+			_, fresh := LoadDialectSources(sources, "p.md")
+			var e *Error
+			sourceLine := strings.Split(grammar, "\n")[c.line-3]
+			column := strings.Index(sourceLine, c.receiver) + 1
+			if !errors.As(fresh, &e) || e.Document != "main.md" || e.Line != c.line || e.Column != column || !strings.Contains(e.Message, "recipe dependency cycle") {
+				t.Fatalf("fresh recipe position: %v", fresh)
+			}
+			sources["compiled.json"] = reviewCache(t, sources)
+			_, cached := LoadDialectSources(sources, "p.md")
+			if !reflect.DeepEqual(fresh, cached) {
+				t.Fatalf("fresh/cache cycle diagnostics differ:\n%+v\n%+v", fresh, cached)
+			}
+		})
+	}
+}
+func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	// A matching cache still owns the recipe, even when the source spells another value.
+	original := reviewSources(`%rule text := $.emitted.value | "a" %emits`, bundled.sources["notation/bootstrap.json"])
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	dom, err := bundled.reader.readMode(original["main.md"], "main.md", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := reviewSources(`%rule text := "source is independent" | "a" %emits`, bundled.sources["notation/bootstrap.json"])
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"main.md":{"hash":"` + fnv1a64(sources["main.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, failure := LoadDialectSources(sources, "p.md")
+	var e *Error
+	if !errors.As(failure, &e) || e.Line != 3 || e.Column != 15 || !strings.Contains(e.Message, "text.value -> text.value") {
+		t.Fatalf("cache semantics or location changed: %v", failure)
+	}
+	// A valid cached recipe needs no source reader for location recovery.
+	valid := reviewSources(`%rule text := "a" | "a" %emits $`, bundled.sources["notation/bootstrap.json"])
+	cache := readCompiled(reviewCache(t, valid), bundled.reader.hash)
+	l := &loader{uni: bundled.uni, compiled: cache, read: func(path string) (string, bool) { s, ok := valid[path]; return s, ok }}
+	if _, err := l.dialect("p.md"); err != nil {
+		t.Fatalf("valid cache reparsed: %v", err)
 	}
 }

@@ -14,6 +14,7 @@ import (
 // Line and Column say where, when known; Line and Column count from 1, in
 // code points.
 type Error struct {
+	recipeCycle bool   // a failed cached cycle can recover its recipe position
 	Kind        string // "grammar" for a load error, "usage" for a caller's mistake
 	Document    string
 	Line        int

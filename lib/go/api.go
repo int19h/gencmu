@@ -87,6 +87,7 @@ type loader struct {
 	compiled           map[string]json.RawMessage
 	noCache            bool
 	diagnosticDocument string
+	recipeDocument     string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
 	// the document, not a usage error (engine §1).
@@ -112,6 +113,9 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
+				}
+				if p == l.recipeDocument {
+					l.reader.restoreRecipeLocations(text, p, dom)
 				}
 				return dom, nil
 			}
@@ -156,10 +160,17 @@ func (l *loader) dialect(pipelinePath string) (d *Dialect, err error) {
 
 func (l *loader) load(pipelinePath string) (*Dialect, error) {
 	d, err := l.loadMode(pipelinePath)
-	if failure, ok := err.(*Error); ok && strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "" {
-		// Retry only a failed load, with locations for its diagnostic document.
+	if failure, ok := err.(*Error); ok {
+		// Retry only a failed load, retaining the cached DOM's semantics.
 		diagnostic := *l
-		diagnostic.diagnosticDocument = failure.Group.Document
+		switch {
+		case strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "":
+			diagnostic.diagnosticDocument = failure.Group.Document
+		case failure.recipeCycle && failure.Line == 0 && failure.Document != "":
+			diagnostic.recipeDocument = failure.Document
+		default:
+			return d, err
+		}
 		return diagnostic.loadMode(pipelinePath)
 	}
 	return d, err
