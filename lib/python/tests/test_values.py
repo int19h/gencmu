@@ -9,6 +9,24 @@ from .shared import run_case
 
 
 class Values(unittest.TestCase):
+    def test_parent_helper_routes_preserve_optional_priority(self) -> None:
+        # Engine §4 keeps one logical parent across the physical helper
+        # routes introduced by a private capture.
+        for capture in ("c", "$c:c"):
+            for suffix, allowed in (("T", False), ("T U", True)):
+                for method in ("matches", "begins", "tags"):
+                    with self.subTest(capture=capture, suffix=suffix, method=method):
+                        head = "%rule text $r:input"
+                        head += f" :: $r.tags(r)" if method == "tags" else f"\n%conditions $r.{method}(r)"
+                        grammar = f"{head}\n%rule input B D T Z\n%rule r :: Queried | B [[({capture} ≻ c)] [+{suffix}] D T] Z\n%rule c D"
+                        value, _, error, _ = run_case({"grammar": grammar, "tokens": [{"text": tag, "tags": [tag]} for tag in "BDTZ"]})
+                        self.assertIsNone(error)
+                        if method == "tags":
+                            self.assertTrue(value["ok"])
+                            self.assertEqual(value["tree"]["tags"], ["Queried"] if allowed else [])
+                        else:
+                            self.assertEqual(value["ok"], allowed)
+
     def test_engine_tag_diagnostics_follow_retained_occurrences(self) -> None:
         # Engine §1 retains occurrences, rather than every occurrence of
         # a name that survives somewhere else in the term.

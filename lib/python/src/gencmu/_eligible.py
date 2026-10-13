@@ -166,7 +166,9 @@ def eligible(forest: Forest, witnesses: list[int]) -> list[int]:
             if name != "\u0000" and position < start
         )
         return (
-            id(production.source), production.lhs, place,
+            # Private capture routes can have separate helpers for one
+            # written parent. Their logical parent remains the same.
+            id(production.source), lowered.written_helpers.get(production.lhs, production.lhs), place,
             production.rhs[:start], production.rhs[stop:],
             production.terminal[:start], production.terminal[stop:],
             tests[:start], tests[stop:], forest.origin[item], forest.end[item], captured,
