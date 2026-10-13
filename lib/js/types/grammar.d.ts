@@ -122,6 +122,7 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
+    families: Map<string, Set<string>>;
     ranked: RankedGroups;
     /**
      * The features that gate an alternative or an entry of a classifier.

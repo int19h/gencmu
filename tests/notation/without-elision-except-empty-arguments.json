@@ -1,0 +1,10 @@
+{
+  "description": "An empty argument list fails syntax recognition before reader conversion (engine §9.2 and §9.3).",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.without-elision-except().matches(r)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 51
+    }
+  }
+}

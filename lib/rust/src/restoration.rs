@@ -1,5 +1,7 @@
 //! Shared observations of projected omitted leaves and ranked blocks (§4).
 
+pub(crate) mod family;
+
 use crate::earley::Tok;
 use crate::fxhash::FxMap;
 use crate::result::Restoration;
@@ -40,7 +42,7 @@ enum Event {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum Aligned {
+pub(crate) enum Aligned {
     Close(String, usize),
     Block(Block),
 }
@@ -162,7 +164,6 @@ impl<T: Clone + Eq + std::hash::Hash> Sequence<T> {
         self.joins.insert((left, right), id);
         id
     }
-    #[cfg(test)]
     fn values(&self, id: u32) -> Vec<&T> {
         let mut stack = vec![id];
         let mut out = vec![];
@@ -367,14 +368,14 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Prod, Span, Sym};
     fn uses(s: &Span) -> bool {
         match s {
-            Span::WithoutElision(_) => true,
+            Span::WithoutElision(_, _) => true,
             Span::Head(s) | Span::Tail(s) | Span::Last(s) | Span::From(s) | Span::After(s) => uses(s),
             _ => false,
         }
     }
     fn span(s: &Span, p: &Prod, w: &mut FxSet<u32>) {
         match s {
-            Span::WithoutElision(inner) => {
+            Span::WithoutElision(inner, _) => {
                 let symbol = match **inner {
                     Span::Cap(c) => p.cap_pos.get(c as usize).and_then(|&at| p.syms.get(at)),
                     _ => None,
@@ -716,7 +717,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     use crate::lower::{LCond, LEmit, LEmitItem, LTerm, Span};
     fn span(s: &Span, out: &mut LocalDemand) {
         match s {
-            Span::WithoutElision(inner) => match &**inner {
+            Span::WithoutElision(inner, _) => match &**inner {
                 Span::Cap(c) => {
                     out.captures.insert(*c);
                     out.queries.insert(*c, None);
@@ -761,7 +762,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
         match c {
             LCond::Matches(s, rule) | LCond::Begins(s, rule) => {
                 let aligned = if let Span::From(inner) = s { &**inner } else { s };
-                if let Span::WithoutElision(inner) = aligned {
+                if let Span::WithoutElision(inner, _) = aligned {
                     if let Span::Cap(c) = &**inner {
                         out.captures.insert(*c);
                         if let Some(rules) = out.queries.entry(*c).or_insert_with(|| Some(Default::default())) {

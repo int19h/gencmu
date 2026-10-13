@@ -36,4 +36,4 @@ The stage receives one token per character. A token is one unit that a stage rea
   %include "../notation/syntax.md"
   ```
 
-The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 26.
+The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 27.

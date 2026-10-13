@@ -15,7 +15,7 @@ class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
 
 
-FORMAT = 26
+FORMAT = 27
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -465,7 +465,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
             for arg in node["args"]:
                 if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}):
                     key = next(iter(arg))
-                    if not isinstance(arg[key], str) or not CLASSIFIER_NAME.fullmatch(arg[key]):
+                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))

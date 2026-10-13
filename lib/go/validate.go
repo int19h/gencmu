@@ -1002,6 +1002,8 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 		var ok bool
 		switch t.Str {
+		case "without-elision-except":
+			ok = len(args) == 2 && args[0] != nil && args[0].Kind == tmCapture && isRule(args[1])
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
 		case "value", "image", "source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":

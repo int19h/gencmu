@@ -645,6 +645,10 @@ export type LoweredGrammar = {
     resolution: Resolution;
     ranked: import("./ranked.js").RankedGroups;
     /**
+     * static members from written rules
+     */
+    families: Map<string, Set<string>>;
+    /**
      * each classifier
      * of the stage, resolved for these features: each key's classes (engine
      * §2)
@@ -728,6 +732,7 @@ export type AlignedSpan = {
     candidateEnd: number;
     matchEnd: number;
     contextEnd: number;
+    family: string | null;
     view: ReturnType<typeof import("./restoration.js").restoreTokens>;
 };
 export type Scope = {
@@ -1261,6 +1266,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
  * @property {import("./ranked.js").RankedGroups} ranked
+ * @property {Map<string,Set<string>>} families static members from written rules
  * @property {Map<string, Map<string, TagSet>>} classifiers each classifier
  *   of the stage, resolved for these features: each key's classes (engine
  *   §2)
@@ -1320,6 +1326,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {number} candidateEnd
  * @property {number} matchEnd
  * @property {number} contextEnd
+ * @property {string|null} family
  * @property {ReturnType<typeof import("./restoration.js").restoreTokens>} view
  */
 /**

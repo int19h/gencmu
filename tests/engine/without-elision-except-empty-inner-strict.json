@@ -1,0 +1,14 @@
+{
+  "description": "An empty capture can keep a record on each side of an extra close under strict alignment (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision.matches(w)\n%rule c [+T] [+V]\n%rule w [+T] [+U] [+V]\n%rule fam w\n",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -570,6 +570,8 @@ fn merge(a: &[u64], b: &[u64]) -> Bits {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct State {
     observation: u32,
+    family: u32,
+    oracle: u32,
     count: u8,
     first: Bits,
     last: Bits,
@@ -607,6 +609,7 @@ pub(crate) struct Machine {
     transitions: FxMap<String, u32>,
     pub empty: u32,
     pub observations: Option<crate::restoration::Observations>,
+    pub families: crate::restoration::family::Families,
 }
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
@@ -651,7 +654,9 @@ impl Machine {
             transitions: FxMap::default(),
             empty: 0,
             observations: None,
+            families: Default::default(),
         };
+        m.families.enable_oracle();
         for p in roots {
             m.compile(p);
         }
@@ -659,6 +664,8 @@ impl Machine {
         let relations = m.machines.iter().map(|n| n.epsilon.clone()).collect();
         m.empty = m.intern(State {
             observation: 0,
+            family: 0,
+            oracle: 0,
             count: 0,
             first: zero.clone(),
             last: zero.clone(),
@@ -812,6 +819,8 @@ impl Machine {
             .collect();
         let id = self.intern(State {
             observation: 0,
+            family: 0,
+            oracle: 0,
             count: 1,
             first: bits.clone(),
             last: bits.clone(),
@@ -827,6 +836,7 @@ impl Machine {
     pub(crate) fn concat(&mut self, left: u32, right: u32) -> u32 {
         let key = format!("c{left},{right}");
         if let Some(&id) = self.transitions.get(&key) {
+            self.families.charge_join(self.states[left as usize].family, self.states[right as usize].family);
             return id;
         }
         let a = &self.states[left as usize];
@@ -837,6 +847,19 @@ impl Machine {
         };
         let s = State {
             observation,
+            family: {
+                let family = self.families.join(a.family, b.family);
+                if observation == crate::restoration::INVALID && family != 0 {
+                    self.families.invalid(family)
+                } else {
+                    family
+                }
+            },
+            oracle: if observation == crate::restoration::INVALID {
+                0
+            } else {
+                self.families.oracle_join(a.oracle, b.oracle)
+            },
             count: 2.min(a.count + b.count),
             first: if a.count > 0 { a.first.clone() } else { b.first.clone() },
             last: if b.count > 0 { b.last.clone() } else { a.last.clone() },
@@ -912,6 +935,8 @@ impl Machine {
         let zero = vec![0; bits.len()];
         let state = State {
             observation: s.observation,
+            family: s.family,
+            oracle: s.oracle,
             count: if empty { 0 } else { 1 },
             first: if empty { zero.clone() } else { bits.clone() },
             last: if empty { zero.clone() } else { bits.clone() },
@@ -929,24 +954,78 @@ impl Machine {
         self.states[state as usize].observation
     }
     pub(crate) fn observing(&mut self, state: u32, observation: u32) -> u32 {
-        if self.states[state as usize].observation == observation {
+        if self.states[state as usize].observation == observation && observation != crate::restoration::INVALID {
             return state;
         }
         let mut state = self.states[state as usize].clone();
         state.observation = observation;
+        if observation == crate::restoration::INVALID && state.family != 0 {
+            state.family = self.families.invalid(state.family);
+            state.oracle = 0;
+        }
         self.intern(state)
     }
     pub(crate) fn normalized_observation(&self, state: u32) -> u32 {
         self.observations.as_ref().map_or(0, |o| o.normalized(self.observation(state)))
     }
     pub(crate) fn structural(&mut self, state: u32) -> u32 {
-        self.observing(state, 0)
+        let mut s = self.states[state as usize].clone();
+        s.observation = 0;
+        s.family = 0;
+        s.oracle = 0;
+        self.intern(s)
     }
     pub(crate) fn block(&mut self, block: crate::restoration::Block, child: u32) -> u32 {
         let observation = self.observation(child);
         let state = self.sealed();
         let observation = self.observations.as_mut().map_or(0, |o| o.block(block, observation));
         self.observing(state, observation)
+    }
+
+    pub(crate) fn oracle(&self, state: u32) -> u32 {
+        self.states[state as usize].oracle
+    }
+    pub(crate) fn family_record(
+        &mut self,
+        state: u32,
+        context: u32,
+        record: crate::restoration::Aligned,
+        permitted: bool,
+    ) -> u32 {
+        let family = self.families.record(context, record.clone(), permitted);
+        let oracle = self.families.oracle_record(record, permitted);
+        let mut s = self.states[state as usize].clone();
+        s.family = family;
+        s.oracle = oracle;
+        self.intern(s)
+    }
+    pub(crate) fn family(&self, state: u32) -> u32 {
+        self.states[state as usize].family
+    }
+    pub(crate) fn with_family(&mut self, state: u32, family: u32) -> u32 {
+        let mut s = self.states[state as usize].clone();
+        s.family = family;
+        self.intern(s)
+    }
+    pub(crate) fn family_block(&mut self, context: Option<u32>, block: crate::restoration::Block, child: u32) -> u32 {
+        let state = self.block(block.clone(), child);
+        if let Some(context) = context {
+            let family = if self.observation(state) == crate::restoration::INVALID {
+                self.families.dead(context)
+            } else {
+                self.families.block(context, block.clone())
+            };
+            let state = self.with_family(state, family);
+            if self.observation(state) == crate::restoration::INVALID {
+                state
+            } else {
+                let mut s = self.states[state as usize].clone();
+                s.oracle = self.families.oracle_record(crate::restoration::Aligned::Block(block), false);
+                self.intern(s)
+            }
+        } else {
+            state
+        }
     }
     pub(crate) fn matches(&self, state: u32, p: &Pattern) -> bool {
         let id = self.ids[&pattern_key(p)];

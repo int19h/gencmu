@@ -40,7 +40,8 @@ type engineCase struct {
 	onlyHook bool
 	// hits, where set, records the sites of the fault that the parses
 	// enter (faults_test.go).
-	hits map[string]bool
+	hits         map[string]bool
+	familyOracle func(*recognizer, *item)
 }
 
 // caseToken is a token that a case supplies (tests/README.md). Its before
@@ -221,6 +222,7 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	log := withChecks(&opts)
 	opts.private.loseWitness = lose
 	opts.private.fault, opts.private.hits = c.fault, c.hits
+	opts.private.familyOracle = c.familyOracle
 	if o.AutoFeatures != nil && *o.AutoFeatures {
 		opts.NoAutoFeatures = false
 	}

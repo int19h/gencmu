@@ -1,0 +1,17 @@
+{
+  "description": "An extra close before the final kept close qualifies (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X [+T]\n%rule w X [+U] [+T]\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

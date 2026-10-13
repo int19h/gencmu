@@ -404,7 +404,7 @@ Ranking summaries retain their cycle context. Ranked admission keeps eligibility
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern value and image remain empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its exact restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing values or tags.
 
-Grammar DOM format 26 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 12 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 27 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 12 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -600,6 +600,14 @@ The span method requires observations from each candidate during recognition. Ca
 
 Engine §7 supplies synthetic tokens, saved values, provenance, and source projection. Reconstruction permits bare synthetic tag reads and forbids omissions throughout its input. An aligned query instead qualifies original readings and permits ordinary omissions after its fixed capture. It emits nothing and selects no replacement tree. No parse configuration switch controls this method.
 
+A strict alignment misses one kind of rival. The rival reads a new construct inside the shared words, and that construct omits its own terminator. The candidate has no such construct, so the closes differ. In `le ke my .e gy ke'e broda`, the quantifier's forethought mekso omits KUhE, and the sumti has no KUhE to match.
+
+An implicit rule for new constructs fails in two ways. Closes inside the shared words can be early closes of existing constructs, as in `my .e cy to roi klama`. And a rule that matches constructs by their named owners is fragile. Inlining one rule of the grammar changes its answers.
+
+So the grammar names the permission. `.without-elision-except(family)` lets a rival add closes whose optionals a family's members own. Ownership is static, and the family is an ordinary rule. The grammar states the exception at the query and names the constructs at their definitions. The permission does not test that a construct is new. A grammar that names a family accepts every early close of its members that priority allows.
+
+Permission marks belong only to the witnesses of a family query. A witness item keeps sets of deletion-test states, never marked closes. The number of such sets depends on the size of the candidate's close groups, so a larger candidate group can cost more work.
+
 ### Early closure and candidate ownership
 
 A constituent is the text read by one grammar rule. A candidate is one constructed reading of a constituent. A pattern tests that candidate's actual children and boundaries. A query parses an input range again.
@@ -744,7 +752,17 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document.
+- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+
+  Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
+
+  Four kinds of note can follow. `empty` marks a family that permits nothing. `never-omitted` marks a permitted optional whose omission predicate can never hold. `inert-member` marks a member other than the family rule that owns no elidable optional and has no member edge. `unnamed-member` marks a member other than the family rule that no rule outside the family names in its body. A name in a condition, a tag clause or an emission does not count.
+
+  The printed report shows the same facts. None of these notes is an error.
+
+  Family data appears in each stage's `families` list. Each entry has `family`, `calls`, `members`, `permitted`, and `notes`. Families follow their first calls in the reference traversal order of engine §2.2. `calls` lists each calling definition as `rule`, `document`, `line`, and `column`. Each permitted optional has `terminal`, `owner`, `document`, `line`, and `column`. Its location is the definition that writes it.
+
+  Each note has `kind`. `never-omitted` also carries the permitted optional's fields. `inert-member` and `unnamed-member` also carry `rule`. `empty` comes first. Each member then supplies its `never-omitted` notes in optional order, followed by its `inert-member` note. The `unnamed-member` notes come last, in closure order.
 
   The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is a grammar error, not an audit finding.
 
@@ -755,7 +773,7 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `parse`, to parse a text, with configuration arguments that include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
-- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags
+- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags. It also reports the close families that the dialect's stages name.
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
 - `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a dialect. It compares each case as the library's corpus runner does, with the same code. It compares corpus cases. It runs no engine self-tests, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option

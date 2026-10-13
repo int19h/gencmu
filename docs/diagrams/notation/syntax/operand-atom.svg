@@ -10,8 +10,8 @@
 <g class="rule"><rect x="40" y="68" width="168" height="24" rx="0"/><text x="124" y="85" textLength="151.2" lengthAdjust="spacingAndGlyphs">constant-reference</text></g>
 <path d="M208 80H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="50" height="24" rx="0"/><text x="65" y="119" textLength="33.6" lengthAdjust="spacingAndGlyphs">name</text></g>
-<path d="M90 114H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="102" width="84" height="24" rx="0"/><text x="82" y="119" textLength="67.2" lengthAdjust="spacingAndGlyphs">name≠&quot;#&quot;</text></g>
+<path d="M124 114H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="136" width="42" height="24" rx="0"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">tag</text></g>
 <path d="M82 148H208a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

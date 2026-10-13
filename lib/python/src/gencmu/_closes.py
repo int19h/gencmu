@@ -38,6 +38,7 @@ class RestoredSpan:
     captured_end: int
     context_end: int
     observation: int
+    family: str | None = None
 
     def __iter__(self):
         return iter((self.start, self.end, None))
@@ -154,11 +155,15 @@ class CloseMachine:
         self.states = [CloseState(0, frozenset()), CloseState(0, frozenset())]
         self.state_ids = {self.states[0]: 0}
         self.concatenations: dict[tuple[int, int], int] = {}
+        self.counted_contexts: set[frozenset[Ancestor]] = set()
 
     def semantic(self, state: int) -> int:
         return self.semantic_by_sequence[self.states[state].sequence]
 
     def intern(self, sequence: int, ancestors: frozenset[Ancestor]) -> int:
+        if _testing.work is not None and ancestors not in self.counted_contexts:
+            self.counted_contexts.add(ancestors)
+            _testing.count("cycle_contexts")
         value = CloseState(sequence, ancestors)
         found = self.state_ids.get(value)
         if found is None:
@@ -298,12 +303,12 @@ def needed(lowered: Any) -> frozenset[int]:
                         while spans:
                             part = spans.pop()
                             if isinstance(part,dict):
-                                if part.get("method") == "without-elision":
+                                if part.get("method") in ("without-elision", "without-elision-except"):
                                     wanted.add(target)
                                 spans.extend(part.values())
                             elif isinstance(part,(list,tuple)):
                                 spans.extend(part)
-                    if node.get("method") == "without-elision":
+                    if node.get("method") in ("without-elision", "without-elision-except"):
                         name = node["receiver"]["capture"]
                         at = production.captures.get(name)
                         if not name or at is None or production.contextual:
@@ -343,7 +348,7 @@ def local_demand(production):
         if isinstance(node, dict):
             value = node.get("receiver") if node.get("method") in ("matches", "begins") else None
             aligned = value["receiver"] if isinstance(value, dict) and value.get("method") == "onward" else value
-            if isinstance(aligned, dict) and aligned.get("method") == "without-elision":
+            if isinstance(aligned, dict) and aligned.get("method") in ("without-elision", "without-elision-except"):
                 name = aligned["receiver"]["capture"]
                 if name in production.captures:
                     position = production.captures[name]
@@ -353,7 +358,7 @@ def local_demand(production):
                     if queries[position] is not None:
                         queries[position].add(node["args"][0]["rule"])
                     continue
-            if node.get("method") == "without-elision":
+            if node.get("method") in ("without-elision", "without-elision-except"):
                 name = node["receiver"]["capture"]
                 if name == "":
                     whole = True

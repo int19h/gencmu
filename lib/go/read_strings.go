@@ -447,11 +447,14 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
 		}
-	case "without-elision":
+	case "without-elision", "without-elision-except":
 		if receiver.Kind != tmCapture {
+			if name == "without-elision-except" {
+				b.fail(n, ".without-elision-except requires a bare capture. Use $x.without-elision-except(f).onward.")
+			}
 			b.fail(n, ".without-elision requires a bare capture. Use $x.without-elision.onward.")
 		}
-		valid = len(args) == 0
+		valid = name == "without-elision" && len(args) == 0 || name == "without-elision-except" && len(args) == 1 && args[0].Kind == tmRule
 	case "verbatim-text", "emitted":
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case "tags":
@@ -461,7 +464,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case "split":
 		valid = len(args) == 1 && b.isStringTerm(receiver) && b.isStringTerm(args[0])
 	case "classify":
-		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule
+		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule && classifierName.MatchString(args[0].Str)
 		if valid {
 			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
 		}

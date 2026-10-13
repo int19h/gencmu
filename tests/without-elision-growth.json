@@ -57,5 +57,247 @@
     "maxCloseStates": 4,
     "itemsPerUnit": 24,
     "slack": 64
+  },
+  "familyOwnerChoice": {
+    "case": "engine/without-elision-except-owner-choice.json",
+    "strictCase": "engine/without-elision-owner-choice.json",
+    "lengths": [
+      4,
+      12,
+      32
+    ],
+    "itemsPerUnit": 24,
+    "slack": 64,
+    "overStrict": {
+      "itemsPercent": 125,
+      "itemsSlack": 16,
+      "closeStatesPerUnit": 1
+    },
+    "strictBound": {
+      "closeStatesPerUnit": 9,
+      "closeStatesSlack": 16
+    },
+    "summaries": {
+      "perSquare": 0,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 0,
+      "slack": 4096
+    }
+  },
+  "familyOwnerChoiceTags": {
+    "case": "engine/without-elision-except-owner-choice-tags.json",
+    "strictCase": "engine/without-elision-owner-choice-tags.json",
+    "lengths": [
+      4,
+      12,
+      32
+    ],
+    "itemsPerUnit": 24,
+    "slack": 64,
+    "overStrict": {
+      "itemsPercent": 125,
+      "itemsSlack": 16,
+      "closeStatesPerUnit": 1
+    },
+    "strictBound": {
+      "closeStatesPerUnit": 9,
+      "closeStatesSlack": 16
+    },
+    "summaries": {
+      "perSquare": 0,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 0,
+      "slack": 4096
+    }
+  },
+  "familyNestedCloses": {
+    "case": "engine/without-elision-except-nested-closes.json",
+    "strictCase": "engine/without-elision-nested-closes.json",
+    "lengths": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "overStrict": {
+      "itemsPercent": 250,
+      "itemsSlack": 64,
+      "closeStatesPerUnit": 1
+    },
+    "summaries": {
+      "perSquare": 2,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 8,
+      "slack": 1024
+    }
+  },
+  "familyNestedAnchored": {
+    "case": "engine/without-elision-except-nested-anchored.json",
+    "strictCase": "engine/without-elision-nested-anchored.json",
+    "lengths": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "overStrict": {
+      "itemsPercent": 200,
+      "itemsPercentPerUnit": 25,
+      "itemsSlack": 64,
+      "closeStatesPerUnit": 1
+    },
+    "summaries": {
+      "perSquare": 2,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 8,
+      "slack": 1024
+    }
+  },
+  "familyNestedExtras": {
+    "case": "engine/without-elision-except-nested-extras.json",
+    "strictCase": "engine/without-elision-nested-extras.json",
+    "lengths": [
+      4,
+      8,
+      12
+    ],
+    "overStrict": {
+      "itemsPercent": 100,
+      "itemsPercentPerUnit": 25,
+      "itemsSlack": 64,
+      "closeStatesPerUnit": 1
+    },
+    "summaries": {
+      "perSquare": 2,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 1024,
+      "slack": 1024
+    }
+  },
+  "familyIrrelevant": {
+    "case": "engine/without-elision-except-irrelevant-family.json",
+    "strictCase": "engine/without-elision-irrelevant-family.json",
+    "lengths": [
+      4,
+      12,
+      32
+    ],
+    "equalsStrict": true
+  },
+  "familyPermittedExtras": {
+    "case": "engine/without-elision-except-permitted-extras.json",
+    "strictCase": "engine/without-elision-permitted-extras.json",
+    "lengths": [
+      4,
+      8
+    ],
+    "atMostStrict": true
+  },
+  "familyNullableCycle": {
+    "case": "engine/without-elision-except-nullable-cycle.json",
+    "strictCase": "engine/without-elision-nullable-cycle.json",
+    "lengths": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "atMostStrict": true
+  },
+  "familySharedDoubleCloses": {
+    "case": "engine/without-elision-except-shared-double-closes.json",
+    "strictCase": "engine/without-elision-shared-double-closes.json",
+    "depths": [
+      4,
+      8,
+      12,
+      16,
+      100
+    ],
+    "nodesPerDepth": 16,
+    "slack": 32,
+    "atMostStrict": true
+  },
+  "familyUndemandedRankedSibling": {
+    "case": "engine/without-elision-except-undemanded-ranked-sibling.json",
+    "strictCase": "engine/without-elision-undemanded-ranked-sibling.json",
+    "depths": [
+      4,
+      6,
+      8,
+      10,
+      16,
+      64,
+      256
+    ],
+    "maxCloseNodes": 0,
+    "atMostStrict": true
+  },
+  "familyCallerScope": {
+    "case": "engine/without-elision-except-caller-scope.json",
+    "strictCase": "engine/without-elision-caller-scope.json",
+    "lengths": [
+      4,
+      8,
+      12,
+      16,
+      32,
+      64
+    ],
+    "maxCloseNodes": 8,
+    "maxCloseStates": 16,
+    "itemsPerUnit": 24,
+    "slack": 64,
+    "atMostStrict": true
+  },
+  "familyImpossiblePrefix": {
+    "case": "engine/without-elision-except-impossible-prefix.json",
+    "strictCase": "engine/without-elision-impossible-prefix.json",
+    "lengths": [
+      4,
+      8,
+      12,
+      16,
+      32,
+      64
+    ],
+    "maxCloseNodes": 0,
+    "maxCloseStates": 4,
+    "itemsPerUnit": 24,
+    "slack": 64,
+    "atMostStrict": true
+  },
+  "familyNestedTwoTerminals": {
+    "case": "engine/without-elision-except-nested-two-terminals.json",
+    "strictCase": "engine/without-elision-nested-two-terminals.json",
+    "lengths": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "overStrict": {
+      "itemsPercent": 250,
+      "itemsSlack": 64,
+      "closeStatesPerUnit": 1
+    },
+    "summaries": {
+      "perSquare": 2,
+      "slack": 64
+    },
+    "steps": {
+      "perCube": 8,
+      "slack": 1024
+    }
   }
 }

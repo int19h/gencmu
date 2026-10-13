@@ -1,9 +1,10 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 26;
+export declare const DOM_FORMAT = 27;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
+export declare const RULE_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
 /**
  * Whether a test's comparator is a value test, whose value is a string,

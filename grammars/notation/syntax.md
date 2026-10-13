@@ -222,7 +222,7 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   "=" | "≠"
 
 %rule operand-atom
-  string | constant-reference | name | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  string | constant-reference | name≠"#" | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
   operand-atom | method
@@ -357,6 +357,8 @@ The reader folds selectors from left to right. It retains the receiver's actual 
 
 A name used as an argument can identify a rule or classifier where the method signature requires one. The reader rejects unknown methods, invalid receivers, and wrong arities.
 
+The rule name `#` is also a method argument. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
+
 ```jbogenbau
 %rule term
   union | guarded-term
@@ -398,7 +400,7 @@ A name used as an argument can identify a rule or classifier where the method si
   term
 
 %rule name
-  Lowercase-Name
+  Lowercase-Name | "#"
 
 %rule empty-set
   "∅"
@@ -578,7 +580,7 @@ Recognition accepts wider operands than each directive permits. The reader rejec
   directive-method | capture-reference | constant-reference | empty-set | pattern-literal | "(" term ")" | "#" | "_"
 
 %rule directive-method
-  (tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
+  (tag | name≠"#" | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")") {method-selector}
 ```
 
 <details><summary>Railroad diagrams of the 8 rules from <code>directive</code> to <code>directive-method</code></summary>

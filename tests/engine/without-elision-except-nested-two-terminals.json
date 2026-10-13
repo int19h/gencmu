@@ -1,0 +1,41 @@
+{
+  "description": "Mixed terminators retain candidate-sized family summaries through nested owners (engine §4.1).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $c:candidate %conditions $c.without-elision-except(fam).matches(rival)\n%rule candidate c B\n%rule c X c [+T] | Y c [+U] | X [+T] | Y [+U]\n%rule rival r B\n%rule r X r [+T] | X s [+T] | Y r [+U] | Y s [+U] | X [+T] | Y [+U]\n%rule s X r [+T] | X s [+T] | Y r [+U] | Y s [+U] | X [+T] | Y [+U]\n%rule fam r",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

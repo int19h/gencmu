@@ -203,7 +203,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 26. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 27. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -288,6 +288,30 @@ An observed capture retains close information for a query. A caller is a rule th
 
 Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNodes` bounds close sequence nodes. `maxCloseStates` bounds close observation states. `itemsPerUnit` and `slack` bound chart items by `itemsPerUnit*length+slack`. Each library stops before its first count past a bound.
 
+A family run uses `.without-elision-except`. Its entry names an engine fixture in `case`, and its strict twin in `strictCase`. Every library runs both at each size in `lengths`. The strict twin uses `.without-elision` instead.
+
+An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry retains its existing absolute bounds beside its bounds over the strict twin.
+
+Each library also runs the shared engine cases with a conformance switch for family alignment. The switch applies the whole-observation deletion test of engine §4 beside the item summaries of §4.1. Both answers must agree for every eligible family witness. Only this switch can retain permission marks for the independent test.
+
+A library records chart items, proof edges, close observation states, close sequence nodes and cycle contexts, with elapsed time and peak memory. For the family run, it also records summary states and automaton steps. A summary state is one distinct summary that some item of a family query takes. The dead summary and the identity of an empty item count only once an item takes them. Automaton steps follow the costs of engine §4.1. A witness record costs `2(n+1)` steps, and an image or preimage costs one step for each row of its relation.
+
+A join costs one image for each row. An empty item without records has the identity relation, and an image, preimage or join through it costs nothing. A close or block that the automaton does not read costs nothing, such as one beyond `b`. The JavaScript work counters call these seven `items`, `packedEdges`, `closeStates`, `closeSequences`, `summaryContexts`, `familySummaries` and `familySteps`. No library retains a marked close, so there is no count of marked events.
+
+Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these new fields:
+
+| Field | Bound at each length |
+| --- | --- |
+| `overStrict.itemsPercent`, `.itemsPercentPerUnit` and `.itemsSlack` | items ≤ strict items × (itemsPercent + itemsPercentPerUnit × length) / 100 + itemsSlack |
+| `overStrict.closeStatesPerUnit` | close states ≤ strict close states + closeStatesPerUnit × length |
+| `strictBound.closeStatesPerUnit` and `.closeStatesSlack` | the strict twin's close states ≤ closeStatesPerUnit × length + closeStatesSlack |
+| `summaries.perSquare` and `.slack` | summary states ≤ perSquare × length² + slack |
+| `steps.perCube` and `.slack` | automaton steps ≤ perCube × length³ + slack |
+| `equalsStrict` | items and close states equal the strict twin's |
+| `atMostStrict` | items and close states do not exceed the strict twin's |
+
+Within `overStrict`, a missing field is zero. An entry without `overStrict` has no bound over its twin. The existing `itemsPerUnit` and `slack` keep their meaning, an absolute linear bound on items.
+
 ## Result mutants: `result-mutants.json`
 
 ```
@@ -331,7 +355,9 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
 - `words` records the word stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
 
-A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. No corpus text ties in its dialect, so each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal. Every runner compares all of these fields, `at` included.
+A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+
+Every runner compares all of these fields, `at` included.
 
 The runners differ on input that this format does not allow, such as a field whose value is null. So `node tools/sync.js --check` first makes sure that every case meets its schema (`tools/corpus-shape.js`). Each file is UTF-8, and each line is one JSON object. No object has a member name twice, at any depth, and every string is a sequence of Unicode scalar values, with no lone surrogate.
 

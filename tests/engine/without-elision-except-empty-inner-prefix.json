@@ -1,0 +1,17 @@
+{
+  "description": "An empty capture can keep a record on each side of an extra close in a prefix witness (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).begins(w)\n%rule c [+T] [+V] B\n%rule w [+T] [+U] [+V]\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

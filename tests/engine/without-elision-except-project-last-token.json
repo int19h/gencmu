@@ -1,0 +1,23 @@
+{
+  "description": "A token-span projection removes the family and its restoration (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c T\n%conditions $c.without-elision-except(fam).last-token.onward.begins(w)\n%rule c X [+T]\n%rule w X T\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

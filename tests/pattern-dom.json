@@ -323,7 +323,7 @@
     "malformed": true
   },
   {
-    "description": "A tag test requires a tag set (engine §9.3 and output.md format 26).",
+    "description": "A tag test requires a tag set (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [
@@ -345,7 +345,7 @@
     "malformed": true
   },
   {
-    "description": "A test operand cannot hold a capture (engine §9.3 and output.md format 26).",
+    "description": "A test operand cannot hold a capture (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [
@@ -371,7 +371,7 @@
     "malformed": true
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ⊇ (engine §9.3 and output.md format 26).",
+    "description": "A terminal pattern accepts the tag comparator ⊇ (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -386,7 +386,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ⊉ (engine §9.3 and output.md format 26).",
+    "description": "A terminal pattern accepts the tag comparator ⊉ (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -401,7 +401,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ∩=∅ (engine §9.3 and output.md format 26).",
+    "description": "A terminal pattern accepts the tag comparator ∩=∅ (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -416,7 +416,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ∩≠∅ (engine §9.3 and output.md format 26).",
+    "description": "A terminal pattern accepts the tag comparator ∩≠∅ (engine §9.3 and output.md format 27).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -450,7 +450,7 @@
     "malformed": false
   },
   {
-    "description": "A tree comparison requires one bare capture (engine §9.3 and output.md format 26).",
+    "description": "A tree comparison requires one bare capture (engine §9.3 and output.md format 27).",
     "condition": {
       "op": "≅",
       "left": {
@@ -557,7 +557,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -571,7 +571,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -592,7 +592,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -613,7 +613,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -640,7 +640,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -654,7 +654,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -675,7 +675,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -696,7 +696,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -723,7 +723,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -737,7 +737,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -758,7 +758,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -779,7 +779,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -806,7 +806,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -820,7 +820,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -841,7 +841,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -862,7 +862,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 26).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 27).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -1103,5 +1103,330 @@
       "maximal": null
     },
     "malformed": true
+  },
+  {
+    "description": "A supplied close-family DOM accepts a bare capture and one rule (engine §9.3 and §10).",
+    "malformed": false,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "rule": "math"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its string receiver (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "string": "x"
+        },
+        "args": [
+          {
+            "rule": "math"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its onward receiver (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "method": "onward",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        },
+        "args": [
+          {
+            "rule": "math"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its strict receiver (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "method": "without-elision",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        },
+        "args": [
+          {
+            "rule": "math"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its no argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": []
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its two arguments (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "rule": "math"
+          },
+          {
+            "rule": "r"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its tag argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "tag": "KOhA"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its capture argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "capture": "x"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its string argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "string": "math"
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its constant argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "const": "M",
+            "at": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its set argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "union": [
+              {
+                "tag": "A"
+              },
+              {
+                "tag": "B"
+              }
+            ]
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A supplied close-family DOM rejects its method argument (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision-except",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": [
+          {
+            "method": "value",
+            "receiver": {
+              "capture": "x"
+            },
+            "args": []
+          }
+        ]
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
+  },
+  {
+    "description": "A restoration cannot wrap another restoration in a supplied DOM (engine §9.3 and §10).",
+    "malformed": true,
+    "condition": {
+      "method": "matches",
+      "receiver": {
+        "method": "without-elision",
+        "receiver": {
+          "method": "without-elision-except",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": [
+            {
+              "rule": "math"
+            }
+          ]
+        },
+        "args": []
+      },
+      "args": [
+        {
+          "rule": "r"
+        }
+      ]
+    }
   }
 ]

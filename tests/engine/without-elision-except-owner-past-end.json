@@ -1,0 +1,35 @@
+{
+  "description": "An interior optional keeps permission when its owner extends beyond the capture (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c Z\n%conditions $c.without-elision-except(fam).onward.begins(w)\n%rule c A X Y\n%rule w m\n%rule fam m\n%rule m A X [+U] Y Z",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

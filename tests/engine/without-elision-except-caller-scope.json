@@ -1,0 +1,16 @@
+{
+  "description": "A close family keeps the caller scope storage bound (engine §4.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ($x:seed {unit}) %conditions $x.without-elision-except(fam).matches(seed)\n\n%rule seed (\"x\" [+T]) | (\"(\" text \")\")\n%rule unit (\"a\" [+U]) | (\"a\" [+V])\n%rule fam unit",
+  "input": "xaaaa",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

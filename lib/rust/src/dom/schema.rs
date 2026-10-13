@@ -1,4 +1,4 @@
-//! Schema validation for format 26. The work list bounds the complete DOM
+//! Schema validation for format 27. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 
@@ -69,7 +69,13 @@ fn span(value: &Json) -> bool {
         || matches!(
             value.get("method").and_then(Json::as_str),
             Some(
-                "without-elision" | "first-token" | "last-token" | "tokens-after-first" | "onward" | "following-tokens"
+                "without-elision"
+                    | "without-elision-except"
+                    | "first-token"
+                    | "last-token"
+                    | "tokens-after-first"
+                    | "onward"
+                    | "following-tokens"
             )
         )
 }
@@ -493,6 +499,11 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let name = value.get("method").and_then(Json::as_str).unwrap_or("");
                     let valid = match (name, args) {
                         ("without-elision", []) => bare_capture(receiver),
+                        ("without-elision-except", [arg]) => {
+                            bare_capture(receiver)
+                                && exact(arg, &["rule"], &[])
+                                && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                        }
                         ("verbatim-text" | "emitted", []) => matches!(kind, Part::RecipeAtom) && bare_capture(receiver),
                         ("value" | "image", []) => {
                             span(receiver)

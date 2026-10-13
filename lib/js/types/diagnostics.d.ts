@@ -88,6 +88,10 @@ export declare function formatItem(production: Production, dot: number): string;
 export type StageAudit = {
     name: string;
     resolution: string;
+    /**
+     * close families in first-call order
+     */
+    families: FamilyAudit[];
     stageChanges: import("./pipeline.js").StageChange[];
     rules: number;
     /**
@@ -118,6 +122,33 @@ export type StageAudit = {
      * first entry that touches it
      */
     memberships: Membership[];
+};
+export type PermittedOptional = {
+    terminal: string;
+    owner: string;
+    document: string;
+    line: number;
+    column: number;
+};
+export type FamilyNote = {
+    kind: "empty";
+} | ({
+    kind: "never-omitted";
+} & PermittedOptional) | {
+    kind: "inert-member" | "unnamed-member";
+    rule: string;
+};
+export type FamilyAudit = {
+    family: string;
+    calls: {
+        rule: string;
+        document: string;
+        line: number;
+        column: number;
+    }[];
+    members: string[];
+    permitted: PermittedOptional[];
+    notes: FamilyNote[];
 };
 export type Membership = {
     classifier: string;

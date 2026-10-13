@@ -279,7 +279,7 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return sameValue(a.Elem(), b.Elem())
 	case reflect.Struct:
-		// Source terms keep diagnostic locations that DOM 26 does not serialize.
+		// Source terms keep diagnostic locations that DOM 27 does not serialize.
 		// Constants retain their serialized reference positions.
 		if a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
 			for i := range a.NumField() {
@@ -352,7 +352,7 @@ func sameValue(a, b reflect.Value) bool {
 	panic("sameValue: cannot compare a " + a.Kind().String())
 }
 
-// DOM 26 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
+// DOM 27 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
 func TestNotationLexicalTags(t *testing.T) {
 	t.Parallel()
 	d, err := LoadDialect("notation")

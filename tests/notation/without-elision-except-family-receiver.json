@@ -1,0 +1,10 @@
+{
+  "description": "A close-family call rejects this family receiver at the method chain (engine §9.3 and §10).",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.without-elision-except(math).without-elision.matches(r)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 25
+    }
+  }
+}

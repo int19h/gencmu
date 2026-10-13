@@ -1,5 +1,5 @@
 {
-  "description": "A rule's image recipe retains $.verbatim-text in the DOM, with or without its own emission clause. No opaque member remains (engine §9.3, §11.1, docs/output.md format 26).",
+  "description": "A rule's image recipe retains $.verbatim-text in the DOM, with or without its own emission clause. No opaque member remains (engine §9.3, §11.1, docs/output.md format 27).",
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g :- $.verbatim-text | A %emits $ :: F\n\n\n\n%rule h :- $.verbatim-text | B\n\n\n%rule k C\n```\n",
   "expect": {
     "dom": {

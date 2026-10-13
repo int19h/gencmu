@@ -1,0 +1,23 @@
+{
+  "description": "Presence simplification removes a missing capture's family query (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c B | Y B %conditions $c ⟹ $c.without-elision-except(fam).matches(w)\n%rule c X [+T]\n%rule w X [+U] [+T]\n%rule fam w",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

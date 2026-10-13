@@ -49,11 +49,13 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 The stage does not declare `elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
-`$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Aligned readings have the same ordered closes at shared boundaries.
+`$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. Strict aligned readings have the same ordered closes at shared boundaries.
 
 A witness is a reading that satisfies a query. A whole query uses `$x.without-elision.matches(r)`. An extended prefix uses `$x.without-elision.onward.begins(r)` and can read beyond the capture. Here `r` names a rule, while a capitalized identifier names a tag. Both forms keep following original words available to the witness's conditions.
 
 A query can elide terminators under written-terminator priority ([engine §4](../../docs/engine.md#4-recognition)). It cannot omit a terminator where the same construction can read that terminator as written. The query does not select the final late-elision winner. Category conditions preserve the actual candidate's closes. Structural conditions inspect its actual children.
+
+`$x.without-elision-except(math)` also lets the witness omit KUhE inside the shared stretch. The rule `math` names the constructs that KUhE closes.
 
 TO contains text, and SEI and XOI contain statements. Their bodies compete with surrounding constituents by ordinary late elision. The word `soi` is SEI and also requires a statement.
 
@@ -363,9 +365,11 @@ Zantufa has no termsets. A term is a `xoi` clause, a `ke` group of terms, a tens
 
 A tag with a sumti argument has its own alternative. GI cannot follow that actual tag because the tag and GI begin a gek. The argument cannot start an aligned tag unit, so `mi klama pu my roi` keeps one tag run. Alignment retains the argument's omitted terminators, so `pu cy to roi klama` keeps its long parenthesis. The bare-tag route excludes a following free modifier, tag unit, selbri, forethought bridi-tail, or BO. Thus `mi pe pu ba broda` remains rejected, and `mi pe pu ku ba broda` retains its written boundary.
 
+A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` and `mi klama pu ke my .e gy roi` keep one tag run.
+
 The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
-A term-initial sumti cannot start an aligned tag. The extended prefix can read a following ROI, so `cy roi` remains a tag. This restriction applies at the term's start, rather than to every letter inside a sumti. Thus `ro my roi klama` retains the quantified sumti `ro my`.
+A term-initial sumti cannot start an aligned tag. The extended prefix can read a following ROI, so `cy roi` remains a tag. This restriction applies at the term's start, rather than to every letter inside a sumti. Thus `ro my roi klama` retains the quantified sumti `ro my`. The tag can also omit KUhE inside the shared stretch. So in `ke my .e gy ke'e roi klama`, the KE group and ROI form one tag, as in Zantufa.
 
 A term link reserves `tag [BO #] CU` only after an actual joik. That suffix belongs to a bridi-tail connection. An ek has no such restriction. The query starts after the selected connective, so it retains that connective's modifiers.
 
@@ -406,7 +410,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   $g ≇ @(gek sumti {gik sumti} GIhI [#]),
   $k ⟹ $ ≇ @(ke-clause sumti KEhE≠"" [#]),
   $s ≇ @(KE [#] sumti KEhE="" [#]),
-  ¬$s.without-elision.onward.begins(tag)
+  ¬$s.without-elision-except(math).onward.begins(tag)
 
 %rule brigahi
   (* brigahi <- (POIhA_clause free* selbri / NA_clause !bridi_tail !joik_gihek) KU_elidible *)
@@ -425,7 +429,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | $f:fa-jai [+KU #]
 %conditions
   ¬$a.following-tokens.begins(gi-word),
-  ¬$s.without-elision.onward.begins(tcita-selci),
+  ¬$s.without-elision-except(math).onward.begins(tcita-selci),
   ¬$t.following-tokens.begins(gi-word),
   ¬$t.following-tokens.begins(free),
   ¬$t.following-tokens.begins(tcita-selci),
@@ -467,7 +471,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 
 A sumti can be a pro-sumti, a quote, letters, an abstraction, a description, a mekso, or a transformed sumti. The letter alternative reserves following operators and operand groups ending in KEhE.
 
-A description's inner sumti cannot start an aligned quantifier. The prefix query preserves its actual closes while it tests that category. Thus `lo my jo'u gy prenu` keeps its connected inner sumti, while `le ke my ke'e broda` takes a quantifier.
+A description's inner sumti cannot start an aligned quantifier. The prefix query preserves its actual closes while it tests that category. Thus `lo my jo'u gy prenu` keeps its connected inner sumti, while `le ke my ke'e broda` takes a quantifier. The quantifier can also omit KUhE inside the shared stretch, even just before an omitted KEhE. So `le ke my .e gy ke'e broda` and `le ke my .e gy broda` take a quantifier too.
 
 A connective after a sumti joins that sumti to the next one, not the term to the next term. So `ba mi .e do klama` has one term, the tense `ba` with the sumti `mi .e do`. The term rule sees a connective only where the sumti cannot take it. A term reads its whole sumti first. The conditions prevent that sumti from stopping before another link.
 
@@ -559,7 +563,7 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   | [relative-clauses] sumti-tail-1
   | [relative-clauses] $s:sumti sumti-tail-1
 %conditions
-  ¬$s.without-elision.onward.begins(quantifier)
+  ¬$s.without-elision-except(math).onward.begins(quantifier)
 
 %rule sumti-tail-1
   (* sumti_tail_1 <- tag? quantifier? selbri / quantifier sumti *)
@@ -773,6 +777,8 @@ Thus `by su'i cy klama` has the quantifier `by su'i cy` before `klama`. And `mi 
 
 `mex-forethought` reads an optional PEhO, an operator, one or more `mex-2` operands, and its KUhE terminator.
 
+`math` names forethought and reverse Polish mekso, the two constructs that KUhE closes. Category conditions at description prefixes and tags name it as a family. A competing mathematical reading there can omit KUhE inside the shared stretch. It cannot omit TOI, BOI or another terminator that the candidate lacks. So `my .e cy to roi klama` keeps its long parenthesis.
+
 The condition removes a connective operator whose first word is SE. The alternative `SE # operator` reads that SE instead. Initial NA or GAhO prevents this exact transformation. The separate following-CU condition remains in place.
 
 ```jbogenbau
@@ -825,6 +831,11 @@ The condition removes a connective operator whose first word is SE. The alternat
                       / PEhO_clause operator mex_2+ mex_forethought? KUhE_elidible *)
   [PEhO #] operator {mex-2} [+KUhE #]
 
+%rule math
+  (* not a rule of the reference: the constructs that KUhE closes, a family for
+     without-elision-except *)
+  mex-forethought | mex-rp
+
 %rule operator
   (* operator <- SE_clause operator / NAhE_clause operator / MAhO_clause (mex / selbri / sumti) TEhU_elidible
                / VUhU_clause / joik_ek !CU *)
@@ -873,7 +884,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>roi-word</code> to <code>lerfu-word</code></summary>
+<details><summary>Railroad diagrams of the 19 rules from <code>roi-word</code> to <code>lerfu-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/roi-word.svg" alt="Railroad diagram of the rule roi-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex.svg" alt="Railroad diagram of the rule mex"></p>
@@ -884,6 +895,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-rp.svg" alt="Railroad diagram of the rule mex-rp"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/mex-forethought.svg" alt="Railroad diagram of the rule mex-forethought"></p>
+<p><img src="../../docs/diagrams/syntax/zantufa/math.svg" alt="Railroad diagram of the rule math"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operator.svg" alt="Railroad diagram of the rule operator"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operators.svg" alt="Railroad diagram of the rule operators"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/operator-run.svg" alt="Railroad diagram of the rule operator-run"></p>
@@ -1062,6 +1074,10 @@ The dialect reads some texts differently from Zantufa 1.9999. The [dialect polic
 
 A PEG commits to the first alternative that matches, and a repetition reads as far as it can. So Zantufa rejects some texts that its rules allow, and the dialect accepts them. In `are`, Zantufa reads `a` as a whole fragment, and `re` is left over. In `le vi'ofagri`, the vocative after `le` takes `fagri`, and the description has no selbri. In `la poi ke'a barda .djan.`, the relative clause takes the name. Each of these parses here.
 
+`ke my .e gy ku'e ke'e roi klama` parses here. Zantufa reads `ke my .e gy` as grouped terms, and then it cannot continue at `ku'e`.
+
+A TO body that starts with a connective and a mekso also parses here, as in `le ke my .e by to .e cy boi dy toi ke'e broda`. Zantufa's fragment rule tries `ek` before `mex`. So it reads `.e` alone as the body, and it fails after it.
+
 In `li ma'o me my su'i pa`, only the mekso ME operand completes the surrounding construction. This dialect accepts it. The literal reference rejects it because its earlier sumti choice commits before that continuation.
 
 In `mi na'e mo'e ke by .e cy moi su'i dy moi`, the outer mekso includes NAhE. The literal PEG rejects this text after committing inside KE and MOhE. This dialect revisits those inner choices, so the outer mekso ends at the last MOI.
@@ -1076,24 +1092,9 @@ In `coi poi broda klama`, Zantufa's relative clause reads the tanru `broda klama
 
 In a reverse Polish mekso, Zantufa's greedy `mex_2+` can read an operator and an operand as a forethought mekso. So in `li fu'a pa su'i re pi'i`, it reads `su'i re` as one operand of `pi'i`. Here `su'i` is an operator of the reverse Polish mekso itself, as in *The Complete Lojban Language* (CLL).
 
-An aligned reservation can miss a competing category that needs an extra omitted terminator inside the shared span. In `ke my .e gy ke'e`, the reference reads `my` and `.e gy` as mathematical operands. The second operand omits KUhE. A connected sumti in KE needs no KUhE, so the readings do not align. Late elision selects that sumti because it omits fewer terminators.
+In `lo pa ke my ke'e .e gy prenu`, Zantufa reads `pa` with the connected sumti `ke my ke'e .e gy`. Then it closes the description, and `prenu` becomes the main selbri. Its `sumti_3` tries a KE sumti before `sumti_4`. So it never reads `ke my ke'e .e gy prenu` as one quantified sumti. This dialect has no condition for that order inside a quantified sumti. It reads `ke my ke'e .e gy` as a mekso quantifier of `prenu`, so `prenu` stays inside the description.
 
-The class is a KE mekso group whose later operand is an unmarked forethought connective. The group stands at a description prefix or a term-initial tag. This dialect reads such a group as an inner connected sumti. Zantufa reads it as a quantifier or tag. Some examples:
-
-```text
-le ke my .e gy ke'e broda
-le ke my jo'u gy ke'e broda
-le ke ny .e my .e gy ke'e broda
-lo ke my .e gy ke'e pa roi prenu
-lo ke my .e gy ke'e ke my .e gy ke'e prenu
-lo ke my .e gy ke'e ro my poi broda prenu
-```
-
-With a second connected KE group, this dialect keeps `prenu` inside the description, while Zantufa places it outside. The relative-clause example also changes later attachments. Written `ku'e` after `.e gy` gives Zantufa's quantifier reading, as in `le ke my .e gy ku'e ke'e broda`.
-
-In `ke my .e gy ke'e roi klama`, this dialect reads a grouped sumti followed by a bare ROI tag on `klama`. Zantufa uses the whole KE expression with ROI as one tag. The corresponding written control, `ke my .e gy ku'e ke'e roi klama`, is accepted here but rejected by Zantufa.
-
-[Issue #183](https://github.com/int19h/gencmu/issues/183) tracks a general rule for competing categories with extra internal closes, which would give this class Zantufa's reading.
+`lo ke my .e gy ke'e ke my ke'e .e gy prenu` differs in the same way after its first KE group.
 
 ### Early closure
 
@@ -1181,6 +1182,8 @@ my to mi toi my su'i gy prami
 ```
 
 In `ke my ke'e roi klama`, the term-initial condition reserves the grouped letters and ROI for a tag. Both grammars accept this sentence with that tag.
+
+Both grammars read `ke my .e gy ke'e roi klama` with one tag. They read `le ke my .e gy ke'e broda` with a quantifier. The competing reading omits KUhE inside the KE group.
 
 In `broda na'e my na'e me my`, an aligned sumti prefix reserves the sumti category and excludes the competing quantifier. Both grammars reject the incomplete surrounding construction.
 

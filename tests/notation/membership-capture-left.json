@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B%conditions $x ∈ $x.value.split(\".\")\n```\n",
   "expect": {
     "dom": {
-      "format": 26,
+      "format": 27,
       "rules": [
         {
           "name": "a",

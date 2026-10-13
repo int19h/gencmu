@@ -56,9 +56,13 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 26. The result format is 12. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`. An optional with a `maximal` member is malformed. No directive names elidable terminators: `%elidable` is a syntax error.
+The DOM format is 27. The result format is 12. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`. An optional with a `maximal` member is malformed. No directive names elidable terminators: `%elidable` is a syntax error.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
+
+`$x.without-elision-except(family)` takes a bare capture and one rule name. The family permits extra closes from optionals that its members own. Each extra close needs a kept token or record on both sides inside the shared stretch. `.onward` preserves this permission. Other span methods drop it. Family membership follows the final written rules, before feature gates or lowering.
+
+The Rust API exposes definition changes through `Dialect::changes`. It exposes no grammar audit. The audit data and notes of `docs/design.md` belong to the JavaScript API.
 
 A capture can stand anywhere in an alternative but inside braces or an elidable optional, and a production holds each name once. A production can have any number of captures. Each capture forms part of the identity of a recognizer item. A capture whose rule can end in many places multiplies items (engine §4).
 
@@ -89,6 +93,8 @@ sh ../../tools/check-rust-package.sh target/package/gencmu-*.crate
 ```
 
 The script unpacks the archive into a temporary consumer and runs `cargo build --offline` with a fresh target directory. The consumer has engine and notation fixtures whose names collide after test-name conversion. Both Rust CI versions run this procedure.
+
+The shared engine runner enables `gencmu::tools::with_family_conformance` on each case thread. This hidden test hook compares every eligible family witness with an independent deletion test. It restores the prior switch when the case ends, including after a panic. Growth tests retain only the production summaries. For a direct engine probe, set `GENCMU_FAMILY_CONFORMANCE=1` and select `--test engine`.
 
 `cargo test` runs these tests:
 
