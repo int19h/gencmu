@@ -13,7 +13,7 @@
 // Every preset also runs through its selector. Grammar edits expose ties
 // or change the selected operand, and Reset restores the bundled result.
 //
-//   node tools/smoke-playground.js [--browser chrome|firefox] [URL]
+//   node tools/smoke-playground.js [--browser chromium|chrome|firefox] [URL]
 //
 // The browser is driven with Playwright, a development dependency of lib/js,
 // and is one of Playwright's own browsers, which unlike a snap can read a
@@ -24,11 +24,12 @@
 const { createRequire } = require("node:module");
 const path = require("node:path");
 const fs = require("node:fs");
+const assert = require("node:assert/strict");
 const { execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const args = process.argv.slice(2);
-let browser = "chrome";
+let browser = "chromium";
 let target = pathToFileURL(path.join(__dirname, "..", "index.html")).href;
 for (let index = 0; index < args.length; index++) {
   if (args[index] === "--browser") browser = args[++index];
@@ -50,7 +51,7 @@ function loadPlaywright() {
 
 async function main() {
   const playwright = loadPlaywright();
-  const engines = { chrome: playwright.chromium, firefox: playwright.firefox };
+  const engines = { chromium: playwright.chromium, chrome: playwright.chromium, firefox: playwright.firefox };
   const engine = engines[browser];
   if (!engine) throw new Error(`unknown browser ${browser}`);
   const instance = await engine.launch({ headless: true });
@@ -122,6 +123,14 @@ async function main() {
     };
     const type = (text) => change("typing", "input", text, "input");
     const choose = (dialect) => change("choosing a dialect", "dialect", dialect, "change");
+    const tokenTable = () => run(() => ({
+      header: [...document.querySelectorAll("#output table.tokens th")].map((cell) => cell.textContent),
+      rows: [...document.querySelectorAll("#output table.tokens tbody tr")].map((row) =>
+        [...row.querySelectorAll("td")].map((cell, index) => index === 6 ?
+          [...cell.querySelectorAll(".tag")].map((tag) => tag.textContent) :
+          index >= 8 ? JSON.parse(cell.textContent) : cell.textContent)),
+    }));
+    const tokenHeader = ["#", "text", "value", "image", "span", "source", "tags", "insertedBy", "before", "after"];
 
     await page.goto(target);
     // The status is "loading" and then "busy" until the first answer, which
@@ -237,7 +246,7 @@ async function main() {
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
         document: "syntax/zantufa.md", rule: "%rule tanru-unit-1", summary: /syntax resolved/,
-        edit: ["(mex MOI #\n     ≻ SE # $w(tanru-unit-1)\n     ≻ NAhE # $v(tanru-unit-1))", "(mex MOI #\n     | SE # $w(tanru-unit-1)\n     | NAhE # $v(tanru-unit-1))"], tie: true },
+        edit: ["(mex MOI #\n     ≻ SE # $w:tanru-unit-1\n     ≻ NAhE # $v:tanru-unit-1)", "(mex MOI #\n     | SE # $w:tanru-unit-1\n     | NAhE # $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
         document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
         edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
@@ -252,7 +261,7 @@ async function main() {
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
       { label: "A rule with tree tests (notation)", output: /tree-comparison/,
-        parts: [/tree-comparator · ≅/, /tree-comparator · ≇/, /pattern-item · ⋯/, /'⋮' "⋮"/, /'⋰' "⋰"/, /'⋱' "⋱"/] },
+        parts: [/tree-comparator · ≅/, /tree-comparator · ≇/, /pattern-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
     ];
     const presets = await run(() => [...document.querySelectorAll("#examples option")]
       .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));
@@ -324,6 +333,55 @@ async function main() {
       await assertLinks();
       console.log(`example works in ${browser}: ${check.label}`);
     }
+
+    // Format 12 separates original text, normalized values and images.
+    // Attachments keep all token fields except span, at every depth.
+    await choose("dialects/cll-ebnf.md");
+    const tokenText = "ba'e m,I ui nai klAma";
+    await type(tokenText);
+    await answerFor(tokenText);
+    await page.locator("#tab-tokens").click();
+    await idle("the token stage selector", "#token-stages button");
+    await page.locator("#token-stages button").filter({hasText: /^indicators \(/}).click();
+    await idle("the indicators token table", "#output table.tokens");
+    const miTags = ["Cmavo", "Continued", "Final-Stress", "Initial-Stress", "KOhA", "Onset", "Run-Final", "Run-Initial", "Word"];
+    const klamaTags = ["BRIVLA", "Continued", "Gismu", "Initial-Stress", "Onset", "Run-Final", "Run-Initial", "Stress-Guard", "Word"];
+    const beforeTokens = [{text: "ba'e", value: "ba'e", image: "ba'e",
+      tags: ["BAhE", "Cmavo", "Continued", "Onset", "Run-Final", "Run-Initial", "Word"], source: [0, 4]}];
+    const afterTokens = [{text: "ui", value: "ui", image: "ui",
+      tags: ["Cmavo", "Continued", "Indicator", "Run-Final", "Run-Initial", "UI", "Word"], source: [9, 11],
+      after: [{text: "nai", value: "nai", image: "nai",
+        tags: ["Cmavo", "Continued", "NAI", "Onset", "Run-Final", "Run-Initial", "Word"], source: [12, 15]}]}];
+    assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
+      ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
+      ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
+    ]}, "the token table must show format 12 fields and recursive attachments");
+    await page.locator("#tab-tree").click();
+    const imageTree = await idle("the tree with images");
+    assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
+    await page.locator("#tab-json").click();
+    const imageDisplay = JSON.parse((await idle("the display JSON with images")).output);
+    const displayNodes = [imageDisplay];
+    let attached = null;
+    while (displayNodes.length) {
+      const node = displayNodes.pop();
+      if (!node || typeof node !== "object") continue;
+      if (node.terminal === "KOhA") attached = node;
+      for (const child of Object.values(node)) displayNodes.push(child);
+    }
+    assert.deepEqual(attached, {terminal: "KOhA", image: "mI",
+      before: [{classes: ["BAhE"], image: "ba'e"}],
+      after: [{classes: ["UI"], image: "ui", after: [{classes: ["NAI"], image: "nai"}]}]},
+      "display JSON must render images and nested attachments");
+    await page.locator("#tab-canonical").click();
+    const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
+    assert.equal(canonical.format, 12);
+    const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
+    assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
+      span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
+    await page.locator("#tab-brackets").click();
+    await idle("the brackets after the token assertions");
+    console.log(`format 12 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
     const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
     const navigationText = "mi se su'i pa re moi";
@@ -335,7 +393,7 @@ async function main() {
       let changed = syntax;
       let changedPipeline = pipeline;
       const marker = "%rule tanru-unit-1\n";
-      if (kind === "prefix") changed = "%rule tanru-unit-1 'prose'\n\n" + syntax.replace(marker, "%rule tanru-unit-10 'w'\n" + marker);
+      if (kind === "prefix") changed = "%rule tanru-unit-1 \"prose\"\n\n" + syntax.replace(marker, "%rule tanru-unit-10 \"w\"\n" + marker);
       else if (kind === "renamed") changed = syntax.replaceAll("tanru-unit-1", "renamed-unit");
       else if (kind === "moved") {
         const start = syntax.indexOf(marker);
@@ -408,10 +466,10 @@ async function main() {
     const extended = "syntax/zantufa.md";
     await run(({patched, discarded, extended}) => {
       self.playground.client.setDocument(discarded, "```jbogenbau\n%rule text (\n```\n");
-      self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text 'b' <X> %emits $\n```\n");
+      self.playground.client.setDocument(extended, "```jbogenbau\n%extend-rule text \"b\" :: X %emits $\n```\n");
       self.playground.client.setDocument(patched, "```jbogenbau\n%stage a\n%include \"../phonemes/latin.md\"\n" +
         "%stage b\n%ambiguity-resolution greedy\n%rule text X\n%redefine-stage a\n" +
-        "%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n%extend-stage a\n" +
+        "%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n%extend-stage a\n" +
         "%include \"../syntax/zantufa.md\"\n```\n");
     }, {patched, discarded, extended});
     await choose(patched);
@@ -421,7 +479,7 @@ async function main() {
     await errorLink.click();
     const openedDiscarded = await run(() => document.getElementById("doc-path").textContent);
     if (openedDiscarded !== discarded) throw new Error(`discarded source did not open: ${openedDiscarded}`);
-    await page.locator("#doc-text").fill("```jbogenbau\n%rule old 'x'\n```\n");
+    await page.locator("#doc-text").fill("```jbogenbau\n%rule old \"x\"\n```\n");
     await page.locator("#doc-text").dispatchEvent("input");
     const repaired = await answerFor("b");
     if (repaired.error || repaired.output.trim() !== "b") throw new Error(`stage patch failed: ${JSON.stringify(repaired)}`);
@@ -442,7 +500,7 @@ async function main() {
     // stage syntax reads "w" as either of two rules.
     const tiedPipeline = "dialects/zantufa.md";
     await run((path) => self.playground.client.setDocument(path, "# A tie\n\n```jbogenbau\n" +
-      "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a 'w'\n%rule b 'w'\n```\n"), tiedPipeline);
+      "%stage syntax\n%ambiguity-resolution greedy\n%rule text a | b\n%rule a \"w\"\n%rule b \"w\"\n```\n"), tiedPipeline);
     await choose(tiedPipeline);
     const tied = "w";
     await type(tied);
@@ -489,19 +547,26 @@ async function main() {
     await type("");
     await emptyRendering("a hollow tree");
 
-    // A token's label can be empty too (docs/output.md), so an empty
+    // A token's image can be empty too (docs/output.md), so an empty
     // rendering does not mean that the tree holds no tokens. In this
-    // pipeline the first stage emits one token X with an empty label for the
+    // pipeline the first stage emits one token X with an empty image for the
     // empty text, and the second stage reads it.
-    const labelless = "dialects/zantufa.md";
-    await run((path) => self.playground.client.setDocument(path, "# Empty labels\n\n```jbogenbau\n" +
-      "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits X\n" +
-      "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), labelless);
-    await choose(labelless);
-    await emptyRendering("a token with an empty label");
+    const imageless = "dialects/zantufa.md";
+    await run((path) => self.playground.client.setDocument(path, "# Empty images\n\n```jbogenbau\n" +
+      "%stage a\n%ambiguity-resolution greedy\n%rule text ε\n%emits ε :: X\n" +
+      "%stage b\n%ambiguity-resolution greedy\n%rule text X\n```\n"), imageless);
+    await choose(imageless);
+    await emptyRendering("a token with an empty image");
     const shownFor = await run(() => document.getElementById("result").dataset.dialect);
-    if (shownFor !== "zantufa") throw new Error(`the empty label was checked under ${shownFor}, not the edited pipeline`);
-    await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), labelless);
+    if (shownFor !== "zantufa") throw new Error(`the empty image was checked under ${shownFor}, not the edited pipeline`);
+    await page.locator("#tab-tokens").click();
+    await idle("the inserted token table", "#output table.tokens");
+    assert.deepEqual(await tokenTable(), {header: tokenHeader,
+      rows: [["0", '""', '""', '""', "0–0", "0–0", ["X"], "text", [], []]]},
+      "the token table must keep empty values and images and show insertedBy");
+    await page.locator("#tab-brackets").click();
+    await idle("the empty brackets after the inserted token assertion");
+    await run((path) => self.playground.client.setDocument(path, self.gencmuGrammars[path]), imageless);
     await choose("dialects/cll-ebnf.md");
     await type(last);
     await answerFor(last);

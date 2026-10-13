@@ -60,9 +60,9 @@
       // Reading a document that compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
-      loader.readDocument = (markdown, path) => {
+      loader.readDocument = (markdown, path, deferEmission) => {
         phase("reading", path);
-        const dom = read(markdown, path);
+        const dom = read(markdown, path, deferEmission);
         post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), dom });
         return dom;
       };
@@ -217,17 +217,21 @@
           const stage = result.stages.find((each) => each.name === view.stage) ||
             result.stages.find((each) => each.name === "words" && each.output) || result.stages[0];
           const tokens = (stage && stage.output) || [];
-          const rows = tokens.slice(0, TOKEN_ROWS).map((token, index) => ({
+          // Canonical tokens keep every attachment field. Send those lists
+          // as text, so deeply nested attachments never enter structured clone.
+          const selected = stage ? gencmu.resultJson({ ...result, tree: null, error: null, warnings: [],
+            stages: [{ ...stage, output: tokens.slice(0, TOKEN_ROWS) }] }).stages[0].output : [];
+          const rows = selected.map((token, index) => ({
             index,
             text: token.text,
-            phonemes: token.phonemes || "",
-            label: token.label,
+            value: token.value,
+            image: token.image,
             span: token.span[0] + "–" + token.span[1],
             source: token.source[0] + "–" + token.source[1],
-            // A list, since a character tag can hold a space.
-            tags: [...token.tags].sort(),
+            tags: token.tags,
             insertedBy: token.insertedBy || "",
-            attachments: gencmu.attachmentText(token),
+            before: gencmu.compactJson(token.before || []),
+            after: gencmu.compactJson(token.after || []),
           }));
           output = {
             format: "tokens", stages, stage: stage ? stage.name : null, rows, total: tokens.length,

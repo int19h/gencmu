@@ -550,8 +550,8 @@ export function rejectionWindows(caseText, text) {
  * - `reject`: the dialect rejects the case, and both the stored `at` and the
  *   start of the parsed error's source fall where the case's text holds the
  *   quoted text, or within the word after it (rejectionWindows).
- * - `words`: some stage gives the text's words as the labels of tokens in a
- *   row, one label for each word (wordLabels), and those tokens, with their
+ * - `words`: some stage gives the text's words as the images of tokens in a
+ *   row, one image for each word (wordLabels), and those tokens, with their
  *   attachments, stand together in the case's text: nothing between them
  *   holds a letter. So the case holds the text, read as those tokens.
  * - a rule: the tree of some stage has a node of the rule whose words are
@@ -582,14 +582,14 @@ export function roleProblem(c, role, text, dialects, loader) {
     let apart = false;
     for (const stage of result.stages) {
       if (!stage.output) continue;
-      // A pause token has a label of white space, and stands for no word.
+      // A pause token has an image of white space, and stands for no word.
       const tokens = stage.output.filter((/** @type {any} */ token) => token.image.trim());
       for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.image), wanted)) {
         if (together(points, tokens.slice(first, first + wanted.length))) return null;
         apart = true;
       }
     }
-    return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one label for each word";
+    return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one image for each word";
   }
   if (!result.ok) return "its dialect rejects it";
   const wanted = bare(text);
@@ -600,14 +600,14 @@ export function roleProblem(c, role, text, dialects, loader) {
 }
 
 /**
- * Whether a tree has a node of a rule whose words, the labels of the
+ * Whether a tree has a node of a rule whose words, the images of the
  * tokens under it that are not white space, joined by spaces, are a text.
  * One walk gives each node its range of words. A node's words are compared
  * only where their joined length is the text's, once for each range, since
  * gathering them for each node would cost a chain of nodes the square of
  * its length.
  * @param {any} tree
- * @param {{label: string}[]} input the stage's input tokens
+ * @param {{image: string}[]} input the stage's input tokens
  * @param {string} role
  * @param {string} wanted
  * @returns {boolean}
