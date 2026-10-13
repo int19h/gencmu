@@ -86,8 +86,8 @@ From `lib/go`, run `go test -parallel 4 ./...` to select four concurrent tests.
 Run `GENCMU_CORPUS_WORKERS=1 go test -count=1 -parallel 1 ./...` for a serial suite.
 The `-count=1` flag prevents Go from reusing a cached result.
 
-Tests that change process-wide state stay serial.
-These tests include work counters, stack limits, and changes to the working directory.
+Tests that use process-wide controls or allocation counts stay serial.
+These tests use work counters, stack limits, allocation counts, or changes to the working directory.
 Go finishes these tests before it starts the parallel tests.
 The corpus uses its separate pool, which `GENCMU_CORPUS_WORKERS` controls.
 

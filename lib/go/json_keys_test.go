@@ -151,7 +151,7 @@ func TestJSONStructKeysAreExact(t *testing.T) {
 
 // Ignored and raw values require syntax validation, not value conversion.
 func TestJSONRawAndIgnored(t *testing.T) {
-	t.Parallel()
+	// AllocsPerRun measures process-wide allocations and changes GOMAXPROCS.
 	var docs [][]byte
 	for _, pattern := range []string{"../../tests/*.json", "../../tests/*/*.json", "../../tests/corpus/*.jsonl"} {
 		files, _ := filepath.Glob(pattern)
