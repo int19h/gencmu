@@ -36,9 +36,11 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 27 supports `$x.without-elision`. This method restores captured omitted terminators for a query.
+Grammar document object model (DOM) format 27 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
-`$x.without-elision.onward` extends the query through the original following input. Parse results use format 12.
+A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
+
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 12. Go exposes no audit API.
 
 For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string. The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 
@@ -107,3 +109,5 @@ The random grammars of `TestRankingProperty` write flat braces `{x}`, `[{x}]` an
 A captured part's span is part of an item's identity (engine §4), so the recognizer keys an item by its captures. A production can have any number of them: the key keeps the first inline and interns the rest. `TestCaptureGrowth` pins the cost of a capture of a rule that can end in many places.
 
 `TestWithoutElisionParserGrowth` measures chart items, proof edges, close states, cycle contexts, time, and allocated memory on growing inputs. It covers nested omissions and ranked groups. Storage tests bound shared close links and retained ancestry at each partial prefix. Other tests cover emission queries, original token observations, attachments, and nested whole guards.
+
+`TestFamilyGrowth` runs every family fixture and its strict twin at the sizes in `tests/without-elision-growth.json`. It also measures family summaries, automaton steps, and sampled peak heap memory. `TestFamilyDeletionOracle` runs the shared engine cases with a private conformance switch. The switch compares each eligible family witness with the whole-observation deletion test. Permission marks exist only in this test oracle.

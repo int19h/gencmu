@@ -127,7 +127,7 @@ func plainFamilyDeletion(f *familyArena, witness []markedFamilyRecord, end int) 
 }
 
 func TestFamilyDeletionOracle(t *testing.T) {
-	files, err := filepath.Glob("../../tests/engine/without-elision-except-*.json")
+	files, err := filepath.Glob("../../tests/engine/*.json")
 	if err != nil || len(files) == 0 {
 		t.Fatal("no family fixtures", err)
 	}
@@ -135,6 +135,9 @@ func TestFamilyDeletionOracle(t *testing.T) {
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
 			c := loadCase(t, file)
+			if c.skipReason != "" {
+				t.Skip(c.skipReason)
+			}
 			c.familyOracle = func(r *recognizer, it *item) {
 				checked++
 				_, end := r.observed(it.origin, it.set)

@@ -647,11 +647,11 @@ func countCondition() {
 // and one ordinary step makes an item ordinary, which is then processed
 // again for what its strictness held back.
 func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
-	if r.family != nil {
-		r.family.taking(key.familySummary)
-	}
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
+	}
+	if r.family != nil {
+		r.family.taking(key.familySummary)
 	}
 	r.finishStructure(&key)
 	s := r.set(k)
