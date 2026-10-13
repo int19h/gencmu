@@ -1,5 +1,5 @@
 {
-  "description": "A token's phonemes make each run of pauses one and lose a pause at either end; any other character, a space or U+00A0, is an ordinary phoneme and is kept (engine §5).",
+  "description": "Ordinary value concatenation retains repeated and edge periods, spaces and U+00A0. The engine performs no pause collapse or trimming (engine §5, §11.2).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## u\n\n```jbogenbau\n%stage third\n```\n\n- [k](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c E :: Sound-002E-s := \".\" :- \" \" | F :: Sound-0061-s := \"a\" | G :: Sound-00A0-s := \" \" | H :: Sound-0020-s := \" \" %emits $\n\n```\n",

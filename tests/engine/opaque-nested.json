@@ -1,5 +1,5 @@
 {
-  "description": "An opaque part inside another opaque part gives nothing of its own, since the outer one counts once: `outer` holds `inner` and sounds one `?`. Two sibling opaque parts are two parts, so `whole` sounds `??` and its label joins their texts (engine §5, §11).",
+  "description": "An outer explicit image recipe suppresses its descendant's image recipe during the string walk. Sibling recipes each contribute their images, and values still concatenate all non-erased input parts (engine §11.1, §11.2).",
   "documents": {
     "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## parts\n\n```jbogenbau\n%stage parts\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter \"a\" :: (L ∪ Sound-0061-s) := \"a\" | \"b\" :: (L ∪ Sound-0062-s) := \"b\" | \"c\" :: (L ∪ Sound-0063-s) := \"c\" | \"d\" :: (L ∪ Sound-0064-s) := \"d\" %emits $\n\n%rule pause \" \" :: (P ∪ Sound-002E-s) := \".\" :- \" \" %emits $\n\n%rule mark \"!\"\n```\n",

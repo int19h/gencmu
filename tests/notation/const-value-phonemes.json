@@ -1,5 +1,5 @@
 {
-  "description": "A constant's value is a closed term, so phonemes of a span is an error in it, at the call (engine §9, §10).",
+  "description": "A constant's value must be closed. A capture's input-value method followed by split is an open term and fails at its receiver (engine §9.3, §10).",
   "document": "```jbogenbau\n%const $A $x.value.split(\".\")\n```\n",
   "expect": {
     "error": {

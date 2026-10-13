@@ -1,5 +1,5 @@
 {
-  "description": "split() gives a set of strings: = and ≠ compare two of them, ⊆ and ⊈ test one in another, ∖ takes their difference, and ∈ and ∉ test a string in one. The alternative bad fails, since its pieces differ (engine §10).",
+  "description": ".split gives a set of strings: = and ≠ compare two of them, ⊆ and ⊈ test one in another, ∖ takes their difference, and ∈ and ∉ test a string in one. The alternative bad fails, since its pieces differ (engine §10).",
   "grammar": "%rule text good | bad\n%rule good ($a:W $b:W $c:W) %conditions $a.value.split(\".\") = $b.value.split(\".\"), $a.value.split(\".\") ≠ $c.value.split(\".\"), $a.value.split(\".\") ⊆ $c.value.split(\".\"), $c.value.split(\".\") ⊈ $a.value.split(\".\"), ($c.value.split(\".\") ∖ $a.value.split(\".\")) ≠ ∅, ($b.value.split(\".\") ∖ $a.value.split(\".\")) = ∅, \"do\" ∈ $c.value.split(\".\"), \"do\" ∉ $a.value.split(\".\")\n\n%rule bad ($d:W $e:W $f:W) %conditions $d.value.split(\".\") = $f.value.split(\".\")\n",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "A sound test compares its string with the canonical sound of its span, so a comma and a capital in the token's phonemes do not count (engine §4, §5).",
+  "description": "A value test compares strings exactly. The token's ko,A differs from koa, so recognition rejects without dropping its comma or changing its case (engine §4, §5).",
   "grammar": "%rule text A=\"koa\"",
   "tokens": [
     {

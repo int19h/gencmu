@@ -1,5 +1,5 @@
 {
-  "description": "A reconstructed higher option excludes the raw chosen witness. The error reports that witness first.",
+  "description": "A reconstructed higher option excludes the raw chosen witness. The error reports that witness first (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text :: ∅ | [(a ≻ b)]\n\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)",
   "tokens": [
     {

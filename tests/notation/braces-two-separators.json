@@ -1,5 +1,5 @@
 {
-  "description": "Braces have one backslash at most, so {x \\ s \\ t} is a syntax error at the second (engine §9).",
+  "description": "Braces have one separator slash at most, so {x / s / t} is a syntax error at the second (engine §9).",
   "document": "```jbogenbau\n%rule a { x / s / t }\n```\n",
   "expect": {
     "error": {

@@ -28,7 +28,7 @@
   },
   {
     "name": "optionals-error-later",
-    "description": "Optionals, and an error of reading after them.",
+    "description": "Optionals beyond the depth limit, followed by a valid unresolved constant. The depth error stands at the first rule (engine §9.3).",
     "prefix": "%rule text ",
     "open": "[",
     "middle": "A",
@@ -37,7 +37,7 @@
   },
   {
     "name": "term-parens",
-    "description": "Parentheses around a tag in a tag term.",
+    "description": "Parentheses around a tag in a tag term (engine §9).",
     "prefix": "%rule text A :: ",
     "open": "(",
     "middle": "Tag-a",
@@ -46,7 +46,7 @@
   },
   {
     "name": "condition-parens",
-    "description": "Parentheses around a condition.",
+    "description": "Parentheses around a condition (engine §9).",
     "prefix": "%rule text $x:A %conditions ",
     "open": "(",
     "middle": "$x.source-text = \"a\"",
@@ -55,7 +55,7 @@
   },
   {
     "name": "negations",
-    "description": "Negations of a presence test.",
+    "description": "Negations of a presence test (engine §9).",
     "prefix": "%rule text $x:A %conditions ",
     "open": "¬",
     "middle": "$x",
@@ -64,7 +64,7 @@
   },
   {
     "name": "implications",
-    "description": "Conditions joined by ⟹, which group to the right.",
+    "description": "Conditions joined by ⟹, which group to the right (engine §9).",
     "prefix": "%rule text $x:A %conditions ",
     "open": "$x ⟹ ",
     "middle": "$x",
@@ -73,7 +73,7 @@
   },
   {
     "name": "guards",
-    "description": "Guards in a row before a tag term.",
+    "description": "Guards in a row before a tag term (engine §9).",
     "prefix": "%rule text :: ",
     "open": "$x ⟹ ",
     "middle": "Tag-a",
@@ -82,7 +82,7 @@
   },
   {
     "name": "unions",
-    "description": "Unions, each in parentheses inside the one before.",
+    "description": "Unions, each in parentheses inside the one before (engine §9).",
     "prefix": "%rule text A :: ",
     "open": "(Tag-a ∪ ",
     "middle": "Tag-b",
@@ -91,7 +91,7 @@
   },
   {
     "name": "any-groups",
-    "description": "Conditions joined by ∨, each group in parentheses inside the one before, which the reader folds into one.",
+    "description": "Conditions joined by ∨, each group in parentheses inside the one before, which the reader folds into one (engine §9).",
     "prefix": "%rule text $x:A %conditions ",
     "open": "($x ∨ ",
     "middle": "$x",
@@ -109,7 +109,7 @@
   },
   {
     "name": "long-capture",
-    "description": "A capture name of many characters.",
+    "description": "A capture name of many characters (engine §9).",
     "prefix": "%rule a $b",
     "open": "c",
     "middle": "",
@@ -127,7 +127,7 @@
   },
   {
     "name": "long-tag",
-    "description": "A tag literal of many characters in a tag term.",
+    "description": "A tag literal of many characters in a tag term (engine §9).",
     "prefix": "%rule a B :: T",
     "open": "x",
     "middle": "",
@@ -163,7 +163,7 @@
   },
   {
     "name": "string-of-escapes",
-    "description": "A string of many escaped quotes and backslashes in a test.",
+    "description": "A string with many interpolated quotes and backslashes in a value test (engine §9.1).",
     "prefix": "%rule a B=\"",
     "open": "$(_0022)$(_005C)",
     "middle": "",

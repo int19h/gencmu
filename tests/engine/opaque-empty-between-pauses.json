@@ -1,5 +1,5 @@
 {
-  "description": "The two joins of a token's parts are independent (engine §5). An empty opaque part between two pauses gives `?` to the phonemes, so they keep both pauses. It gives nothing to the label, so there the pauses are adjacent, and the label keeps only the first. Both joins find a pause part by its phonemes, so the label keeps the text `-` of the first pause.",
+  "description": "An empty verbatim constituent contributes no string on either channel. Ordinary concatenation keeps both period values and both hyphen images around it (engine §11.1, §11.2).",
   "grammar": "%rule text $w:word %emits $w :: W\n\n%rule word (L P gap P L)\n%rule gap :- $.verbatim-text | ε\n",
   "tokens": [
     {

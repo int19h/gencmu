@@ -1,5 +1,5 @@
 {
-  "description": "~name is the identifier tag name, and a bare name with a capital is the same tag: a terminal in a body, a tag in a term (design §2, engine §9).",
+  "description": "Identifier tags and ordinary Sound tags are tag-set terms, while a scalar string is not. Their mixed union fails at the tag term (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a (KOhA KOhA B) :: (KOhA ∪ KOhA ∪ Sound-0061-s ∪ \"c\") := \"a\"\n```\n",
   "expect": {
     "error": {

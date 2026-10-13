@@ -1,5 +1,5 @@
 {
-  "description": "A range or a property matches a token once, with one reading, however many of the token's character tags qualify (engine §4).",
+  "description": "A range reads exactly one scalar value, not ordinary Char tags. The caller's value ab has two scalars, so the range rejects it at token 0 (engine §4).",
   "grammar": "%rule text (\"a\"..\"z\" _L)",
   "tokens": [
     {

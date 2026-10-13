@@ -1,5 +1,5 @@
 {
-  "description": "A constituent's tags are the union of its alternative's own and the rule's %tags; with either written, the single symbol's tags are not its default (engine §3.7).",
+  "description": "A constituent's tags are the union of its alternative's own and the rule's ::; with either written, the single symbol's tags are not its default (engine §3.7).",
   "grammar": "%rule text (x x)\n%rule x :: Rule | A :: One | B\n",
   "tokens": [
     {

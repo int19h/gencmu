@@ -1,5 +1,5 @@
 {
-  "description": "from preserves a restored span through nested calls. Engine §9 and §10.",
+  "description": "The .onward method preserves a restored span, including repeated extensions. The DOM retains the nested method receivers (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B %conditions $x.without-elision.onward.onward.begins(r)\n```\n",
   "expect": {
     "dom": {

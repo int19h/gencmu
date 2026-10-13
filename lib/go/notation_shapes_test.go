@@ -151,16 +151,13 @@ func TestNotationShapes(t *testing.T) {
 	}
 	// A part that the reader does not read is ignored.
 	for _, item := range shapes.ExtraParts {
-		if len(findPlaces(bootstrap[syntaxAt:], item.Find)) != 1 {
+		if len(findPlaces(bootstrap, item.Find)) != 1 {
 			t.Fatalf("%s: the text to replace does not stand once", item.Description)
 		}
-		changed := withSyntax(func(syntax string) string {
-			replaced, err := substitute(syntax, item.Find, item.Replace)
-			if err != nil {
-				t.Fatalf("%s: %v", item.Description, err)
-			}
-			return replaced
-		})
+		changed, err := substitute(bootstrap, item.Find, item.Replace)
+		if err != nil {
+			t.Fatalf("%s: %v", item.Description, err)
+		}
 		var where *[3]any
 		if w := item.Where; w != nil {
 			where = &[3]any{w.Document, w.Line, w.Column}

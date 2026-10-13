@@ -6,5 +6,5 @@
       "column": 1
     }
   },
-  "description": "Two well-formed include paths cause a reader error at the directive (engine §9.3)."
+  "description": "Two quoted operands cause a reader error at the include directive, which accepts exactly one path (engine §9.3)."
 }

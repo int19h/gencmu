@@ -1,5 +1,5 @@
 {
-  "description": "A raw prefix query uses the productions of its own forest. Contextual ranked helpers retain their query identity.",
+  "description": "A raw prefix query uses the productions of its own forest. Contextual ranked helpers retain their query identity (engine §2.1 and §6.1).",
   "grammar": "%ambiguity-resolution late-elision\n%rule text ($p:Q query Z) %conditions $p.following-tokens.begins(query)\n\n%rule query (a ≻ b)\n%rule a (X Y)\n%rule b (X Y)",
   "tokens": [
     {

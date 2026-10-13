@@ -1,5 +1,5 @@
 {
-  "description": "An omitted T follows the terminal A. The complete text keeps B and C outside x.",
+  "description": "An omitted T follows the terminal A. The complete text keeps B and C outside x (engine §3.8 and §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text (x B C)\n%rule x (A [+T]) | (A B [+T])",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Every property name: the 30 General_Category values in their short form, the seven one-letter groups, White_Space and Any, each with a character that has it. '\\p{Cs}' is a name, but no character tag has it, since a character tag is never a surrogate (engine §1, §4).",
+  "description": "Stored engine tags support all 30 General_Category values, the seven category groups and _White_Space. No stage-zero token has _Cs, and the final wildcard reads the supplementary character without a stored _Any tag (engine §1, §4).",
   "grammar": "%rule text (_Lu _Ll _Lt _Lm _Lo _Mn _Mc _Me _Nd _Nl _No _Pc _Pd _Ps _Pe _Pi _Pf _Po _Sm _Sc _Sk _So _Zs _Zl _Zp _Cc _Cf [_Cs] _Co _Cn _L _M _N _P _S _Z _C _White_Space _)",
   "input": "Aaǅʰ漢́ः⃝7Ⅻ①_-()«»!+$^©   \u0007​͸აा٥،€　\u0001😀",
   "expect": {

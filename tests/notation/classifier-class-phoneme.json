@@ -1,5 +1,5 @@
 {
-  "description": "A phoneme tag is not a class, and the syntax reads none after ∈ (engine §9).",
+  "description": "Sound-0061-s is an ordinary tag that ends lowercase, not a class. The classifier entry fails at that class operand (engine §1, §9.3).",
   "document": "```jbogenbau\n%classifier lex\n\"a\" ∈ Sound-0061-s\n```\n",
   "expect": {
     "error": {

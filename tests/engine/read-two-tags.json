@@ -1,5 +1,5 @@
 {
-  "description": "The same token read under two tags: the two readings are tied under greedy, as under any lean, since a tag has no strength (engine §6.1).",
+  "description": "The same token read under two tags: the two readings are tied under greedy, as under any lean, since a tag has no strength (engine §6).",
   "grammar": "%ambiguity-resolution greedy\n%rule text X | Y",
   "tokens": [
     {

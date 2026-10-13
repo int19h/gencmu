@@ -1,5 +1,5 @@
 {
-  "description": "A constituent whose rule emits ε emits nothing, though something under it would, and nothing under it is walked (engine §11).",
+  "description": "A constituent whose rule is %erased emits nothing, though something under it would, and nothing under it is walked (engine §11).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (w y)\n%rule w x %erased\n\n%rule x A %emits $\n%rule y B %emits $\n```\n",

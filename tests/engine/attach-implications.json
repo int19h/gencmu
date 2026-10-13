@@ -1,5 +1,5 @@
 {
-  "description": "The stage applies its implications to an attached token and finds its phonemes after them (engine §11).",
+  "description": "The stage applies its implications to an attached token. Added ordinary tags leave its value and image unchanged (engine §11.1, §11.4).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($b:bb $w:word) | ($w:word $a:ii) | ($b:bb $w:word $a:ii) %emits ($b) $w ($a)\n\n\n\n%rule word \"w\" :: W | \"z\" :: Z\n\n%rule bb \"b\" :: B %emits $\n\n\n\n%rule ii \"i\" :: I %emits $\n\n\n\n%implies I ⟹ (Mark ∪ Sound-0069-s)\n```\n",

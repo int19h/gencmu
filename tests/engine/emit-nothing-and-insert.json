@@ -1,5 +1,5 @@
 {
-  "description": "%emits ε emits nothing; a tag literal in an %emits list inserts a token with an empty span (engine §11).",
+  "description": "%erased emits nothing. An inserted ε item between captured carriers has an empty span at the next carrier's start (engine §11.1).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {x}\n%rule x y | z\n%rule y ($a:A $b:B) %emits $a, ε :: MID, $b\n%rule z C %erased\n```\n",

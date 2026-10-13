@@ -1,5 +1,5 @@
 {
-  "description": "Three pluses are separate tokens. The second plus is a syntax error.",
+  "description": "Three pluses are separate tokens. The second plus is a syntax error (engine §9.3).",
   "document": "```jbogenbau\n%rule a [ + + + KU ]\n```\n",
   "expect": {
     "error": {

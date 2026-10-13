@@ -1,5 +1,5 @@
 {
-  "description": "Two phoneme tags on one emitted token are an error of the grammar, also when an implication added one of them (engine §5, §11).",
+  "description": "Implications can add a second ordinary Sound tag without a grammar error. The value recipe still supplies e, and constituent tags exclude the implied tag (engine §11.1, §11.2).",
   "grammar": "%implies A ⟹ Sound-006F-s\n%rule text [{word}]\n%rule word $w:W :: (A ∪ Sound-0065-s) := \"e\" %emits $\n\n",
   "tokens": [
     {

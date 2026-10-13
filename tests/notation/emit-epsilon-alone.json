@@ -1,5 +1,5 @@
 {
-  "description": "ε stands alone after %emits: it cannot be listed with an item (engine §9); the error is at the comma after it.",
+  "description": "The erased clause takes no emission list. A comma and carrier after %erased cause a syntax error at the comma (engine §9.2).",
   "document": "```jbogenbau\n%rule a A %erased , $\n```\n",
   "expect": {
     "error": {

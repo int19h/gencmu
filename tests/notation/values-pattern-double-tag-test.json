@@ -6,5 +6,5 @@
       "column": 32
     }
   },
-  "description": "Pattern atoms use the same test-order check as primaries (coordinator N19)."
+  "description": "A pattern atom permits one tag test followed by one value test. Its second tag test fails at that test (engine §9.3)."
 }

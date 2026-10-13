@@ -1,5 +1,5 @@
 {
-  "description": "An inserted item is one tag: a bare name with a capital, ~name, a character tag or a phoneme tag (design §15, engine §9).",
+  "description": "An inserted ε item accepts a tag clause and explicit string recipes. Ordinary tag names alone supply no strings (engine §9.3, §11.1).",
   "document": "```jbogenbau\n%rule a $x:A %emits ε :: KU, ε :: Ku, ε :: Char-0061-n, ε :: Sound-0061-s := \"a\", $x\n```\n",
   "expect": {
     "dom": {

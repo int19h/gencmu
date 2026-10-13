@@ -1,5 +1,5 @@
 {
-  "description": "Empty tag-set compounds keep their tag-set context.",
+  "description": "Empty tag-set compounds keep their tag-set context (engine §10).",
   "grammar": "%const $T A\n%redefine-const $T ((∅ ∪ ∅) ∩ (∅ ∖ ∅))\n%rule text A %conditions $T = ∅, (∅ ∪ ∅) = (A ∖ A)\n",
   "tokens": [
     {

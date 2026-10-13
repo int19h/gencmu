@@ -1,5 +1,5 @@
 {
-  "description": "An alternative captures a name once (engine §3.5, §9); the error is at the second capture of the name.",
+  "description": "A production cannot read one capture name twice. The error is at the second binder in that production (engine §3.5, §9.3).",
   "document": "```jbogenbau\n%rule a $a:A$a:B\n```\n",
   "expect": {
     "error": {

@@ -1,5 +1,5 @@
 {
-  "description": "initial($x) holds when the captured part begins where the input begins (engine §10).",
+  "description": "$x.starts-input holds when the captured part begins where the input begins (engine §10).",
   "grammar": "%rule text ($x:W W) %conditions $x.starts-input",
   "tokens": [
     {

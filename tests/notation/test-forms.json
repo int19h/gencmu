@@ -1,5 +1,5 @@
 {
-  "description": "A reference, a tag literal or a phoneme tag followed by = and a string is a tested symbol. Braces, an optional or a capture can hold one, layout can stand before the test, and the string keeps its apostrophes and periods (engine §9).",
+  "description": "A rule reference or identifier terminal can carry an exact value test. Captures, braces and optionals can contain tested symbols, and the strings retain apostrophes and periods (engine §9.3).",
   "document": "```jbogenbau\n%rule text ($l:LE=\"la\" Zo=\"zo\" Sound-0061-s=\"a\" {UI=\"ui\"} [KU=\"ku\"] BY=\"broda.bu\" LE=\"la'i\")\n```\n",
   "expect": {
     "dom": {

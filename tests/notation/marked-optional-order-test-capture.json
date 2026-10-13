@@ -1,5 +1,5 @@
 {
-  "description": "The terminator test is legal. The capture inside the elidable optional causes the error.",
+  "description": "The terminator test is legal. The capture inside the elidable optional causes the error (engine §9.3).",
   "document": "```jbogenbau\n%rule a [ + KU ≠ \"ku\" $x:A]\n```\n",
   "expect": {
     "error": {

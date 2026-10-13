@@ -1,5 +1,5 @@
 {
-  "description": "A tie ends the stage at the ranking, before emission. Each reading would emit a token with no tags, an error of the grammar, but the result is the tie (engine §6, §11).",
+  "description": "A tie ends the stage at ranking before emission. Both candidate emissions would have legal empty tag sets, but the tied stage emits nothing (engine §6, §11.1).",
   "grammar": "%ambiguity-resolution late-elision\n%rule text p | q\n%rule p $a:A %emits $a :: ($a.tags ∖ A)\n\n%rule q $a:A %emits $a :: ($a.tags ∖ A)\n",
   "tokens": [
     {

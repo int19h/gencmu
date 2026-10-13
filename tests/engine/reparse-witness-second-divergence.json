@@ -1,5 +1,5 @@
 {
-  "description": "The chosen w restores one T. Reconstruction reports w first and the canonical best competing a reading second.",
+  "description": "The chosen w restores one T. Reconstruction reports w first and the canonical best competing a reading second (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | w | z\n%rule a (A T B)\n%rule b (r T B)\n%rule r (A e)\n%rule e ε\n%rule w (A [+T] B)\n%rule z (A [+T] [+T] B)",
   "tokens": [
     {

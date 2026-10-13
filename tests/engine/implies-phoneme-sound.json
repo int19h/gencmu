@@ -1,5 +1,5 @@
 {
-  "description": "The stage applies its implications before it finds a token's sound, so an implication that adds a phoneme tag sets the sound (engine §5, §11).",
+  "description": "An implication adds the ordinary Sound-006F-s tag to an emitted token but does not change its value x (engine §11.1).",
   "grammar": "%implies A ⟹ Sound-006F-s\n%rule text [{word}]\n%rule word $w:W :: ($w.tags ∪ A) %emits $\n\n",
   "tokens": [
     {

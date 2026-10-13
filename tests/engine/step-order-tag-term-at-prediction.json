@@ -1,5 +1,5 @@
 {
-  "description": "A production with no symbols has a `$` condition, initial($), which the recognizer evaluates at prediction, and a tag term that would be an error of the grammar. Away from the start of the input the condition fails first, so the tag term never runs, and the text is rejected (engine §4).",
+  "description": "A production with no symbols has a `$` condition, $.starts-input, which the recognizer evaluates at prediction, and a tag term that would be an error of the grammar. Away from the start of the input the condition fails first, so the tag term never runs, and the text is rejected (engine §4).",
   "grammar": "%rule text (A x B)\n%rule x ε :: $.tags(migration-fault) %conditions $.starts-input\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {

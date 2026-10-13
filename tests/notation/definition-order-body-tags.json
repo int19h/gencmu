@@ -1,5 +1,5 @@
 {
-  "description": "A definition is checked in the order written, its body before its clauses: the name read twice in the body is the error, at the second $x, before the %tags that reads its own tags (engine §9).",
+  "description": "The body repeats a capture name before its tag clause reads its own tags. The error stands at the second binder (engine §9.3).",
   "document": "```jbogenbau\n%rule a $x:A$x:B\n:: $.tags\n```\n",
   "expect": {
     "error": {

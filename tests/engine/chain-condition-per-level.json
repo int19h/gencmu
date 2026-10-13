@@ -1,5 +1,5 @@
 {
-  "description": "A condition on $ holds of each level of a chain: text($) ≠ \"a\" fails at the level of one item, so the chain reads nothing (engine §3.3, §3.6).",
+  "description": "A condition on $ holds of each level of a chain: $.source-text ≠ \"a\" fails at the level of one item, so the chain reads nothing (engine §3.3, §3.6).",
   "grammar": "%rule text r\n%rule r {... A / S} %conditions $.source-text ≠ \"a\"\n",
   "tokens": [
     {

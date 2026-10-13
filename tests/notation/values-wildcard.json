@@ -29,5 +29,5 @@
       "implications": []
     }
   },
-  "description": "The wildcard has its own DOM form (output format 26)."
+  "description": "The wildcard has its own DOM form (output format 26) (engine §9.3)."
 }

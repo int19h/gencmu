@@ -1,5 +1,5 @@
 {
-  "description": "N32 accepts # as a capture base. The tested constructor rejects the first test after # at that test.",
+  "description": "A capture accepts # as its base, but # takes no test. The reader rejects its first following test at that test (engine §9.3).",
   "document": "```jbogenbau\n%rule r $x:#<A><B>\n```\n",
   "expect": {
     "error": {

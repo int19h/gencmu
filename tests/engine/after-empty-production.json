@@ -1,5 +1,5 @@
 {
-  "description": "A condition that uses only $ in a production with no symbols is evaluated at prediction, over the empty span there, and after($) runs to the end of the input (engine §4, §10).",
+  "description": "A condition that uses only $ in a production with no symbols is evaluated at prediction, over the empty span there, and $.following-tokens runs to the end of the input (engine §4, §10).",
   "grammar": "%rule text (A B end)\n%rule end ε %conditions $.following-tokens.matches(nothing)\n%rule nothing ε",
   "tokens": [
     {

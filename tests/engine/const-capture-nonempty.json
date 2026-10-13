@@ -1,5 +1,5 @@
 {
-  "description": "Where the final value of $E is not empty, `$E ∩ tags($x)` uses $x, which an alternative lacks. The loader finds this once $E has its final value, and reports it at the definition, as the reader reports such an error (engine §2, §9).",
+  "description": "Where the final value of $E is not empty, `$E ∩ $x.tags` uses $x, which an alternative lacks. The loader finds this once $E has its final value, and reports it at the definition, as the reader reports such an error (engine §2, §9).",
   "grammar": "%const $E (B ∖ B)\n%rule text :: (Y ∪ ($E ∩ $x.tags)) | A | $x:A\n\n%redefine-const $E B",
   "tokens": [
     {

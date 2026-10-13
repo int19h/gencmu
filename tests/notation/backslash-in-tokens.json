@@ -1,5 +1,5 @@
 {
-  "description": "A backslash inside a string, a character tag or a property belongs to that token, and so do the braces of a property and of a \\u{...} escape (engine §9).",
+  "description": "An engine scalar constant supplies a backslash terminal, and interpolation supplies a backslash inside a string. Ordinary brace strings and the stored _L terminal keep their distinct DOM forms (engine §9.1, docs/output.md).",
   "document": "```jbogenbau\n%rule a ($x:$_005C \"{\" _L \"}\") %conditions $x.source-text = \"a$(_005C)b\"\n\n```\n",
   "expect": {
     "dom": {

@@ -1,5 +1,5 @@
 {
-  "description": "%emits $ <t>, $ <u> emits one token per item, in order, each covering the whole constituent (engine §11): one character read as two phonemes.",
+  "description": "Two whole-carrier items over one consuming constituent are a document error. Distinct value recipes do not excuse their overlapping spans (engine §9.3, §11.1).",
   "grammar": "%rule text [{d}]\n%rule d D %emits $ :: Sound-006E-s := \"n\", $ :: Sound-006F-s := \"o\"",
   "tokens": [
     {

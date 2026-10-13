@@ -52,7 +52,7 @@ A text must be a sequence of Unicode scalar values, or it is a usage error (engi
 
 A text that does not parse is not an error, but a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
 
-That error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal.
+An `elision-only` error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal. A `tie` error has no witness of its own. The tied stage holds it (`docs/output.md`).
 
 A check that cannot recognize its chosen reconstruction before filtering reports a `grammar` error with the code `elision-witness-lost` (engine §7.9). It marks a defect of the library, not of the text.
 

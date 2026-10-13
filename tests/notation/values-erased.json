@@ -30,5 +30,5 @@
       "implications": []
     }
   },
-  "description": "Erasure has its own rule member (output format 26)."
+  "description": "Erasure has its own rule member (output format 26) (engine §9.3)."
 }

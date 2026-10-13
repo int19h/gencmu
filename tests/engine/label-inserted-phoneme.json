@@ -1,5 +1,5 @@
 {
-  "description": "An inserted token with a phoneme tag has that phoneme as its label, so the apostrophe that the zbalermorna shorthand U+ED8B inserts stays in the label of the word U+ED8B U+EDA4 U+EDA2, `u'i` (engine §5, §11).",
+  "description": "An inserted item's explicit apostrophe recipe supplies its value and implied image. A covering word concatenates that image as u'i, independent of the item's ordinary Sound tag (engine §11.1, §11.2).",
   "documents": {
     "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part vowel | shorthand\n%rule vowel \"\" :: Sound-0075-s := \"u\" | \"\" :: Sound-0069-s := \"i\" %emits $\n\n%rule shorthand (\"\" $v:vowel) %emits $v, ε :: Sound-0027-s := \"'\"\n\n```\n",

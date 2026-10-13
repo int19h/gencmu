@@ -1,5 +1,5 @@
 {
-  "description": "Each separator permits an omitted terminator in the left chain.",
+  "description": "Each separator permits an omitted terminator in the left chain (engine §3.8 and §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {... a / ([+T] s)}\n%rule a A | (A B)\n%rule s (B S)",
   "tokens": [
     {

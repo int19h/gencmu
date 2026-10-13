@@ -1,5 +1,5 @@
 {
-  "description": "split takes two strings: a tag set is an error at the call (engine §9, §10).",
+  "description": "The .split receiver must supply a string, not a tag set. The error stands at the receiver (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B%conditions \"a\" ∈ $x.tags.split(\".\")\n```\n",
   "expect": {
     "error": {

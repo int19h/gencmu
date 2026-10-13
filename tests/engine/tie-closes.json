@@ -1,5 +1,5 @@
 {
-  "description": "Two different constituents over the same span are a tie. The first reading has the lower production number (engine §6.3).",
+  "description": "Two different constituents over the same span are a tie. The first reading has the lower production number (engine §6).",
   "grammar": "%rule text p | q\n%rule p (A B)\n%rule q (A B)",
   "tokens": [
     {

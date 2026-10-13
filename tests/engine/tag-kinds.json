@@ -1,5 +1,5 @@
 {
-  "description": "An identifier tag, a character tag and a phoneme tag of the same letter are three different tags: each token reads under its own kind only (engine §1).",
+  "description": "An ordinary Char tag does not supply the value that a string terminal reads. The second token has value q and matches none of A, \"a\" or Sound-0061-s (engine §1, §4).",
   "grammar": "%rule text (x x x)\n%rule x A | \"a\" | Sound-0061-s",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "A body's terminals: a character tag in its canonical spelling, phoneme tags with their slashes, a tag literal's name, and a bare name with a capital as a ref (engine §1, §9).",
+  "description": "The DOM distinguishes scalar-string and engine-constant terminals from identifier tag references. Ordinary Sound tags are identifier references, with no phoneme-terminal form (engine §9.3, docs/output.md format 26).",
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule text (\"a\" \"\" $_0022 Sound-0283-s Sound-0020-s Word KOhA)\n```\n",
   "expect": {
     "dom": {

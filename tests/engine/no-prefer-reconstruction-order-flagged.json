@@ -1,5 +1,5 @@
 {
-  "description": "Every elision-only ambiguity reports the restored chosen b reading first, including grammars without preferences.",
+  "description": "Every elision-only ambiguity reports the restored chosen b reading first, including grammars without preferences (engine §7.10).",
   "grammar": "%ambiguity-resolution late-elision elision-only\n%rule (leftmost-longest) text a | b\n%rule a (X T)\n%rule b (X [+T]) | ([+U] X)",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "A token whose constituent holds an opaque part, but is none, keeps the source of its input tokens. Its label joins the whole text of the part, which takes in the space after `x` that no input token covers. So the label of `wrap` reaches beyond its source and its text (engine §5, §11).",
+  "description": "A covering parent concatenates its child's verbatim image, including the uncovered space after x. The parent's image extends beyond its source and text, while its value joins px (engine §11.1, §11.2).",
   "grammar": "%rule text ($w:wrap $q:Q) %emits $w :: W, $q :: Q\n\n%rule wrap (P body)\n%rule body :- $.verbatim-text | X\n",
   "tokens": [
     {

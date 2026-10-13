@@ -1,5 +1,5 @@
 {
-  "description": "A token with no phonemes, a character of the first stage, sounds like the empty string, so a sound test with another string never holds of it (engine §4).",
+  "description": "A caller token without an explicit value defaults to its text a. It therefore passes A=\"a\" without any phoneme metadata (engine §1, §4).",
   "grammar": "%rule text A=\"a\"",
   "tokens": [
     {

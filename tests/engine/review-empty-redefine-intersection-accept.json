@@ -1,5 +1,5 @@
 {
-  "description": "An empty compound keeps its contextual pattern type.",
+  "description": "An empty compound keeps its contextual pattern type (engine §10).",
   "grammar": "%const $P @A\n%redefine-const $P (∅ ∩ ∅)\n%rule text A %conditions $ ≇ $P\n",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "In ($a(A) $w(W) | $w(W) $a(A)) with %emits $w ($a), the first production reads the attachment before its carrier, an error of the document (engine §9).",
+  "description": "In ($a:A $w:W | $w:W $a:A) with %emits $w ($a), the first production reads the attachment before its carrier, an error of the document (engine §9).",
   "grammar": "%rule text ( $a:A$w:W| $w:W$a:A)\n%emits $w ( $a )",
   "tokens": [
     {

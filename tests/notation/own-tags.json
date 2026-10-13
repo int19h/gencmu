@@ -1,5 +1,5 @@
 {
-  "description": "A constituent's tags cannot be made of its own: $, tags($) or classes($) (engine §9).",
+  "description": "A constituent's tags cannot be made of its own: $, $.tags or $.classes (engine §9).",
   "document": "```jbogenbau\n%rule a A B  :: $.tags∪ T\n```\n",
   "expect": {
     "error": {

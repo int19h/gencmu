@@ -1,5 +1,5 @@
 {
-  "description": "The sides of an implication are closed terms, so they can hold constants and ranges. A constant has its final value there, as in a rule (engine §2, §10).",
+  "description": "An implication requires tag-set terms. A range in its right or left term is a document error at the range separator (engine §9.3, §10).",
   "grammar": "%const $PICKED \"x\"\n%implies $PICKED ⟹ Picked\n%implies \"a\"..\"c\" ⟹ Early\n%redefine-const $PICKED ($PICKED ∪ \"y\")\n%rule text [{char}]\n%rule char _ %emits $\n\n",
   "input": "bxyz",
   "expect": {

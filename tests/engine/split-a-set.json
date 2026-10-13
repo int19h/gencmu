@@ -1,5 +1,5 @@
 {
-  "description": "split() gives a set of strings, so = between two of them compares the pieces they hold, not their order or number (engine §10).",
+  "description": ".split gives a set of strings, so = between two of them compares the pieces they hold, not their order or number (engine §10).",
   "grammar": "%rule text ($x:A $y:B $w:C) %conditions $x.value.split(\".\") = $y.value.split(\".\"), $x.value.split(\".\") ≠ $w.value.split(\".\")\n",
   "tokens": [
     {

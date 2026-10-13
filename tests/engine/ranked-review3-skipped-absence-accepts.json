@@ -1,5 +1,5 @@
 {
-  "description": "A skipped optional establishes absence without removing a route whose absence condition passes.",
+  "description": "A skipped optional establishes absence without removing a route whose absence condition passes (engine §2.1 and §6.1).",
   "grammar": "%rule text ((X [($x:Y ≻ V)]) ≻ (Z W)) %conditions ¬($x)\n",
   "tokens": [
     {
