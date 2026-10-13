@@ -1,0 +1,10 @@
+{
+  "description": "The repeated tag test fails before the invalid scalar base and the first test operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule text $_D800<\"bad\"><A>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 25
+    }
+  }
+}

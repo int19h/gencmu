@@ -511,5 +511,202 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects an underscore in a guard feature (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "bad_name",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a guard feature that starts with a digit (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "1f",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a guard suffix inside its feature name (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f?",
+              "kind": "gate",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects a negated warning guard (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f",
+              "kind": "warning",
+              "negated": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM rejects an extra guard member (engine §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "f",
+              "kind": "gate",
+              "negated": false,
+              "extra": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A supplied DOM accepts a negated gate whose feature starts with a capital (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "Cbm",
+              "kind": "gate",
+              "negated": true
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A supplied DOM accepts an unnegated warning whose feature starts with a capital (engine §9.1, §9.3).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [
+            {
+              "feature": "Cbm",
+              "kind": "warning",
+              "negated": false
+            }
+          ],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

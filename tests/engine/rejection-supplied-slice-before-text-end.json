@@ -1,0 +1,49 @@
+{
+  "description": "An end-of-input rejection uses the last supplied token's source end, before the original text ends (engine §4, §12).",
+  "grammar": "%rule text A B",
+  "input": "a\nbc",
+  "tokens": [
+    {
+      "text": "a\nb",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        0,
+        3
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "source": [
+          3,
+          3
+        ],
+        "line": 2,
+        "column": 2,
+        "expected": [
+          {
+            "terminal": "B",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1224,6 +1224,66 @@
         "line": 3,
         "column": 15
       }
+    },
+    {
+      "description": "A supplied test on a pattern nested literal fails at that test (engine §9.3). It cannot disappear when the reader converts the pattern.",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-literal\"},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A %conditions $c ≅ @(@(A)<\"bad\">)\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 40
+      }
+    },
+    {
+      "description": "A supplied test on a pattern nested literal fails at that test (engine §9.3). It precedes invalid scalar contents and the bad test operand.",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"ref\":\"pattern-literal\"},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A %conditions $c ≅ @(@($_D800)<\"bad\">)\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 45
+      }
+    },
+    {
+      "description": "A supplied test on a pattern group fails at that test (engine §9.3). It cannot disappear when the reader converts the pattern.",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A %conditions $c ≅ @((A)<\"bad\">)\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 39
+      }
+    },
+    {
+      "description": "A supplied test on a pattern group fails at that test (engine §9.3). It precedes invalid scalar contents and the bad test operand.",
+      "find": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]}}],\"conditions\":[],\"at\":[*]}",
+      "replace": "{\"name\":\"pattern-atom\",\"op\":\"define\",\"flags\":[],\"alternatives\":[{\"guards\":[],\"expr\":{\"seq\":[{\"choice\":[{\"ref\":\"pattern-name\"},{\"ref\":\"tag\"},{\"ref\":\"string\"},{\"ref\":\"range\"},{\"ref\":\"wildcard\"},{\"ref\":\"constant-reference\"}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}},{\"guards\":[],\"expr\":{\"ref\":\"pattern-literal\"}},{\"guards\":[],\"expr\":{\"seq\":[{\"seq\":[{\"literal\":{\"string\":\"(\"}},{\"ref\":\"pattern-union\"},{\"literal\":{\"string\":\")\"}}]},{\"optional\":{\"repeat\":{\"ref\":\"symbol-test\"}}}]}}],\"conditions\":[],\"at\":[*]}",
+      "document": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $c:A %conditions $c ≅ @(($_D800)<\"bad\">)\n```\n",
+      "inputs": [
+        "a"
+      ],
+      "expect": "grammar",
+      "where": {
+        "document": "g.md",
+        "line": 3,
+        "column": 44
+      }
     }
   ]
 }
