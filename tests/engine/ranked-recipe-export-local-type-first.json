@@ -1,0 +1,13 @@
+{
+  "description": "A recipe requires a string atom. The local recipe type error precedes private ranked capture analysis (engine §9.3 and §11.4).",
+  "grammar": "%rule text ($x:A ≻ B) := $x.tags %emits",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 26
+    }
+  }
+}

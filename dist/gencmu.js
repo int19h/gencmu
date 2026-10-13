@@ -5478,9 +5478,6 @@
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
       }
-      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
-        validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
-      }
       this.checkReferences();
       this.ranked = new RankedGroups(this.rules);
       if (this.ranked.groups.length) {
@@ -5494,6 +5491,10 @@
       for (const { path, rule } of this.emissionUsers) {
         const problem = deferredRecipeProblem(rule) ?? deferredEmissionProblem(rule);
         if (problem) throw this.documentError(path, rule.at, problem);
+      }
+      // Recipe name analysis precedes effective channel dependencies (§11.4).
+      for (const rule of this.rules.values()) for (const alternative of rule.alternatives) {
+        validateRecipeCycles(alternative.value ?? alternative.clauses.value,alternative.image ?? alternative.clauses.image,alternative.document);
       }
       /**
        * The features that gate an alternative or an entry of a classifier.

@@ -1,0 +1,83 @@
+{
+  "description": "The grouped-leading-empty predecessor keeps each proof's own fixed prefix through its logical optional. Without [+U], the second proof is eligible and tags(r) succeeds (engine §4).",
+  "grammar": "%rule text $all:input\n%conditions Queried ⊆ $all.tags(r)\n%rule input A B C T U\n%rule r :: Queried | [A] [($c:empty y)] [+T] C T U\n%rule y A B | A B C | B z\n%rule z ε | C T\n%rule empty ε",
+  "input": "abctu",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "span": [
+        0,
+        1
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "span": [
+        1,
+        2
+      ],
+      "source": [
+        1,
+        2
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ],
+      "span": [
+        2,
+        3
+      ],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ],
+      "span": [
+        3,
+        4
+      ],
+      "source": [
+        3,
+        4
+      ]
+    },
+    {
+      "text": "u",
+      "tags": [
+        "U"
+      ],
+      "span": [
+        4,
+        5
+      ],
+      "source": [
+        4,
+        5
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null
+    }
+  }
+}

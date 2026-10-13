@@ -1,0 +1,13 @@
+{
+  "description": "The value recipe starts on the next line with a literal prefix and then reads its implied image. The cycle reports that literal (engine §11.3 and §9.3).",
+  "grammar": "%rule text :=\n  \"prefix\" $.emitted.image\n  | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 3
+    }
+  }
+}
