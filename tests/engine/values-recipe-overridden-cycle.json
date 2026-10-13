@@ -1,0 +1,25 @@
+{
+  "description": "An alternative override removes the inactive definition cycle on both selected channels (engine §11.3).",
+  "grammar": "%rule text := $.emitted.value | \"a\" := \"x\" %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "x",
+              "image": "x",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

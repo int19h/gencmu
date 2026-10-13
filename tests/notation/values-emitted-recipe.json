@@ -1,0 +1,55 @@
+{
+  "document": "```jbogenbau\n%rule r :- $.emitted.image | A %emits\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "image": {
+            "concat": [
+              {
+                "method": "image",
+                "receiver": {
+                  "method": "emitted",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                },
+                "args": []
+              }
+            ]
+          },
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "Recipes can read emitted child tokens through a channel method (engine §11)."
+}

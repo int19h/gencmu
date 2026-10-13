@@ -1,7 +1,7 @@
 {
   "description": "extend stage forward (engine §13).",
   "documents": {
-    "p.md": "```jbogenbau\n%extend-stage first\n%stage first\n%ambiguity-resolution greedy\n%rule text 'a' <X> %emits $\n```\n"
+    "p.md": "```jbogenbau\n%extend-stage first\n%stage first\n%ambiguity-resolution greedy\n%rule text \"a\" :: X %emits $\n```\n"
   },
   "pipeline": "p.md",
   "input": "a",

@@ -1,6 +1,6 @@
 {
-  "description": "The predecessor keeps lexical bindings to other final names. Type constraints do not create extra value dependencies.",
-  "grammar": "%const $P $Q\n%const $Q $P\n%redefine-const $P @(A)\n%rule text A\n%conditions $ ≅ $P ∧ $ ≅ $Q",
+  "description": "The predecessor keeps lexical bindings to other final names. Type constraints do not create extra value dependencies (engine §4.1 and §10).",
+  "grammar": "%const $P $Q\n%const $Q $P\n%redefine-const $P @A\n%rule text A %conditions ($ ≅ $P ∧ $ ≅ $Q)\n",
   "tokens": [
     {
       "text": "a",

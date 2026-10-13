@@ -1,6 +1,6 @@
 {
-  "description": "An omitted terminal exposes singleton tags to patterns. The empty helper keeps its empty constituent tags after reconstruction.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(r)\n%conditions tags($x) = ∅, $x ≅ @(A T∩(T ∪ U)≠∅) ∨ $x ≅ @(A OTHER OTHER [OTHER])\n%rule r A [+T] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%tags ∅",
+  "description": "An omitted terminal exposes singleton tags to patterns. The empty helper keeps its empty constituent tags after reconstruction (engine §4.1 and §10).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $x:r %conditions $x.tags = ∅, ($x ≅ @(A T<T U>) ∨ $x ≅ @(A OTHER OTHER [OTHER]))\n\n%rule r :: ∅ | (A [+T]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER])\n",
   "tokens": [
     {
       "text": "a",
@@ -28,7 +28,11 @@
                   },
                   {
                     "kind": "elided",
-                    "terminal": "T"
+                    "terminal": "OTHER"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "OTHER"
                   }
                 ]
               }
@@ -55,7 +59,11 @@
                   },
                   {
                     "kind": "elided",
-                    "terminal": "T"
+                    "terminal": "OTHER"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "OTHER"
                   }
                 ]
               }

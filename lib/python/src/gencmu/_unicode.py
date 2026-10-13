@@ -1,6 +1,5 @@
 """The character table every library shares, grammars/unicode.txt (engine §1):
-the General_Category of a character, the White_Space property, and the simple
-lowercase mapping."""
+the General_Category of a character and the White_Space property."""
 
 from __future__ import annotations
 
@@ -14,19 +13,12 @@ CATEGORIES = (
 )  # fmt: skip
 """The General_Category values in their short form (engine §1)."""
 
-PROPERTY_NAMES = frozenset((*CATEGORIES, "L", "M", "N", "P", "S", "Z", "C", "White_Space", "Any"))
-"""The names a property can have (engine §1): the General_Category values in
-their short form, their one-letter groups, White_Space and Any."""
-
-
 class UnicodeTable:
-    """General_Category ranges, White_Space ranges and simple lower-case
-    mappings."""
+    """General_Category and White_Space ranges from the configured table."""
 
     def __init__(self, text: str) -> None:
         categories: list[tuple[int, int, str]] = []
         white_space: list[tuple[int, int]] = []
-        self.lower: dict[int, int] = {}
         self.version = ""
         for number, line in enumerate(text.splitlines(), 1):
             fields = line.split()
@@ -41,8 +33,6 @@ class UnicodeTable:
                     categories.append((int(fields[2], 16), int(fields[3], 16), fields[1]))
                 elif fields[0] == "white-space":
                     white_space.append((int(fields[1], 16), int(fields[2], 16)))
-                elif fields[0] == "lower":
-                    self.lower[int(fields[1], 16)] = int(fields[2], 16)
                 else:
                     raise ValueError(fields[0])
             except (ValueError, IndexError) as error:
@@ -76,24 +66,3 @@ class UnicodeTable:
         """Whether a code point has the White_Space property."""
         index = bisect_right(self._space_starts, code) - 1
         return index >= 0 and code <= self._space_ends[index]
-
-    def has_property(self, name: str, code: int) -> bool:
-        """Whether a scalar value has a property (engine §1), whose name must
-        be one of ``PROPERTY_NAMES``."""
-        if name == "Any":
-            return True
-        if name == "White_Space":
-            return self.is_white_space(code)
-        if len(name) == 1:
-            return self.category(code)[0] == name
-        return self.category(code) == name
-
-    def lowercase(self, text: str) -> str:
-        lower = self.lower
-        return "".join(chr(lower.get(ord(char), ord(char))) for char in text)
-
-    def canonical(self, text: str) -> str:
-        """The canonical form of a sound (engine §5): each code point
-        replaced by its simple lowercase mapping, and every comma, the
-        syllable break, removed."""
-        return self.lowercase(text).replace(",", "")

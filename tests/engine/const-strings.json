@@ -1,25 +1,52 @@
 {
   "description": "A constant can be a set of strings, the value of split of closed terms, which ∈ and = compare (engine §2, §10).",
-  "grammar": "%const $WORDS split(\"la.le.lo\", \".\")\n%rule text $x(A) $y(A)\n%conditions phonemes($x) ∈ $WORDS, phonemes($y) ∉ $WORDS, split(\"lo.le.la\", \".\") = $WORDS",
+  "grammar": "%const $WORDS \"la.le.lo\".split(\".\")\n%rule text ($x:A $y:A) %conditions $x.value ∈ $WORDS, $y.value ∉ $WORDS, \"lo.le.la\".split(\".\") = $WORDS\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "lE"
+      "value": "lE"
     },
     {
       "text": "y",
       "tags": [
         "A"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          1
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
     }
   }
 }

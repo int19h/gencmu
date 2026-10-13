@@ -1,6 +1,6 @@
 {
-  "description": "The omission tests its restoration value. The fallback routes force reconstruction and preserve the projected omitted marker.",
-  "grammar": "%ambiguity-resolution late-elision\n%const $S (T ∪ U)\n%rule text A [+T⊉$S] | A [+OTHER] [+OTHER] | A [+OTHER] [+OTHER] [+OTHER]\n%conditions $ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER [OTHER])",
+  "description": "The omission predicate tests T<¬$S> against value \"\" and the singleton tag set T. It blocks the omission of T. Both parse configurations choose two OTHER markers with elision-only off and on (engine §3.8, §7.4).",
+  "grammar": "%ambiguity-resolution late-elision\n%const $S (T ∪ U)\n%rule text (A [+T<¬$S>]) | (A [+OTHER] [+OTHER]) | (A [+OTHER] [+OTHER] [+OTHER]) %conditions ($ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER [OTHER]))\n",
   "tokens": [
     {
       "text": "a",
@@ -24,7 +24,11 @@
               },
               {
                 "kind": "elided",
-                "terminal": "T"
+                "terminal": "OTHER"
+              },
+              {
+                "kind": "elided",
+                "terminal": "OTHER"
               }
             ]
           }
@@ -45,7 +49,11 @@
               },
               {
                 "kind": "elided",
-                "terminal": "T"
+                "terminal": "OTHER"
+              },
+              {
+                "kind": "elided",
+                "terminal": "OTHER"
               }
             ]
           }

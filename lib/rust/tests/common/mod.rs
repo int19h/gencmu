@@ -561,6 +561,49 @@ pub fn has_caller_attachments(case: &Value) -> bool {
     })
 }
 
+/// InputToken exposes scalar strings and tags, with generated source ranges.
+pub fn unexpressible_tokens(case: &Value) -> Option<&'static str> {
+    let tokens = case.get("tokens")?;
+    let tokens = match tokens {
+        Value::Array(tokens) => tokens,
+        _ => return Some("unavailable caller fields: Rust requires a token slice"),
+    };
+    if tokens.iter().any(|token| !matches!(token, Value::Object(_))) {
+        return Some("unavailable caller fields: Rust requires InputToken records");
+    }
+    let mut offset = 0;
+    for (index, token) in tokens.iter().enumerate() {
+        let length = token.get("text").and_then(Value::str).unwrap_or("").chars().count();
+        for (field, range) in [("source", [offset, offset + length]), ("span", [index, index + 1])] {
+            if let Some(supplied) = token.get(field) {
+                let generated = Value::Array(range.into_iter().map(|n| Value::Number(n as f64)).collect());
+                if supplied != &generated {
+                    return Some("unavailable caller fields: Rust InputToken generates these source and span ranges");
+                }
+            }
+        }
+        offset += length + 1;
+        for name in ["text", "value", "image"] {
+            if token.get(name).is_some_and(|v| !matches!(v, Value::String(_))) {
+                return Some("unavailable caller fields: Rust InputToken requires string fields");
+            }
+        }
+        if token.get("tags").is_some_and(
+            |tags| !matches!(tags, Value::Array(items) if items.iter().all(|tag| matches!(tag, Value::String(_)))),
+        ) {
+            return Some("unavailable caller fields: Rust InputToken requires a set of string tags");
+        }
+    }
+    if let Some(input) = case.get("input").and_then(Value::str) {
+        let joined =
+            tokens.iter().map(|t| t.get("text").and_then(Value::str).unwrap_or("")).collect::<Vec<_>>().join(" ");
+        if input != joined {
+            return Some("unavailable caller fields: Rust parse_tokens derives original text from token texts");
+        }
+    }
+    None
+}
+
 pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
     let tokens = case.get("tokens")?;
     Some(
@@ -576,7 +619,8 @@ pub fn case_tokens(case: &Value) -> Option<Vec<gencmu::InputToken>> {
                     .iter()
                     .map(|tag| tag.str().expect("a tag").to_string())
                     .collect(),
-                phonemes: token.get("phonemes").and_then(Value::str).map(str::to_string),
+                value: token.get("value").and_then(Value::str).map(str::to_string),
+                image: token.get("image").and_then(Value::str).map(str::to_string),
             })
             .collect(),
     )

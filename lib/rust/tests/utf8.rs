@@ -55,7 +55,7 @@ const INVALID: [&[u8]; 6] = [b"\x80", b"\xe2\x82", b"\xc0\xaf", b"\xed\xa0\x80",
 
 #[test]
 fn invalid_bytes_are_a_grammar_error_of_the_document() {
-    let good = grammar("%rule text 'a'").into_bytes();
+    let good = grammar("%rule text \"a\"").into_bytes();
     type Files = Box<dyn Fn(&[u8]) -> Vec<(&'static str, Vec<u8>)>>;
     let places: Vec<(&str, Files, &str)> = vec![
         (
@@ -80,7 +80,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
         (
             "an included document's prose",
             Box::new(|b| {
-                let text = format!("# A grammar @\n\n{}", grammar("%rule text 'a'"));
+                let text = format!("# A grammar @\n\n{}", grammar("%rule text \"a\""));
                 vec![("p.md", PIPELINE.as_bytes().to_vec()), ("g.md", with_bytes(&text, b))]
             }),
             "g.md",
@@ -90,7 +90,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
             Box::new(|b| {
                 vec![
                     ("p.md", PIPELINE.as_bytes().to_vec()),
-                    ("g.md", with_bytes(&grammar("%rule text 'a' (* @ *)"), b)),
+                    ("g.md", with_bytes(&grammar("%rule text \"a\" (* @ *)"), b)),
                 ]
             }),
             "g.md",
@@ -113,7 +113,7 @@ fn invalid_bytes_are_a_grammar_error_of_the_document() {
 fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
     let directory = Directory::new(&[
         ("p.md", format!("# A dialect \u{FFFD} \u{1F600}\n\n{PIPELINE}").into_bytes()),
-        ("g.md", grammar("%rule text '\u{FFFD}' '\u{1F600}' '\u{10FFFD}' (* \u{FFFD} \u{1F600} *)").into_bytes()),
+        ("g.md", grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)").into_bytes()),
     ]);
     let dialect = gencmu::load_dialect_file(directory.pipeline()).expect("a dialect");
     assert!(dialect.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &no_auto()).unwrap().ok);
@@ -122,13 +122,13 @@ fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
     let fence = &PIPELINE[PIPELINE.find("```").unwrap()..];
     let marked = Directory::new(&[
         ("p.md", format!("\u{FEFF}{fence}").into_bytes()),
-        ("g.md", grammar("%rule text 'a'").into_bytes()),
+        ("g.md", grammar("%rule text \"a\"").into_bytes()),
     ]);
     let error = gencmu::load_dialect_file(marked.pipeline()).expect_err("no block");
     assert!(error.message.contains("at least one %stage"), "{error}");
     let prose = Directory::new(&[
         ("p.md", format!("\u{FEFF}{PIPELINE}").into_bytes()),
-        ("g.md", grammar("%rule text '\u{FEFF}'").into_bytes()),
+        ("g.md", grammar("%rule text \"﻿\"").into_bytes()),
     ]);
     assert!(gencmu::load_dialect_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &no_auto()).unwrap().ok);
 }

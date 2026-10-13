@@ -27,7 +27,8 @@ import { fileURLToPath } from "node:url";
 import { Loader, fnv1a64 } from "../lib/js/src/node.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 import { extractGrammarText } from "../lib/js/src/markdown.js";
-import { includeLinks } from "./links.js";
+import { sourceIncludeEdges } from "./grammar-sources.js";
+import { includeLinks, headingAnchors, localAnchorProblems } from "./links.js";
 import { layoutProblems } from "./alternatives.js";
 import { quotedTextProblems } from "./quoted-texts.js";
 import { proseLineProblems } from "./prose-lines.js";
@@ -43,6 +44,7 @@ const copies = ["lib/js/grammars", "lib/python/src/gencmu/grammars", "lib/go/gra
 const grammars = path.join(root, "grammars");
 const check = process.argv.includes("--check");
 const stale = [];
+const includeEdges = sourceIncludeEdges(root);
 
 function write(relative, content) {
   const file = path.join(root, relative);
@@ -208,7 +210,8 @@ if (parserMissing && check) {
   console.warn(`the Markdown of the documents is not checked: ${parserMissing}`);
 } else {
   const unlinked = [];
-  for (const [file, { dom }] of Object.entries(documents)) {
+  for (const file of grammarFiles().filter(file => file.endsWith(".md"))) {
+    const dom = includeEdges.get(file);
     const isLinked = includeLinks(fs.readFileSync(path.join(grammars, file), "utf8"));
     for (const directive of dom.directives) {
       if (directive.name === "include" && !isLinked(directive.at[0], directive.args[0])) unlinked.push(`${file}:${directive.at[0]}: %include "${directive.args[0]}" does not follow a list item with a link [text](${directive.args[0]})`);
@@ -216,6 +219,20 @@ if (parserMissing && check) {
   }
   if (unlinked.length) {
     console.error(unlinked.join("\n"));
+    process.exit(1);
+  }
+  const anchors = new Map();
+  const readAnchors = (relative) => {
+    if (!anchors.has(relative)) {
+      const file = path.join(root, relative);
+      anchors.set(relative, fs.existsSync(file) ? headingAnchors(fs.readFileSync(file, "utf8")) : null);
+    }
+    return anchors.get(relative);
+  };
+  const missingAnchors = grammarFiles().filter(file => file.endsWith(".md")).flatMap((file) =>
+    localAnchorProblems(fs.readFileSync(path.join(grammars, file), "utf8"), `grammars/${file}`, readAnchors));
+  if (missingAnchors.length) {
+    console.error(missingAnchors.join("\n"));
     process.exit(1);
   }
   // The packages' copies of grammars/ are checked as grammars/, which
@@ -231,7 +248,7 @@ if (parserMissing && check) {
     process.exit(1);
   }
   // The DOMs and the dialects of the sources, as this run reads them.
-  const unpinned = quotedTextProblems(root, { loader: loaderWith(bootstrapText), doms: new Map(Object.entries(documents).map(([file, { dom }]) => [file, dom])) });
+  const unpinned = quotedTextProblems(root, { doms: includeEdges, runCases: false });
   if (unpinned.length) {
     console.error(unpinned.join("\n"));
     process.exit(1);

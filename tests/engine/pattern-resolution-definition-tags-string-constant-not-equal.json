@@ -1,0 +1,54 @@
+{
+  "description": "A definition tag clause resolves @($LETTER) before ≇ and assigns no tags. The string-constant pattern matches \"a\" under engine §§2 and 10.",
+  "grammar": "%const $LETTER \"old\"\n%rule text :: ($ ≇ @($LETTER) ⟹ X)\n  | \"a\"\n%redefine-const $LETTER \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "\"a\"",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

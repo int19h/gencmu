@@ -2,6 +2,8 @@
 
 This document is a layer over [the CLL grammar](cll.md), the grammar of *The Complete Lojban Language* (CLL), edition 1.1. A layer is a document that changes earlier rules. A dialect is a pipeline of stages, defined by one pipeline document. The [experimental](../dialects/experimental.md) dialect stitches this layer after that grammar, that is, combines their rules into one grammar.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its reference is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
@@ -29,7 +31,7 @@ The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
 
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
 
-[The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by name, phoneme or character. The rules `any-word` and `anything` match tokens tagged `word` and `quoted-text`, respectively.
+[The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
 
 A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage, an earlier stage, puts these two tags on the material of a quote.
 
@@ -98,11 +100,11 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
 
 %rule lone-i
   (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
-  $i(I)
+  $i:I
 %conditions
-  ¬begins(after($i), ek),
-  ¬begins(after($i), jek),
-  ¬begins(after($i), joik)
+  ¬$i.following-tokens.begins(ek),
+  ¬$i.following-tokens.begins(jek),
+  ¬$i.following-tokens.begins(joik)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>text</code> to <code>lone-i</code></summary>
@@ -175,16 +177,16 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   statement-connective [stag] BO I # subsentence
 
 %rule bridi-tail-head
-  | {terms \ CU #} [CU #]
-  | CU # [{terms \ CU #} [CU #]]
+  | {terms / CU #} [CU #]
+  | CU # [{terms / CU #} [CU #]]
 
 %rule headed-bridi-tail
-  [$h(bridi-tail-head)] bridi-tail
+  [$h:bridi-tail-head] bridi-tail
 %conditions
   $h ≇ @(⋱ @(tag KU="" [#]))
 
 %rule headed-bridi-tail-2
-  [$h(bridi-tail-head)] bridi-tail-2
+  [$h:bridi-tail-head] bridi-tail-2
 %conditions
   $h ≇ @(⋱ @(tag KU="" [#]))
 
@@ -195,7 +197,7 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
 
 %rule connected-bridi-tail
-  | $h(bridi-tail-head) bridi-tail-2
+  | $h:bridi-tail-head bridi-tail-2
   | bridi-tail-2-not-starting-with-ke
 %conditions
   $h ≇ @(⋱ @(tag KU="" [#]))
@@ -258,11 +260,11 @@ Without this rule, each of the first three texts has two readings that elide the
 
 The rules `term` and `term-bo-group`, and their forms in a list of terms, state the rule. Each is left-recursive, so that its condition sees the part before a connective and the link after it. The condition refuses a link where the part before ends with a sumti that the connective can extend, and the link begins with a sumti. So the tree of three or more connected terms nests to the left, as they group.
 
-Tags carry what the condition needs, so that it never parses the part before again. A tag `~link-extensible-end` says that a part ends with a sumti that a plain connective can extend. `~bo-extensible-end` says the same for a connective with `bo`. `~sumti-start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each of these rules passes them up from its first or its last part.
+Tags carry what the condition needs, so that it never parses the part before again. A tag `Link-Extensible-End` says that a part ends with a sumti that a plain connective can extend. `Bo-Extensible-End` says the same for a connective with `bo`. `Sumti-Start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each of these rules passes them up from its first or its last part.
 
 `sumti-2` has both end tags, since a connective can always extend it. A `ke` group with a written `ke'e` has none, so `mi .e ke do ke'e .e ko'a klama` joins two terms. After `vu'o`, a plain connective can extend the sumti, but a connective with `bo` cannot. `$EXTENSIBLE-END` holds the two end tags.
 
-A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `~sumti-start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
+A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `Sumti-Start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
 
 `pe'e` takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. The added terms are bare `na` and a `soi` clause enabled by `soi-clause`. That clause contains a subsentence and ends with `se'u`. `fi'oi` and `xoi` are members of SOI.
 
@@ -280,38 +282,34 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 ```jbogenbau
 %redefine-rule terms-1
-  {... terms-2 \ PEhE # statement-connective}
+  {... terms-2 / PEhE # statement-connective}
 
 %redefine-rule terms-2
   (* terms_2 <- abs_term (cehe_sa* CEhE_clause free* abs_term)* *)
-  {listed-term \ CEhE #}
+  {listed-term / CEhE #}
 
 %redefine-rule term
   (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
   | term-bo-group
-  | $t(term) $l(term-link) <tags($l) ∩ $EXTENSIBLE-END>
+  | $t:term $l:term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-group
   (* term_2 <- term_3 (joik_ek stag? BO_clause term_3)* *)
   | term-3
-  | $g(term-bo-group) $l(term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
+  | $g:term-bo-group $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-link
-  term-connective [stag] BO # $u(term-3)
-%tags
-  tags($u) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
+  term-connective [stag] BO # $u:term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
 %rule term-link
-  $c(term-connective) $g(term-bo-group)
-%tags
-  tags($g) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
+  $c:term-connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
-  ¬begins(after($c), tag-bo-ke-bridi-tail),
-  ¬begins(after($c), tag-bo-subsentence)
+  ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
+  ¬$c.following-tokens.begins(tag-bo-subsentence)
 
 %rule tag-bo-ke-bridi-tail
   (* tag_bo_ke_bridi_tail <- stag (BO_clause / KE_clause) CU_elidible free* (selbri / gek_sentence) *)
@@ -324,12 +322,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %rule term-connective
   joik # | jek # | ek # | VUhU #
 
-%const $EXTENSIBLE-END ~link-extensible-end ∪ ~bo-extensible-end
-
+%const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
-  | $s(sumti) <tags($s) ∪ ~sumti-start>
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | tagged-term
   | termset
   | NA # KU #
@@ -338,9 +335,9 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule bare-na
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
-  $n(NA) #
+  $n:NA #
 %conditions
-  ¬begins(from($n), na-connective)
+  ¬$n.onward.begins(na-connective)
 
 %rule na-connective
   gek | ek | jek | joik | gihek
@@ -350,41 +347,37 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
-  | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
-  | $g(tag) [+KU] #
+  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
+  | $g:tag [+KU] #
 %conditions
-  ¬begins(from($g), gek)
+  ¬$g.onward.begins(gek)
 
 %rule listed-term
   (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
   | listed-term-bo-group
-  | $t(listed-term) $l(listed-term-link) <tags($l) ∩ $EXTENSIBLE-END>
+  | $t:listed-term $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-group
   (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
   | listed-term-3
-  | $g(listed-term-bo-group) $l(listed-term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
+  | $g:listed-term-bo-group $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-link
-  term-connective [stag] BO # $u(listed-term-3)
-%tags
-  tags($u) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
+  term-connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
 %rule listed-term-link
-  $c(term-connective) $g(listed-term-bo-group)
-%tags
-  tags($g) ∩ ($EXTENSIBLE-END ∪ ~sumti-start)
+  $c:term-connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
-  ¬begins(after($c), tag-bo-ke-bridi-tail),
-  ¬begins(after($c), tag-bo-subsentence)
+  ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
+  ¬$c.following-tokens.begins(tag-bo-subsentence)
 
 %rule listed-term-3
   (* abs_term_3 <- sumti / abs_tag_term / termset *)
-  | $s(sumti) <tags($s) ∪ ~sumti-start>
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | listed-tagged-term
   | termset
   | NA # KU #
@@ -393,20 +386,20 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
-  | $g(tag) $s(sumti) <tags($s) ∩ $EXTENSIBLE-END>
-  | $g(tag) [+KU] #
+  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
+  | $g:tag [+KU] #
 %conditions
-  ¬begins(from($g), gek),
-  ¬begins(after($g), selbri-after-tag)
+  ¬$g.onward.begins(gek),
+  ¬$g.following-tokens.begins(selbri-after-tag)
 
 %rule selbri-after-tag
   # (selbri | gek-sentence)
 
 %rule listed-bare-na
   (* !selbri !gek_sentence !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
-  $n(NA) #
+  $n:NA #
 %conditions
-  ¬begins(from($n), listed-na-follower)
+  ¬$n.onward.begins(listed-na-follower)
 
 %rule listed-na-follower
   selbri | gek-sentence | ek | jek | joik | gihek
@@ -427,10 +420,10 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   {gek-terms-1}
 
 %rule gek-terms-1
-  {... gek-terms-2 \ PEhE # statement-connective}
+  {... gek-terms-2 / PEhE # statement-connective}
 
 %rule gek-terms-2
-  {term \ CEhE #}
+  {term / CEhE #}
 
 %rule terms-not-starting-with-bare-gek
   terms-1-not-starting-with-bare-gek [{terms-1}]
@@ -444,18 +437,18 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 %rule listed-term-not-starting-with-bare-gek
   | listed-term-bo-group-not-starting-with-bare-gek
-  | $t(listed-term-not-starting-with-bare-gek) $l(listed-term-link) <tags($l) ∩ $EXTENSIBLE-END>
+  | $t:listed-term-not-starting-with-bare-gek $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
-  ~link-extensible-end ⊈ tags($t) ∨ ~sumti-start ⊈ tags($l)
+  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-group-not-starting-with-bare-gek
   | listed-term-3-not-starting-with-bare-gek
-  | $g(listed-term-bo-group-not-starting-with-bare-gek) $l(listed-term-bo-link) <(tags($g) ∩ ~sumti-start) ∪ (tags($l) ∩ $EXTENSIBLE-END)>
+  | $g:listed-term-bo-group-not-starting-with-bare-gek $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
-  ~bo-extensible-end ⊈ tags($g) ∨ ~sumti-start ⊈ tags($l)
+  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-3-not-starting-with-bare-gek
-  | $s(sumti) <tags($s) ∪ ~sumti-start>
+  | $s:sumti :: $s.tags ∪ Sumti-Start
   | listed-tagged-term
   | termset-with-nuhi
   | NA # KU #
@@ -507,7 +500,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their sound. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their values. The new sumti are these:
 
 - `na'e` and `lu'u` surround a sumti, without `bo`.
 - `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
@@ -528,20 +521,18 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti
   | sumti-1
-  | sumti-1 VUhO # [relative-clauses] <~link-extensible-end>
-  | sumti-1 VUhO # [relative-clauses] sumti-connective $i(sumti) <tags($i) ∩ $EXTENSIBLE-END>
+  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
+  | sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 sumti-connective [stag] KE # $i(sumti) [+KEhE] # <KEhE ⊈ tags(head(after($i))) ⟹ tags($i) ∩ $EXTENSIBLE-END>
+  | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-2
-  {... sumti-3 \ sumti-connective}
-%tags
-  $EXTENSIBLE-END
+  {... sumti-3 / sumti-connective} :: $EXTENSIBLE-END
 
 %redefine-rule sumti-3
-  {sumti-4 ... \ sumti-connective [stag] BO #}
+  {sumti-4 ... / sumti-connective [stag] BO #}
 
 %rule sumti-connective
   ek # | joik # | jek # | VUhU #
@@ -551,8 +542,8 @@ A description can take a forethought sentence in place of a selbri, and so can a
 
 %redefine-rule sumti-6
   | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
-  | (LAhE # | NAhE BO #) $t(term) [+LUhU] #
-  | NAhE # $u(term) [+LUhU] #
+  | (LAhE # | NAhE BO #) $t:term [+LUhU] #
+  | NAhE # $u:term [+LUhU] #
   | KOhA #
   | lerfu-string free-after-lerfu-string
   | ¬cbm? name-marker # [relative-clauses] {CMEVLA} #
@@ -570,12 +561,12 @@ A description can take a forethought sentence in place of a selbri, and so can a
   $u ≇ @(tagged-term)
 
 %redefine-rule sumti-tail
-  | $s(sumti) sumti-tail-1
+  | $s:sumti sumti-tail-1
   | sumti-tail-1
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  ¬matches(head($s), quantifier-head),
+  ¬$s.first-token.matches(quantifier-head),
   $s ≇ $QUANTIFIED-SUMTI
 
 %rule quantifier-head
@@ -600,7 +591,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ```jbogenbau
 %redefine-rule relative-clauses
-  | {relative-clause \ ZIhE # | joik # | jek # | ek #}
+  | {relative-clause / ZIhE # | joik # | jek # | ek #}
   | gek relative-clauses gik relative-clauses
 
 %redefine-rule relative-clause
@@ -646,15 +637,15 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | selbri-4 joik [stag] KE # selbri-3 [+KEhE] #
 
 %rule plain-selbri-connective
-  | $j(joik) #
+  | $j:joik #
   | jek #
   | ek #
   | VUhU #
 %conditions
-  KE ⊈ tags(head(after($j)))
+  KE ⊈ $j.following-tokens.first-token.tags
 
 %redefine-rule selbri-5
-  {selbri-6 ... \ selbri-connective [stag] BO #}
+  {selbri-6 ... / selbri-connective [stag] BO #}
 
 %rule selbri-not-starting-with-ke
   [tag] selbri-1-not-starting-with-ke
@@ -681,13 +672,13 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %redefine-rule tanru-unit
-  {tanru-unit-1 \ CEI #} [selbri-relative-clauses]
+  {tanru-unit-1 / CEI #} [selbri-relative-clauses]
 
 %redefine-rule tanru-unit-1
-  | $u(tanru-unit-2)
+  | $u:tanru-unit-2
   | tanru-unit-2 linkargs
 %conditions
-  BE ⊈ tags(head(after($u)))
+  BE ⊈ $u.following-tokens.first-token.tags
 
 %redefine-rule tanru-unit-2
   | KE # selbri-3 [+KEhE] #
@@ -710,10 +701,10 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   tanru-unit-1-not-starting-with-ke [{CEI # tanru-unit-1}] [selbri-relative-clauses]
 
 %rule tanru-unit-1-not-starting-with-ke
-  | $u(tanru-unit-2-not-starting-with-ke)
+  | $u:tanru-unit-2-not-starting-with-ke
   | tanru-unit-2-not-starting-with-ke linkargs
 %conditions
-  BE ⊈ tags(head(after($u)))
+  BE ⊈ $u.following-tokens.first-token.tags
 
 %rule tanru-unit-2-not-starting-with-ke
   | BRIVLA #
@@ -729,7 +720,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | MEhOI anything #
 
 %rule selbri-relative-clauses
-  | {selbri-relative-clause \ ZIhE # | joik # | jek # | ek #}
+  | {selbri-relative-clause / ZIhE # | joik # | jek # | ek #}
   | gek selbri-relative-clauses gik selbri-relative-clauses
 
 %rule selbri-relative-clause
@@ -788,11 +779,11 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 ```jbogenbau
 %redefine-rule quantifier
   (* quantifier <- !selbri !sumti_6 mex *)
-  $m(mex)
+  $m:mex
 %conditions
-  ¬matches(head($m), quantifier-barrier),
-  ¬begins(from($m), gek-barrier),
-  ¬begins(from($m), selbri)
+  ¬$m.first-token.matches(quantifier-barrier),
+  ¬$m.onward.begins(gek-barrier),
+  ¬$m.onward.begins(selbri)
 
 %rule quantifier-barrier
   BY | LAU | TEI | LAhE | NAhE
@@ -801,7 +792,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   gek (quantifier-barrier | gek-barrier)
 
 %redefine-rule mex
-  {... mex-1 \ operator}
+  {... mex-1 / operator}
 
 %redefine-rule mex-1
   mex-2 [operator [stag] BO # mex-1]
@@ -871,7 +862,7 @@ A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, 
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
-The rules name the two words by their sound, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the sound but not the class.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
 ```jbogenbau
 %redefine-rule joik
@@ -914,7 +905,7 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 ```jbogenbau
 %redefine-rule tag
-  {... tense-modal \ tag-connective}
+  {... tense-modal / tag-connective}
 
 %redefine-rule stag
   tag
@@ -971,12 +962,12 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   | vocative [sumti] [+DOhU]
   | mex-2 MAI
   | TO text [+TOI]
-  | XI # $m(mex-2)
+  | XI # $m:mex-2
   | LOhAI [{lohai-word}] [LOhAI [{lohai-word}]] LEhAI
   | LEhAI
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
-  XI ⊈ tags(head(after($m))),
+  XI ⊈ $m.following-tokens.first-token.tags,
   $m ≇ $FREE-ENDING
 
 %rule name-marker
@@ -984,21 +975,21 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
 
 %rule free-after-number
   (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
-  [+BOI] $f(#)
+  [+BOI] $f:#
 %conditions
-  begins($, spoken-boi) ∨ ¬begins($f, number-part)
+  $.begins(spoken-boi) ∨ ¬$f.begins(number-part)
 
 %rule free-after-lerfu-string
   (* lerfu_string BOI_elidible free*: after an elided boi, the string has read every letter *)
-  [+BOI] $f(#)
+  [+BOI] $f:#
 %conditions
-  begins($, spoken-boi) ∨ ¬begins($f, lerfu-word)
+  $.begins(spoken-boi) ∨ ¬$f.begins(lerfu-word)
 
 %rule spoken-boi
   BOI
 
 %rule lohai-word
-  ~word∩(LOhAI ∪ LEhAI)=∅
+  Word<¬LOhAI ¬LEhAI>
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>

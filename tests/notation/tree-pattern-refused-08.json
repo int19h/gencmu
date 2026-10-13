@@ -1,6 +1,6 @@
 {
-  "description": "The reader rejects this unsupported pattern form.",
-  "document": "```jbogenbau\n%const $P @(A & B)\n```\n",
+  "description": "The reader rejects this unsupported pattern form (engine §9.3).",
+  "document": "```jbogenbau\n%const $P @ ( A & B )\n```\n",
   "expect": {
     "error": {}
   }

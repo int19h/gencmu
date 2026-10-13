@@ -1,5 +1,14 @@
 import type { TagSet } from "./types.js";
 /**
+ * The canonical diagnostic spelling of a scalar string (engine §9.1).
+ * @param {string} value
+ * @param {{isMark(code: number): boolean}} unicode
+ * @returns {string}
+ */
+export declare function stringName(value: string, unicode: {
+    isMark(code: number): boolean;
+}): string;
+/**
  * @param {Iterable<string>} [tags]
  * @returns {TagSet}
  */
@@ -93,37 +102,7 @@ export declare function isName(tag: string): boolean;
  */
 export declare function splitString(string: string, delimiter: string): Set<string>;
 /**
- * Whether a tag is a phoneme tag: three code points, the first and last
- * `/` (engine §1).
- * @param {string} tag
- * @returns {boolean}
- */
-export declare function isPhonemeTag(tag: string): boolean;
-/**
- * The character tag of a Unicode scalar value, in its canonical spelling
- * (engine §1): `'a'`, or `'\u{301}'` for a code point that is escaped.
- * @param {number} code
- * @param {{isMark(code: number): boolean}} unicode
- * @returns {string}
- */
-export declare function characterTag(code: number, unicode: {
-    isMark(code: number): boolean;
-}): string;
-/**
- * The scalar value that a character tag in its canonical spelling names,
- * or null for a string that is not one.
- * @param {string} tag
- * @param {{isMark(code: number): boolean}} unicode
- * @returns {number | null}
- */
-export declare function characterOfTag(tag: string, unicode: {
-    isMark(code: number): boolean;
-}): number | null;
-/**
- * Whether a string is a tag in its canonical spelling: a name, a phoneme
- * tag or a character tag (engine §1). Without a table, which says which
- * code points are marks, a character tag passes in either spelling that a
- * table could make canonical.
+ * Whether a string is a user tag or a reserved engine tag (engine §1).
  * @param {unknown} tag
  * @param {{isMark(code: number): boolean}} [unicode]
  * @returns {boolean}
@@ -132,47 +111,9 @@ export declare function isTag(tag: unknown, unicode?: {
     isMark(code: number): boolean;
 }): boolean;
 /**
- * The scalar value of a character tag in its canonical spelling, or -1 for
- * any other tag. The tag is not checked beyond its first character: every
- * tag inside the engine is in its canonical spelling (engine §1).
- * @param {string} tag
- * @returns {number}
- */
-export declare function codeOfCharacterTag(tag: string): number;
-/**
  * The written form of a range, its identity as a terminal (engine §4):
  * its two ends, in their canonical spelling, joined by `..`.
  * @param {[string, string]} range
  * @returns {string}
  */
 export declare function rangeName(range: [string, string]): string;
-/**
- * The written form of a property, its identity as a terminal (engine §4).
- * @param {string} name
- * @returns {string}
- */
-export declare function propertyName(name: string): string;
-/**
- * The character tags of a range (engine §1), from its start to its end by
- * scalar value, the surrogates skipped.
- * @param {[string, string]} range
- * @param {{isMark(code: number): boolean}} unicode
- * @returns {TagSet}
- */
-export declare function rangeTags(range: [string, string], unicode: {
-    isMark(code: number): boolean;
-}): TagSet;
-/**
- * A test as an expected list writes it after its terminal (docs/output.md):
- * its comparator and its value in canonical form. A string stands between
- * double quotes, a backslash before each `\` and `"`. A tag set is `∅`, its
- * one tag, or its tags in code point order joined by ` ∪ ` in parentheses.
- * @param {string} op
- * @param {{string: string} | {set: Set<string>}} value
- * @returns {string}
- */
-export declare function writtenTest(op: string, value: {
-    string: string;
-} | {
-    set: Set<string>;
-}): string;

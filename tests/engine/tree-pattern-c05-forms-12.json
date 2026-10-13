@@ -1,5 +1,5 @@
 {
-  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -10,11 +10,14 @@
   },
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
+        },
+        {
+          "name": "normalize"
         },
         {
           "name": "forms",
@@ -22,12 +25,12 @@
           "output": [
             {
               "text": "ro'irrai",
-              "phonemes": "ro'irrai",
-              "label": "ro'irrai",
+              "value": "ro'irrai",
+              "image": "ro'irrai",
               "tags": [
-                "UNREAD",
-                "run-final",
-                "run-initial"
+                "FOREIGN",
+                "Run-Final",
+                "Run-Initial"
               ],
               "span": [
                 0,
@@ -82,7 +85,7 @@
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "unread-run",
+                    "rule": "unsegmentable-run",
                     "span": [
                       0,
                       8
@@ -95,7 +98,7 @@
                     "children": [
                       {
                         "kind": "rule",
-                        "rule": "phoneme-run",
+                        "rule": "phoneme-sequence",
                         "span": [
                           0,
                           8
@@ -108,7 +111,7 @@
                         "children": [
                           {
                             "kind": "rule",
-                            "rule": "phoneme-run",
+                            "rule": "phoneme-sequence",
                             "span": [
                               0,
                               7
@@ -121,7 +124,7 @@
                             "children": [
                               {
                                 "kind": "rule",
-                                "rule": "phoneme-run",
+                                "rule": "phoneme-sequence",
                                 "span": [
                                   0,
                                   6
@@ -134,7 +137,7 @@
                                 "children": [
                                   {
                                     "kind": "rule",
-                                    "rule": "phoneme-run",
+                                    "rule": "phoneme-sequence",
                                     "span": [
                                       0,
                                       5
@@ -147,7 +150,7 @@
                                     "children": [
                                       {
                                         "kind": "rule",
-                                        "rule": "phoneme-run",
+                                        "rule": "phoneme-sequence",
                                         "span": [
                                           0,
                                           4
@@ -160,7 +163,7 @@
                                         "children": [
                                           {
                                             "kind": "rule",
-                                            "rule": "phoneme-run",
+                                            "rule": "phoneme-sequence",
                                             "span": [
                                               0,
                                               3
@@ -173,7 +176,7 @@
                                             "children": [
                                               {
                                                 "kind": "rule",
-                                                "rule": "phoneme-run",
+                                                "rule": "phoneme-sequence",
                                                 "span": [
                                                   0,
                                                   2
@@ -186,7 +189,7 @@
                                                 "children": [
                                                   {
                                                     "kind": "rule",
-                                                    "rule": "phoneme-run",
+                                                    "rule": "phoneme-sequence",
                                                     "span": [
                                                       0,
                                                       1
@@ -195,9 +198,7 @@
                                                       0,
                                                       1
                                                     ],
-                                                    "tags": [
-                                                      "/r/"
-                                                    ],
+                                                    "tags": [],
                                                     "children": [
                                                       {
                                                         "kind": "rule",
@@ -210,13 +211,11 @@
                                                           0,
                                                           1
                                                         ],
-                                                        "tags": [
-                                                          "/r/"
-                                                        ],
+                                                        "tags": [],
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/r/",
+                                                            "terminal": "\"r\"",
                                                             "token": 0,
                                                             "span": [
                                                               0,
@@ -242,13 +241,11 @@
                                                       1,
                                                       2
                                                     ],
-                                                    "tags": [
-                                                      "/o/"
-                                                    ],
+                                                    "tags": [],
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "/o/",
+                                                        "terminal": "\"o\"",
                                                         "token": 1,
                                                         "span": [
                                                           1,
@@ -274,13 +271,11 @@
                                                   2,
                                                   3
                                                 ],
-                                                "tags": [
-                                                  "/'/"
-                                                ],
+                                                "tags": [],
                                                 "children": [
                                                   {
                                                     "kind": "token",
-                                                    "terminal": "/'/",
+                                                    "terminal": "\"'\"",
                                                     "token": 2,
                                                     "span": [
                                                       2,
@@ -306,13 +301,11 @@
                                               3,
                                               4
                                             ],
-                                            "tags": [
-                                              "/i/"
-                                            ],
+                                            "tags": [],
                                             "children": [
                                               {
                                                 "kind": "token",
-                                                "terminal": "/i/",
+                                                "terminal": "\"i\"",
                                                 "token": 3,
                                                 "span": [
                                                   3,
@@ -338,13 +331,11 @@
                                           4,
                                           5
                                         ],
-                                        "tags": [
-                                          "/r/"
-                                        ],
+                                        "tags": [],
                                         "children": [
                                           {
                                             "kind": "token",
-                                            "terminal": "/r/",
+                                            "terminal": "\"r\"",
                                             "token": 4,
                                             "span": [
                                               4,
@@ -370,13 +361,11 @@
                                       5,
                                       6
                                     ],
-                                    "tags": [
-                                      "/r/"
-                                    ],
+                                    "tags": [],
                                     "children": [
                                       {
                                         "kind": "token",
-                                        "terminal": "/r/",
+                                        "terminal": "\"r\"",
                                         "token": 5,
                                         "span": [
                                           5,
@@ -402,13 +391,11 @@
                                   6,
                                   7
                                 ],
-                                "tags": [
-                                  "/a/"
-                                ],
+                                "tags": [],
                                 "children": [
                                   {
                                     "kind": "token",
-                                    "terminal": "/a/",
+                                    "terminal": "\"a\"",
                                     "token": 6,
                                     "span": [
                                       6,
@@ -434,13 +421,11 @@
                               7,
                               8
                             ],
-                            "tags": [
-                              "/i/"
-                            ],
+                            "tags": [],
                             "children": [
                               {
                                 "kind": "token",
-                                "terminal": "/i/",
+                                "terminal": "\"i\"",
                                 "token": 7,
                                 "span": [
                                   7,

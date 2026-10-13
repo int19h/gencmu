@@ -1,20 +1,20 @@
 {
-  "description": "text($) of a reads the source of its original tokens alone. A synthetic T that leads the span does not pull in the space before b, so text($) is \"b\", not \" b\". a and c both survive (engine §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text A a | A b | A c\n%rule a [+T] B\n%conditions text($) = \"b\"\n%rule b [+T] [+T] B\n%rule c T B",
+  "description": "$.source-text of a reads the source of its original tokens alone. A synthetic T that leads the span does not pull in the space before b, so $.source-text is \"b\", not \" b\". a and c both survive (engine §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (A a) | (A b) | (A c)\n%rule a ([+T] B) %conditions $.source-text = \"b\"\n\n%rule b ([+T] [+T] B)\n%rule c (T B)",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

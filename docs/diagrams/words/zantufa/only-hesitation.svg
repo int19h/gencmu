@@ -4,12 +4,12 @@
 <text class="title" x="10" y="24" textLength="126" lengthAdjust="spacingAndGlyphs">only-hesitation</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="201" height="24" rx="0"/><text x="140.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">first-word⊇~hesitation</text></g>
+<g class="rule"><rect x="40" y="34" width="201" height="24" rx="0"/><text x="140.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">first-word&lt;Hesitation&gt;</text></g>
 <path d="M241 46H413"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="142" height="24" rx="0"/><text x="111" y="85" textLength="126" lengthAdjust="spacingAndGlyphs">only-hesitation</text></g>
 <path d="M182 80h10"/>
-<g class="rule"><rect x="192" y="68" width="201" height="24" rx="0"/><text x="292.5" y="85" textLength="184.8" lengthAdjust="spacingAndGlyphs">later-word⊇~hesitation</text></g>
+<g class="rule"><rect x="192" y="68" width="201" height="24" rx="0"/><text x="292.5" y="85" textLength="184.8" lengthAdjust="spacingAndGlyphs">later-word&lt;Hesitation&gt;</text></g>
 <path d="M393 80H393a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="142" height="24" rx="0"/><text x="111" y="119" textLength="126" lengthAdjust="spacingAndGlyphs">only-hesitation</text></g>

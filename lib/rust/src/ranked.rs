@@ -229,6 +229,24 @@ impl RankedGroups {
                         .ranked_detail(option, self.written_clause(grammar, group, clause, None)));
                 }
             }
+            for (term, clause) in source
+                .alternative
+                .strings
+                .value
+                .iter()
+                .map(|t| (t, "alternative-value"))
+                .chain(source.alternative.strings.image.iter().map(|t| (t, "alternative-image")))
+                .chain(source.clauses.strings.value.iter().map(|t| (t, "value")))
+                .chain(source.clauses.strings.image.iter().map(|t| (t, "image")))
+            {
+                let mut reads = BTreeSet::new();
+                term_reads(term, &mut reads);
+                if private(&reads) {
+                    return Err(self
+                        .fail(grammar, group, "ranked-choice-export", "A recipe cannot read a private ranked capture.")
+                        .ranked_detail(option, self.written_clause(grammar, group, clause, None)));
+                }
+            }
             let mut reads = BTreeSet::new();
             for item in source.clauses.emit.iter().flatten() {
                 if let EmitItem::Capture(name, term, attachments) = item {
@@ -237,6 +255,16 @@ impl RankedGroups {
                     if let Some(term) = term {
                         term_reads(term, &mut reads);
                     }
+                }
+                let (tags, strings) = match item {
+                    EmitItem::Capture(_, tags, attachments) => (tags, &attachments.strings),
+                    EmitItem::Insert(tags, strings) => (tags, strings),
+                };
+                if let Some(tags) = tags {
+                    term_reads(tags, &mut reads);
+                }
+                for recipe in strings.value.iter().chain(&strings.image) {
+                    term_reads(recipe, &mut reads);
                 }
             }
             if private(&reads) {
@@ -255,8 +283,8 @@ impl RankedGroups {
     fn written_clause(&self, grammar: &StageGrammar, group: &Group, key: &str, index: Option<usize>) -> Option<Json> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
         let written = source.written.as_ref()?;
-        let value = if key == "alternative-tags" {
-            written.get("alternatives")?.as_array()?.get(source.written_alternative)?.get("tags")?
+        let value = if let Some(key) = key.strip_prefix("alternative-") {
+            written.get("alternatives")?.as_array()?.get(source.written_alternative)?.get(key)?
         } else {
             written.get(key)?
         };
@@ -395,16 +423,19 @@ impl RankedGroups {
                     source.alternative.tags.iter().chain(source.clauses.tags.iter()).collect()
                 };
                 if terms.iter().any(|term| !matches!(term, Term::EmptySet))
-                    || terms.is_empty() && matches!(production.syms.as_slice(), [Sym::T(_)])
+                    || terms.is_empty()
+                        && production.inherited.is_some_and(|position| matches!(production.syms[position], Sym::T(_)))
                 {
                     error.option = option;
                     error.inheritance = Some(steps);
                     return error;
                 }
                 if terms.is_empty() {
-                    if let [Sym::N(child)] = production.syms.as_slice() {
-                        if unsafe_tags.contains(child) && seen.insert(*child) {
-                            queue.push((*child, steps, option));
+                    if let Some(position) = production.inherited {
+                        if let Sym::N(child) = production.syms[position] {
+                            if unsafe_tags.contains(&child) && seen.insert(child) {
+                                queue.push((child, steps, option));
+                            }
                         }
                     }
                 }
@@ -434,8 +465,8 @@ impl RankedGroups {
                 if terms.iter().any(|term| !matches!(term, Term::EmptySet)) {
                     unsafe_tags.insert(production.rule);
                 }
-            } else if let [symbol] = production.syms.as_slice() {
-                match symbol {
+            } else if let Some(position) = production.inherited {
+                match &production.syms[position] {
                     Sym::T(_) => {
                         unsafe_tags.insert(production.rule);
                     }

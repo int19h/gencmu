@@ -550,8 +550,8 @@ export function rejectionWindows(caseText, text) {
  * - `reject`: the dialect rejects the case, and both the stored `at` and the
  *   start of the parsed error's source fall where the case's text holds the
  *   quoted text, or within the word after it (rejectionWindows).
- * - `words`: some stage gives the text's words as the labels of tokens in a
- *   row, one label for each word (wordLabels), and those tokens, with their
+ * - `words`: some stage gives the text's words as the images of tokens in a
+ *   row, one image for each word (wordLabels), and those tokens, with their
  *   attachments, stand together in the case's text: nothing between them
  *   holds a letter. So the case holds the text, read as those tokens.
  * - a rule: the tree of some stage has a node of the rule whose words are
@@ -582,14 +582,14 @@ export function roleProblem(c, role, text, dialects, loader) {
     let apart = false;
     for (const stage of result.stages) {
       if (!stage.output) continue;
-      // A pause token has a label of white space, and stands for no word.
-      const tokens = stage.output.filter((/** @type {any} */ token) => token.label.trim());
-      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.label), wanted)) {
+      // A pause token has an image of white space, and stands for no word.
+      const tokens = stage.output.filter((/** @type {any} */ token) => token.image.trim());
+      for (const first of runStarts(tokens.map((/** @type {any} */ token) => token.image), wanted)) {
         if (together(points, tokens.slice(first, first + wanted.length))) return null;
         apart = true;
       }
     }
-    return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one label for each word";
+    return apart ? "its stages give those words in a row only with other words of its text between them" : "no stage gives those words as tokens in a row, one image for each word";
   }
   if (!result.ok) return "its dialect rejects it";
   const wanted = bare(text);
@@ -600,14 +600,14 @@ export function roleProblem(c, role, text, dialects, loader) {
 }
 
 /**
- * Whether a tree has a node of a rule whose words, the labels of the
+ * Whether a tree has a node of a rule whose words, the images of the
  * tokens under it that are not white space, joined by spaces, are a text.
  * One walk gives each node its range of words. A node's words are compared
  * only where their joined length is the text's, once for each range, since
  * gathering them for each node would cost a chain of nodes the square of
  * its length.
  * @param {any} tree
- * @param {{label: string}[]} input the stage's input tokens
+ * @param {{image: string}[]} input the stage's input tokens
  * @param {string} role
  * @param {string} wanted
  * @returns {boolean}
@@ -629,7 +629,7 @@ export function hasNodeWithWords(tree, input, role, wanted) {
       continue;
     }
     if (node.kind === "token") {
-      const label = input[node.token].label;
+      const label = input[node.token].image;
       if (label.trim()) {
         labels.push(label);
         before.push(before[before.length - 1] + [...label].length + 1);
@@ -746,7 +746,7 @@ const reading = (c) => JSON.stringify([c.expect, c.brackets]);
  *   and UNCHECKED
  * @returns {string[]}
  */
-export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED } = {}) {
+export function quotedTextProblems(base = root, { loader, doms, checked = CHECKED_DIALECTS, unchecked = UNCHECKED, runCases = true } = {}) {
   // The loader of the sources, made when first needed.
   const sources = { readDocument: (/** @type {string} */ markdown, /** @type {string} */ file) => sourcesLoader().readDocument(markdown, file) };
   const sourcesLoader = () => (loader ??= sourceLoader(base));
@@ -859,7 +859,7 @@ export function quotedTextProblems(base = root, { loader, doms, checked = CHECKE
           if (!c) problem = `${place}: no case has the id ${id}`;
           else if (role !== "words" && !holds(c, text)) problem = `${place}: neither the text nor the words of ${id} hold \`${text}\``;
           else {
-            const why = roleProblem(c, role, text, loaded, sourcesLoader());
+            const why = runCases ? roleProblem(c, role, text, loaded, sourcesLoader()) : role === "reject" && c.expect !== "reject" ? "the stored case accepts the text" : null;
             if (why) problem = `${place}: ${id} does not show \`${text}\` as ${role === "reject" ? "a rejected text" : role === "words" ? "words" : `one ${role}`}: ${why}`;
           }
           judged.set(key, problem);

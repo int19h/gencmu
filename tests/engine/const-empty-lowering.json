@@ -1,6 +1,6 @@
 {
-  "description": "In lowering, a constant is its value, so one whose value is the empty set is an empty set: the guarded term `matches($x, loop) ⟹ $E` is dropped, and the nested parse that would fail with an error of the grammar never runs (engine §3.6, §10).",
-  "grammar": "%const $E B ∖ B\n%rule text $x(X) <Y ∪ (matches($x, loop) ⟹ $E)>\n%rule loop $l(X)\n%conditions matches($l, loop)",
+  "description": "In lowering, a constant is its value, so one whose value is the empty set is an empty set: the guarded term `$x.matches(loop) ⟹ $E` is dropped, and the nested parse that would fail with an error of the grammar never runs (engine §3.6, §10).",
+  "grammar": "%const $E (B ∖ B)\n%rule text $x:X :: (Y ∪ ($x.matches(loop) ⟹ $E))\n%rule loop $l:X %conditions $l.matches(loop)\n",
   "tokens": [
     {
       "text": "x",

@@ -1,0 +1,10 @@
+{
+  "description": "A lexical failure receives no ranked-choice-syntax code. This malformed name fails at its digit before syntax recognition (engine §9.1, §9.3).",
+  "document": "```jbogenbau\n%rule r a ≻ 1\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

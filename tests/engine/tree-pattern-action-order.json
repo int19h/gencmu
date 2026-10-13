@@ -1,6 +1,6 @@
 {
-  "description": "Pattern-equivalent trees retain distinct visible closes. Lazy ordering keeps the tie between those action sequences.",
-  "grammar": "%ambiguity-resolution lazy\n%rule text r | s\n%conditions $ ≅ @(A)\n%rule r A [B]\n%rule s A",
+  "description": "Pattern-equivalent trees retain distinct visible closes. Lazy ordering keeps the tie between those action sequences (engine §4.1 and §10).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text r | s %conditions $ ≅ @A\n\n%rule r (A [B])\n%rule s A",
   "tokens": [
     {
       "text": "a",

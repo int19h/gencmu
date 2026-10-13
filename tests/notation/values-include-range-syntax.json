@@ -1,0 +1,10 @@
+{
+  "description": "An include path is not a method receiver or range endpoint. Its syntax error precedes any reader validation (engine §9.1, §9.2, §9.3).",
+  "document": "```jbogenbau\n%include \"a.md\"..\"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  }
+}

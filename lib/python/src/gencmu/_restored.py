@@ -30,7 +30,7 @@ def restore(tokens: list[Token], records: list[Restoration]) -> Restored:
             record = records[pending]
             record_at.append(len(restored))
             record_of.append(pending)
-            restored.append(Token("", frozenset((record.terminal,)), (len(restored), len(restored)), record.source, record.sound))
+            restored.append(Token("", frozenset((record.terminal,)), (len(restored), len(restored)), record.source, record.value))
             synthetic.append(True)
             project.append(index)
             pending += 1

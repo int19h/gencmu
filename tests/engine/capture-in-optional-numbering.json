@@ -1,6 +1,6 @@
 {
-  "description": "A plain optional that holds a capture expands in place, the empty expansion first: [$b(B)] [$c(B)] gives ε, B (by $c), B (by $b) and B B, numbered 0 to 3. On one b, the tie names the productions 1 and 2 (engine §3.2, Numbering).",
-  "grammar": "%rule text [$b(B)] [$c(B)]",
+  "description": "A plain optional that holds a capture expands in place, the empty expansion first: [$b:B] [$c:B] gives ε, B (by $c), B (by $b) and B B, numbered 0 to 3. On one b, the tie names the productions 1 and 2 (engine §3.2, Numbering).",
+  "grammar": "%rule text ([$b:B] [$c:B])",
   "tokens": [
     {
       "text": "b",
@@ -56,9 +56,7 @@
               0,
               1
             ],
-            "tags": [
-              "B"
-            ],
+            "tags": [],
             "children": [
               {
                 "kind": "token",
@@ -86,9 +84,7 @@
               0,
               1
             ],
-            "tags": [
-              "B"
-            ],
+            "tags": [],
             "children": [
               {
                 "kind": "token",

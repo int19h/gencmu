@@ -4,14 +4,14 @@
 <text class="title" x="10" y="24" textLength="67.2" lengthAdjust="spacingAndGlyphs">su-reach</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="151" height="24" rx="0"/><text x="115.5" y="51" textLength="134.4" lengthAdjust="spacingAndGlyphs">unit∩$SU-STOPS=∅</text></g>
+<g class="rule"><rect x="40" y="34" width="151" height="24" rx="0"/><text x="115.5" y="51" textLength="134.4" lengthAdjust="spacingAndGlyphs">unit&lt;¬$SU-STOPS&gt;</text></g>
 <path d="M191 46H390"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="84" height="24" rx="0"/><text x="82" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">su-reach</text></g>
 <path d="M124 80h10"/>
 <g class="rule"><rect x="134" y="68" width="75" height="24" rx="0"/><text x="171.5" y="85" textLength="58.8" lengthAdjust="spacingAndGlyphs">spacing</text></g>
 <path d="M209 80h10"/>
-<g class="rule"><rect x="219" y="68" width="151" height="24" rx="0"/><text x="294.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">unit∩$SU-STOPS=∅</text></g>
+<g class="rule"><rect x="219" y="68" width="151" height="24" rx="0"/><text x="294.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">unit&lt;¬$SU-STOPS&gt;</text></g>
 <path d="M370 80H370a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="84" height="24" rx="0"/><text x="82" y="119" textLength="67.2" lengthAdjust="spacingAndGlyphs">su-reach</text></g>

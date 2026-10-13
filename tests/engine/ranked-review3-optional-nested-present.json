@@ -1,6 +1,6 @@
 {
-  "description": "Frame reuse preserves declared captures and known absence across separate optional routes.",
-  "grammar": "%rule text (X [(($x(Y) ≻ V) ≻ U)] ≻ Z W)\n%conditions $x ∨ text($) = \"never\"",
+  "description": "Frame reuse preserves declared captures and known absence across separate optional routes (engine §2.1 and §6.1).",
+  "grammar": "%rule text ((X [(($x:Y ≻ V) ≻ U)]) ≻ (Z W)) %conditions ($x ∨ $.source-text = \"never\")\n",
   "tokens": [
     {
       "text": "x",

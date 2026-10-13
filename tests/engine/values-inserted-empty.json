@@ -1,0 +1,35 @@
+{
+  "description": "An inserted ε token defaults to empty strings and tags (engine §11.1).",
+  "grammar": "%rule text \"a\" %emits ε, $",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "text": "",
+              "value": "",
+              "image": "",
+              "tags": [],
+              "span": [
+                0,
+                0
+              ],
+              "source": [
+                0,
+                0
+              ],
+              "insertedBy": "text"
+            },
+            {
+              "value": "a",
+              "image": "a"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

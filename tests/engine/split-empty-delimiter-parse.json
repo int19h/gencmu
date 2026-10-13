@@ -1,19 +1,20 @@
 {
   "description": "An empty delimiter that only a parse sees is an error of the grammar when the parse evaluates the split, and the whole parse fails with it (engine §10, §13).",
-  "grammar": "%rule text $x(A) $y(B)\n%conditions \"a\" ∈ split(phonemes($x), phonemes($y))",
+  "grammar": "%rule text ($x:A $y:B) %conditions \"a\" ∈ $x.value.split($y.value)\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "y",
       "tags": [
         "B"
-      ]
+      ],
+      "value": ""
     }
   ],
   "expect": {

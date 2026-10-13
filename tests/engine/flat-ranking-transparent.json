@@ -1,6 +1,6 @@
 {
   "description": "The closes of a flat list's helper are transparent, so greedy cannot see where each list ends: text → r r with r → {A} over three tokens ties (engine §3.3, §6).",
-  "grammar": "%rule text r r\n%rule r {A}",
+  "grammar": "%rule text (r r)\n%rule r {A}",
   "tokens": [
     {
       "text": "a",

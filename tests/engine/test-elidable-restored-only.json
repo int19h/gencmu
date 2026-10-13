@@ -1,6 +1,6 @@
 {
   "description": "Only the terminal that elision restores is checked: a test on a later symbol of an elidable optional, a test on the first symbol of a plain optional, and a test on a terminator in a plain optional are no errors (engine §3.8).",
-  "grammar": "%rule text A [+KU B≠\"b\"] [LE⊇~x KU] [VAU∩~x=∅] C",
+  "grammar": "%rule text (A [+KU B≠\"b\"] [(LE<X> KU)] [VAU<¬X>] C)",
   "tokens": [
     {
       "text": "a",

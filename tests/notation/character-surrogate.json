@@ -1,6 +1,6 @@
 {
-  "description": "A character tag names a Unicode scalar value, never a surrogate: '\\u{D800}' is an error at the tag (engine §9).",
-  "document": "```jbogenbau\n%rule a '\\u{D800}'\n```\n",
+  "description": "A surrogate engine constant is invalid (engine §9.1).",
+  "document": "```jbogenbau\n%rule a $_D800\n```\n",
   "expect": {
     "error": {
       "line": 2,

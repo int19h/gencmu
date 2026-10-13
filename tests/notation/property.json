@@ -1,6 +1,6 @@
 {
-  "description": "A property is '\\p{Name}'. The DOM holds its name, and a capture can wrap it (engine §1, §9, docs/output.md).",
-  "document": "```jbogenbau\n%rule a '\\p{L}' $c('\\p{White_Space}') '\\p{Any}'\n```\n",
+  "description": "A stored engine tag is a named terminal in the DOM. A capture can wrap that terminal, and its name remains unchanged (engine §1, §9.3, docs/output.md format 26).",
+  "document": "```jbogenbau\n%rule a (_L $c:_White_Space _)\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -10,16 +10,16 @@
               "expr": {
                 "seq": [
                   {
-                    "property": "L"
+                    "ref": "_L"
                   },
                   {
                     "capture": "c",
                     "expr": {
-                      "property": "White_Space"
+                      "ref": "_White_Space"
                     }
                   },
                   {
-                    "property": "Any"
+                    "wildcard": true
                   }
                 ]
               }

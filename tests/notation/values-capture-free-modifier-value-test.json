@@ -1,0 +1,10 @@
+{
+  "description": "A capture accepts # as its base, but # takes no test. The reader rejects its first following test at that test (engine §9.3).",
+  "document": "```jbogenbau\n%rule r $x:#=\"a\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

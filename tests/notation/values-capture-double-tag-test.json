@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $x:A<B><C>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 16
+    }
+  },
+  "description": "A capture accepts the tested target, but the target permits only one tag test. The reader reports its second tag test at that test (engine §9.3)."
+}

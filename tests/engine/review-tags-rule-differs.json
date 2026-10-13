@@ -1,6 +1,6 @@
 {
-  "description": "A whole-candidate tree guard can define constituent tags.",
-  "grammar": "%rule text A\n%tags ($ ≇ @(B)) ⟹ X",
+  "description": "A whole-candidate tree guard can define constituent tags (engine §10).",
+  "grammar": "%rule text :: ($ ≇ @B ⟹ X) | A\n",
   "tokens": [
     {
       "text": "a",

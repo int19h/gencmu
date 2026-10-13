@@ -1,0 +1,35 @@
+{
+  "description": "Pattern leaves observe empty strings on omissions while result nodes retain saved equality values (engine §§4, 7).",
+  "grammar": "%rule text $x:c %conditions $x ≅ @(X T=\"\")\n%rule c X [+T=\"v\"]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "rule": "c",
+            "children": [
+              {
+                "terminal": "X"
+              },
+              {
+                "kind": "elided",
+                "terminal": "T",
+                "value": "v"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

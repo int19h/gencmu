@@ -3,7 +3,7 @@ export type CloseEvent = {
     terminal: string;
     at: number;
     source: [number, number];
-    sound?: string;
+    value?: string;
 } | {
     kind: "block";
     key: string;

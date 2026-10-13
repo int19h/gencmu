@@ -1,0 +1,15 @@
+{
+  "description": "An unknown engine tag on a caller token is a usage error before recognition (engine §1, docs/api.md).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "_Any"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

@@ -1,10 +1,10 @@
 {
-  "description": "split takes two strings. A bare name as the second makes a call with the wrong arguments, reported at the call, not at the name (engine §9).",
-  "document": "```jbogenbau\n%rule text $w(W) %conditions \"a\" ∈ split(\"a\", lex)\n```\n",
+  "description": "The .split argument must supply a string delimiter. A bare rule name cannot do so, and the error stands at the method receiver (engine §9.3, §10).",
+  "document": "```jbogenbau\n%rule text $w:W%conditions \"a\" ∈ \"a\".split(lex)\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 36
+      "column": 34
     }
   }
 }

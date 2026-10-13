@@ -1,6 +1,6 @@
 {
-  "description": "Common captures and the whole parent remain legal emission sources.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text $p(Q) ($x(a) ≻ b) $s(Z)\n%emits $p, $s\n%rule a X Y\n%rule b U V",
+  "description": "Common captures and the whole parent remain legal emission sources (engine §2.1 and §9.3).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text ($p:Q ($x:a ≻ b) $s:Z) %emits $p, $s\n\n%rule a (X Y)\n%rule b (U V)",
   "tokens": [
     {
       "text": "q",

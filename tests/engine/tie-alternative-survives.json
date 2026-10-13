@@ -1,6 +1,6 @@
 {
   "description": "The second reading of a tie is the derivation that diverges from the first reading earliest. It stays tied when the candidate it was first tied with loses to one that closes an empty constituent before X (engine §6).",
-  "grammar": "%ambiguity-resolution lazy\n%rule text t X\n%rule t A | a | C | A f\n%rule a A\n%rule f ε",
+  "grammar": "%ambiguity-resolution lazy\n%rule text (t X)\n%rule t A | a | C | (A f)\n%rule a A\n%rule f ε",
   "tokens": [
     {
       "text": "x",

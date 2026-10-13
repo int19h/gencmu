@@ -1,6 +1,6 @@
 {
-  "description": "An emitted token whose tag term gives no tags is an error of the grammar, found while parsing (engine §11).",
-  "grammar": "%rule text $a(A) %emits $a <tags($a) ∩ Z>",
+  "description": "An emitted token with an empty tag set is legal. Its value, image and source remain those of its captured carrier (engine §11.1).",
+  "grammar": "%rule text $a:A %emits $a :: ($a.tags ∩ Z)",
   "tokens": [
     {
       "text": "a",
@@ -11,12 +11,60 @@
   ],
   "expect": {
     "result": {
-      "ok": false,
-      "error": {
-        "kind": "grammar",
-        "stage": "main"
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "A"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
       }
-    },
-    "error": "grammar"
+    }
   }
 }

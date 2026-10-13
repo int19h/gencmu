@@ -1,0 +1,25 @@
+{
+  "description": "An item value recipe supplies its implied image before constituent image recipes (engine §11.2).",
+  "grammar": "%rule text := \"definition\" :- \"image\" | \"a\" := \"alternative\" %emits $ := \"item\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "item",
+              "image": "item",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

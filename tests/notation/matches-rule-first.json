@@ -1,10 +1,10 @@
 {
-  "description": "The rule of matches is its second argument. A bare name as the first makes a call with the wrong arguments, reported at the call, not at the name (engine §9).",
-  "document": "```jbogenbau\n%rule text $w(W) %conditions matches(text, $w)\n```\n",
+  "description": "The .matches method needs a span receiver and one rule argument. A rule name as its receiver causes an error at that receiver (engine §9.3, §10).",
+  "document": "```jbogenbau\n%rule text $w:W%conditions text.matches($w)\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 30
+      "column": 28
     }
   }
 }

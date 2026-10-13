@@ -1,6 +1,6 @@
 {
   "description": "Without flags, late-elision still selects the reading with no omitted terminator (engine §6).",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r | r 'b'\n%rule r 'a' [+T] 'b' | 'a'",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r | (r \"b\")\n%rule r (\"a\" [+T] \"b\") | \"a\"",
   "input": "ab",
   "expect": {
     "result": {

@@ -1,10 +1,10 @@
 {
-  "description": "A character tag's escapes are \\', \\\\ and \\u{…}: \\\" is an error at the tag (engine §9).",
-  "document": "```jbogenbau\n%rule a '\\\"'\n```\n",
+  "description": "A backslash has no escape meaning in a string (engine §9.1).",
+  "document": "```jbogenbau\n%rule a \"\\x61\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 9
+      "column": 10
     }
   }
 }

@@ -1,13 +1,13 @@
 {
   "description": "A classifier's gate f? and a rule's warning f! use one name as both kinds, which is an error of the dialect (engine §13).",
-  "grammar": "%classifier lex\n  f? \"mi\" ∈ KOhA\n%rule text [{word}]\n%rule word f! $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex f? \"mi\" ∈ KOhA\n\n%rule text [{word}]\n%rule word f! $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     }
   ],
   "expect": {

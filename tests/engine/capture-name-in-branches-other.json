@@ -1,6 +1,6 @@
 {
   "description": "Twin of capture-name-in-branches.json: on a c, the tags and the token are C's (engine §3.5).",
-  "grammar": "%rule text A ($x(B) | $x(C))\n%tags tags($x)\n%emits $x",
+  "grammar": "%rule text :: $x.tags | (A ($x:B | $x:C)) %emits $x\n\n",
   "tokens": [
     {
       "text": "a",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "c",
-              "phonemes": "",
-              "label": "c",
+              "value": "c",
+              "image": "c",
               "tags": [
                 "C"
               ],

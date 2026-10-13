@@ -1,41 +1,10 @@
 {
-  "description": "A property is a terminal, so it takes a test, and so does a range (engine §2, §9).",
-  "document": "```jbogenbau\n%rule a '\\p{L}'=\"a\" 'a'..'z'⊇'b'\n```\n",
+  "description": "A stored engine terminal can carry a value test. A scalar range's tag test cannot take a string requirement, so the error stands at that operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule a (_L=\"a\" \"a\"..\"z\"<\"b\">)\n```\n",
   "expect": {
-    "dom": {
-      "rules": [
-        {
-          "alternatives": [
-            {
-              "expr": {
-                "seq": [
-                  {
-                    "test": "=",
-                    "value": {
-                      "string": "a"
-                    },
-                    "expr": {
-                      "property": "L"
-                    }
-                  },
-                  {
-                    "test": "⊇",
-                    "value": {
-                      "tag": "'b'"
-                    },
-                    "expr": {
-                      "range": [
-                        "'a'",
-                        "'z'"
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
+    "error": {
+      "line": 2,
+      "column": 26
     }
   }
 }

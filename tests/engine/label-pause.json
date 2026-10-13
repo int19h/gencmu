@@ -1,9 +1,9 @@
 {
-  "description": "The pause, a token with the phoneme tag `/./`, is labelled as a space, whether a rule emits it over text or inserts it. A token over pauses keeps only the first of each run of pause parts and none at either end, in its label as in its phonemes (engine §5). Each greedy stage's text is written with left recursion, so that the ranking sees where each piece ends (engine §3.3).",
+  "description": "The fixture explicitly gives covering and inserted pauses value . and image space. Later concatenation keeps consecutive pauses and the final pause on both channels (engine §11.1, §11.2).",
   "documents": {
     "p.md": "## phonemes\n\n```jbogenbau\n%stage phonemes\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## words\n\n```jbogenbau\n%stage words\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ε | text part\n%rule part letter | pause\n%rule letter $c('a')\n%emits $c <L ∪ /a/>, /./\n%rule pause '-' | pause '-'\n%emits $ <P ∪ /./>\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(all)\n%emits $w <W>\n%rule all [{any}]\n%rule any L | /./\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ε | (text part)\n%rule part letter | pause\n%rule letter $c:\"a\" %emits $c :: (L ∪ Sound-0061-s) := \"a\", ε :: Sound-002E-s := \".\" :- \" \"\n\n%rule pause \"-\" | (pause \"-\") %emits $ :: (P ∪ Sound-002E-s) := \".\" :- \" \"\n\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:all %emits $w :: W\n\n%rule all [{any}]\n%rule any L | Sound-002E-s\n```\n"
   },
   "pipeline": "p.md",
   "input": "a--a",
@@ -15,29 +15,29 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "a",
-              "label": "a"
+              "value": "a",
+              "image": "a"
             },
             {
               "text": "",
-              "phonemes": ".",
-              "label": " ",
+              "value": ".",
+              "image": " ",
               "insertedBy": "letter"
             },
             {
               "text": "--",
-              "phonemes": ".",
-              "label": " "
+              "value": ".",
+              "image": " "
             },
             {
               "text": "a",
-              "phonemes": "a",
-              "label": "a"
+              "value": "a",
+              "image": "a"
             },
             {
               "text": "",
-              "phonemes": ".",
-              "label": " ",
+              "value": ".",
+              "image": " ",
               "insertedBy": "letter"
             }
           ]
@@ -46,8 +46,8 @@
           "output": [
             {
               "text": "a--a",
-              "phonemes": "a.a",
-              "label": "a a"
+              "value": "a..a.",
+              "image": "a  a "
             }
           ]
         }

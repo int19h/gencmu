@@ -1,6 +1,6 @@
 {
-  "description": "tag() of a string that is not a name is an error of the grammar when a parse evaluates it (engine §10, §13).",
-  "grammar": "%rule text $w(word)\n%rule word $y(A) <tag(text($y))>",
+  "description": "The retired .tag method is a document error at its receiver. No runtime string-to-tag conversion runs (engine §9.3, §10).",
+  "grammar": "%rule text $w:word\n%rule word $y:A :: $y.source-text.tag",
   "tokens": [
     {
       "text": "ko'a",
@@ -10,13 +10,11 @@
     }
   ],
   "expect": {
-    "result": {
-      "ok": false,
-      "error": {
-        "kind": "grammar",
-        "stage": "main"
-      }
-    },
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 20
+    }
   }
 }

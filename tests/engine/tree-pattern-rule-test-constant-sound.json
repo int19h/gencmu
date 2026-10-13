@@ -1,6 +1,6 @@
 {
-  "description": "The loader rejects an invalid closed operand in a rule pattern. It reports the dependency as a grammar error.",
-  "grammar": "%const $S \"A\"\n%rule text A\n%conditions $ ≅ @(A=$S)",
+  "description": "The loader rejects an invalid closed operand in a rule pattern. It reports the dependency as a grammar error (engine §4.1 and §10).",
+  "grammar": "%const $S \"A\"\n%rule text A %conditions $ ≅ @A=$S\n",
   "tokens": [
     {
       "text": "a",
@@ -10,6 +10,35 @@
     }
   ],
   "expect": {
-    "error": "grammar"
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          1
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
+          {
+            "terminal": "A",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
   }
 }

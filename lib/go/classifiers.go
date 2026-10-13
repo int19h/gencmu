@@ -63,7 +63,7 @@ func (g *stageGrammar) addImplications(items []implicationItem) *Error {
 		var sides [2][]string
 		for i, side := range []*domTerm{m.If, m.Then} {
 			for _, ref := range constRefs(side) {
-				if g.constants[ref.Str] == nil {
+				if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
 					return g.constError(it.doc, ref.At, "$%s is not defined in stage %s", ref.Str, g.name)
 				}
 			}

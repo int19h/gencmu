@@ -1,10 +1,10 @@
 {
-  "description": "initial is a condition, not a term (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) %tags initial($a)\n```\n",
+  "description": "The .starts-input method is a condition, not a tag-set term. Its use in the tag clause is an error at the receiver (engine §9.3, §10).",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a:A:: $a.starts-input\n```\n",
   "expect": {
     "error": {
       "line": 6,
-      "column": 21
+      "column": 16
     }
   }
 }

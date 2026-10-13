@@ -1,20 +1,20 @@
 {
-  "description": "A tested terminal matches a token of its terminal whose phonemes are the test's string; the tree's token node names the terminal alone (engine §4).",
-  "grammar": "%rule text short | long\n%rule short LE=\"la\" B\n%rule long LE=\"lai\" B",
+  "description": "A tested terminal matches a token carrying its tag whose exact value equals the test string. The canonical token node still names the underlying terminal alone (engine §4, docs/output.md).",
+  "grammar": "%rule text short | long\n%rule short (LE=\"la\" B)\n%rule long (LE=\"lai\" B)",
   "tokens": [
     {
       "text": "lai",
       "tags": [
         "LE"
       ],
-      "phonemes": "lai"
+      "value": "lai"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

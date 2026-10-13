@@ -1,6 +1,6 @@
 {
   "description": "%emits that leaves an alternative nothing to emit is an error (engine §9); the error is at the rule.",
-  "document": "```jbogenbau\n%rule a $x(A) | B %emits $x\n```\n",
+  "document": "```jbogenbau\n%rule a $x:A| B %emits $x\n```\n",
   "expect": {
     "error": {
       "line": 2,

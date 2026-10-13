@@ -215,6 +215,7 @@ impl Context {
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
                 crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
+                crate::notation::restore_recipe_locations(&mut dom, tokens, &|at| grammar.position(at));
             }
         }
         Ok(dom)
@@ -277,8 +278,8 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
         braces: Default::default(),
         marked: Default::default(),
         position: &position,
-        unicode: &notation.unicode,
         closed_for: Default::default(),
+        in_recipe: Default::default(),
     };
     let dom = reader.document(tree)?;
     check_read(&dom, &notation.unicode)?;
@@ -483,6 +484,9 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             // Retry only a failed load, with locations for its diagnostic document.
             let document = error.group.as_ref().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
+        }
+        Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         result => result,
     }
@@ -730,7 +734,7 @@ mod tests {
     fn a_call_of_many_arguments_reads_in_linear_work() {
         let text = |n: usize| {
             let arguments = vec!["$"; n].join(", ");
-            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n%tags tags({arguments})\n```\n")
+            format!("```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: $.tags({arguments}) | \"a\"\n```\n")
         };
         assert!(read_grammar_document(&text(500)).is_err(), "tags() of 500 arguments");
         let small = reading(&text(500), None);
@@ -753,10 +757,10 @@ mod tests {
             ("sequence", &|n| format!("%rule text {}", wide(n, "A", " "))),
             ("alternatives", &|n| format!("%rule text {}", wide(n, "A", " | "))),
             ("choice", &|n| format!("%rule text ({})", wide(n, "A", " | "))),
-            ("union", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∪ "))),
-            ("intersection", &|n| format!("%rule text A <{}>", wide(n, "~a", " ∩ "))),
-            ("conditions", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", ", "))),
-            ("disjunction", &|n| format!("%rule text $x(A) %conditions {}", wide(n, "text($x) = \"a\"", " ∨ "))),
+            ("union", &|n| format!("%rule text A :: {}", wide(n, "Tag-a", " ∪ "))),
+            ("intersection", &|n| format!("%rule text A :: {}", wide(n, "Tag-a", " ∩ "))),
+            ("conditions", &|n| format!("%rule text $x:A %conditions {}", wide(n, "$x.source-text = \"a\"", ", "))),
+            ("disjunction", &|n| format!("%rule text $x:A %conditions {}", wide(n, "$x.source-text = \"a\"", " ∨ "))),
         ];
         for (name, text) in cases {
             let text = move |n: usize| format!("```jbogenbau\n%ambiguity-resolution greedy\n{}\n```\n", text(n));
@@ -783,7 +787,7 @@ mod tests {
                 .stack_size(2 << 20)
                 .spawn(move || {
                     let text =
-                        |n: usize| format!("```jbogenbau\n%rule text $x(A) %conditions {}$x\n```\n", "¬".repeat(n));
+                        |n: usize| format!("```jbogenbau\n%rule text $x:A %conditions {}$x\n```\n", "¬".repeat(n));
                     // Once first, so that loading the notation counts in
                     // neither.
                     let _ = read_grammar_document(&text(1));

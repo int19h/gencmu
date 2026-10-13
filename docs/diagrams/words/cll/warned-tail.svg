@@ -4,19 +4,19 @@
 <text class="title" x="10" y="24" textLength="92.4" lengthAdjust="spacingAndGlyphs">warned-tail</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="rule"><rect x="40" y="34" width="58" height="24" rx="0"/><text x="69" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">any-y</text></g>
-<path d="M98 46H331"/>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;y&quot;</text></g>
+<path d="M82 46H331"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="58" height="24" rx="0"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">any-y</text></g>
-<path d="M98 80h10"/>
-<g class="terminal"><rect x="108" y="68" width="42" height="24" rx="12"/><text x="129" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
-<path d="M150 80h10"/>
-<g class="rule"><rect x="160" y="68" width="92" height="24" rx="0"/><text x="206" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">any-units</text></g>
-<path d="M252 80H311a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;y&quot;</text></g>
+<path d="M82 80h10"/>
+<g class="terminal"><rect x="92" y="68" width="42" height="24" rx="12"/><text x="113" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
+<path d="M134 80h10"/>
+<g class="rule"><rect x="144" y="68" width="92" height="24" rx="0"/><text x="190" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">any-units</text></g>
+<path d="M236 80H311a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="100" height="24" rx="0"/><text x="90" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">cmavo-unit</text></g>
 <path d="M140 114h10"/>
-<g class="terminal"><rect x="150" y="102" width="42" height="24" rx="12"/><text x="171" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">/'/</text></g>
+<g class="terminal"><rect x="150" y="102" width="42" height="24" rx="12"/><text x="171" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
 <path d="M192 114h10"/>
 <g class="rule"><rect x="202" y="102" width="109" height="24" rx="0"/><text x="256.5" y="119" textLength="92.4" lengthAdjust="spacingAndGlyphs">warned-tail</text></g>
 <path d="M311 114H311a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

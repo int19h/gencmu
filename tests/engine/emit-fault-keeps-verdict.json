@@ -1,11 +1,25 @@
 {
   "description": "A stage whose emission fails with an error of the grammar keeps its verdict and the warnings of its chosen tree, and has no output (engine §11, §12).",
-  "grammar": "%rule text w! $a(A) %emits $a <tags($a) ∩ Z>",
+  "grammar": "%rule text w! a b %emits\n%rule a :- $.verbatim-text | A\n%rule b :- $.verbatim-text | B",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        2,
+        3
       ]
     }
   ],
@@ -35,14 +49,15 @@
         "rule": "text",
         "span": [
           0,
-          1
+          2
         ],
         "source": [
           0,
-          1
+          3
         ]
       }
     ],
     "error": "grammar"
-  }
+  },
+  "input": "a,b"
 }

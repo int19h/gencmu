@@ -1,6 +1,6 @@
 {
   "description": "An alternative has any number of captures: six here, all read by one condition (engine §3.5).",
-  "grammar": "%rule text $a(A) $b(B) $c(C) $d(D) $e(E) $f(F)\n%conditions tags($a) ∪ tags($b) ∪ tags($c) ∪ tags($d) ∪ tags($e) ∪ tags($f) = ~A ∪ ~B ∪ ~C ∪ ~D ∪ ~E ∪ ~F",
+  "grammar": "%rule text ($a:A $b:B $c:C $d:D $e:E $f:F) %conditions ($a.tags ∪ $b.tags ∪ $c.tags ∪ $d.tags ∪ $e.tags ∪ $f.tags) = (A ∪ B ∪ C ∪ D ∪ E ∪ F)\n",
   "tokens": [
     {
       "text": "a",

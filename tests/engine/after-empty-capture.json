@@ -1,6 +1,6 @@
 {
   "description": "An empty capture has a position, and after of it runs from there (engine §10).",
-  "grammar": "%rule text A $e(nothing) B %conditions begins(after($e), b)\n%rule nothing ε\n%rule b B",
+  "grammar": "%rule text (A $e:nothing B) %conditions $e.following-tokens.begins(b)\n%rule nothing ε\n%rule b B",
   "tokens": [
     {
       "text": "a",

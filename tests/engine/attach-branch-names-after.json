@@ -1,6 +1,6 @@
 {
   "description": "Twin of attach-branch-names.json: on w a, w carries a after it (engine §3.5, §11).",
-  "grammar": "%rule text ($b(b) $w(W) | $w(W) $a(a))\n%emits ($b) $w ($a)\n%rule a A\n%emits $\n%rule b B\n%emits $",
+  "grammar": "%rule text (($b:b $w:W) | ($w:W $a:a)) %emits ($b) $w ($a)\n\n%rule a A %emits $\n\n%rule b B %emits $\n",
   "tokens": [
     {
       "text": "w",
@@ -25,8 +25,8 @@
           "output": [
             {
               "text": "w",
-              "phonemes": "",
-              "label": "w",
+              "value": "w",
+              "image": "w",
               "tags": [
                 "W"
               ],
@@ -41,8 +41,8 @@
               "after": [
                 {
                   "text": "a",
-                  "phonemes": "",
-                  "label": "a",
+                  "value": "a",
+                  "image": "a",
                   "tags": [
                     "A"
                   ],

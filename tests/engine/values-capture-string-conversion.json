@@ -1,0 +1,29 @@
+{
+  "description": "Bare captures convert to input value only where a string is required (engine §10).",
+  "grammar": "%rule text $x:_ %conditions $x=\"v\", \"v\"=$x %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "v",
+      "image": "i"
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "v",
+              "image": "i",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

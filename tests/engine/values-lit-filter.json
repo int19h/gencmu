@@ -1,0 +1,31 @@
+{
+  "description": "A complete tag filter can retain observed engine tags (engine §10).",
+  "grammar": "%rule text $x:_ %emits $x :: $x.tags ∩ _L",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "_L"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "_L"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

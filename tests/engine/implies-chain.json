@@ -1,13 +1,13 @@
 {
   "description": "Implications chain: a token emitted with A takes b, and then c and d from b's implication. An implication whose left side the token does not meet adds nothing (engine §11).",
-  "grammar": "%implies ~b ⟹ ~c ∪ ~d\n%implies A ⟹ ~b\n%implies ~z ⟹ ~y\n%rule text [{word}]\n%rule word $w(W) <tags($w) ∪ A>\n%emits\n  $",
+  "grammar": "%implies B ⟹ (C ∪ D)\n%implies A ⟹ B\n%implies Z ⟹ Y\n%rule text [{word}]\n%rule word $w:W :: ($w.tags ∪ A) %emits $\n\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
@@ -20,10 +20,10 @@
             {
               "tags": [
                 "A",
-                "W",
-                "b",
-                "c",
-                "d"
+                "B",
+                "C",
+                "D",
+                "W"
               ]
             }
           ]

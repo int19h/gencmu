@@ -3,8 +3,8 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage sounds\n%include \"common.md\"\n%include \"g.md\"\n%stage words\n%include \"common.md\"\n%include \"h.md\"\n```\n",
     "common.md": "```jbogenbau\n%ambiguity-resolution greedy\n```\n",
-    "g.md": "```jbogenbau\n%rule text [{c}]\n%rule c 'a' </a/> %emits $\n```\n",
-    "h.md": "```jbogenbau\n%rule text /a/ /a/\n```\n"
+    "g.md": "```jbogenbau\n%rule text [{c}]\n%rule c \"a\" :: Sound-0061-s := \"a\" %emits $\n```\n",
+    "h.md": "```jbogenbau\n%rule text (Sound-0061-s Sound-0061-s)\n```\n"
   },
   "pipeline": "p.md",
   "input": "aa",

@@ -16,7 +16,19 @@ import unittest
 from concurrent.futures import ProcessPoolExecutor
 from typing import Any, Callable
 
-from .shared import SHARED, apply_mutant, load_case, load_case_dialect, parse_case, parse_checked, read_json, result_mutants, result_problems, witness_lost, write_json
+from .shared import (
+    SHARED,
+    apply_mutant,
+    load_case,
+    load_case_dialect,
+    parse_case,
+    parse_checked,
+    read_json,
+    result_mutants,
+    result_problems,
+    witness_lost,
+    write_json,
+)
 
 FIELDS = ("expect", "verdict", "stage", "at", "error", "ties", "words", "brackets")
 
@@ -81,7 +93,7 @@ def outcome(
         got["ties"] = ties
     words = next((stage for stage in result.stages if stage.name == "words"), None)
     if words is not None and words.output is not None:
-        got["words"] = [token.label for token in words.output]
+        got["words"] = [token.image for token in words.output]
     if result.ok:
         got["brackets"] = gencmu.to_brackets(result)
     return got
@@ -140,7 +152,13 @@ class Corpus(unittest.TestCase):
             problem = mismatch(case, got)
             if problem:
                 failures.append(problem)
-            lines.append(json.dumps({"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem}, ensure_ascii=False) + "\n")
+            lines.append(
+                json.dumps(
+                    {"id": case_id, "seconds": round(seconds, 3), "chars": len(case["text"]), "ok": problem is None, "problem": problem},
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
 
     def test_a_result_that_breaks_an_invariant_is_refused(self) -> None:
         """The runner checks the invariants on the canonical result of each
@@ -160,7 +178,6 @@ class Corpus(unittest.TestCase):
         for case in all_cases():
             if "ties" in case:
                 self.assertIsNone(mismatch(case, outcome(case)))
-
 
     def test_the_runner_refuses_the_error_elision_witness_lost(self) -> None:
         """The runner fails a corpus case whose result is the error

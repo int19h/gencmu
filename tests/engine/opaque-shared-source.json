@@ -1,52 +1,18 @@
 {
-  "description": "An opaque part's source always holds the sources of its own input tokens, even where the input token before it shares its source (engine §11).",
+  "description": "Two covering items over one character are a document error before the later verbatim stage runs. Shared source text does not excuse overlapping input spans (engine §9.3, §11.4).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text d\n%rule d 'a'\n%emits $ <X>, $ <Y>\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text X $y(v)\n%emits $y <V>\n%rule v Y\n%opaque\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text d\n%rule d \"a\" %emits $ :: X, $ :: Y\n\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text (X $y:v) %emits $y :: V\n\n%rule v :- $.verbatim-text | Y\n\n```\n"
   },
   "pipeline": "p.md",
   "input": "a",
   "expect": {
-    "result": {
-      "ok": true,
-      "stages": [
-        {
-          "output": [
-            {
-              "text": "a",
-              "source": [
-                0,
-                1
-              ]
-            },
-            {
-              "text": "a",
-              "source": [
-                0,
-                1
-              ]
-            }
-          ]
-        },
-        {
-          "output": [
-            {
-              "text": "a",
-              "phonemes": "?",
-              "label": "a",
-              "span": [
-                1,
-                2
-              ],
-              "source": [
-                0,
-                1
-              ]
-            }
-          ]
-        }
-      ]
+    "error": "grammar",
+    "where": {
+      "document": "g.md",
+      "line": 4,
+      "column": 1
     }
   }
 }

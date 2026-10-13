@@ -1,15 +1,15 @@
 {
-  "description": "An inserted tag before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
+  "description": "An inserted item before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $b(bb) $w(word) | $w(word)\n%emits\n  X, ($b) $w\n%rule word\n  'w' <W>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {X W}\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item ($b:bb $w:word) | $w:word %emits ε :: X, ($b) $w\n\n\n\n%rule word \"w\" :: W\n\n%rule bb \"b\" :: B %emits $\n\n\n\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {(X W)}\n```\n"
   },
   "pipeline": "p.md",
   "input": "bww",
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
@@ -18,8 +18,8 @@
           "output": [
             {
               "text": "",
-              "phonemes": "",
-              "label": "",
+              "value": "",
+              "image": "",
               "tags": [
                 "X"
               ],
@@ -35,8 +35,8 @@
             },
             {
               "text": "w",
-              "phonemes": "",
-              "label": "w",
+              "value": "w",
+              "image": "w",
               "tags": [
                 "W"
               ],
@@ -51,8 +51,8 @@
               "before": [
                 {
                   "text": "b",
-                  "phonemes": "",
-                  "label": "b",
+                  "value": "b",
+                  "image": "b",
                   "tags": [
                     "B"
                   ],
@@ -65,8 +65,8 @@
             },
             {
               "text": "",
-              "phonemes": "",
-              "label": "",
+              "value": "",
+              "image": "",
               "tags": [
                 "X"
               ],
@@ -82,8 +82,8 @@
             },
             {
               "text": "w",
-              "phonemes": "",
-              "label": "w",
+              "value": "w",
+              "image": "w",
               "tags": [
                 "W"
               ],

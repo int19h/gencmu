@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text ($y(X) [($x(Y) | V)] | Z W)\n%conditions $x ∨ text($) = \"never\", $y ⟹ (\"a\" ∈ split(text($y), phonemes($)))",
+  "grammar": "%rule text (($y:X [($x:Y | V)]) | (Z W)) %conditions ($x ∨ $.source-text = \"never\"), ($y ⟹ \"a\" ∈ $y.source-text.split($.value))\n",
   "tokens": [
     {
       "text": "x",
@@ -16,5 +16,5 @@
       }
     }
   },
-  "description": "Completed routes establish private capture absence before ready conditions run in written order."
+  "description": "Completed routes establish private capture absence before ready conditions run in written order (engine §2.1 and §6.1)."
 }

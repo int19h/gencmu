@@ -2,7 +2,9 @@
 
 A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
-This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The dialect includes this document after [the word stream](stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -20,9 +22,9 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  classes($q) ∩ (ZO ∪ GOhOI) ≠ ∅
+  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅
 ```
 
 <details><summary>Railroad diagram of <code>word-quote-marker</code></summary>
@@ -36,14 +38,14 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m(rahoi-marker) quote-gap $f(~rafsi-form) <tags($m)>
+  $m:rahoi-marker word-gap $f:Rafsi-Form :: $m.tags
 %emits
-  $m, $f <~quoted-text>
+  $m, $f :: Quoted-Text
 
 %rule rahoi-marker
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  RAhOI ⊆ classes($q)
+  RAhOI ⊆ $q.classes
 ```
 
 <details><summary>Railroad diagrams of <code>quote</code>, <code>rahoi-quote</code> and <code>rahoi-marker</code></summary>
@@ -52,14 +54,14 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. So does every dialect, which compares them by their canonical sound ([the word stream](stream.md)). So the dialect needs only the marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. Every dialect compares their normalized values ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q(read-word) <classes($q) ∪ ~word ∪ ~cmavo>
+  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  classes($q) ∩ (ZOI ∪ MUhOI) ≠ ∅
+  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅
 ```
 
 <details><summary>Railroad diagram of <code>zoi-marker</code></summary>
@@ -68,27 +70,26 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 
 Zantufa reads `y` and `ie'o` as space only after a pause or at the start of the text, because its `spaces` begins with `!Y`. A hesitation attached to the word before it, with no pause between them, is a word of class Y there. So `zoie'o mi` quotes `ie'o` and leaves `mi`, while `zo ie'o mi` quotes `mi`. Such a word has no place in the syntax except in a quote, so the dialect rejects `mi cuyy klama`, as Zantufa does. Before `bu`, hesitation stays the base of a letteral.
 
-In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every other quoted word. The shared reader handles both quote bodies.
+In a `lo'u` or `lo'ai` quote, the stage tags such a word `Word` only, like every other quoted word. The shared reader handles both quote bodies.
 
 ```jbogenbau
 %redefine-rule hesitation
   (* spaces <- !Y initial_spaces *)
-  $h(y-run) <∅>
+  $h:y-run :: ∅
 %conditions
-  ¬begins(from($h), y-bu-word),
-  (~run-initial ∪ ~spacing) ∩ tags($h) ≠ ∅ ∨ ~y-letters ⊆ tags($h) ∧ begins(after($h), y-letter-ahead)
-%emits
-  ε
+  ¬$h.onward.begins(y-bu-word),
+  (Run-Initial ∪ Spacing) ∩ $h.tags ≠ ∅ ∨ Y-Letters ⊆ $h.tags ∧ $h.following-tokens.begins(y-letter-ahead)
+%erased
 
 %rule y-letter-ahead
-  y-bu-word | ~hesitation y-letter-ahead
+  y-bu-word | Hesitation y-letter-ahead
 
 %rule attached-y
-  $h(~hesitation) <~word ∪ ~cmavo ∪ Y>
+  $h:Hesitation :: Word ∪ Cmavo ∪ Y
 %conditions
-  (~run-initial ∪ ~spacing) ∩ tags($h) = ∅,
-  ~y-letters ⊈ tags($h) ∨ ¬begins(after($h), y-letter-ahead),
-  ¬begins(from($h), y-bu-word)
+  (Run-Initial ∪ Spacing) ∩ $h.tags = ∅,
+  Y-Letters ⊈ $h.tags ∨ ¬$h.following-tokens.begins(y-letter-ahead),
+  ¬$h.onward.begins(y-bu-word)
 %emits
   $
 
@@ -106,7 +107,7 @@ In a `lo'u` or `lo'ai` quote, the stage tags such a word `word` only, like every
 
 A magic word is never a plain word. `$MAGIC-WORDS` adds RAhOI, GOhOI, MUhOI, LOhAI and LEhAI to the shared list. The constant excludes these classes from plain words, so a bare LOhAI or LEhAI is never a plain word. A bare marker is an opener that forms no complete quote. Only the classes in the [later `bare-marker` rule](#bare-markers) have the SI/BU fallback.
 
-A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `opener-space` to the hesitation after such a word. A tag marks a token by name, phoneme or character. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
+A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads as an unquoted word opens a text of its own. The forms stage gives the tag `Opener-Space` to the hesitation after such a word. A tag marks a token by an identifier. So that hesitation is space, and the word takes it with it. Inside a quote, such a hesitation is an attached Y word, as in `zo luyy si`, which erases the `yy` and keeps `zo lu`.
 
 ```jbogenbau
 %redefine-const $MAGIC-WORDS
@@ -116,38 +117,37 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   LU ∪ TO ∪ LUhEI
 
 %redefine-rule word
-  | sa-su? $c(read-word) <tags($c)>
-  | ¬sa-su? $e(read-word) <tags($e)>
-  | $o(text-opener) $p(opener-spaces) <tags($o)>
+  | sa-su? $c:read-word :: $c.tags
+  | ¬sa-su? $e:read-word :: $e.tags
+  | $o:text-opener $p:opener-spaces :: $o.tags
 %conditions
-  ¬begins(after($p), opener-space-token),
-  classes($c) ∩ $TEXT-OPENERS = ∅ ∨ ¬begins(after($c), opener-space-token),
-  classes($e) ∩ $TEXT-OPENERS = ∅ ∨ ¬begins(after($e), opener-space-token),
-  classes($c) ∩ $MAGIC-WORDS = ∅,
-  classes($e) ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬begins(from($c), quote),
-  ¬begins(from($e), quote)
+  ¬$p.following-tokens.begins(opener-space-token),
+  $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.begins(opener-space-token),
+  $e.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$e.following-tokens.begins(opener-space-token),
+  $c.classes ∩ $MAGIC-WORDS = ∅,
+  $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
+  ¬$c.onward.begins(quote),
+  ¬$e.onward.begins(quote)
 %emits
   $
 
 %rule text-opener
-  $q(cmavo-token) <tags($q)>
+  $q:cmavo-token :: $q.tags
 %conditions
-  classes($q) ∩ $TEXT-OPENERS ≠ ∅
+  $q.classes ∩ $TEXT-OPENERS ≠ ∅
 %emits
   $
 
 %rule opener-spaces
-  $h(opener-space-token) [opener-spaces]
-%emits
-  ε
+  $h:opener-space-token [opener-spaces]
+%erased
 
 %rule opener-space-token
   (* initial_spaces <- (space_char / !ybu Y)+: a hesitation before bu is no space *)
-  $h(~hesitation)
+  $h:Hesitation
 %conditions
-  ~opener-space ⊆ tags($h),
-  ¬begins(from($h), y-bu-word)
+  Opener-Space ⊆ $h.tags,
+  ¬$h.onward.begins(y-bu-word)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>word</code> to <code>opener-space-token</code></summary>
@@ -157,14 +157,14 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
 <p><img src="../../docs/diagrams/words/zantufa-stream/opener-space-token.svg" alt="Railroad diagram of the rule opener-space-token"></p>
 </details>
 
-The forms stage hands on the form after `ra'oi` as a `rafsi-form` token, even where that `ra'oi` opens no quote. So a `zoi` body, a `zoi` delimiter and the text after `fa'o` take that token as they take any other word. `fa'o ra'oi broda` is `fa'o` and what it ignores, and `zoi broda ra'oi broda` quotes `ra'oi`, as in Zantufa.
+The forms stage hands on the form after `ra'oi` as a `Rafsi-Form` token, even where that `ra'oi` opens no quote. So a `zoi` body, a `zoi` delimiter and the text after `fa'o` take that token as they take any other word. `fa'o ra'oi broda` is `fa'o` and what it ignores, and `zoi broda ra'oi broda` quotes `ra'oi`, as in Zantufa.
 
 ```jbogenbau
 %extend-rule payload-token
-  ~rafsi-form
+  Rafsi-Form
 
 %extend-rule delimiter
-  ~rafsi-form
+  Rafsi-Form
 ```
 
 <details><summary>Railroad diagrams of <code>payload-token</code> and <code>delimiter</code></summary>
@@ -180,18 +180,18 @@ A quote word that opens no quote is an ordinary word in Zantufa, which `si` eras
 
 ```jbogenbau
 %extend-rule unit
-  $b(bare-marker) <tags($b)>
+  $b:bare-marker :: $b.tags
 %conditions
-  ¬begins(from($b), quote),
-  begins(after($b), bare-marker-tail)
+  ¬$b.onward.begins(quote),
+  $b.following-tokens.begins(bare-marker-tail)
 
 %rule bare-marker-tail
   skipped si-word | skipped bu-word
 
 %rule bare-marker
-  $q(read-word)
+  $q:read-word
 %conditions
-  classes($q) ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
+  $q.classes ∩ (ZOI ∪ MUhOI ∪ LOhU ∪ LOhAI ∪ RAhOI) ≠ ∅
 ```
 
 <details><summary>Railroad diagrams of <code>unit</code>, <code>bare-marker-tail</code> and <code>bare-marker</code></summary>
@@ -204,27 +204,29 @@ The shared BU constructor also takes a bare marker when no quote begins there. Z
 
 Zantufa also keeps SU as a letter base before BU binds. Such a SU erases nothing, so `mi su bu si` leaves `mi`. This exception follows `bu_clause_no_pre` in Zantufa 1.9999.
 
+The constructor uses the shared `compound-gap` recipe so that surviving pauses contribute one space around erased regions. The lookahead uses `skipped`, because it tests recognition and runs no string recipes.
+
 The lookahead skips erased regions before BU. Thus `su mi si bu` forms the letteral of SU. Without a following BU, SU erases the whole preceding text. NIhO, LU, TUhE, and TO do not stop it.
 
 ```jbogenbau
 %extend-rule unit
-  $s(su-letter-base) skipped bu-word <~word ∪ BY>
+  $s:su-letter-base compound-gap bu-word :: Word ∪ BY
 %emits
   $
 
 %rule su-letter-base
-  $q(read-word)
+  $q:read-word
 %conditions
-  SU ⊆ classes($q)
+  SU ⊆ $q.classes
 
 %rule su-letter-tail
   skipped bu-word
 
 %redefine-rule su-word
-  $q(read-word)
+  $q:read-word
 %conditions
-  SU ⊆ classes($q),
-  ¬begins(after($q), su-letter-tail)
+  SU ⊆ $q.classes,
+  ¬$q.following-tokens.begins(su-letter-tail)
 ```
 
 <details><summary>Railroad diagrams of <code>unit</code>, <code>su-letter-base</code>, <code>su-letter-tail</code> and <code>su-word</code></summary>

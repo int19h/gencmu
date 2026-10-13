@@ -1,0 +1,50 @@
+{
+  "document": "```jbogenbau\n%rule r A<B ¬C>\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "tags",
+                "requirements": [
+                  {
+                    "negated": false,
+                    "value": {
+                      "tag": "B"
+                    }
+                  },
+                  {
+                    "negated": true,
+                    "value": {
+                      "tag": "C"
+                    }
+                  }
+                ],
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "The DOM preserves positive and negative requirements in written order (engine §4, output format 26)."
+}

@@ -1,22 +1,93 @@
 {
-  "description": "Two phoneme tags on one emitted token are an error of the grammar, also when an implication added one of them (engine §5, §11).",
-  "grammar": "%implies A ⟹ /o/\n%rule text [{word}]\n%rule word $w(W) <A ∪ /e/>\n%emits\n  $",
+  "description": "Implications can add a second ordinary Sound tag without a grammar error. The value recipe still supplies e, and constituent tags exclude the implied tag (engine §11.1, §11.2).",
+  "grammar": "%implies A ⟹ Sound-006F-s\n%rule text [{word}]\n%rule word $w:W :: (A ∪ Sound-0065-s) := \"e\" %emits $\n\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
-    "error": "grammar",
     "result": {
-      "ok": false,
-      "error": {
-        "kind": "grammar",
-        "stage": "main"
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "x",
+              "value": "e",
+              "image": "e",
+              "tags": [
+                "A",
+                "Sound-0065-s",
+                "Sound-006F-s"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "A",
+          "Sound-0065-s"
+        ],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "word",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ],
+            "tags": [
+              "A",
+              "Sound-0065-s"
+            ],
+            "children": [
+              {
+                "kind": "token",
+                "terminal": "W",
+                "token": 0,
+                "span": [
+                  0,
+                  1
+                ],
+                "source": [
+                  0,
+                  1
+                ]
+              }
+            ]
+          }
+        ]
       }
     }
   }

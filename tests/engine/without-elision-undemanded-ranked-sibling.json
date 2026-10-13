@@ -1,6 +1,6 @@
 {
-  "description": "A query over an empty capture does not observe an unrelated ranked sibling.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text $x(empty) (ε | r10)\n%conditions matches(without-elision($x), empty)\n%rule empty ε\n%rule r0 (a ≻ b) <∅>\n%rule a [+T] <∅>\n%rule b [+U] <∅>\n%rule r1 r0 r0 | [+V]\n%rule r2 r1 r1 | [+V]\n%rule r3 r2 r2 | [+V]\n%rule r4 r3 r3 | [+V]\n%rule r5 r4 r4 | [+V]\n%rule r6 r5 r5 | [+V]\n%rule r7 r6 r6 | [+V]\n%rule r8 r7 r7 | [+V]\n%rule r9 r8 r8 | [+V]\n%rule r10 r9 r9 | [+V]",
+  "description": "A query over an empty capture does not observe an unrelated ranked sibling (engine §4 and §10).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text ($x:empty (ε | r10)) %conditions $x.without-elision.matches(empty)\n\n%rule empty ε\n%rule r0 (a ≻ b) :: ∅\n%rule a [+T] :: ∅\n%rule b [+U] :: ∅\n%rule r1 (r0 r0) | [+V]\n%rule r2 (r1 r1) | [+V]\n%rule r3 (r2 r2) | [+V]\n%rule r4 (r3 r3) | [+V]\n%rule r5 (r4 r4) | [+V]\n%rule r6 (r5 r5) | [+V]\n%rule r7 (r6 r6) | [+V]\n%rule r8 (r7 r7) | [+V]\n%rule r9 (r8 r8) | [+V]\n%rule r10 (r9 r9) | [+V]",
   "input": "",
   "expect": {
     "result": {

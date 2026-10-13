@@ -1,0 +1,9 @@
+{
+  "description": "A unary plain optional preserves the unsafe path from a ranked choice (engine §§3, 6).",
+  "grammar": "%rule text [(\"a\" ≻ \"b\")]",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-tags"
+  }
+}

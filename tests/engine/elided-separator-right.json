@@ -1,6 +1,6 @@
 {
-  "description": "The right chain omits T after a short a. The following separator reads B S, so the whole text has one reading.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {a ... \\ [+T] s}\n%rule a A | A B\n%rule s B S",
+  "description": "The right chain omits T after a short a. The following separator reads B S, so the whole text has one reading (engine §3.8 and §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {a ... / ([+T] s)}\n%rule a A | (A B)\n%rule s (B S)",
   "tokens": [
     {
       "text": "a",

@@ -1,10 +1,10 @@
 {
-  "description": "The clauses are checked in their fixed order: %tags, at %tags, comes before the comparison of %conditions whose sides do not fit (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A)\n  %tags tags($)\n  %conditions text($x) ⊆ \"a\"\n```\n",
+  "description": "The tag clause's own-tag read fails before the condition's incompatible subset operands. The error stands at the tag clause (engine §9.3).",
+  "document": "```jbogenbau\n%rule a $x:A\n:: $.tags\n%conditions $x.source-text⊆ \"a\"\n```\n",
   "expect": {
     "error": {
       "line": 3,
-      "column": 3
+      "column": 1
     }
   }
 }

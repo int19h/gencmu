@@ -140,13 +140,15 @@ fn parsing_with_and_without_the_cache() {
     eprintln!("loading the notation dialect: {with_cache:?} with the cache, {without_cache:?} without");
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
-    for text in [
-        "%rule text [{piece}] {... A \\ B} [+KU #] %rule piece word | \"x\" </x/> %emits $",
-        "%ambiguity-resolution greedy elision-only\n%rule a $x(b) <\"T\" ∪ ($x ⟹ tags($x, c))> %conditions ¬matches(tail($x), d), $x",
-        "%rule broken",
+    for (text, accepted) in [
+        ("%rule text [{piece}] {... A / B} [+KU #] %rule piece word | \"x\" :: Sound-x %emits $", true),
+        ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
+        ("%rule broken", false),
     ] {
         let options = gencmu::ParseOptions::default();
-        let a = gencmu::to_json(&cached.parse(text, &options).expect("a parse"));
+        let result = cached.parse(text, &options).expect("a parse");
+        assert_eq!(result.ok, accepted, "{text}: {:?}", result.error);
+        let a = gencmu::to_json(&result);
         let b = gencmu::to_json(&fresh.parse(text, &options).expect("a parse"));
         let c = gencmu::to_json(&also_cached.parse(text, &options).expect("a parse"));
         assert_eq!(a, b, "{text}");
@@ -159,29 +161,28 @@ fn parsing_with_and_without_the_cache() {
 const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 %ambiguity-resolution greedy
 %features f g
-%const $K ~A ∪ ~B
-%redefine-const $K ~A ∪ ~B ∪ ∅
+%const $K A ∪ B
+%redefine-const $K A ∪ B ∪ ∅
 %classifier lex
   f? "mi" ∈ KOhA
-  ¬g? "do" ∉ ~KOhA
-%implies ~A ∩ ~B ⟹ ~C ∖ ~D
-%rule text
-  | f? h! $x(A) $y(LE="la") [C | $z(D)] {E} {E \ [C]} [+KU #] [+~KEI (A | B)] (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
+  ¬g? "do" ∉ KOhA
+%implies A ∩ B ⟹ C ∖ D
+%rule text :: U ∪ ($x ∧ $x.source-text.classify(lex) ⊆ V ⟹ W)
+  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU #] [+KEI (A | B)] (F & G) "a".."z" _L Sound-a H UI<¬B> :: T ∪ $K
   | g? text-tail
-  %tags ~U ∪ ($x ∧ classify(text($x), lex) ⊆ ~V ⟹ ~W)
-  %conditions , (text($x) = "ok" ∨ initial($y)) ⟹ ¬matches(head($x), text) ∧ $y, begins(tail($x), text), text($y) ∈ split("a.b", ".")
-  %emits $x <tags($x) ∩ tag(text($x))> ($y), ~Y
-  %opaque
+  %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.matches(text) ∧ $y, $x.tokens-after-first.begins(text), $y.source-text ∈ "a.b".split(".")
+  %emits $x ($y) :: $x.tags, ε :: Y
 %rule text-tail
   ε
+  %erased
 %rule chain
-  {... A \ B}
+  {... A / B}
 %redefine-rule text-tail
   #
 %extend-rule text-tail
-  'b'
+  "b"
 %rule #
-  'c'
+  "c"
 ```
 "#;
 
@@ -288,4 +289,52 @@ fn bootstrap_errors_name_the_bootstrap_document() {
         assert_eq!(error.line, line, "{description}: {error}");
         assert_eq!(error.column, column, "{description}: {error}");
     }
+}
+
+#[test]
+fn a_guard_after_an_empty_wrapper_reports_its_first_token() {
+    fn field<'a>(value: &'a mut Value, name: &str) -> &'a mut Value {
+        let Value::Object(fields) = value else { panic!("object") };
+        &mut fields.iter_mut().find(|(key, _)| key == name).unwrap().1
+    }
+    let mut bootstrap = parse_json(&read("notation/bootstrap.json")).unwrap();
+    let Value::Array(stages) = field(&mut bootstrap, "stages") else { panic!("stages") };
+    for stage in stages {
+        let Value::Array(documents) = field(stage, "documents") else { panic!("documents") };
+        for document in documents {
+            let Value::Array(rules) = field(field(document, "dom"), "rules") else { panic!("rules") };
+            let mut padding = false;
+            for rule in rules.iter_mut() {
+                match rule.get("name").and_then(Value::str) {
+                    Some("feature-character") => {
+                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                        alternatives.push(parse_json(r#"{"guards":[],"expr":{"literal":{"string":"_"}}}"#).unwrap());
+                    }
+                    Some("guard")
+                        if rule.get("alternatives").unwrap().array()[0]
+                            .get("expr")
+                            .unwrap()
+                            .get("ref")
+                            .and_then(Value::str)
+                            == Some("Guard") =>
+                    {
+                        let Value::Array(alternatives) = field(rule, "alternatives") else { panic!("alternatives") };
+                        *field(&mut alternatives[0], "expr") =
+                            parse_json(r#"{"seq":[{"ref":"padding"},{"ref":"Guard"}]}"#).unwrap();
+                        padding = true;
+                    }
+                    _ => {}
+                }
+            }
+            if padding {
+                rules.push(parse_json(r#"{"name":"padding","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"empty":true}}],"conditions":[],"at":[1,1]}"#).unwrap());
+            }
+        }
+    }
+    let error = load_with_bootstrap(
+        bootstrap.to_text(),
+        "```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A\n```\n",
+    )
+    .unwrap_err();
+    assert_eq!((error.line, error.column), (Some(3), Some(12)), "{error}");
 }

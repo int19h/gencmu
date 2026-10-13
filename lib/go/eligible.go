@@ -42,9 +42,10 @@ func elidableHelpers(g *lowered) ([]bool, bool) {
 
 // Where an elidable optional comes next after an item.
 const (
-	nextNone        = iota // no elidable optional comes next
-	nextAlone              // one comes next, and it has no constituent
-	nextConstituent        // one comes next, after the node of its constituent Y
+	nextNone            = iota // no elidable optional comes next
+	nextAlone                  // one comes next, and it has no constituent
+	nextConstituent            // one comes next, after the node of its constituent Y
+	nextLogicalOptional        // the preceding optional has several physical routes
 )
 
 // eligibility holds the states of the items that some queried items rest on.
@@ -85,6 +86,9 @@ func (e *eligibility) next(it *item) int {
 	d := int(it.dot)
 	if d >= len(rhs) || rhs[d].term || !e.helpers[rhs[d].id] {
 		return nextNone
+	}
+	if it.prod.precedingLogicalOptional(d) != nil {
+		return nextLogicalOptional
 	}
 	if d == 0 || rhs[d-1].term || (d == 1 && rhs[0].id == it.prod.lhs) {
 		return nextAlone
@@ -182,6 +186,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 			}
 		}
 	}
+	logical := newLogicalPriority(r, reads)
 	n := len(e.order)
 	next := make([]int, n)
 	for i, it := range e.order {
@@ -196,6 +201,18 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 		}
 		return false
 	}
+	// The same transition qualifies ordinary proofs and paths through a
+	// logical optional. Permission cannot borrow an ineligible route (§4).
+	advanceE := func(it *item, l link) bool {
+		b := r.before(it, l)
+		if l.sym == nil {
+			return E[e.index[b]]
+		}
+		if e.omission(l) {
+			return P[e.index[b]] && childE(l.sym)
+		}
+		return E[e.index[b]] && childE(l.sym)
+	}
 	for changed := true; changed; {
 		changed = false
 		for x, it := range e.order {
@@ -209,16 +226,7 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 			}
 			for _, l := range it.links {
 				b := r.before(it, l)
-				var ok bool
-				switch {
-				case l.sym == nil:
-					ok = E[e.index[b]]
-				case e.omission(l):
-					ok = P[e.index[b]] && childE(l.sym)
-				default:
-					ok = E[e.index[b]] && childE(l.sym)
-				}
-				if !ok {
+				if !advanceE(it, l) {
 					continue
 				}
 				a = true
@@ -236,6 +244,9 @@ func (r *recognizer) eligibleItems(items []*item) []*item {
 						}
 					}
 				}
+			}
+			if a && next[x] == nextLogicalOptional {
+				p = logical.permitsEligible(it, advanceE)
 			}
 			if a && !E[x] {
 				E[x], changed = true, true

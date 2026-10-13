@@ -40,10 +40,12 @@ class NotationTies(unittest.TestCase):
         §8)."""
         # A notation whose one stage reads the character a in two ways.
         notation = read_document(
-            "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p 'a'\n%rule q 'a'\n```\n",
+            '```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p "a"\n%rule q "a"\n```\n',
             "n.md",
         )
-        bootstrap = json.dumps({"format": notation["format"], "stages": [{"name": "syntax", "documents": [{"path": "n.md", "dom": notation}]}]})
+        bootstrap = json.dumps(
+            {"format": notation["format"], "stages": [{"name": "syntax", "documents": [{"path": "n.md", "dom": notation}]}]}
+        )
         sources = {"notation/bootstrap.json": bootstrap}
         with self.assertRaises(gencmu.GencmuError) as caught:
             read_document("```jbogenbau\na\n```\n", "t.md", sources=sources)

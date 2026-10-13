@@ -2,6 +2,8 @@
 
 The dialect follows Guskant's Zantufa 1.9999, a PEG (parsing expression grammar) of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, the PEG grammar of the definition effort. It has no termsets and no `tense` rule, and most tense words are modals. Free modifiers can follow almost any word, and a statement can take terms after it.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The word forms follow the working morphology of the BPFK, the Lojban language planning committee ([`../words/bpfk.md`](../words/bpfk.md)). Zantufa changes these forms ([`../words/zantufa.md`](../words/zantufa.md)): the pair `mz`, `ie'o` as hesitation, and the forms that `ra'oi` quotes.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The lexicon gives each cmavo the selma'o that Zantufa gives it ([`../words/lexicon-zantufa.md`](../words/lexicon-zantufa.md)).
@@ -41,7 +43,22 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: forms
+## Stage 2: normalize
+
+```jbogenbau
+%stage normalize
+```
+
+- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
+  ```jbogenbau
+  %include "../phonemes/normalize.md"
+  ```
+
+A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+
+The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
+
+## Stage 3: forms
 
 ```jbogenbau
 %stage forms
@@ -64,7 +81,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../words/lexicon-zantufa.md"
   ```
 
-## Stage 3: words
+## Stage 4: words
 
 ```jbogenbau
 %stage words
@@ -83,7 +100,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../words/zantufa-stream.md"
   ```
 
-## Stage 4: indicators
+## Stage 5: indicators
 
 ```jbogenbau
 %stage indicators
@@ -94,7 +111,7 @@ The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its o
   %include "../indicators/cll.md"
   ```
 
-## Stage 5: syntax
+## Stage 6: syntax
 
 ```jbogenbau
 %stage syntax

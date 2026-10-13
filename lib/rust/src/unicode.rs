@@ -1,10 +1,6 @@
 //! The character table of `grammars/unicode.txt` (engine §1): the
-//! General_Category of every scalar value, the White_Space property, and the
-//! simple lowercase mappings of the canonical sound (engine §5). Every
-//! library reads this table rather than its platform's Unicode data, so
-//! that all agree.
-
-use std::collections::HashMap;
+//! General_Category and White_Space properties. Every library reads this
+//! table rather than its platform's Unicode data.
 
 /// The General_Category values in their short form (engine §1).
 pub(crate) const CATEGORIES: [&str; 30] = [
@@ -41,13 +37,12 @@ impl Property {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Unicode {
     /// The category ranges, sorted by their first code point: first, last
     /// and the category's short form.
     categories: Vec<(u32, u32, &'static str)>,
     white_space: Vec<(u32, u32)>,
-    lower: HashMap<u32, u32>,
 }
 
 fn hex(field: Option<&str>, line: usize) -> Result<u32, String> {
@@ -57,7 +52,7 @@ fn hex(field: Option<&str>, line: usize) -> Result<u32, String> {
 
 impl Unicode {
     pub(crate) fn parse(text: &str) -> Result<Unicode, String> {
-        let mut table = Unicode { categories: Vec::new(), white_space: Vec::new(), lower: HashMap::new() };
+        let mut table = Unicode { categories: Vec::new(), white_space: Vec::new() };
         for (index, line) in text.lines().enumerate() {
             let number = index + 1;
             let mut fields = line.split_whitespace();
@@ -74,11 +69,6 @@ impl Unicode {
                 }
                 Some("white-space") => {
                     table.white_space.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
-                }
-                Some("lower") => {
-                    let from = hex(fields.next(), number)?;
-                    let to = hex(fields.next(), number)?;
-                    table.lower.insert(from, to);
                 }
                 Some(other) => return Err(format!("unicode.txt line {number}: an unknown entry {other:?}")),
             }
@@ -124,22 +114,6 @@ impl Unicode {
             Property::Group(letter) => self.category(code).as_bytes()[0] == letter,
             Property::Category(category) => self.category(code) == category,
         }
-    }
-
-    /// The simple lowercase mapping of a string, code point by code point.
-    pub(crate) fn lowercase(&self, text: &str) -> String {
-        text.chars().map(|c| self.lower_char(c)).collect()
-    }
-
-    fn lower_char(&self, c: char) -> char {
-        self.lower.get(&(c as u32)).and_then(|&to| char::from_u32(to)).unwrap_or(c)
-    }
-
-    /// The canonical form of a sound (engine §5): each code point replaced
-    /// by its simple lowercase mapping, and every comma, the syllable break,
-    /// removed.
-    pub(crate) fn canonical(&self, text: &str) -> String {
-        text.chars().map(|c| self.lower_char(c)).filter(|&c| c != ',').collect()
     }
 }
 
@@ -191,9 +165,8 @@ mod tests {
         for code in boundaries(text) {
             assert_eq!(reversed.category(code), bundled.category(code), "U+{code:04X}");
             assert_eq!(reversed.is_white_space(code), bundled.is_white_space(code), "U+{code:04X}");
-            if let Some(c) = char::from_u32(code) {
-                assert_eq!(reversed.lowercase(&c.to_string()), bundled.lowercase(&c.to_string()), "U+{code:04X}");
-            }
+            // Format 26 has no lowercase records. Mn still controls diagnostic escaping.
+            assert_eq!(reversed.is_mark(code), bundled.is_mark(code), "U+{code:04X}");
         }
         assert_eq!(reversed.category('a' as u32), "Ll");
         assert_eq!(reversed.category('A' as u32), "Lu");
@@ -211,7 +184,8 @@ mod tests {
         assert!(has("Cn", 'a' as u32) && has("C", 'a' as u32));
         assert!(!has("L", 'a' as u32) && !has("Cs", 'a' as u32));
         assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9) && !has("White_Space", 0x20));
-        assert_eq!(table.lowercase("AB"), "AB");
+        // The engine no longer accepts a comparison normalization table (engine §1).
+        assert!(Unicode::parse("unicode 0.0.0\nlower 0041 0061\n").is_err());
         assert!(!table.is_mark(0x301));
     }
 

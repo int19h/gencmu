@@ -1,6 +1,6 @@
 {
-  "description": "Capture-use analysis finds a capture through restoration calls. Engine \u00a79.",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions matches(from(without-elision($y)), r)\n```\n",
+  "description": "Capture-use analysis finds a capture through restoration calls. Engine §9.",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $y.without-elision.onward.matches(r)\n```\n",
   "expect": {
     "error": {
       "line": 2,

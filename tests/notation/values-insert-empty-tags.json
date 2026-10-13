@@ -1,0 +1,50 @@
+{
+  "document": "```jbogenbau\n%rule r A %emits ε :: ∅ := \"x\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "emit": {
+            "items": [
+              {
+                "insert": true,
+                "tags": {
+                  "emptySet": true
+                },
+                "value": {
+                  "concat": [
+                    {
+                      "string": "x"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "An insertion uses an epsilon target and permits empty tags (engine §11)."
+}

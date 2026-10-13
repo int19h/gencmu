@@ -1,6 +1,6 @@
 {
-  "description": "A tag test on an elidable terminator is legal. An inert omission in an unused rule does not affect recognition.",
-  "grammar": "%rule text A\n%rule other B [+KU\u2287~ku]",
+  "description": "A tag test on an elidable terminator is legal. An inert omission in an unused rule does not affect recognition (engine §4).",
+  "grammar": "%rule text A\n%rule other (B [+KU<Ku>])",
   "tokens": [
     {
       "text": "a",

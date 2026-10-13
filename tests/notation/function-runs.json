@@ -1,10 +1,10 @@
 {
-  "description": "runs is not a function of the notation, so a call of it is an error at the call; split(phonemes(s), \".\") gives the runs (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions \"a\" ∈ runs($x)\n```\n",
+  "description": "The notation has no .runs method. The unknown method fails at its receiver; .value.split(\".\") supplies a string set instead (engine §9.3, §10).",
+  "document": "```jbogenbau\n%rule a $x:B%conditions \"a\" ∈ $x.runs\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 33
+      "column": 31
     }
   }
 }

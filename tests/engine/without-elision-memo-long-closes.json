@@ -1,6 +1,6 @@
 {
   "description": "Long equal spans with different closes retain separate aligned query answers (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival)\n%rule candidate a | b\n%rule a {X} [+T]\n%rule b {X} [+U]\n%rule rival {X} [+T]",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival)\n\n%rule candidate a | b\n%rule a ({X} [+T])\n%rule b ({X} [+U])\n%rule rival ({X} [+T])",
   "tokens": [
     {
       "text": "x",

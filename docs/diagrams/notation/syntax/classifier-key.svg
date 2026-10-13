@@ -3,6 +3,6 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="117.6" lengthAdjust="spacingAndGlyphs">classifier-key</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="75" height="24" rx="12"/><text x="57.5" y="51" textLength="58.8" lengthAdjust="spacingAndGlyphs">~string</text></g>
-<path d="M95 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="67" height="24" rx="0"/><text x="53.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">string</text></g>
+<path d="M87 46h6m0 -8v16m4 -16v16"/>
 </svg>

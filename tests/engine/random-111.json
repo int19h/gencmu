@@ -1,10 +1,10 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 3 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | ε\n%rule t {A ... \\ v}\n%rule u t | u C\n%rule v ε | t [{u}]",
+  "grammar": "%ambiguity-resolution greedy\n%rule text ε | ε | ε\n%rule t {A ... / v}\n%rule u t | (u C)\n%rule v ε | (t [{u}])",
   "tokens": [],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

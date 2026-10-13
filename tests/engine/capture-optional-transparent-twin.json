@@ -1,6 +1,6 @@
 {
   "description": "Twin of capture-optional-transparent.json with r → A [B]: the close of r → A h has two symbols and is visible, so greedy resolves (engine §6).",
-  "grammar": "%rule text r [B]\n%rule r A [B]",
+  "grammar": "%rule text (r [B])\n%rule r (A [B])",
   "tokens": [
     {
       "text": "a",

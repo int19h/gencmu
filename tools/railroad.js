@@ -396,9 +396,13 @@ export function repeat(item, separator, note) {
  * @returns {string}
  */
 function symbolText(expr) {
+  if (expr.test) return symbolText(expr.expr) + testText(expr);
+  if (expr.test) return symbolText(expr.expr) + testText(expr);
+  if (expr.literal) return formatTerm(expr.literal);
+  if (expr.wildcard) return "_";
   if (typeof expr.ref === "string") return expr.ref;
   if ("terminal" in expr) return /^[a-z]/.test(expr.terminal) ? `~${expr.terminal}` : expr.terminal;
-  if ("range" in expr) return `${expr.range[0]}..${expr.range[1]}`;
+  if ("range" in expr) return expr.range.map(formatTerm).join("..");
   if ("property" in expr) return `'\\p{${expr.property}}'`;
   throw new Error(`not a symbol: ${JSON.stringify(expr)}`);
 }
@@ -409,7 +413,7 @@ function symbolText(expr) {
  * "Names and terminals").
  * @param {any} expr
  */
-const isTerminal = (expr) => typeof expr.ref !== "string" || /^[A-Z]/.test(expr.ref);
+const isTerminal = (expr) => expr.test ? isTerminal(expr.expr) : typeof expr.ref !== "string" || /^[A-Z_]/.test(expr.ref);
 
 /**
  * A test as the notation writes it after its symbol, such as `="la"` or
@@ -418,6 +422,7 @@ const isTerminal = (expr) => typeof expr.ref !== "string" || /^[A-Z]/.test(expr.
  * @returns {string}
  */
 export function testText(expr) {
+  if (expr.test === "tags") return "<" + expr.requirements.map(requirement => (requirement.negated ? "¬" : "") + formatTerm(requirement.value)).join(" ") + ">";
   const value = formatTerm(expr.value);
   const set = ["union", "intersection", "difference", "if"].some((key) => key in expr.value) ? `(${value})` : value;
   if (expr.test === "∩=∅" || expr.test === "∩≠∅") return `∩${set}${expr.test.slice(1)}`;
@@ -504,10 +509,24 @@ export function elisionOutcomes(loader, pipelines, documents) {
           const ruleKey = rule.at.join(":");
           testedElisions(rule).forEach((optional, ordinal) => {
             const first = "seq" in optional.optional ? optional.optional.seq[0] : optional.optional;
-            const grammar = holdsConstant(first.value) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
+            const grammar = holdsConstant(first) ? (dialect ??= loader.dialect(pipeline)).stages[index].grammar : stageless;
             const test = grammar.symbolTest(first, document, { document, line: rule.at[0], column: rule.at[1] });
-            const terminal = "terminal" in first.expr ? first.expr.terminal : first.expr.ref;
-            const held = leafTest({ test: test.op, value: test.sound !== undefined ? { string: test.sound } : { set: test.tags } }, test.op === "=" ? test.sound : "", new Set([terminal]));
+            let base = first;
+            while (base.test) base = base.expr;
+            const terminal = "terminal" in base ? base.terminal : base.ref;
+            const tags = new Set([terminal]);
+            let savedValue = "";
+            for (let current = test; current; current = current.inner) if (current.op === "=") savedValue = current.value;
+            let held = true;
+            for (let current = test; current; current = current.inner) {
+              const patternTest = current.op === "tags"
+                ? {test: "tags", requirements: [
+                  {negated: false, value: {set: current.positive}},
+                  {negated: true, value: {set: current.negative}},
+                ]}
+                : {test: current.op, value: {string: current.value}};
+              held &&= leafTest(patternTest, savedValue, tags);
+            }
             if (!outcomes.has(document)) outcomes.set(document, new Map());
             const byRule = /** @type {Map<string, Set<boolean>[]>} */ (outcomes.get(document));
             if (!byRule.has(ruleKey)) byRule.set(ruleKey, []);

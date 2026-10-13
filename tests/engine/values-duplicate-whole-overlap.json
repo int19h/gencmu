@@ -1,0 +1,13 @@
+{
+  "description": "Two consuming whole carriers conflict before parsing (engine §9.3). Source cases use legal caller tokens instead of this emission.",
+  "grammar": "%rule text \"a\" %emits $, $",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

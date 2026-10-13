@@ -1,6 +1,6 @@
 {
   "description": "The enclosing capture hides private closes when its common guard runs within a ranked group (engine §4 and §6.1).",
-  "grammar": "%rule text a ≻ b\n%conditions ¬matches(without-elision($), rival)\n%rule a X [+T]\n%rule b X [+U]\n%rule rival X [+T]",
+  "grammar": "%rule text (a ≻ b) %conditions ¬($.without-elision.matches(rival))\n\n%rule a (X [+T])\n%rule b (X [+U])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",

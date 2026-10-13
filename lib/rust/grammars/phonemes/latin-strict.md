@@ -2,22 +2,26 @@
 
 This document opens the phoneme stage for the Latin orthography of *The Complete Lojban Language* (CLL). A stage is one step of a pipeline, with its own grammar. Each stage reads what the stage before it emits.
 
-The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands the forms stage the phonemes they stand for.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
+The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
 This document reads the Latin orthography of CLL[^cll-c3] and no more. The CLL dialect adds only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
-The terminals of the stage are characters, each written as a character tag in single quotes, such as `'a'`. A token is one unit that a stage reads or emits. A terminal matches one input token by tag. A character token carries only its character tag. So a class of characters is a range, such as `'0'..'9'`, or a Unicode property, such as `'\p{White_Space}'`.
+The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
-The stage emits one token per phoneme, and each token carries the tag of that phoneme, such as `/a/`. A tag marks a token by name, phoneme or character. So the later stages never see a character, and they read every script alike.
+The stage emits phoneme values and images for every script. A tag marks a token by an identifier. Consonant values are lowercase. Stressed vowels carry uppercase values and `Stressed`, while unstressed vowels carry lowercase values. The following normalization stage lowers stressed values and keeps their images and tags.
 
-The phonemes are the letters of CLL[^cll-c3], each written as a phoneme tag:
+The phoneme values are the letters of CLL[^cll-c3]:
 
-- The consonants `/b/`, `/c/`, `/d/` and so on through `/z/`
-- The vowels `/a/ /e/ /i/ /o/ /u/ /y/`, and the stressed vowels `/A/ /E/ /I/ /O/ /U/ /Y/`
-- The apostrophe `/'/`
-- The syllable break `/,/`, which a comma between two vowels writes
+- The consonants `"b"`, `"c"`, `"d"` and so on through `"z"`
+- The vowels `"a"`, `"e"`, `"i"`, `"o"`, `"u"`, `"y"`, with uppercase values when stressed
+- The apostrophe `"'"`
+- The syllable comma `","`, with tag `Syllable-Break`
 
-A stressed vowel is a phoneme of its own. So stress is a position in the word grammar and not a mark that the word grammar tests. Two tags stand for what is not a letter. `PAUSE` is a pause of any length, and it also carries the phoneme tag `/./`, whose phoneme is `.`. `UNREAD` is a run that the pipeline did not read as words, here a run with a character that this orthography does not read. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
+A comma run emits one comma token. Normalization then empties its value and keeps its image and boundary tag. The forms stage tests stress and syllable boundaries through these tags.
+
+`PAUSE` marks a pause of any length, with value and image `" "`. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
 
 ## The text and its runs
 
@@ -40,7 +44,7 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
   run | items pause run
 
 %rule run
-  ordinary-run | foreign-run
+  ordinary-run | non-lojban-char-run
 ```
 
 <details><summary>Railroad diagrams of <code>text</code>, <code>edge-pause</code>, <code>items</code> and <code>run</code></summary>
@@ -59,9 +63,9 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   spaced-pause
 
 %rule spaced-pause
-  [pause-edge] $c(pause-core) [pause-edge]
+  [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c <PAUSE ∪ /./>
+  $c :: PAUSE := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -70,10 +74,10 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   commas
 
 %rule core-char
-  space-char | '.'
+  space-char | "."
 
 %rule space-char
-  '\p{White_Space}'
+  _White_Space
 
 %rule commas
   comma | commas comma
@@ -91,9 +95,9 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 
 An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. In the Latin orthography, a group is its vowels, one phoneme each.
 
-A script that writes no apostrophe tags its full vowel letters `syllabic`. Two adjacent syllabic vowels are two syllables with the apostrophe between them, which `joined-vowel` emits as a `/'/` token with no text of its own. That is the one thing that the rules of this document know about such scripts, and [cyrillic.md](cyrillic.md) is the one script that uses it. Each vowel of a group is its own token, so a group of three vowels keeps all three. The group rules keep adjacent vowels in one group, and every pair falls under exactly one of the three cases. So a run has one parse.
+A script that writes no apostrophe tags its full vowel letters `Syllabic`. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [cyrillic.md](cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
-A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], the phoneme `/,/`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with value `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run
@@ -120,7 +124,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 %rule syllable-break
   commas
 %emits
-  $ </,/>
+  $ :: Syllable-Break := ","
 
 %rule vowel
   plain-vowel | stressed-vowel
@@ -129,15 +133,16 @@ A comma stands only between two letters of a run. Between two vowels it is the s
   vowel | vowel-group-plain | vowel-group-joined
 
 %rule vowel-group-plain
-  | vowel-group⊉~syllabic $v(vowel) <tags($v)> | vowel-group⊇~syllabic $w(vowel⊉~syllabic) <tags($w)>
+  | vowel-group<¬Syllabic> $v:vowel :: $v.tags
+  | vowel-group<Syllabic> $w:vowel<¬Syllabic> :: $w.tags
 
 %rule vowel-group-joined
-  vowel-group⊇~syllabic $v(joined-vowel⊇~syllabic) <tags($v)>
+  vowel-group<Syllabic> $v:joined-vowel<Syllabic> :: $v.tags
 
 %rule joined-vowel
-  $v(vowel) <tags($v)>
+  $v:vowel :: $v.tags
 %emits
-  /'/, $v
+  ε :: ∅ := "'", $v
 
 %rule any-lojban-char
   consonant | plain-vowel | stressed-vowel | apostrophe | comma
@@ -159,99 +164,98 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 <p><img src="../../docs/diagrams/phonemes/latin-strict/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
 </details>
 
-A run that is not an ordinary run is foreign. It has a letter, a digit, a mark or any other character that this orthography does not read, as `mi klama?` has. The stage emits a foreign run as one `UNREAD` token. The rule is `%opaque`, so the token sounds `?`, and its label is its text. A `zoi` delimiter is a word, which never sounds `?`. So no delimiter matches such a run.
+A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value and image concatenate its exact characters, without applying the phoneme mappings. Different foreign runs therefore need not compare equally.
 
-A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period.
+A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period. `run-char` reads it with `_`, then excludes those pause characters through conditions.
 
 ```jbogenbau
-%rule foreign-run
-  $r(foreign-chars)
+%rule non-lojban-char-run
+  $r:chars-with-non-lojban-char
 %conditions
-  ¬matches($r, letters),
-  ¬matches(head($r), comma),
-  ¬matches(last($r), comma)
+  ¬$r.matches(letters),
+  ¬$r.first-token.matches(comma),
+  ¬$r.last-token.matches(comma)
 %emits
-  $ <UNREAD>
-%opaque
+  $ :: FOREIGN
 
-%rule foreign-chars
-  | foreign-char
-  | lojban-chars foreign-char
-  | foreign-chars run-char
+%rule chars-with-non-lojban-char
+  | non-lojban-char
+  | lojban-chars non-lojban-char
+  | chars-with-non-lojban-char run-char
 
 %rule lojban-chars
   lojban-char | lojban-chars lojban-char
 
 %rule lojban-char
-  $c(run-char)
+  $c:run-char
 %conditions
-  matches($c, any-lojban-char)
+  $c.matches(any-lojban-char)
 
-%rule foreign-char
-  $c(run-char)
+%rule non-lojban-char
+  $c:run-char
 %conditions
-  ¬matches($c, any-lojban-char)
+  ¬$c.matches(any-lojban-char)
 
 %rule run-char
-  $c('\p{Any}')
+  $c:_
 %conditions
-  ¬matches($c, core-char)
+  ¬$c.matches(core-char)
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>foreign-run</code> to <code>run-char</code></summary>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-run.svg" alt="Railroad diagram of the rule foreign-run"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-chars.svg" alt="Railroad diagram of the rule foreign-chars"></p>
+<details><summary>Railroad diagrams of the 6 rules from <code>non-lojban-char-run</code> to <code>run-char</code></summary>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-lojban-char-run.svg" alt="Railroad diagram of the rule non-lojban-char-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/lojban-char.svg" alt="Railroad diagram of the rule lojban-char"></p>
-<p><img src="../../docs/diagrams/phonemes/latin-strict/foreign-char.svg" alt="Railroad diagram of the rule foreign-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/non-lojban-char.svg" alt="Railroad diagram of the rule non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
 
 ## Letters
 
-The stage emits a consonant as itself, whatever its case. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel is the stressed phoneme. The apostrophe is the phoneme `/'/`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
+The stage emits a consonant as itself, whatever its case. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
-%rule consonant
-  | 'b' </b/> | 'B' </b/>
-  | 'c' </c/> | 'C' </c/>
-  | 'd' </d/> | 'D' </d/>
-  | 'f' </f/> | 'F' </f/>
-  | 'g' </g/> | 'G' </g/>
-  | 'j' </j/> | 'J' </j/>
-  | 'k' </k/> | 'K' </k/>
-  | 'l' </l/> | 'L' </l/>
-  | 'm' </m/> | 'M' </m/>
-  | 'n' </n/> | 'N' </n/>
-  | 'p' </p/> | 'P' </p/>
-  | 'r' </r/> | 'R' </r/>
-  | 's' </s/> | 'S' </s/>
-  | 't' </t/> | 'T' </t/>
-  | 'v' </v/> | 'V' </v/>
-  | 'x' </x/> | 'X' </x/>
-  | 'z' </z/> | 'Z' </z/>
+%rule consonant :: ∅
+  | ("b" | "B") := "b"
+  | ("c" | "C") := "c"
+  | ("d" | "D") := "d"
+  | ("f" | "F") := "f"
+  | ("g" | "G") := "g"
+  | ("j" | "J") := "j"
+  | ("k" | "K") := "k"
+  | ("l" | "L") := "l"
+  | ("m" | "M") := "m"
+  | ("n" | "N") := "n"
+  | ("p" | "P") := "p"
+  | ("r" | "R") := "r"
+  | ("s" | "S") := "s"
+  | ("t" | "T") := "t"
+  | ("v" | "V") := "v"
+  | ("x" | "X") := "x"
+  | ("z" | "Z") := "z"
 %emits
   $
 
-%rule plain-vowel
-  'a' </a/> | 'e' </e/> | 'i' </i/> | 'o' </o/> | 'u' </u/> | 'y' </y/>
+%rule plain-vowel :: ∅
+  | "a" | "e" | "i" | "o" | "u" | "y"
 %emits
   $
 
-%rule stressed-vowel
-  'A' </A/> | 'E' </E/> | 'I' </I/> | 'O' </O/> | 'U' </U/> | 'Y' </Y/>
+%rule stressed-vowel :: Stressed
+  | "A" | "E" | "I" | "O" | "U" | "Y"
 %emits
   $
 
 %rule apostrophe
-  '\u{27}' | '’' | '‘' | 'ʼ'
+  "'" | "’" | "‘" | "ʼ"
 %emits
-  $ </'/>
+  $ :: ∅ := "'"
 
 %rule comma
-  ','
+  ","
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>consonant</code> to <code>comma</code></summary>

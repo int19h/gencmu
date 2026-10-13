@@ -311,12 +311,12 @@ func TestEligibleProperty(t *testing.T) {
 // A nested tags query over several tag sets searches eligibility once, over
 // the items of all of them (engine §4).
 func TestTagsQueryEligibleOnce(t *testing.T) {
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text A B\n%tags tags($, r)\n%rule r A [+T] B <X> | A [+T] B <Y> | A [+T] B <Z>"))
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text :: $.tags(r) | A B\n%rule r A [+T] B :: X | A [+T] B :: Y | A [+T] B :: Z"))
 	toks := []Token{{Text: "a", Tags: []string{"A"}, Span: [2]int{0, 1}, Source: [2]int{0, 1}}, {Text: "b", Tags: []string{"B"}, Span: [2]int{1, 2}, Source: [2]int{2, 3}}}
 	// A search for each tag set would pass this budget at the second.
 	w := countWork(t)
 	w.eligibilityRuns.most = 1
-	res, err := d.ParseTokens("a b", toks, ParseOptions{})
+	res, err := d.parseStoredTokens("a b", toks, ParseOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,5 +328,69 @@ func TestTagsQueryEligibleOnce(t *testing.T) {
 	}
 	if n := w.eligibilityRuns.Load(); n != 1 {
 		t.Fatalf("%d searches of eligibility", n)
+	}
+}
+
+// One proof's eligible prefix cannot borrow another proof's permitted omission (§4).
+// Split optional helpers must preserve the same distinction as an ordinary helper.
+func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
+	for _, prefix := range []string{"[A]", "[$a:A]"} {
+		for _, optional := range []string{"[y]", "[($c:y ≻ y)]"} {
+			for _, suffix := range []string{"", " [+U]"} {
+				for _, condition := range []string{"$all.matches(r)", "$all.begins(r)", "Queried ⊆ $all.tags(r)"} {
+					name := prefix + " " + optional + suffix + " " + condition
+					t.Run(name, func(t *testing.T) {
+						grammar := "%rule text $all:input\n%conditions " + condition +
+							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +
+							" [+T] C T U\n%rule y A B | A B C | B z" + suffix + "\n%rule z ε | C T"
+						dialect, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+						if err != nil {
+							t.Fatal(err)
+						}
+						tokens := make([]InputToken, 5)
+						for i, tag := range []string{"A", "B", "C", "T", "U"} {
+							tokens[i] = InputToken{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+						}
+						result, err := dialect.ParseTokens("abctu", tokens, ParseOptions{})
+						// With [+U], the prefix that permits [+T] has a forbidden [+U].
+						// Without [+U], that same prefix supplies an eligible proof.
+						want := suffix == ""
+						if err != nil || result.OK != want || !want && result.Error.Kind != ErrorRejected {
+							t.Fatalf("eligible query %v: %v %+v", want, err, result)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+// A common empty capture merges the resulting items without merging their proofs (§4).
+func TestLogicalOptionalProofCorrelation(t *testing.T) {
+	for _, prefix := range []string{"[A]", "[$a:A]"} {
+		for _, optional := range []string{"[y $c:empty]", "[(y $c:empty)]", "[[y $c:empty]]", "[$c:empty y]", "[$c:y]"} {
+			for _, suffix := range []string{"", " [+U]"} {
+				for _, condition := range []string{"$all.matches(r)", "$all.begins(r)", "Queried ⊆ $all.tags(r)"} {
+					t.Run(prefix+" "+optional+suffix+" "+condition, func(t *testing.T) {
+						grammar := "%rule text $all:input\n%conditions " + condition +
+							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +
+							" [+T] C T U\n%rule y A B | A B C | B z" + suffix + "\n%rule z ε | C T\n%rule empty ε"
+						dialect, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+						if err != nil {
+							t.Fatal(err)
+						}
+						tokens := make([]InputToken, 5)
+						for i, tag := range []string{"A", "B", "C", "T", "U"} {
+							tokens[i] = InputToken{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+						}
+						result, err := dialect.ParseTokens("abctu", tokens, ParseOptions{})
+						want := suffix == ""
+						if err != nil || result.OK != want || !want && result.Error.Kind != ErrorRejected {
+							t.Fatalf("eligible query %v: %v %+v", want, err, result)
+						}
+					})
+				}
+			}
+		}
 	}
 }

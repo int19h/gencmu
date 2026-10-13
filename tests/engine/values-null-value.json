@@ -1,0 +1,14 @@
+{
+  "description": "A null caller value is a usage error before recognition rather than a default value (engine §1, docs/api.md).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": null
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

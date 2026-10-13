@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule Foo A\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 7
+    }
+  },
+  "description": "A rule name must start with an ASCII lowercase letter. A capital-initial name fails at that name (engine §9.3)."
+}

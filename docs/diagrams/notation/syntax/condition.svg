@@ -7,23 +7,23 @@
 <g class="rule"><rect x="40" y="34" width="100" height="24" rx="0"/><text x="90" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">comparison</text></g>
 <path d="M140 46H273"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="50" height="24" rx="0"/><text x="65" y="85" textLength="33.6" lengthAdjust="spacingAndGlyphs">call</text></g>
-<path d="M90 80H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="142" height="24" rx="0"/><text x="111" y="85" textLength="126" lengthAdjust="spacingAndGlyphs">tree-comparison</text></g>
+<path d="M182 80H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="84" height="24" rx="0"/><text x="82" y="119" textLength="67.2" lengthAdjust="spacingAndGlyphs">negation</text></g>
-<path d="M124 114H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="102" width="67" height="24" rx="0"/><text x="73.5" y="119" textLength="50.4" lengthAdjust="spacingAndGlyphs">method</text></g>
+<path d="M107 114H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="136" width="84" height="24" rx="0"/><text x="82" y="153" textLength="67.2" lengthAdjust="spacingAndGlyphs">presence</text></g>
 <path d="M124 148H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">'('</text></g>
-<path d="M82 182h10"/>
-<g class="rule"><rect x="92" y="170" width="109" height="24" rx="0"/><text x="146.5" y="187" textLength="92.4" lengthAdjust="spacingAndGlyphs">implication</text></g>
-<path d="M201 182h10"/>
-<g class="terminal"><rect x="211" y="170" width="42" height="24" rx="12"/><text x="232" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">')'</text></g>
-<path d="M253 182H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="170" width="84" height="24" rx="0"/><text x="82" y="187" textLength="67.2" lengthAdjust="spacingAndGlyphs">negation</text></g>
+<path d="M124 182H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="204" width="142" height="24" rx="0"/><text x="111" y="221" textLength="126" lengthAdjust="spacingAndGlyphs">tree-comparison</text></g>
-<path d="M182 216H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;(&quot;</text></g>
+<path d="M82 216h10"/>
+<g class="rule"><rect x="92" y="204" width="109" height="24" rx="0"/><text x="146.5" y="221" textLength="92.4" lengthAdjust="spacingAndGlyphs">implication</text></g>
+<path d="M201 216h10"/>
+<g class="terminal"><rect x="211" y="204" width="42" height="24" rx="12"/><text x="232" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;)&quot;</text></g>
+<path d="M253 216H253a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M273 46h6m0 -8v16m4 -16v16"/>
 </svg>

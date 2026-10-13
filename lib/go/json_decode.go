@@ -247,7 +247,7 @@ func childSchema(open *jsonOpen) reflect.Type {
 		return t
 	}
 	if !open.isObj {
-		if t.Kind() == reflect.Slice {
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
 			return t.Elem()
 		}
 		return nil
@@ -442,7 +442,9 @@ func (d *jsonDecoder) str() (string, error) {
 				return string(text[1 : len(text)-1]), nil
 			}
 			var s string
-			if err := json.Unmarshal(text, &s); err != nil {
+			var err error
+			s, err = decodeJSONString(text)
+			if err != nil {
 				return "", err
 			}
 			return s, nil
@@ -576,6 +578,14 @@ func fromTree(tree any, out any) error {
 				if f := fieldNamed(to, k); f.IsValid() {
 					jobs = append(jobs, job{v, f, j.path.member(k)})
 				}
+			}
+		case reflect.Array:
+			a, ok := j.v.([]any)
+			if !ok || len(a) != to.Len() {
+				return wrong()
+			}
+			for i, v := range a {
+				jobs = append(jobs, job{v, to.Index(i), j.path.index(i)})
 			}
 		case reflect.Slice:
 			a, ok := j.v.([]any)

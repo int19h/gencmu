@@ -143,7 +143,7 @@ class CloseMachine:
     INVALID = 1
 
     def __init__(self):
-        # Actual records retain sound and source. Semantic links ignore both.
+        # Actual records retain value and source. Semantic links ignore both.
         self.sequences = Sequences()
         self.identities = Sequences()
         self.links = self.sequences.nodes
@@ -288,10 +288,9 @@ def needed(lowered: Any) -> frozenset[int]:
                 if isinstance(node,(list,tuple)):
                     pending.extend(node)
                 elif isinstance(node,dict):
-                    target = node.get("rule") if "matches" in node or "begins" in node else None
-                    span = node.get("matches",node.get("begins"))
-                    if node.get("call") == "tags" and len(node["args"]) == 2:
-                        span,target = node["args"][0],node["args"][1].get("rule")
+                    method = node.get("method")
+                    target = node["args"][0].get("rule") if method in ("matches", "begins", "tags") and node["args"] else None
+                    span = node.get("receiver")
                     if target is not None:
                         target = lowered.rule_ids[target]
                         rules.append(target)
@@ -299,13 +298,13 @@ def needed(lowered: Any) -> frozenset[int]:
                         while spans:
                             part = spans.pop()
                             if isinstance(part,dict):
-                                if part.get("call") == "without-elision":
+                                if part.get("method") == "without-elision":
                                     wanted.add(target)
                                 spans.extend(part.values())
                             elif isinstance(part,(list,tuple)):
                                 spans.extend(part)
-                    if node.get("call") == "without-elision":
-                        name = node["args"][0]["capture"]
+                    if node.get("method") == "without-elision":
+                        name = node["receiver"]["capture"]
                         at = production.captures.get(name)
                         if not name or at is None or production.contextual:
                             wanted.update((production.lhs,lowered.rule_ids[production.rule_name]))
@@ -342,20 +341,20 @@ def local_demand(production):
             continue
         seen.add(id(node))
         if isinstance(node, dict):
-            value = node.get("matches", node.get("begins"))
-            aligned = value["args"][0] if isinstance(value, dict) and value.get("call") == "from" else value
-            if isinstance(aligned, dict) and aligned.get("call") == "without-elision" and "rule" in node:
-                name = aligned["args"][0]["capture"]
+            value = node.get("receiver") if node.get("method") in ("matches", "begins") else None
+            aligned = value["receiver"] if isinstance(value, dict) and value.get("method") == "onward" else value
+            if isinstance(aligned, dict) and aligned.get("method") == "without-elision":
+                name = aligned["receiver"]["capture"]
                 if name in production.captures:
                     position = production.captures[name]
                     positions.add(position)
                     if position not in queries:
                         queries[position] = set()
                     if queries[position] is not None:
-                        queries[position].add(node["rule"])
+                        queries[position].add(node["args"][0]["rule"])
                     continue
-            if node.get("call") == "without-elision":
-                name = node["args"][0]["capture"]
+            if node.get("method") == "without-elision":
+                name = node["receiver"]["capture"]
                 if name == "":
                     whole = True
                 elif name in production.captures:

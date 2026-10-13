@@ -1,6 +1,6 @@
 {
-  "description": "from and after give spans of tokens: tags of one is the union of its tokens' tags, not a constituent's (engine §10).",
-  "grammar": "%rule text $x(y) B %conditions Z ⊈ tags(from($x)), A ⊆ tags(from($x)), B ⊆ tags(from($x)), A ⊈ tags(after($x))\n%rule y A <Z>",
+  "description": "onward and following-tokens give spans of tokens: tags of one is the union of its tokens' tags, not a constituent's (engine §10).",
+  "grammar": "%rule text ($x:y B) %conditions Z ⊈ $x.onward.tags, A ⊆ $x.onward.tags, B ⊆ $x.onward.tags, A ⊈ $x.following-tokens.tags\n%rule y A :: Z",
   "tokens": [
     {
       "text": "a",

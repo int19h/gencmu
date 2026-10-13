@@ -27,21 +27,21 @@ func TestRankedLinearForest(t *testing.T) {
 			tokens[i] = Token{Text: text, Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
 		}
 		var stats []slotStatistics
-		res, err := d.ParseTokens(strings.Repeat("xy", n), tokens, ParseOptions{NoAutoFeatures: true, private: &privateOptions{slotAdmission: func(s slotStatistics) { stats = append(stats, s) }}})
+		res, err := d.parseStoredTokens(strings.Repeat("xy", n), tokens, ParseOptions{NoAutoFeatures: true, private: &privateOptions{slotAdmission: func(s slotStatistics) { stats = append(stats, s) }}})
 		if err != nil || res.Stages[0].Verdict != VerdictUnique || len(stats) == 0 || stats[0].groups != n || stats[0].candidateEdges != 2*n || stats[0].retainedEdges != n {
 			t.Fatalf("%d: %v %+v", n, err, stats)
 		}
 	}
 }
 func TestRankedDOMCacheDiagnostics(t *testing.T) {
-	sources := oneStage("%const $K ~k\n%ambiguity-resolution late-elision\n%rule text Q (($x(a) ≻ b) ≻ c) Z\n%tags $x ⟹ (tags($x) ∪ $K)\n%rule a X Y\n%rule b U V\n%rule c R S")
+	sources := oneStage("%const $K K\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S")
 	_, plain := LoadDialectSources(sources, "p.md")
 	dom, e := bundled.reader.read(sources["g.md"], "g.md")
 	if e != nil {
 		t.Fatal(e)
 	}
 	// The source alone now loads. Only the cached DOM retains the export error.
-	sources["g.md"] = strings.Replace(sources["g.md"], "%tags $x ⟹ (tags($x) ∪ $K)", "%tags ∅", 1)
+	sources["g.md"] = strings.Replace(sources["g.md"], ":: $x ⟹ ($x.tags ∪ $K)", ":: ∅"+strings.Repeat(" ", len([]rune(":: $x ⟹ ($x.tags ∪ $K)"))-4), 1)
 	if _, err := LoadDialectSources(sources, "p.md"); err != nil {
 		t.Fatalf("cache bypass control does not load: %v", err)
 	}
@@ -51,8 +51,8 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 		t.Fatalf("%+v\n%+v", plain, cached)
 	}
 	error := plain.(*Error)
-	if error.Code != "ranked-choice-export" || error.Group.Path != "/seq/1/ranked/0" || *error.Group.At != [2]int{6, 22} || *error.Option != 0 {
-		t.Fatalf("%+v", error)
+	if error.Code != "ranked-choice-export" || error.Group.Path != "/seq/1/ranked/0" || *error.Group.At != [2]int{6, 46} || *error.Option != 0 {
+		t.Fatalf("%+v path=%s at=%v option=%d", error, error.Group.Path, *error.Group.At, *error.Option)
 	}
 	raw, err := json.Marshal(error)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	}
 }
 func TestRankedShortestTagWitness(t *testing.T) {
-	_, err := LoadDialectSources(oneStage("%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b Z\n%tags ∅"), "p.md")
+	_, err := LoadDialectSources(oneStage("%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
 	if err == nil {
 		t.Fatal("grammar loaded")
 	}

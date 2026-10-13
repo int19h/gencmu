@@ -1,38 +1,45 @@
 {
-  "description": "begins(span, rule) is a condition, and from and after are spans (engine §9, §10).",
-  "document": "# A document\n\n```jbogenbau\n%rule g $a(A) %conditions begins(after($a), g), ¬begins(from(tail($a)), g)\n```\n",
+  "description": "The .begins method takes a span receiver and a rule argument. .following-tokens and .onward construct the receivers of the two query conditions (engine §9.3, §10).",
+  "document": "# A document\n\n```jbogenbau\n%rule g $a:A %conditions $a.following-tokens.begins(g), ¬($a.tokens-after-first.onward.begins(g))\n```\n",
   "expect": {
     "dom": {
       "rules": [
         {
           "conditions": [
             {
-              "begins": {
-                "call": "after",
-                "args": [
-                  {
-                    "capture": "a"
-                  }
-                ]
+              "method": "begins",
+              "receiver": {
+                "method": "following-tokens",
+                "receiver": {
+                  "capture": "a"
+                },
+                "args": []
               },
-              "rule": "g"
+              "args": [
+                {
+                  "rule": "g"
+                }
+              ]
             },
             {
               "not": {
-                "begins": {
-                  "call": "from",
-                  "args": [
-                    {
-                      "call": "tail",
-                      "args": [
-                        {
-                          "capture": "a"
-                        }
-                      ]
-                    }
-                  ]
+                "method": "begins",
+                "receiver": {
+                  "method": "onward",
+                  "receiver": {
+                    "method": "tokens-after-first",
+                    "receiver": {
+                      "capture": "a"
+                    },
+                    "args": []
+                  },
+                  "args": []
                 },
-                "rule": "g"
+                "args": [
+                  {
+                    "rule": "g"
+                  }
+                ]
               }
             }
           ]

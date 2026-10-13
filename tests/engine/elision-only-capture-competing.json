@@ -1,6 +1,6 @@
 {
-  "description": "The check reads the restored text a KU c. w → [$y(KU)] C reads the synthetic KU as a bare terminal, through a capturing plain optional, so the condition $y holds there, and the text is ambiguous for elision-only. In that reading the synthetic token is an elided node, and $y has empty text and no tags (engine §7.4, §7.5).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y | s w\n%rule y [+VAU] A C\n%rule s A\n%rule w [$y(KU)] C\n%tags $y ⟹ tags($y)\n%conditions $y",
+  "description": "The check reads the restored text a KU c. w → [$y:KU] C reads the synthetic KU as a bare terminal, through a capturing plain optional, so the condition $y holds there, and the text is ambiguous for elision-only. In that reading the synthetic token is an elided node, and $y has empty text and no tags (engine §7.4, §7.5).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (s [+KU] C) | y | (s w)\n%rule y ([+VAU] A C)\n%rule s A\n%rule w :: ($y ⟹ $y.tags) | ([$y:KU] C) %conditions $y\n\n",
   "tokens": [
     {
       "text": "a",

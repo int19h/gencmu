@@ -1,5 +1,5 @@
 {
-  "description": "C05 preserves emitted sounds, tags, and source spans. It preserves every named close and terminal read in the complete forms tree.",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -10,11 +10,80 @@
   },
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
           "name": "phonemes"
+        },
+        {
+          "name": "normalize",
+          "output": [
+            {},
+            {
+              "tags": [],
+              "value": "a",
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "tags": [],
+              "value": "i",
+              "span": [
+                2,
+                3
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {},
+            {},
+            {
+              "tags": [],
+              "value": "i",
+              "span": [
+                5,
+                6
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {},
+            {
+              "tags": [],
+              "value": "a",
+              "span": [
+                7,
+                8
+              ],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "tags": [],
+              "value": "u",
+              "span": [
+                8,
+                9
+              ],
+              "source": [
+                8,
+                9
+              ]
+            }
+          ]
         },
         {
           "name": "forms",
@@ -22,16 +91,16 @@
           "output": [
             {
               "text": "sai",
-              "phonemes": "sai",
-              "label": "sai",
+              "value": "sai",
+              "image": "sai",
               "tags": [
                 "CAI",
-                "cmavo",
-                "continued",
-                "indicator",
-                "onset",
-                "run-initial",
-                "word"
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Onset",
+                "Run-Initial",
+                "Word"
               ],
               "span": [
                 0,
@@ -44,17 +113,17 @@
             },
             {
               "text": "cligau",
-              "phonemes": "cligau",
-              "label": "cligau",
+              "value": "cligau",
+              "image": "cligau",
               "tags": [
                 "BRIVLA",
-                "initial-stress",
-                "lujvo",
-                "onset",
-                "open-stress",
-                "run-final",
-                "stress-guard",
-                "word"
+                "Initial-Stress",
+                "Lujvo",
+                "Onset",
+                "Open-Stress",
+                "Run-Final",
+                "Stress-Guard",
+                "Word"
               ],
               "span": [
                 3,
@@ -94,12 +163,12 @@
             ],
             "tags": [
               "BRIVLA",
-              "initial-stress",
-              "lujvo",
-              "onset",
-              "open-stress",
-              "stress-guard",
-              "word"
+              "Initial-Stress",
+              "Lujvo",
+              "Onset",
+              "Open-Stress",
+              "Stress-Guard",
+              "Word"
             ],
             "children": [
               {
@@ -115,17 +184,17 @@
                 ],
                 "tags": [
                   "BRIVLA",
-                  "initial-stress",
-                  "lujvo",
-                  "onset",
-                  "open-stress",
-                  "stress-guard",
-                  "word"
+                  "Initial-Stress",
+                  "Lujvo",
+                  "Onset",
+                  "Open-Stress",
+                  "Stress-Guard",
+                  "Word"
                 ],
                 "children": [
                   {
                     "kind": "rule",
-                    "rule": "read-run",
+                    "rule": "word-run",
                     "span": [
                       0,
                       9
@@ -136,12 +205,12 @@
                     ],
                     "tags": [
                       "BRIVLA",
-                      "initial-stress",
-                      "lujvo",
-                      "onset",
-                      "open-stress",
-                      "stress-guard",
-                      "word"
+                      "Initial-Stress",
+                      "Lujvo",
+                      "Onset",
+                      "Open-Stress",
+                      "Stress-Guard",
+                      "Word"
                     ],
                     "children": [
                       {
@@ -157,12 +226,12 @@
                         ],
                         "tags": [
                           "BRIVLA",
-                          "initial-stress",
-                          "lujvo",
-                          "onset",
-                          "open-stress",
-                          "stress-guard",
-                          "word"
+                          "Initial-Stress",
+                          "Lujvo",
+                          "Onset",
+                          "Open-Stress",
+                          "Stress-Guard",
+                          "Word"
                         ],
                         "children": [
                           {
@@ -178,10 +247,10 @@
                             ],
                             "tags": [
                               "CAI",
-                              "cmavo",
-                              "continued",
-                              "onset",
-                              "word"
+                              "Cmavo",
+                              "Continued",
+                              "Onset",
+                              "Word"
                             ],
                             "children": [
                               {
@@ -197,10 +266,10 @@
                                 ],
                                 "tags": [
                                   "CAI",
-                                  "cmavo",
-                                  "continued",
-                                  "onset",
-                                  "word"
+                                  "Cmavo",
+                                  "Continued",
+                                  "Onset",
+                                  "Word"
                                 ],
                                 "children": [
                                   {
@@ -216,10 +285,10 @@
                                     ],
                                     "tags": [
                                       "CAI",
-                                      "cmavo",
-                                      "continued",
-                                      "onset",
-                                      "word"
+                                      "Cmavo",
+                                      "Continued",
+                                      "Onset",
+                                      "Word"
                                     ],
                                     "children": [
                                       {
@@ -235,10 +304,10 @@
                                         ],
                                         "tags": [
                                           "CAI",
-                                          "cmavo",
-                                          "continued",
-                                          "onset",
-                                          "word"
+                                          "Cmavo",
+                                          "Continued",
+                                          "Onset",
+                                          "Word"
                                         ],
                                         "children": [
                                           {
@@ -253,8 +322,8 @@
                                               3
                                             ],
                                             "tags": [
-                                              "continued",
-                                              "onset"
+                                              "Continued",
+                                              "Onset"
                                             ],
                                             "children": [
                                               {
@@ -281,13 +350,11 @@
                                                       0,
                                                       1
                                                     ],
-                                                    "tags": [
-                                                      "/s/"
-                                                    ],
+                                                    "tags": [],
                                                     "children": [
                                                       {
                                                         "kind": "token",
-                                                        "terminal": "/s/",
+                                                        "terminal": "\"s\"",
                                                         "token": 0,
                                                         "span": [
                                                           0,
@@ -353,8 +420,9 @@
                                                                 "tags": [],
                                                                 "children": [
                                                                   {
-                                                                    "kind": "rule",
-                                                                    "rule": "any-a",
+                                                                    "kind": "token",
+                                                                    "terminal": "\"a\"",
+                                                                    "token": 1,
                                                                     "span": [
                                                                       1,
                                                                       2
@@ -362,29 +430,12 @@
                                                                     "source": [
                                                                       1,
                                                                       2
-                                                                    ],
-                                                                    "tags": [
-                                                                      "/a/"
-                                                                    ],
-                                                                    "children": [
-                                                                      {
-                                                                        "kind": "token",
-                                                                        "terminal": "/a/",
-                                                                        "token": 1,
-                                                                        "span": [
-                                                                          1,
-                                                                          2
-                                                                        ],
-                                                                        "source": [
-                                                                          1,
-                                                                          2
-                                                                        ]
-                                                                      }
                                                                     ]
                                                                   },
                                                                   {
-                                                                    "kind": "rule",
-                                                                    "rule": "any-i",
+                                                                    "kind": "token",
+                                                                    "terminal": "\"i\"",
+                                                                    "token": 2,
                                                                     "span": [
                                                                       2,
                                                                       3
@@ -392,24 +443,6 @@
                                                                     "source": [
                                                                       2,
                                                                       3
-                                                                    ],
-                                                                    "tags": [
-                                                                      "/i/"
-                                                                    ],
-                                                                    "children": [
-                                                                      {
-                                                                        "kind": "token",
-                                                                        "terminal": "/i/",
-                                                                        "token": 2,
-                                                                        "span": [
-                                                                          2,
-                                                                          3
-                                                                        ],
-                                                                        "source": [
-                                                                          2,
-                                                                          3
-                                                                        ]
-                                                                      }
                                                                     ]
                                                                   }
                                                                 ]
@@ -445,12 +478,12 @@
                             ],
                             "tags": [
                               "BRIVLA",
-                              "initial-stress",
-                              "lujvo",
-                              "onset",
-                              "open-stress",
-                              "stress-guard",
-                              "word"
+                              "Initial-Stress",
+                              "Lujvo",
+                              "Onset",
+                              "Open-Stress",
+                              "Stress-Guard",
+                              "Word"
                             ],
                             "children": [
                               {
@@ -466,12 +499,12 @@
                                 ],
                                 "tags": [
                                   "BRIVLA",
-                                  "initial-stress",
-                                  "lujvo",
-                                  "onset",
-                                  "open-stress",
-                                  "stress-guard",
-                                  "word"
+                                  "Initial-Stress",
+                                  "Lujvo",
+                                  "Onset",
+                                  "Open-Stress",
+                                  "Stress-Guard",
+                                  "Word"
                                 ],
                                 "children": [
                                   {
@@ -487,12 +520,12 @@
                                     ],
                                     "tags": [
                                       "BRIVLA",
-                                      "initial-stress",
-                                      "lujvo",
-                                      "onset",
-                                      "open-stress",
-                                      "stress-guard",
-                                      "word"
+                                      "Initial-Stress",
+                                      "Lujvo",
+                                      "Onset",
+                                      "Open-Stress",
+                                      "Stress-Guard",
+                                      "Word"
                                     ],
                                     "children": [
                                       {
@@ -507,11 +540,11 @@
                                           9
                                         ],
                                         "tags": [
-                                          "initial-stress",
-                                          "lujvo",
-                                          "onset",
-                                          "open-stress",
-                                          "stress-guard"
+                                          "Initial-Stress",
+                                          "Lujvo",
+                                          "Onset",
+                                          "Open-Stress",
+                                          "Stress-Guard"
                                         ],
                                         "children": [
                                           {
@@ -526,8 +559,8 @@
                                               9
                                             ],
                                             "tags": [
-                                              "lujvo",
-                                              "onset"
+                                              "Lujvo",
+                                              "Onset"
                                             ],
                                             "children": [
                                               {
@@ -571,7 +604,7 @@
                                                         "children": [
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/c/",
+                                                            "terminal": "\"c\"",
                                                             "token": 3,
                                                             "span": [
                                                               3,
@@ -584,7 +617,7 @@
                                                           },
                                                           {
                                                             "kind": "token",
-                                                            "terminal": "/l/",
+                                                            "terminal": "\"l\"",
                                                             "token": 4,
                                                             "span": [
                                                               4,
@@ -608,13 +641,12 @@
                                                           5,
                                                           6
                                                         ],
-                                                        "tags": [
-                                                          "/i/"
-                                                        ],
+                                                        "tags": [],
                                                         "children": [
                                                           {
-                                                            "kind": "rule",
-                                                            "rule": "any-i",
+                                                            "kind": "token",
+                                                            "terminal": "\"i\"",
+                                                            "token": 5,
                                                             "span": [
                                                               5,
                                                               6
@@ -622,24 +654,6 @@
                                                             "source": [
                                                               5,
                                                               6
-                                                            ],
-                                                            "tags": [
-                                                              "/i/"
-                                                            ],
-                                                            "children": [
-                                                              {
-                                                                "kind": "token",
-                                                                "terminal": "/i/",
-                                                                "token": 5,
-                                                                "span": [
-                                                                  5,
-                                                                  6
-                                                                ],
-                                                                "source": [
-                                                                  5,
-                                                                  6
-                                                                ]
-                                                              }
                                                             ]
                                                           }
                                                         ]
@@ -696,13 +710,11 @@
                                                                   6,
                                                                   7
                                                                 ],
-                                                                "tags": [
-                                                                  "/g/"
-                                                                ],
+                                                                "tags": [],
                                                                 "children": [
                                                                   {
                                                                     "kind": "token",
-                                                                    "terminal": "/g/",
+                                                                    "terminal": "\"g\"",
                                                                     "token": 6,
                                                                     "span": [
                                                                       6,
@@ -742,8 +754,9 @@
                                                                     "tags": [],
                                                                     "children": [
                                                                       {
-                                                                        "kind": "rule",
-                                                                        "rule": "any-a",
+                                                                        "kind": "token",
+                                                                        "terminal": "\"a\"",
+                                                                        "token": 7,
                                                                         "span": [
                                                                           7,
                                                                           8
@@ -751,29 +764,12 @@
                                                                         "source": [
                                                                           7,
                                                                           8
-                                                                        ],
-                                                                        "tags": [
-                                                                          "/a/"
-                                                                        ],
-                                                                        "children": [
-                                                                          {
-                                                                            "kind": "token",
-                                                                            "terminal": "/a/",
-                                                                            "token": 7,
-                                                                            "span": [
-                                                                              7,
-                                                                              8
-                                                                            ],
-                                                                            "source": [
-                                                                              7,
-                                                                              8
-                                                                            ]
-                                                                          }
                                                                         ]
                                                                       },
                                                                       {
-                                                                        "kind": "rule",
-                                                                        "rule": "any-u",
+                                                                        "kind": "token",
+                                                                        "terminal": "\"u\"",
+                                                                        "token": 8,
                                                                         "span": [
                                                                           8,
                                                                           9
@@ -781,24 +777,6 @@
                                                                         "source": [
                                                                           8,
                                                                           9
-                                                                        ],
-                                                                        "tags": [
-                                                                          "/u/"
-                                                                        ],
-                                                                        "children": [
-                                                                          {
-                                                                            "kind": "token",
-                                                                            "terminal": "/u/",
-                                                                            "token": 8,
-                                                                            "span": [
-                                                                              8,
-                                                                              9
-                                                                            ],
-                                                                            "source": [
-                                                                              8,
-                                                                              9
-                                                                            ]
-                                                                          }
                                                                         ]
                                                                       }
                                                                     ]

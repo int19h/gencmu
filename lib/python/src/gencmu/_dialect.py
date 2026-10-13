@@ -21,9 +21,9 @@ from ._model import Feature, Node, ParseError, ParseResult, ParseWarning, Stage,
 from ._pipeline import Pipeline, splice_pipeline
 from ._recent import Recent
 from ._stage import StageOutcome, StageRunner
-from ._tags import character_tag, is_name
+from ._tags import is_tag
 from ._unicode import UnicodeTable
-from ._validate import FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
+from ._validate import CLASSIFIER_NAME, FORMAT, MAX_DEPTH, TOO_DEEP, dom_problem
 
 DOM_FORMAT = FORMAT
 
@@ -147,7 +147,11 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
     for index, char in enumerate(text):
         found = tags.get(char)
         if found is None:
-            found = tags[char] = frozenset((character_tag(ord(char), unicode),))
+            category = unicode.category(ord(char))
+            assigned = {"_" + category, "_" + category[0]}
+            if unicode.is_white_space(ord(char)):
+                assigned.add("_White_Space")
+            found = tags[char] = frozenset(assigned)
         tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
     return tokens
 
@@ -187,7 +191,7 @@ class NotationReader:
         names: set[str] = set()
         for stage in stages_data:
             documents = stage.get("documents") if isinstance(stage, dict) else None
-            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or not is_name(stage["name"]) or not isinstance(documents, list) or not documents:
+            if not isinstance(stage, dict) or not isinstance(stage.get("name"), str) or CLASSIFIER_NAME.fullmatch(stage["name"]) is None or not isinstance(documents, list) or not documents:
                 raise GencmuError("a stage of the bootstrap has a name and documents", document=where)
             if stage["name"] in names:
                 raise GencmuError(f"a second stage named {stage['name']}", document=where)
@@ -331,9 +335,8 @@ def _reader(bootstrap: str, unicode_text: str) -> NotationReader:
 
 
 def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str) -> dict[str, Dom]:
-    """The precompiled DOMs usable with this bootstrap, by text hash. Their
-    sound tests are checked with the lowercase mapping that the match uses
-    (engine §9)."""
+    """The precompiled DOMs usable with this bootstrap, by text hash.
+    Their schema and exact string values follow engine §9."""
     if not compiled:
         return {}
     key = (compiled, bootstrap_hash, unicode_text)
@@ -393,7 +396,7 @@ class _Loader:
             raise GencmuError(f"the document is not a sequence of Unicode scalar values: {problem}", kind="usage", document=path)
         text_hash = fnv1a64(text)
         # The reader keeps the DOMs it read. So the bootstrap and the Unicode
-        # table are part of the key: a sound test that one table accepts
+        # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
         key = (text_hash, DOM_FORMAT)
         if self.use_cache:
@@ -424,6 +427,21 @@ class _Loader:
         try:
             return self._load(pipeline_path)
         except GencmuError as error:
+            location = getattr(error, "_recipe_location", None)
+            if location is not None:
+                # A cached recipe has no source position in the DOM. Read
+                # positions only; the failed cached grammar remains the
+                # authority for this diagnostic.
+                at, index, channel = location
+                fresh = self.reader.read(self.text(error.document), error.document, True)
+                for rule in fresh["rules"]:
+                    if tuple(rule["at"]) == at:
+                        owner = rule if channel.startswith("rule_") else rule["alternatives"][index]
+                        recipe = owner.get(channel.removeprefix("rule_"))
+                        if hasattr(recipe, "at"):
+                            error.line, error.column = recipe.at
+                        break
+                raise
             if not error.code or not error.code.startswith('ranked-choice-') or not error.group or 'at' in error.group or not error.group.get('document'):
                 raise
             # Retry only a failed load, with locations for its diagnostic document.
@@ -628,31 +646,33 @@ class Dialect:
         if on & off:
             raise GencmuError(f"the feature {min(on & off)} is named both to turn on and to turn off", kind="usage")
         enabled = (self.declared | on) - off
-        # A token that the caller supplies has its text as its label (engine
+        # A caller token stores value and image independently (engine
         # §5). It has no attachments: a list that is not empty is the
         # caller's mistake, and an empty one is dropped (docs/api.md). The
         # parse copies each token, so the caller's objects stay as they are.
         # The copy has its tags and positions in values that cannot change,
         # so the result shares nothing that the caller can change.
+        def valid_range(value, limit=None):
+            return (isinstance(value, (list, tuple)) and len(value) == 2 and all(type(n) is int for n in value)
+                    and 0 <= value[0] <= value[1] and (limit is None or value[1] <= limit))
+
         for index, token in enumerate(tokens):
             if token.before or token.after:
                 raise GencmuError(f"token {index} has attachments, which a caller cannot supply", kind="usage")
-            # A source counts code points of the text, and must lie within
-            # it. Sources can overlap or lie out of order (engine §11). A
-            # span counts tokens of the stage before, so only its order is
-            # checked (docs/api.md).
-            start, end = token.source
-            if not 0 <= start <= end <= len(text):
-                raise GencmuError(f"token {index}: the source {list(token.source)} is not a range within a text of {len(text)} code points", kind="usage")
-            if token.span is not None and not 0 <= token.span[0] <= token.span[1]:
-                raise GencmuError(f"token {index}: the span {list(token.span)} is not a range of tokens: it starts below 0 or ends before it starts", kind="usage")
+            for field in ("text", "value", "image"):
+                value = getattr(token, field)
+                if not isinstance(value, str) or scalar_problem(value) is not None:
+                    raise GencmuError(f"token {index}: {field} requires a scalar string", kind="usage")
+            if isinstance(token.tags, str) or not isinstance(token.tags, (list, tuple, set, frozenset)) or any(not is_tag(tag) for tag in token.tags):
+                raise GencmuError(f"token {index}: invalid stored tags", kind="usage")
+            if not valid_range(token.source, len(text)) or not valid_range(token.span):
+                raise GencmuError(f"token {index}: invalid source or span", kind="usage")
         tokens = [
             replace(
                 token,
                 tags=frozenset(token.tags),
                 span=None if token.span is None else (token.span[0], token.span[1]),
                 source=(token.source[0], token.source[1]),
-                label=token.text,
                 before=[],
                 after=[],
             )

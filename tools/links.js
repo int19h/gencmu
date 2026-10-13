@@ -7,6 +7,7 @@
 // CommonMark and GFM parser of tools/markdown.js.
 import { parseMarkdown, walk } from "./markdown.js";
 import { countWork, hooks } from "../lib/js/src/testing.js";
+import path from "node:path";
 
 /**
  * The targets of the inline links in a piece of Markdown, as the parser
@@ -17,6 +18,49 @@ import { countWork, hooks } from "../lib/js/src/testing.js";
  */
 export function inlineLinkTargets(markdown) {
   return linkTargets(parseMarkdown(markdown));
+}
+
+/**
+ * The GitHub anchors of a document's headings, including repeated headings.
+ * @param {string} markdown
+ * @returns {Set<string>}
+ */
+export function headingAnchors(markdown) {
+  const anchors = new Set();
+  for (const { node } of walk(parseMarkdown(markdown))) {
+    if (node.type !== "heading") continue;
+    const text = [...walk(node)].map(({ node: part }) => ["text", "inlineCode"].includes(part.type) ? part.value ?? "" : "").join("");
+    const base = text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}_\-\s]/gu, "").replace(/\s/gu, "-");
+    let anchor = base;
+    for (let suffix = 1; anchors.has(anchor); suffix++) anchor = `${base}-${suffix}`;
+    anchors.add(anchor);
+  }
+  return anchors;
+}
+
+/**
+ * Local Markdown links with a heading fragment must name an existing heading.
+ * @param {string} markdown
+ * @param {string} file
+ * @param {(path: string) => Set<string> | null} read
+ * @returns {string[]}
+ */
+export function localAnchorProblems(markdown, file, read) {
+  const problems = [];
+  for (const { node } of walk(parseMarkdown(markdown))) {
+    if (node.type !== "link" || !node.url || /^[a-z][a-z0-9+.-]*:/i.test(node.url) || node.url.startsWith("//")) continue;
+    const hash = node.url.indexOf("#");
+    if (hash === -1 || hash === node.url.length - 1) continue;
+    const target = decodeURIComponent(node.url.slice(0, hash));
+    if (target && !target.endsWith(".md")) continue;
+    const relative = target ? path.posix.normalize(path.posix.join(path.posix.dirname(file), target)) : file;
+    const fragment = decodeURIComponent(node.url.slice(hash + 1));
+    const anchors = read(relative);
+    if (!anchors || !anchors.has(fragment)) {
+      problems.push(`${file}:${node.position.start.line}: the local link ${node.url} names no heading`);
+    }
+  }
+  return problems;
 }
 
 /**

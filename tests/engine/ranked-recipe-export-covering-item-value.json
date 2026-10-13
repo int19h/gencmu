@@ -1,0 +1,14 @@
+{
+  "description": "The covering-item value recipe cannot export a private ranked capture. Name analysis reports ranked-choice-export before absence pruning and cycles (engine §2.1 and §11.4).",
+  "grammar": "%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ := $x.value",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 25
+    }
+  }
+}

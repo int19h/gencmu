@@ -33,7 +33,7 @@ export type CaseOutcome = {
      */
     ties?: string[];
     /**
-     * the labels of the words stage's output
+     * the images of the words stage's output
      */
     words?: string[];
     /**
@@ -55,7 +55,7 @@ export type CaseOutcome = {
  * @property {{kind: string, reason: string | undefined}} [error] an
  *   ambiguous error's kind and reason
  * @property {string[]} [ties] the stages whose verdict is a tie
- * @property {string[]} [words] the labels of the words stage's output
+ * @property {string[]} [words] the images of the words stage's output
  * @property {string} [brackets] the tree of an accepted text, with elided
  *   terminators hidden
  */

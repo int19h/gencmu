@@ -1,10 +1,35 @@
 {
-  "description": "A character tag holds exactly one character: 'ab' is an error at the tag (engine §9).",
-  "document": "```jbogenbau\n%rule a 'ab'\n```\n",
+  "description": "Engine §4 admits every scalar string as a terminal, including empty and multiscalar values.",
+  "document": "```jbogenbau\n%rule a \"ab\"\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 9
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "ab"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

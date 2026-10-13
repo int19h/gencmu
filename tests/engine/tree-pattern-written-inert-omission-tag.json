@@ -1,6 +1,6 @@
 {
-  "description": "An inert singleton omission leaves the written route available. The original token carries both terminal and operand tags.",
-  "grammar": "%rule text A [+T⊇U]\n%conditions $ ≅ @(A T⊇U)",
+  "description": "An inert singleton omission leaves the written route available. The original token carries both terminal and operand tags (engine §4.1 and §10).",
+  "grammar": "%rule text (A [+T<U>]) %conditions $ ≅ @(A T<U>)\n",
   "tokens": [
     {
       "text": "a",

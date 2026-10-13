@@ -1,6 +1,6 @@
 {
-  "description": "An ordinary omission completes the recursive construction over ab. The grammar never negates the eligibility of that same omission.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text y\n%rule y A | z [+T] B\n%rule z y",
+  "description": "An ordinary omission completes the recursive construction over ab. The grammar never negates the eligibility of that same omission (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text y\n%rule y A | (z [+T] B)\n%rule z y",
   "tokens": [
     {
       "text": "a",

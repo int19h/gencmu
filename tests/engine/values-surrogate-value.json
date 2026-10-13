@@ -1,0 +1,14 @@
+{
+  "description": "A caller value with a lone surrogate is a usage error before recognition (engine §1, docs/api.md).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "\ud800"
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

@@ -1,15 +1,17 @@
 {
-  "description": "Text that no input token covers, between two adjacent opaque parts, belongs to the first of them: `a,b` gives `a,` and `b`. Each part sounds `?` and has its text as its label (engine §5, §11).",
+  "description": "Two adjacent verbatim image recipes claim the same uncovered comma in a,b. Their different input spans conflict, so emission ends with a grammar error (engine §11.1).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage letters\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage bodies\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | comma\n%rule letter 'a' | 'b'\n%emits $ <L>\n%rule comma ','\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $a(v) $b(v)\n%emits $a <A>, $b <B>\n%rule v L\n%opaque\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | comma\n%rule letter \"a\" | \"b\" %emits $ :: L\n\n%rule comma \",\"\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($a:v $b:v) %emits $a :: A, $b :: B\n\n%rule v :- $.verbatim-text | L\n\n```\n"
   },
   "pipeline": "p.md",
   "input": "a,b",
   "expect": {
+    "error": "grammar",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
           "output": [
@@ -30,36 +32,14 @@
           ]
         },
         {
-          "output": [
-            {
-              "text": "a,",
-              "phonemes": "?",
-              "label": "a,",
-              "span": [
-                0,
-                1
-              ],
-              "source": [
-                0,
-                2
-              ]
-            },
-            {
-              "text": "b",
-              "phonemes": "?",
-              "label": "b",
-              "span": [
-                1,
-                2
-              ],
-              "source": [
-                2,
-                3
-              ]
-            }
-          ]
+          "name": "bodies",
+          "verdict": "unique"
         }
-      ]
+      ],
+      "error": {
+        "kind": "grammar",
+        "stage": "bodies"
+      }
     }
   }
 }

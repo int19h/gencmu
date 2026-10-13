@@ -14,9 +14,9 @@
       "F8"
     ],
     "reparse-empty-capture-provenance.json": [
-      "F1:phonemes",
-      "F1pos:head",
-      "F1pos:phonemes"
+      "F1:value",
+      "F1pos:first-token",
+      "F1pos:value"
     ],
     "reparse-equal-readings-witness.json": [],
     "reparse-incompatible-optional-sound.json": [
@@ -30,81 +30,74 @@
       "F23"
     ],
     "reparse-memo-modes.json": [
-      "F1pos:after",
+      "F1pos:following-tokens",
       "F23"
     ],
     "reparse-observer-after.json": [
-      "F1pos:after"
+      "F1pos:following-tokens"
     ],
     "reparse-observer-classes.json": [
-      "F1:head",
+      "F1:first-token",
       "F1pos:classes",
-      "F1pos:head"
+      "F1pos:first-token"
     ],
     "reparse-observer-from.json": [
-      "F1pos:from",
-      "F1pos:text"
+      "F1pos:onward",
+      "F1pos:source-text"
     ],
     "reparse-observer-head.json": [
-      "F1:head",
-      "F1pos:head"
+      "F1:first-token",
+      "F1pos:first-token"
     ],
     "reparse-observer-initial.json": [
-      "F1:initial",
-      "F1pos:initial"
+      "F1:starts-input",
+      "F1pos:starts-input"
     ],
     "reparse-observer-last.json": [
-      "F1:last",
-      "F1pos:last"
+      "F1:last-token",
+      "F1pos:last-token"
     ],
     "reparse-observer-phonemes.json": [
-      "F1:phonemes",
-      "F1pos:phonemes"
+      "F1:value",
+      "F1pos:value"
     ],
     "reparse-observer-tags.json": [
       "F1pos:tags"
     ],
     "reparse-observer-tail.json": [
-      "F1:tail",
-      "F1pos:tail"
+      "F1:tokens-after-first",
+      "F1pos:tokens-after-first"
     ],
     "reparse-observer-union-classes-from.json": [
       "F1:classes",
-      "F1pos:from",
+      "F1pos:onward",
       "F7:union"
     ],
     "reparse-observer-union-classes-tail.json": [
       "F1:classes",
-      "F1:tail",
+      "F1:tokens-after-first",
       "F7:union"
     ],
     "reparse-observer-union-tags-from.json": [
       "F1:tags",
-      "F1pos:from",
+      "F1pos:onward",
       "F7:union"
     ],
     "reparse-observer-union-tags-tail.json": [
       "F1:tags",
-      "F1:tail",
+      "F1:tokens-after-first",
       "F7:union"
     ],
     "reparse-original-lookahead.json": [
       "F13",
-      "F1pos:after"
-    ],
-    "reparse-original-nonmonotonic-sources.json": [
-      "F12",
-      "F1:head",
-      "F1:text",
-      "F1pos:head",
-      "F1pos:text"
+      "F1pos:following-tokens"
     ],
     "reparse-original-rule-test.json": [
       "F9"
     ],
     "reparse-original-text.json": [
-      "F1:text",
-      "F1pos:text"
+      "F1:source-text",
+      "F1pos:source-text"
     ],
     "reparse-original-zero-width-token.json": [
       "F12"
@@ -113,8 +106,8 @@
       "F19"
     ],
     "reparse-query-long-after.json": [
-      "F1pos:after",
-      "F1pos:from"
+      "F1pos:following-tokens",
+      "F1pos:onward"
     ],
     "reparse-query-long-collision.json": [
       "F21"
@@ -234,8 +227,8 @@
     ],
     "reparse-terminal-recognition-values.json": [
       "F10",
-      "F1:phonemes",
-      "F1pos:phonemes",
+      "F1:value",
+      "F1pos:value",
       "F7:capture"
     ],
     "reparse-terminal-sound-test.json": [
@@ -267,11 +260,11 @@
       "lost:select"
     ],
     "reparse-written-observation-after.json": [
-      "F1pos:after",
-      "F1pos:head"
+      "F1pos:following-tokens",
+      "F1pos:first-token"
     ],
     "reparse-written-observation-head.json": [
-      "F1pos:head"
+      "F1pos:first-token"
     ],
     "reparse-written-observation-text.json": [
       "F14"
@@ -299,6 +292,13 @@
     ],
     "step-order-tag-term-definition-check.json": [
       "order:tags"
+    ],
+    "values-reparse-original-nonmonotonic-sources.json": [
+      "F12",
+      "F1:first-token",
+      "F1:source-text",
+      "F1pos:first-token",
+      "F1pos:source-text"
     ]
   },
   "unconfirmed": {},
@@ -307,37 +307,50 @@
       "reparse-observer-union-classes-from.json": "result+hook",
       "reparse-observer-union-classes-tail.json": "result+hook"
     },
-    "F1:head": {
+    "F1:first-token": {
       "reparse-observer-classes.json": "result+hook",
       "reparse-observer-head.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook"
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
-    "F1:initial": {
-      "reparse-observer-initial.json": "result+hook"
-    },
-    "F1:last": {
+    "F1:last-token": {
       "reparse-observer-last.json": "result+hook",
       "reparse-observer-tags.json": "result+hook"
     },
-    "F1:phonemes": {
-      "reparse-empty-capture-provenance.json": "result+hook",
-      "reparse-observer-phonemes.json": "result+hook",
-      "reparse-terminal-recognition-values.json": "result"
+    "F1:source-text": {
+      "reparse-original-text.json": "result+hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
+    },
+    "F1:starts-input": {
+      "reparse-observer-initial.json": "result+hook"
     },
     "F1:tags": {
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook"
     },
-    "F1:tail": {
+    "F1:tokens-after-first": {
       "reparse-observer-tail.json": "result+hook",
       "reparse-observer-union-classes-tail.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook"
     },
-    "F1:text": {
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
-      "reparse-original-text.json": "result+hook"
+    "F1:value": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result"
     },
-    "F1pos:after": {
+    "F1pos:classes": {
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-union-classes-from.json": "result+hook",
+      "reparse-observer-union-classes-tail.json": "result+hook"
+    },
+    "F1pos:first-token": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-classes.json": "result+hook",
+      "reparse-observer-head.json": "result+hook",
+      "reparse-written-observation-after.json": "result",
+      "reparse-written-observation-head.json": "result",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
+    },
+    "F1pos:following-tokens": {
       "elision-only-none.json": "result+hook",
       "reparse-memo-modes.json": "result+hook",
       "reparse-observer-after.json": "result+hook",
@@ -345,57 +358,44 @@
       "reparse-query-long-after.json": "result+hook",
       "reparse-written-observation-after.json": "result"
     },
-    "F1pos:classes": {
-      "reparse-observer-classes.json": "result+hook",
-      "reparse-observer-union-classes-from.json": "result+hook",
-      "reparse-observer-union-classes-tail.json": "result+hook"
+    "F1pos:last-token": {
+      "reparse-observer-last.json": "result+hook",
+      "reparse-observer-tags.json": "result+hook"
     },
-    "F1pos:from": {
+    "F1pos:onward": {
       "reparse-observer-from.json": "result+hook",
       "reparse-observer-union-classes-from.json": "result+hook",
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-query-long-after.json": "result+hook"
     },
-    "F1pos:head": {
-      "reparse-empty-capture-provenance.json": "result+hook",
-      "reparse-observer-classes.json": "result+hook",
+    "F1pos:source-text": {
+      "reparse-observer-from.json": "result+hook",
       "reparse-observer-head.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
-      "reparse-written-observation-after.json": "result",
-      "reparse-written-observation-head.json": "result"
-    },
-    "F1pos:initial": {
-      "reparse-observer-initial.json": "result+hook"
-    },
-    "F1pos:last": {
       "reparse-observer-last.json": "result+hook",
-      "reparse-observer-tags.json": "result+hook"
+      "reparse-observer-tail.json": "result+hook",
+      "reparse-original-text.json": "result+hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
-    "F1pos:phonemes": {
-      "reparse-empty-capture-provenance.json": "result+hook",
-      "reparse-observer-phonemes.json": "result+hook",
-      "reparse-terminal-recognition-values.json": "result"
+    "F1pos:starts-input": {
+      "reparse-observer-initial.json": "result+hook"
     },
     "F1pos:tags": {
       "reparse-observer-tags.json": "result+hook",
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
       "reparse-written-observation-after.json": "result",
-      "reparse-written-observation-head.json": "result"
+      "reparse-written-observation-head.json": "result",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
-    "F1pos:tail": {
+    "F1pos:tokens-after-first": {
       "reparse-observer-tail.json": "result+hook",
       "reparse-observer-union-classes-tail.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook"
     },
-    "F1pos:text": {
-      "reparse-observer-from.json": "result+hook",
-      "reparse-observer-head.json": "result+hook",
-      "reparse-observer-last.json": "result+hook",
-      "reparse-observer-tail.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
-      "reparse-original-text.json": "result+hook"
+    "F1pos:value": {
+      "reparse-empty-capture-provenance.json": "result+hook",
+      "reparse-observer-phonemes.json": "result+hook",
+      "reparse-terminal-recognition-values.json": "result"
     },
     "F2": {
       "reparse-memo-features.json": "result+hook",
@@ -463,8 +463,8 @@
       "reparse-incompatible-terminal-sound.json": "result"
     },
     "F12": {
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
-      "reparse-original-zero-width-token.json": "result+hook"
+      "reparse-original-zero-width-token.json": "result+hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
     "F13": {
       "elision-only-none.json": "hook",
@@ -490,7 +490,6 @@
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook",
       "reparse-original-lookahead.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
       "reparse-original-rule-test.json": "result+hook",
       "reparse-original-text.json": "result+hook",
       "reparse-original-zero-width-token.json": "result+hook",
@@ -548,7 +547,8 @@
       "reparse-written-observation-text.json": "result+hook",
       "step-order-conditions-written-check.json": "hook",
       "step-order-tag-term-after-conditions-check.json": "hook",
-      "step-order-tag-term-definition-check.json": "hook"
+      "step-order-tag-term-definition-check.json": "hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
     "F14": {
       "reparse-strict-empty-before-reading.json": "result",
@@ -587,7 +587,6 @@
       "reparse-observer-union-tags-from.json": "result",
       "reparse-observer-union-tags-tail.json": "result",
       "reparse-original-lookahead.json": "result",
-      "reparse-original-nonmonotonic-sources.json": "result",
       "reparse-original-rule-test.json": "result",
       "reparse-original-text.json": "result",
       "reparse-original-zero-width-token.json": "result",
@@ -640,7 +639,8 @@
       "reparse-written-observation-text.json": "result",
       "step-order-conditions-written-check.json": "result",
       "step-order-tag-term-after-conditions-check.json": "result",
-      "step-order-tag-term-definition-check.json": "result"
+      "step-order-tag-term-definition-check.json": "result",
+      "values-reparse-original-nonmonotonic-sources.json": "result"
     },
     "F16": {
       "reparse-strict-empty-before-reading-control.json": "result",
@@ -736,7 +736,6 @@
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook",
       "reparse-original-lookahead.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
       "reparse-original-rule-test.json": "result+hook",
       "reparse-original-text.json": "result+hook",
       "reparse-original-zero-width-token.json": "result+hook",
@@ -794,7 +793,8 @@
       "reparse-written-observation-text.json": "result+hook",
       "step-order-conditions-written-check.json": "result+hook",
       "step-order-tag-term-after-conditions-check.json": "result+hook",
-      "step-order-tag-term-definition-check.json": "result+hook"
+      "step-order-tag-term-definition-check.json": "result+hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
     "F29": {
       "reparse-strict-nested-route.json": "result",
@@ -847,7 +847,6 @@
       "reparse-observer-union-tags-from.json": "result+hook",
       "reparse-observer-union-tags-tail.json": "result+hook",
       "reparse-original-lookahead.json": "result+hook",
-      "reparse-original-nonmonotonic-sources.json": "result+hook",
       "reparse-original-rule-test.json": "result+hook",
       "reparse-original-text.json": "result+hook",
       "reparse-original-zero-width-token.json": "result+hook",
@@ -905,7 +904,8 @@
       "reparse-written-observation-text.json": "result+hook",
       "step-order-conditions-written-check.json": "result+hook",
       "step-order-tag-term-after-conditions-check.json": "result+hook",
-      "step-order-tag-term-definition-check.json": "result+hook"
+      "step-order-tag-term-definition-check.json": "result+hook",
+      "values-reparse-original-nonmonotonic-sources.json": "result+hook"
     },
     "lost:select": {
       "reparse-equal-readings-witness.json": "result",
@@ -945,7 +945,6 @@
       "reparse-observer-union-tags-from.json": "result",
       "reparse-observer-union-tags-tail.json": "result",
       "reparse-original-lookahead.json": "result",
-      "reparse-original-nonmonotonic-sources.json": "result",
       "reparse-original-rule-test.json": "result",
       "reparse-original-text.json": "result",
       "reparse-original-zero-width-token.json": "result",
@@ -987,7 +986,8 @@
       "reparse-witness-sibling-first.json": "result",
       "reparse-witness-sibling-last.json": "result",
       "reparse-witness-sibling-middle.json": "result",
-      "reparse-written-observation-text.json": "result"
+      "reparse-written-observation-text.json": "result",
+      "values-reparse-original-nonmonotonic-sources.json": "result"
     }
   }
 }

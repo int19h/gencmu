@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 25
+const domFormat = 26
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -34,11 +34,12 @@ type domClassifier struct {
 // capital. At is its first token, where the loader reports an error of the
 // entry.
 type domEntry struct {
-	Guards []domGuard
-	Keys   []string
-	Op     string
-	Class  string
-	At     [2]int
+	Guards   []domGuard
+	Keys     []string
+	KeyTerms []*domTerm
+	Op       string
+	Class    string
+	At       [2]int
 }
 
 // domImplication is %implies If ⟹ Then (engine §2, §11): two closed terms
@@ -64,10 +65,11 @@ type domRule struct {
 	Flags            []string
 	Op               string // "define", "redefine" or "extend"
 	Tags             *domTerm
+	Value, Image     *domTerm
 	Alternatives     []*domAlt
 	Emit             *domEmit
 	Conditions       []*domCond
-	Opaque           bool // %opaque: its constituents are opaque parts, which sound ? and show their text (engine §11)
+	Erased           bool
 	At               [2]int
 }
 
@@ -76,6 +78,7 @@ type domAlt struct {
 	Guards          []domGuard
 	Expr            *domExpr
 	Tags            *domTerm
+	Value, Image    *domTerm
 }
 
 // domGuard is a gate, f? or ¬f?, or a warning, f!, which is never negated
@@ -100,7 +103,8 @@ const (
 	exTest     = "test"
 	exEmpty    = "empty"
 	exRange    = "range"
-	exProperty = "property"
+	exLiteral  = "literal"
+	exWildcard = "wildcard"
 )
 
 type domExpr struct {
@@ -109,23 +113,26 @@ type domExpr struct {
 	Inner *domExpr   // optional, repeat (its item), capture, test (its symbol)
 	// Sep is a repeat's separator, or nil; Chain is "left" or "right" for
 	// a chain, "" for flat braces (engine §3.2, §3.3).
-	Sep      *domExpr
-	Chain    string
-	Elidable bool
-	Name     string    // ref, terminal (a tag in its canonical spelling), capture, property (its name)
-	Range    [2]string // range: its two ends, character tags in their canonical spelling
-	Op       string    // test: its comparator, one of testOps
-	Value    *domTerm  // test: its value, a closed term
+	Sep          *domExpr
+	Chain        string
+	Elidable     bool
+	Name         string   // ref, terminal (a tag in its canonical spelling), capture, property (its name)
+	Op           string   // test: its comparator, one of testOps
+	Value        *domTerm // test: its value, a closed term
+	Ends         [2]*domTerm
+	Requirements []tagRequirement
 }
 
-// testOps are the comparators of a test in a body (engine §2): the two
-// sound tests and the four tag tests.
-var testOps = map[string]bool{"=": true, "≠": true, "⊇": true, "⊉": true, "∩=∅": true, "∩≠∅": true}
+type tagRequirement struct {
+	Negated bool
+	Value   *domTerm
+}
 
-// isSoundTest says whether a test's comparator is a sound test, whose
-// value is a string, rather than a tag test, whose value is a tag set
-// (engine §2).
-func isSoundTest(op string) bool {
+// testOps are the two value comparators and signed tag requirements (§4).
+var testOps = map[string]bool{"=": true, "≠": true, "tags": true}
+
+// isValueTest identifies equality and inequality of stored strings (§4).
+func isValueTest(op string) bool {
 	return op == "=" || op == "≠"
 }
 
@@ -134,8 +141,8 @@ func isSoundTest(op string) bool {
 // whole constituent, or a tmCall of head, tail, last, from or after; a rule
 // argument is tmRule, and the classifier that classify names is
 // tmClassifier. A difference, a ∖ b, has exactly two items. A guarded
-// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone. A range,
-// 'a'..'z', is tmRange, its ends in Range. A reference to a constant is
+// term, A ⟹ t, is tmIf: Cond is A, and Items holds t alone.
+// A reference to a constant is
 // tmConst, its name without $ in Str and its position in At.
 const (
 	tmString       = "string"
@@ -149,9 +156,10 @@ const (
 	tmRule         = "rule"
 	tmClassifier   = "classifier"
 	tmIf           = "if"
-	tmRange        = "range"
 	tmConst        = "const"
 	tmPattern      = "pattern"
+	tmInterpolate  = "interpolate"
+	tmConcat       = "concat"
 )
 
 type domTerm struct {
@@ -159,7 +167,6 @@ type domTerm struct {
 	Str   string     // string, tag, call (the function), capture, rule, classifier
 	Items []*domTerm // union, intersection, difference, call arguments; if: its term
 	Cond  *domCond   // if: its condition
-	Range [2]string  // range: its two ends
 	At    [2]int     // const: the position of the reference
 	// value is a constant's final value in its stage, which only a
 	// stitched grammar's copy of the reference holds (engine §2).
@@ -170,7 +177,7 @@ type domTerm struct {
 // isSpanFunction says whether a function gives a span (engine §10).
 func isSpanFunction(name string) bool {
 	switch name {
-	case "head", "tail", "last", "from", "after", "without-elision":
+	case "first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision":
 		return true
 	}
 	return false
@@ -209,12 +216,13 @@ type domEmit struct {
 // A named capture, the item's carrier, can name attachment captures before
 // it and after it (engine §11).
 type domEmitItem struct {
-	Capture  string
-	IsInsert bool
-	Insert   string
-	Tags     *domTerm
-	Before   []string
-	After    []string
+	Capture      string
+	IsInsert     bool
+	Insert       string
+	Tags         *domTerm
+	Value, Image *domTerm
+	Before       []string
+	After        []string
 }
 
 // captures lists a named capture item's captures in written order: its
@@ -309,11 +317,11 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 			w.raw(`{"guards":`)
 			writeGuards(w, e.Guards)
 			w.raw(`,"keys":[`)
-			for k, key := range e.Keys {
+			for k, key := range e.KeyTerms {
 				if k > 0 {
 					w.raw(",")
 				}
-				w.str(key)
+				key.writeJSON(w)
 			}
 			w.raw(`],"op":`)
 			w.str(e.Op)
@@ -379,6 +387,7 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		w.raw(`,"tags":`)
 		r.Tags.writeJSON(w)
 	}
+	writeRecipes(w, r.Value, r.Image)
 	w.raw(`,"alternatives":[`)
 	for i, a := range r.Alternatives {
 		if i > 0 {
@@ -392,6 +401,7 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 			w.raw(`,"tags":`)
 			a.Tags.writeJSON(w)
 		}
+		writeRecipes(w, a.Value, a.Image)
 		w.raw("}")
 	}
 	w.raw("]")
@@ -407,8 +417,8 @@ func (r *domRule) writeJSON(w *jsonWriter) {
 		c.writeJSON(w)
 	}
 	w.raw("]")
-	if r.Opaque {
-		w.raw(`,"opaque":true`)
+	if r.Erased {
+		w.raw(`,"erased":true`)
 	}
 	w.raw(`,"at":`)
 	w.pair(r.At)
@@ -449,7 +459,7 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw("}")
 	case exRef, exTerminal:
 		w.raw("{")
-		w.str(e.Kind)
+		w.str("ref")
 		w.raw(":")
 		w.str(e.Name)
 		w.raw("}")
@@ -459,33 +469,30 @@ func (e *domExpr) writeJSON(w *jsonWriter) {
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
+	case exLiteral:
+		w.raw(`{"literal":`)
+		e.Value.writeJSON(w)
+		w.raw("}")
+	case exWildcard:
+		w.raw(`{"wildcard":true}`)
 	case exTest:
 		w.raw(`{"test":`)
 		w.str(e.Op)
-		w.raw(`,"value":`)
-		e.Value.writeJSON(w)
+		if e.Op == "tags" {
+			w.raw(`,"requirements":`)
+			writeRequirements(w, e.Requirements)
+		} else {
+			w.raw(`,"value":`)
+			e.Value.writeJSON(w)
+		}
 		w.raw(`,"expr":`)
 		e.Inner.writeJSON(w)
 		w.raw("}")
 	case exEmpty:
 		w.raw(`{"empty":true}`)
 	case exRange:
-		writeRange(w, e.Range)
-	case exProperty:
-		w.raw(`{"property":`)
-		w.str(e.Name)
-		w.raw("}")
+		writeStringRange(w, e.Ends)
 	}
-}
-
-// writeRange writes a range, {"range":["'a'","'z'"]}, as an expression or
-// a term.
-func writeRange(w *jsonWriter, r [2]string) {
-	w.raw(`{"range":[`)
-	w.str(r[0])
-	w.raw(",")
-	w.str(r[1])
-	w.raw("]}")
 }
 
 func (t *domTerm) writeJSON(w *jsonWriter) {
@@ -508,9 +515,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw(`,"at":`)
 		w.pair(t.At)
 		w.raw("}")
-	case tmRange:
-		writeRange(w, t.Range)
-	case tmUnion, tmIntersection, tmDifference:
+	case tmUnion, tmIntersection, tmDifference, tmInterpolate, tmConcat:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":[")
@@ -522,10 +527,12 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		}
 		w.raw("]}")
 	case tmCall:
-		w.raw(`{"call":`)
+		w.raw(`{"method":`)
 		w.str(t.Str)
+		w.raw(`,"receiver":`)
+		t.Items[0].writeJSON(w)
 		w.raw(`,"args":[`)
-		for i, it := range t.Items {
+		for i, it := range t.Items[1:] {
 			if i > 0 {
 				w.raw(",")
 			}
@@ -551,18 +558,16 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins:
-		w.raw("{")
-		w.str(c.Kind)
-		w.raw(":")
-		c.Span.writeJSON(w)
-		w.raw(`,"rule":`)
-		w.str(c.Rule)
-		w.raw("}")
-	case cdInitial:
-		w.raw(`{"initial":`)
-		c.Span.writeJSON(w)
-		w.raw("}")
+	case cdMatches, cdBegins, cdInitial:
+		name := c.Kind
+		if name == cdInitial {
+			name = "starts-input"
+		}
+		t := &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{c.Span}}
+		if c.Kind != cdInitial {
+			t.Items = append(t.Items, &domTerm{Kind: tmRule, Str: c.Rule})
+		}
+		t.writeJSON(w)
 	case cdNot:
 		w.raw(`{"not":`)
 		c.Inner.writeJSON(w)
@@ -600,7 +605,7 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 		switch {
 		case it.IsInsert:
 			w.raw(`{"insert":`)
-			w.str(it.Insert)
+			w.raw("true")
 		default:
 			w.raw(`{"capture":`)
 			w.str(it.Capture)
@@ -609,6 +614,7 @@ func (e *domEmit) writeJSON(w *jsonWriter) {
 			w.raw(`,"tags":`)
 			it.Tags.writeJSON(w)
 		}
+		writeRecipes(w, it.Value, it.Image)
 		for _, side := range []struct {
 			key   string
 			names []string
@@ -664,7 +670,7 @@ func decodeObj(raw json.RawMessage) (jobj, error) {
 }
 
 // decodeDOM reads a DOM that did not come from reading its document and
-// validates it; uni is the lowercase mapping that the strings of its sound
+// validates it; uni supplies the configured Unicode data for its string
 // tests are checked against (engine §9).
 func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 	o, err := decodeObj(raw)
@@ -808,7 +814,7 @@ func decodeEntry(raw json.RawMessage) (*domEntry, error) {
 	if e.Guards, err = decodeGuards(o["guards"]); err != nil {
 		return nil, malformed
 	}
-	if e.Keys, err = decodeList(o["keys"], decodeString); err != nil {
+	if e.KeyTerms, err = decodeList(o["keys"], decodeTerm); err != nil {
 		return nil, malformed
 	}
 	if e.Op, err = decodeString(o["op"]); err != nil {
@@ -898,11 +904,17 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 		}
 	}
 	// A flag: true or absent.
-	if v, ok := o["opaque"]; ok {
+	if o["opaque"] != nil {
+		return nil, fmt.Errorf("opaque is not a rule member")
+	}
+	if v, ok := o["erased"]; ok {
 		if !isTrue(v) {
 			return nil, fmt.Errorf("a malformed rule")
 		}
-		r.Opaque = true
+		r.Erased = true
+	}
+	if r.Value, r.Image, err = decodeRecipes(o); err != nil {
+		return nil, err
 	}
 	var alts, conds []json.RawMessage
 	if err := unmarshal(o["alternatives"], &alts); err != nil {
@@ -931,6 +943,9 @@ func decodeRule(raw json.RawMessage) (*domRule, error) {
 			if alt.Tags, err = decodeTerm(t); err != nil {
 				return nil, err
 			}
+		}
+		if alt.Value, alt.Image, err = decodeRecipes(ao); err != nil {
+			return nil, err
 		}
 		r.Alternatives = append(r.Alternatives, alt)
 	}
@@ -977,9 +992,10 @@ func unmarshal(raw json.RawMessage, v any) error {
 }
 
 func decodeString(raw json.RawMessage) (string, error) {
-	var s string
-	err := unmarshal(raw, &s)
-	return s, err
+	if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return "", fmt.Errorf("a null where the DOM holds a string")
+	}
+	return decodeJSONString(raw)
 }
 
 // decodePosition reads a [line, column] pair, each an integer.
@@ -1018,12 +1034,8 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		return nil, fmt.Errorf("a malformed expression")
 	}
 	if v, ok := o[exRange]; ok {
-		r, err := decodeRange(v)
-		return &domExpr{Kind: exRange, Range: r}, err
-	}
-	if v, ok := o[exProperty]; ok {
-		name, err := decodeString(v)
-		return &domExpr{Kind: exProperty, Name: name}, err
+		r, err := decodeStringRange(v, depth)
+		return &domExpr{Kind: exRange, Ends: r}, err
 	}
 	for _, k := range []string{exSeq, exChoice, exRanked, exAnd} {
 		if v, ok := o[k]; ok {
@@ -1079,22 +1091,36 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed test")
 		}
-		io, err := decodeObj(o["expr"])
-		if err != nil || len(io) != 1 {
-			return nil, fmt.Errorf("a test follows only a reference other than # or a terminal")
-		}
-		inner, err := decodeExprObj(o["expr"], io, depth+1)
+		inner, err := decodeExprAt(o["expr"], depth+1)
 		if err != nil {
 			return nil, err
 		}
-		value, err := decodeTermAt(o["value"], depth+1)
-		return &domExpr{Kind: exTest, Op: op, Inner: inner, Value: value}, err
+		e := &domExpr{Kind: exTest, Op: op, Inner: inner}
+		if op == "tags" {
+			if o["value"] != nil {
+				return nil, fmt.Errorf("a tag test has no value member")
+			}
+			e.Requirements, err = decodeRequirements(o["requirements"], depth+1)
+		} else {
+			if o["requirements"] != nil {
+				return nil, fmt.Errorf("a value test has no requirement member")
+			}
+			e.Value, err = decodeTermAt(o["value"], depth+1)
+		}
+		return e, err
 	}
 	for _, k := range []string{exRef, exTerminal} {
 		if v, ok := o[k]; ok {
 			name, err := decodeString(v)
 			return &domExpr{Kind: k, Name: name}, err
 		}
+	}
+	if v, ok := o["literal"]; ok {
+		t, err := decodeTermAt(v, depth)
+		return &domExpr{Kind: exLiteral, Value: t}, err
+	}
+	if isTrue(o["wildcard"]) {
+		return &domExpr{Kind: exWildcard}, nil
 	}
 	if isTrue(o["empty"]) {
 		return &domExpr{Kind: exEmpty}, nil
@@ -1107,27 +1133,17 @@ func decodeExprObj(raw json.RawMessage, o jobj, depth int) (*domExpr, error) {
 // member names the form. A rule argument and a classifier argument are
 // forms of a term too.
 var exprForms = [][]string{
-	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exTerminal}, {exCapture, "expr"},
-	{exRange}, {exProperty}, {exTest, "value", "expr"}, {exEmpty},
+	{exSeq}, {exChoice}, {exRanked}, {exAnd}, {exOptional, "elidable?"}, {exRepeat, "separator?", "chain?"}, {exRef}, {exCapture, "expr"},
+	{exRange}, {exLiteral}, {exWildcard}, {exTest, "value?", "requirements?", "expr"}, {exEmpty},
 }
 
 var termForms = [][]string{
-	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {tmCall, "args"},
-	{tmString}, {tmTag}, {tmRange}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
+	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
+	{tmString}, {tmTag}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
 var condForms = [][]string{
-	{"op", "left", "right"}, {cdMatches, "rule"}, {cdBegins, "rule"}, {cdInitial}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
-}
-
-// decodeRange decodes a range's two ends, which the checker then holds to
-// the reader's rules.
-func decodeRange(raw json.RawMessage) ([2]string, error) {
-	var ends []string
-	if err := unmarshal(raw, &ends); err != nil || len(ends) != 2 {
-		return [2]string{}, fmt.Errorf("a malformed range")
-	}
-	return [2]string{ends[0], ends[1]}, nil
+	{"op", "left", "right"}, {"method", "receiver", "args"}, {cdNot}, {cdAny}, {cdAll}, {cdCaptured}, {cdIf, "then"},
 }
 
 // hasOneForm says whether a node has exactly the members of one of its
@@ -1188,23 +1204,23 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 		at, err := decodePosition(o["at"])
 		return &domTerm{Kind: tmConst, Str: name, At: at}, err
 	}
-	if v, ok := o[tmRange]; ok {
-		r, err := decodeRange(v)
-		return &domTerm{Kind: tmRange, Range: r}, err
-	}
-	for _, k := range []string{tmUnion, tmIntersection, tmDifference} {
+	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmInterpolate} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 			return &domTerm{Kind: k, Items: items}, err
 		}
 	}
-	if v, ok := o["call"]; ok {
+	if v, ok := o["method"]; ok {
 		name, err := decodeString(v)
 		if err != nil {
 			return nil, err
 		}
 		args, err := decodeList(o["args"], func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
-		return &domTerm{Kind: tmCall, Str: name, Items: args}, err
+		if err != nil {
+			return nil, err
+		}
+		receiver, err := decodeTermAt(o["receiver"], depth+1)
+		return &domTerm{Kind: tmCall, Str: name, Items: append([]*domTerm{receiver}, args...)}, err
 	}
 	if v, ok := o["if"]; ok {
 		cond, err := decodeCondAt(v, depth+1)
@@ -1242,27 +1258,21 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 		c.Right, err = decodeTermAt(o["right"], depth+1)
 		return c, err
 	}
-	for _, k := range []string{cdMatches, cdBegins} {
-		if v, ok := o[k]; ok {
-			// A span and a rule, of one of the two.
-			if o[cdMatches] != nil && o[cdBegins] != nil {
-				return nil, fmt.Errorf("a malformed condition")
-			}
-			c := &domCond{Kind: k}
-			if c.Span, err = decodeTermAt(v, depth+1); err != nil {
-				return nil, err
-			}
-			c.Rule, err = decodeString(o["rule"])
-			return c, err
+	if o["method"] != nil {
+		t, err := decodeTermAt(raw, depth)
+		if err != nil {
+			return nil, err
 		}
-	}
-	if v, ok := o["initial"]; ok {
-		// Its span, and nothing else.
-		if len(o) != 1 {
-			return nil, fmt.Errorf("a malformed condition")
+		if len(t.Items) == 0 {
+			return nil, fmt.Errorf("a malformed predicate method")
 		}
-		span, err := decodeTermAt(v, depth+1)
-		return &domCond{Kind: cdInitial, Span: span}, err
+		if t.Str == "starts-input" && len(t.Items) == 1 {
+			return &domCond{Kind: cdInitial, Span: t.Items[0]}, nil
+		}
+		if (t.Str == "matches" || t.Str == "begins") && len(t.Items) == 2 && t.Items[1].Kind == tmRule {
+			return &domCond{Kind: t.Str, Span: t.Items[0], Rule: t.Items[1].Str}, nil
+		}
+		return nil, fmt.Errorf("a malformed predicate method")
 	}
 	if v, ok := o["not"]; ok {
 		inner, err := decodeCondAt(v, depth+1)
@@ -1306,14 +1316,16 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		// An item is a capture or an inserted tag, and has no other member
 		// than its tags and its attachments.
 		for k := range io {
-			if k != "capture" && k != "insert" && k != "tags" && k != "before" && k != "after" {
+			if k != "capture" && k != "insert" && k != "tags" && k != "before" && k != "after" && k != "value" && k != "image" {
 				return nil, fmt.Errorf("a malformed emission item")
 			}
 		}
 		switch {
 		case io["insert"] != nil && io["capture"] == nil:
 			it.IsInsert = true
-			it.Insert, err = decodeString(io["insert"])
+			if !isTrue(io["insert"]) {
+				err = fmt.Errorf("insert must be true")
+			}
 		case io["capture"] != nil && io["insert"] == nil:
 			it.Capture, err = decodeString(io["capture"])
 		default:
@@ -1321,6 +1333,9 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		}
 		if err == nil && io["tags"] != nil {
 			it.Tags, err = decodeTerm(io["tags"])
+		}
+		if err == nil {
+			it.Value, it.Image, err = decodeRecipes(io)
 		}
 		// A list of attachments is present only when it is not empty.
 		for _, side := range []struct {

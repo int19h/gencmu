@@ -1,10 +1,10 @@
 {
-  "description": "A \\u{...} escape names a Unicode scalar value: a surrogate is an error, at the string (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %conditions text($x) = \"\\u{D800}\"\n```\n",
+  "description": "An interpolated surrogate name is invalid (engine §9.1).",
+  "document": "```jbogenbau\n%rule a A=\"$(_D800)\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 38
+      "column": 12
     }
   }
 }

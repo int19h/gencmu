@@ -1,6 +1,6 @@
 {
-  "description": "elision-only over a capturing plain optional beside a marked one: s → A [$x(X)] reads x, the chosen text → s [+KU] C elides ku, which the check writes back, and the restored text has one reading, with $x present (engine §3.2, §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y\n%rule y [+VAU] A [$x(X)] C\n%rule s A [$x(X)]\n%tags $x ⟹ tags($x)\n%conditions $x ⟹ phonemes($x) = \"x\"",
+  "description": "elision-only over a capturing plain optional beside a marked one: s → A [$x:X] reads x, the chosen text → s [+KU] C elides ku, which the check writes back, and the restored text has one reading, with $x present (engine §3.2, §7).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (s [+KU] C) | y\n%rule y ([+VAU] A [$x:X] C)\n%rule s :: ($x ⟹ $x.tags) | (A [$x:X]) %conditions ($x ⟹ $x.value = \"x\")\n\n",
   "tokens": [
     {
       "text": "a",
@@ -13,7 +13,7 @@
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "c",

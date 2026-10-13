@@ -1,13 +1,13 @@
 {
   "description": "The rival must preserve T before U at their shared boundary (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions ¬matches(without-elision($x), rival)\n%rule candidate X [+T] [+U]\n%rule rival X [+U] [+T]",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T] [+U])\n%rule rival (X [+U] [+T])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

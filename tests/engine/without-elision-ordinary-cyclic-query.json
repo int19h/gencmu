@@ -1,13 +1,13 @@
 {
   "description": "An ordinary query still includes finite recursive proofs beside the aligned facility (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions matches(without-elision($x), rival), ~recursive ⊆ tags($x, r)\n%rule candidate X [+T]\n%rule rival X [+T]\n%rule r r [+U] <~recursive> | X <∅>",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision.matches(rival), Recursive ⊆ $x.tags(r)\n\n%rule candidate (X [+T])\n%rule rival (X [+T])\n%rule r (r [+U]) :: Recursive | X :: ∅",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

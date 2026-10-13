@@ -1,6 +1,6 @@
 {
   "description": "An alternative has any number of captures, six here (engine §3.5, §9).",
-  "document": "```jbogenbau\n%rule a $a(A) $b(B) $c(C) $d(D) $e(E) $f(F)\n```\n",
+  "document": "```jbogenbau\n%rule a ($a:A $b:B $c:C $d:D $e:E $f:F)\n```\n",
   "expect": {
     "dom": {
       "rules": [

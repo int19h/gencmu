@@ -1,6 +1,6 @@
 {
   "description": "$ alone is the whole constituent, a capture every alternative has, in %conditions and in %emits (engine §9).",
-  "document": "```jbogenbau\n%rule a A B %conditions text($) ≠ \"x\" %emits $\n```\n",
+  "document": "```jbogenbau\n%rule a (A B) %conditions $.source-text ≠ \"x\" %emits $\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -23,12 +23,11 @@
             {
               "op": "≠",
               "left": {
-                "call": "text",
-                "args": [
-                  {
-                    "capture": ""
-                  }
-                ]
+                "method": "source-text",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
               },
               "right": {
                 "string": "x"

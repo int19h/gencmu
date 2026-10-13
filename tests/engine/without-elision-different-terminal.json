@@ -1,13 +1,13 @@
 {
   "description": "Equal close counts do not align T with U (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions ¬matches(without-elision($x), rival)\n%rule candidate X [+T]\n%rule rival X [+U]",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T])\n%rule rival (X [+U])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {

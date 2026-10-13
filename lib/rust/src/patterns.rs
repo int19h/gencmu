@@ -1,11 +1,14 @@
 //! Finite observations of structural trees (engine §4.1).
-use crate::dom::{self, Term};
+use crate::dom::{self, Arg, Term};
 use crate::json::{write_str, Json};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Pattern {
     Name(String, (usize, usize)),
     Terminal(String, (usize, usize)),
+    Literal(Term, (usize, usize)),
+    Range(Term, Term, (usize, usize)),
+    Wildcard((usize, usize)),
     Constant(String, (usize, usize)),
     Test(String, Term, Box<Pattern>),
     Children(Children),
@@ -30,24 +33,195 @@ fn string(j: &Json, key: &str) -> Result<String, String> {
 }
 fn at(j: &Json) -> Result<(usize, usize), String> {
     match field(j, "at")?.as_array() {
-        Some([Json::Int(a), Json::Int(b)]) => Ok((*a as usize, *b as usize)),
+        Some([Json::Int(a), Json::Int(b)]) if *a > 0 && *b > 0 => Ok((*a as usize, *b as usize)),
         _ => Err("a malformed pattern atom".into()),
     }
 }
 fn exact(j: &Json, keys: &[&str]) -> bool {
     j.as_object().is_some_and(|o| o.len() == keys.len() && keys.iter().all(|k| j.get(k).is_some()))
 }
+/// Convert patterns and child expressions without a recursive call stack.
+fn read_pattern(root: &Json) -> Result<Pattern, String> {
+    enum Value {
+        Pattern(Pattern),
+        Children(Children),
+    }
+    impl Value {
+        fn pattern(self) -> Pattern {
+            match self {
+                Self::Pattern(p) => p,
+                _ => unreachable!(),
+            }
+        }
+        fn children(self) -> Children {
+            match self {
+                Self::Children(c) => c,
+                _ => unreachable!(),
+            }
+        }
+    }
+    enum Build<'a> {
+        Path(String),
+        Test(&'a Json),
+        Children,
+        Node,
+        Sequence(usize),
+        Optional,
+        Repeat(bool),
+        Set(&'a str, usize),
+    }
+    enum Task<'a> {
+        Pattern(&'a Json, usize),
+        Children(&'a Json, usize, bool),
+        Build(Build<'a>),
+    }
+    let mut pending = vec![Task::Pattern(root, 0)];
+    let mut values = Vec::<Value>::new();
+    while let Some(task) = pending.pop() {
+        match task {
+            Task::Build(build) => {
+                let value = match build {
+                    Build::Path(path) => Value::Pattern(Pattern::Path(path, Box::new(values.pop().unwrap().pattern()))),
+                    Build::Test(j) => {
+                        let expr = values.pop().unwrap().pattern();
+                        let op = string(j, "test")?;
+                        if !dom::TEST_OPS.contains(&op.as_str())
+                            || !(matches!(
+                                expr,
+                                Pattern::Terminal(..)
+                                    | Pattern::Constant(..)
+                                    | Pattern::Literal(..)
+                                    | Pattern::Range(..)
+                                    | Pattern::Wildcard(..)
+                            ) || matches!(&expr, Pattern::Test(op, _, _) if op == "tags")
+                                && matches!(op.as_str(), "=" | "≠"))
+                        {
+                            return Err("a pattern test requires one terminal atom".into());
+                        }
+                        let value = if op == "tags" {
+                            dom::requirements_from_json(j)?
+                        } else {
+                            dom::term_from_json(field(j, "value")?)?
+                        };
+                        Value::Pattern(Pattern::Test(op, value, Box::new(expr)))
+                    }
+                    Build::Children => Value::Pattern(Pattern::Children(values.pop().unwrap().children())),
+                    Build::Node => Value::Children(Children::Node(Box::new(values.pop().unwrap().pattern()))),
+                    Build::Sequence(n) => {
+                        let start = values.len() - n;
+                        Value::Children(Children::Sequence(values.drain(start..).map(Value::children).collect()))
+                    }
+                    Build::Optional => Value::Children(Children::Optional(Box::new(values.pop().unwrap().children()))),
+                    Build::Repeat(separator) => {
+                        let sep = separator.then(|| Box::new(values.pop().unwrap().children()));
+                        let item = values.pop().unwrap().children();
+                        if !item.consumes() {
+                            return Err("a pattern repeat cannot match only empty sequences".into());
+                        }
+                        Value::Children(Children::Repeat(Box::new(item), sep))
+                    }
+                    Build::Set(key, n) => {
+                        let start = values.len() - n;
+                        let mut items: Vec<_> = values.drain(start..).map(Value::pattern).collect();
+                        Value::Pattern(match key {
+                            "union" => Pattern::Union(items),
+                            "intersection" => Pattern::Intersection(items),
+                            _ => {
+                                let right = items.pop().unwrap();
+                                Pattern::Difference(Box::new(items.pop().unwrap()), Box::new(right))
+                            }
+                        })
+                    }
+                };
+                values.push(value);
+            }
+            Task::Pattern(j, depth) => {
+                if depth > 256 {
+                    return Err("nested too deeply".into());
+                }
+                if exact(j, &["path", "pattern"]) {
+                    let path = string(j, "path")?;
+                    if !["descendant", "first", "last"].contains(&path.as_str()) {
+                        return Err("a malformed pattern path".into());
+                    }
+                    pending.push(Task::Build(Build::Path(path)));
+                    pending.push(Task::Pattern(field(j, "pattern")?, depth + 1));
+                } else if exact(j, &["test", "value", "expr"]) || exact(j, &["test", "requirements", "expr"]) {
+                    pending.push(Task::Build(Build::Test(j)));
+                    pending.push(Task::Pattern(field(j, "expr")?, depth + 1));
+                } else if exact(j, &["children"]) {
+                    pending.push(Task::Build(Build::Children));
+                    pending.push(Task::Children(field(j, "children")?, depth + 1, false));
+                } else if let Some(key) =
+                    ["union", "intersection", "difference"].into_iter().find(|key| exact(j, &[key]))
+                {
+                    let items = field(j, key)?.as_array().ok_or("a malformed pattern")?;
+                    if items.len() < 2 || key == "difference" && items.len() != 2 {
+                        return Err("a malformed pattern".into());
+                    }
+                    pending.push(Task::Build(Build::Set(key, items.len())));
+                    pending.extend(items.iter().rev().map(|j| Task::Pattern(j, depth + 1)));
+                } else {
+                    values.push(Value::Pattern(Pattern::read_atom(j)?));
+                }
+            }
+            Task::Children(j, depth, repeated) => {
+                if depth > 256 {
+                    return Err("nested too deeply".into());
+                }
+                if exact(j, &["node"]) {
+                    pending.push(Task::Build(Build::Node));
+                    pending.push(Task::Pattern(field(j, "node")?, depth + 1));
+                } else if exact(j, &["siblings"]) {
+                    if repeated || field(j, "siblings")?.as_bool() != Some(true) {
+                        return Err("a sibling ellipsis cannot be a repeat item or separator".into());
+                    }
+                    values.push(Value::Children(Children::Siblings));
+                } else if exact(j, &["sequence"]) {
+                    let items = field(j, "sequence")?.as_array().ok_or("a malformed pattern sequence")?;
+                    if items.len() < 2 {
+                        return Err("a malformed pattern sequence".into());
+                    }
+                    pending.push(Task::Build(Build::Sequence(items.len())));
+                    pending.extend(items.iter().rev().map(|j| Task::Children(j, depth + 1, repeated)));
+                } else if exact(j, &["optional"]) {
+                    pending.push(Task::Build(Build::Optional));
+                    pending.push(Task::Children(field(j, "optional")?, depth + 1, repeated));
+                } else if exact(j, &["repeat"]) || exact(j, &["repeat", "separator"]) {
+                    pending.push(Task::Build(Build::Repeat(j.get("separator").is_some())));
+                    if let Some(sep) = j.get("separator") {
+                        pending.push(Task::Children(sep, depth + 1, true));
+                    }
+                    pending.push(Task::Children(field(j, "repeat")?, depth + 1, true));
+                } else {
+                    return Err("a malformed pattern children expression".into());
+                }
+            }
+        }
+    }
+    Ok(values.pop().unwrap().pattern())
+}
+
 impl Pattern {
     pub(crate) fn from_json(j: &Json) -> Result<Self, String> {
-        let p = Self::read(j, 0)?;
+        let p = read_pattern(j)?;
         if let Some(problem) = p.problem() {
             return Err(problem.into());
         }
         Ok(p)
     }
-    fn read(j: &Json, depth: usize) -> Result<Self, String> {
-        if depth > 256 {
-            return Err("nested too deeply".into());
+    fn read_atom(j: &Json) -> Result<Self, String> {
+        if exact(j, &["literal", "at"]) {
+            return Ok(Self::Literal(dom::term_from_json(field(j, "literal")?)?, at(j)?));
+        }
+        if exact(j, &["wildcard", "at"]) && j.get("wildcard") == Some(&Json::Bool(true)) {
+            return Ok(Self::Wildcard(at(j)?));
+        }
+        if exact(j, &["range", "at"]) {
+            let Some([left, right]) = field(j, "range")?.as_array() else {
+                return Err("a malformed pattern range".into());
+            };
+            return Ok(Self::Range(dom::term_from_json(left)?, dom::term_from_json(right)?, at(j)?));
         }
         for key in ["name", "terminal", "constant"] {
             if exact(j, &[key, "at"]) {
@@ -55,6 +229,8 @@ impl Pattern {
                 let valid = if key == "name" {
                     text == "#"
                         || text.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && crate::tags::is_name(&text)
+                } else if key == "terminal" {
+                    dom::is_engine_tag(&text) || dom::is_constant_name(&text)
                 } else {
                     dom::is_constant_name(&text)
                 };
@@ -68,46 +244,23 @@ impl Pattern {
                 });
             }
         }
-        if exact(j, &["test", "value", "expr"]) {
-            let op = string(j, "test")?;
-            let expr = Self::read(field(j, "expr")?, depth + 1)?;
-            if !dom::TEST_OPS.contains(&op.as_str()) || !matches!(expr, Self::Terminal(..)) {
-                return Err("a pattern test requires one terminal atom".into());
-            }
-            let value = dom::term_from_json(field(j, "value")?)?;
-            return Ok(Self::Test(op, value, Box::new(expr)));
-        }
-        if exact(j, &["children"]) {
-            return Ok(Self::Children(Children::read(field(j, "children")?, depth + 1, false)?));
-        }
-        if exact(j, &["path", "pattern"]) {
-            let path = string(j, "path")?;
-            if !["descendant", "first", "last"].contains(&path.as_str()) {
-                return Err("a malformed pattern path".into());
-            }
-            return Ok(Self::Path(path, Box::new(Self::read(field(j, "pattern")?, depth + 1)?)));
-        }
-        for key in ["union", "intersection", "difference"] {
-            if exact(j, &[key]) {
-                let items = field(j, key)?.as_array().ok_or("a malformed pattern")?;
-                if items.len() < 2 || key == "difference" && items.len() != 2 {
-                    return Err("a malformed pattern".into());
-                }
-                let mut items = items.iter().map(|x| Self::read(x, depth + 1)).collect::<Result<Vec<_>, _>>()?;
-                return Ok(match key {
-                    "union" => Self::Union(items),
-                    "intersection" => Self::Intersection(items),
-                    _ => {
-                        let right = items.pop().unwrap();
-                        Self::Difference(Box::new(items.pop().unwrap()), Box::new(right))
-                    }
-                });
-            }
-        }
         Err("a malformed pattern".into())
     }
     pub(crate) fn write(&self, out: &mut String) {
         match self {
+            Self::Literal(term, a) => {
+                out.push_str("{\"literal\":");
+                dom::write_term(out, term);
+                out.push_str(&format!(",\"at\":[{},{}]}}", a.0, a.1));
+            }
+            Self::Range(left, right, a) => {
+                out.push_str("{\"range\":[");
+                dom::write_term(out, left);
+                out.push(',');
+                dom::write_term(out, right);
+                out.push_str(&format!("],\"at\":[{},{}]}}", a.0, a.1));
+            }
+            Self::Wildcard(a) => out.push_str(&format!("{{\"wildcard\":true,\"at\":[{},{}]}}", a.0, a.1)),
             Self::Name(s, a) | Self::Terminal(s, a) | Self::Constant(s, a) => {
                 out.push('{');
                 write_str(
@@ -125,8 +278,13 @@ impl Pattern {
             Self::Test(op, value, expr) => {
                 out.push_str("{\"test\":");
                 write_str(out, op);
-                out.push_str(",\"value\":");
-                dom::write_term(out, value);
+                if op == "tags" {
+                    out.push_str(",\"requirements\":");
+                    dom::write_requirements(out, value);
+                } else {
+                    out.push_str(",\"value\":");
+                    dom::write_term(out, value);
+                }
                 out.push_str(",\"expr\":");
                 expr.write(out);
                 out.push('}');
@@ -164,8 +322,16 @@ impl Pattern {
     }
     pub(crate) fn constants<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
         match self {
+            Self::Literal(t, _) => dom::constants_in_term(t, out),
+            Self::Range(a, b, _) => {
+                dom::constants_in_term(a, out);
+                dom::constants_in_term(b, out);
+            }
             Self::Constant(n, a) => out.push((n, *a)),
-            Self::Test(_, v, _) => dom::constants_in_term(v, out),
+            Self::Test(_, v, p) => {
+                p.constants(out);
+                dom::constants_in_term(v, out);
+            }
             Self::Children(c) => c.constants(out),
             Self::Path(_, p) => p.constants(out),
             Self::Union(xs) | Self::Intersection(xs) => {
@@ -180,15 +346,89 @@ impl Pattern {
             _ => {}
         }
     }
+    pub(crate) fn references<'a>(&'a self, out: &mut Vec<(&'a str, (usize, usize))>) {
+        self.constants(out);
+        enum Part<'a> {
+            Pattern(&'a Pattern),
+            Children(&'a Children),
+        }
+        let mut pending = vec![Part::Pattern(self)];
+        while let Some(part) = pending.pop() {
+            match part {
+                Part::Pattern(pattern) => match pattern {
+                    Pattern::Literal(term, _) => dom::references_in_term(term, out),
+                    Pattern::Range(a, b, _) => {
+                        dom::references_in_term(a, out);
+                        dom::references_in_term(b, out);
+                    }
+                    Pattern::Test(_, term, inner) => {
+                        dom::references_in_term(term, out);
+                        pending.push(Part::Pattern(inner));
+                    }
+                    Pattern::Union(items) | Pattern::Intersection(items) => {
+                        pending.extend(items.iter().map(Part::Pattern))
+                    }
+                    Pattern::Difference(a, b) => {
+                        pending.push(Part::Pattern(a));
+                        pending.push(Part::Pattern(b));
+                    }
+                    Pattern::Path(_, inner) => pending.push(Part::Pattern(inner)),
+                    Pattern::Children(children) => pending.push(Part::Children(children)),
+                    _ => {}
+                },
+                Part::Children(children) => match children {
+                    Children::Node(pattern) => pending.push(Part::Pattern(pattern)),
+                    Children::Sequence(items) => pending.extend(items.iter().map(Part::Children)),
+                    Children::Optional(inner) => pending.push(Part::Children(inner)),
+                    Children::Repeat(item, separator) => {
+                        pending.push(Part::Children(item));
+                        pending.extend(separator.as_deref().map(Part::Children));
+                    }
+                    Children::Siblings => {}
+                },
+            }
+        }
+        out.sort_by_key(|reference| reference.1);
+        out.dedup();
+    }
+
     pub(crate) fn type_fault(&self, constants: dom::ConstantTypes) -> Option<dom::Fault> {
         match self {
-            Self::Constant(n, a) => dom::expected_problem(constants(n), dom::Type::Pattern)
-                .map(|problem| dom::Fault { problem, at: Some(*a) }),
-            Self::Test(op, v, _) => match dom::term_type_in(v, constants) {
+            Self::Constant(n, a) => (!matches!(constants(n), dom::Type::String | dom::Type::Pattern | dom::Type::Any))
+                .then(|| dom::Fault {
+                    problem: "a pattern atom requires a string or pattern constant".into(),
+                    at: Some(*a),
+                }),
+            Self::Literal(t, _) => match dom::term_type_in(t, constants) {
                 Err(f) => Some(f),
-                Ok(ty) => dom::test_type_problem(op, ty)
-                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
+                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
+                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
             },
+            Self::Range(a, b, _) => [a, b].into_iter().find_map(|t| match dom::term_type_in(t, constants) {
+                Err(f) => Some(f),
+                Ok(ty) => dom::expected_problem(ty, dom::Type::String)
+                    .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(t) }),
+            }),
+            Self::Test(op, v, p) => {
+                // A tested user constant is a terminal, never a predicate.
+                let mut base = p.as_ref();
+                while let Self::Test(_, _, inner) = base {
+                    base = inner;
+                }
+                if let Self::Constant(n, at) = base {
+                    if !matches!(constants(n), dom::Type::String | dom::Type::Any) {
+                        return Some(dom::Fault {
+                            problem: "a tested pattern atom requires a string constant".into(),
+                            at: Some(*at),
+                        });
+                    }
+                }
+                p.type_fault(constants).or_else(|| match dom::term_type_in(v, constants) {
+                    Err(f) => Some(f),
+                    Ok(ty) => dom::test_type_problem(op, ty)
+                        .map(|problem| dom::Fault { problem, at: dom::first_constant_in_term(v) }),
+                })
+            }
             Self::Children(c) => c.type_fault(constants),
             Self::Path(_, p) => p.type_fault(constants),
             Self::Union(xs) | Self::Intersection(xs) => xs.iter().find_map(|p| p.type_fault(constants)),
@@ -198,41 +438,6 @@ impl Pattern {
     }
 }
 impl Children {
-    fn read(j: &Json, depth: usize, repeated: bool) -> Result<Self, String> {
-        if depth > 256 {
-            return Err("nested too deeply".into());
-        }
-        if exact(j, &["node"]) {
-            return Ok(Self::Node(Box::new(Pattern::read(field(j, "node")?, depth + 1)?)));
-        }
-        if exact(j, &["siblings"]) {
-            if repeated || field(j, "siblings")?.as_bool() != Some(true) {
-                return Err("a sibling ellipsis cannot be a repeat item or separator".into());
-            }
-            return Ok(Self::Siblings);
-        }
-        if exact(j, &["sequence"]) {
-            let xs = field(j, "sequence")?.as_array().ok_or("a malformed pattern sequence")?;
-            if xs.len() < 2 {
-                return Err("a malformed pattern sequence".into());
-            }
-            return Ok(Self::Sequence(
-                xs.iter().map(|x| Self::read(x, depth + 1, repeated)).collect::<Result<_, _>>()?,
-            ));
-        }
-        if exact(j, &["optional"]) {
-            return Ok(Self::Optional(Box::new(Self::read(field(j, "optional")?, depth + 1, repeated)?)));
-        }
-        if exact(j, &["repeat"]) || exact(j, &["repeat", "separator"]) {
-            let item = Self::read(field(j, "repeat")?, depth + 1, true)?;
-            if !item.consumes() {
-                return Err("a pattern repeat cannot match only empty sequences".into());
-            }
-            let sep = j.get("separator").map(|x| Self::read(x, depth + 1, true).map(Box::new)).transpose()?;
-            return Ok(Self::Repeat(Box::new(item), sep));
-        }
-        Err("a malformed pattern children expression".into())
-    }
     fn consumes(&self) -> bool {
         match self {
             Self::Node(_) | Self::Siblings => true,
@@ -312,7 +517,17 @@ impl Pattern {
     ) -> Result<Self, E> {
         Ok(match self {
             Self::Constant(n, a) => constant(n, *a)?,
-            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, n.clone()),
+            Self::Literal(t, a) => {
+                let Term::Tag(ref spelling) = value(t, "literal")? else { unreachable!("a bound literal spelling") };
+                Self::Terminal(spelling.clone(), *a)
+            }
+            Self::Range(a, b, at) => {
+                let Term::Tag(ref a) = value(a, "endpoint")? else { unreachable!() };
+                let Term::Tag(ref b) = value(b, "endpoint")? else { unreachable!() };
+                Self::Terminal(format!("{a}..{b}"), *at)
+            }
+            Self::Wildcard(a) => Self::Terminal("_".into(), *a),
+            Self::Test(op, v, n) => Self::Test(op.clone(), value(v, op)?, Box::new(n.map_values(constant, value)?)),
             Self::Children(c) => Self::Children(c.map_values(constant, value)?),
             Self::Path(p, n) => Self::Path(p.clone(), Box::new(n.map_values(constant, value)?)),
             Self::Union(xs) => Self::Union(xs.iter().map(|x| x.map_values(constant, value)).collect::<Result<_, _>>()?),
@@ -375,7 +590,7 @@ struct Nfa {
 enum Predicate {
     Name(String),
     Terminal(String),
-    Test(String, Term, String),
+    Test(Vec<(String, Term)>, String),
     Children(usize),
     Path(String, usize),
     Union(Vec<usize>),
@@ -396,6 +611,9 @@ pub(crate) struct Machine {
 fn pattern_key(p: &Pattern) -> String {
     fn plain(p: &Pattern) -> Pattern {
         match p {
+            Pattern::Literal(t, _) => Pattern::Literal(t.clone(), (0, 0)),
+            Pattern::Range(a, b, _) => Pattern::Range(a.clone(), b.clone(), (0, 0)),
+            Pattern::Wildcard(_) => Pattern::Wildcard((0, 0)),
             Pattern::Name(s, _) => Pattern::Name(s.clone(), (0, 0)),
             Pattern::Terminal(s, _) => Pattern::Terminal(s.clone(), (0, 0)),
             Pattern::Constant(s, _) => Pattern::Constant(s.clone(), (0, 0)),
@@ -459,9 +677,15 @@ impl Machine {
         let pred = match p {
             Pattern::Name(s, _) => Predicate::Name(s.clone()),
             Pattern::Terminal(s, _) => Predicate::Terminal(s.clone()),
-            Pattern::Test(op, v, n) => {
-                let Pattern::Terminal(t, _) = &**n else { unreachable!() };
-                Predicate::Test(op.clone(), v.clone(), t.clone())
+            Pattern::Test(..) => {
+                let mut tests = Vec::new();
+                let mut base = p;
+                while let Pattern::Test(op, value, inner) = base {
+                    tests.push((op.clone(), value.clone()));
+                    base = inner;
+                }
+                let Pattern::Terminal(terminal, _) = base else { unreachable!("a tested terminal atom") };
+                Predicate::Test(tests, terminal.clone())
             }
             Pattern::Children(c) => {
                 let n = self.sequence(c);
@@ -473,7 +697,9 @@ impl Machine {
             Pattern::Union(xs) => Predicate::Union(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Intersection(xs) => Predicate::Intersection(xs.iter().map(|p| self.compile(p)).collect()),
             Pattern::Difference(a, b) => Predicate::Difference(self.compile(a), self.compile(b)),
-            Pattern::Constant(..) => unreachable!("resolved pattern"),
+            Pattern::Constant(..) | Pattern::Literal(..) | Pattern::Range(..) | Pattern::Wildcard(..) => {
+                unreachable!("resolved pattern")
+            }
         };
         let id = self.predicates.len();
         self.predicates.push(pred);
@@ -635,9 +861,9 @@ impl Machine {
             let mut holds = match p {
                 Predicate::Name(n) => name == Some(n),
                 Predicate::Terminal(t) => leaf.is_some_and(|(n, _, _)| n == t),
-                Predicate::Test(op, v, t) => {
-                    leaf.is_some_and(|(n, sound, tags)| n == t && leaf_test(op, v, sound, tags))
-                }
+                Predicate::Test(tests, terminal) => leaf.is_some_and(|(name, value, tags)| {
+                    name == terminal && tests.iter().all(|(op, operand)| leaf_test(op, operand, value, tags))
+                }),
                 Predicate::Children(id) => {
                     let n = &self.machines[*id];
                     bit(&s.relations[*id][n.start], n.end)
@@ -728,32 +954,34 @@ impl Machine {
     }
 }
 fn leaf_test(op: &str, value: &Term, sound: &str, tags: &[String]) -> bool {
-    if let Term::Str(v) = value {
-        return (sound == v) == (op == "=");
+    if let Term::Str(value) = value {
+        return (sound == value) == (op == "=");
     }
-    fn literals<'a>(v: &'a Term, out: &mut Vec<&'a str>) {
-        match v {
-            Term::Tag(t) => out.push(t),
-            Term::Union(xs) => {
-                for x in xs {
-                    literals(x, out);
-                }
+    let Term::Call(_, requirements) = value else { unreachable!("a signed requirement list") };
+    requirements.iter().all(|requirement| {
+        let Arg::Term(requirement) = requirement else { unreachable!() };
+        let (negative, term) = match requirement {
+            Term::Call(name, args) if name == "forbid" => {
+                let [Arg::Term(term)] = &args[..] else { unreachable!() };
+                (true, term)
             }
-            Term::EmptySet => {}
-            _ => unreachable!("evaluated tag set"),
+            term => (false, term),
+        };
+        let mut pending = vec![term];
+        while let Some(term) = pending.pop() {
+            match term {
+                Term::Tag(tag) => {
+                    if tags.contains(tag) == negative {
+                        return false;
+                    }
+                }
+                Term::Union(items) => pending.extend(items),
+                Term::EmptySet => {}
+                _ => unreachable!("a bound tag requirement"),
+            }
         }
-    }
-    let mut values = vec![];
-    literals(value, &mut values);
-    let all = values.iter().all(|v| tags.iter().any(|t| t == v));
-    let any = values.iter().any(|v| tags.iter().any(|t| t == v));
-    match op {
-        "⊇" => all,
-        "⊉" => !all,
-        "∩=∅" => !any,
-        "∩≠∅" => any,
-        _ => unreachable!(),
-    }
+        true
+    })
 }
 
 impl Pattern {

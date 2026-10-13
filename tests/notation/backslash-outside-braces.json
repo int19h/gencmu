@@ -1,6 +1,6 @@
 {
-  "description": "A backslash stands only in braces, so one outside them is a syntax error at the backslash (engine §9).",
-  "document": "```jbogenbau\n%rule a x \\ y\n```\n",
+  "description": "The separator slash stands only in braces. Outside braces, it is a syntax error at the slash (engine §9.2).",
+  "document": "```jbogenbau\n%rule a x / y\n```\n",
   "expect": {
     "error": {
       "line": 2,

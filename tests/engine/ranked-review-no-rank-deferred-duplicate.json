@@ -1,5 +1,5 @@
 {
-  "grammar": "%rule text $x(X) | Y\n%emits $x\n%rule text Z",
+  "grammar": "%rule text $x:X| Y\n%emits $x\n%rule text Z",
   "expect": {
     "error": "grammar",
     "where": {

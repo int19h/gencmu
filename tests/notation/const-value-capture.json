@@ -1,10 +1,10 @@
 {
   "description": "A constant's value is a closed term, so a capture in it is an error, at the capture (engine §9, §10).",
-  "document": "```jbogenbau\n%const $A ~a ∪ $x\n```\n",
+  "document": "```jbogenbau\n%const $A A ∪ $x\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 16
+      "column": 15
     }
   }
 }

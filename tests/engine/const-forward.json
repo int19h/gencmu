@@ -1,6 +1,6 @@
 {
-  "description": "A constant can reference a later definition. The stage binds that reference to its final value.",
-  "grammar": "%const $B $A \u222a C\n%const $A ~a\n%rule text X\n%conditions $B = (~a \u222a C)",
+  "description": "A constant can reference a later definition. The stage binds that reference to its final value (engine §2).",
+  "grammar": "%const $B ($A ∪ C)\n%const $A A\n%rule text X %conditions $B = (A ∪ C)\n",
   "tokens": [
     {
       "text": "x",

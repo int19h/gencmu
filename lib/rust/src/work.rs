@@ -57,7 +57,7 @@ pub(crate) enum Work {
     /// intersections, differences, classes and the pieces of a split. Each
     /// is counted as it is written or read.
     Listed,
-    /// The tokens of spans that `text` and `phonemes` terms read, each
+    /// The tokens of spans that `text` and `value` terms read, each
     /// counted as it is read.
     Spanned,
     /// The implications, and their consequents, that the closure of a
@@ -417,14 +417,14 @@ mod tests {
     /// 8000 tokens, under a second, where the count fails.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
         let dialect = crate::load_dialect_sources(single(grammar), "p.md").unwrap();
         let work = |n: usize, most: Option<(u64, u64)>| {
             let token = |tag: &str| InputToken {
+                image: None,
                 text: tag.to_lowercase(),
                 tags: [tag.to_string()].into_iter().collect(),
-                phonemes: None,
+                value: None,
             };
             let tokens: Vec<_> = (0..n).map(|_| token("A")).chain([token("B")]).collect();
             reset();
@@ -471,9 +471,10 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         // One KU can stand in either place, so the stage chooses one
         // derivation, and the check restores the elided one.
@@ -506,9 +507,10 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         let tokens = [token("A0"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {

@@ -1,20 +1,20 @@
 {
   "description": "A shorter prefix includes the complete close group at its endpoint (engine §4 and §10).",
-  "grammar": "%rule text $x(candidate)\n%conditions ¬begins(without-elision($x), rival)\n%rule candidate X [+T] [+U] Y\n%rule rival X [+T]",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.begins(rival))\n\n%rule candidate (X [+T] [+U] Y)\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     },
     {
       "text": "y",
       "tags": [
         "Y"
       ],
-      "phonemes": "y"
+      "value": "y"
     }
   ],
   "expect": {

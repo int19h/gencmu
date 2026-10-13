@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text A\n%rule text B\n```\n",
-    "b.md": "```jbogenbau\n%rule y $x(A) $x(B)\n```\n"
+    "b.md": "```jbogenbau\n%rule y $x:A$x:B\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [
@@ -19,7 +19,7 @@
     "where": {
       "document": "b.md",
       "line": 2,
-      "column": 15
+      "column": 13
     }
   }
 }

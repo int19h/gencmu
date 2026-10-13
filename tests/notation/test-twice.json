@@ -1,10 +1,10 @@
 {
-  "description": "A tested symbol takes no second test. The error is at the second test (engine §9).",
-  "document": "```jbogenbau\n%rule text LE=\"la\"=\"lai\"\n```\n",
+  "description": "A primary takes at most one value test, after any tag test. A second value test fails at its operator (engine §9.3).",
+  "document": "```jbogenbau\n%rule text LE = \"la\" = \"lai\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 19
+      "column": 22
     }
   }
 }

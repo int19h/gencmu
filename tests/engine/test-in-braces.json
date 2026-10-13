@@ -1,34 +1,34 @@
 {
-  "description": "A test belongs to its one symbol, so every item of {UI=\"ui\"} must sound ui, and the third token stops the text (engine §2, §4).",
-  "grammar": "%rule text {UI=\"ui\"} B",
+  "description": "Every item of {UI=\"ui\"} must have the exact value ui. The third token stops the repetition (engine §4).",
+  "grammar": "%rule text ({UI=\"ui\"} B)",
   "tokens": [
     {
       "text": "ui",
       "tags": [
         "UI"
       ],
-      "phonemes": "ui"
+      "value": "ui"
     },
     {
       "text": "uI",
       "tags": [
         "UI"
       ],
-      "phonemes": "uI"
+      "value": "ui"
     },
     {
       "text": "ua",
       "tags": [
         "UI"
       ],
-      "phonemes": "ua"
+      "value": "ua"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

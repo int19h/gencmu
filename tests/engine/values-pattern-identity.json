@@ -1,0 +1,25 @@
+{
+  "description": "String constants and engine scalar constants share exact terminal identity in patterns (engine §§2 and 12).",
+  "grammar": "%const $A \"a\"\n%rule text $_0061 %conditions $ ≅ @\"a\", $ ≅ @$A, $ ≅ @$_0061 %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

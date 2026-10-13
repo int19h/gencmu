@@ -1,10 +1,25 @@
 {
-  "description": "%features takes names: a tag literal ~cbm after it is an error at the directive (engine §9).",
-  "document": "```jbogenbau\n%features ~cbm\n```\n",
+  "description": "Engine §9.1 admits uppercase feature names after removal of the retired tag marker.",
+  "document": "```jbogenbau\n%features Cbm\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 1
+    "dom": {
+      "format": 26,
+      "rules": [],
+      "directives": [
+        {
+          "name": "features",
+          "args": [
+            "Cbm"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

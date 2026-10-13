@@ -3,6 +3,6 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">space-hesitation</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="210" height="24" rx="0"/><text x="125" y="51" textLength="193.2" lengthAdjust="spacingAndGlyphs">source-word⊇~hesitation</text></g>
+<g class="rule"><rect x="20" y="34" width="210" height="24" rx="0"/><text x="125" y="51" textLength="193.2" lengthAdjust="spacingAndGlyphs">source-word&lt;Hesitation&gt;</text></g>
 <path d="M230 46h6m0 -8v16m4 -16v16"/>
 </svg>

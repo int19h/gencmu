@@ -1,0 +1,24 @@
+{
+  "description": "A complete filter retains borrowed tag origin and permits stored engine tags (engine §1).",
+  "grammar": "%rule text $x:X :: $x.tags ∩ _Lu",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X",
+        "_Lu"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "tree": {
+        "tags": [
+          "_Lu"
+        ]
+      }
+    }
+  }
+}

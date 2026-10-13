@@ -1,6 +1,6 @@
 {
   "description": "An absent elidable optional, one marked [+T], is an elided node in the tree (engine §12).",
-  "grammar": "%rule text LE BRIVLA [+KU]",
+  "grammar": "%rule text (LE BRIVLA [+KU])",
   "tokens": [
     {
       "text": "le",

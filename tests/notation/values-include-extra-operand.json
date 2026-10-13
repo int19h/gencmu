@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%include \"a.md\" \"b.md\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 1
+    }
+  },
+  "description": "Two quoted operands cause a reader error at the include directive, which accepts exactly one path (engine §9.3)."
+}

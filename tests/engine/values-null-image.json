@@ -1,0 +1,14 @@
+{
+  "description": "A null caller image is a usage error before recognition rather than a default image (engine §1, docs/api.md).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "image": null
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

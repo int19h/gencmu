@@ -1,6 +1,6 @@
 {
   "description": "A capture can stand in a choice, and two branches can capture one name, since no production reads both (engine §3.5, §9).",
-  "document": "```jbogenbau\n%rule a ($a(A) | B)\n%rule b A ($x(B) | $x(C))\n%rule c ($x(A) | $x(B) [C]) D\n```\n",
+  "document": "```jbogenbau\n%rule a ($a:A | B)\n%rule b (A ($x:B | $x:C))\n%rule c (($x:A | ($x:B [C])) D)\n```\n",
   "expect": {
     "dom": {
       "rules": [

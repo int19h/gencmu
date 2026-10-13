@@ -1,5 +1,5 @@
 {
-  "description": "The reader accepts this pattern form. The notation stage constructs one reading.",
+  "description": "The reader accepts this pattern form. The notation stage constructs one reading (engine §9.3).",
   "document": "```jbogenbau\n%const $P @(A ∪ B ∩ C ∖ D)\n```\n",
   "expect": {
     "dom": {
@@ -7,10 +7,50 @@
         {
           "name": "P",
           "value": {
-            "pattern": {}
+            "pattern": {
+              "difference": [
+                {
+                  "union": [
+                    {
+                      "terminal": "A",
+                      "at": [
+                        2,
+                        13
+                      ]
+                    },
+                    {
+                      "intersection": [
+                        {
+                          "terminal": "B",
+                          "at": [
+                            2,
+                            17
+                          ]
+                        },
+                        {
+                          "terminal": "C",
+                          "at": [
+                            2,
+                            21
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "terminal": "D",
+                  "at": [
+                    2,
+                    25
+                  ]
+                }
+              ]
+            }
           }
         }
-      ]
+      ],
+      "format": 26
     }
   }
 }

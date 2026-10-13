@@ -2,6 +2,8 @@
 
 This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms use a parsing expression grammar (PEG).
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
@@ -53,7 +55,22 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: forms
+## Stage 2: normalize
+
+```jbogenbau
+%stage normalize
+```
+
+- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
+  ```jbogenbau
+  %include "../phonemes/normalize.md"
+  ```
+
+A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+
+The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
+
+## Stage 3: forms
 
 ```jbogenbau
 %stage forms
@@ -72,7 +89,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../words/lexicon-cll.md"
   ```
 
-## Stage 3: words
+## Stage 4: words
 
 ```jbogenbau
 %stage words
@@ -83,7 +100,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../words/stream.md"
   ```
 
-## Stage 4: indicators
+## Stage 5: indicators
 
 ```jbogenbau
 %stage indicators
@@ -94,7 +111,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../indicators/cll.md"
   ```
 
-## Stage 5: syntax
+## Stage 6: syntax
 
 ```jbogenbau
 %stage syntax
@@ -105,7 +122,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../syntax/cll.md"
   ```
 
-The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-5-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
+The stage uses the [cll-ebnf ranking and check](cll-ebnf.md#stage-6-syntax). The grammar's [simple tense-modals](../syntax/cll.md#tenses-and-modals) are the forms of `simple-tense-modal`. Their `leftmost-longest` flag prefers the earliest group, then the longest one at that start. `late-elision` ranks the remaining choices, and `elision-only` runs only when ranking selects one of several parses. The check restores that parse's omitted terminators and parses the restored text again. Another reading of the restored text that the flag does not rank below that parse makes the original text an error.
 
 ```jbogenbau
 %ambiguity-resolution late-elision elision-only

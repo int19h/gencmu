@@ -1,7 +1,38 @@
 {
-  "description": "The reader rejects this unsupported pattern form.",
-  "document": "```jbogenbau\n%const $P @(KEhE=\"A\")\n```\n",
+  "description": "Engine §§4, 9, and 10 accept exact value strings without normalization.",
+  "document": "```jbogenbau\n%const $P @ ( KEhE = \"A\" )\n```\n",
   "expect": {
-    "error": {}
+    "dom": {
+      "format": 26,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "string": "A"
+              },
+              "expr": {
+                "terminal": "KEhE",
+                "at": [
+                  2,
+                  15
+                ]
+              }
+            }
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
   }
 }

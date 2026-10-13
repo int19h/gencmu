@@ -1,10 +1,10 @@
 {
-  "description": "A span no longer stands for its tags: a capture in a union is an error at the capture, and tags($x) is its tag set (design §6, engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) <tags($x) ∪ $x>\n```\n",
+  "description": "A capture cannot convert to tags in a union. The mixture of $x.tags and $x fails at the union's first token (engine §9.3, §10).",
+  "document": "```jbogenbau\n%rule a $x:A :: $x.tags∪ $x\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 17
     }
   }
 }

@@ -1,10 +1,10 @@
 {
-  "description": "A clause's own error comes before the checks of the whole definition: the tags made of their own, at %tags, before $q, which no alternative captures (engine §9).",
-  "document": "```jbogenbau\n%rule a A\n  %tags tags($) ∪ tags($q)\n```\n",
+  "description": "A tag clause that reads its own constituent tags fails before the whole-definition check finds the unknown capture q (engine §9.3).",
+  "document": "```jbogenbau\n%rule a A\n:: $.tags∪ $q.tags\n```\n",
   "expect": {
     "error": {
       "line": 3,
-      "column": 3
+      "column": 1
     }
   }
 }

@@ -1,13 +1,13 @@
 {
   "description": "Implications that form a cycle end, since an implication only adds tags (engine §11).",
-  "grammar": "%implies A ⟹ ~b\n%implies ~b ⟹ A ∪ ~c\n%implies ~c ⟹ ~b\n%rule text [{word}]\n%rule word $w(W) <tags($w) ∪ A>\n%emits\n  $",
+  "grammar": "%implies A ⟹ B\n%implies B ⟹ (A ∪ C)\n%implies C ⟹ B\n%rule text [{word}]\n%rule word $w:W :: ($w.tags ∪ A) %emits $\n\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "W"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
@@ -20,9 +20,9 @@
             {
               "tags": [
                 "A",
-                "W",
-                "b",
-                "c"
+                "B",
+                "C",
+                "W"
               ]
             }
           ]

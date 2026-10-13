@@ -1,9 +1,9 @@
 {
-  "description": "An opaque part inside a constituent that emits ε gives nothing and is no opaque part: `word` sounds and shows only `a`, and `hidden` takes in no text, so `tail`, the next opaque part, takes the uncovered `!` before it (engine §5, §11).",
+  "description": "An erased descendant runs no verbatim recipe and contributes no strings. The following tail's image includes the uncovered exclamation mark, while its value, source and text remain those of c (engine §11.1, §11.4).",
   "documents": {
     "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## parts\n\n```jbogenbau\n%stage parts\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter 'a' <L ∪ /a/> | 'b' <L ∪ /b/> | 'c' <L ∪ /c/> | 'd' <L ∪ /d/>\n%emits $\n%rule pause ' ' <P ∪ /./>\n%emits $\n%rule mark '!'\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(word) $f(tail)\n%emits $w <W>, $f <F>\n%rule word L gone\n%rule gone hidden\n%emits ε\n%rule hidden L\n%opaque\n%rule tail L\n%opaque\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter \"a\" :: (L ∪ Sound-0061-s) := \"a\" | \"b\" :: (L ∪ Sound-0062-s) := \"b\" | \"c\" :: (L ∪ Sound-0063-s) := \"c\" | \"d\" :: (L ∪ Sound-0064-s) := \"d\" %emits $\n\n%rule pause \" \" :: (P ∪ Sound-002E-s) := \".\" :- \" \" %emits $\n\n%rule mark \"!\"\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($w:word $f:tail) %emits $w :: W, $f :: F\n\n%rule word (L gone)\n%rule gone hidden %erased\n\n%rule hidden :- $.verbatim-text | L\n\n%rule tail :- $.verbatim-text | L\n\n```\n"
   },
   "pipeline": "p.md",
   "input": "ab!c",
@@ -16,8 +16,8 @@
           "output": [
             {
               "text": "ab",
-              "phonemes": "a",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "span": [
                 0,
                 2
@@ -28,15 +28,15 @@
               ]
             },
             {
-              "text": "!c",
-              "phonemes": "?",
-              "label": "!c",
+              "text": "c",
+              "value": "c",
+              "image": "!c",
               "span": [
                 2,
                 3
               ],
               "source": [
-                2,
+                3,
                 4
               ]
             }

@@ -1,0 +1,10 @@
+{
+  "description": "The wildcard cannot stand as a tag operand. A syntax failure there precedes any earlier reader error (engine §9.2, §9.3).",
+  "document": "```jbogenbau\n%rule r A %emits _\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

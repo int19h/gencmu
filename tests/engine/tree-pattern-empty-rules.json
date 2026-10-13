@@ -1,20 +1,20 @@
 {
-  "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate.",
-  "grammar": "%rule text A # empty B\n%conditions $ ≅ @(A B)\n%rule # ε\n%rule empty ε",
+  "description": "The structural predicate observes the constructed candidate. Recognition keeps candidates with different answers separate (engine §4.1 and §10).",
+  "grammar": "%rule text (A # empty B) %conditions $ ≅ @(A B)\n\n%rule # ε\n%rule empty ε",
   "tokens": [
     {
       "text": "a",
       "tags": [
         "A"
       ],
-      "phonemes": "a"
+      "value": "a"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

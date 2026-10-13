@@ -8,14 +8,12 @@ import (
 )
 
 // unicodeTable is grammars/unicode.txt: the General_Category of every
-// scalar value, the White_Space property, and the simple lowercase mappings
-// that the canonical sound applies (engine §1, §5). Every library reads this table
+// scalar value, the White_Space property, and no normalization mappings (engine §1). Every library reads this table
 // rather than its platform's Unicode data, so that all of them agree.
 type unicodeTable struct {
 	// The category ranges, in order, for a binary search.
 	categories []categoryRange
 	whiteSpace [][2]rune
-	lower      map[rune]rune
 }
 
 type categoryRange struct {
@@ -42,7 +40,7 @@ var propertyNames = func() map[string]bool {
 }()
 
 func parseUnicodeTable(text string) (*unicodeTable, error) {
-	t := &unicodeTable{lower: map[rune]rune{}}
+	t := &unicodeTable{}
 	hex := func(s string) (rune, error) {
 		v, err := strconv.ParseUint(s, 16, 32)
 		return rune(v), err
@@ -59,7 +57,7 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			continue
 		case "category":
 			want = 4
-		case "white-space", "lower":
+		case "white-space":
 		default:
 			return nil, fmt.Errorf("unicode.txt line %d: unknown entry %q", n+1, f[0])
 		}
@@ -76,8 +74,6 @@ func parseUnicodeTable(text string) (*unicodeTable, error) {
 			t.categories = append(t.categories, categoryRange{a, b, f[1]})
 		case "white-space":
 			t.whiteSpace = append(t.whiteSpace, [2]rune{a, b})
-		default:
-			t.lower[a] = b
 		}
 	}
 	sort.Slice(t.categories, func(i, j int) bool { return t.categories[i].start < t.categories[j].start })
@@ -101,8 +97,7 @@ func (t *unicodeTable) category(c rune) string {
 }
 
 // isMark says whether a code point is a nonspacing mark, of
-// General_Category Mn, which a character tag's canonical spelling escapes
-// (engine §1).
+// General_Category Mn, which terminal diagnostics escape (engine §9.1).
 func (t *unicodeTable) isMark(c rune) bool { return t.category(c) == "Mn" }
 
 // isWhiteSpace says whether a code point has the White_Space property.
@@ -124,25 +119,6 @@ func (t *unicodeTable) hasProperty(name string, c rune) bool {
 		return t.category(c)[0] == name[0]
 	}
 	return t.category(c) == name
-}
-
-// canonical is the canonical form of a sound (engine §5): each code point
-// replaced by its simple lowercase mapping, and every comma, the syllable
-// break, removed.
-func (t *unicodeTable) canonical(s string) string {
-	return strings.ReplaceAll(t.lowercase(s), ",", "")
-}
-
-// lowercase replaces each code point with its simple lowercase mapping.
-func (t *unicodeTable) lowercase(s string) string {
-	var b strings.Builder
-	for _, c := range s {
-		if l, ok := t.lower[c]; ok {
-			c = l
-		}
-		b.WriteRune(c)
-	}
-	return b.String()
 }
 
 // fnv1a64 is the hash that keys precompiled DOMs (engine §8).

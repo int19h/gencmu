@@ -1,6 +1,6 @@
 {
   "description": "The circularity check does not depend on the kind of query: a begins about the span that a matches of the same rule is reading is an error (engine §4).",
-  "grammar": "%rule text $a(x) %conditions ¬matches(from($a), probe)\n%rule probe $b(x) %conditions ¬begins(from($b), probe)\n%rule x A",
+  "grammar": "%rule text $a:x %conditions ¬($a.onward.matches(probe))\n%rule probe $b:x %conditions ¬($b.onward.begins(probe))\n%rule x A",
   "tokens": [
     {
       "text": "a",

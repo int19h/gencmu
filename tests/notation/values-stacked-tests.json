@@ -1,0 +1,50 @@
+{
+  "document": "```jbogenbau\n%rule r A<B>=\"X,Y\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "=",
+                "value": {
+                  "string": "X,Y"
+                },
+                "expr": {
+                  "test": "tags",
+                  "requirements": [
+                    {
+                      "negated": false,
+                      "value": {
+                        "tag": "B"
+                      }
+                    }
+                  ],
+                  "expr": {
+                    "ref": "A"
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A tag test can precede one exact value test (engine §9.2)."
+}

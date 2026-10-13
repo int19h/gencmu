@@ -1,6 +1,6 @@
 {
   "description": "A derivation tied with the first reading can still be dominated. The derivation through p ties with A C D at the first read, but loses to the one through q, which reads D where it closes p. So the one through q is the second reading (engine §6).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A C D | p D | B q\n%rule p B C\n%rule q C D",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A C D) | (p D) | (B q)\n%rule p (B C)\n%rule q (C D)",
   "tokens": [
     {
       "text": "x",

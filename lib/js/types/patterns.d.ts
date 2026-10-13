@@ -1,5 +1,5 @@
-/** @param {any} test @param {string} sound @param {Set<string>} tags @returns {boolean} */
-export declare function leafTest(test: any, sound: string, tags: Set<string>): boolean;
+/** @param {any} test @param {string} input @param {Set<string>} tags @returns {boolean} */
+export declare function leafTest(test: any, input: string, tags: Set<string>): boolean;
 /** @param {any} node @returns {any[]} */
 export declare function patternParts(node: any): any[];
 /**
@@ -9,8 +9,16 @@ export declare function patternParts(node: any): any[];
  * @returns {string | null}
  */
 export declare function patternProblem(root: any, testFault: (test: any) => string | null): string | null;
-/** @param {any} root @param {(name:string, at:[number,number]) => any} constant @param {(term:any, test:any) => any} value @returns {any} */
-export declare function resolvePattern(root: any, constant: (name: string, at: [number, number]) => any, value: (term: any, test: any) => any): any;
+/**
+ * @param {any} root
+ * @param {(name:string, at:[number,number]) => any} constant
+ * @param {(term:any, test:any) => any} value
+ * @param {{isMark(code:number):boolean}} unicode
+ * @returns {any}
+ */
+export declare function resolvePattern(root: any, constant: (name: string, at: [number, number]) => any, value: (term: any, test: any) => any, unicode: {
+    isMark(code: number): boolean;
+}): any;
 export declare class PatternMachine {
     /** @type {any[]} */ predicates: any[];
     /** @type {any[]} */ machines: any[];

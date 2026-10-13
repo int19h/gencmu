@@ -1,9 +1,9 @@
 {
-  "description": "A %classifier item is a classifier with its entries: gates, decoded keys, ∈ or ∉, and a class, from a bare name or ~name. Line breaks mean nothing, so an entry can span lines and a %classifier can have no entries (engine §9, docs/output.md).",
-  "document": "```jbogenbau\n%classifier lexicon\n  \"mi\" \"do\" ∈ KOhA\n  f? ¬g? \"u\\u{27}i\"\n    ∉ ~UI\n%classifier empty\n%rule text $w(W) <classify(phonemes($w), lexicon)>\n```\n",
+  "description": "A classifier item keeps its entries' gates, decoded string keys, membership operators and written class tags. Line breaks separate no entries, and an empty classifier is legal (engine §9.3, docs/output.md format 26).",
+  "document": "```jbogenbau\n%classifier lexicon  \"mi\" \"do\" ∈ KOhA f? ¬g? \"u'i\" ∉ UI\n\n\n\n%classifier empty \n%rule text $w:W :: $w.value.classify(lexicon)\n```\n",
   "expect": {
     "dom": {
-      "format": 25,
+      "format": 26,
       "rules": [
         {
           "name": "text",
@@ -17,16 +17,15 @@
                 }
               },
               "tags": {
-                "call": "classify",
-                "args": [
-                  {
-                    "call": "phonemes",
-                    "args": [
-                      {
-                        "capture": "w"
-                      }
-                    ]
+                "method": "classify",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": "w"
                   },
+                  "args": []
+                },
+                "args": [
                   {
                     "classifier": "lexicon"
                   }
@@ -50,14 +49,18 @@
             {
               "guards": [],
               "keys": [
-                "mi",
-                "do"
+                {
+                  "string": "mi"
+                },
+                {
+                  "string": "do"
+                }
               ],
               "op": "∈",
               "class": "KOhA",
               "at": [
-                3,
-                3
+                2,
+                22
               ]
             },
             {
@@ -74,13 +77,15 @@
                 }
               ],
               "keys": [
-                "u'i"
+                {
+                  "string": "u'i"
+                }
               ],
               "op": "∉",
               "class": "UI",
               "at": [
-                4,
-                3
+                2,
+                39
               ]
             }
           ],

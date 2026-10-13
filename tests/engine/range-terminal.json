@@ -1,6 +1,6 @@
 {
-  "description": "A range and a property are terminals. A range matches a token that carries a character tag from its start to its end, and a property one whose character has the property. In the tree, each is its written form (engine §1, §4, §12).",
-  "grammar": "%rule text 'a'..'z' '\\p{Lu}' '0'..'9' '\\p{L}'",
+  "description": "A range reads a token's single scalar value, and a property terminal reads its stored engine tag. The tree keeps the canonical terminal form of each read (engine §1, §4, §12).",
+  "grammar": "%rule text (\"a\"..\"z\" _Lu \"0\"..\"9\" _L)",
   "input": "qQ7漢",
   "expect": {
     "result": {
@@ -16,19 +16,19 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "'a'..'z'"
+            "terminal": "\"a\"..\"z\""
           },
           {
             "kind": "token",
-            "terminal": "'\\p{Lu}'"
+            "terminal": "_Lu"
           },
           {
             "kind": "token",
-            "terminal": "'0'..'9'"
+            "terminal": "\"0\"..\"9\""
           },
           {
             "kind": "token",
-            "terminal": "'\\p{L}'"
+            "terminal": "_L"
           }
         ]
       }

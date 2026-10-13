@@ -13,18 +13,20 @@ import type { Token } from "./tokens.js";
  * @param {Token[]} tokens
  * @param {(token: Token) => Position} positionOf
  * @param {string} path
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
- *   the lowercase mapping that the strings of sound tests are checked
- *   against (engine §9, §10), and the marks that a character tag escapes
- *   (engine §1)
+ * @param {{isMark(code: number): boolean}} unicode
+ *   the configured category table for diagnostic strings
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
-    lowercase(text: string): string;
     isMark(code: number): boolean;
 }, deferEmission?: boolean): GrammarDom;
-export type OperandKind = "name" | "class" | "string" | "tag" | "phoneme" | "character" | "range" | "property";
+export type OperandKind = "name" | "class" | "string" | "tag" | "range" | "term";
+/**
+ * A directive's operand: a bare name, lower case or with a capital, a
+ * string, or another recognized term atom.
+ * @typedef {"name" | "class" | "string" | "tag" | "range" | "term"} OperandKind
+ */
 /**
  * What is wrong with a directive's operands, or null (engine §9).
  * @param {string} name

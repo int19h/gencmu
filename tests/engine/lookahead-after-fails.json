@@ -1,6 +1,6 @@
 {
   "description": "A negative lookahead after a part: y is read where no bc follows it, and x is not (engine §4, §10).",
-  "grammar": "%rule text x B C | y B D\n%rule x A %conditions begins(after($), bc)\n%rule y A %conditions ¬begins(after($), bc)\n%rule bc B C",
+  "grammar": "%rule text (x B C) | (y B D)\n%rule x A %conditions $.following-tokens.begins(bc)\n%rule y A %conditions ¬($.following-tokens.begins(bc))\n%rule bc (B C)",
   "tokens": [
     {
       "text": "a",

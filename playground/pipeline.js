@@ -61,13 +61,10 @@
   // (engine §1, grammars/notation/lexical.md).
   const SPACE = /^[\t-\r \u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]$/;
 
-  // The notation's tokens that matter here, as the notation reads them
-  // (grammars/notation/lexical.md): keywords, names and strings, with spaces
-  // and comments dropped. A comment runs from "(*" to the first "*)" after
-  // it; a phoneme tag, one character between slashes, is one token, and so
-  // is a character tag, between two quotes; and a string's escapes are
-  // decoded, an escape the reader refuses giving no string. Anything else is
-  // a token of its own that ends a directive.
+  // Keywords, names and quoted tokens used by pipeline directives (§9.1).
+  // Comments stop at their first closer. Quotes never use backslash escapes.
+  // Include paths keep dollar signs literally, so this scan does not expand
+  // string interpolation. Other punctuation ends a directive operand.
   function tokens(text) {
     const cs = [...text];
     const at = (i, what) => cs.slice(i, i + what.length).join("") === what;
@@ -80,40 +77,25 @@
         let end = i + 2;
         while (end < cs.length && !at(end, "*)")) end++;
         i = end + 2;
-      } else if (cs[i] === "'") {
-        // A character tag or a property, the characters between two
-        // quotes with a backslash escaping the next one, is one token. A
-        // range is two of them joined by `..`, which is of no interest here.
-        let end = i + 1;
-        while (end < cs.length && cs[end] !== "'") end += cs[end] === "\\" ? 2 : 1;
-        found.push({ kind: "character", value: cs.slice(i, end + 1).join("") });
-        i = end + 1;
-      } else if (cs[i] === "/" && cs[i + 2] === "/") {
-        found.push({ kind: "phoneme", value: cs.slice(i, i + 3).join("") });
-        i += 3;
       } else if (cs[i] === "\"") {
-        let value = "";
+        const start = ++i;
         let valid = true;
-        for (i++; i < cs.length && cs[i] !== "\""; i++) {
-          if (cs[i] !== "\\") {
-            value += cs[i];
-            continue;
-          }
+        while (i < cs.length && cs[i] !== "\"") {
+          if (cs[i] === "\\") valid = false;
           i++;
-          const escape = /^u\{([0-9A-Fa-f]{1,6})\}/.exec(cs.slice(i, i + 9).join(""));
-          if (cs[i] === "\\" || cs[i] === "\"") value += cs[i];
-          else if (escape && parseInt(escape[1], 16) <= 0x10FFFF) {
-            value += String.fromCodePoint(parseInt(escape[1], 16));
-            i += escape[0].length - 1;
-          } else valid = false;
         }
-        i++;
+        const value = cs.slice(start, i).join("");
+        valid = valid && i < cs.length;
+        if (i < cs.length) i++;
         found.push(valid ? { kind: "string", value } : { kind: "other", value: "" });
       } else {
-        const word = /^%?[A-Za-z][A-Za-z0-9-]*/.exec(cs.slice(i, i + 256).join(""));
-        if (word) {
-          found.push({ kind: word[0][0] === "%" ? "keyword" : "name", value: word[0] });
-          i += word[0].length;
+        const keyword = cs[i] === "%";
+        let end = i + (keyword ? 1 : 0);
+        if (/^[A-Za-z]$/.test(cs[end])) {
+          end++;
+          while (end < cs.length && /^[-_A-Za-z0-9]$/.test(cs[end])) end++;
+          found.push({ kind: keyword ? "keyword" : "name", value: cs.slice(i, end).join("") });
+          i = end;
         } else {
           found.push({ kind: "other", value: cs[i] });
           i++;

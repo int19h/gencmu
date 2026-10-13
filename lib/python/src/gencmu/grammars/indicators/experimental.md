@@ -25,10 +25,10 @@ Indicators after `lu` begin the quoted text. Indicators after `to` and `to'i` at
 %redefine-rule indicator-run
   | [fuhe] indicator | [fuhe] attitudinal-nai
   | indicator-run [fuhe] attitudinal-nai
-  | $r(indicator-run) $i(indicator)
+  | $r:indicator-run $i:indicator
   | indicator-run fuhe indicator
 %conditions
-  NAI ⊈ tags($i) ∨ classes(last($r)) ∩ (UI ∪ CAI) = ∅
+  NAI ⊈ $i.tags ∨ $r.last-token.classes ∩ (UI ∪ CAI) = ∅
 ```
 
 <details><summary>Railroad diagrams of <code>leading</code> and <code>indicator-run</code></summary>

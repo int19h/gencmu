@@ -26,7 +26,7 @@ import (
 //     predictions evaluate, each before it is evaluated.
 //   - visits: the nodes of conditions and terms that an evaluation enters,
 //     each before it is evaluated, in an evaluation that halts as well.
-//   - soundSteps: the tokens that sound tests and phonemes() visit.
+//   - soundSteps: the tokens that value tests and span.value visit.
 //   - readerSteps: the steps of the notation's reader and of the walks it
 //     makes of what it reads.
 //   - interned: the members that making interned tag sets examines, in

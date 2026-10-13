@@ -1,10 +1,46 @@
 {
-  "description": "An emitted item's tags cannot be ∅, which no terminal reads; a rule that emits nothing says %emits ε (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) %emits $x <∅>\n```\n",
+  "description": "Engine §11 permits emitted tokens with empty tag sets.",
+  "document": "```jbogenbau\n%rule a $x:A%emits $x :: ∅\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 22
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": "x",
+                "tags": {
+                  "emptySet": true
+                }
+              }
+            ]
+          },
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

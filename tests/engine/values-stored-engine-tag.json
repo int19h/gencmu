@@ -1,0 +1,32 @@
+{
+  "description": "Engine terminals inspect stored tags rather than value-derived categories (engine §§1 and 4).",
+  "grammar": "%rule text _Lu %emits",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "_Lu"
+      ],
+      "value": "x"
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "x",
+              "image": "a",
+              "tags": [
+                "_Lu"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

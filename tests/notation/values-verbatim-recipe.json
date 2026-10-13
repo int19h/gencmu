@@ -1,0 +1,51 @@
+{
+  "document": "```jbogenbau\n%rule r :- $.verbatim-text | A %emits\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "image": {
+            "concat": [
+              {
+                "method": "verbatim-text",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "A verbatim recipe retains its capture receiver and extends only the image's uncovered source gaps (engine §9.3, §11.1)."
+}

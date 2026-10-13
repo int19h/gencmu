@@ -1,10 +1,10 @@
 {
-  "description": "This ranked expression violates its syntax or an existing expression restriction.",
-  "document": "```jbogenbau\n%rule text (a ≻ b)=\"a\"\n```\n",
+  "description": "This ranked expression violates its syntax or an existing expression restriction (engine §9.3).",
+  "document": "```jbogenbau\n%rule text ( a ≻ b ) = \"a\"\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 19
+      "column": 22
     }
   }
 }

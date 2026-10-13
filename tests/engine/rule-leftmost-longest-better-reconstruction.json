@@ -1,6 +1,6 @@
 {
   "description": "A better reconstruction reports the restored chosen reading first, without replacing it (engine §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text r [+T] 'b' | r | 'a' [+U] 'b'\n%rule(leftmost-longest) r 'a' | 'a' T 'b'",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (r [+T] \"b\") | r | (\"a\" [+U] \"b\")\n%rule (leftmost-longest) r \"a\" | (\"a\" T \"b\")",
   "input": "ab",
   "expect": {
     "result": {

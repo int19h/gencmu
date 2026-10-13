@@ -1,6 +1,6 @@
 {
-  "description": "A separator can match no tokens: {A \\ [S]} reads items with or without S between them (engine §3.3).",
-  "grammar": "%rule text {A \\ [S]}",
+  "description": "A separator can match no tokens: {A / [S]} reads items with or without S between them (engine §3.3).",
+  "grammar": "%rule text {A / [S]}",
   "tokens": [
     {
       "text": "a",

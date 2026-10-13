@@ -1,17 +1,19 @@
 {
-  "grammar": "%rule text ($x(X) Y ≻ Z W)\n%conditions text($) ≠ \"never\", $x ⟹ (\"a\" ∈ split(text($x), phonemes($)))",
+  "grammar": "%rule text (($x:X Y) ≻ (Z W)) %conditions $.source-text ≠ \"never\", ($x ⟹ \"a\" ∈ $x.source-text.split($.value))\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
-      ]
+      ],
+      "value": ""
     },
     {
       "text": "y",
       "tags": [
         "Y"
-      ]
+      ],
+      "value": ""
     }
   ],
   "expect": {

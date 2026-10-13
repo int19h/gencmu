@@ -3,10 +3,10 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="151.2" lengthAdjust="spacingAndGlyphs">vowel-group-joined</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="193" height="24" rx="0"/><text x="116.5" y="51" textLength="176.4" lengthAdjust="spacingAndGlyphs">vowel-group⊇~syllabic</text></g>
+<g class="rule"><rect x="20" y="34" width="193" height="24" rx="0"/><text x="116.5" y="51" textLength="176.4" lengthAdjust="spacingAndGlyphs">vowel-group&lt;Syllabic&gt;</text></g>
 <path d="M213 46h10"/>
 <g class="rule"><rect x="223" y="34" width="67" height="24" rx="0"/><text x="256.5" y="51" textLength="50.4" lengthAdjust="spacingAndGlyphs">commas</text></g>
 <path d="M290 46h10"/>
-<g class="rule"><rect x="300" y="34" width="201" height="24" rx="0"/><text x="400.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">joined-vowel⊇~syllabic</text></g>
+<g class="rule"><rect x="300" y="34" width="201" height="24" rx="0"/><text x="400.5" y="51" textLength="184.8" lengthAdjust="spacingAndGlyphs">joined-vowel&lt;Syllabic&gt;</text></g>
 <path d="M501 46h6m0 -8v16m4 -16v16"/>
 </svg>

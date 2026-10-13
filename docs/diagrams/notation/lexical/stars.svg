@@ -4,12 +4,12 @@
 <text class="title" x="10" y="24" textLength="42" lengthAdjust="spacingAndGlyphs">stars</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
-<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">'*'</text></g>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;*&quot;</text></g>
 <path d="M82 46H170"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="58" height="24" rx="0"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">stars</text></g>
 <path d="M98 80h10"/>
-<g class="terminal"><rect x="108" y="68" width="42" height="24" rx="12"/><text x="129" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'*'</text></g>
+<g class="terminal"><rect x="108" y="68" width="42" height="24" rx="12"/><text x="129" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;*&quot;</text></g>
 <path d="M150 80H150a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M170 46h6m0 -8v16m4 -16v16"/>
 </svg>

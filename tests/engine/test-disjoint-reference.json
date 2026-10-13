@@ -1,6 +1,6 @@
 {
   "description": "X∩t=∅ and X∩t≠∅ on a reference read the tags of its completed constituent (engine §2, §4).",
-  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit w∩(~a ∪ ~c)=∅\n%rule miss w∩(~a ∪ ~c)≠∅\n%rule w X <~a> | Y <~b> | Z <~b ∪ ~c>",
+  "grammar": "%rule text [{p}]\n%rule p hit | miss\n%rule hit w<¬A ¬C>\n%rule miss w<A C>\n%rule w X :: A | Y :: B | Z :: (B ∪ C)",
   "tokens": [
     {
       "text": "x",
@@ -22,41 +22,27 @@
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
       ],
-      "tree": {
-        "rule": "text",
-        "children": [
-          {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "miss"
-              }
-            ]
-          },
-          {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "hit"
-              }
-            ]
-          },
-          {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "miss"
-              }
-            ]
-          }
-        ]
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 1,
+        "source": [
+          2,
+          3
+        ],
+        "line": 1,
+        "column": 3,
+        "expected": []
       }
     }
   }

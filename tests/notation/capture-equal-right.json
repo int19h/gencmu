@@ -1,10 +1,50 @@
 {
-  "description": "A capture on the right of = is an error at the capture, not at the comparison: a span is not a value (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions phonemes($x) = $x\n```\n",
+  "description": "Engine §10 converts a capture to its input value when a string is required.",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.value= $x\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 42
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "method": "value",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              },
+              "right": {
+                "capture": "x"
+              }
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

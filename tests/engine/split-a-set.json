@@ -1,27 +1,27 @@
 {
-  "description": "split() gives a set of strings, so = between two of them compares the pieces they hold, not their order or number (engine §10).",
-  "grammar": "%rule text $x(A) $y(B) $w(C)\n%conditions split(phonemes($x), \".\") = split(phonemes($y), \".\"), split(phonemes($x), \".\") ≠ split(phonemes($w), \".\")",
+  "description": ".split gives a set of strings, so = between two of them compares the pieces they hold, not their order or number (engine §10).",
+  "grammar": "%rule text ($x:A $y:B $w:C) %conditions $x.value.split(\".\") = $y.value.split(\".\"), $x.value.split(\".\") ≠ $w.value.split(\".\")\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "a.b.a"
+      "value": "a.b.a"
     },
     {
       "text": "y",
       "tags": [
         "B"
       ],
-      "phonemes": "b.a"
+      "value": "b.a"
     },
     {
       "text": "w",
       "tags": [
         "C"
       ],
-      "phonemes": "a.c"
+      "value": "a.c"
     }
   ],
   "expect": {

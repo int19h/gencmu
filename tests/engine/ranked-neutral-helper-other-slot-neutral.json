@@ -1,6 +1,6 @@
 {
-  "description": "A neutral helper remains outside the ranked group. Both ranked and neutral inputs remain valid.",
-  "grammar": "%rule text ((a ≻ b) | [Q]) (c ≻ d)\n%rule a X Y\n%rule b X Y\n%rule c U V\n%rule d U V",
+  "description": "A neutral helper remains outside the ranked group. Both ranked and neutral inputs remain valid (engine §2.1 and §6.1).",
+  "grammar": "%rule text (((a ≻ b) | [Q]) (c ≻ d))\n%rule a (X Y)\n%rule b (X Y)\n%rule c (U V)\n%rule d (U V)",
   "tokens": [
     {
       "text": "q",
@@ -23,7 +23,7 @@
   ],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {

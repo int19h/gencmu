@@ -1,6 +1,6 @@
 {
   "description": "X⊇t holds where the token's tags include every tag of t, and X⊉t where they lack one at least. A constant can stand for t (engine §2, §4).",
-  "grammar": "%const $AB A ∪ B\n%rule text [{p}]\n%rule p hit | miss\n%rule hit X⊇$AB\n%rule miss X⊉$AB",
+  "grammar": "%const $AB (A ∪ B)\n%rule text [{p}]\n%rule p hit | miss\n%rule hit X<$AB>\n%rule miss X<¬$AB>",
   "tokens": [
     {
       "text": "a",
@@ -35,46 +35,37 @@
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
       ],
-      "tree": {
-        "rule": "text",
-        "children": [
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          1
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
           {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "miss"
-              }
+            "terminal": "X<A B>",
+            "rules": [
+              "hit"
             ]
           },
           {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "hit"
-              }
-            ]
-          },
-          {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "miss"
-              }
-            ]
-          },
-          {
-            "rule": "p",
-            "children": [
-              {
-                "rule": "hit"
-              }
+            "terminal": "X<¬A ¬B>",
+            "rules": [
+              "miss"
             ]
           }
         ]

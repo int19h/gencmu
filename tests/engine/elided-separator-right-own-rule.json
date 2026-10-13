@@ -1,6 +1,6 @@
 {
-  "description": "The recursive prefix c and the direct prefix a both permit the ordinary omission. Their equal visible readings tie.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {c | a ... \\ [+T] s}\n%rule a A | A B\n%rule s B S",
+  "description": "The recursive prefix c and the direct prefix a both permit the ordinary omission. Their equal visible readings tie (engine §3.8 and §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text c\n%rule c {(c | a) ... / ([+T] s)}\n%rule a A | (A B)\n%rule s (B S)",
   "tokens": [
     {
       "text": "a",

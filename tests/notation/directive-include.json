@@ -1,20 +1,10 @@
 {
-  "description": "%include takes one string, decoded as a string of a rule is (engine §9).",
-  "document": "```jbogenbau\n%include \"../a \\u{62}\\\\c.md\"\n```\n",
+  "description": "The include directive takes one quoted path. Dollar signs in that path remain literal rather than receiving ordinary string interpolation (engine §9.1, §9.3).",
+  "document": "```jbogenbau\n%include \"../a b\\\\c.md\"\n```\n",
   "expect": {
-    "dom": {
-      "directives": [
-        {
-          "name": "include",
-          "args": [
-            "../a b\\c.md"
-          ],
-          "at": [
-            2,
-            1
-          ]
-        }
-      ]
+    "error": {
+      "line": 2,
+      "column": 17
     }
   }
 }

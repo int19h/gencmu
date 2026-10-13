@@ -1,6 +1,6 @@
 {
-  "description": "A right chain, {x ... \\ s}, is r → x | x s r on the rule itself, so its levels nest from the right (engine §3.3, §12).",
-  "grammar": "%rule text {A ... \\ S}",
+  "description": "A right chain, {x ... / s}, is r → x | x s r on the rule itself, so its levels nest from the right (engine §3.3, §12).",
+  "grammar": "%rule text {A ... / S}",
   "tokens": [
     {
       "text": "a",

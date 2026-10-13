@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -272,6 +273,19 @@ func sameValue(a, b reflect.Value) bool {
 		}
 		return sameValue(a.Elem(), b.Elem())
 	case reflect.Struct:
+		// Source terms keep diagnostic locations that DOM 26 does not serialize.
+		// Constants retain their serialized reference positions.
+		if a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
+			for i := range a.NumField() {
+				if a.Type().Field(i).Name == "At" {
+					continue
+				}
+				if !sameValue(a.Field(i), b.Field(i)) {
+					return false
+				}
+			}
+			return true
+		}
 		for i := 0; i < a.NumField(); i++ {
 			if !sameValue(a.Field(i), b.Field(i)) {
 				return false
@@ -332,14 +346,13 @@ func sameValue(a, b reflect.Value) bool {
 	panic("sameValue: cannot compare a " + a.Kind().String())
 }
 
-// The notation's lexical stage tags keywords, tag literals, character tags,
-// properties and symbols (grammars/notation/lexical.md).
+// DOM 26 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
 func TestNotationLexicalTags(t *testing.T) {
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := d.Parse(`%rule a ¬f? ~b 'c' /d/ {E ... \ '\\'} [+KU] [+TOI] | g! %tags X %rulex $e ¬h 'x'..'y' '\p{L}' 'a'...`, ParseOptions{Until: "lexical"})
+	res, err := d.Parse(`%rule a :: X | ¬f? B "c" / {E ... "$(_005C)"} [+KU] [+TOI] | g! %rulex $e ¬h "x".."y" _L "a"...`, ParseOptions{Until: "lexical"})
 	if err != nil || !res.OK {
 		t.Fatalf("%v %+v", err, res)
 	}
@@ -348,15 +361,14 @@ func TestNotationLexicalTags(t *testing.T) {
 		got = append(got, [2]string{tok.Text, strings.Join(tok.Tags, " ")})
 	}
 	want := [][2]string{
-		{"%rule", "keyword-rule"}, {"a", "identifier"}, {"¬f?", "guard"}, {"~b", "tag"}, {"'c'", "character"},
-		{"/d/", "phoneme"}, {"{", "'{'"}, {"E", "identifier"}, {"...", "ellipsis"}, {`\`, `'\u{5C}'`}, {`'\\'`, "character"}, {"}", "'}'"},
-		{"[", "'['"}, {"+", "'+'"}, {"KU", "identifier"}, {"]", "']'"}, {"[", "'['"}, {"+", "'+'"}, {"TOI", "identifier"}, {"]", "']'"},
-		{"|", "'|'"}, {"g!", "guard"},
-		{"%tags", "keyword-tags"}, {"X", "identifier"}, {"%rulex", "keyword"}, {"$e", "capture"}, {"¬", "'¬'"}, {"h", "identifier"},
-		{"'x'", "character"}, {"..", "double-dot"}, {"'y'", "character"}, {`'\p{L}'`, "property"}, {"'a'", "character"}, {"...", "ellipsis"},
+		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_S _Sm"},
+		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_P _Pe"},
+		{"[", "_P _Ps"}, {"+", "_S _Sm"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_P _Pe"}, {"[", "_P _Ps"}, {"+", "_S _Sm"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_P _Pe"},
+		{"|", "_S _Sm"}, {"g!", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_S _Sm"}, {"h", "Identifier Lowercase-Name"},
+		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_L", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got  %v\nwant %v", got, want)
+		t.Fatalf("got %v\nwant %v", got, want)
 	}
 }
 
@@ -367,7 +379,7 @@ func TestNotationTie(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A notation whose one stage reads the character a in two ways.
-	notation, err := bundled.reader.read("```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p 'a'\n%rule q 'a'\n```\n", "n.md")
+	notation, err := bundled.reader.read("```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p \"a\"\n%rule q \"a\"\n```\n", "n.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,31 +413,36 @@ func TestNotationLexicalConstants(t *testing.T) {
 		got = append(got, [2]string{tok.Text, strings.Join(tok.Tags, " ")})
 	}
 	want := [][2]string{
-		{"%const", "keyword-const"}, {"$SU-STOPS", "constant"}, {"%redefine-const", "keyword-redefine-const"},
-		{"$x", "capture"}, {"$", "capture"}, {"$K1", "constant"},
+		{"%const", "KW-CONST"}, {"$SU-STOPS", "Constant"}, {"%redefine-const", "KW-REDEFINE-CONST"},
+		{"$x", "Capture"}, {"$", "Capture"}, {"$K1", "Constant"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got  %v\nwant %v", got, want)
 	}
 }
 
-// A character tag is one scalar value in one canonical spelling (engine
-// §1): the escapes of the reader and the engine's spelling agree.
+// Scalar constants and terminal diagnostics replace character tags (engine §1, §4).
 func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': "'a'", 0x301: `'\u{301}'`, 0xED80: `'\u{ED80}'`, '\'': `'\u{27}'`, '\\': `'\u{5C}'`, 0x7F: `'\u{7F}'`, 'é': "'é'", 0x10FFFD: `'\u{10FFFD}'`} {
-		if got := characterTag(c, bundled.uni.isMark); got != want {
-			t.Errorf("U+%04X: got %s, want %s", c, got, want)
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"é"`, 0x10FFFD: `"$(_10FFFD)"`} {
+		if got := stringTerminal(string(c), bundled.uni); got != want {
+			t.Errorf("U+%04X: %s, want %s", c, got, want)
 		}
-		if back, ok := characterOfTag(want, bundled.uni.isMark); !ok || back != c {
-			t.Errorf("%s: read back as U+%04X, %v", want, back, ok)
+		name := fmt.Sprintf("_%04X", c)
+		if back, ok := engineScalar(name); !ok || back != string(c) {
+			t.Errorf("%s: %q, %v", name, back, ok)
 		}
 	}
-	for _, bad := range []string{`'\u{61}'`, `'\u{0301}'`, `'\u{ed80}'`, "'́'", "''", "'ab'", `'\u{D800}'`, `'\u{110000}'`, "'''"} {
+	for _, bad := range []string{"_61", "_0000301", "_ed80", "_D800", "_110000", "_Any"} {
+		if _, ok := engineScalar(bad); ok {
+			t.Errorf("%s is a scalar constant", bad)
+		}
+	}
+	for _, bad := range []string{"'a'", "/a/", "lowercase", "_Bogus"} {
 		if isTag(bad, bundled.uni) {
-			t.Errorf("%s is taken for a canonical tag", bad)
+			t.Errorf("%s is a tag", bad)
 		}
 	}
 }
@@ -465,9 +482,6 @@ func TestUnicodeTableOrder(t *testing.T) {
 				if reversed.category(c) != bundled.category(c) || reversed.isWhiteSpace(c) != bundled.isWhiteSpace(c) {
 					t.Errorf("U+%04X: the reversed table disagrees", c)
 				}
-				if (c < 0xD800 || c > 0xDFFF) && reversed.lowercase(string(c)) != bundled.lowercase(string(c)) {
-					t.Errorf("U+%04X: the reversed table lowercases it otherwise", c)
-				}
 			}
 		}
 	}
@@ -477,7 +491,7 @@ func TestUnicodeTableOrder(t *testing.T) {
 }
 
 // A scalar value that a caller's table omits is Cn, without White_Space
-// or a lowercase mapping (engine §1).
+// or a stored Unicode category (engine §1).
 func TestUnicodeTablePartial(t *testing.T) {
 	uni, err := parseUnicodeTable("unicode 0.0.0\ncategory Lu 0041 005A\n")
 	if err != nil {
@@ -494,8 +508,8 @@ func TestUnicodeTablePartial(t *testing.T) {
 	if uni.isWhiteSpace(' ') || uni.isWhiteSpace('\t') || uni.hasProperty("White_Space", ' ') {
 		t.Error("a table without white-space lines has White_Space")
 	}
-	if uni.lowercase("AB") != "AB" || uni.isMark(0x301) {
-		t.Error("a table without lower lines lowercases, or has a mark")
+	if uni.isMark(0x301) {
+		t.Error("a table without category lines has a mark")
 	}
 }
 
@@ -517,7 +531,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 		rule  string
 		table bool
 		ok    bool
-	}{{`'\p{L}'`, true, false}, {`'\p{Cn}'`, true, true}, {`'\p{L}'`, false, true}} {
+	}{{`_L`, true, false}, {`_Cn`, true, true}, {`_L`, false, true}} {
 		d, err := LoadDialectSources(sources(c.rule, c.table), "p.md")
 		if err != nil {
 			t.Fatal(err)

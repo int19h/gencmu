@@ -1,0 +1,25 @@
+{
+  "description": "A covering parent uses constituent strings without executing child emission items (engine §11).",
+  "grammar": "%rule text child %emits\n%rule child := \"v\" :- \"i\" | \"a\" %emits $ := \"item\"",
+  "input": "a",
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "v",
+              "image": "i",
+              "tags": [
+                "_L",
+                "_Ll"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

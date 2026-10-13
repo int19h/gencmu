@@ -1,10 +1,10 @@
 {
-  "description": "The second argument of tags is a rule, which a name with a capital is not: tags($x, KOhA) is an error at the call (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions tags($x, KOhA) = ∅\n```\n",
+  "description": "The .tags query argument must name a lowercase rule. A capital-initial tag in that argument causes an error at the method receiver (engine §9.3, §10).",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x.tags(KOhA)= ∅\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 27
+      "column": 25
     }
   }
 }

@@ -1,31 +1,52 @@
 {
-  "description": "A sound test compares with the lowercased phonemes, so a stressed word passes it (engine §4, §10).",
-  "grammar": "%rule text LE=\"lai\" B",
+  "description": "A value test keeps case distinctions. The token's lAi differs from lai, so recognition rejects instead of lowering the uppercase vowel (engine §4, §10).",
+  "grammar": "%rule text (LE=\"lai\" B)",
   "tokens": [
     {
       "text": "lAi",
       "tags": [
         "LE"
       ],
-      "phonemes": "lAi"
+      "value": "lAi"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "verdict": "unique"
+          "name": "main",
+          "verdict": null
         }
-      ]
-    },
-    "brackets": "(lAi b)"
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          3
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
+          {
+            "terminal": "LE=\"lai\"",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
   }
 }

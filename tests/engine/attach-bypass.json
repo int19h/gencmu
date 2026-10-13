@@ -2,14 +2,14 @@
   "description": "A carrier emits one token over its captured part and does not run that part's own emission, so the part's inner structure is not kept (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(bb) $w(wrap)\n%emits\n  ($b) $w\n%rule wrap\n  $x(xx) $y(yy)\n%tags\n  ~V\n%emits\n  $x, $y\n%rule xx\n  'x' <X>\n%rule yy\n  'y' <Y>\n%rule bb\n  'b' <B>\n%emits\n  $\n```\n",
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text ($b:bb $w:wrap) %emits ($b) $w\n\n\n%rule wrap :: V | ($x:xx $y:yy) %emits $x, $y\n\n\n\n\n\n%rule xx \"x\" :: X\n\n%rule yy \"y\" :: Y\n\n%rule bb \"b\" :: B %emits $\n\n\n\n```\n",
     "b.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text V\n```\n"
   },
   "pipeline": "p.md",
   "input": "bxy",
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": true,
       "stages": [
         {
@@ -18,8 +18,8 @@
           "output": [
             {
               "text": "xy",
-              "phonemes": "",
-              "label": "xy",
+              "value": "xy",
+              "image": "xy",
               "tags": [
                 "V"
               ],
@@ -34,8 +34,8 @@
               "before": [
                 {
                   "text": "b",
-                  "phonemes": "",
-                  "label": "b",
+                  "value": "b",
+                  "image": "b",
                   "tags": [
                     "B"
                   ],

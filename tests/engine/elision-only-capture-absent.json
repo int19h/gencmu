@@ -1,6 +1,6 @@
 {
   "description": "Twin of elision-only-capture-beside-marker.json without x: the production A of s has no $x, the guarded tag term gives nothing in the chosen tree and in the restored reading, and the check passes (engine §3.6, §7).",
-  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text s [+KU] C | y\n%rule y [+VAU] A [$x(X)] C\n%rule s A [$x(X)]\n%tags $x ⟹ tags($x)\n%conditions $x ⟹ phonemes($x) = \"x\"",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text (s [+KU] C) | y\n%rule y ([+VAU] A [$x:X] C)\n%rule s :: ($x ⟹ $x.tags) | (A [$x:X]) %conditions ($x ⟹ $x.value = \"x\")\n\n",
   "tokens": [
     {
       "text": "a",

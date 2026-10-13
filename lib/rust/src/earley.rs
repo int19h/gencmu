@@ -12,9 +12,7 @@ use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
-use crate::tags::{
-    character_tag, difference, intersection, is_name, is_subset, union_all, SetId, TagId, TagList, Tags,
-};
+use crate::tags::{difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
@@ -24,6 +22,7 @@ use crate::work::{self, Mutant, Work};
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Matcher {
     Tag(TagId),
+    Value(TagId),
     Characters(Characters),
 }
 
@@ -34,7 +33,10 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
         .zip(&g.characters)
         .map(|(name, characters)| match characters {
             Some(characters) => Matcher::Characters(*characters),
-            None => Matcher::Tag(tags.tag(name)),
+            None => match crate::tags::string_value(name) {
+                Some(value) => Matcher::Value(tags.tag(&value)),
+                None => Matcher::Tag(tags.tag(name)),
+            },
         })
         .collect()
 }
@@ -44,12 +46,12 @@ pub(crate) fn matchers(g: &Lowered, tags: &mut Tags) -> Vec<Matcher> {
 pub(crate) struct Tok {
     pub text: String,
     pub tags: SetId,
-    pub phonemes: Option<String>,
+    pub value: String,
     pub source: (usize, usize),
     /// What it shows to people (§5).
-    pub label: String,
-    /// Its phonemes in canonical form, for the sound tests of symbols and for
-    /// `phonemes()`, computed when one first looks at the token (§4, §5).
+    pub image: String,
+    /// Its value in canonical form, for the sound tests of symbols and for
+    /// `value()`, computed when one first looks at the token (§4, §5).
     pub sound: std::cell::OnceCell<Box<str>>,
     /// How many tokens from this one on, in its sequence, have no sound, so
     /// that a sound test skips them at once. Zero where it is not known,
@@ -69,12 +71,9 @@ impl Tok {
 }
 
 impl Tok {
-    /// The token's phonemes in canonical form, or nothing if it has none
-    /// (§5). The lowercase mapping and the removal of commas act on each
-    /// code point alone, so the canonical sound of a span is its tokens'
-    /// joined.
-    pub(crate) fn sound(&self, unicode: &Unicode) -> &str {
-        self.sound.get_or_init(|| unicode.canonical(self.phonemes.as_deref().unwrap_or("")).into())
+    /// The token's exact stored value, cached for repeated observations.
+    pub(crate) fn sound(&self, _unicode: &Unicode) -> &str {
+        self.sound.get_or_init(|| self.value.as_str().into())
     }
 }
 
@@ -88,10 +87,9 @@ pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
     }
 }
 
-/// Whether `tokens` sound like a string: their canonical sound is exactly
-/// it (§4, §5). A token with no phonemes adds nothing, so an empty span
-/// sounds like the empty string. Runs of such tokens are skipped whole, so
-/// the test costs the length of the string, not of the span.
+/// Compare the exact concatenation of token values (§4, §5). Empty
+/// values contribute nothing. Runs of them are skipped whole, so the
+/// test costs the string length rather than the span length.
 fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
     let mut rest = sound;
     let mut at = 0;
@@ -115,15 +113,9 @@ fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
 /// (§4). A tag the table has never seen is in no set.
 pub(crate) fn test_holds(test: &SymbolTest, tokens: &[Tok], unicode: &Unicode, tags: &Tags, set: SetId) -> bool {
     let has = |tag: &String| tags.lookup(tag).is_some_and(|tag| tags.contains(set, tag));
-    match test.op {
-        TestOp::Is | TestOp::IsNot => {
-            sounds_like(tokens, unicode, test.sound.as_deref().unwrap_or("")) == (test.op == TestOp::Is)
-        }
-        TestOp::Superset => test.tags.iter().all(has),
-        TestOp::NotSuperset => !test.tags.iter().all(has),
-        TestOp::Disjoint => !test.tags.iter().any(has),
-        TestOp::Meets => test.tags.iter().any(has),
-    }
+    test.tags.iter().all(has)
+        && !test.negative.iter().any(has)
+        && test.sound.as_ref().map_or(true, |value| sounds_like(tokens, unicode, value) == (test.op == TestOp::Is))
 }
 
 /// A captured part: its span, relative to the parse's tokens, and its tag set.
@@ -655,13 +647,13 @@ type Place = (u32, usize, usize);
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
-type ObservedToken = (SetId, String, Option<String>, usize, usize);
+type ObservedToken = (SetId, String, String, String, usize, usize);
 
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum NestedKey {
     /// A short span: its rule, the original text that holds its tokens'
-    /// sources, and each token's tags, text, phonemes, and where its
+    /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
     /// `text` of a part of the span reads: everything its parse can observe.
     Content(u32, String, Vec<ObservedToken>),
@@ -685,9 +677,6 @@ pub(crate) struct Shared<'a> {
     close_prefixes: Vec<crate::restoration::QueryPrefix>,
     pattern_grammar: usize,
     pub tags: Tags,
-    /// The tag list of each range that a term holds, by its first and last
-    /// scalar values, made once (§10).
-    ranges: FxMap<(u32, u32), Arc<TagList>>,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
     /// Whether a span parses as a rule, and its tags as it: what `matches`
@@ -711,7 +700,6 @@ impl<'a> Shared<'a> {
             close_prefixes: Vec::new(),
             pattern_grammar: 0,
             tags: Tags::new(),
-            ranges: FxMap::default(),
             unicode,
             text,
             memo: FxMap::default(),
@@ -735,10 +723,16 @@ impl<'a> Shared<'a> {
     /// Whether a terminal matches a token whose tags are `set` (§4). A
     /// range or a property matches once, however many of its tags qualify.
     #[inline]
-    pub(crate) fn reads(&self, matcher: Matcher, set: SetId) -> bool {
+    pub(crate) fn reads(&self, matcher: Matcher, token: &Tok) -> bool {
         match matcher {
-            Matcher::Tag(tag) => self.tags.contains(set, tag),
-            Matcher::Characters(characters) => self.carries(characters, set),
+            Matcher::Tag(tag) => self.tags.contains(token.tags, tag),
+            Matcher::Value(value) => token.value.as_str() == self.tags.name(value),
+            Matcher::Characters(Characters::Property(crate::unicode::Property::Any)) => true,
+            Matcher::Characters(Characters::Range(first, last)) => {
+                let mut chars = token.value.as_str().chars();
+                chars.next().is_some_and(|c| chars.next().is_none() && (first..=last).contains(&(c as u32)))
+            }
+            Matcher::Characters(characters) => self.carries(characters, token.tags),
         }
     }
 
@@ -750,28 +744,7 @@ impl<'a> Shared<'a> {
         })
     }
 
-    /// The character tags of a range, from its first to its last scalar
-    /// value, the surrogates skipped (§1).
-    fn range(&mut self, first: u32, last: u32) -> Arc<TagList> {
-        if let Some(list) = self.ranges.get(&(first, last)) {
-            return list.clone();
-        }
-        let unicode = self.unicode;
-        // The list is made once, and each later evaluation shares it. Each
-        // tag counts as it is made.
-        let mut list: TagList = (first..=last)
-            .filter_map(char::from_u32)
-            .map(|c| {
-                work::count(Work::Listed, 1);
-                self.tags.tag(&character_tag(c, unicode))
-            })
-            .collect();
-        list.sort_unstable();
-        let list = Arc::new(list);
-        self.ranges.insert((first, last), list.clone());
-        list
-    }
-
+    /// The original source envelope of a token span.
     pub(crate) fn source_text(&self, start: usize, end: usize) -> String {
         self.text[start..end].iter().collect()
     }
@@ -786,6 +759,8 @@ pub(crate) struct Recon<'o> {
     pub project: Vec<u32>,
     /// For each token of R, whether it is synthetic, by its provenance.
     pub synthetic: Vec<bool>,
+    /// Saved equality operands retain absent versus explicit empty values.
+    pub saved_values: Vec<Option<String>>,
 }
 
 /// A term's value (§10).
@@ -1048,7 +1023,6 @@ enum Task<'n> {
     Split(&'n LTerm),
     /// `split` with the string's value.
     SplitBy(String),
-    TagOf,
     Classify(&'n str),
     /// The term of `⟹` in a term, which its guard's value decides on.
     Guarded(&'n LTerm),
@@ -1301,7 +1275,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     term(a, out);
                     term(b, out);
                 }
-                LTerm::TagOf(t) | LTerm::Classify(t, _) => term(t, out),
+                LTerm::Classify(t, _) => term(t, out),
                 _ => {}
             }
         }
@@ -1321,7 +1295,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
                 crate::lower::LEmit::Items(xs) => {
                     for e in xs {
-                        if let crate::lower::LEmitItem::Cap(_, Some(t), ..) = e {
+                        if let crate::lower::LEmitItem::Cap(_, Some(t), ..)
+                        | crate::lower::LEmitItem::Insert(Some(t), _) = e
+                        {
                             term(t, &mut roots);
                         }
                     }
@@ -1394,8 +1370,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
         rules.iter().any(|rule| {
             let prefix = &self.shared.close_prefixes[*rule as usize];
-            prefix.nullable
-                || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], tokens[at].tags))
+            prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
         })
     }
     fn finish_structure(&self, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
@@ -1433,7 +1408,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         let observed = self.recon.map_or(tokens, |r| r.observed);
                         let sound = if let Some(recon) = self.recon {
                             if set > item.origin as usize && recon.synthetic[item.origin as usize] {
-                                tokens[item.origin as usize].phonemes.clone()
+                                recon.saved_values[item.origin as usize].clone()
                             } else {
                                 None
                             }
@@ -1525,7 +1500,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 name.clone(),
                 recon.project[e] as usize,
                 recon.observed,
-                token.phonemes.clone(),
+                recon.saved_values[e].clone(),
             );
             record.at += base;
             let observation = m.observations.as_mut().unwrap().close(record);
@@ -1830,7 +1805,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             match production.syms[item.dot as usize] {
                 Sym::T(terminal) => {
                     let tokens = run.tokens;
-                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], tokens[e].tags) {
+                    if e < tokens.len() && self.shared.reads(self.matchers[terminal as usize], &tokens[e]) {
                         // A terminal that reads a synthetic token captures
                         // no tags (§7.5).
                         let synthetic = self.recon.is_some_and(|recon| recon.synthetic[e]);
@@ -2114,9 +2089,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 let synthetic = Tok {
                     text: String::new(),
                     tags: set,
-                    phonemes: Some(sound),
+                    value: sound,
                     source: (0, 0),
-                    label: String::new(),
+                    image: String::new(),
                     sound: std::cell::OnceCell::new(),
                     quiet: 0,
                     before: vec![],
@@ -2145,7 +2120,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         // the rejection report adds back the terminal it expected.
         if let (Some(Sym::T(terminal)), false) = (lowered.syms.first(), lowered.has_conds_at(0)) {
             let matcher = self.matchers[*terminal as usize];
-            if e >= tokens.len() || !self.shared.reads(matcher, tokens[e].tags) {
+            if e >= tokens.len() || !self.shared.reads(matcher, &tokens[e]) {
                 if before.is_none() {
                     chart.sets[e].skipped.push(production);
                 }
@@ -2462,7 +2437,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             .iter()
             .map(|token| {
                 let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.phonemes.clone(), from - low, to - low)
+                (token.tags, token.text.clone(), token.value.clone(), token.image.clone(), from - low, to - low)
             })
             .collect();
         NestedKey::Content(rule, self.shared.source_text(low, high), observed)
@@ -2475,9 +2450,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
-    /// The canonical sound of the span (§5). Runs of tokens without sound
-    /// are skipped whole, as in a sound test.
-    fn phonemes(&self, tokens: &[Tok], start: usize, end: usize) -> String {
+    /// The exact input value of the span (§5). Runs of empty values
+    /// are skipped whole, as in a value test.
+    fn value(&self, tokens: &[Tok], start: usize, end: usize) -> String {
         let mut sound = String::new();
         let mut at = start;
         while at < end {
@@ -2555,6 +2530,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let class = |&id: &TagId| {
             work::count(Work::Listed, 1);
             tags.name(id).starts_with(|c: char| c.is_ascii_uppercase())
+                && tags.name(id).ends_with(|c: char| c.is_ascii_uppercase())
         };
         Value::set(list.iter().copied().filter(class).collect())
     }
@@ -2805,7 +2781,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     Out::Value(match term {
                         LTerm::Str(text) => Value::Str(text.clone()),
                         LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
-                        LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
                         LTerm::Empty => Value::set(TagList::new()),
                         LTerm::Union(items) => match items.first() {
                             Some(first) => {
@@ -2825,9 +2800,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             eval.push(Task::DiffLeft(right), Task::Term(left));
                             continue;
                         }
-                        LTerm::Phonemes(span) => {
+                        LTerm::Value(span) => {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
-                            Value::Str(self.phonemes(tokens, start, end))
+                            Value::Str(self.value(tokens, start, end))
+                        }
+                        LTerm::Image(span) => {
+                            let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
+                            Value::Str(tokens[start..end].iter().map(|t| t.image.as_str()).collect())
                         }
                         LTerm::Text(span) => {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
@@ -2835,10 +2814,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         }
                         LTerm::Split(string, delimiter) => {
                             eval.push(Task::Split(delimiter), Task::Term(string));
-                            continue;
-                        }
-                        LTerm::TagOf(name) => {
-                            eval.push(Task::TagOf, Task::Term(name));
                             continue;
                         }
                         LTerm::Tags(span) => match self.checked_bounds(span, frame, tokens.len())? {
@@ -2979,17 +2954,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     list.dedup();
                     Out::Value(Value::set(list))
                 }
-                Task::TagOf => {
-                    let name = Self::as_string(took(&mut last).value())?;
-                    if !is_name(&name) {
-                        return Err(EngineError {
-                            message: format!("tag({name:?}): the string is not a name"),
-                            rule: None,
-                        }
-                        .into());
-                    }
-                    Out::Value(Value::set(vec![self.shared.tags.tag(&name)]))
-                }
                 // The classes that the classifier gives the string, for the
                 // features of the parse, or none for an unknown key (§10).
                 Task::Classify(classifier) => {
@@ -3114,9 +3078,9 @@ mod tests {
                 .map(|index| Tok {
                     text: "x".to_string(),
                     tags: 0,
-                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    value: if index + 1 == n { "a".into() } else { String::new() },
                     source: (index, index + 1),
-                    label: "x".to_string(),
+                    image: "x".to_string(),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -3141,7 +3105,7 @@ mod tests {
     #[test]
     fn unions_of_many_parts_cost_their_size() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3161,9 +3125,9 @@ mod tests {
                     .map(|name| Tok {
                         text: "x".to_string(),
                         tags: shared.tags.set_of([name.as_str()]),
-                        phonemes: None,
+                        value: String::new(),
                         source: (0, 0),
-                        label: "x".to_string(),
+                        image: "x".to_string(),
                         sound: Default::default(),
                         quiet: 0,
                         before: Vec::new(),
@@ -3202,8 +3166,8 @@ mod tests {
 
     /// A dialect of one production of n captures with a condition at each.
     fn condition_at_each_capture(n: usize) -> crate::Dialect {
-        let names: Vec<String> = (0..n).map(|index| format!("$c{index}('a')")).collect();
-        let conditions: Vec<String> = (0..n).map(|index| format!("text($c{index}) = \"a\"")).collect();
+        let names: Vec<String> = (0..n).map(|index| format!("$c{index}:\"a\"")).collect();
+        let conditions: Vec<String> = (0..n).map(|index| format!("($c{index}).source-text = \"a\"")).collect();
         let grammar = format!(
             "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
             names.join(" "),
@@ -3245,12 +3209,12 @@ mod tests {
         });
     }
 
-    /// A range term evaluated again shares the list it made the first
-    /// time, so n evaluations of a range of n characters cost about n.
+    /// A capture tag term shares its interned list. Repeated evaluations
+    /// of n tags cost about n, without copying the list.
     #[test]
-    fn a_range_term_is_shared_not_copied() {
+    fn a_capture_tag_term_is_shared_not_copied() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3260,6 +3224,7 @@ mod tests {
             let mut shared = Shared::new(&dialect.unicode, &chars);
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+            let names: Vec<String> = (0..n).map(|i| format!("Tag-{i}")).collect();
             let frame = Frame {
                 lexical: None,
                 parent_structure: u32::MAX,
@@ -3272,12 +3237,18 @@ mod tests {
                 tags: Cell::new(None),
                 project: None,
             };
-            let range = LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1);
+            let union = LTerm::Union(names.into_iter().map(LTerm::Tag).collect());
+            let list = recognizer.tag_list(&union, &frame, &[], 0).expect("initial tag set");
+            let tags = recognizer.shared.tags.set_shared(list);
+            let caps = [Cap { close_requested: false, start: 0, end: 0, tags, structure: u32::MAX }];
+            let frame = Frame { caps: Caps::All(&caps), ..frame };
+            let range = LTerm::Tags(Span::Cap(0));
             let first = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
-            assert!(first.len() > n / 2, "{} tags in a range of {n}", first.len());
+            assert!(first.len() > n / 2, "{} tags in a capture of {n}", first.len());
             for _ in 1..n {
                 let list = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
                 assert_eq!(list.len(), first.len());
+                assert!(std::sync::Arc::ptr_eq(&list, &first));
             }
         });
     }
@@ -3300,9 +3271,9 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                phonemes: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
-                label: "a".to_string(),
+                image: "a".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
@@ -3325,7 +3296,7 @@ mod tests {
     fn a_capture_of_a_rule_with_many_ends_keeps_an_item_for_each() {
         for n in 2..=6 {
             assert_eq!(whole_items("%rule text t\n%rule t t t | A", n), 1, "t t over {n}");
-            assert_eq!(whole_items("%rule text t\n%rule t $l(t) $r(t) | A", n), n - 1, "$l(t) $r(t) over {n}");
+            assert_eq!(whole_items("%rule text t\n%rule t $l:t $r:t | A", n), n - 1, "$l:t $r:t over {n}");
         }
     }
 
@@ -3412,13 +3383,13 @@ mod tests {
     #[test]
     fn captures_share_their_prefixes() {
         for count in [100usize, 200, 400] {
-            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             // A tag term that reads every capture, the first last.
-            let tags: Vec<String> = (0..count).map(|index| format!("tags($c{})", count - 1 - index)).collect();
+            let tags: Vec<String> = (0..count).map(|index| format!("($c{}).tags", count - 1 - index)).collect();
             let dialect = single(&format!(
-                "%rule text {}\n%tags ~x ∪ {}\n%conditions text($c0) = \"a\"",
-                names.join(" "),
-                tags.join(" ∪ ")
+                "%rule text :: Tag-x ∪ {} |  {}\n%conditions $c0.source-text = \"a\"",
+                tags.join(" ∪ "),
+                names.join(" ")
             ));
             let (items, steps) = (2 * count as u64 + 4, 4 * count as u64 + 8);
             reset();
@@ -3442,7 +3413,7 @@ mod tests {
     #[test]
     fn storing_each_prefix_again_stops_at_the_bound() {
         let count = 100usize;
-        let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+        let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
         let dialect = single(&format!("%rule text {}", names.join(" ")));
         let text = "a".repeat(count);
         let _copying = Copying::on();
@@ -3488,7 +3459,7 @@ mod tests {
     fn terms_count_their_lists_and_spans_as_they_go() {
         let n = 1000usize;
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3499,16 +3470,16 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                phonemes: Some("a".to_string()),
+                value: "a".to_string(),
                 source: (index, index + 1),
-                label: "a".to_string(),
+                image: "a".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
                 after: Vec::new(),
             })
             .collect();
-        let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+        let names: Vec<String> = (0..n).map(|index| format!("C{index}C")).collect();
         let classes = shared.tags.set_of(names.iter().map(String::as_str));
         let matchers = matchers(&g, &mut shared.tags);
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
@@ -3532,19 +3503,19 @@ mod tests {
             });
         };
         stops(Work::Spanned, split(LTerm::Text(Span::Whole)));
-        stops(Work::Spanned, split(LTerm::Phonemes(Span::Whole)));
+        stops(Work::Spanned, split(LTerm::Value(Span::Whole)));
         stops(Work::Listed, split(LTerm::Str(vec!["x"; n].join(" "))));
         stops(Work::Listed, LTerm::Classes(Span::Cap(0)));
-        stops(Work::Listed, LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1));
+        stops(Work::Listed, LTerm::Union(names.iter().map(|name| LTerm::Tag(name.clone())).collect()));
     }
 
-    /// The phonemes of each suffix of a run of tokens without sound, and
+    /// The value of each suffix of a run of tokens without sound, and
     /// the text of the whole run, cost about what they read: the run is
     /// skipped whole, and the text's bounds are found in one walk.
     #[test]
     fn spans_cost_what_they_read() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3558,9 +3529,9 @@ mod tests {
                 .map(|index| Tok {
                     text: "a".to_string(),
                     tags: 0,
-                    phonemes: (index + 1 == n).then(|| "a".to_string()),
+                    value: if index + 1 == n { "a".into() } else { String::new() },
                     source: (index, index + 1),
-                    label: "a".to_string(),
+                    image: "a".to_string(),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -3569,7 +3540,7 @@ mod tests {
                 .collect();
             mark_quiet(&mut tokens, &dialect.unicode);
             for start in 0..n {
-                assert_eq!(recognizer.phonemes(&tokens, start, n), "a");
+                assert_eq!(recognizer.value(&tokens, start, n), "a");
             }
             assert_eq!(recognizer.text(&tokens, 0, n).len(), n);
         });
@@ -3581,7 +3552,7 @@ mod tests {
     #[test]
     fn classes_and_splits_grow_linearly() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3593,7 +3564,7 @@ mod tests {
         let made: Vec<_> = [1000usize, 4000]
             .into_iter()
             .map(|n| {
-                let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+                let names: Vec<String> = (0..n).map(|index| format!("C{index}C")).collect();
                 let classes = shared.tags.set_of(names.iter().map(String::as_str));
                 let split = LTerm::Split(Box::new(LTerm::Str(names.join(" "))), Box::new(LTerm::Str(" ".to_string())));
                 (n, classes, split)
@@ -3629,9 +3600,9 @@ mod tests {
     #[test]
     fn conditions_at_each_capture_search_for_their_parts() {
         let steps = |count: usize, far: &dyn Fn(usize) -> String, most: u64| {
-            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             let conditions: Vec<String> =
-                (0..count).map(|index| format!("text($c{index}) = text({})", far(index))).collect();
+                (0..count).map(|index| format!("($c{index}).source-text = ({}).source-text", far(index))).collect();
             let dialect = single(&format!("%rule text {}\n%conditions {}", names.join(" "), conditions.join(", ")));
             reset();
             budget(Work::CaptureSteps, most);

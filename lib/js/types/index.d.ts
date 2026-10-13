@@ -18,6 +18,7 @@ export type Expectation = import("./types.js").Expectation;
 export type StageReport = import("./types.js").StageReport;
 export type ParseResult = import("./types.js").ParseResult;
 export type ParseOptions = import("./types.js").ParseOptions;
+export type InputToken = import("./types.js").InputToken;
 export type Action = import("./types.js").Action;
 export type GrammarDom = import("./types.js").GrammarDom;
 export type ErrorLocation = import("./types.js").ErrorLocation;
@@ -37,6 +38,7 @@ export type DisplayValue = import("./output.js").DisplayValue;
  * @typedef {import("./types.js").StageReport} StageReport
  * @typedef {import("./types.js").ParseResult} ParseResult
  * @typedef {import("./types.js").ParseOptions} ParseOptions
+ * @typedef {import("./types.js").InputToken} InputToken
  * @typedef {import("./types.js").Action} Action
  * @typedef {import("./types.js").GrammarDom} GrammarDom
  * @typedef {import("./types.js").ErrorLocation} ErrorLocation

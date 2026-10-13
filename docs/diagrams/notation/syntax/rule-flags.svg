@@ -3,15 +3,15 @@
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">rule-flags</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="terminal"><rect x="20" y="34" width="42" height="24" rx="12"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">'('</text></g>
+<g class="terminal"><rect x="20" y="34" width="42" height="24" rx="12"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;(&quot;</text></g>
 <path d="M62 46h10"/>
 <path d="M72 46h20"/>
 <g class="rule"><rect x="92" y="34" width="92" height="24" rx="0"/><text x="138" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">rule-flag</text></g>
 <path d="M184 46H204"/>
 <path d="M184 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H159"/>
-<g class="terminal"><rect x="117" y="68" width="42" height="24" rx="12"/><text x="138" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">','</text></g>
+<g class="terminal"><rect x="117" y="68" width="42" height="24" rx="12"/><text x="138" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;,&quot;</text></g>
 <path d="M117 80H92a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M204 46h10"/>
-<g class="terminal"><rect x="214" y="34" width="42" height="24" rx="12"/><text x="235" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">')'</text></g>
+<g class="terminal"><rect x="214" y="34" width="42" height="24" rx="12"/><text x="235" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;)&quot;</text></g>
 <path d="M256 46h6m0 -8v16m4 -16v16"/>
 </svg>

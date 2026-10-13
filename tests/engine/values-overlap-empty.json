@@ -1,0 +1,11 @@
+{
+  "description": "Two whole carriers remain legal on a structurally always-empty production (engine §9.3).",
+  "grammar": "%rule text z %emits $, $\n%rule z z",
+  "input": "",
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

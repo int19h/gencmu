@@ -1,6 +1,6 @@
 {
   "description": "X⊉∅ never holds, since every tag set includes every tag of ∅ (engine §2, §4).",
-  "grammar": "%rule text X⊉∅",
+  "grammar": "%rule text X<>",
   "tokens": [
     {
       "text": "x",
@@ -11,20 +11,45 @@
   ],
   "expect": {
     "result": {
-      "ok": false,
-      "error": {
-        "kind": "rejected",
-        "token": 0,
-        "expected": [
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "X"
+        ],
+        "children": [
           {
-            "terminal": "X⊉∅",
-            "rules": [
-              "text"
+            "kind": "token",
+            "terminal": "X",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
             ]
           }
         ]
       }
-    },
-    "error": "rejected"
+    }
   }
 }

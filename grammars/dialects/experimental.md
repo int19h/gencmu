@@ -2,6 +2,8 @@
 
 This dialect extends the Lojban of *The Complete Lojban Language* (CLL) with additional sentence forms and particles. A selbri is the predicate of a sentence. A sumti is an argument of a predicate. A cmavo is a particle, a short structure word. Examples of such constructs are `cu` before a bare selbri, connected sumti with `je`, and the experimental cmavo.
 
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
+
 A layer is a document that changes earlier rules. The syntax layer follows camxes-exp, the experimental grammar of the camxes parser. [`../syntax/experimental.md`](../syntax/experimental.md) explains its additions to CLL.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
@@ -43,7 +45,22 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   %include "../phonemes/zbalermorna.md"
   ```
 
-## Stage 2: forms
+## Stage 2: normalize
+
+```jbogenbau
+%stage normalize
+```
+
+- [Phoneme values](../phonemes/normalize.md): the values that exact comparisons read
+  ```jbogenbau
+  %include "../phonemes/normalize.md"
+  ```
+
+A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+
+The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
+
+## Stage 3: forms
 
 ```jbogenbau
 %stage forms
@@ -66,7 +83,7 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   %include "../words/lexicon-experimental.md"
   ```
 
-## Stage 3: words
+## Stage 4: words
 
 ```jbogenbau
 %stage words
@@ -81,7 +98,7 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   %include "../words/lohai.md"
   ```
 
-## Stage 4: indicators
+## Stage 5: indicators
 
 ```jbogenbau
 %stage indicators
@@ -96,7 +113,7 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   %include "../indicators/experimental.md"
   ```
 
-## Stage 5: syntax
+## Stage 6: syntax
 
 ```jbogenbau
 %stage syntax

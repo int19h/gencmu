@@ -1,10 +1,51 @@
 {
-  "description": "%opaque stands after %emits, since a rule's clauses come in a fixed order (notation, \"Rules\").",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n%opaque\n%emits $\n```\n",
+  "description": "Engine §§9 and 11 admit an alternative image recipe before the emission clause.",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n:- $.verbatim-text\n%emits $\n```\n",
   "expect": {
-    "error": {
-      "line": 8,
-      "column": 1
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "g",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              },
+              "image": {
+                "concat": [
+                  {
+                    "method": "verbatim-text",
+                    "receiver": {
+                      "capture": ""
+                    },
+                    "args": []
+                  }
+                ]
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "conditions": [],
+          "at": [
+            6,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

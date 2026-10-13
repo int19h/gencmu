@@ -1,12 +1,12 @@
 {
-  "grammar": "%rule text $x(candidate)\n%conditions \u00acmatches(without-elision($x), rival)\n%rule candidate X [+T] [+T]\n%rule rival X [+T]",
+  "grammar": "%rule text $x:candidate %conditions ¬($x.without-elision.matches(rival))\n\n%rule candidate (X [+T] [+T])\n%rule rival (X [+T])",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "X"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
@@ -14,5 +14,5 @@
       "ok": true
     }
   },
-  "description": "Two identical closes at one boundary differ from one close."
+  "description": "Two identical closes at one boundary differ from one close (engine §4 and §10)."
 }

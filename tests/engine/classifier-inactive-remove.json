@@ -1,13 +1,13 @@
 {
   "description": "An entry that removes a membership that does not hold is an error of the grammar, but only for features that turn the entry on (engine §2).",
-  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n  f? \"do\" ∉ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex  \"mi\" ∈ KOhA f? \"do\" ∉ KOhA\n\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     }
   ],
   "parses": [
@@ -23,7 +23,7 @@
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]

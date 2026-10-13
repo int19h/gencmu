@@ -1,0 +1,69 @@
+{
+  "description": "The ranked-definition value recipe resolves $RECIPE to the final string constant before lowering. Engine §§2 and 11 give value \"new\" and reuse it as the implied image.",
+  "grammar": "%const $RECIPE \"old\"\n%rule text := $RECIPE\n  | (A ≻ never) :: ∅\n%emits $\n%rule never Z\n%redefine-const $RECIPE \"new\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "a",
+              "value": "new",
+              "image": "new",
+              "tags": [],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}

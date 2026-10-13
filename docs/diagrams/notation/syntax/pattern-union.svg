@@ -8,10 +8,10 @@
 <path d="M224 46H244"/>
 <path d="M224 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H173"/>
 <path d="M173 80h-20"/>
-<g class="terminal"><rect x="111" y="68" width="42" height="24" rx="12"/><text x="132" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'∪'</text></g>
+<g class="terminal"><rect x="111" y="68" width="42" height="24" rx="12"/><text x="132" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∪&quot;</text></g>
 <path d="M111 80H91"/>
 <path d="M173 80a10 10 0 0 0 -10 10V104a10 10 0 0 1 -10 10"/>
-<g class="terminal"><rect x="111" y="102" width="42" height="24" rx="12"/><text x="132" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">'∖'</text></g>
+<g class="terminal"><rect x="111" y="102" width="42" height="24" rx="12"/><text x="132" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∖&quot;</text></g>
 <path d="M111 114H111a10 10 0 0 1 -10 -10V90a10 10 0 0 0 -10 -10"/>
 <path d="M91 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M244 46h6m0 -8v16m4 -16v16"/>

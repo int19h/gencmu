@@ -1,13 +1,13 @@
 {
-  "description": "split() takes a delimiter of several characters, and a single character of it alone does not cut (engine §10).",
-  "grammar": "%rule text $x(A)\n%conditions split(phonemes($x), \".i.\") = split(\"la mi.ko\", \" \"), \"la\" ∈ split(phonemes($x), \".i.\")",
+  "description": ".split takes a delimiter of several characters, and a single character of it alone does not cut (engine §10).",
+  "grammar": "%rule text $x:A %conditions $x.value.split(\".i.\") = \"la mi.ko\".split(\" \"), \"la\" ∈ $x.value.split(\".i.\")\n",
   "tokens": [
     {
       "text": "x",
       "tags": [
         "A"
       ],
-      "phonemes": "la.i.mi.ko"
+      "value": "la.i.mi.ko"
     }
   ],
   "expect": {

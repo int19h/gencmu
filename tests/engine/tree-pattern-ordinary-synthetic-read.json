@@ -1,6 +1,6 @@
 {
-  "description": "A bare terminal can read a synthetic token. Its structural contribution disappears, so it cannot satisfy an omitted marker predicate.",
-  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule r A [+T] | A T | A [+OTHER] [+OTHER]\n%conditions $ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER)",
+  "description": "A bare terminal can read a synthetic token. Its structural contribution disappears, so it cannot satisfy an omitted marker predicate (engine §4.1 and §10).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text r\n%rule r (A [+T]) | (A T) | (A [+OTHER] [+OTHER]) %conditions ($ ≅ @(A T=\"\") ∨ $ ≅ @(A OTHER OTHER))\n",
   "tokens": [
     {
       "text": "a",

@@ -151,16 +151,13 @@ func TestNotationShapes(t *testing.T) {
 	}
 	// A part that the reader does not read is ignored.
 	for _, item := range shapes.ExtraParts {
-		if len(findPlaces(bootstrap[syntaxAt:], item.Find)) != 1 {
+		if len(findPlaces(bootstrap, item.Find)) != 1 {
 			t.Fatalf("%s: the text to replace does not stand once", item.Description)
 		}
-		changed := withSyntax(func(syntax string) string {
-			replaced, err := substitute(syntax, item.Find, item.Replace)
-			if err != nil {
-				t.Fatalf("%s: %v", item.Description, err)
-			}
-			return replaced
-		})
+		changed, err := substitute(bootstrap, item.Find, item.Replace)
+		if err != nil {
+			t.Fatalf("%s: %v", item.Description, err)
+		}
 		var where *[3]any
 		if w := item.Where; w != nil {
 			where = &[3]any{w.Document, w.Line, w.Column}
@@ -192,7 +189,7 @@ func TestNotationStageRunsTheCheck(t *testing.T) {
 		for _, rule := range d["dom"].(map[string]any)["rules"].([]any) {
 			r := rule.(map[string]any)
 			if r["name"] == "symbol" {
-				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"terminal": "'.'"}})
+				r["alternatives"] = append(r["alternatives"].([]any), map[string]any{"guards": []any{}, "expr": map[string]any{"literal": map[string]any{"string": "."}}})
 			}
 		}
 	}

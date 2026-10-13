@@ -16,8 +16,31 @@ fn engine_cases() {
             eprintln!("case {}", file.display());
         }
         let text = std::fs::read_to_string(file).expect("a case");
-        let case = parse_json(&text).expect("a case is JSON");
+        let case = match parse_json(&text) {
+            Ok(case) => case,
+            Err(error)
+                if error == "a bad code point"
+                    && matches!(
+                        file.file_name().and_then(|n| n.to_str()),
+                        Some("values-surrogate-value.json" | "values-surrogate-image.json")
+                    ) =>
+            {
+                eprintln!(
+                    "skip {}: unavailable caller fields: Rust strings cannot contain lone surrogates",
+                    file.display()
+                );
+                skipped += 1;
+                continue;
+            }
+            Err(error) => panic!("{}: a case is JSON: {error}", file.display()),
+        };
+        if let Some(reason) = common::unexpressible_tokens(&case) {
+            eprintln!("skip {}: {reason}", file.display());
+            skipped += 1;
+            continue;
+        }
         if has_caller_attachments(&case) {
+            eprintln!("skip {}: unavailable caller fields: Rust InputToken has no attachment fields", file.display());
             skipped += 1;
             continue;
         }
@@ -32,7 +55,7 @@ fn engine_cases() {
         }
     }
     eprintln!(
-        "{} engine cases in {:?}, {skipped} skipped for caller tokens with attachments",
+        "{} engine cases in {:?}, {skipped} skips for unavailable caller fields; 0 skips for unavailable engine behavior",
         files.len() - skipped,
         started.elapsed()
     );
@@ -74,7 +97,7 @@ fn deep_json_needs_no_deep_stack() {
 fn a_deep_result_runs_on_an_ordinary_stack() {
     let input = "a".repeat(20_000);
     let case = format!(
-        r#"{{"grammar": "%rule text text 'a' | 'a'", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
+        r#"{{"grammar": "%rule text text \"a\" | \"a\"", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
     );
     run_engine_case(&parse_json(&case).unwrap()).expect("the case passes");
 }
@@ -176,7 +199,14 @@ fn emission_errors_come_in_order() {
         let text =
             std::fs::read_to_string(common::repository().join("tests").join("engine").join(name)).expect("a case");
         let case = parse_json(&text).expect("a case is JSON");
-        let (documents, pipeline) = common::case_documents(&case);
+        let (mut documents, pipeline) = common::case_documents(&case);
+        // Rust cannot supply source ranges. A preceding stage erases the
+        // comma and supplies the same three tokens with a source gap.
+        documents.insert("letters.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {piece}\n%rule piece letter | gap\n%rule letter \"b\" | \"1\" %emits $\n%rule gap \",\" %erased\n```\n".into());
+        documents
+            .get_mut(&pipeline)
+            .unwrap()
+            .insert_str("```jbogenbau\n".len(), "%stage letters\n%include \"letters.md\"\n");
         let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
         let input = case.get("input").and_then(common::Value::str).expect("an input");
         let result = dialect.parse(input, &common::case_options(&case)).expect("a result");
@@ -184,11 +214,11 @@ fn emission_errors_come_in_order() {
     };
     // A before-attachment comes before its carrier's tag term.
     let first = message("attach-error-order.json");
-    assert!(first.contains("two phoneme tags"), "{first}");
+    assert!(first.contains("different verbatim spans claim the same uncovered source text"), "{first}");
     // An inserted token comes after the items before it and their
     // attachments.
     let second = message("attach-error-insert-order.json");
-    assert!(second.contains(r#"tag("?")"#), "{second}");
+    assert!(second.contains("different verbatim spans claim the same uncovered source text"), "{second}");
 }
 
 /// The runner checks the invariants on every result, whatever the case
@@ -219,7 +249,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
             "pipeline": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
     )
     .unwrap();
@@ -258,9 +288,9 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
         );
         let error = result.error.as_ref().unwrap();
         assert_eq!(error.chosen, main.tree);
-        // The records in their order of insertion, with the sound only for
+        // The records in their order of insertion, with the value only for
         // the tested terminator.
-        let completion = parse_json(r#"[{"terminal": "T", "at": 1, "source": [1, 1], "sound": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]"#).unwrap();
+        let completion = parse_json(r#"[{"terminal": "T", "at": 1, "source": [1, 1], "value": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]"#).unwrap();
         assert_eq!(json.get("error").unwrap().get("completion"), Some(&completion));
         // The stage keeps its verdict and warnings, has no output, and no
         // later stage runs.
@@ -321,7 +351,12 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
     let dialect =
         gencmu::load_dialect_sources(sources.iter().map(|(path, text)| (path.to_string(), text.to_string())), "p.md")
             .expect("an error of lowering is no load error");
-    let token = gencmu::InputToken { text: "a".into(), tags: ["A".to_string()].into_iter().collect(), phonemes: None };
+    let token = gencmu::InputToken {
+        text: "a".into(),
+        tags: ["A".to_string()].into_iter().collect(),
+        value: None,
+        image: None,
+    };
     let options = gencmu::ParseOptions {
         features: features.iter().map(|feature| feature.to_string()).collect(),
         auto_features: false,
@@ -372,4 +407,277 @@ fn a_chain_beside_an_alternative_comes_before_an_empty_item() {
         [sources[0], ("g.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text r\n%rule r {... [A]}\n```\n")];
     let message = lowering_error(&sources, &[]);
     assert!(message.starts_with("g.md:4:1: an item of braces in r"), "{message}");
+}
+
+/// Engine §4 holds the prefix before a logical plain optional fixed,
+/// regardless of captures or ranked groups inside that optional.
+#[test]
+fn written_terminators_keep_logical_optional_boundaries() {
+    for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]"] {
+        for method in ["matches", "begins"] {
+            for view in ["", ".without-elision", ".without-elision.onward"] {
+                let suffix = if optional == "[$c:c D]" { "D D T" } else { "D T" };
+                let grammar = format!(
+                    "%rule text $r:r\n%conditions $r{view}.{method}(r)\n%rule r B {optional} [+T] {suffix}\n%rule c D"
+                );
+                let tokens = if optional == "[$c:c D]" { "B D D T" } else { "B D T" };
+                let token_json = tokens
+                    .split(' ')
+                    .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                // The written optional route reaches T and blocks omission,
+                // even though that route cannot finish the queried rule.
+                let case = format!(
+                    r#"{{"grammar": {}, "tokens": [{token_json}], "expect": {{"error":"rejected"}}}}"#,
+                    common::Value::String(grammar.clone()).to_text()
+                );
+                run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|error| panic!("{grammar}: {error}"));
+            }
+        }
+    }
+}
+
+/// Explicit ranges equal to the API defaults need no unavailable fields.
+#[test]
+fn the_runner_accepts_generated_caller_ranges() {
+    let case = parse_json(r#"{"grammar":"%rule text _ _", "input":"é 🙂", "tokens":[{"text":"é","tags":[],"source":[0,1],"span":[0,1]},{"text":"🙂","tags":[],"source":[2,3],"span":[1,2]}],"expect":{"result":{"ok":true}}}"#).unwrap();
+    assert_eq!(common::unexpressible_tokens(&case), None);
+    run_engine_case(&case).unwrap();
+    let wrong = common::apply_mutant(&case, &parse_json(r#"{"path":["tokens",1,"source"],"set":[1,2]}"#).unwrap());
+    assert!(common::unexpressible_tokens(&wrong).unwrap().starts_with("unavailable caller fields:"));
+}
+
+/// The caller cannot provide these source ranges. Preparatory grammar
+/// stages produce them, so the downstream engine behavior stays covered.
+#[test]
+fn skipped_source_cases_have_stage_equivalents() {
+    use common::Value;
+    let mut names: Vec<String> = [
+        "attach-error-in-attachment",
+        "attach-error-insert-order",
+        "attach-error-order",
+        "emit-fault-keeps-verdict",
+        "memo-source-enclosing",
+        "order-emission-before-elision-only",
+        "source-out-of-order-emit",
+        "source-out-of-order-inserted",
+        "source-out-of-order-text",
+        "source-out-of-order-tree",
+        "source-out-of-order-witness",
+        "values-reparse-original-nonmonotonic-sources",
+        "values-verbatim-out-of-order",
+        "values-verbatim-overridden",
+        "values-verbatim-source",
+        "rejection-empty-supplied-slice",
+        "rejection-supplied-slice-before-text-end",
+        "rejection-supplied-slice-last-source",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect();
+    names.extend(case_files("engine").into_iter().filter_map(|file| {
+        let name = file.file_stem()?.to_str()?;
+        name.starts_with("query-logical-prefix-").then(|| name.to_string())
+    }));
+    for name in &names {
+        let name = name.as_str();
+        let file = common::repository().join("tests/engine").join(format!("{name}.json"));
+        let case = parse_json(&std::fs::read_to_string(file).unwrap()).unwrap();
+        assert!(common::unexpressible_tokens(&case).is_some(), "{name}: retain the API skip");
+        let input = case.get("input").and_then(Value::str).unwrap();
+        let supplied = case.get("tokens").unwrap().array();
+        let nonmonotonic = name.starts_with("source-out-of-order") || name == "memo-source-enclosing";
+        let bodies = if name == "rejection-empty-supplied-slice" {
+            vec!["%rule text _ %erased".to_string()]
+        } else if name == "rejection-supplied-slice-before-text-end" {
+            vec!["%rule text $a:part \"c\" %emits $a :: A\n%rule part \"a\" \"$(_000A)\" \"b\"".to_string()]
+        } else if name == "rejection-supplied-slice-last-source" {
+            // Empty generated tokens can reverse their source points. This
+            // reaches the same EOF assertion as the reversed caller slice.
+            vec![
+                "%rule text \"a\" $s:anchor \" \" \"b\" $e:anchor \" \" \"c\" %emits $s :: Start, $e :: End\n%rule anchor ε".to_string(),
+                "%rule text Start End $x:anchor %emits $x :: A, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text $a:A $c:Carrier $z:anchor %emits $a :: A, ε :: B, ($c) $z :: Hidden\n%rule anchor ε".to_string(),
+                "%rule text $a:A $b:B Hidden %emits $a, $b".to_string(),
+            ]
+        } else if nonmonotonic {
+            vec![
+                "%rule text {letter}\n%rule letter _ $x:anchor %emits $x :: X, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text {letter}\n%rule letter $x:X $y:Carrier $z:anchor %emits $x :: X, ε :: Y, ($y) $z :: Z\n%rule anchor ε".to_string(),
+            ]
+        } else if name == "values-reparse-original-nonmonotonic-sources" {
+            vec![
+                "%rule text _ $x:anchor $y:anchor %emits $x :: X, $y :: Y, $ :: Carrier\n%rule anchor ε".to_string(),
+                "%rule text $x:X $y:Y $c:Carrier $z:anchor %emits $x :: X, $y :: Y, ε :: Z, ($c) $z :: Hidden\n%rule anchor ε".to_string(),
+                "%rule text $x:X $y:Y $z:Z Hidden %emits $x, $y, $z".to_string(),
+            ]
+        } else {
+            let mut letters = std::collections::BTreeMap::new();
+            for token in supplied {
+                letters.insert(token.get("text").and_then(Value::str).unwrap(), token.get("tags").unwrap().array());
+            }
+            let alternatives = letters
+                .iter()
+                .map(|(text, tags)| {
+                    let tags = tags.iter().map(|tag| tag.str().unwrap()).collect::<Vec<_>>().join(" ∪ ");
+                    format!(
+                        "{} :: {}",
+                        Value::String(text.to_string()).to_text(),
+                        if tags.is_empty() { "∅" } else { &tags }
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" | ");
+            let gaps = input
+                .chars()
+                .filter(|c| !letters.contains_key(c.to_string().as_str()))
+                .map(|c| Value::String(c.to_string()).to_text())
+                .collect::<Vec<_>>()
+                .join(" | ");
+            if gaps.is_empty() {
+                vec![format!("%rule text {{letter}}\n%rule letter {alternatives} %emits $")]
+            } else {
+                vec![format!("%rule text {{piece}}\n%rule piece letter | gap\n%rule letter {alternatives} %emits $\n%rule gap ({gaps}) %erased")]
+            }
+        };
+        let (mut documents, pipeline) = common::case_documents(&case);
+        let mut prelude = String::new();
+        for (index, body) in bodies.iter().enumerate() {
+            let name = format!("local-input-{index}");
+            documents
+                .insert(format!("{name}.md"), format!("```jbogenbau\n%ambiguity-resolution greedy\n{body}\n```\n"));
+            prelude.push_str(&format!("%stage {name}\n%include \"{name}.md\"\n"));
+        }
+        let entry = documents.get_mut(&pipeline).unwrap();
+        let at = entry.find("```jbogenbau\n").unwrap() + "```jbogenbau\n".len();
+        entry.insert_str(at, &prelude);
+        let dialect = gencmu::load_dialect_sources(documents, &pipeline).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let (result, checks) =
+            gencmu::tools::with_elision_checks(|| dialect.parse(input, &common::case_options(&case)));
+        let mut result = result.unwrap();
+        assert_eq!(common::witness_problem(&result, &checks), None, "{name}");
+        let generated = result.stages[bodies.len() - 1].output.as_ref().expect("preparatory output");
+        assert_eq!(generated.len(), supplied.len(), "{name}");
+        if name == "rejection-supplied-slice-last-source" {
+            assert!(generated[0].source.end > generated[1].source.end);
+        }
+        if !matches!(
+            name,
+            "values-verbatim-out-of-order" | "values-verbatim-overridden" | "rejection-supplied-slice-last-source"
+        ) {
+            for (generated, supplied) in generated.iter().zip(supplied) {
+                let range = supplied.get("source").unwrap().array();
+                assert_eq!(
+                    generated.source,
+                    range[0].number().unwrap() as usize..range[1].number().unwrap() as usize,
+                    "{name}"
+                );
+                assert_eq!(generated.text, supplied.get("text").and_then(Value::str).unwrap(), "{name}");
+                assert_eq!(
+                    generated.tags,
+                    supplied.get("tags").unwrap().array().iter().map(|t| t.str().unwrap().to_string()).collect(),
+                    "{name}"
+                );
+            }
+        }
+        // Keep every downstream grammar and assertion. Remove only the
+        // added stage from the canonical comparison.
+        result.stages.drain(..bodies.len());
+        let actual = parse_json(&gencmu::to_json(&result)).unwrap();
+        let expect = case.get("expect").unwrap();
+        assert_eq!(common::check_json(expect, &actual).unwrap(), "", "{name}: {}", actual.to_text());
+        assert_eq!(
+            result.error.as_ref().map(|e| common::error_kind(e.kind)),
+            expect.get("error").and_then(Value::str),
+            "{name}"
+        );
+    }
+    eprintln!("{} unavailable caller-source cases have local stage equivalents", names.len());
+}
+
+/// Nested per-route helpers retain their logical parent in aligned queries.
+#[test]
+fn nested_optional_priority_survives_alignment() {
+    for view in [".without-elision", ".without-elision.onward"] {
+        for method in ["matches", "begins", "tags"] {
+            let (clause, expect) = if method == "tags" {
+                (format!(" :: $r{view}.tags(r)"), r#"{"result":{"ok":true,"tree":{"tags":[]}}}"#)
+            } else {
+                (format!("\n%conditions $r{view}.{method}(r)"), r#"{"error":"rejected"}"#)
+            };
+            let grammar = format!("%rule text $r:input{clause}\n%rule input B D T Z\n%rule r :: Queried | B [[($c:c ≻ c)] [+T] D T] Z\n%rule c D");
+            let tokens = ["B", "D", "T", "Z"]
+                .iter()
+                .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                .collect::<Vec<_>>()
+                .join(",");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{tokens}],"expect":{expect}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|e| panic!("{grammar}: {e}"));
+        }
+    }
+}
+
+/// An absent captured optional still precedes the recursive reference in
+/// logical structure. The reference is not an initial self-reference (§4).
+#[test]
+fn empty_optionals_do_not_make_recursion_initial() {
+    for optional in ["[A]", "[$a:A]", "[[$a:A]]", "[($a:A ≻ A)]"] {
+        for view in ["", ".without-elision", ".without-elision.onward"] {
+            let grammar = format!("%rule text $x:input\n%conditions $x{view}.matches(r)\n%rule input B D T\n%rule r {optional} r [+T] D T | B | B D");
+            let tokens = ["B", "D", "T"]
+                .iter()
+                .map(|t| format!(r#"{{"text":"{t}","tags":["{t}"]}}"#))
+                .collect::<Vec<_>>()
+                .join(",");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{tokens}],"expect":{{"error":"rejected"}}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|e| panic!("{grammar}: {e}"));
+        }
+    }
+}
+
+/// Inserted tag clauses observe restored captures just as covering tags
+/// do. Discovery retains both the close records and their query prefixes.
+#[test]
+fn inserted_tags_keep_restored_query_observations() {
+    for view in [".without-elision", ".without-elision.onward"] {
+        for method in ["matches", "begins", "tags"] {
+            let condition =
+                if method == "tags" { format!("Seen ⊆ $r{view}.tags(r)") } else { format!("$r{view}.{method}(r)") };
+            let grammar = format!("%rule text $r:r\n%emits ε :: ({condition} ⟹ X) := \"v\"\n%rule r :: Seen | B [+T]");
+            let case = format!(
+                r#"{{"grammar":{},"tokens":[{{"text":"b","tags":["B"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":["X"],"value":"v","insertedBy":"text"}}]}}]}}}}}}"#,
+                common::Value::String(grammar.clone()).to_text()
+            );
+            run_engine_case(&parse_json(&case).unwrap()).unwrap_or_else(|error| panic!("{grammar}: {error}"));
+        }
+    }
+}
+
+/// Constant simplification removes an absent capture from inserted tags
+/// when an intersection is empty (engine §3.6).
+#[test]
+fn inserted_tags_simplify_constants_before_capture_validation() {
+    let case = parse_json(r#"{"grammar":"%const $Z X ∖ X\n%rule text [$x:A] B\n%emits ε :: $x.tags ∩ $Z := \"v\"","tokens":[{"text":"b","tags":["B"]}],"expect":{"result":{"ok":true,"stages":[{"output":[{"tags":[],"value":"v","insertedBy":"text"}]}]}}}"#).unwrap();
+    run_engine_case(&case).unwrap();
+}
+
+/// A pattern name tests structural identity. It does not request a parse
+/// as that rule, unlike matches() or tags(rule) (engine §§10 and 12).
+#[test]
+fn inserted_patterns_test_names_without_parsing_them() {
+    for (comparison, tags) in [("≅", "[]"), ("≇", r#"["X"]"#)] {
+        let grammar = format!("%rule text A\n%emits ε :: ($ {comparison} @missing ⟹ X)");
+        let case = format!(
+            r#"{{"grammar":{},"tokens":[{{"text":"a","tags":["A"]}}],"expect":{{"result":{{"ok":true,"stages":[{{"output":[{{"tags":{tags},"insertedBy":"text"}}]}}]}}}}}}"#,
+            common::Value::String(grammar).to_text()
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
 }

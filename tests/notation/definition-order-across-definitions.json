@@ -1,10 +1,10 @@
 {
-  "description": "The first rule repeats a capture name before the second tests a noncanonical sound. The reader reports the repeated name first (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(A) $x(B)\n%rule b [+KU=\"K\"]\n```\n",
+  "description": "The first rule repeats a capture name. The uppercase value test in the second rule is valid, so the repeated name is the error (engine §9.3).",
+  "document": "```jbogenbau\n%rule a $x:A$x:B\n%rule b [ + KU = \"K\" ]\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 15
+      "column": 13
     }
   }
 }

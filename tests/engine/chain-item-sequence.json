@@ -1,6 +1,6 @@
 {
-  "description": "A chain expands its item in place, with no helper: {... A [B] & C \\ S} has the base productions A [B], C and A [B] C, then the recursive ones, then the helper of [B]. The tie names r's production A [B] C, number 4, and q's, number 10 (engine §3.2, §3.3, Numbering).",
-  "grammar": "%rule text r | q\n%rule r {... A [B] & C \\ S}\n%rule q A C",
+  "description": "A chain expands its item in place, with no helper: {... A [B] & C / S} has the base productions A [B], C and A [B] C, then the recursive ones, then the helper of [B]. The tie names r's production A [B] C, number 4, and q's, number 10 (engine §3.2, §3.3, Numbering).",
+  "grammar": "%rule text r | q\n%rule r {... ((A [B]) & C) / S}\n%rule q (A C)",
   "tokens": [
     {
       "text": "a",

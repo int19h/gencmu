@@ -1,10 +1,46 @@
 {
-  "description": "$ may be listed several times after %emits, but not with a capture or an inserted tag (engine §9); the error is at %emits.",
-  "document": "```jbogenbau\n%rule a $x(A) %emits $, $x\n```\n",
+  "description": "Engine §9.3 checks overlap on the final stitched stage. The reader retains this well-formed DOM.",
+  "document": "```jbogenbau\n%rule a $x:A%emits $, $x\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 15
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": ""
+              },
+              {
+                "capture": "x"
+              }
+            ]
+          },
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

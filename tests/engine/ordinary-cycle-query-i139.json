@@ -1,6 +1,6 @@
 {
-  "description": "A bounded query uses the same ordinary omission in the recursive construction.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A B\n%conditions matches($, y)\n%rule y A | z [+T] B\n%rule z y",
+  "description": "A bounded query uses the same ordinary omission in the recursive construction (engine §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A B) %conditions $.matches(y)\n\n%rule y A | (z [+T] B)\n%rule z y",
   "tokens": [
     {
       "text": "a",

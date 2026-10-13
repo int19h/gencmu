@@ -1,0 +1,18 @@
+{
+  "description": "An omitted terminator fails its own negative requirement (engine §§3.8 and 4).",
+  "grammar": "%rule text A [+T<¬T>]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "description": "Two completed items of w over one span differ in their tags. The tag test lets the item advance over the one tagged a and not over the other, so the parse is unique, where it would be a tie without the test (engine §4).",
-  "grammar": "%rule text w⊇~a\n%rule w X <~a> | X <~b>",
+  "grammar": "%rule text w<A>\n%rule w X :: A | X :: B",
   "tokens": [
     {
       "text": "x",
@@ -23,7 +23,7 @@
           {
             "rule": "w",
             "tags": [
-              "a"
+              "A"
             ]
           }
         ]

@@ -2,15 +2,12 @@
 
 use crate::dom::{
     call_type, comparison_problem, constant_type_problem, expected_problem, is_capture_name, is_classifier_name,
-    is_sound_test, joined_type, literal_call_problem, property_problem, range_problem, sound_problem,
-    test_type_problem, Alternative, Arg, Attachments, Chain, ClassifierDef, Cond, ConstDef, Directive, Dom, EmitItem,
-    Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
+    joined_type, literal_call_problem, Alternative, Arg, Attachments, Chain, Channels, ClassifierDef, Cond, ConstDef,
+    Directive, Dom, EmitItem, Entry, Expr, FeatureKind, Guard, ImplicationDef, Mark, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::FxSet;
 use crate::result::{Node, NodeKind, Token};
-use crate::tags::character_tag;
-use crate::unicode::Unicode;
 use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
@@ -25,16 +22,11 @@ pub(crate) struct Reader<'a> {
     pub marked: std::cell::Cell<usize>,
     /// The document position of a grammar-text index.
     pub position: &'a dyn Fn(usize) -> (usize, usize),
-    /// The lowercase mapping that the strings of sound tests are checked
-    /// against (engine §5, §9).
-    pub unicode: &'a Unicode,
     /// What the reader is reading as a closed term, a constant's value or a
     /// test's operand, if it is reading one (engine §9, §10).
+    pub in_recipe: std::cell::Cell<bool>,
     pub closed_for: std::cell::Cell<Option<&'static str>>,
 }
-
-const CONSTANT_IN_BODY: &str =
-    "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'";
 
 type R<T> = Result<T, Error>;
 
@@ -53,14 +45,14 @@ impl<'a> Reader<'a> {
 
     /// The first token of a construct.
     fn first(&self, node: &Node) -> (usize, usize) {
-        let mut current = node;
-        while current.kind == NodeKind::Rule {
-            match current.children.first() {
-                Some(child) => current = child,
-                None => break,
+        let mut pending = vec![node];
+        while let Some(current) = pending.pop() {
+            if current.kind == NodeKind::Token {
+                return self.at(current);
             }
+            pending.extend(current.children.iter().rev());
         }
-        self.at(current)
+        self.at(node)
     }
 
     fn error(&self, node: &Node, message: impl Into<String>) -> Error {
@@ -126,16 +118,6 @@ impl<'a> Reader<'a> {
         Self::parts(node).into_iter().filter(|child| child.kind == NodeKind::Token)
     }
 
-    /// The first part of a node: a token, a range or a property.
-    fn symbol_part<'n>(&self, node: &'n Node) -> R<&'n Node> {
-        match Self::parts(node).first() {
-            Some(&first) if first.kind == NodeKind::Token || matches!(rule_name(first), "range" | "property") => {
-                Ok(first)
-            }
-            _ => Err(self.shape_error(node, "token, range or property")),
-        }
-    }
-
     /// The first token of a node.
     fn token<'n>(&self, node: &'n Node) -> R<&'n Node> {
         Self::tokens_of(node).next().ok_or_else(|| self.shape_error(node, "token"))
@@ -191,32 +173,22 @@ impl<'a> Reader<'a> {
     /// An entry of a classifier: gates, canonical keys, `∈` or `∉`, and a
     /// class (engine §2, §9).
     fn entry(&self, node: &'a Node) -> R<Entry> {
-        let mut guards = Vec::new();
-        for guard in Self::rules(node, "guard") {
-            let text = self.text(self.token(guard)?);
-            if text.ends_with('!') {
-                return Err(self.error(guard, "an entry of a classifier takes gates only, not a warning"));
-            }
-            let text = text.trim_end_matches('?');
-            guards.push(match text.strip_prefix('¬') {
-                Some(feature) => Guard { feature: feature.to_string(), kind: FeatureKind::Gate, negated: true },
-                None => Guard { feature: text.to_string(), kind: FeatureKind::Gate, negated: false },
-            });
-        }
+        let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
-            let key = self.decode(self.token(key_node)?)?;
-            if let Some(problem) = sound_problem(&key, self.unicode) {
-                return Err(self.error(key_node, format!("a key is a canonical sound: {problem}")));
-            }
+            let key = self.string_term(self.token(self.one(key_node, "string")?)?)?;
             keys.push(key);
         }
         let operator = self.one(node, "classifier-operator")?;
-        let adds = self.text(self.token(operator)?) == "∈";
+        let adds = match self.text(self.token(operator)?) {
+            "∈" => true,
+            "∉" => false,
+            _ => return Err(self.error(operator, "invalid classifier operator")),
+        };
         let class_node = self.one(node, "classifier-class")?;
         let written = self.text(self.token(class_node)?);
         let class = written.strip_prefix('~').unwrap_or(written);
-        if !is_capital(class) {
+        if !is_capital(class) || !class.ends_with(|c: char| c.is_ascii_uppercase()) {
             return Err(self.error(
                 class_node,
                 format!("{written} is not a class: a class is an identifier tag that begins with a capital"),
@@ -234,6 +206,9 @@ impl<'a> Reader<'a> {
             let term = self.union(side, false);
             self.closed_for.set(None);
             let (term, ty) = term?;
+            if let Some(token) = self.first_engine_literal(side)? {
+                return Err(self.error(token, "an implication cannot name an engine tag"));
+            }
             if let Some(problem) = expected_problem(ty, Type::Tags) {
                 return Err(self.error(side, format!("a side of an implication is a tag set: {problem}")));
             }
@@ -250,12 +225,22 @@ impl<'a> Reader<'a> {
         let definer = self.token(self.one(node, "constant-definer")?)?;
         let reference = self.token(self.one(node, "constant-reference")?)?;
         let name = self.text(reference).trim_start_matches('$').to_string();
-        let redefine = self.text(definer) == "%redefine-const";
+        if crate::dom::engine_scalar(&name).is_some() || !crate::dom::is_constant_name(&name) {
+            return Err(self.error(reference, "an engine scalar cannot be declared"));
+        }
+        let redefine = match self.text(definer) {
+            "%const" => false,
+            "%redefine-const" => true,
+            _ => return Err(self.error(definer, "unknown constant definer")),
+        };
         let value_node = self.one(node, "term")?;
         self.closed_for.set(Some("a constant's value"));
         let value = self.term(value_node, false);
         self.closed_for.set(None);
         let (value, ty) = value?;
+        if let Some(token) = self.first_engine_literal(value_node)? {
+            return Err(self.error(token, "a constant cannot hold an engine-tag literal outside a pattern"));
+        }
         if let Some(problem) = constant_type_problem(ty, redefine) {
             return Err(self.error(value_node, problem));
         }
@@ -264,66 +249,66 @@ impl<'a> Reader<'a> {
 
     fn directive(&self, node: &'a Node) -> R<Directive> {
         let token = self.token(node)?;
-        let name = self.text(token).trim_start_matches('%').to_string();
-        let parts: Vec<&Node> = Self::parts(node)
+        let name = self.text(token).trim_start_matches('%');
+        let parts: Vec<_> = Self::parts(node)
             .into_iter()
-            .filter(|child| {
-                child.kind == NodeKind::Rule
-                    && matches!(rule_name(child), "argument-word" | "argument-string" | "argument-tag")
+            .filter(|part| {
+                matches!(rule_name(part), "argument-word" | "argument-string" | "argument-tag" | "argument-term")
             })
             .collect();
-        let operands: Vec<(&Node, &Node)> = parts
-            .into_iter()
-            // A token, or the node of a range or a property.
-            .map(|child| {
-                let operand =
-                    if rule_name(child) == "argument-tag" { self.symbol_part(child)? } else { self.token(child)? };
-                Ok((child, operand))
-            })
-            .collect::<R<_>>()?;
-        let kinds: Vec<Operand> = operands
-            .iter()
-            .map(|&(child, operand)| {
-                let text = self.text(operand);
-                match rule_name(child) {
-                    "argument-string" => Operand::String,
-                    "argument-word" if is_capital(text) => Operand::Class,
-                    "argument-word" => Operand::Name,
-                    _ if operand.kind == NodeKind::Rule && rule_name(operand) == "range" => Operand::Range,
-                    _ if operand.kind == NodeKind::Rule => Operand::Property,
-                    _ if text.starts_with('~') => Operand::Tag,
-                    _ if text.starts_with('/') => Operand::Phoneme,
-                    _ => Operand::Character,
-                }
-            })
-            .collect();
-        if let Some(problem) = operand_problem(&name, &kinds) {
-            return Err(self.error(node, problem));
-        }
-        // A string operand is decoded, as a string of a rule is, and a tag
-        // literal is its name. operand_problem has refused a range or a
-        // property, which has no tag.
         let mut args = Vec::new();
-        for &(child, operand) in &operands {
-            args.push(match rule_name(child) {
-                "argument-word" => self.text(operand).to_string(),
-                "argument-string" => self.decode(operand)?,
-                _ => self.tag_of(operand)?,
-            });
+        let feature = |name: &str| {
+            name.starts_with(|c: char| c.is_ascii_alphabetic())
+                && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        };
+        for part in &parts {
+            if name == "include" {
+                if rule_name(part) != "argument-string" {
+                    return Err(self.error(node, "%include takes one quoted path"));
+                }
+                let text = self.text(self.token(part)?);
+                args.push(
+                    text.strip_prefix('"')
+                        .and_then(|s| s.strip_suffix('"'))
+                        .ok_or_else(|| self.error(node, "include path requires double quotes"))?
+                        .to_string(),
+                );
+            } else {
+                if rule_name(part) != "argument-word" {
+                    return Err(self.error(node, "directive requires name operands"));
+                }
+                args.push(self.text(self.token(part)?).into());
+            }
         }
-        if name == "ambiguity-resolution" && args.iter().any(|arg| arg == "maximal") {
-            return Err(self.error(node, "the maximal operand is retired"));
+        let valid = match name {
+            "include" => args.len() == 1,
+            "stage" | "extend-stage" | "redefine-stage" => {
+                matches!(&args[..], [name] if crate::dom::is_classifier_name(name))
+            }
+            "features" => !args.is_empty() && args.iter().all(|name| feature(name)),
+            "ambiguity-resolution" => matches!(
+                args.iter().map(String::as_str).collect::<Vec<_>>().as_slice(),
+                ["greedy" | "lazy" | "late-elision"] | ["greedy" | "lazy" | "late-elision", "elision-only"]
+            ),
+            _ => false,
+        };
+        if !valid {
+            return Err(self.error(node, "directive has the wrong operands"));
         }
-        Ok(Directive { name, args, at: self.at(token) })
+        Ok(Directive { name: name.into(), args, at: self.at(token) })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {
         let definer = self.token(self.one(node, "definer")?)?;
         let name_token = self.token(self.one(node, "rule-name")?)?;
+        if self.text(name_token) != "#" && !self.text(name_token).starts_with(|c: char| c.is_ascii_lowercase()) {
+            return Err(self.error(name_token, "a rule name starts with a lowercase letter"));
+        }
         let op = match self.text(definer) {
             "%redefine-rule" => Op::Redefine,
             "%extend-rule" => Op::Extend,
-            _ => Op::Define,
+            "%rule" => Op::Define,
+            _ => return Err(self.error(definer, "unknown rule definer")),
         };
         let mut flags = Vec::new();
         if let Some(list) = Self::rules(node, "rule-flags").next() {
@@ -344,8 +329,16 @@ impl<'a> Reader<'a> {
         // The parts of a definition are read in the order written: the
         // body, then its clauses in their fixed order, and the checks of the
         // whole definition last (§9).
+        let tags = match Self::rules(node, "tags-clause").next() {
+            Some(clause) => Some(self.constituent_tags(clause)?),
+            None => None,
+        };
+        let strings = self.channels(node)?;
         let mut alternatives = Vec::new();
-        let body = self.one(node, "body")?;
+        let body = Self::rules(node, "body")
+            .next()
+            .or_else(|| Self::rules(node, "headed-body").next())
+            .ok_or_else(|| self.shape_error(node, "body"))?;
         let alternatives_nodes = match Self::rules(body, "ranked-alternative").next() {
             Some(ranked) => vec![ranked],
             None => self.some(body, "alternative", 1)?,
@@ -353,10 +346,6 @@ impl<'a> Reader<'a> {
         for alternative in alternatives_nodes {
             alternatives.push(self.alternative(alternative)?);
         }
-        let tags = match Self::rules(node, "tags-clause").next() {
-            Some(clause) => Some(self.constituent_tags(clause)?),
-            None => None,
-        };
         // Each condition of the list is one condition (§9).
         let mut conditions = Vec::new();
         if let Some(clause) = Self::rules(node, "conditions-clause").next() {
@@ -374,13 +363,22 @@ impl<'a> Reader<'a> {
             op,
             flags,
             tags,
+            strings,
             alternatives,
             emit,
             conditions,
-            opaque: Self::rules(node, "opaque-clause").next().is_some(),
+            erased: Self::rules(node, "erased-clause").next().is_some(),
             at: self.at(definer),
         };
         flatten_groups(&mut rule);
+        if rule.erased
+            && (rule.emit.is_some()
+                || rule.strings.value.is_some()
+                || rule.strings.image.is_some()
+                || rule.alternatives.iter().any(|a| a.strings.value.is_some() || a.strings.image.is_some()))
+        {
+            return Err(self.error(definer, "an erased definition cannot have an emission or recipe"));
+        }
         // The definition is checked as a whole once it is read (§9).
         if let Some(problem) = crate::clauses::definition_problem(&rule) {
             if self.defer_emission
@@ -395,22 +393,31 @@ impl<'a> Reader<'a> {
         Ok(rule)
     }
 
+    fn guard(&self, node: &'a Node, gates_only: bool) -> R<Guard> {
+        let text = self.text(self.token(node)?);
+        let (text, kind) = match text.strip_suffix('!') {
+            Some(text) => (text, FeatureKind::Warning),
+            None => (text.strip_suffix('?').ok_or_else(|| self.error(node, "invalid guard"))?, FeatureKind::Gate),
+        };
+        let (feature, negated) = match text.strip_prefix('¬') {
+            Some(feature) => (feature, true),
+            None => (text, false),
+        };
+        if kind == FeatureKind::Warning && (gates_only || negated) {
+            return Err(self.error(node, "a warning cannot be negated or used on a classifier entry"));
+        }
+        if !feature.starts_with(|c: char| c.is_ascii_alphabetic())
+            || !feature.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        {
+            return Err(self.error(node, "invalid feature name"));
+        }
+        Ok(Guard { feature: feature.into(), kind, negated })
+    }
+
     fn alternative(&self, node: &'a Node) -> R<Alternative> {
         // A guard's token is its text: `f?` or `¬f?` for a gate, `f!`
         // for a warning (§9).
-        let guards = Self::rules(node, "guard")
-            .map(|guard| {
-                let text = self.text(self.token(guard)?);
-                let (text, kind) = match text.strip_suffix('!') {
-                    Some(text) => (text, FeatureKind::Warning),
-                    None => (text.trim_end_matches('?'), FeatureKind::Gate),
-                };
-                Ok(match text.strip_prefix('¬') {
-                    Some(feature) => Guard { feature: feature.to_string(), kind, negated: true },
-                    None => Guard { feature: text.to_string(), kind, negated: false },
-                })
-            })
-            .collect::<R<_>>()?;
+        let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, false)).collect::<R<_>>()?;
         self.captures.borrow_mut().clear();
         let expr = if rule_name(node) == "ranked-alternative" {
             match self.run(Frame::Choice(Choice::new(self.one(node, "ranked-choice")?)))? {
@@ -434,7 +441,7 @@ impl<'a> Reader<'a> {
             Some(tags) => Some(self.constituent_tags(tags)?),
             None => None,
         };
-        Ok(Alternative { guards, expr, tags, ranked_locations: Default::default() })
+        Ok(Alternative { guards, expr, tags, strings: self.channels(node)?, ranked_locations: Default::default() })
     }
 
     /// A rule's or an alternative's tags, which say what the constituent's
@@ -442,11 +449,54 @@ impl<'a> Reader<'a> {
     /// errors anywhere in them, guards included (§9), reported at the
     /// clause.
     fn constituent_tags(&self, node: &'a Node) -> R<Term> {
-        let term = self.tag_term(self.one(node, "term")?)?;
+        let source = self.one(node, "term")?;
+        if self.own_tags_in(source)? {
+            return Err(self.error(node, "a constituent cannot read the tags it defines"));
+        }
+        let term = self.tag_term(source)?;
         if reads_own_tags(&term) {
             return Err(self.error(node, "a constituent's tags cannot be made of its own tags, tags($) or classes($)"));
         }
         Ok(term)
+    }
+
+    fn first_engine_literal(&self, root: &'a Node) -> R<Option<&'a Node>> {
+        let mut pending = vec![root];
+        while let Some(node) = pending.pop() {
+            if rule_name(node) == "pattern-literal" {
+                continue;
+            }
+            if rule_name(node) == "tag" {
+                let token = self.token(node)?;
+                if crate::dom::is_engine_tag(self.text(token)) {
+                    return Ok(Some(token));
+                }
+            }
+            pending.extend(node.children.iter().rev());
+        }
+        Ok(None)
+    }
+
+    fn own_tags_in(&self, root: &'a Node) -> R<bool> {
+        let mut pending = vec![root];
+        while let Some(node) = pending.pop() {
+            if rule_name(node) == "method" {
+                let receiver = self.one(node, "method-receiver")?;
+                let atom = self.one(receiver, "term-atom")?;
+                let part = self.inner(atom, ATOMS)?;
+                let selector = self.some(node, "method-selector", 1)?[0];
+                let name = self.text(self.token(self.one(selector, "method-name")?)?);
+                if rule_name(part) == "capture-reference"
+                    && self.text(self.token(part)?) == "$"
+                    && matches!(name, "tags" | "classes")
+                    && Self::rules(selector, "arguments").next().is_none()
+                {
+                    return Ok(true);
+                }
+            }
+            pending.extend(node.children.iter().rev());
+        }
+        Ok(false)
     }
 
     /// A whole term that must be a tag set: a constituent's or an item's
@@ -455,6 +505,26 @@ impl<'a> Reader<'a> {
         let (term, ty) = self.term(node, false)?;
         if let Some(problem) = expected_problem(ty, Type::Tags) {
             return Err(self.error(node, problem));
+        }
+        if let Some((_, index)) = crate::dom::engine_literals(&term).into_iter().min_by_key(|(_, index)| *index) {
+            let mut literals = Vec::new();
+            let mut pending = vec![node];
+            while let Some(part) = pending.pop() {
+                if matches!(rule_name(part), "pattern-literal" | "any-of") {
+                    continue;
+                }
+                if rule_name(part) == "tag" {
+                    let token = self.token(part)?;
+                    if crate::dom::is_engine_tag(self.text(token)) {
+                        literals.push(token);
+                    }
+                } else {
+                    pending.extend(part.children.iter().rev());
+                }
+            }
+            return Err(
+                self.error(literals.get(index).copied().unwrap_or(node), "a tag clause cannot introduce an engine tag")
+            );
         }
         Ok(term)
     }
@@ -472,11 +542,15 @@ impl<'a> Reader<'a> {
     /// type of a part is found once, when the part is read (§10).
     /// `argument` is whether a span may stand here.
     fn term(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
-        self.typed(Frame::Term(TermFrame::new(node, argument)))
+        let (mut term, ty) = self.typed(Frame::Term(TermFrame::new(node, argument)))?;
+        flatten_term(&mut term);
+        Ok((term, ty))
     }
 
     fn union(&self, node: &'a Node, argument: bool) -> R<(Term, Type)> {
-        self.typed(Frame::Union(Joined::new(node, argument)))
+        let (mut term, ty) = self.typed(Frame::Union(Joined::new(node, argument)))?;
+        flatten_term(&mut term);
+        Ok((term, ty))
     }
 
     fn typed(&self, frame: Frame<'a>) -> R<(Term, Type)> {
@@ -506,6 +580,7 @@ impl<'a> Reader<'a> {
             let top = stack.last_mut().expect("a frame");
             match self.resume(top, input.take())? {
                 Step::Call(frame) => stack.push(frame),
+                Step::Again => {}
                 Step::Done(value) => {
                     stack.pop();
                     if stack.is_empty() {
@@ -531,7 +606,7 @@ impl<'a> Reader<'a> {
             Frame::Union(joined) => self.resume_union(joined, input),
             Frame::Intersection(joined) => self.resume_intersection(joined, input),
             Frame::Atom(atom) => self.resume_atom(atom, input),
-            Frame::Call(call) => self.resume_call(call, input),
+            Frame::Method(method) => self.resume_method(method, input),
             Frame::Argument(argument) => self.resume_argument(argument, input),
             Frame::Implication(conditions) => self.resume_implication(conditions, input),
             Frame::AnyOf(conditions) => self.resume_connective(conditions, input, "all-of"),
@@ -608,10 +683,10 @@ impl<'a> Reader<'a> {
             }));
         }
         let node = frame.node;
-        let inner = self.inner(node, &PRIMARIES)?;
+        let inner = self.inner(node, PRIMARIES)?;
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
-            "reference" | "tag" | "character" | "phoneme" | "range" | "property" => {
+            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
                 Step::Done(Val::Expr(self.symbol(inner)?))
             }
             "tested" => Step::Call(Frame::Tested(Tested::new(inner))),
@@ -642,13 +717,25 @@ impl<'a> Reader<'a> {
                 if !is_capture_name(&name) {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
-                let wrapped = self.inner(primary, &PRIMARIES)?;
-                if rule_name(wrapped) == "constant-reference" {
-                    return Err(self.error(wrapped, CONSTANT_IN_BODY));
+                let wrapped = self.inner(primary, PRIMARIES)?;
+                if rule_name(wrapped) == "tested" {
+                    let base = Self::rules(wrapped, "primary")
+                        .next()
+                        .map(|primary| self.inner(primary, PRIMARIES))
+                        .transpose()?
+                        .or_else(|| Self::parts(wrapped).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
+                    if base.is_some_and(|base| {
+                        !matches!(
+                            rule_name(base),
+                            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range"
+                        )
+                    }) {
+                        return Err(self.error(capture, "a capture must wrap a single symbol"));
+                    }
                 }
                 if !matches!(
                     rule_name(wrapped),
-                    "reference" | "tag" | "character" | "phoneme" | "range" | "property" | "tested"
+                    "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" | "tested"
                 ) {
                     return Err(self.error(capture, "a capture must wrap a single symbol"));
                 }
@@ -660,7 +747,6 @@ impl<'a> Reader<'a> {
             "optional" => Step::Call(Frame::Optional(OptionalFrame::new(inner))),
             "repetition" => Step::Call(Frame::Repetition(Repetition::new(inner, frame.whole))),
             "empty" => Step::Done(Val::Expr(Expr::Empty)),
-            "constant-reference" => return Err(self.error(inner, CONSTANT_IN_BODY)),
             other => return Err(self.unknown(node, other)),
         })
     }
@@ -710,14 +796,20 @@ impl<'a> Reader<'a> {
         let Some(primary) = primary else {
             return Err(form());
         };
-        let head = self.inner(primary, &PRIMARIES)?;
+        let head = self.inner(primary, PRIMARIES)?;
         let is_terminal = |symbol: &Node| {
             rule_name(symbol) == "tag"
+                && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.text(token)))
                 || (rule_name(symbol) == "reference"
                     && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.text(token))))
         };
         if rule_name(head) == "tested" {
-            if !is_terminal(self.inner(self.one(head, "primary")?, &PRIMARIES)?) {
+            let base = Self::rules(head, "primary")
+                .next()
+                .map(|primary| self.inner(primary, PRIMARIES))
+                .transpose()?
+                .or_else(|| Self::parts(head).into_iter().find(|part| PRIMARIES.contains(&rule_name(part))));
+            if !base.is_some_and(is_terminal) {
                 return Err(form());
             }
         } else if !is_terminal(head) {
@@ -783,46 +875,78 @@ impl<'a> Reader<'a> {
     /// A reference other than `#` or a terminal, and one test on its own
     /// span (engine §2, §9). The syntax grammar reads a test after any
     /// primary, so that the reader can name the reason.
-    fn resume_tested(&self, frame: &mut Tested<'a>, input: Option<Val>) -> R<Step<'a>> {
-        if let Some(Val::Term(value, ty)) = input {
-            self.closed_for.set(None);
-            let operand = frame.operand.expect("the operand");
-            if let Some(problem) = test_type_problem(&frame.op, ty) {
-                return Err(self.error(operand, problem));
-            }
-            if let (true, Term::Str(sound)) = (is_sound_test(&frame.op), &value) {
-                if let Some(problem) = sound_problem(sound, self.unicode) {
-                    let at = first_of_rule(operand, "string").unwrap_or(operand);
-                    return Err(self.error(at, problem.replacen("the string", &format!("the string {sound:?}"), 1)));
-                }
-            }
-            let expr = frame.expr.take().expect("the symbol");
-            return Ok(Step::Done(Val::Expr(Expr::Tested(std::mem::take(&mut frame.op), value, Box::new(expr)))));
-        }
+    fn resume_tested(&self, frame: &mut Tested<'a>, _: Option<Val>) -> R<Step<'a>> {
         let node = frame.node;
-        // Its test first, then its primary and the primary's one known part
-        // (§9).
-        let test = self.one(node, "test")?;
-        let symbol = self.inner(self.one(node, "primary")?, &PRIMARIES)?;
-        let kind = rule_name(symbol);
-        if kind == "constant-reference" {
-            return Err(self.error(symbol, CONSTANT_IN_BODY));
+        let parts = Self::parts(node);
+        let tests: Vec<_> =
+            parts.iter().copied().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+        if tests.is_empty() {
+            return Err(self.shape_error(node, "test"));
         }
-        let hash = kind == "reference" && Self::tokens_of(symbol).next().is_some_and(|token| self.text(token) == "#");
-        if !matches!(kind, "reference" | "tag" | "character" | "phoneme" | "range" | "property") || hash {
-            return Err(self.error(
-                test,
-                "a test follows only a reference other than # or a terminal, not a group, an optional, braces, a capture, ε, # or another test",
-            ));
+        let base = if let Some(primary) = Self::rules(node, "primary").next() {
+            self.inner(primary, PRIMARIES)?
+        } else {
+            parts
+                .iter()
+                .copied()
+                .find(|part| PRIMARIES.contains(&rule_name(part)))
+                .ok_or_else(|| self.shape_error(node, "primary"))?
+        };
+        let valid = matches!(
+            rule_name(base),
+            "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range"
+        ) && !(rule_name(base) == "reference" && self.text(self.token(base)?) == "#");
+        let mut tags = false;
+        let mut value = false;
+        for test in &tests {
+            let tag = rule_name(test) == "tag-test";
+            if !valid || value || tag && tags {
+                return Err(self.error(test, "invalid test target or order"));
+            }
+            if tag {
+                tags = true;
+            } else {
+                value = true;
+            }
         }
-        frame.expr = Some(self.symbol(symbol)?);
-        // The comparator is the test's tokens: `=`, `≠`, `⊇` or `⊉`, or `∩`
-        // and `=∅` or `≠∅` around the operand.
-        frame.op = Self::tokens_of(test).map(|token| self.text(token)).collect();
-        let operand = self.one(test, "test-operand")?;
-        frame.operand = Some(operand);
-        self.closed_for.set(Some("a test's operand"));
-        Ok(Step::Call(Frame::Atom(Atom::new(operand, false))))
+        let mut expr = self.symbol(base)?;
+        for test in tests {
+            let (op, operand) = if rule_name(test) == "tag-test" {
+                let mut requirements = Vec::new();
+                for requirement in Self::rules(test, "tag-requirement") {
+                    let operand = self.one(requirement, "test-operand")?;
+                    let part = self.inner(operand, ATOMS)?;
+                    let value = match rule_name(part) {
+                        "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
+                        "constant-reference" => {
+                            let term = self.constant_reference(self.token(part)?)?;
+                            if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
+                                return Err(self.error(operand, "a tag test requires a tag-set constant"));
+                            }
+                            term
+                        }
+                        _ => return Err(self.error(operand, "a tag requirement requires a tag or tag-set constant")),
+                    };
+                    let negated = Self::tokens_of(requirement).any(|token| self.text(token) == "¬");
+                    requirements.push(Arg::Term(if negated {
+                        Term::Call("forbid".into(), vec![Arg::Term(value)])
+                    } else {
+                        value
+                    }));
+                }
+                ("tags".into(), Term::Call("requirements".into(), requirements))
+            } else {
+                let comparator = self.text(self.token(self.one(test, "test")?)?).to_string();
+                let operand = self.one(test, "test-operand")?;
+                let part = self.inner(operand, ATOMS)?;
+                if !matches!(rule_name(part), "string" | "constant-reference") {
+                    return Err(self.error(operand, "a value test requires a string literal or constant"));
+                }
+                (comparator, self.string_operand(part)?)
+            };
+            expr = Expr::Tested(op, operand, Box::new(expr));
+        }
+        Ok(Step::Done(Val::Expr(expr)))
     }
 
     /// A `term`: its union, or its guarded term: `if` of each of its
@@ -906,6 +1030,9 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
+            if matches!(ty, Type::String | Type::Span) {
+                return Err(self.error(frame.node, "set operators require sets or patterns"));
+            }
         }
         let parts = frame.parts.as_ref().expect("the parts");
         if let Some(&part) = parts.get(frame.items.len()) {
@@ -960,6 +1087,9 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
+            if matches!(ty, Type::String | Type::Span) {
+                return Err(self.error(frame.node, "set operators require sets or patterns"));
+            }
         }
         let atoms = frame.parts.as_ref().expect("the atoms");
         if let Some(&atom) = atoms.get(frame.items.len()) {
@@ -973,39 +1103,43 @@ impl<'a> Reader<'a> {
         if let Some(value) = input {
             // A call, which is no span where a value is due, or a term in
             // parentheses, which is its term.
-            if let (Some(inner), Val::Term(call @ Term::Call(..), _)) = (frame.call, &value) {
-                if let Term::Call(name, _) = call {
-                    if !frame.argument && is_span(call) {
-                        return Err(self.error(inner, format!("{name}() gives a span, which is not a value")));
-                    }
-                }
-            }
             return Ok(Step::Done(value));
         }
         let node = frame.node;
-        let inner = self.inner(node, &ATOMS)?;
+        let inner = self.inner(node, ATOMS)?;
         let token = || self.token(inner);
         let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
         match rule_name(inner) {
             // A span may stand in parentheses where a span is due.
             "term" => Ok(Step::Call(Frame::Term(TermFrame::new(inner, frame.argument)))),
             "pattern-literal" => {
-                let c = self.pattern_children(self.one(inner, "pattern-union")?, 0)?;
+                let part = self.pattern_literal_part(inner)?;
+                let c = self.pattern_children(part, 0)?;
                 let p = as_pattern(c);
                 if let Some(problem) = p.problem() {
                     return Err(self.error(inner, problem));
                 }
                 typed(Term::Pattern(Box::new(p)), Type::Pattern)
             }
-            "string" => typed(Term::Str(self.decode(token()?)?), Type::String),
-            "tag" | "character" | "phoneme" => typed(Term::Tag(self.tag_of(token()?)?), Type::Tags),
-            "range" => {
-                let (start, end) = self.range(inner)?;
-                typed(Term::Range(start, end), Type::Tags)
+            "string" => typed(self.string_term(token()?)?, Type::String),
+            "tag" => {
+                let token = token()?;
+                let tag = self.tag_of(token)?;
+                typed(Term::Tag(tag), Type::Tags)
             }
-            "property" => {
-                Err(self.error(inner, "a property is not a tag set, and stands only as a terminal in a body"))
+            "tag-run" => {
+                let before = node.span.start.checked_sub(1).and_then(|i| self.tokens.get(i));
+                let after = self.tokens.get(node.span.end);
+                if before.into_iter().chain(after).any(|t| matches!(t.text.as_str(), "∩" | "∖")) {
+                    return Err(self.error(inner, "a tag run beside intersection or difference requires parentheses"));
+                }
+                let mut items = Vec::new();
+                for tag in self.some(inner, "tag", 2)? {
+                    items.push(Term::Tag(self.tag_of(self.token(tag)?)?));
+                }
+                typed(Term::Union(items), Type::Tags)
             }
+            "range" => Err(self.error(inner, "a range is a terminal, not a value term")),
             // A bare name is a tag literal if it begins with a capital, and
             // otherwise a rule, which only a function's argument names.
             "name" => {
@@ -1019,28 +1153,63 @@ impl<'a> Reader<'a> {
             }
             "empty-set" => typed(Term::EmptySet, Type::Set),
             // The reader knows no constant's type (§9).
-            "constant-reference" => typed(
-                Term::Const(self.text(token()?).trim_start_matches('$').to_string(), self.at(token()?)),
-                Type::Any,
-            ),
+            "constant-reference" => {
+                let term = self.constant_reference(token()?)?;
+                let ty = if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
+                    Type::String
+                } else {
+                    Type::Any
+                };
+                typed(term, ty)
+            }
             "capture-reference" => {
                 let name = self.text(token()?).trim_start_matches('$').to_string();
                 if let Some(closed) = self.closed_for.get() {
                     return Err(self.error(inner, format!("{closed} is a closed term, and holds no capture")));
                 }
-                if !frame.argument {
-                    return Err(
-                        self.error(inner, format!("a span is not a value: tags(${name}) is the tag set of ${name}"))
-                    );
-                }
                 typed(Term::Capture(name), Type::Span)
             }
-            "call" => {
-                frame.call = Some(inner);
-                Ok(Step::Call(Frame::Call(CallFrame::new(inner, false))))
-            }
+            "method" => Ok(Step::Call(Frame::Method(MethodFrame::new(inner, false)))),
             other => Err(self.unknown(node, other)),
         }
+    }
+
+    fn pattern_literal_part(&self, node: &'a Node) -> R<&'a Node> {
+        Self::parts(node)
+            .into_iter()
+            .find(|part| matches!(rule_name(part), "pattern-union" | "pattern-atom"))
+            .ok_or_else(|| self.shape_error(node, "pattern-union or pattern-atom"))
+    }
+
+    /// Constructor parts determine the base, independently of delimiters.
+    fn pattern_atom_base(&self, node: &'a Node) -> R<&'a Node> {
+        Self::parts(node)
+            .into_iter()
+            .find(|part| {
+                matches!(
+                    rule_name(part),
+                    "name"
+                        | "reference"
+                        | "tag"
+                        | "string"
+                        | "string-terminal"
+                        | "wildcard"
+                        | "range"
+                        | "constant-reference"
+                        | "pattern-literal"
+                        | "pattern-union"
+                ) || part.kind == NodeKind::Token
+                    && (self.text(part) == "#"
+                        || self.text(part).starts_with('_')
+                        || self.text(part).as_bytes().first().is_some_and(u8::is_ascii_alphabetic))
+            })
+            .ok_or_else(|| self.shape_error(node, "pattern atom"))
+    }
+
+    fn pattern_path_token(&self, node: &'a Node) -> R<&'a Node> {
+        Self::tokens_of(node)
+            .find(|token| matches!(self.text(token), "⋮" | "⋰" | "⋱"))
+            .ok_or_else(|| self.shape_error(node, "path token"))
     }
 
     fn pattern_children(&self, root: &'a Node, _depth: usize) -> R<crate::patterns::Children> {
@@ -1049,22 +1218,55 @@ impl<'a> Reader<'a> {
         let mut pending = vec![(root, false)];
         while let Some((node, ready)) = pending.pop() {
             let kind = rule_name(node);
+            if !ready && kind == "pattern-atom" {
+                let base = self.pattern_atom_base(node)?;
+                let name = if matches!(rule_name(base), "name" | "reference") {
+                    Some(self.token(base)?)
+                } else if base.kind == NodeKind::Token {
+                    Some(base)
+                } else {
+                    None
+                };
+                let testable = matches!(
+                    rule_name(base),
+                    "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
+                ) || name
+                    .is_some_and(|name| is_capital(self.text(name)) || self.text(name).starts_with('_'));
+                self.pattern_test_nodes(node, testable)?;
+            }
             let children: Vec<&Node> = match kind {
-                "pattern-union" => Self::rules(node, "pattern-intersection").collect(),
-                "pattern-intersection" => Self::rules(node, "pattern-sequence").collect(),
-                "pattern-sequence" => Self::rules(node, "pattern-item").collect(),
-                "pattern-item" => Self::parts(node).into_iter().filter(|n| n.kind != NodeKind::Token).collect(),
-                "pattern-brackets" | "pattern-repeat" => Self::rules(node, "pattern-union").collect(),
-                "pattern-path" => Self::rules(node, "pattern-atom").collect(),
+                "pattern-union" => {
+                    let operands = self.some(node, "pattern-intersection", 1)?;
+                    let operators = Self::tokens_of(node).filter(|token| matches!(self.text(token), "∪" | "∖")).count();
+                    if operators < operands.len() - 1 {
+                        return Err(self.shape_error(node, "union operators"));
+                    }
+                    operands
+                }
+                "pattern-intersection" => self.some(node, "pattern-sequence", 1)?,
+                "pattern-sequence" => self.some(node, "pattern-item", 1)?,
+                "pattern-item" => Self::parts(node)
+                    .into_iter()
+                    .filter(|part| {
+                        matches!(
+                            rule_name(part),
+                            "pattern-atom" | "pattern-brackets" | "pattern-repeat" | "pattern-path"
+                        )
+                    })
+                    .take(1)
+                    .collect(),
+                "pattern-brackets" => vec![self.one(node, "pattern-union")?],
+                "pattern-repeat" => self.some(node, "pattern-union", 1)?.into_iter().take(2).collect(),
+                "pattern-path" => {
+                    self.pattern_path_token(node)?;
+                    vec![self.one(node, "pattern-atom")?]
+                }
                 "pattern-atom" => {
-                    let first =
-                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
-                    if first.kind == NodeKind::Token && self.text(first) == "(" {
-                        Self::rules(node, "pattern-union").collect()
-                    } else if rule_name(first) == "pattern-literal" {
-                        Self::rules(first, "pattern-union").collect()
-                    } else {
-                        Vec::new()
+                    let base = self.pattern_atom_base(node)?;
+                    match rule_name(base) {
+                        "pattern-union" => vec![base],
+                        "pattern-literal" => vec![self.pattern_literal_part(base)?],
+                        _ => Vec::new(),
                     }
                 }
                 _ => return Err(self.unknown(node, kind)),
@@ -1085,14 +1287,25 @@ impl<'a> Reader<'a> {
                     } else {
                         let mut xs = parts.into_iter();
                         let mut p = as_pattern(xs.next().ok_or_else(|| self.shape_error(node, "pattern operand"))?);
-                        let ops = Self::tokens_of(node).map(|t| self.text(t)).collect::<Vec<_>>();
+                        let ops = Self::tokens_of(node)
+                            .map(|t| self.text(t))
+                            .filter(|op| matches!(*op, "∪" | "∖"))
+                            .collect::<Vec<_>>();
                         for (i, x) in xs.enumerate() {
                             p = if kind == "pattern-intersection" {
                                 P::Intersection(vec![p, as_pattern(x)])
                             } else if ops.get(i) == Some(&"∖") {
                                 P::Difference(Box::new(p), Box::new(as_pattern(x)))
                             } else {
-                                P::Union(vec![p, as_pattern(x)])
+                                let mut operands = match p {
+                                    P::Union(items) => items,
+                                    p => vec![p],
+                                };
+                                match as_pattern(x) {
+                                    P::Union(items) => operands.extend(items),
+                                    p => operands.push(p),
+                                }
+                                P::Union(operands)
                             };
                         }
                         C::Node(Box::new(p))
@@ -1113,15 +1326,16 @@ impl<'a> Reader<'a> {
                     }
                 }
                 "pattern-item" => {
-                    if parts.is_empty() {
+                    if let Some(part) = parts.pop() {
+                        part
+                    } else if Self::tokens_of(node).any(|token| self.text(token) == "⋯") {
                         C::Siblings
                     } else {
-                        parts.pop().unwrap()
+                        return Err(self.shape_error(node, "pattern item or sibling ellipsis"));
                     }
                 }
                 "pattern-atom" => {
-                    let first =
-                        Self::parts(node).into_iter().next().ok_or_else(|| self.shape_error(node, "pattern atom"))?;
+                    let first = self.pattern_atom_base(node)?;
                     if !parts.is_empty() {
                         let c = parts.pop().unwrap();
                         if rule_name(first) == "pattern-literal" {
@@ -1129,48 +1343,42 @@ impl<'a> Reader<'a> {
                         } else {
                             c
                         }
-                    } else if first.kind == NodeKind::Token {
-                        let name = self.text(first);
-                        let p = if is_capital(name) {
-                            P::Terminal(name.to_owned(), self.at(first))
-                        } else {
-                            P::Name(name.to_owned(), self.at(first))
-                        };
-                        if let Some(test) = Self::rules(node, "test").next() {
-                            if !is_capital(name) {
-                                return Err(self.error(test, "a pattern test requires one terminal atom"));
+                    } else {
+                        let (pattern, tested) = match rule_name(first) {
+                            "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
+                            "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
+                            "string-terminal" => {
+                                let symbol = self.symbol(first)?;
+                                let Expr::Literal(term) = &symbol else { unreachable!() };
+                                (P::Literal(term.clone(), self.first(first)), true)
                             }
-                            let op: String = Self::tokens_of(test).map(|t| self.text(t)).collect();
-                            let operand = self.one(test, "test-operand")?;
-                            if first_of_rule(operand, "pattern-literal").is_some() {
-                                return Err(self.error(operand, "a symbol test cannot read a pattern"));
+                            "wildcard" => (P::Wildcard(self.first(first)), true),
+                            "range" => {
+                                let symbol = self.symbol(first)?;
+                                let Expr::ScalarRange(a, b) = &symbol else { unreachable!() };
+                                (P::Range(a.clone(), b.clone(), self.first(first)), true)
                             }
-                            let before = self.closed_for.replace(Some("a test's operand"));
-                            let result = self.typed(Frame::Atom(Atom::new(operand, false)));
-                            self.closed_for.set(before);
-                            let (v, ty) = result?;
-                            if let Some(problem) = crate::dom::test_type_problem(&op, ty) {
-                                return Err(self.error(operand, problem));
-                            }
-                            if let Term::Str(sound) = &v {
-                                if let Some(problem) = crate::dom::sound_problem(sound, self.unicode) {
-                                    return Err(self.error(operand, problem));
+                            "constant-reference" => {
+                                let token = self.token(first)?;
+                                let term = self.constant_reference(token)?;
+                                if self.text(token).starts_with("$_") {
+                                    (P::Literal(term, self.at(token)), true)
+                                } else {
+                                    (P::Constant(self.text(token)[1..].into(), self.at(token)), true)
                                 }
                             }
-                            C::Node(Box::new(P::Test(op, v, Box::new(p))))
-                        } else {
-                            if let Some(problem) = p.problem() {
-                                return Err(self.error(node, problem));
+                            _ if first.kind == NodeKind::Token || matches!(rule_name(first), "name" | "reference") => {
+                                let token = if first.kind == NodeKind::Token { first } else { self.token(first)? };
+                                let name = self.text(token);
+                                if is_capital(name) || crate::dom::is_engine_tag(name) {
+                                    (P::Terminal(name.into(), self.at(token)), true)
+                                } else {
+                                    (P::Name(name.into(), self.at(token)), false)
+                                }
                             }
-                            C::Node(Box::new(p))
-                        }
-                    } else if rule_name(first) == "constant-reference" {
-                        C::Node(Box::new(P::Constant(
-                            self.text(self.token(first)?).trim_start_matches('$').to_owned(),
-                            self.at(first),
-                        )))
-                    } else {
-                        return Err(self.shape_error(node, "pattern atom"));
+                            _ => return Err(self.shape_error(node, "pattern atom")),
+                        };
+                        C::Node(Box::new(self.pattern_tests(node, pattern, tested)?))
                     }
                 }
                 "pattern-brackets" => C::Optional(Box::new(parts.pop().unwrap())),
@@ -1180,8 +1388,9 @@ impl<'a> Reader<'a> {
                     C::Repeat(Box::new(item), xs.next().map(Box::new))
                 }
                 "pattern-path" => {
-                    // The direct operator token can follow the named atom.
-                    let operator = self.text(self.token(node)?);
+                    // The path token can precede or follow the atom. Ignore
+                    // delimiter tokens that are not constructor parts.
+                    let operator = self.text(self.pattern_path_token(node)?);
                     C::Node(Box::new(P::Path(
                         match operator {
                             "⋮" => "descendant",
@@ -1202,105 +1411,180 @@ impl<'a> Reader<'a> {
         Ok(values.remove(&(root as *const Node)).expect("finished pattern"))
     }
 
-    /// A call, with its arguments: in a term, of a function that gives a
-    /// value or a span, and in a condition, of `matches`, `begins` or
-    /// `initial`.
-    fn resume_call(&self, frame: &mut CallFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
-        let node = frame.node;
-        let name_token = match frame.name {
-            Some(token) => token,
-            None => *frame.name.insert(self.token(node)?),
-        };
-        if frame.arguments.is_none() {
-            let name = self.text(name_token);
-            if frame.condition {
-                if !matches!(name, "matches" | "begins" | "initial") {
-                    let message = if FUNCTIONS.contains(&name) {
-                        format!("{name}() is not a condition; only matches(), begins() and initial() are")
-                    } else {
-                        format!("an unknown function {name}()")
-                    };
-                    return Err(self.error(name_token, message));
-                }
-            } else {
-                if !FUNCTIONS.contains(&name) {
-                    return Err(self.error(name_token, format!("an unknown function {name}()")));
-                }
-                if let Some(closed) = self.closed_for.get().filter(|_| name == "classify") {
-                    return Err(self.error(
-                        name_token,
-                        format!("{closed} is a closed term, and classify depends on the features"),
-                    ));
-                }
-                if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "tag") {
-                    return Err(self.error(name_token, format!("{closed} is a closed term, and {name}() reads a span")));
-                }
+    /// Inspect the target and complete test sequence before any base conversion.
+    fn pattern_test_nodes(&self, node: &'a Node, testable: bool) -> R<Vec<&'a Node>> {
+        let tests: Vec<_> =
+            Self::parts(node).into_iter().filter(|part| matches!(rule_name(part), "tag-test" | "value-test")).collect();
+        let mut tags = false;
+        let mut value = false;
+        for test in &tests {
+            let tag = rule_name(test) == "tag-test";
+            if !testable || value || tag && tags {
+                return Err(self.error(test, "invalid pattern test target or order"));
             }
-            frame.arguments = Some(Self::rules(node, "argument").collect());
+            if tag {
+                tags = true;
+            } else {
+                value = true;
+            }
         }
-        if let Some(Val::Arg(arg, ty)) = input {
-            frame.args.push(arg);
-            frame.types.push(ty);
+        Ok(tests)
+    }
+
+    fn pattern_tests(
+        &self,
+        node: &'a Node,
+        mut pattern: crate::patterns::Pattern,
+        testable: bool,
+    ) -> R<crate::patterns::Pattern> {
+        let tests = self.pattern_test_nodes(node, testable)?;
+        for test in tests {
+            let (op, operand) = if rule_name(test) == "tag-test" {
+                let mut requirements = Vec::new();
+                for requirement in Self::rules(test, "tag-requirement") {
+                    let operand = self.one(requirement, "test-operand")?;
+                    let part = self.inner(operand, ATOMS)?;
+                    let term = match rule_name(part) {
+                        "tag" => Term::Tag(self.tag_of(self.token(part)?)?),
+                        "constant-reference" => {
+                            let term = self.constant_reference(self.token(part)?)?;
+                            if matches!(&term, Term::Const(name, _) if crate::dom::engine_scalar(name).is_some()) {
+                                return Err(self.error(operand, "a tag test requires a tag-set constant"));
+                            }
+                            term
+                        }
+                        _ => return Err(self.error(operand, "invalid tag requirement")),
+                    };
+                    let negative = Self::tokens_of(requirement).any(|token| self.text(token) == "¬");
+                    requirements.push(Arg::Term(if negative {
+                        Term::Call("forbid".into(), vec![Arg::Term(term)])
+                    } else {
+                        term
+                    }));
+                }
+                ("tags".into(), Term::Call("requirements".into(), requirements))
+            } else {
+                let op = self.text(self.token(self.one(test, "test")?)?).into();
+                let operand = self.one(test, "test-operand")?;
+                (op, self.string_operand(self.inner(operand, ATOMS)?)?)
+            };
+            pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern));
         }
-        let arguments = frame.arguments.as_ref().expect("the arguments");
-        if let Some(&argument) = arguments.get(frame.args.len()) {
+        Ok(pattern)
+    }
+
+    fn resume_method(&self, frame: &mut MethodFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.selectors.is_none() {
+            let receiver = self.one(frame.node, "method-receiver")?;
+            let atom = self.one(receiver, "term-atom")?;
+            frame.selectors = Some(self.some(frame.node, "method-selector", 1)?);
+            return Ok(Step::Call(Frame::Atom(Atom::new(atom, true))));
+        }
+        if let Some(value) = input {
+            match value {
+                Val::Term(term, ty) => frame.receiver = Some((term, ty)),
+                Val::Arg(arg, ty) => {
+                    frame.args.push(arg);
+                    frame.types.push(ty);
+                }
+                _ => unreachable!("a method reads a receiver or an argument"),
+            }
+        }
+        let selectors = frame.selectors.as_ref().unwrap();
+        let selector = selectors[frame.index];
+        let name = self.text(self.token(self.one(selector, "method-name")?)?);
+        if frame.arguments.is_none() {
+            frame.arguments = Some(match Self::rules(selector, "arguments").next() {
+                Some(arguments) => self.some(arguments, "argument", 1)?,
+                None => Vec::new(),
+            });
+        }
+        if let Some(&argument) = frame.arguments.as_ref().unwrap().get(frame.args.len()) {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
-        let name = self.text(name_token).to_string();
-        let mut args = std::mem::take(&mut frame.args);
-        if frame.condition {
-            let mut args = args.into_iter();
-            return Ok(Step::Done(Val::Cond(match (name.as_str(), args.next(), args.next(), args.next()) {
-                ("initial", Some(Arg::Term(span)), None, None) if is_span(&span) => Cond::Initial(span),
-                ("matches", Some(Arg::Term(span)), Some(Arg::Rule(rule)), None) if is_span(&span) => {
-                    Cond::Matches(span, rule)
+        let (receiver, ty) = frame.receiver.take().unwrap();
+        let span = ty == Type::Span;
+        let string = matches!(ty, Type::Span | Type::String | Type::Any);
+        let bare = matches!(&receiver, Term::Capture(_));
+        let arguments = &frame.args[..];
+        let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
+        let valid = if emitted_receiver {
+            matches!((name, arguments), ("value" | "image", []))
+        } else {
+            match (name, arguments) {
+                (
+                    "value" | "image" | "source-text" | "first-token" | "tokens-after-first" | "last-token" | "onward"
+                    | "following-tokens" | "classes" | "starts-input" | "tags",
+                    [],
+                ) => span,
+                ("without-elision" | "verbatim-text" | "emitted", []) => bare,
+                ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
+                ("split", [Arg::Term(_)]) => {
+                    string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
                 }
-                ("begins", Some(Arg::Term(span)), Some(Arg::Rule(rule)), None) if is_span(&span) => {
-                    Cond::Begins(span, rule)
-                }
-                ("initial", ..) => return Err(self.error(name_token, "initial() takes one span")),
-                _ => return Err(self.error(name_token, format!("{name}() takes a span and a rule"))),
-            })));
-        }
-        let span = |arg: &Arg| matches!(arg, Arg::Term(term) if is_span(term));
-        let rule = |arg: &Arg| matches!(arg, Arg::Rule(_));
-        // A constant's type is known only when the loader stitches the
-        // stage.
-        let string_like = |index: usize| matches!(frame.types.get(index), Some(Some(Type::String | Type::Any)));
-        if name == "without-elision" && !matches!(&args[..], [Arg::Term(Term::Capture(_))]) {
-            return Err(self.error(
-                name_token,
-                "without-elision() takes one bare capture: use from(without-elision($x)) for an extended query",
-            ));
-        }
-        let ok = match (name.as_str(), &args[..]) {
-            ("tags", [first]) => span(first),
-            ("tags" | "matches" | "begins", [first, second]) => span(first) && rule(second),
-            ("split", [Arg::Term(_), Arg::Term(_)]) => string_like(0) && string_like(1),
-            ("tag", [Arg::Term(_)]) => string_like(0),
-            ("classify", [Arg::Term(_), Arg::Rule(_)]) => string_like(0),
-            ("matches" | "begins" | "tags" | "split" | "tag" | "classify", _) => false,
-            (_, [first]) => span(first),
-            _ => false,
+                ("classify", [Arg::Rule(_)]) => string,
+                _ => false,
+            }
         };
-        if !ok {
-            return Err(self.error(name_token, format!("{name}() is called with the wrong arguments")));
+        if !valid {
+            let hint = if name == "without-elision" {
+                "; write $x.without-elision.onward for an extended restored query"
+            } else {
+                ""
+            };
+            return Err(
+                self.error(frame.node, format!(".{name} has an unknown name or invalid receiver or arguments{hint}"))
+            );
         }
-        if matches!(name.as_str(), "matches" | "begins" | "initial") {
-            return Err(self.error(name_token, format!("{name}() is a condition, not a term")));
+        if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
+            return Err(self.error(frame.node, format!(".{name} is allowed only in a recipe")));
         }
-        // An empty delimiter or a tag's name that the reader sees (§9).
-        if let Some(problem) = literal_call_problem(&name, &args) {
-            return Err(self.error(name_token, problem));
+        if let Some(closed) = self.closed_for.get().filter(|_| name != "split") {
+            return Err(self.error(frame.node, format!("{closed} cannot read .{name}")));
         }
-        // The second argument of classify names a classifier, not a rule
-        // (engine §9).
-        if let (true, [_, Arg::Rule(classifier)]) = (name == "classify", &mut args[..]) {
-            let classifier = std::mem::take(classifier);
-            args[1] = Arg::Classifier(classifier);
+        let mut args = vec![Arg::Term(receiver)];
+        args.append(&mut frame.args);
+        if let ("classify", [_, Arg::Rule(name)]) = (name, &mut args[..]) {
+            let name = std::mem::take(name);
+            args[1] = Arg::Classifier(name);
         }
-        let ty = call_type(&name);
-        Ok(Step::Done(Val::Term(Term::Call(name, args), ty)))
+        if let Some(problem) = literal_call_problem(name, &args) {
+            return Err(self.error(frame.node, problem));
+        }
+        let last = frame.index + 1 == selectors.len();
+        let value = if matches!(name, "starts-input" | "matches" | "begins") {
+            if !frame.condition || !last {
+                return Err(self.error(frame.node, "a predicate method cannot supply a value"));
+            }
+            let mut args = args.into_iter();
+            let Some(Arg::Term(receiver)) = args.next() else { unreachable!() };
+            Val::Cond(match name {
+                "starts-input" => Cond::Initial(receiver),
+                _ => {
+                    let Some(Arg::Rule(rule)) = args.next() else { unreachable!() };
+                    if name == "matches" {
+                        Cond::Matches(receiver, rule)
+                    } else {
+                        Cond::Begins(receiver, rule)
+                    }
+                }
+            })
+        } else {
+            if last && frame.condition {
+                return Err(self.error(frame.node, "a condition requires a predicate method"));
+            }
+            let alias = crate::dom::method_alias(name);
+            Val::Term(Term::Call(alias.into(), args), call_type(alias))
+        };
+        if last {
+            return Ok(Step::Done(value));
+        }
+        let Val::Term(term, ty) = value else { unreachable!() };
+        frame.receiver = Some((term, ty));
+        frame.index += 1;
+        frame.arguments = None;
+        frame.types.clear();
+        Ok(Step::Again)
     }
 
     /// A function's argument: a rule, where it is a bare name without a
@@ -1310,7 +1594,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             return Ok(Step::Done(Val::Arg(Arg::Term(term), Some(ty))));
         }
-        let union = self.one(frame.node, "union")?;
+        let union = first_of_rule(frame.node, "union").ok_or_else(|| self.shape_error(frame.node, "term"))?;
         if let Some(rule) = self.rule_name_in(union) {
             return Ok(Step::Done(Val::Arg(Arg::Rule(rule), None)));
         }
@@ -1373,7 +1657,7 @@ impl<'a> Reader<'a> {
 
     fn resume_condition(&self, frame: &mut ConditionFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         let Some(inner) = frame.inner else {
-            let inner = self.inner(frame.node, &CONDITIONS)?;
+            let inner = self.inner(frame.node, CONDITIONS)?;
             frame.inner = Some(inner);
             return Ok(match rule_name(inner) {
                 // Parentheses make no node of their own (§9).
@@ -1381,11 +1665,12 @@ impl<'a> Reader<'a> {
                 "tree-comparison" => {
                     let capture = self.one(inner, "capture-reference")?;
                     let right = self.one(inner, "union")?;
-                    if let Some(name) = first_of_rule(right, "name") {
+                    if let Some(name) = first_of_rule(right, "name").or_else(|| first_of_rule(right, "tag")) {
                         if right.span.end - right.span.start == 1 {
+                            let at = name;
                             let name = self.text(self.token(name)?);
                             return Err(self.error(
-                                first_of_rule(right, "name").unwrap(),
+                                at,
                                 format!("tree comparison requires a pattern; write @({name}), not {name}"),
                             ));
                         }
@@ -1409,7 +1694,7 @@ impl<'a> Reader<'a> {
                     let token = self.token(inner)?;
                     Step::Done(Val::Cond(Cond::Captured(self.text(token).trim_start_matches('$').to_string())))
                 }
-                "call" => Step::Call(Frame::Call(CallFrame::new(inner, true))),
+                "method" => Step::Call(Frame::Method(MethodFrame::new(inner, true))),
                 other => return Err(self.unknown(frame.node, other)),
             });
         };
@@ -1436,212 +1721,248 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// A reference, or a terminal: a tag literal, a character tag, a
-    /// phoneme tag, a range or a property.
+    /// A reference, literal string, scalar range, wildcard, or engine tag.
     fn symbol(&self, node: &'a Node) -> R<Expr> {
-        if rule_name(node) == "range" {
-            let (start, end) = self.range(node)?;
-            return Ok(Expr::Range(start, end));
+        match rule_name(node) {
+            "reference" => {
+                let token = self.token(node)?;
+                let name = self.text(token);
+                if name.starts_with('_') {
+                    self.tag_of(token)?;
+                }
+                Ok(Expr::Ref(name.into()))
+            }
+            "tag" => Ok(Expr::Ref(self.tag_of(self.token(node)?)?)),
+            "constant-reference" => Ok(Expr::Literal(self.constant_reference(self.token(node)?)?)),
+            "wildcard" => Ok(Expr::Property("Any".into())),
+            "string-terminal" => {
+                let parts = Self::parts(node);
+                let part = parts
+                    .iter()
+                    .find(|p| matches!(rule_name(p), "string" | "constant-reference"))
+                    .ok_or_else(|| self.shape_error(node, "string operand"))?;
+                Ok(Expr::Literal(self.string_operand(part)?))
+            }
+            "range" => {
+                let parts: Vec<_> = Self::parts(node)
+                    .into_iter()
+                    .filter(|p| matches!(rule_name(p), "string" | "constant-reference"))
+                    .collect();
+                if parts.len() < 2 {
+                    return Err(self.shape_error(node, "two string operands"));
+                }
+                let left = self.string_operand(parts[0])?;
+                let right = self.string_operand(parts[1])?;
+                let scalar = |term: &Term| match term {
+                    Term::Str(s) => {
+                        let mut cs = s.chars();
+                        let c = cs.next()?;
+                        cs.next().is_none().then_some(c)
+                    }
+                    Term::Const(n, _) => crate::dom::engine_scalar(n),
+                    _ => None,
+                };
+                if matches!(&left, Term::Str(_)) && scalar(&left).is_none()
+                    || matches!(&right, Term::Str(_)) && scalar(&right).is_none()
+                {
+                    return Err(self.error(node, "range endpoints must be single scalars"));
+                }
+                if let (Some(a), Some(b)) = (scalar(&left), scalar(&right)) {
+                    if a > b {
+                        return Err(self.error(node, "range starts above its end"));
+                    }
+                }
+                Ok(Expr::ScalarRange(left, right))
+            }
+            _ => Err(self.unknown(node, rule_name(node))),
         }
+    }
+
+    fn string_operand(&self, node: &'a Node) -> R<Term> {
         let token = self.token(node)?;
-        Ok(match rule_name(node) {
-            "reference" => Expr::Ref(self.text(token).to_string()),
-            "tag" | "character" | "phoneme" => Expr::Terminal(self.tag_of(token)?),
-            "property" => Expr::Property(self.property(token)?),
-            other => return Err(self.unknown(node, other)),
-        })
+        match rule_name(node) {
+            "string" => self.string_term(token),
+            "constant-reference" => self.constant_reference(token),
+            _ => Err(self.error(node, "a string literal or constant is required")),
+        }
     }
 
-    /// A range's two ends, each a character tag in its canonical spelling;
-    /// its start must not be above its end (engine §1, §9).
-    fn range(&self, node: &'a Node) -> R<(String, String)> {
-        let mut ends = Vec::new();
-        for end in self.some(node, "character", 2)?.into_iter().take(2) {
-            ends.push(self.tag_of(self.token(end)?)?);
+    fn constant_reference(&self, token: &'a Node) -> R<Term> {
+        let name = self.text(token).strip_prefix('$').unwrap_or("");
+        if !(crate::dom::is_constant_name(name) || crate::dom::engine_scalar(name).is_some()) {
+            return Err(self.error(token, "invalid constant name or scalar"));
         }
-        let [start, end] = <[String; 2]>::try_from(ends).map_err(|_| self.shape_error(node, "pair of ends"))?;
-        if let Some(problem) = range_problem(&start, &end, self.unicode) {
-            return Err(self.error(node, problem));
-        }
-        Ok((start, end))
+        Ok(Term::Const(name.into(), self.at(token)))
     }
 
-    /// A property's name: its token is `'\p{Name}'`, with a name of engine
-    /// §1.
-    fn property(&self, token: &'a Node) -> R<String> {
+    fn string_term(&self, token: &'a Node) -> R<Term> {
         let text = self.text(token);
-        let name =
-            text.strip_prefix("'\\p{").and_then(|rest| rest.strip_suffix("}'")).filter(|name| !name.contains('}'));
-        let Some(name) = name else {
-            return Err(self.error(token, "a property is written '\\p{Name}'"));
+        let Some(body) = text.strip_prefix('"').and_then(|s| s.strip_suffix('"')) else {
+            return Err(self.error(token, "a string requires double quotes"));
         };
-        if let Some(problem) = property_problem(name) {
-            return Err(self.error(token, problem));
-        }
-        Ok(name.to_string())
-    }
-
-    /// Decodes a string or a character tag's token (engine §9). A string
-    /// escapes its double quote, and a character tag its quote.
-    fn decode(&self, token: &'a Node) -> R<String> {
-        let text = self.text(token);
-        let chars: Vec<char> = text.chars().collect();
-        let bad = || self.error(token, format!("a bad escape in {text}"));
-        // The token holds its two quotes, unless a notation of another
-        // shape gives it some other text.
-        let (Some(&quote), Some(body)) = (chars.first(), chars.get(1..chars.len().saturating_sub(1))) else {
-            return Err(self.error(token, format!("{text:?} is not quoted")));
-        };
-        let mut out = String::new();
-        let mut index = 0;
-        while index < body.len() {
-            // Each character or escape counts as it is read.
-            work::count(Work::Walked, 1);
-            let c = body[index];
-            if c != '\\' {
-                out.push(c);
-                index += 1;
+        let mut chars = body.chars().enumerate().peekable();
+        let mut literal = String::new();
+        let mut parts = Vec::new();
+        while let Some((index, c)) = chars.next() {
+            if c == '\\' {
+                return Err(self.error(token, "backslash is not a string escape"));
+            }
+            if c != '$' {
+                literal.push(c);
                 continue;
             }
-            match body.get(index + 1) {
-                Some('\\') => out.push('\\'),
-                Some(&c) if c == quote => out.push(c),
-                Some('u') => {
-                    if body.get(index + 2) != Some(&'{') {
-                        return Err(bad());
+            match chars.next() {
+                Some((_, '$')) => literal.push('$'),
+                Some((_, '(')) => {
+                    if !literal.is_empty() {
+                        parts.push(Term::Str(std::mem::take(&mut literal)));
                     }
-                    let close = body[index + 3..].iter().position(|&c| c == '}').ok_or_else(bad)? + index + 3;
-                    let digits: String = body[index + 3..close].iter().collect();
-                    // One to six hexadecimal digits of a Unicode scalar value
-                    // (engine §9); char::from_u32 refuses the rest.
-                    if digits.is_empty() || digits.len() > 6 || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
-                        return Err(bad());
+                    let mut name = String::new();
+                    while chars.peek().is_some_and(|(_, c)| *c != ')') {
+                        name.push(chars.next().unwrap().1);
                     }
-                    let code = u32::from_str_radix(&digits, 16).map_err(|_| bad())?;
-                    out.push(char::from_u32(code).ok_or_else(bad)?);
-                    index = close + 1;
-                    continue;
+                    if chars.next().is_none()
+                        || !(crate::dom::is_constant_name(&name) || crate::dom::engine_scalar(&name).is_some())
+                    {
+                        return Err(Error::grammar("invalid string interpolation").at(
+                            (self.position)(token.source.start + index + 1).0,
+                            (self.position)(token.source.start + index + 1).1,
+                        ));
+                    }
+                    parts.push(Term::Const(name, (self.position)(token.source.start + index + 1)));
                 }
-                _ => return Err(bad()),
+                _ => return Err(self.error(token, "a dollar sign requires interpolation or doubling")),
             }
-            index += 2;
         }
-        Ok(out)
+        if !literal.is_empty() || parts.is_empty() {
+            parts.push(Term::Str(literal));
+        }
+        if parts.len() == 1 && matches!(parts[0], Term::Str(_)) {
+            Ok(parts.pop().unwrap())
+        } else {
+            Ok(Term::Call("interpolate".into(), parts.into_iter().map(Arg::Term).collect()))
+        }
     }
 
-    /// The tag of a tag literal `~name`, a phoneme tag or a character tag's
-    /// token, a character tag in its canonical spelling (engine §1, §9).
+    fn channels(&self, node: &'a Node) -> R<Channels> {
+        let mut channels = Channels::default();
+        for (name, target, at) in [
+            ("value-clause", &mut channels.value, &mut channels.value_at),
+            ("image-clause", &mut channels.image, &mut channels.image_at),
+        ] {
+            if let Some(clause) = Self::rules(node, name).next() {
+                let recipe = self.one(clause, "recipe")?;
+                *at = Some(self.first(recipe));
+                let mut atoms = Vec::new();
+                self.in_recipe.set(true);
+                for atom in self.some(recipe, "recipe-atom", 1)? {
+                    let first = self.tokens.get(atom.span.start).map(|t| t.text.as_str()).unwrap_or("");
+                    if matches!(first, "(" | "∪" | "∩")
+                        || self.tokens[atom.span.clone()]
+                            .iter()
+                            .any(|t| matches!(t.text.as_str(), "∪" | "∩" | "∖" | "⟹"))
+                    {
+                        return Err(self.error(atom, "a recipe atom has no grouping or operators"));
+                    }
+                    let (term, _) = self.term(self.one(atom, "term")?, true)?;
+                    let valid = match &term {
+                        Term::Str(_) | Term::Const(..) => true,
+                        Term::Call(name, args) if name == "interpolate" => !args.is_empty(),
+                        Term::Call(name, args)
+                            if matches!(name.as_str(), "value" | "image" | "text" | "verbatim-text") =>
+                        {
+                            matches!(&args[..], [Arg::Term(Term::Capture(_))])
+                                || matches!(name.as_str(), "value" | "image")
+                                    && matches!(&args[..], [Arg::Term(Term::Call(name, args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
+                        }
+                        _ => false,
+                    };
+                    if !valid {
+                        return Err(self.error(atom, "a recipe atom must be a string or a captured string method"));
+                    }
+                    atoms.push(Arg::Term(term));
+                }
+                self.in_recipe.set(false);
+                *target = Some(Term::Call("concat".into(), atoms));
+            }
+        }
+        Ok(channels)
+    }
+
     fn tag_of(&self, token: &'a Node) -> R<String> {
         let text = self.text(token);
-        if let Some(name) = text.strip_prefix('~') {
-            return Ok(name.to_string());
+        if text.starts_with('_') {
+            if !crate::dom::is_engine_tag(text) {
+                return Err(self.error(token, "unknown engine tag"));
+            }
+        } else if !text.starts_with(|c: char| c.is_ascii_uppercase()) || !crate::tags::is_name(text) {
+            return Err(self.error(token, "a user tag starts with an uppercase ASCII letter"));
         }
-        if text.starts_with('/') {
-            return Ok(text.to_string());
-        }
-        let decoded = self.decode(token)?;
-        let mut chars = decoded.chars();
-        match (chars.next(), chars.next()) {
-            (Some(c), None) => Ok(character_tag(c, self.unicode)),
-            _ => Err(self.error(token, "a character tag holds exactly one character")),
-        }
+        Ok(text.into())
     }
 
     fn emission(&self, node: &'a Node) -> R<Vec<EmitItem>> {
-        let arrow = self.token(node)?;
+        let nodes: Vec<_> = Self::rules(node, "emit-item").collect();
+        if nodes.is_empty() {
+            let tags = Self::rules(node, "emit-tags")
+                .next()
+                .or_else(|| Self::rules(node, "tags-clause").next())
+                .map(|clause| self.tag_term(self.one(clause, "term")?))
+                .transpose()?;
+            return Ok(vec![EmitItem::Capture(
+                "".into(),
+                tags,
+                Attachments { strings: self.channels(node)?, ..Default::default() },
+            )]);
+        }
         let mut items = Vec::new();
-        // `%emits ε` emits nothing, and the constituent does not count.
-        let empty = Self::tokens_of(node).any(|token| self.text(token) == "ε");
-        for item in if empty { Vec::new() } else { self.some(node, "emit-item", 1)? } {
-            // An inserted item is one tag (engine §9).
-            let target = self.symbol_part(self.one(item, "emit-target")?)?;
-            if target.kind == NodeKind::Rule {
-                return Err(self.error(item, "an inserted item is one tag, not a range or a property"));
+        let mut named = FxSet::default();
+        for item in nodes {
+            let target = self.one(item, "emit-target")?;
+            let token = Self::tokens_of(target)
+                .next()
+                .ok_or_else(|| self.error(target, "an emission requires a capture or epsilon target"))?;
+            let text = self.text(token);
+            if !text.starts_with('$') && text != "ε" {
+                return Err(self.error(target, "an emission target is a capture or ε"));
             }
-            let tags = Self::rules(item, "emit-tags").next();
-            let text = self.text(target);
-            let mut read = match target.terminal.as_deref().unwrap_or("") {
-                "capture" => {
-                    let name = text.trim_start_matches('$').to_string();
-                    // `<term>`, the item's own tags.
-                    let tags = match tags {
-                        Some(tags) => {
-                            let term = self.tag_term(self.one(tags, "term")?)?;
-                            if term == Term::EmptySet {
-                                return Err(
-                                    self.error(item, "<∅> emits a token no terminal can read; %emits ε emits nothing")
-                                );
-                            }
-                            Some(term)
+            let mut before = Vec::new();
+            let mut after = Vec::new();
+            for (name, list) in [("emit-before", &mut before), ("emit-after", &mut after)] {
+                for side in Self::rules(item, name) {
+                    for capture in self.some(side, "capture-reference", 1)? {
+                        let token = self.token(capture)?;
+                        let name = self.text(token).strip_prefix('$').unwrap_or("");
+                        if name.is_empty() {
+                            return Err(self.error(side, "an attachment requires a named capture"));
                         }
-                        None => None,
-                    };
-                    EmitItem::Capture(name, tags, Attachments::default())
-                }
-                terminal => {
-                    // An inserted tag is one tag literal (engine §9).
-                    let tag = match terminal {
-                        "identifier" if is_capital(text) => text.to_string(),
-                        "identifier" => {
-                            return Err(self.error(
-                                item,
-                                format!("{text} names a rule; an inserted tag is a tag literal, such as ~{text}"),
-                            ))
+                        if !named.insert(name.to_string()) {
+                            return Err(self.error(node, "a repeated emission capture"));
                         }
-                        _ => self.tag_of(target)?,
-                    };
-                    if tags.is_some() {
-                        return Err(self.error(target, "an inserted tag takes no tags of its own"));
-                    }
-                    EmitItem::Insert(tag)
-                }
-            };
-            // Attachments: named captures in parentheses, before the item and
-            // after it, carried only by a named capture (engine §9, §11).
-            let before = Self::rules(item, "emit-before").map(|node| self.attachment(node)).collect::<R<Vec<_>>>()?;
-            let after = Self::rules(item, "emit-after").map(|node| self.attachment(node)).collect::<R<Vec<_>>>()?;
-            if !before.is_empty() || !after.is_empty() {
-                match &mut read {
-                    EmitItem::Insert(_) => return Err(self.error(item, "an inserted tag carries no attachments")),
-                    EmitItem::Capture(name, ..) if name.is_empty() => {
-                        return Err(self.error(item, "$ carries no attachments; name a capture"))
-                    }
-                    EmitItem::Capture(_, _, attachments) => *attachments = Attachments { before, after },
-                }
-            }
-            items.push(read);
-        }
-        let whole = |item: &EmitItem| matches!(item, EmitItem::Capture(name, ..) if name.is_empty());
-        let wholes = items.iter().filter(|item| whole(item)).count();
-        if wholes > 0 && wholes < items.len() {
-            return Err(self.error(arrow, "$ is used with a capture or an inserted tag"));
-        }
-        // A capture stands once in an emission, as an item or as an
-        // attachment (engine §9).
-        let mut named: FxSet<&str> = FxSet::default();
-        for item in &items {
-            if let EmitItem::Capture(name, _, attachments) = item {
-                for name in std::iter::once(name.as_str()).filter(|name| !name.is_empty()).chain(attachments.names()) {
-                    if !named.insert(name) {
-                        return Err(self.error(arrow, "an emission lists the same capture twice"));
+                        list.push(name.to_string());
                     }
                 }
             }
+            let capture = text.strip_prefix('$');
+            if (!before.is_empty() || !after.is_empty()) && (capture.is_none() || capture == Some("")) {
+                return Err(self.error(item, "attachments require a named carrier"));
+            }
+            if let Some(name) = capture.filter(|name| !name.is_empty()) {
+                if !named.insert(name.to_string()) {
+                    return Err(self.error(node, "a repeated emission capture"));
+                }
+            }
+            let tags = Self::rules(item, "emit-tags")
+                .next()
+                .map(|clause| self.tag_term(self.one(clause, "term")?))
+                .transpose()?;
+            let strings = self.channels(item)?;
+            items.push(match capture {
+                Some(name) => EmitItem::Capture(name.into(), tags, Attachments { before, after, strings }),
+                None => EmitItem::Insert(tags, strings),
+            });
         }
         Ok(items)
-    }
-
-    /// An attachment's capture, by its name without `$`: never `$` itself
-    /// (engine §9).
-    fn attachment(&self, node: &'a Node) -> R<String> {
-        let name = Self::tokens_of(node)
-            .map(|token| self.text(token))
-            .find(|text| text.starts_with('$'))
-            .map_or("", |text| &text[1..]);
-        if name.is_empty() {
-            return Err(self.error(node, "an attachment holds a named capture, not $"));
-        }
-        Ok(name.to_string())
     }
 
     /// The bare name without a capital that a union is alone, if it is one.
@@ -1650,7 +1971,7 @@ impl<'a> Reader<'a> {
         loop {
             let [intersection] = Self::rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
             let [atom] = Self::rules(intersection, "term-atom").collect::<Vec<_>>()[..] else { return None };
-            let inner = self.inner(atom, &ATOMS).ok()?;
+            let inner = self.inner(atom, ATOMS).ok()?;
             match rule_name(inner) {
                 "name" => {
                     let name = self.text(Self::tokens_of(inner).next()?);
@@ -1681,6 +2002,7 @@ enum Val {
 
 /// What a frame does next: ask for a construct it holds, or give its value.
 enum Step<'a> {
+    Again,
     Call(Frame<'a>),
     Done(Val),
 }
@@ -1697,7 +2019,7 @@ enum Frame<'a> {
     Union(Joined<'a>),
     Intersection(Joined<'a>),
     Atom(Atom<'a>),
-    Call(CallFrame<'a>),
+    Method(MethodFrame<'a>),
     Argument(ArgumentFrame<'a>),
     Implication(Conditions<'a>),
     AnyOf(Conditions<'a>),
@@ -1783,14 +2105,11 @@ impl<'a> Repetition<'a> {
 
 struct Tested<'a> {
     node: &'a Node,
-    op: String,
-    operand: Option<&'a Node>,
-    expr: Option<Expr>,
 }
 
 impl<'a> Tested<'a> {
     fn new(node: &'a Node) -> Self {
-        Tested { node, op: String::new(), operand: None, expr: None }
+        Tested { node }
     }
 }
 
@@ -1832,36 +2151,42 @@ impl<'a> Joined<'a> {
 struct Atom<'a> {
     node: &'a Node,
     argument: bool,
-    /// The call, if it asked for one.
-    call: Option<&'a Node>,
 }
 
 impl<'a> Atom<'a> {
     fn new(node: &'a Node, argument: bool) -> Self {
-        Atom { node, argument, call: None }
-    }
-}
-
-struct CallFrame<'a> {
-    node: &'a Node,
-    /// Whether the call stands as a condition.
-    condition: bool,
-    /// The token of its name, found once, since finding it collects every
-    /// part of the call.
-    name: Option<&'a Node>,
-    arguments: Option<Vec<&'a Node>>,
-    args: Vec<Arg>,
-    types: Vec<Option<Type>>,
-}
-
-impl<'a> CallFrame<'a> {
-    fn new(node: &'a Node, condition: bool) -> Self {
-        CallFrame { node, condition, name: None, arguments: None, args: Vec::new(), types: Vec::new() }
+        Atom { node, argument }
     }
 }
 
 struct ArgumentFrame<'a> {
     node: &'a Node,
+}
+
+struct MethodFrame<'a> {
+    node: &'a Node,
+    condition: bool,
+    receiver: Option<(Term, Type)>,
+    selectors: Option<Vec<&'a Node>>,
+    index: usize,
+    arguments: Option<Vec<&'a Node>>,
+    args: Vec<Arg>,
+    types: Vec<Option<Type>>,
+}
+
+impl<'a> MethodFrame<'a> {
+    fn new(node: &'a Node, condition: bool) -> Self {
+        Self {
+            node,
+            condition,
+            receiver: None,
+            selectors: None,
+            index: 0,
+            arguments: None,
+            args: Vec::new(),
+            types: Vec::new(),
+        }
+    }
 }
 
 /// An implication, an any-of or an all-of: its parts, and the conditions
@@ -1920,7 +2245,25 @@ fn first_of_rule<'n>(node: &'n Node, name: &str) -> Option<&'n Node> {
 /// The rules of the notation's syntax grammar that the reader knows (engine
 /// §9). Every other rule is a wrapper, and the reader reads its parts in
 /// its place.
-const KNOWN: [&str; 83] = [
+const KNOWN: &[&str] = &[
+    "headed-body",
+    "string-terminal",
+    "wildcard",
+    "tag-test",
+    "tag-requirement",
+    "value-test",
+    "value-clause",
+    "image-clause",
+    "erased-clause",
+    "recipe",
+    "recipe-atom",
+    "method",
+    "method-receiver",
+    "method-selector",
+    "method-name",
+    "arguments",
+    "tag-run",
+    "argument-term",
     "tree-comparison",
     "tree-comparator",
     "pattern-literal",
@@ -1932,7 +2275,6 @@ const KNOWN: [&str; 83] = [
     "pattern-brackets",
     "pattern-repeat",
     "pattern-path",
-    "pattern-separator",
     "directive",
     "argument-word",
     "argument-string",
@@ -1965,10 +2307,7 @@ const KNOWN: [&str; 83] = [
     "repetition",
     "reference",
     "tag",
-    "character",
-    "phoneme",
     "range",
-    "property",
     "tested",
     "test",
     "test-operand",
@@ -1979,7 +2318,6 @@ const KNOWN: [&str; 83] = [
     "tags-clause",
     "conditions-clause",
     "emits-clause",
-    "opaque-clause",
     "emit-item",
     "emit-target",
     "emit-tags",
@@ -1993,7 +2331,6 @@ const KNOWN: [&str; 83] = [
     "comparator",
     "negation",
     "presence",
-    "call",
     "argument",
     "term",
     "guarded-term",
@@ -2008,13 +2345,12 @@ const KNOWN: [&str; 83] = [
 
 /// What a primary, a condition, a term and a term atom hold: the one rule
 /// among their parts is one of these (engine §9).
-const PRIMARIES: [&str; 13] = [
+const PRIMARIES: &[&str] = &[
+    "string-terminal",
+    "wildcard",
     "reference",
     "tag",
-    "character",
-    "phoneme",
     "range",
-    "property",
     "tested",
     "capture",
     "group",
@@ -2023,42 +2359,20 @@ const PRIMARIES: [&str; 13] = [
     "empty",
     "constant-reference",
 ];
-const CONDITIONS: [&str; 6] = ["tree-comparison", "comparison", "call", "negation", "presence", "implication"];
+const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
-const ATOMS: [&str; 13] = [
+const ATOMS: &[&str] = &[
+    "method",
+    "tag-run",
     "pattern-literal",
     "string",
     "tag",
-    "character",
-    "phoneme",
     "range",
-    "property",
     "name",
     "empty-set",
     "term",
-    "call",
     "capture-reference",
     "constant-reference",
-];
-
-/// The functions of the notation (engine §9).
-const FUNCTIONS: [&str; 16] = [
-    "phonemes",
-    "text",
-    "split",
-    "tag",
-    "tags",
-    "classes",
-    "classify",
-    "head",
-    "tail",
-    "last",
-    "from",
-    "after",
-    "matches",
-    "begins",
-    "initial",
-    "without-elision",
 ];
 
 /// Whether a name begins with a capital, and so is a terminal and a tag
@@ -2067,19 +2381,9 @@ fn is_capital(name: &str) -> bool {
     name.starts_with(|c: char| c.is_ascii_uppercase())
 }
 
-/// Whether a term is a span: a capture, or `head`, `tail`, `last`, `from`
-/// or `after` of one.
-fn is_span(term: &Term) -> bool {
-    match term {
-        Term::Capture(_) => true,
-        Term::Call(name, _) => matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision"),
-        _ => false,
-    }
-}
-
 /// Whether a tag term, or a condition inside one, reads the tags of `$`,
 /// the constituent whose tags it defines: `$` as a value, `tags($)` or
-/// `classes($)` (§9). A span argument such as `phonemes($)` reads tokens,
+/// `classes($)` (§9). A span argument such as `value($)` reads tokens,
 /// and `tags($, R)` parses them again.
 pub(crate) fn reads_own_tags(term: &Term) -> bool {
     // The parts to look at, with an explicit stack: a term is as deep as
@@ -2104,8 +2408,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(Part::Term)),
                 Term::Difference(left, right) => stack.extend([Part::Term(left), Part::Term(right)]),
                 Term::If(cond, then) => stack.extend([Part::Cond(cond), Part::Term(then)]),
-                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::Range(..) | Term::EmptySet | Term::Const(..) => {
-                }
+                Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Const(..) => {}
             },
             Part::Cond(cond) => match cond {
                 Cond::Compare(op, left, right) => {
@@ -2139,6 +2442,35 @@ enum PartMut<'t> {
 /// `all`, into the one around it: a group in parentheses of the same
 /// connective is part of the one around it (§9). One walk, with an explicit
 /// stack, that gathers each folded list once.
+fn flatten_term(root: &mut Term) {
+    let mut pending = vec![root];
+    while let Some(term) = pending.pop() {
+        match term {
+            Term::Union(items) => {
+                let mut stack: Vec<_> = std::mem::take(items).into_iter().rev().collect();
+                while let Some(mut term) = stack.pop() {
+                    match &mut term {
+                        Term::Union(inner) => stack.extend(std::mem::take(inner).into_iter().rev()),
+                        _ => items.push(term),
+                    }
+                }
+                pending.extend(items.iter_mut());
+            }
+            Term::Intersection(items) => pending.extend(items.iter_mut()),
+            Term::Difference(left, right) => {
+                pending.push(right);
+                pending.push(left);
+            }
+            Term::If(_, then) => pending.push(then),
+            Term::Call(_, args) => {
+                pending
+                    .extend(args.iter_mut().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }))
+            }
+            _ => {}
+        }
+    }
+}
+
 fn flatten_groups(rule: &mut RuleDef) {
     let mut stack: Vec<PartMut> = Vec::new();
     stack.extend(rule.conditions.iter_mut().map(PartMut::Cond));
@@ -2202,36 +2534,51 @@ fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
     *items = joined;
 }
 
-/// A directive's operand: a bare name, with a capital or not, a string, a
-/// tag literal `~name`, a phoneme tag, a character tag, a range or a
-/// property.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Operand {
-    Name,
-    Class,
-    String,
-    Tag,
-    Phoneme,
-    Character,
-    Range,
-    Property,
-}
-
-/// What is wrong with a directive's operands, or `None` (engine §9).
-fn operand_problem(name: &str, kinds: &[Operand]) -> Option<String> {
-    let names = kinds.iter().all(|kind| matches!(kind, Operand::Name | Operand::Class));
-    let (ok, problem) = match name {
-        "stage" | "extend-stage" | "redefine-stage" => (kinds.len() == 1 && names, format!("%{name} takes one name")),
-        "include" => (kinds == [Operand::String], "%include takes one string".to_string()),
-        "features" => (!kinds.is_empty() && names, "%features takes one or more names".to_string()),
-        _ => (names, format!("%{name} takes names only")),
-    };
-    (!ok).then_some(problem)
-}
-
+/// Extract the pattern from one node, or retain its child expression.
 fn as_pattern(c: crate::patterns::Children) -> crate::patterns::Pattern {
     match c {
         crate::patterns::Children::Node(p) => *p,
         _ => crate::patterns::Pattern::Children(c),
+    }
+}
+
+/// Cached DOMs omit source annotations. Recover recipe positions only for a failed load.
+pub(crate) fn restore_recipe_locations(
+    dom: &mut Dom,
+    tokens: &[crate::result::Token],
+    position: &dyn Fn(usize) -> (usize, usize),
+) {
+    for rule in &mut dom.rules {
+        let Some(start) = tokens.iter().position(|token| {
+            matches!(token.text.as_str(), "%rule" | "%extend-rule" | "%redefine-rule")
+                && position(token.source.start) == rule.at
+        }) else {
+            continue;
+        };
+        let mut values = Vec::new();
+        let mut images = Vec::new();
+        for index in start + 1..tokens.len() {
+            let token = &tokens[index];
+            if token.text.starts_with('%') {
+                break;
+            }
+            if let Some(next) = tokens.get(index + 1) {
+                match token.text.as_str() {
+                    ":=" => values.push(position(next.source.start)),
+                    ":-" => images.push(position(next.source.start)),
+                    _ => {}
+                }
+            }
+        }
+        let mut values = values.into_iter();
+        let mut images = images.into_iter();
+        for channels in std::iter::once(&mut rule.strings).chain(rule.alternatives.iter_mut().map(|a| &mut a.strings)) {
+            if channels.value.is_some() {
+                channels.value_at = values.next();
+            }
+            if channels.image.is_some() {
+                channels.image_at = images.next();
+            }
+        }
     }
 }

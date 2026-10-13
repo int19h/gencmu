@@ -1,0 +1,50 @@
+{
+  "document": "```jbogenbau\n%rule r $x:A %conditions $x.image = \"i\"\n```\n",
+  "expect": {
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "method": "image",
+                "receiver": {
+                  "capture": "x"
+                },
+                "args": []
+              },
+              "right": {
+                "string": "i"
+              }
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  },
+  "description": "The image method observes its own channel (engine §10)."
+}

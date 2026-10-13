@@ -1,6 +1,6 @@
 {
   "description": "∧ binds tighter than ∨, which binds tighter than ⟹, which groups to the right; parentheses group (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(A) $y(B) %conditions ~p ⊆ tags($x) ∨ ~q ⊆ tags($y) ∧ ~r ⊆ tags($x)\n%rule b $x(A) $y(B) %conditions (~p ⊆ tags($x) ∨ ~q ⊆ tags($y)) ∧ ¬(~r ⊆ tags($x) ∧ matches($y, a))\n%rule c $x(A) %conditions ~p ⊆ tags($x) ⟹ ~q ⊆ tags($x) ⟹ ~r ⊆ tags($x)\n```\n",
+  "document": "```jbogenbau\n%rule a ($x:A $y:B) %conditions (P ⊆ $x.tags ∨ (Q ⊆ $y.tags ∧ R ⊆ $x.tags))\n%rule b ($x:A $y:B) %conditions ((P ⊆ $x.tags ∨ Q ⊆ $y.tags) ∧ ¬((R ⊆ $x.tags ∧ $y.matches(a))))\n%rule c $x:A %conditions (P ⊆ $x.tags ⟹ (Q ⊆ $x.tags ⟹ R ⊆ $x.tags))\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -11,15 +11,14 @@
                 {
                   "op": "⊆",
                   "left": {
-                    "tag": "p"
+                    "tag": "P"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 {
@@ -27,29 +26,27 @@
                     {
                       "op": "⊆",
                       "left": {
-                        "tag": "q"
+                        "tag": "Q"
                       },
                       "right": {
-                        "call": "tags",
-                        "args": [
-                          {
-                            "capture": "y"
-                          }
-                        ]
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "y"
+                        },
+                        "args": []
                       }
                     },
                     {
                       "op": "⊆",
                       "left": {
-                        "tag": "r"
+                        "tag": "R"
                       },
                       "right": {
-                        "call": "tags",
-                        "args": [
-                          {
-                            "capture": "x"
-                          }
-                        ]
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "x"
+                        },
+                        "args": []
                       }
                     }
                   ]
@@ -67,29 +64,27 @@
                     {
                       "op": "⊆",
                       "left": {
-                        "tag": "p"
+                        "tag": "P"
                       },
                       "right": {
-                        "call": "tags",
-                        "args": [
-                          {
-                            "capture": "x"
-                          }
-                        ]
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "x"
+                        },
+                        "args": []
                       }
                     },
                     {
                       "op": "⊆",
                       "left": {
-                        "tag": "q"
+                        "tag": "Q"
                       },
                       "right": {
-                        "call": "tags",
-                        "args": [
-                          {
-                            "capture": "y"
-                          }
-                        ]
+                        "method": "tags",
+                        "receiver": {
+                          "capture": "y"
+                        },
+                        "args": []
                       }
                     }
                   ]
@@ -100,22 +95,26 @@
                       {
                         "op": "⊆",
                         "left": {
-                          "tag": "r"
+                          "tag": "R"
                         },
                         "right": {
-                          "call": "tags",
-                          "args": [
-                            {
-                              "capture": "x"
-                            }
-                          ]
+                          "method": "tags",
+                          "receiver": {
+                            "capture": "x"
+                          },
+                          "args": []
                         }
                       },
                       {
-                        "matches": {
+                        "method": "matches",
+                        "receiver": {
                           "capture": "y"
                         },
-                        "rule": "a"
+                        "args": [
+                          {
+                            "rule": "a"
+                          }
+                        ]
                       }
                     ]
                   }
@@ -130,44 +129,41 @@
               "if": {
                 "op": "⊆",
                 "left": {
-                  "tag": "p"
+                  "tag": "P"
                 },
                 "right": {
-                  "call": "tags",
-                  "args": [
-                    {
-                      "capture": "x"
-                    }
-                  ]
+                  "method": "tags",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": []
                 }
               },
               "then": {
                 "if": {
                   "op": "⊆",
                   "left": {
-                    "tag": "q"
+                    "tag": "Q"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 },
                 "then": {
                   "op": "⊆",
                   "left": {
-                    "tag": "r"
+                    "tag": "R"
                   },
                   "right": {
-                    "call": "tags",
-                    "args": [
-                      {
-                        "capture": "x"
-                      }
-                    ]
+                    "method": "tags",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
                   }
                 }
               }

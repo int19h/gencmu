@@ -1,6 +1,6 @@
 {
-  "description": "~KOhA and a bare KOhA are one tag, as a terminal and in a tag term (design §2, engine §1).",
-  "grammar": "%rule text ~KOhA KOhA <~KOhA ∪ KOhA ∪ ~word>",
+  "description": "KOhA names the same ordinary identifier tag as a terminal and in a tag clause. Duplicate terms in the union give one KOhA tag (engine §1, §10).",
+  "grammar": "%rule text (KOhA KOhA) :: (KOhA ∪ KOhA ∪ Word)",
   "tokens": [
     {
       "text": "mi",
@@ -28,7 +28,7 @@
         "rule": "text",
         "tags": [
           "KOhA",
-          "word"
+          "Word"
         ],
         "children": [
           {

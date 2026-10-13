@@ -1,0 +1,15 @@
+{
+  "description": "A caller tag written as a character literal is not an identifier or stored engine tag. It is a usage error before recognition (engine §1, docs/api.md).",
+  "grammar": "%rule text _",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "'a'"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "usage"
+  }
+}

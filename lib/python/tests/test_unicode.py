@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 
 import gencmu
-from gencmu._dialect import bundled_text
+from gencmu._dialect import bundled_text, character_tokens
 from gencmu._unicode import UnicodeTable
 
 BUNDLED = bundled_text("unicode.txt") or ""
@@ -34,22 +34,24 @@ class UnicodeTableOrder(unittest.TestCase):
         for code in _boundaries():
             self.assertEqual(reversed_table.category(code), bundled.category(code), hex(code))
             self.assertEqual(reversed_table.is_white_space(code), bundled.is_white_space(code), hex(code))
-            self.assertEqual(reversed_table.lowercase(chr(code)), bundled.lowercase(chr(code)), hex(code))
+            if not 0xD800 <= code <= 0xDFFF:
+                self.assertEqual(character_tokens(chr(code), reversed_table), character_tokens(chr(code), bundled), hex(code))
         self.assertEqual(reversed_table.category(0x61), "Ll")
         self.assertEqual(reversed_table.category(0x41), "Lu")
 
-    def test_an_omitted_scalar_value_is_cn_without_white_space_or_lowercase(self) -> None:
+    def test_an_omitted_scalar_value_is_cn_without_white_space_or_normalization(self) -> None:
         table = UnicodeTable("unicode 0.0.0\ncategory Lu 0041 005A\n")
         self.assertEqual(table.category(0x41), "Lu")
         self.assertEqual(table.category(0x61), "Cn")
         self.assertEqual(table.category(0x10FFFF), "Cn")
         self.assertEqual(table.category(0x0), "Cn")
         self.assertEqual(table.category(0xD800), "Cs")
-        self.assertTrue(table.has_property("Cn", 0x61) and table.has_property("C", 0x61))
-        self.assertFalse(table.has_property("L", 0x61) or table.has_property("Cs", 0x61))
+        token = character_tokens("a", table)[0]
+        self.assertEqual(token.tags, frozenset({"_Cn", "_C"}))
+        self.assertFalse({"_L", "_Cs"} & token.tags)
         self.assertFalse(table.is_white_space(0x20) or table.is_white_space(0x9))
-        self.assertFalse(table.has_property("White_Space", 0x20))
-        self.assertEqual(table.lowercase("AB"), "AB")
+        self.assertNotIn("_White_Space", character_tokens(" ", table)[0].tags)
+        self.assertEqual([token.value for token in character_tokens("AB", table)], ["A", "B"])
         self.assertFalse(table.is_mark(0x301))
 
 
@@ -67,9 +69,9 @@ class CallerTable(unittest.TestCase):
             }
 
         load = gencmu.load_dialect_sources
-        self.assertFalse(load(sources("'\\p{L}'"), "p.md").parse("a", auto_features=False).ok)
-        self.assertTrue(load(sources("'\\p{Cn}'"), "p.md").parse("a", auto_features=False).ok)
-        bundled = sources("'\\p{L}'")
+        self.assertFalse(load(sources("_L"), "p.md").parse("a", auto_features=False).ok)
+        self.assertTrue(load(sources("_Cn"), "p.md").parse("a", auto_features=False).ok)
+        bundled = sources("_L")
         del bundled["unicode.txt"]
         self.assertTrue(load(bundled, "p.md").parse("a", auto_features=False).ok)
 
@@ -87,7 +89,7 @@ class LoneSurrogates(unittest.TestCase):
 
     def test_a_text_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         # Each of these would read U+D800 if it became a character tag.
-        rules = ("'\\p{Cs}'", "'\\p{Any}'", "'\\u{D7FF}'..'\\u{E000}'", "[{character}]\n%rule character '\\p{Any}'")
+        rules = ("_Cs", "_", '"$(_D7FF)".."$(_E000)"', "[{character}]\n%rule character _")
         for rule in rules:
             dialect = gencmu.load_dialect_sources(self._sources(rule), "p.md")
             for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):
@@ -98,8 +100,8 @@ class LoneSurrogates(unittest.TestCase):
                     with self.assertRaises(gencmu.GencmuError) as caught:
                         dialect.parse_tokens([], text, auto_features=False)
                     self.assertEqual(caught.exception.kind, "usage")
-        dialect = gencmu.load_dialect_sources(self._sources("'\\p{Any}'"), "p.md")
-        self.assertTrue(dialect.parse("\U0001F600", auto_features=False).ok)
+        dialect = gencmu.load_dialect_sources(self._sources("_"), "p.md")
+        self.assertTrue(dialect.parse("\U0001f600", auto_features=False).ok)
 
     def test_a_document_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         with self.assertRaises(gencmu.GencmuError) as caught:

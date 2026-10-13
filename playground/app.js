@@ -64,7 +64,7 @@
     { label: "A rule with preferred options (notation)", text: "%rule text (a ≻ b ≻ c)", dialect: "notation", tab: "tree",
       hint: "The notation dialect reads grammar source as text. The Tree tab shows ranked-choice. Change ≻ to | to see ordinary alternatives." },
     { label: "A rule with tree tests (notation)", dialect: "notation", tab: "tree",
-      text: "%rule text $x(pair)\n%conditions\n  $x ≅ @(A ⋯ B),\n  $x ≇ @(⋮ C),\n  $x ≅ @(A ⋰),\n  $x ≅ @(⋱ B)",
+      text: "%rule text $x:pair\n%conditions\n  $x ≅ @(A ⋯ B),\n  $x ≇ @(⋮ C),\n  $x ≅ @(A ⋰),\n  $x ≅ @(⋱ B)",
       hint: "A tree pattern tests a constructed tree. Here ≅ requires a match, and ≇ rejects one. ⋯ skips children at one level. ⋮ searches downward through the tree. ⋰ follows first children, and ⋱ follows last children. Edit the Text box to change the rule." },
   ];
 
@@ -595,7 +595,7 @@
     // A rendering of the tree says whether there is one (worker.js render).
     if (result.tree === false) output.replaceChildren(noTree());
     else if (result.text === "" && result.format === "brackets") {
-      // A tree can render as nothing: a hollow tree, or tokens whose labels
+      // A tree can render as nothing: a hollow tree, or tokens whose images
       // are empty (docs/output.md). So the note is about the rendering only.
       fill(output, [element("p", { class: "hint", text: "The bracket rendering is empty." }), withCopy("")]);
     } else fill(output, withCopy(result.text));
@@ -626,18 +626,18 @@
       $("output").replaceChildren(element("p", { class: "empty", text: `The ${result.stage} stage handed on no tokens${result.error ? ` (${result.error})` : ""}.` }));
       return;
     }
-    const header = element("tr", {}, ["#", "text", "phonemes", "label", "span", "source", "tags"].map((title) => element("th", { scope: "col", text: title })));
+    const header = element("tr", {}, ["#", "text", "value", "image", "span", "source", "tags", "insertedBy", "before", "after"].map((title) => element("th", { scope: "col", text: title })));
     const rows = result.rows.map((row) => element("tr", {},
       element("td", { class: "num", text: String(row.index) }),
       element("td", {}, element("code", { text: JSON.stringify(row.text) })),
-      element("td", {}, element("code", { text: row.phonemes })),
-      element("td", {}, element("code", { text: JSON.stringify(row.label) })),
+      element("td", {}, element("code", { text: JSON.stringify(row.value) })),
+      element("td", {}, element("code", { text: JSON.stringify(row.image) })),
       element("td", { class: "num", text: row.span }),
       element("td", { class: "num", text: row.source }),
-      element("td", { class: "tags" },
-        row.tags.map((tag) => element("span", { class: "tag", text: tag })),
-        row.insertedBy ? element("span", { class: "muted", text: ` inserted by ${row.insertedBy}` }) : null,
-        row.attachments ? element("span", { class: "muted", text: ` attached: ${row.attachments}` }) : null)));
+      element("td", { class: "tags" }, row.tags.map((tag) => element("span", { class: "tag", text: tag }))),
+      element("td", {}, element("code", { text: row.insertedBy })),
+      element("td", {}, element("code", { text: row.before })),
+      element("td", {}, element("code", { text: row.after }))));
     const note = result.total > result.rows.length ? element("p", { class: "hint", text: `The first ${result.rows.length} of ${result.total} tokens.` }) : null;
     fill($("output"), [
       element("p", { class: "hint", text: `What the ${result.stage} stage handed on.` }),

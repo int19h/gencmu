@@ -1,6 +1,6 @@
 {
   "description": "A ⟹ B evaluates B only where A holds, so a nested parse that would ask about its own span is not run for a false premise (engine §10).",
-  "grammar": "%rule text $a(A)\n%conditions text($a) = \"b\" ⟹ matches($a, text)",
+  "grammar": "%rule text $a:A %conditions ($a.source-text = \"b\" ⟹ $a.matches(text))\n",
   "tokens": [
     {
       "text": "a",

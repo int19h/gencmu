@@ -2,9 +2,11 @@
 
 This document defines the indicator processing rules before syntax. A stage is one step of a pipeline, with its own grammar. A dialect is a pipeline of stages, defined by one pipeline document.
 
-The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fourth stage.
+A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-A token is one unit that a stage reads or emits. This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
+The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
+
+This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
 A cmavo is a particle, a short structure word. An attitudinal expresses an attitude. A discursive comments on the discourse.
 
@@ -12,7 +14,7 @@ The indicators are the attitudinals and discursives of UI and CAI with an option
 
 A run of indicators attaches to the word before it, and a `ba'e` attaches to the word after it. The stage hands on the word as one token, which carries them as its attachments ([the engine](../../docs/engine.md), §11). The syntax does not read an attachment, but the renderings show it with its word. So `mi ui klama` is `([mi ui] klama)` in brackets, and the syntax reads `mi klama`.
 
-The lexicon of the forms stage decides what a word is, which words are indicators and which are `ba'e`. The `indicator` tag, a name that an implication of the lexicon gives a word, marks both indicators and `fu'e`. The word stage passes these tags on, but a word that it emitted as the material of a quote or a compound carries no class. So this stage never attaches an attitudinal inside `zo`, `lo'u ... le'u` or before `bu`.
+The lexicon of the forms stage decides what a word is, which words are indicators and which are `ba'e`. The `Indicator` tag, a name that an implication of the lexicon gives a word, marks both indicators and `fu'e`. The word stage passes these tags on, but a word that it emitted as the material of a quote or a compound carries no class. So this stage never attaches an attitudinal inside `zo`, `lo'u ... le'u` or before `bu`.
 
 A run of indicators at the start of the text, before any word, stays in the stream. This is because the `text` rule of the syntax grammar reads it there. A `ba'e` with no word after it stays in the stream too. In a run that stays in the stream, the stage attaches only `ba'e`, as the section "Leading runs" says. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -52,9 +54,9 @@ A leading indicator run also stays in the stream at the start of the whole text.
 %rule item-run
   | item
   | item-run item
-  | $p(item-run) leading
+  | $p:item-run leading
 %conditions
-  classes(last($p)) ∩ $QUOTE-OPENERS ≠ ∅
+  $p.last-token.classes ∩ $QUOTE-OPENERS ≠ ∅
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>item-run</code></summary>
@@ -66,22 +68,20 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 
 ```jbogenbau
 %rule item
-  [$b(bahe-run)] $w(unit) [$a(indicator-run)]
-%tags
-  tags($w)
+  [$b:bahe-run] $w:unit [$a:indicator-run] :: $w.tags
 %conditions
-  $a ⟹ classes($w) ∩ $QUOTE-OPENERS = ∅
+  $a ⟹ $w.classes ∩ $QUOTE-OPENERS = ∅
 %emits
   ($b) $w ($a)
 
 %rule unit
-  | ~word∩(~indicator ∪ BAhE)=∅ | ~quoted-text | LEhU
+  | Word<¬Indicator ¬BAhE> | Quoted-Text | LEhU
 
 %rule bahe-run
   bahe | bahe-run bahe
 
 %rule bahe
-  ~word⊇BAhE
+  Word<BAhE>
 %emits
   $
 ```
@@ -101,7 +101,7 @@ A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text.
 
 An indicator run after a word attaches each of its indicators, `fu'e` included, to the word, each as a token of its own. Each of them carries the `ba'e` run before it as its attachment. A `nai` after an attitudinal attaches to the attitudinal. So `mi ui nai ia klama` hands on `mi` with `ui` and `ia` after it, and `ui` carries `nai` after it. In brackets, that is `([mi {ui nai} ia] klama)`.
 
-The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The label of `ui` is `ui` in both.
+The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run before the attitudinal, the attitudinal word, and the `nai`. The `nai` carries its own `ba'e` run before it. So `mi ba'e ui nai klama` gives `ui` with `ba'e` before it and `nai` after it, and `mi ui ba'e nai klama` gives `nai` with `ba'e` before it. The image of `ui` is `ui` in both.
 
 ```jbogenbau
 %rule indicator-run
@@ -109,42 +109,32 @@ The rule `attitudinal-nai` reads the pair with three captures: the `ba'e` run be
   | indicator-run [fuhe] indicator | indicator-run [fuhe] attitudinal-nai
 
 %rule indicator
-  [$b(bahe-run)] $i(~word)
-%tags
-  tags($i)
+  [$b:bahe-run] $i:Word :: $i.tags
 %conditions
-  ~indicator ⊆ tags($i),
-  FUhE ⊈ classes($i)
+  Indicator ⊆ $i.tags,
+  FUhE ⊈ $i.classes
 %emits
   ($b) $i
 
 %rule fuhe
-  [$b(bahe-run)] $i(~word)
-%tags
-  tags($i)
+  [$b:bahe-run] $i:Word :: $i.tags
 %conditions
-  FUhE ⊆ classes($i)
+  FUhE ⊆ $i.classes
 %emits
   ($b) $i
 
 %rule attitudinal-nai
-  [$b(bahe-run)] $u(attitudinal) $n(nai)
-%tags
-  tags($u)
+  [$b:bahe-run] $u:attitudinal $n:nai :: $u.tags
 %emits
   ($b) $u ($n)
 
 %rule attitudinal
-  $i(~word)
-%tags
-  tags($i)
+  $i:Word :: $i.tags
 %conditions
-  classes($i) ∩ (UI ∪ CAI) ≠ ∅
+  $i.classes ∩ (UI ∪ CAI) ≠ ∅
 
 %rule nai
-  [$b(bahe-run)] $m(~word⊇NAI)
-%tags
-  tags($m)
+  [$b:bahe-run] $m:Word<NAI> :: $m.tags
 %emits
   ($b) $m
 ```
@@ -164,7 +154,7 @@ A `ba'e` before an indicator marks the indicator and goes with it. So does a `ba
 
 The stage reads an indicator run as far as it goes: `broda ui nai` attaches both words to `broda`. Because the stage is greedy, `nai` is part of the run and not the next word of the syntax. A `ba'e` is a word of BAhE, which the CLL lexicon gives only to `ba'e` and `za'e`.
 
-The CLL lexicon marks `fu'e` `indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
+The CLL lexicon marks `fu'e` `Indicator`, so `unit` never reads it as a word. Under these rules, `mi fu'e ui klama`, `mi fu'e ui nai klama` and `mi ui fu'e ia klama` are texts. The text `mi viska le fu'e .ia blanu zdani fu'o ponse` is one too. The stage rejects `mi fu'e klama`, `mi ui fu'e klama` and `mi fu'e fu'e ui klama`. In each of them, a `fu'e` has no indicator directly after it.
 
 A `ba'e` can stand before the word or before the `fu'e`, as in `ba'e mi fu'e ui klama` and `mi ba'e fu'e ui klama`. In the second, the `ba'e` goes with the `fu'e`.
 
@@ -182,7 +172,7 @@ The reason is that the syntax reads this run. A `nai` nested under its attitudin
   | leading [fuhe] indicator | leading [fuhe] leading-attitudinal-nai
 
 %rule leading-attitudinal-nai
-  [$b(bahe-run)] $u(attitudinal) [$c(bahe-run)] $m(~word⊇NAI)
+  [$b:bahe-run] $u:attitudinal [$c:bahe-run] $m:Word<NAI>
 %emits
   ($b) $u, ($c) $m
 ```

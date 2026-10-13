@@ -15,7 +15,7 @@ from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, Gathered, TagTable, code_of_character_tag, difference, intersection, is_class, is_name, range_tags, split_string
+from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
@@ -328,19 +328,8 @@ class StageContext:
     count: Callable[[Forest, list[int]], list[int]] | None = None
     # Where each run of the tokens lies in the text (engine §1).
     sources: Sources = field(init=False)
-    # Each token's phonemes in canonical form, for the sound tests of
-    # symbols and for phonemes(), computed when one first looks at the token
-    # (engine §4, §5).
-    sounds: list[str | None] = field(init=False)
-    # For each position, the first token from there on whose sound is not
-    # empty, so that a sound test skips tokens without phonemes at once.
-    # Made when a sound test first needs it.
+    # The next token with a nonempty stored value, made on first use.
     sounding: list[int] | None = field(init=False, default=None)
-    # Whether a range or a property matches a tag set, by the terminal's
-    # name and the set's number in the tag table (engine §4).
-    carried: dict[tuple[str, int], bool] = field(default_factory=dict)
-    # The tags of each range that a term holds, made once (engine §10).
-    range_sets: dict[tuple[str, str], Tags] = field(default_factory=dict)
     # On the context of the reconstructed input R of the check of engine §7,
     # and nowhere else: whether each token of R is synthetic, by its
     # provenance (engine §7.2); π, the number of original tokens before each
@@ -359,91 +348,64 @@ class StageContext:
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
         self.sources = Sources(self.tokens)
-        self.sounds = [None] * len(self.tokens)
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
         self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
         self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
 
-    def carries(self, terminal: str, tag_id: int) -> bool:
-        """Whether a tag set holds a character tag of a range or a property,
-        one of the lowered grammar's character terminals (engine §4). The
-        terminal matches once however many of its tags qualify."""
-        key = (terminal, tag_id)
-        found = self.carried.get(key)
-        if found is None:
-            characters = self.lowered.characters[terminal]
-            found = False
-            for tag in self.tagtab.get(tag_id):
-                code = code_of_character_tag(tag)
-                if code < 0:
-                    continue
-                if isinstance(characters, str):
-                    if self.unicode.has_property(characters, code):
-                        found = True
-                        break
-                elif characters[0] <= code <= characters[1]:
-                    found = True
-                    break
-            self.carried[key] = found
-        return found
+    def carries(self, terminal: str, token_index: int) -> bool:
+        """String and range terminals observe stored values on ordinary tokens."""
+        if self.synthetic is not None and self.synthetic[token_index]:
+            return False
+        token = self.tokens[token_index]
+        wanted = self.lowered.characters[terminal]
+        if wanted is None:
+            return True
+        if isinstance(wanted, str):
+            return token.value == wanted
+        return len(token.value) == 1 and wanted[0] <= ord(token.value) <= wanted[1]
 
-    def range_tags(self, ends: list[str]) -> Tags:
-        """The character tags of a range in a term (engine §10)."""
-        key = (ends[0], ends[1])
-        found = self.range_sets.get(key)
-        if found is None:
-            found = self.range_sets[key] = range_tags(ends, self.unicode)
-        return found
-
-    def sound(self, index: int) -> str:
-        """A token's phonemes in canonical form (engine §5), remembered for
-        the parse. The lowercase mapping and the removal of commas act on
-        each code point alone, so the canonical sound of a span is its
-        tokens' joined."""
-        sound = self.sounds[index]
-        if sound is None:
-            sound = self.sounds[index] = self.unicode.canonical(self.tokens[index].phonemes or "")
-        return sound
+    def value(self, index: int) -> str:
+        """A token's stored value, without normalization (engine §1)."""
+        return self.tokens[index].value
 
     def test_holds(self, test: SymbolTest, start: int, end: int, tag_id: int) -> bool:
         """Whether a test holds of a symbol's own span, tokens start..end,
         and its own tags, the tag set numbered ``tag_id``: a token's for a
         terminal, the completed item's for a reference (engine §4). An empty
-        span sounds like the empty string."""
-        if test.sound is not None:
-            return self.sound_is(test.sound, start, end) == (test.op == "=")
-        return test.holds("", self.tagtab.get(tag_id))
+        span has the empty value."""
+        if test.value is not None and test.prior is None:
+            return self.value_is(test.value, start, end) == (test.op == "=")
+        value = "".join(self.tokens[i].value for i in range(start, end)) if test.value is not None else ""
+        return test.holds(value, self.tagtab.get(tag_id))
 
-    def sound_is(self, sound: str, start: int, end: int) -> bool:
-        """Whether tokens start..end sound like a string: their canonical
-        sound is exactly it (engine §4, §5). A token with no phonemes adds
-        nothing."""
-        sounding = self.sounding_tokens()
+    def value_is(self, value: str, start: int, end: int) -> bool:
+        """Whether the stored values of tokens start..end join to a string."""
+        sounding = self.nonempty_tokens()
         # Each token read adds at least one code point, so the test costs
-        # the length of the sound, however many silent tokens the span has.
+        # the length of the value, however many silent tokens the span has.
         offset = 0
         index = sounding[start]
         while index < end:
-            part = self.sound(index)
-            if not sound.startswith(part, offset):
+            part = self.value(index)
+            if not value.startswith(part, offset):
                 return False
             offset += len(part)
             index = sounding[index + 1]
-        return offset == len(sound)
+        return offset == len(value)
 
-    def sounding_tokens(self) -> list[int]:
+    def nonempty_tokens(self) -> list[int]:
         """For each position, the first token from there on that sounds,
         made on first use."""
         sounding = self.sounding
         if sounding is None:
-            sounding = self.sounding = self.make_sounding()
+            sounding = self.sounding = self.make_nonempty()
         return sounding
 
-    def make_sounding(self) -> list[int]:
+    def make_nonempty(self) -> list[int]:
         count = len(self.tokens)
         sounding = [count] * (count + 1)
         for index in range(count - 1, -1, -1):
-            sounding[index] = index if self.sound(index) else sounding[index + 1]
+            sounding[index] = index if self.value(index) else sounding[index + 1]
         return sounding
 
     def span_text(self, start: int, end: int) -> str:
@@ -473,7 +435,7 @@ class StageContext:
                 (
                     self.token_tags[index],
                     self.tokens[index].text,
-                    self.tokens[index].phonemes,
+                    self.tokens[index].value,
                     self.tokens[index].source[0] - low,
                     self.tokens[index].source[1] - low,
                 )
@@ -651,42 +613,32 @@ class Evaluator:
         return Bound(production, caps, self.base, self.project, whole, self.context.machine, structure, close_structure)
 
     def _span(self, dom: Any, bound: Bound) -> Walk:
-        if isinstance(dom, dict):
-            if "capture" in dom:
-                found = bound.get(dom["capture"])
-                if found is None:
-                    raise _GrammarFault(f"${dom['capture']} is not captured here")
-                return found
-            name = dom.get("call")
-            if name == "without-elision":
-                capture = dom["args"][0]["capture"]
-                start, end, _ = yield self._span(dom["args"][0], bound)
-                observation = bound.close_observation(capture)
-                if observation == CloseMachine.INVALID:
-                    raise InvalidObservation()
-                return RestoredSpan(start, end, end, self.end, observation)
-            if name in ("head", "tail", "last", "from", "after"):
-                args = dom.get("args", [])
-                if len(args) != 1:
-                    raise _GrammarFault(f"{name}() takes one span")
-                span = yield self._span(args[0], bound)
-                start, end, _ = span
-                # To the end of the input of the parse that evaluates the
-                # condition: the stage's, or a nested parse's span (engine
-                # §10).
-                if name == "from":
-                    if isinstance(span, RestoredSpan):
-                        return replace(span, end=self.end)
-                    return (start, self.end, None)
-                if name == "after":
-                    return (end, self.end, None)
-                if start >= end:
-                    return (start, start, None)
-                if name == "head":
-                    return (start, start + 1, None)
-                if name == "tail":
-                    return (start + 1, end, None)
-                return (end - 1, end, None)
+        if "capture" in dom:
+            found = bound.get(dom["capture"])
+            if found is None:
+                raise _GrammarFault(f"${dom['capture']} is not captured here")
+            return found
+        name = dom.get("method")
+        receiver = dom.get("receiver")
+        span = yield self._span(receiver, bound)
+        start, end, _ = span
+        if name == "without-elision":
+            observation = bound.close_observation(receiver["capture"])
+            if observation == CloseMachine.INVALID:
+                raise InvalidObservation()
+            return RestoredSpan(start, end, end, self.end, observation)
+        if name == "onward":
+            return replace(span, end=self.end) if isinstance(span, RestoredSpan) else (start, self.end, None)
+        if name == "following-tokens":
+            return end, self.end, None
+        if start >= end:
+            return start, start, None
+        if name == "first-token":
+            return start, start + 1, None
+        if name == "tokens-after-first":
+            return start + 1, end, None
+        if name == "last-token":
+            return end - 1, end, None
         raise _GrammarFault("a span is needed here")
 
     def span_tags(self, span: tuple[int, int, int | None]) -> Tags:
@@ -701,22 +653,30 @@ class Evaluator:
             gathered.add(tokens[index].tags)
         return gathered.value()
 
-    def phonemes(self, start: int, end: int) -> str:
-        """The canonical sound of tokens start..end (engine §5)."""
-        # Only the tokens that sound are read, so that a long run of silent
+    def input_value(self, start: int, end: int) -> str:
+        """The stored values of tokens start..end, concatenated (engine §1)."""
+        # Only tokens with nonempty values are read, so that a long run of silent
         # tokens costs nothing to each of many calls over it.
         context = self.context
-        sounding = context.sounding_tokens()
+        sounding = context.nonempty_tokens()
         parts: list[str] = []
         index = sounding[start]
         while index < end:
-            parts.append(context.sound(index))
+            parts.append(context.value(index))
             index = sounding[index + 1]
         return "".join(parts)
 
     def walk_value(self, dom: Any, bound: Bound) -> Walk:
         """A term's value (engine §10): a string, or a set, of strings or of
         tags."""
+        if "capture" in dom:
+            start, end, _ = yield self._span(dom, bound)
+            return self.input_value(start, end)
+        if "interpolate" in dom:
+            parts = []
+            for part in dom["interpolate"]:
+                parts.append((yield self.walk_value(part, bound)))
+            return "".join(parts)
         if "string" in dom:
             return dom["string"]
         if "tag" in dom:
@@ -727,8 +687,6 @@ class Evaluator:
             if "value" not in dom:
                 raise _GrammarFault(f"the constant ${dom['const']} has no value")
             return dom["value"]
-        if "range" in dom:
-            return self.context.range_tags(dom["range"])
         if "emptySet" in dom:
             return EMPTY
         if "if" in dom:
@@ -751,50 +709,41 @@ class Evaluator:
         if "difference" in dom:
             left = _as_set((yield self.walk_value(dom["difference"][0], bound)))
             return difference(left, _as_set((yield self.walk_value(dom["difference"][1], bound))))
-        name = dom.get("call")
+        name = dom.get("method")
         if name is not None:
-            args = dom.get("args", [])
-            if name == "split":
-                # A set of strings (engine §10); an empty delimiter that only
-                # a parse sees is an error of the grammar.
-                text = _as_string((yield self.walk_value(args[0], bound)))
-                delimiter = _as_string((yield self.walk_value(args[1], bound)))
-                if delimiter == "":
-                    raise _GrammarFault("split has an empty delimiter")
-                return split_string(text, delimiter)
-            if name == "tag":
-                text = _as_string((yield self.walk_value(args[0], bound)))
-                if not is_name(text):
-                    raise _GrammarFault(f"tag({json.dumps(text, ensure_ascii=False)}): the string is not a name")
-                return frozenset((text,))
-            if name == "classify":
-                # The classes that the classifier gives the string, for the
-                # features of the parse, or none for an unknown key (engine
-                # §10).
-                key = _as_string((yield self.walk_value(args[0], bound)))
-                table = self.context.lowered.classifiers.get(args[1]["classifier"])
-                return table.get(key, EMPTY) if table is not None else EMPTY
-            if name == "tags" and len(args) == 2:
-                span = yield self._span(args[0], bound)
+            args = dom["args"]
+            receiver = dom["receiver"]
+            if name in ("split", "classify"):
+                text = _as_string((yield self.walk_value(receiver, bound)))
+                if name == "split":
+                    delimiter = _as_string((yield self.walk_value(args[0], bound)))
+                    if delimiter == "":
+                        raise _GrammarFault("split has an empty delimiter")
+                    return split_string(text, delimiter)
+                table = self.context.lowered.classifiers[args[0]["classifier"]]
+                return table.get(text, EMPTY)
+            span = yield self._span(receiver, bound)
+            if name == "tags" and args:
                 if isinstance(span, RestoredSpan):
-                    return (yield self.context.aligned(args[1]["rule"], span, False)).tags
+                    return (yield self.context.aligned(args[0]["rule"], span, False)).tags
                 start, end, _ = span
-                return (yield self.context.nested(args[1]["rule"], start, end)).tags
-            span = yield self._span(args[0], bound)
-            if name == "phonemes":
-                return self.phonemes(span[0], span[1])
-            if name == "text":
+                return (yield self.context.nested(args[0]["rule"], start, end)).tags
+            if name == "value":
+                return self.input_value(span[0], span[1])
+            if name == "image":
+                return "".join(self.context.tokens[i].image for i in range(span[0], span[1]))
+            if name == "source-text":
                 return self.context.span_text(span[0], span[1])
             if name in ("tags", "classes"):
                 whole = span[2]
                 if callable(whole):
-                    # $ of a completing item gives its tags on first use, by a
-                    # walk, since its tag term can ask nested parses (engine
-                    # §4).
-                    span = (span[0], span[1], (yield whole()))
+                    span = span[0], span[1], (yield whole())
                 tags = self.span_tags(span)
                 return tags if name == "tags" else frozenset(tag for tag in tags if is_class(tag))
-            raise _GrammarFault(f"an unknown function {name}()")
+            if name in ("first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision"):
+                start, end, _ = yield self._span(dom, bound)
+                return self.input_value(start, end)
+            raise _GrammarFault(f"unknown method .{name}")
         raise _GrammarFault("a span is used where a value is needed")
 
     def value(self, dom: Any, bound: Bound) -> Any:
@@ -827,23 +776,16 @@ class Evaluator:
                 inside = _as_set(left) <= _as_set(right)
                 return inside if op == "⊆" else not inside
             raise _GrammarFault(f"an unknown comparison {op}")
-        if "matches" in dom:
-            span = yield self._span(dom["matches"], bound)
+        if "method" in dom:
+            name = dom["method"]
+            span = yield self._span(dom["receiver"], bound)
+            if name == "starts-input":
+                return span[0] == self.base
+            rule = dom["args"][0]["rule"]
             if isinstance(span, RestoredSpan):
-                return (yield self.context.aligned(dom["rule"], span, False)).accepted
+                return (yield self.context.aligned(rule, span, name == "begins")).accepted
             start, end, _ = span
-            return (yield self.context.nested(dom["rule"], start, end)).accepted
-        if "begins" in dom:
-            span = yield self._span(dom["begins"], bound)
-            if isinstance(span, RestoredSpan):
-                return (yield self.context.aligned(dom["rule"], span, True)).accepted
-            start, end, _ = span
-            return (yield self.context.begins(dom["rule"], start, end))
-        if "initial" in dom:
-            # Where the input of the parse that reads the condition begins:
-            # the stage's, or a nested parse's span (engine §10).
-            start, _, _ = yield self._span(dom["initial"], bound)
-            return start == self.base
+            return (yield self.context.begins(rule, start, end)) if name == "begins" else (yield self.context.nested(rule, start, end)).accepted
         if "not" in dom:
             return not (yield self.walk_condition(dom["not"], bound))
         if "if" in dom:
@@ -982,7 +924,7 @@ class Parser:
                     return True
                 for terminal in witness[2]:
                     tags = token_tags[base + at]
-                    if (context.carries(terminal, tags) if terminal in lowered.characters
+                    if (context.carries(terminal, base + at) if terminal in lowered.characters
                             else terminal in tagtab.get(tags)):
                         return True
             return False
@@ -1030,26 +972,26 @@ class Parser:
                 return machine.empty
             original = base + token if not recon else project[token]
             source = context if not recon else observed
-            return machine.node(None, machine.empty, (terminal, source.sound(original), source.tokens[original].tags))
+            return machine.node(None, machine.empty, (terminal, source.value(original), source.tokens[original].tags))
 
         def omission_allowed(production: Production) -> bool:
             if _testing.fault("omission") or production.elided_test is None:
                 return True
             test = production.elided_test
-            sound = test.sound if test.op == "=" else ""
-            return test.holds(sound, frozenset((production.elided,)))
+            value = test.value if test.op == "=" else ""
+            return test.holds(value, frozenset((production.elided,)))
 
-        def close_record(terminal, position, sound=None):
+        def close_record(terminal, position, value=None):
             boundary = original(position)
             source = observed if observed is not None else context
-            return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), sound))
+            return closes.event(Restoration(terminal, boundary, empty_source(source.tokens, boundary), value))
 
         def completed_closes(production, position, start, at, prefix):
             if closes is None or not production.observes_closes or position != len(production.rhs):
                 return 0
             if production.elided is not None:
                 test = production.elided_test
-                return close_record(production.elided, start, test.sound if test is not None and test.op == '=' else None)
+                return close_record(production.elided, start, test.value if test is not None and test.op == '=' else None)
             if production.helper:
                 return prefix
             return closes.complete(prefix, production.lhs, original(start), original(at))
@@ -1153,8 +1095,8 @@ class Parser:
         def constituent_tag(production: Production, captured: Caps) -> int:
             """The tag set of a completed item whose production has no tag
             term (engine §4)."""
-            if len(production.rhs) == 1:
-                return captured[production.slots[0]][2]
+            if production.inherited is not None:
+                return captured[production.slots[production.inherited]][2]
             return tagtab.empty
 
         def term_tag(production: Production, captured: Caps, start: int, at: int, structure: int = 0, close_structure: int = 0) -> Walk:
@@ -1235,7 +1177,7 @@ class Parser:
                         child_production = productions[prod[child]]
                         part_closes = closes.seal(part_closes, block(child_production, origin[child], end[child], child_production.lexical))
                 elif recon and synthetic[edge[2]]:
-                    part_closes = close_record(edge[3], edge[2], tokens[edge[2]].phonemes)
+                    part_closes = close_record(edge[3], edge[2], tokens[edge[2]].value)
                 if production.observes_closes:
                     close_prefix = closes.concat(close_prefixes[item], part_closes)
                     close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
@@ -1368,12 +1310,12 @@ class Parser:
                             number = p.id
                             if not p.conds_predict or (yield allowed(p, j)):
                                 add(number, 0, j, NO_CAPS, j, SEED, strict_prediction)
-                # A range or a property matches by the token's characters.
+                # A string, range, or wildcard matches the stored token value.
                 table = by_first_characters[rule]
                 if table:
                     token_tag = token_tags[base + j]
                     for terminal, numbers in table.items():
-                        if carries(terminal, token_tag):
+                        if carries(terminal, base + j):
                             for number in numbers:
                                 p = candidate(productions[number],frame,requested)
                                 number = p.id
@@ -1491,9 +1433,9 @@ class Parser:
                 token_tag = token_tags[base + j]
                 if not recon:
                     for terminal, waiters in scanning[j].items():
-                        # A range or a property matches by the token's
-                        # characters, and never by a tag (engine §4).
-                        if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
+                        # A string, range, or wildcard reads the stored
+                        # value independently of tags (engine §4).
+                        if carries(terminal, base + j) if characters and terminal in characters else terminal in token.tags:
                             for waiter in waiters:
                                 walk = advance(waiter, (j, j + 1, token_tag), j + 1, (waiter, 1, j, terminal))
                                 if walk is not None:
@@ -1508,7 +1450,7 @@ class Parser:
                 from_synthetic = synthetic[j]  # type: ignore[index]
                 captured_tag = tagtab.empty if from_synthetic else token_tag
                 for terminal, waiters in scanning[j].items():
-                    if carries(terminal, token_tag) if characters and terminal in characters else terminal in token.tags:
+                    if carries(terminal, base + j) if characters and terminal in characters else terminal in token.tags:
                         for waiter in waiters:
                             # The written route of an elidable optional from a
                             # synthetic token: the rest of the optional must
@@ -1535,7 +1477,7 @@ class Parser:
             requested = prediction[2] if closes is not None else False
             frame = next((f for f in frames.frames.values() if f.id==prediction[1]),None) if frames is not None else None
             for terminal, numbers in itertools.chain(by_first[rule].items(), by_first_characters[rule].items()):
-                if here_tag is not None and (carries(terminal, here_tag) if terminal in characters else terminal in here):
+                if here_tag is not None and (carries(terminal, base + furthest) if terminal in characters else terminal in here):
                     continue
                 for number in numbers:
                     production = candidate(productions[number],frame,requested)

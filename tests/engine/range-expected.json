@@ -1,6 +1,6 @@
 {
   "description": "A rejected stage lists a range or a property among the expected terminals by its written form, in code point order (engine §4, docs/output.md).",
-  "grammar": "%rule text 'a'..'z' | '\\p{Nd}' | '\\u{41}'..'\\u{5A}'",
+  "grammar": "%rule text \"a\"..\"z\" | _Nd | \"A\"..\"Z\"",
   "input": "!",
   "expect": {
     "result": {
@@ -11,19 +11,19 @@
         "token": 0,
         "expected": [
           {
-            "terminal": "'A'..'Z'",
+            "terminal": "\"A\"..\"Z\"",
             "rules": [
               "text"
             ]
           },
           {
-            "terminal": "'\\p{Nd}'",
+            "terminal": "\"a\"..\"z\"",
             "rules": [
               "text"
             ]
           },
           {
-            "terminal": "'a'..'z'",
+            "terminal": "_Nd",
             "rules": [
               "text"
             ]

@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r A := ∪ \"v\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 14
+    }
+  },
+  "description": "A recipe atom is checked as written. A leading set operator makes it invalid even when flattening leaves one operand (engine §9.3, §11.3)."
+}

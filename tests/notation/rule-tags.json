@@ -1,6 +1,6 @@
 {
   "description": "Tags on a rule's name apply to all its alternatives (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule cmavo $w(body) %tags ~cmavo ∪ tags($w, lexicon)\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule cmavo :: (Cmavo ∪ $w.tags(lexicon)) | $w:body\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -9,14 +9,14 @@
           "tags": {
             "union": [
               {
-                "tag": "cmavo"
+                "tag": "Cmavo"
               },
               {
-                "call": "tags",
+                "method": "tags",
+                "receiver": {
+                  "capture": "w"
+                },
                 "args": [
-                  {
-                    "capture": "w"
-                  },
                   {
                     "rule": "lexicon"
                   }

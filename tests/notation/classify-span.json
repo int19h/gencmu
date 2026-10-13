@@ -1,10 +1,47 @@
 {
-  "description": "classify takes a string and a classifier's name, not a span (engine §9).",
-  "document": "```jbogenbau\n%rule text $w(W) <classify($w, lex)>\n```\n",
+  "description": "Engine §10 converts a capture to its input value when a string is required.",
+  "document": "```jbogenbau\n%rule text $w:W :: $w.classify(lex)\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 19
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "w",
+                "expr": {
+                  "ref": "W"
+                }
+              },
+              "tags": {
+                "method": "classify",
+                "receiver": {
+                  "capture": "w"
+                },
+                "args": [
+                  {
+                    "classifier": "lex"
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

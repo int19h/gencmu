@@ -1,10 +1,58 @@
 {
-  "description": "A capture is a span, not a value, so it cannot stand on the left of ∈; the error is at the capture (engine §9, §10).",
-  "document": "```jbogenbau\n%rule a $x(B) %conditions $x ∈ split(phonemes($x), \".\")\n```\n",
+  "description": "Engine §10 converts a capture to its input value when a string is required.",
+  "document": "```jbogenbau\n%rule a $x:B%conditions $x ∈ $x.value.split(\".\")\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 27
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "∈",
+              "left": {
+                "capture": "x"
+              },
+              "right": {
+                "method": "split",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": []
+                },
+                "args": [
+                  {
+                    "string": "."
+                  }
+                ]
+              }
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

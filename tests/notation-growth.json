@@ -28,35 +28,35 @@
   },
   {
     "name": "optionals-error-later",
-    "description": "Optionals, and an error of reading after them.",
+    "description": "Optionals beyond the depth limit, followed by a valid unresolved constant. The depth error stands at the first rule (engine §9.3).",
     "prefix": "%rule text ",
     "open": "[",
     "middle": "A",
     "close": "]",
-    "suffix": "\n%rule b $X"
+    "suffix": "\n%rule Foo A"
   },
   {
     "name": "term-parens",
-    "description": "Parentheses around a tag in a tag term.",
-    "prefix": "%rule text A <",
+    "description": "Parentheses around a tag in a tag term (engine §9).",
+    "prefix": "%rule text A :: ",
     "open": "(",
-    "middle": "~a",
+    "middle": "Tag-a",
     "close": ")",
-    "suffix": ">"
+    "suffix": ""
   },
   {
     "name": "condition-parens",
-    "description": "Parentheses around a condition.",
-    "prefix": "%rule text $x(A) %conditions ",
+    "description": "Parentheses around a condition (engine §9).",
+    "prefix": "%rule text $x:A %conditions ",
     "open": "(",
-    "middle": "text($x) = \"a\"",
+    "middle": "$x.source-text = \"a\"",
     "close": ")",
     "suffix": ""
   },
   {
     "name": "negations",
-    "description": "Negations of a presence test.",
-    "prefix": "%rule text $x(A) %conditions ",
+    "description": "Negations of a presence test (engine §9).",
+    "prefix": "%rule text $x:A %conditions ",
     "open": "¬",
     "middle": "$x",
     "close": "",
@@ -64,8 +64,8 @@
   },
   {
     "name": "implications",
-    "description": "Conditions joined by ⟹, which group to the right.",
-    "prefix": "%rule text $x(A) %conditions ",
+    "description": "Conditions joined by ⟹, which group to the right (engine §9).",
+    "prefix": "%rule text $x:A %conditions ",
     "open": "$x ⟹ ",
     "middle": "$x",
     "close": "",
@@ -73,26 +73,26 @@
   },
   {
     "name": "guards",
-    "description": "Guards in a row before a tag term.",
-    "prefix": "%rule text $x(A) <",
+    "description": "Guards in a row before a tag term (engine §9).",
+    "prefix": "%rule text :: ",
     "open": "$x ⟹ ",
-    "middle": "~a",
+    "middle": "Tag-a",
     "close": "",
-    "suffix": ">"
+    "suffix": " | $x:A"
   },
   {
     "name": "unions",
-    "description": "Unions, each in parentheses inside the one before.",
-    "prefix": "%rule text A <",
-    "open": "(~a ∪ ",
-    "middle": "~b",
+    "description": "Unions, each in parentheses inside the one before (engine §9).",
+    "prefix": "%rule text A :: ",
+    "open": "(Tag-a ∪ ",
+    "middle": "Tag-b",
     "close": ")",
-    "suffix": ">"
+    "suffix": ""
   },
   {
     "name": "any-groups",
-    "description": "Conditions joined by ∨, each group in parentheses inside the one before, which the reader folds into one.",
-    "prefix": "%rule text $x(A) %conditions ",
+    "description": "Conditions joined by ∨, each group in parentheses inside the one before, which the reader folds into one (engine §9).",
+    "prefix": "%rule text $x:A %conditions ",
     "open": "($x ∨ ",
     "middle": "$x",
     "close": ")",
@@ -109,12 +109,12 @@
   },
   {
     "name": "long-capture",
-    "description": "A capture name of many characters.",
+    "description": "A capture name of many characters (engine §9).",
     "prefix": "%rule a $b",
     "open": "c",
     "middle": "",
     "close": "",
-    "suffix": "(B)"
+    "suffix": ":B"
   },
   {
     "name": "long-guard",
@@ -127,8 +127,8 @@
   },
   {
     "name": "long-tag",
-    "description": "A tag literal of many characters in a tag term.",
-    "prefix": "%rule a B %tags ~t",
+    "description": "A tag literal of many characters in a tag term (engine §9).",
+    "prefix": "%rule a B :: T",
     "open": "x",
     "middle": "",
     "close": "",
@@ -163,9 +163,9 @@
   },
   {
     "name": "string-of-escapes",
-    "description": "A string of many escaped quotes and backslashes in a test.",
+    "description": "A string with many interpolated quotes and backslashes in a value test (engine §9.1).",
     "prefix": "%rule a B=\"",
-    "open": "\\\"\\\\",
+    "open": "$(_0022)$(_005C)",
     "middle": "",
     "close": "",
     "suffix": "\""
@@ -174,7 +174,7 @@
     "name": "repeated-capture-name",
     "description": "The same capture name at every level of nested sequences, which the check of repeated captures reports. Each capture is marked as repeated once, not again at each level above it (engine §9).",
     "prefix": "%rule text ",
-    "open": "$x(A) (",
+    "open": "$x:A (",
     "middle": "A",
     "close": ")",
     "suffix": ""

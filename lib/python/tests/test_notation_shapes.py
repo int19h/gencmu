@@ -60,6 +60,60 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_pattern_atoms_need_only_the_declared_parts(self) -> None:
+        from gencmu._dom import DomBuilder
+        from gencmu._markdown import jbogenbau_text
+        from gencmu._trampoline import run
+        from gencmu._unicode import UnicodeTable
+
+        token = gencmu.Token("A", frozenset(), (0, 1), (0, 1))
+        builder = DomBuilder([token], jbogenbau_text('```jbogenbau\nA\n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+
+        def rule(name: str, *children: gencmu.Node) -> gencmu.Node:
+            return gencmu.Node("rule", (0, 1), (0, 1), rule=name, children=list(children))
+
+        atom = rule("pattern-atom", gencmu.Node("token", (0, 1), (0, 1), token=0))
+        grouped = rule("pattern-union", rule("pattern-intersection", rule("pattern-sequence", rule("pattern-item", atom))))
+        # Neither constructor requires delimiter tokens in the supplied
+        # tree. Engine §9.3 reads their declared pattern parts alone.
+        for part in (rule("pattern-literal", atom), grouped):
+            with self.subTest(constructor=part.rule):
+                self.assertEqual(run(builder._pattern(rule("pattern-atom", part))), {"node": {"terminal": "A", "at": [2, 1]}})
+
+    def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
+        parsed = json.loads(BOOTSTRAP)
+        documents = {document["path"]: document["dom"] for stage in parsed["stages"] for document in stage["documents"]}
+        lexical = documents["notation/lexical.md"]
+        next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
+            {"guards": [], "expr": {"literal": {"string": "_"}}}
+        )
+        syntax = documents["notation/syntax.md"]
+        next(rule for rule in syntax["rules"] if rule["name"] == "guard")["alternatives"][0]["expr"] = {
+            "seq": [{"ref": "padding"}, {"ref": "Guard"}]
+        }
+        syntax["rules"].append({
+            "name": "padding", "op": "define", "flags": [],
+            "alternatives": [{"guards": [], "expr": {"empty": True}}],
+            "conditions": [], "at": [1, 1],
+        })
+        bootstrap = json.dumps(parsed, ensure_ascii=False)
+        document = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A\n```\n'
+        self.assertEqual(outcome(bootstrap, document, [], {"document": "g.md", "line": 3, "column": 12}), "grammar")
+
+    def test_empty_constructor_positions_use_their_token_boundary(self) -> None:
+        from gencmu._dom import DomBuilder
+        from gencmu._markdown import jbogenbau_text
+        from gencmu._unicode import UnicodeTable
+
+        tokens = [gencmu.Token("a", frozenset(), (0, 1), (0, 1)), gencmu.Token("b", frozenset(), (1, 2), (2, 3))]
+        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+        for boundary, column in ((1, 3), (2, 4)):
+            with self.subTest(boundary=boundary):
+                node = gencmu.Node("rule", (boundary, boundary), (0, 0), rule="padding")
+                self.assertEqual(builder.position(node), (2, column))
+        builder.tokens = []
+        self.assertEqual(builder.position(gencmu.Node("rule", (0, 0), (0, 0), rule="padding")), (2, 1))
+
     def test_a_notation_stage_that_declares_elision_only_runs_the_check(self) -> None:
         """Each notation stage runs the check of elision-only where its own
         directive declares it (engine §8). With greedy and elision-only on
@@ -67,7 +121,9 @@ class NotationShapes(unittest.TestCase):
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
         lexical_dom = next(d["dom"] for stage in parsed["stages"] for d in stage["documents"] if d["path"] == "notation/lexical.md")
-        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append({"guards": [], "expr": {"terminal": "'.'"}})
+        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
+            {"guards": [], "expr": {"literal": {"string": "."}}}
+        )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
         lexical = bootstrap.index('"path":"notation/lexical.md"')
@@ -110,7 +166,9 @@ class NotationShapes(unittest.TestCase):
         for name in NAMES:
 
             def rename(syntax: str, name: str = name) -> str:
-                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}')
+                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(
+                    f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}'
+                )
 
             with self.subTest(rule=name):
                 self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))
@@ -120,6 +178,6 @@ class NotationShapes(unittest.TestCase):
     def test_a_part_that_the_reader_does_not_read_is_ignored(self) -> None:
         for item in SHAPES["extraParts"]:
             with self.subTest(item["description"]):
-                self.assertEqual(len(find_places(BOOTSTRAP[SYNTAX_AT:], item["find"])), 1)
-                changed = with_syntax(lambda syntax, item=item: substitute(syntax, item["find"], item["replace"]))
+                self.assertEqual(len(find_places(BOOTSTRAP, item["find"])), 1)
+                changed = substitute(BOOTSTRAP, item["find"], item["replace"])
                 self.assertEqual(outcome(changed, item["document"], item["inputs"], item.get("where")), item["expect"])

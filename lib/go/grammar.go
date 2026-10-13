@@ -1,6 +1,10 @@
 package gencmu
 
-import "slices"
+import (
+	"slices"
+	"sort"
+	"strings"
+)
 
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
@@ -54,15 +58,17 @@ type sRule struct {
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
-	written            jobj
-	writtenAlternative int
-	alt                *domAlt
-	ruleTags           *domTerm
-	emit               *domEmit
-	conds              []*domCond
-	opaque             bool
-	doc                string
-	at                 [2]int
+	written              jobj
+	writtenAlternative   int
+	textOrder            int // order of alternatives across the stage documents
+	alt                  *domAlt
+	ruleTags             *domTerm
+	emit                 *domEmit
+	conds                []*domCond
+	erased               bool
+	ruleValue, ruleImage *domTerm
+	doc                  string
+	at                   [2]int
 	// tests are the tests of its body with their values, in the order
 	// testsIn lists them, from the constants' final values (engine §2, §4).
 	tests []*symTest
@@ -87,7 +93,7 @@ type docDOM struct {
 const maxAnd = 16
 
 func isTerminalName(name string) bool {
-	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
+	return isCapital(name) || engineTag(name)
 }
 
 func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, *Error) {
@@ -100,6 +106,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		return e
 	}
 	var ambiguity []*domDirective
+	textOrder := 0
 	for _, d := range docs {
 		for _, r := range d.dom.Rules {
 			if r.deferredEmission != "" && len(constRefs(r)) == 0 && !ruleHasPattern(r) {
@@ -123,7 +130,8 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 			alts := make([]*sAlt, len(r.Alternatives))
 			for i, a := range r.Alternatives {
-				alts[i] = &sAlt{written: written, writtenAlternative: i, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, opaque: r.Opaque, doc: d.path, at: r.At}
+				alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
+				textOrder++
 			}
 			existing := g.byName[r.Name]
 			// Each way of stating a rule says what it expects to be there
@@ -204,6 +212,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if err := g.resolveConstants(); err != nil {
 		return nil, err
 	}
+	if err := g.resolveClassifierKeys(); err != nil {
+		return nil, err
+	}
 	if err := g.addImplications(implications); err != nil {
 		return nil, err
 	}
@@ -259,6 +270,18 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			return nil, err
 		}
 	}
+	// Ranked scope errors precede recipe absence, pruning, and cycle analysis (§11.4).
+	for _, err := range g.deferredEmissions {
+		if deferredRecipeProblem(err.Message) {
+			return nil, err
+		}
+	}
+	if err := g.validateRecipeCycles(); err != nil {
+		return nil, err
+	}
+	if err := g.validateEmissionOverlap(); err != nil {
+		return nil, err
+	}
 	if len(g.deferredEmissions) > 0 {
 		return nil, g.deferredEmissions[0]
 	}
@@ -271,17 +294,52 @@ func (g *stageGrammar) makeTests() *Error {
 	for _, r := range g.rules {
 		for _, a := range r.alts {
 			for _, t := range testsIn(a.alt.Expr) {
-				v, err := g.evaluateClosed(a.doc, t.Value, a.at)
-				if err != nil {
-					return err
-				}
 				st := &symTest{op: t.Op}
-				if v.ty == tyString {
-					st.sound = v.s
+				if t.Op == "tags" {
+					var written []string
+					for _, r := range t.Requirements {
+						v, err := g.evaluateClosed(a.doc, r.Value, a.at)
+						if err != nil {
+							return err
+						}
+						if v.ty != tyTags && v.ty != tySet {
+							return g.faultError(a.doc, r.Value, a.at, "a tag requirement requires a tag set")
+						}
+						for _, name := range v.names {
+							st.requirements = append(st.requirements, resolvedRequirement{name: name, negated: r.Negated})
+							prefix := ""
+							if r.Negated {
+								prefix = "¬"
+							}
+							written = append(written, prefix+name)
+						}
+					}
+					sort.Slice(st.requirements, func(i, j int) bool {
+						a, b := st.requirements[i], st.requirements[j]
+						return a.name < b.name || a.name == b.name && !a.negated && b.negated
+					})
+					written = nil
+					var last *resolvedRequirement
+					for i, r := range st.requirements {
+						if last != nil && *last == r {
+							continue
+						}
+						last = &st.requirements[i]
+						prefix := ""
+						if r.negated {
+							prefix = "¬"
+						}
+						written = append(written, prefix+r.name)
+					}
+					st.written = "<" + strings.Join(written, " ") + ">"
 				} else {
-					st.tags = v.names
+					v, err := g.evaluateClosed(a.doc, t.Value, a.at)
+					if err != nil {
+						return err
+					}
+					st.sound = v.s
+					st.written = t.Op + stringTerminal(v.s, g.uni)
 				}
-				st.written = writtenTest(t.Op, v)
 				a.tests = append(a.tests, st)
 			}
 		}

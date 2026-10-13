@@ -1,32 +1,39 @@
 {
-  "description": "Phoneme tags say what a token sounds like. A token keeps its phonemes as they are, and phonemes() of a later stage reads them in canonical form, in lower case (engine §5).",
+  "description": "Explicit recipes give the two input tokens values a and A. Their joined value aA differs from aa, so the later stage rejects it without normalization (engine §5, §10, §11.2).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage sounds\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage words\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n",
-    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c 'a' </a/> | 'Á' </A/> | '\\p{White_Space}' </./> %emits $\n```\n",
-    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w(pair) %conditions phonemes($w) = \"aa\"\n%rule pair /a/ /A/\n```\n"
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c \"a\" :: Sound-0061-s := \"a\" | \"Á\" :: Sound-0041-s := \"A\" | _White_Space :: Sound-002E-s := \".\" :- \" \" %emits $\n```\n",
+    "h.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $w:pair %conditions $w.value = \"aa\"\n%rule pair (Sound-0061-s Sound-0041-s)\n```\n"
   },
   "pipeline": "p.md",
   "input": "aÁ",
   "expect": {
+    "error": "rejected",
     "result": {
-      "ok": true,
+      "ok": false,
+      "tree": null,
       "stages": [
         {
-          "output": [
-            {
-              "text": "a",
-              "phonemes": "a"
-            },
-            {
-              "text": "Á",
-              "phonemes": "A"
-            }
-          ]
+          "name": "sounds",
+          "verdict": "unique"
         },
         {
-          "verdict": "unique"
+          "name": "words",
+          "verdict": null
         }
-      ]
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "token": 2,
+        "source": [
+          2,
+          2
+        ],
+        "line": 1,
+        "column": 3,
+        "expected": []
+      }
     }
   }
 }

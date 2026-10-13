@@ -1,10 +1,10 @@
 {
-  "description": "A bare name without a capital names a rule, which is not a value: <foo> is an error at the name, and ~foo is the tag (design §2, engine §9).",
-  "document": "```jbogenbau\n%rule a A <foo>\n```\n",
+  "description": "A bare lowercase name denotes a rule, not a tag-set term. Its use as the tag clause is an error at the name (engine §9.3).",
+  "document": "```jbogenbau\n%rule a A  :: foo\n```\n",
   "expect": {
     "error": {
       "line": 2,
-      "column": 12
+      "column": 15
     }
   }
 }

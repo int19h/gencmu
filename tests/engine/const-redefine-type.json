@@ -1,6 +1,6 @@
 {
   "description": "A redefinition keeps the constant's type: a tag set cannot become a string. The error is at the redefinition (engine §2).",
-  "grammar": "%const $A ~a\n%redefine-const $A \"a\"\n%rule text X",
+  "grammar": "%const $A A\n%redefine-const $A \"a\"\n%rule text X",
   "tokens": [
     {
       "text": "x",

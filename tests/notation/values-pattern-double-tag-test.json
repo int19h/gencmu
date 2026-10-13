@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r A %conditions $ ≅ @A<B><C>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 32
+    }
+  },
+  "description": "A pattern atom permits one tag test followed by one value test. Its second tag test fails at that test (engine §9.3)."
+}

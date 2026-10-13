@@ -1,6 +1,6 @@
 {
-  "description": "A capture can stand in a plain optional, which expands in place: text → A [$b(B)] reads a b through the production A B, where the guarded condition holds and the guarded tag term gives B's tags (engine §3.2, §3.5, §3.6).",
-  "grammar": "%rule text A [$b(B)]\n%tags $b ⟹ tags($b)\n%conditions $b ⟹ phonemes($b) = \"b\"",
+  "description": "A capture can stand in a plain optional, which expands in place: text → A [$b:B] reads a b through the production A B, where the guarded condition holds and the guarded tag term gives B's tags (engine §3.2, §3.5, §3.6).",
+  "grammar": "%rule text :: ($b ⟹ $b.tags) | (A [$b:B]) %conditions ($b ⟹ $b.value = \"b\")\n\n",
   "tokens": [
     {
       "text": "a",
@@ -14,7 +14,7 @@
         "B",
         "Y"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

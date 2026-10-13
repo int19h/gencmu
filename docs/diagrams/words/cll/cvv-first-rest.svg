@@ -8,12 +8,12 @@
 <g class="rule"><rect x="40" y="34" width="92" height="24" rx="0"/><text x="86" y="51" textLength="75.6" lengthAdjust="spacingAndGlyphs">ccv-rafsi</text></g>
 <path d="M132 46H212"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">/r/</text></g>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;r&quot;</text></g>
 <path d="M82 80h10"/>
 <g class="rule"><rect x="92" y="68" width="100" height="24" rx="0"/><text x="142" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">lujvo-rest</text></g>
 <path d="M192 80H192a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">/n/</text></g>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;n&quot;</text></g>
 <path d="M82 114h10"/>
 <g class="rule"><rect x="92" y="102" width="100" height="24" rx="0"/><text x="142" y="119" textLength="84" lengthAdjust="spacingAndGlyphs">lujvo-rest</text></g>
 <path d="M192 114H192a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

@@ -1,14 +1,14 @@
 {
-  "description": "A before-attachment is produced before the carrier's tag term. Here both fail, and the first error, the attachment's two phoneme tags, ends the emission (engine §11).",
+  "description": "The before-attachment fails on a shared verbatim gap before the carrier evaluates its failing tag query (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b(bad) $w(word)\n%emits\n  ($b) $w <tag(text($w))>\n%rule word\n  '1'\n%rule bad\n  'b'\n%emits\n  $ </a/ ∪ /e/>\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text $b:bad $w:word %emits ($b) $w :: $w.tags(migration-fault)\n%rule word \"1\"\n%rule bad $l:left $r:right %emits $l, $r\n%rule left \"b\" :- $.verbatim-text\n%rule right \"b\" :- $.verbatim-text\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)\n```\n"
   },
   "pipeline": "p.md",
-  "input": "b1",
+  "input": "b,b1",
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {
@@ -22,5 +22,31 @@
       }
     },
     "error": "grammar"
-  }
+  },
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        0,
+        1
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "1",
+      "tags": [],
+      "source": [
+        3,
+        4
+      ]
+    }
+  ]
 }

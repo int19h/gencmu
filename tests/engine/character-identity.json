@@ -1,6 +1,6 @@
 {
-  "description": "A character tag's identity is its scalar value: an escape and the character itself are one tag, and a mark is its own token (engine §1).",
-  "grammar": "%rule text '\\u{E9}' 'e' '́' '\\u{0065}'",
+  "description": "String terminals compare scalar values exactly: precomposed é and the separate e and combining mark read distinct tokens. The canonical tree escapes the combining mark in its string terminal (engine §1, §4, docs/output.md).",
+  "grammar": "%rule text (\"é\" \"e\" \"́\" \"e\")",
   "input": "éée",
   "expect": {
     "result": {
@@ -16,22 +16,22 @@
         "children": [
           {
             "kind": "token",
-            "terminal": "'é'",
+            "terminal": "\"é\"",
             "token": 0
           },
           {
             "kind": "token",
-            "terminal": "'e'",
+            "terminal": "\"e\"",
             "token": 1
           },
           {
             "kind": "token",
-            "terminal": "'\\u{301}'",
+            "terminal": "\"$(_0301)\"",
             "token": 2
           },
           {
             "kind": "token",
-            "terminal": "'e'",
+            "terminal": "\"e\"",
             "token": 3
           }
         ]

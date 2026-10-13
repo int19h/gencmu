@@ -3,7 +3,7 @@
   "documents": {
     "p.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {r}\n%rule r A\n```\n",
-    "b.md": "```jbogenbau\n%extend-rule r\n  ε\n```\n"
+    "b.md": "```jbogenbau\n%extend-rule r ε\n\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

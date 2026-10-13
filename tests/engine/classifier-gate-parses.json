@@ -1,20 +1,20 @@
 {
   "description": "An entry whose gates do not all hold does nothing, and a stage resolves its classifiers for the features of each parse. One loaded dialect parses with f off, on and off again, and each parse gets its own classes (engine §2).",
-  "grammar": "%classifier lex\n  \"mi\" \"do\" ∈ KOhA\n  f? \"mi\" ∉ KOhA\n  f? \"mi\" ∈ UI\n  ¬f? \"do\" ∉ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex  \"mi\" \"do\" ∈ KOhA f? \"mi\" ∉ KOhA f? \"mi\" ∈ UI ¬f? \"do\" ∉ KOhA\n\n\n\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     },
     {
       "text": "do",
       "tags": [
         "W"
       ],
-      "phonemes": "do"
+      "value": "do"
     }
   ],
   "parses": [
@@ -30,12 +30,12 @@
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 },
                 {
                   "tags": [
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]
@@ -59,14 +59,14 @@
               "output": [
                 {
                   "tags": [
-                    "UI",
-                    "w"
+                    "Tag-w",
+                    "UI"
                   ]
                 },
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]
@@ -87,12 +87,12 @@
                 {
                   "tags": [
                     "KOhA",
-                    "w"
+                    "Tag-w"
                   ]
                 },
                 {
                   "tags": [
-                    "w"
+                    "Tag-w"
                   ]
                 }
               ]

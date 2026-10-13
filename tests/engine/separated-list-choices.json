@@ -1,6 +1,6 @@
 {
-  "description": "Inside braces, the item and the separator are each a whole choice: {A | B \\ S | T} reads items A or B, separated by S or T. A choice is never split across the backslash (engine §3.2, §9).",
-  "grammar": "%rule text {A | B \\ S | T}",
+  "description": "Inside braces, the item and the separator are each a whole choice: {A | B / S | T} reads items A or B, separated by S or T. A choice is never split across the separator slash (engine §3.2, §9).",
+  "grammar": "%rule text {(A | B) / (S | T)}",
   "tokens": [
     {
       "text": "a",

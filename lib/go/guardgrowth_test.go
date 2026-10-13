@@ -16,16 +16,19 @@ func guardedText(n int, keyword, sep string, clause func(i int) string, all, sha
 	branches := make([]string, n)
 	clauses := make([]string, n)
 	for i := range n {
-		caps[i] = fmt.Sprintf("$c%d(A)", i)
+		caps[i] = fmt.Sprintf("$c%d:A", i)
 		branches[i] = caps[i]
 		if shared && i > 0 {
-			branches[i] = "$c0(A) " + caps[i]
+			branches[i] = "$c0:A " + caps[i]
 		}
 		clauses[i] = clause(i)
 	}
 	body := "(" + strings.Join(branches, " | ") + ")"
 	if all {
 		body += " | " + strings.Join(caps, " ")
+	}
+	if keyword == "%tags" {
+		return "```jbogenbau\n%ambiguity-resolution greedy\n%rule text :: " + strings.Join(clauses, sep) + " | " + body + "\n```\n"
 	}
 	return "```jbogenbau\n%ambiguity-resolution greedy\n%rule text " + body + "\n" + keyword + " " + strings.Join(clauses, sep) + "\n```\n"
 }
@@ -84,19 +87,19 @@ func TestClausesByPresence(t *testing.T) {
 		clause             func(i int) string
 		all, shared        bool
 	}{
-		{"guarded tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("($c%d ⟹ ~t%d)", i, i) }, false, false},
-		{"fixed tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("~t%d", i) }, false, false},
-		{"guarded conditions", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`$c%d ⟹ text($c%d) = "a"`, i, i) }, false, false},
-		{"conditions that use a capture", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`text($c%d) = "a"`, i) }, false, false},
-		{"emitted captures", "%emits", ", ", func(i int) string { return fmt.Sprintf("$c%d <~t%d>", i, i) }, false, false},
+		{"guarded tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("($c%d ⟹ T%d)", i, i) }, false, false},
+		{"fixed tags", "%tags", " ∪ ", func(i int) string { return fmt.Sprintf("T%d", i) }, false, false},
+		{"guarded conditions", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`$c%d ⟹ $c%d.source-text = "a"`, i, i) }, false, false},
+		{"conditions that use a capture", "%conditions", ", ", func(i int) string { return fmt.Sprintf(`$c%d.source-text = "a"`, i) }, false, false},
+		{"emitted captures", "%emits", ", ", func(i int) string { return fmt.Sprintf("$c%d :: T%d", i, i) }, false, false},
 		// One condition, an ∧ of guarded parts: each production keeps one.
-		{"a guarded ∧", "%conditions", " ∧ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, false, false},
+		{"a guarded ∧", "%conditions", " ∧ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ $c%d.source-text = "a")`, i, i) }, false, false},
 		// One condition, an ∨ of guarded parts: it is true where a
 		// production lacks a guard, so only the sequence of all keeps it.
-		{"a guarded ∨", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, true, false},
+		{"a guarded ∨", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ $c%d.source-text = "a")`, i, i) }, true, false},
 		// The same, with $c0, the guard it is found under, in every
 		// production, so that each looks at it and finds a guard missing.
-		{"a guarded ∨ under a shared guard", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ text($c%d) = "a")`, i, i) }, true, true},
+		{"a guarded ∨ under a shared guard", "%conditions", " ∨ ", func(i int) string { return fmt.Sprintf(`($c%d ⟹ $c%d.source-text = "a")`, i, i) }, true, true},
 	}
 	// The steps of each unit of n and of what lowering makes: reading
 	// takes some 60 for each alternative, and lowering a few for each part

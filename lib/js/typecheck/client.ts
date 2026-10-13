@@ -5,7 +5,7 @@ import { loaderFromDirectory } from "gencmu/node";
 
 const loader = loaderFromDirectory();
 const dialect = loader.dialect("dialects/notation.md");
-const result: ParseResult = dialect.parse("text ≔ A ;", { features: ["sa-su"], until: "syntax" });
+const result: ParseResult = dialect.parse("%rule text A", { features: ["sa-su"], until: "syntax" });
 
 const verdicts: (Verdict | null)[] = result.stages.map((stage) => stage.verdict);
 for (const stage of result.stages) {
@@ -55,3 +55,9 @@ if (result.tree && result.tree.kind === "token") void result.tree.children;
 loaderFromSources({ "unicode.txt": 1 });
 
 void verdicts, brackets, format;
+
+// Caller strings default independently.
+dialect.parse("A", { tokens: [{ text: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }] });
+dialect.parse("A", { tokens: [{ text: "A", value: "a", image: "", tags: [], span: [0, 1], source: [0, 1] }] });
+// @ts-expect-error JavaScript caller values use omission, never null
+dialect.parse("A", { tokens: [{ text: "A", value: null, tags: [], span: [0, 1], source: [0, 1] }] });

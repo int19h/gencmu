@@ -1,0 +1,13 @@
+{
+  "description": "The earlier other production cycles before a later extension of text. Recipe checks follow production text order rather than grouped rule order (engine §11.3 and §9.3).",
+  "grammar": "%rule text \"a\"\n%rule other := $.emitted.value | \"b\"\n%extend-rule text := $.emitted.image | \"c\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 16
+    }
+  }
+}

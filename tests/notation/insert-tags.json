@@ -1,10 +1,56 @@
 {
-  "description": "An inserted tag takes no tags of its own (engine §9).",
-  "document": "```jbogenbau\n%rule a $x(B) %emits $x, ~y <Z>\n```\n",
+  "description": "Engine §11 permits explicit clauses on inserted ε items.",
+  "document": "```jbogenbau\n%rule a $x:B%emits $x,  ε :: ( Y ∪ Z )\n```\n",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 26
+    "dom": {
+      "format": 26,
+      "rules": [
+        {
+          "name": "a",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "B"
+                }
+              }
+            }
+          ],
+          "emit": {
+            "items": [
+              {
+                "capture": "x"
+              },
+              {
+                "insert": true,
+                "tags": {
+                  "union": [
+                    {
+                      "tag": "Y"
+                    },
+                    {
+                      "tag": "Z"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

@@ -84,7 +84,7 @@ func toStr(v value) string {
 	return v.s
 }
 
-// spanTags is tags(s): the captured part's tags for a whole capture, else
+// spanTags is s.tags: the captured part's tags for a whole capture, else
 // the union of its tokens' tags. A lazy $ has its tags by now.
 func (ev *evaluator) spanTags(s spanVal) *tagset {
 	if s.whole && s.tags == nil && s.lazy != nil {
@@ -235,25 +235,25 @@ func (w *walk) span(ev *evaluator, t *domTerm) spanVal {
 				w.invalidObservation = true
 			}
 			s.aligned = &alignedSpan{end: s.b, contextEnd: ev.run.inputEnd, observation: s.closes, arena: s.arena}
-		case "head":
+		case "first-token":
 			s.aligned = nil
 			if s.b > s.a {
 				s.b = s.a + 1
 			}
-		case "tail":
+		case "tokens-after-first":
 			s.aligned = nil
 			if s.b > s.a {
 				s.a++
 			}
-		case "last":
+		case "last-token":
 			s.aligned = nil
 			if s.b > s.a {
 				s.a = s.b - 1
 			}
-		case "from", "after":
+		case "onward", "following-tokens":
 			// To the end of the input of the parse that evaluates the
 			// condition (§10).
-			if call.Str == "after" {
+			if call.Str == "following-tokens" {
 				s.a = s.b
 				s.aligned = nil
 			}
@@ -284,7 +284,7 @@ func (w *walk) fillLazy(s spanVal) bool {
 		w.push(r.run.evaluator(r.g, r.captureFunc(p, lz.caps, lz.origin, lz.end, nil, lz.structure, lz.closes)), nil, term)
 		return true
 	case p.implicit && !lz.parent:
-		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[0]).tags]
+		lz.tags = r.run.ps.in.all[lz.caps.at(p.capSlot[p.inheritIndex]).tags]
 	default:
 		lz.tags = r.run.ps.in.empty()
 	}
@@ -295,20 +295,21 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	ev, t := f.ev, f.t
 	in := ev.in()
 	switch t.Kind {
+	case tmInterpolate:
+		v, err := ev.g.stage.evaluateClosed("", t, [2]int{})
+		if err != nil {
+			panic(&parseFailure{message: err.Message})
+		}
+		w.endTerm(value{kind: vString, s: v.s})
+		return nil
+	case tmCapture:
+		w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
+		return nil
 	case tmString:
 		w.endTerm(value{kind: vString, s: t.Str})
 		return nil
 	case tmTag:
 		w.endSet(in.single(t.Str))
-		return nil
-	case tmRange:
-		ps := ev.run.ps
-		set := ps.ranges[t.Range]
-		if set == nil {
-			set = in.fromList(rangeTags(t.Range, ps.uni.isMark))
-			ps.ranges[t.Range] = set
-		}
-		w.endSet(set)
 		return nil
 	case tmEmptySet:
 		w.endSet(in.empty())
@@ -373,10 +374,13 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		return nil
 	case tmCall:
 		switch t.Str {
-		case "phonemes":
-			w.endTerm(value{kind: vString, s: ev.run.phonemes(w.span(ev, t.Items[0]))})
+		case "value":
+			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t.Items[0]))})
 			return nil
-		case "text":
+		case "image":
+			w.endTerm(value{kind: vString, s: ev.run.spanImage(w.span(ev, t.Items[0]))})
+			return nil
+		case "source-text":
 			w.endTerm(value{kind: vString, s: ev.run.spanText(w.span(ev, t.Items[0]))})
 			return nil
 		case "split":
@@ -397,18 +401,6 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 				w.endSet(in.fromList(splitString(f.v.s, delimiter)))
 			}
 			return nil
-		case "tag":
-			if f.at == 0 {
-				f.at = 1
-				w.push(ev, nil, t.Items[0])
-				return nil
-			}
-			name := toStr(w.v)
-			if !isName(name) {
-				panic(&parseFailure{message: "tag(" + strconv.Quote(name) + "): the string is not a name"})
-			}
-			w.endSet(in.single(name))
-			return nil
 		case "tags":
 			if f.at == 0 {
 				f.s, f.at = w.span(ev, t.Items[0]), 1
@@ -417,7 +409,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 				}
 			}
 			if len(t.Items) == 2 {
-				// The same parse, and the same answer, as matches().
+				// The same parse, and the same answer, as .matches.
 				_, tags, q := ev.run.nested(ev.g, cdMatches, t.Items[1].Str, f.s)
 				if q != nil {
 					return q
@@ -458,7 +450,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			all := ev.spanTags(f.s)
 			var names []string
 			for _, n := range all.names {
-				if isTerminalName(n) {
+				if isClass(n) {
 					names = append(names, n)
 				}
 			}
@@ -615,9 +607,8 @@ func (run *stageRun) evaluate(ev *evaluator, t *domTerm) value {
 	}
 }
 
-// phonemes(span): the canonical sound of the span, its tokens' phonemes
-// joined, in lower case and without commas (§5).
-func (run *stageRun) phonemes(s spanVal) string {
+// spanValue concatenates exact stored token values (engine §10).
+func (run *stageRun) spanValue(s spanVal) string {
 	var b strings.Builder
 	for i := run.nextVoiced(s.a); i < s.b; i = run.nextVoiced(i + 1) {
 		if w := work.Load(); w != nil {
@@ -628,7 +619,7 @@ func (run *stageRun) phonemes(s spanVal) string {
 	return b.String()
 }
 
-// spanText is text(span): the original text over the source of the span's
+// spanText is span.source-text: the original text over the source of the span's
 // tokens (§1).
 func (run *stageRun) spanText(s spanVal) string {
 	if s.b <= s.a {
@@ -641,13 +632,13 @@ func (run *stageRun) spanText(s spanVal) string {
 // contentKeyLimit is the longest span whose nested parses are remembered by
 // content, so that a word repeated at many places is parsed once; a longer
 // span is remembered by position, since a key of content costs as much as
-// the span is long, and the span of from() or after() runs to the end of
+// the span is long, and the span of onward or following-tokens runs to the end of
 // the input (engine §4).
 const contentKeyLimit = 64
 
 // nested is the answer of a nested parse of tokens [s.a, s.b) alone as
 // rule (engine §4, nested parses), for a query of one kind: cdMatches,
-// which also gives the tags of tags(span, rule), or cdBegins, whether a
+// which also gives the tags of span.tags(rule), or cdBegins, whether a
 // prefix of the span, the empty one included, parses as rule. The answer
 // is remembered for the whole parse. Where it is not yet known, nested
 // gives the query instead, which halts the walk that asked it. The
@@ -880,7 +871,7 @@ func (run *stageRun) settle(rec *recognizer) {
 
 // spanContent is everything a nested parse of a span can observe: the
 // original text that holds its tokens' sources, and each token's text,
-// phonemes, tags, and source.
+// values, images, tags, and source.
 func (run *stageRun) spanContent(s spanVal) string {
 	var key strings.Builder
 	// Each field is written with its length before it, so that no two
@@ -906,9 +897,10 @@ func (run *stageRun) spanContent(s spanVal) string {
 		}
 		t := &run.toks[i]
 		field(t.Text)
-		field(t.Phonemes)
+		field(t.Value)
+		field(t.Image)
 		field(run.tagsets[i].key)
-		// Where the token begins and ends in that text, which text() of a
+		// Where the token begins and ends in that text, which .source-text of a
 		// part of the span reads.
 		field(strconv.Itoa(t.Source[0] - low))
 		field(strconv.Itoa(t.Source[1] - low))

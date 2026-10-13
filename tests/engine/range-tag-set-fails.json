@@ -1,14 +1,13 @@
 {
-  "description": "A condition over a range is an ordinary condition: where it fails, the parse does not exist (engine §10).",
-  "grammar": "%rule text $c('\\p{Any}')\n%conditions\n  tags($c) ∩ 'a'..'z' ≠ ∅",
+  "description": "A range cannot stand in a condition's set expression. The document fails at the range separator before the condition can run (engine §9.3, §10).",
+  "grammar": "%rule text $c:_ %conditions ($c.tags ∩ \"a\"..\"z\") ≠ ∅\n\n",
   "input": "Q",
   "expect": {
-    "result": {
-      "ok": false,
-      "error": {
-        "kind": "rejected"
-      }
-    },
-    "error": "rejected"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 40
+    }
   }
 }

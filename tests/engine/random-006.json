@@ -1,6 +1,6 @@
 {
   "description": "A random grammar with the notation's sugar (engine §3, §6), pinned as the reference library computes it, whose ranking agrees with an enumeration of all 2 derivations.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text u | t u=\"x\" | t\n%rule t {A ... \\ T}\n%rule u t=\"x\" [+T] | ε\n%rule v v [+T] T | v≠\"x\" [+T v]",
+  "grammar": "%ambiguity-resolution greedy\n%rule text u | (t u=\"x\") | t\n%rule t {A ... / T}\n%rule u (t=\"x\" [+T]) | ε\n%rule v (v [+T] T) | (v≠\"x\" [+T v])",
   "tokens": [
     {
       "text": "x",
@@ -8,12 +8,12 @@
         "A",
         "T"
       ],
-      "phonemes": "x"
+      "value": "x"
     }
   ],
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {

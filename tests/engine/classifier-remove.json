@@ -1,20 +1,20 @@
 {
   "description": "∉ removes a membership, and a key can gain and lose a class again. ko'a ends with no class, and classify gives ∅ for it (engine §2, §10).",
-  "grammar": "%classifier lex\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'a\" ∈ KOhA\n  \"ko'a\" ∉ KOhA\n  \"ko'e\" ∈ KOhA\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex)>\n%emits\n  $",
+  "grammar": "%classifier lex  \"ko'a\" ∈ KOhA  \"ko'a\" ∉ KOhA  \"ko'a\" ∈ KOhA  \"ko'a\" ∉ KOhA  \"ko'e\" ∈ KOhA\n\n\n\n\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex)) %emits $\n\n",
   "tokens": [
     {
       "text": "ko'a",
       "tags": [
         "W"
       ],
-      "phonemes": "ko'a"
+      "value": "ko'a"
     },
     {
       "text": "ko'e",
       "tags": [
         "W"
       ],
-      "phonemes": "ko'e"
+      "value": "ko'e"
     }
   ],
   "expect": {
@@ -26,13 +26,13 @@
           "output": [
             {
               "tags": [
-                "w"
+                "Tag-w"
               ]
             },
             {
               "tags": [
                 "KOhA",
-                "w"
+                "Tag-w"
               ]
             }
           ]

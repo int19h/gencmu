@@ -1,20 +1,20 @@
 {
   "description": "classify gives ∅ for a key that no entry names, and a %classifier with no entries names a classifier whose every key gives ∅ (engine §2, §10).",
-  "grammar": "%classifier lex\n  \"mi\" ∈ KOhA\n%classifier none\n%rule text [{word}]\n%rule word $w(W) <~w ∪ classify(phonemes($w), lex) ∪ classify(phonemes($w), none)>\n%emits\n  $",
+  "grammar": "%classifier lex  \"mi\" ∈ KOhA\n\n%classifier none \n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(lex) ∪ $w.value.classify(none)) %emits $\n\n",
   "tokens": [
     {
       "text": "mi",
       "tags": [
         "W"
       ],
-      "phonemes": "mi"
+      "value": "mi"
     },
     {
       "text": "xu",
       "tags": [
         "W"
       ],
-      "phonemes": "xu"
+      "value": "xu"
     }
   ],
   "expect": {
@@ -27,12 +27,12 @@
             {
               "tags": [
                 "KOhA",
-                "w"
+                "Tag-w"
               ]
             },
             {
               "tags": [
-                "w"
+                "Tag-w"
               ]
             }
           ]

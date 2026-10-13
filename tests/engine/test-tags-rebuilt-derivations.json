@@ -1,6 +1,6 @@
 {
   "description": "Derivations are made only of advances that a tag test allowed. Only the body over Y carries b, so [X] must read X, and no derivation reads [X] as empty and body over X Y, not even in a library that rebuilds derivations from completed spans (engine §4).",
-  "grammar": "%rule text [X] body⊇~b\n%rule body X Y | Y <~b>",
+  "grammar": "%rule text ([X] body<B>)\n%rule body (X Y) | Y :: B",
   "tokens": [
     {
       "text": "x",

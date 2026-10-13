@@ -1,9 +1,9 @@
 {
-  "description": "A range is two character tags joined by `..`, with any layout between them. The DOM holds each end in its canonical spelling, so escapes and lower-case hexadecimal give the same range. A capture can wrap a range (engine §1, §9, docs/output.md).",
-  "document": "```jbogenbau\n%rule a 'a'..'z' '\\u{61}' .. '\\u{7a}' $c('\\u{300}'..'\\u{36f}')\n```\n",
+  "description": "A range holds two unresolved scalar-string endpoints, and a capture can wrap it. The DOM preserves literal strings or engine scalar references until stage binding (engine §9.3, docs/output.md format 26).",
+  "document": "```jbogenbau\n%rule a (\"a\"..\"z\" \"a\"..\"z\" $c:\"̀\"..\"ͯ\")\n```\n",
   "expect": {
     "dom": {
-      "format": 25,
+      "format": 26,
       "rules": [
         {
           "alternatives": [
@@ -12,22 +12,34 @@
                 "seq": [
                   {
                     "range": [
-                      "'a'",
-                      "'z'"
+                      {
+                        "string": "a"
+                      },
+                      {
+                        "string": "z"
+                      }
                     ]
                   },
                   {
                     "range": [
-                      "'a'",
-                      "'z'"
+                      {
+                        "string": "a"
+                      },
+                      {
+                        "string": "z"
+                      }
                     ]
                   },
                   {
                     "capture": "c",
                     "expr": {
                       "range": [
-                        "'\\u{300}'",
-                        "'\\u{36F}'"
+                        {
+                          "string": "̀"
+                        },
+                        {
+                          "string": "ͯ"
+                        }
                       ]
                     }
                   }

@@ -39,8 +39,7 @@ class Fixpoint(unittest.TestCase):
 
         pipeline = _Loader(lookup, _resources(), use_cache=False).pipeline("dialects/notation.md")
         stages = [
-            {"name": stage.name, "documents": [{"path": path, "dom": dom} for path, dom in stage.documents]}
-            for stage in pipeline.stages
+            {"name": stage.name, "documents": [{"path": path, "dom": dom} for path, dom in stage.documents]} for stage in pipeline.stages
         ]
         self.assertEqual([stage["name"] for stage in stages], [stage["name"] for stage in bootstrap["stages"]])
         for ours, theirs in zip(stages, bootstrap["stages"]):
@@ -87,7 +86,10 @@ class Compiled(unittest.TestCase):
                 self.assertTrue(cached.compiled)
                 uncached = _Loader(bundled_text, _resources(), use_cache=False)
                 uncached.dom = fresh_dom  # type: ignore[method-assign]
-                with patch.object(cached.reader, 'read', side_effect=AssertionError('compiled grammar cache was bypassed')), patch.object(cached.reader.doms, 'get', side_effect=AssertionError('compiled grammar cache was bypassed')):
+                with (
+                    patch.object(cached.reader, "read", side_effect=AssertionError("compiled grammar cache was bypassed")),
+                    patch.object(cached.reader.doms, "get", side_effect=AssertionError("compiled grammar cache was bypassed")),
+                ):
                     a = cached.load(path)
                 b = uncached.load(path)
                 self.assertEqual(b.stage_names, a.stage_names)
@@ -97,7 +99,11 @@ class Compiled(unittest.TestCase):
     def test_parsing_with_and_without_the_cache(self) -> None:
         cached = gencmu.load_dialect("notation")
         fresh = gencmu.load_dialect("notation", use_cache=False)
-        for text in ("%rule text A B", "%rule a $x(A) [{B #}]\n%conditions text($x) = \"y\"\n%emits $", "%rule a {... A \\ [+KU]} <~B>\n"):
+        for text in (
+            "%rule text A B",
+            '%rule a $x:A [{B #}]\n%conditions $x.source-text = "y"\n%emits $',
+            "%rule a {... A / [+KU]} :: B\n",
+        ):
             with self.subTest(text=text):
                 self.assertEqual(gencmu.to_json(cached.parse(text)), gencmu.to_json(fresh.parse(text)))
 
@@ -106,7 +112,14 @@ class Compiled(unittest.TestCase):
         lexical = bundled_text("notation/lexical.md")
         assert lexical is not None
         stale = json.loads(json.dumps(self.compiled))
-        stale["documents"]["notation/lexical.md"]["dom"] = {"format": DOM_FORMAT, "rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
+        stale["documents"]["notation/lexical.md"]["dom"] = {
+            "format": DOM_FORMAT,
+            "rules": [],
+            "directives": [],
+            "constants": [],
+            "classifiers": [],
+            "implications": [],
+        }
         edited = lexical + "\nA note added after the grammar.\n"
         sources = {
             "compiled.json": json.dumps(stale),
@@ -142,7 +155,9 @@ class Compiled(unittest.TestCase):
         with self.assertRaises(gencmu.GencmuError):
             load(DOM_FORMAT, {"format": DOM_FORMAT, **empty})
         self.assertTrue(load(17, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok)
-        self.assertTrue(load(DOM_FORMAT, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok)
+        self.assertTrue(
+            load(DOM_FORMAT, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok
+        )
         # The same document in the shape of format 17, a repeat with min,
         # whose condition no text meets: it is a miss, and the document is
         # read afresh.
@@ -158,27 +173,57 @@ class Compiled(unittest.TestCase):
 
 class Lexical(unittest.TestCase):
     def test_the_lexical_stage_tags_braces_and_the_backslash(self) -> None:
-        """The notation's lexical stage tags keywords, tag literals,
-        character tags, properties and symbols, braces and the backslash
-        among them (grammars/notation/lexical.md)."""
+        """Stored token tags follow the format-26 lexical grammar.
+
+        Punctuation retains its stage-zero categories. Strings carry their
+        lexical tag. Backslash values use engine interpolation (engine §9).
+        """
         notation = gencmu.load_dialect("notation")
         result = notation.parse(
-            "%rule a ¬f? ~b 'c' /d/ {E ... \\ '\\\\'} | g! %tags X %rulex $e ¬h 'x'..'y' '\\p{L}' 'a'... [+F] [+G]",
+            '%rule a ¬f? B "c" "d" {E ... / "$(_005C)"} | g! %tags X %rulex $e ¬h "x".."y" _L "a"... [+F] [+G]',
             until="lexical",
             auto_features=False,
         )
+        self.assertTrue(result.ok, result.error)
         output = result.stages[0].output
         assert output is not None
-        tokens = [(token.text, sorted(token.tags)) for token in output]
         self.assertEqual(
-            tokens,
+            [(token.text, sorted(token.tags)) for token in output],
             [
-                ("%rule", ["keyword-rule"]), ("a", ["identifier"]), ("¬f?", ["guard"]), ("~b", ["tag"]), ("'c'", ["character"]),
-                ("/d/", ["phoneme"]), ("{", ["'{'"]), ("E", ["identifier"]), ("...", ["ellipsis"]), ("\\", ["'\\u{5C}'"]),
-                ("'\\\\'", ["character"]), ("}", ["'}'"]), ("|", ["'|'"]), ("g!", ["guard"]),
-                ("%tags", ["keyword-tags"]), ("X", ["identifier"]), ("%rulex", ["keyword"]), ("$e", ["capture"]), ("¬", ["'¬'"]), ("h", ["identifier"]),
-                ("'x'", ["character"]), ("..", ["double-dot"]), ("'y'", ["character"]), ("'\\p{L}'", ["property"]), ("'a'", ["character"]), ("...", ["ellipsis"]),
-                ("[", ["'['"]), ("+", ["'+'"]), ("F", ["identifier"]), ("]", ["']'"]), ("[", ["'['"]), ("+", ["'+'"]), ("G", ["identifier"]), ("]", ["']'"]),
+                ("%rule", ["KW-RULE"]),
+                ("a", ["Identifier", "Lowercase-Name"]),
+                ("¬f?", ["Guard"]),
+                ("B", ["Identifier", "Uppercase-Name"]),
+                ('"c"', ["String"]),
+                ('"d"', ["String"]),
+                ("{", ["_P", "_Ps"]),
+                ("E", ["Identifier", "Uppercase-Name"]),
+                ("...", []),
+                ("/", ["_P", "_Po"]),
+                ('"$(_005C)"', ["String"]),
+                ("}", ["_P", "_Pe"]),
+                ("|", ["_S", "_Sm"]),
+                ("g!", ["Guard"]),
+                ("%tags", ["Keyword"]),
+                ("X", ["Identifier", "Uppercase-Name"]),
+                ("%rulex", ["Keyword"]),
+                ("$e", ["Capture"]),
+                ("¬", ["_S", "_Sm"]),
+                ("h", ["Identifier", "Lowercase-Name"]),
+                ('"x"', ["String"]),
+                ("..", []),
+                ('"y"', ["String"]),
+                ("_L", ["Engine-Tag"]),
+                ('"a"', ["String"]),
+                ("...", []),
+                ("[", ["_P", "_Ps"]),
+                ("+", ["_S", "_Sm"]),
+                ("F", ["Identifier", "Uppercase-Name"]),
+                ("]", ["_P", "_Pe"]),
+                ("[", ["_P", "_Ps"]),
+                ("+", ["_S", "_Sm"]),
+                ("G", ["Identifier", "Uppercase-Name"]),
+                ("]", ["_P", "_Pe"]),
             ],
         )
 

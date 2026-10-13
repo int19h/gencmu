@@ -1,8 +1,10 @@
 # The shared tests
 
-Every gencmu library runs every shared case that its API can express. The Rust library skips two engine cases, as "Engine cases" says. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
+Every gencmu library runs every shared case that its API can express. A library skips a usage case when its token or string types cannot express the invalid field. If a case fails in one library and passes in another, there is a bug. The bug is in the library that disagrees with `docs/engine.md`, or in the specification itself.
 
 ## Engine cases: `engine/*.json`
+
+The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`. No language migration gate remains.
 
 Each file is one case:
 
@@ -22,15 +24,18 @@ Each file is one case:
 
 The grammar comes from `grammar`, or from `documents` and `pipeline`. `grammar` is rule text for a single stage named `main`. The document of this stage is those rules in one `jbogenbau` block. On a line of its own before the rules, the block has `%ambiguity-resolution greedy`, unless the text has its own `%ambiguity-resolution`. `pipeline` names a pipeline document among `documents`.
 
-The input is `input` or `tokens`. `input` is a string of characters, read as engine §1 says. `tokens` replaces the input of the first stage. Each token gets these values:
+The input is `input` or `tokens`. `input` supplies scalar characters as engine §1 states. `tokens` replaces the first stage input. With both members, `input` supplies the original source text. Without `input`, the runner joins token texts with single spaces. Each token gets these values:
 
-- Its tags are its listed tags, each written as the output writes a tag (`docs/output.md`). So a character tag is `'a'`.
+- Its tags are its listed identifier tags, including stored engine tags (`docs/output.md`).
 - Its text is as given.
-- Its phonemes are the `phonemes` member if present, or else none.
-- Its label is its text.
-- Its span is `[i, i+1)`.
-- Its source is the position of its text in the texts joined with single spaces.
+- Its value is the `value` member when present, otherwise its text.
+- Its image is the `image` member when present, otherwise its text.
+- Its strings default independently. Explicit empty strings remain empty.
+- Its span is its `span` member when present, otherwise `[i, i+1)`.
+- Its source is its `source` member when present, otherwise its position in the joined texts.
 - Its attachments are its `before` and `after` members, when present, each a list of tokens in this same form. A caller cannot supply attachments. So a list that is not empty is a `usage` error, and the library drops an empty one (`docs/api.md`). The Rust library, whose input tokens have no attachments, skips a case whose tokens have either member.
+
+A usage case can supply an invalid field. The runner passes that field to the library, which reports the usage error. If the API cannot express that field, the runner records its reason for skipping the case.
 
 Auto features (engine §13) are off for a case unless its configuration says `"autoFeatures": true`.
 
@@ -38,7 +43,7 @@ Auto features (engine §13) are off for a case unless its configuration says `"a
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 12 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -106,7 +111,7 @@ For slot reconstruction, the count channel proves membership in the raw forest b
 
 Each library tests that a lowering error's message begins with the faulty definition's document, line and column. It also tests the error order of engine §3: a chain beside another alternative comes before an empty item of braces.
 
-Each library also tests its recognizer on a capture of a rule that can end in many places (engine §4). The rule is `t → $l(t) $r(t) | A`, over n tokens. Then n − 1 completed items of that production span the input. With `t → t t | A`, one item does. A last test reads one production of C captures over C tokens, and counts C stored captured parts, not C².
+Each library also tests its recognizer on a capture of a rule that can end in many places (engine §4). The rule is `t → $l:t $r:t | A`, over n tokens. Then n − 1 completed items of that production span the input. With `t → t t | A`, one item does. A last test reads one production of C captures over C tokens, and counts C stored captured parts, not C².
 
 ### Faults
 
@@ -151,9 +156,9 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
-Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, `find` stands once, and the bootstrap of the item has `replace` in its place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
-The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it. Other items give a rule of the notation another shape, such as a `repetition` whose markers stand elsewhere. An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
+An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 
 ## External JSON cases: `json-keys.json`
 
@@ -179,7 +184,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses the current format. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 26. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -229,8 +234,8 @@ The library loads `grammar` as the one stage of a dialect, which reads the text'
 ## Query work cases: `query-work.json`
 
 ```
-[{"name": "queries-in-one-step", "description": "...", "head": "%rule text 'a'\n%conditions ",
-  "item": "matches(after($), r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
+[{"name": "queries-in-one-step", "description": "...", "head": "%rule text \"a\"\n%conditions ",
+  "item": "$.following-tokens.matches(r{i})", "joiner": ", ", "tail": "", "rule": "\n%rule r{i} ε",
   "count": 400, "text": "a", "most": 8}]
 ```
 
@@ -305,7 +310,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the word stage's output when that output is present. The case writes each token as its label (engine §5). So a pause inside a word is a space, and an opaque part is its text.
+- `words` records the word stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. No corpus text ties in its dialect, so each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal. Every runner compares all of these fields, `at` included.
 
@@ -375,7 +380,7 @@ Each entry of `quoted-allow.txt` covers one quoted text in one document: every l
 
 - ` = ` and cases, each as its id after its role. A role applies to the ids after it, and a role with no id after it is an error. A role is the name of a rule, `words` or `reject`. The check parses each case.
 
-  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the labels of tokens in a row, one label for each word. A word's label drops periods and commas at its edges. Each period inside it becomes a space. So `la djim.bu` is the labels `la` and `djim bu`.
+  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect’s grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
 
   These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required dialect, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
 

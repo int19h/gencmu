@@ -2,14 +2,14 @@
   "description": "elision-only over input tokens with attachments that stays ambiguous: the error is ambiguous, and the stage keeps its output, whose token carries the attachments it inherits (engine §7, §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
-    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item\n  | $w(word) | $w(word) $a(ii)\n%emits\n  $w ($a)\n%rule word\n  | 'l' <LE> | 'b' <BRIVLA> | 'c' <BRIVLA> | 'a' <A> | 'd' <B> | 'w' <W>\n%rule ii\n  'i' <I>\n%emits\n  $\n```\n",
-    "b.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text s | s B\n%rule s\n  $a(A) [B]\n%emits\n  $a\n```\n"
+    "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:ii) %emits $w ($a)\n\n\n\n%rule word \"l\" :: LE | \"b\" :: BRIVLA | \"c\" :: BRIVLA | \"a\" :: A | \"d\" :: B | \"w\" :: W\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",
+    "b.md": "```jbogenbau\n%ambiguity-resolution greedy elision-only\n%rule text s | (s B)\n%rule s ($a:A [B]) %emits $a\n\n\n\n```\n"
   },
   "pipeline": "p.md",
   "input": "aid",
   "expect": {
     "result": {
-      "format": 11,
+      "format": 12,
       "ok": false,
       "stages": [
         {
@@ -18,8 +18,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "tags": [
                 "A"
               ],
@@ -34,8 +34,8 @@
               "after": [
                 {
                   "text": "i",
-                  "phonemes": "",
-                  "label": "i",
+                  "value": "i",
+                  "image": "i",
                   "tags": [
                     "I"
                   ],
@@ -48,8 +48,8 @@
             },
             {
               "text": "d",
-              "phonemes": "",
-              "label": "d",
+              "value": "d",
+              "image": "d",
               "tags": [
                 "B"
               ],
@@ -70,8 +70,8 @@
           "output": [
             {
               "text": "a",
-              "phonemes": "",
-              "label": "a",
+              "value": "a",
+              "image": "a",
               "tags": [
                 "A"
               ],
@@ -86,8 +86,8 @@
               "after": [
                 {
                   "text": "i",
-                  "phonemes": "",
-                  "label": "i",
+                  "value": "i",
+                  "image": "i",
                   "tags": [
                     "I"
                   ],

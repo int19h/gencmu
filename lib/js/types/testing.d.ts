@@ -107,10 +107,10 @@ export type WorkCounts = {
      */
     visits: number;
     /**
-     * the tokens that a sound test or phonemes()
+     * the tokens that a value test or value()
      * visits
      */
-    soundSteps: number;
+    valueSteps: number;
     /**
      * the tags that a union of tag sets or an entry of
      * a classifier adds to a set or copies, and those that an intersection,
@@ -173,7 +173,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -221,7 +221,7 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
  * @property {number} visits the nodes of conditions and terms that an
  *   evaluation visits, each counted before it is evaluated, also where the
  *   evaluation halts for a nested parse
- * @property {number} soundSteps the tokens that a sound test or phonemes()
+ * @property {number} valueSteps the tokens that a value test or value()
  *   visits
  * @property {number} tags the tags that a union of tag sets or an entry of
  *   a classifier adds to a set or copies, and those that an intersection,
@@ -252,7 +252,7 @@ export type WorkKind = "closeStates" | "closeSequences" | "structuralStates" | "
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "soundSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**

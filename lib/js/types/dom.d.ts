@@ -1,41 +1,29 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 25;
+export declare const DOM_FORMAT = 26;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const TEST_OPS: Set<string>;
 /**
- * Whether a test's comparator is a sound test, whose value is a string,
+ * Whether a test's comparator is a value test, whose value is a string,
  * rather than a tag test, whose value is a tag set (engine §2).
  * @param {string} op
  * @returns {boolean}
  */
 export declare function isSoundTest(op: string): boolean;
 /**
- * What is wrong with the string of a sound test (engine §9), or null: one
- * that no canonical sound can be, with a comma or a code point that the
- * lowercase mapping would change. Without a table, the lowercase mapping is
- * not checked.
- * @param {string} sound
- * @param {{lowercase(text: string): string}} [unicode]
- * @returns {string | null}
- */
-export declare function soundProblem(sound: string, unicode?: {
-    lowercase(text: string): string;
-}): string | null;
-/**
  * What is wrong with a test's value (engine §9), or null: it must be a
- * closed term, of type string for a sound test and tag set for a tag test,
- * and a string literal of a sound test must be a canonical sound. The shape
+ * closed term, of type string for a value test and tag set for a tag test,
+ * and a string literal of a value test must be a canonical value. The shape
  * of the value must already be checked, and its nesting bounded.
  * @param {string} op
  * @param {any} value
- * @param {{lowercase(text: string): string}} [unicode]
+ * @param {{isMark(code: number): boolean}} [unicode]
  * @returns {{problem: string, node: any} | null}
  */
 export declare function testValueFault(op: string, value: any, unicode?: {
-    lowercase(text: string): string;
+    isMark(code: number): boolean;
 }): {
     problem: string;
     node: any;
@@ -52,48 +40,33 @@ export declare function rangeProblem(range: unknown, unicode: {
     isMark(code: number): boolean;
 }): string | null;
 /**
- * What is wrong with a property's name (engine §1, §9), or null.
- * @param {unknown} name
- * @returns {string | null}
- */
-export declare function propertyProblem(name: unknown): string | null;
-/**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
- * the loader's table: the lowercase mapping that the strings of sound
+ * the loader's table: the lowercase mapping that the strings of value
  * tests are checked against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode: {
-    lowercase(text: string): string;
     isMark(code: number): boolean;
 }, deferEmission?: boolean): string | null;
-/**
- * What is wrong with a call of split or tag whose argument the reader sees
- * as a string literal (engine §9, §10), or null: an empty delimiter, or a
- * tag's string that is not a name.
- * @param {string} call
- * @param {unknown[]} args
- * @returns {string | null}
- */
-export declare function literalCallProblem(call: string, args: unknown[]): string | null;
+/** @param {any} term @returns {Set<string>} */
+export declare function engineLiterals(term: any): Set<string>;
 /**
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{lowercase(text: string): string, isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode: {
-    lowercase(text: string): string;
     isMark(code: number): boolean;
 }, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the
  * constituent whose tags it may be defining: `$` as a value, `tags($)` or
- * `classes($)`. A span argument such as `phonemes($)` reads tokens, not tags.
+ * `classes($)`. A span argument such as `value($)` reads tokens, not tags.
  * The DOM's shape need not have been checked: anything malformed reads
  * nothing, and the check of its shape refuses it.
  * @param {unknown} node
@@ -299,6 +272,8 @@ export declare function duplicateCaptures(expr: any): {
  * @returns {any}
  */
 export declare function elidableHead(expr: any): any;
+/** @param {object} rule */
+export declare const deferredRecipeProblem: (rule: object) => string | undefined;
 /** @param {object} rule @returns {string | undefined} */
 export declare const deferredEmissionProblem: (rule: object) => string | undefined;
 /**
@@ -317,7 +292,7 @@ export declare function definitionProblem(rule: any, deferEmission?: boolean): s
  * @returns {string[]}
  */
 export declare function attachmentsOf(item: any): string[];
-export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any";
+export type TermType = "string" | "strings" | "tags" | "span" | "pattern" | "set" | "any" | "emitted" | "condition";
 export type ConstantTypes = (name: string) => TermType;
 /**
  * The kind of sets joined by ∪, ∩ or ∖, or why they cannot be joined: each

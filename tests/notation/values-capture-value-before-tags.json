@@ -1,0 +1,10 @@
+{
+  "document": "```jbogenbau\n%rule r $x:A=\"a\"<B>\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  },
+  "description": "A value test must be last, including inside a captured target (engine §9.3)."
+}

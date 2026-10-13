@@ -11,7 +11,7 @@ use crate::grammar::Implication;
 use crate::lower::{LEmit, LEmitItem, LTerm, Lowered};
 use crate::rank::{DNode, Ranker};
 use crate::result::{Attachment, Node, NodeKind, Restoration, Warning};
-use crate::tags::{phoneme_of, SetId, TagId, TagList, Tags};
+use crate::tags::{SetId, TagId, TagList, Tags};
 use crate::work::{self, Mutant, Work as Counted};
 
 #[derive(Debug, Clone)]
@@ -211,6 +211,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         span: at..at,
                         source: record.source.clone(),
                         tags: BTreeSet::new(),
+                        value: record.value.clone(),
                         children: Vec::new(),
                     },
                     None => Node {
@@ -221,6 +222,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         span: at..at + 1,
                         source: source_of(&originals, at, at + 1),
                         tags: BTreeSet::new(),
+                        value: None,
                         children: Vec::new(),
                     },
                 }]
@@ -254,6 +256,10 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                             span: start..start,
                             source: source_of(&originals, start, start),
                             tags: BTreeSet::new(),
+                            value: rule.elided_test.and_then(|id| {
+                                let test = &context.g.tests[id as usize];
+                                (test.op == crate::lower::TestOp::Is).then(|| test.sound.clone()).flatten()
+                            }),
                             children: Vec::new(),
                         }],
                         _ => children,
@@ -267,6 +273,7 @@ pub(crate) fn public_tree(tree: &ITree, context: &TreeContext) -> Node {
                         span: start..end,
                         source: source_of(&originals, start, end),
                         tags: (context.tag_map)(tags),
+                        value: None,
                         children,
                     }]
                 }
@@ -321,9 +328,9 @@ pub(crate) struct Emitted {
     pub span: (usize, usize),
     pub source: (usize, usize),
     pub tags: SetId,
-    pub phonemes: Option<String>,
+    pub value: String,
     /// What it shows to people (§5).
-    pub label: String,
+    pub image: String,
     pub inserted_by: Option<String>,
     /// The tokens attached before it and after it (§11).
     pub before: Vec<Attachment>,
@@ -340,12 +347,15 @@ enum Work<'g> {
         owner: u32,
         term: Option<&'g LTerm>,
         tags: SetId,
+        strings: &'g crate::dom::Channels,
     },
     /// An inserted token with one tag, at a token index, in a node.
     Insert {
-        tag: String,
+        tag: Option<&'g LTerm>,
         at: u32,
         node: u32,
+        anchor: Option<u32>,
+        strings: &'g crate::dom::Channels,
     },
     /// Where an item's before-attachments begin in the output, or where its
     /// carrier stands.
@@ -370,145 +380,9 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
     }
 }
 
-/// The phoneme of a token's phoneme tag, if it has one (§5). Two such
-/// tags are an error of the grammar on any token.
-fn phoneme_tag(recognizer: &Recognizer, tags: SetId) -> Result<Option<String>, EngineError> {
-    let mut own: Option<&str> = None;
-    for &id in recognizer.shared.tags.list(tags) {
-        if let Some(phoneme) = phoneme_of(recognizer.shared.tags.name(id)) {
-            if own.is_some() {
-                return Err(EngineError { message: "a token carries two phoneme tags".to_string(), rule: None });
-            }
-            own = Some(phoneme);
-        }
-    }
-    Ok(own.map(str::to_string))
-}
-
-/// The phonemes and the label of a phoneme tag `/p/` (§5): `p` and `p`,
-/// but a space for the label of the pause.
-fn sounded(phoneme: String) -> (String, String) {
-    let label = if phoneme == "." { " ".to_string() } else { phoneme.clone() };
-    (phoneme, label)
-}
-
-/// The source and the text of an opaque part (§11).
-struct OpaquePart {
-    source: (usize, usize),
-    text: String,
-}
-
 /// Whether a production's constituent emits ε and so does not count (§11).
 fn counts_for_nothing(g: &Lowered, prod: u32) -> bool {
-    matches!(g.prods[prod as usize].emit, LEmit::Nothing)
-}
-
-/// The opaque parts of the chosen derivation, with their sources and
-/// texts (§11): the constituents of `%opaque` productions inside no
-/// constituent that emits ε and no other opaque part. The stage fixes them
-/// before it emits anything, so that every token over a part holds the same
-/// text.
-fn opaque_parts(g: &Lowered, tree: &ITree, tokens: &[Tok], sources: &Sources, text: &[char]) -> FxMap<u32, OpaquePart> {
-    let mut parts: Vec<(u32, u32, u32)> = Vec::new();
-    let mut stack = vec![0u32];
-    while let Some(index) = stack.pop() {
-        let node = &tree.nodes[index as usize];
-        let IKind::Close { prod, start, end, .. } = node.kind else {
-            continue;
-        };
-        if counts_for_nothing(g, prod) {
-            continue;
-        }
-        if g.prods[prod as usize].opaque {
-            parts.push((index, start, end));
-            continue;
-        }
-        stack.extend(node.children.iter().rev());
-    }
-    // Text between two input tokens belongs to the part with a non-empty
-    // span that ends there, before one that starts there.
-    let ends: FxSet<u32> = parts.iter().filter(|(_, start, end)| start < end).map(|&(_, _, end)| end).collect();
-    let mut result = FxMap::default();
-    for (index, start, end) in parts {
-        let source = if start == end {
-            // An empty part takes in no text. Its source is that of an
-            // empty node (§12).
-            let at = sources.empty(start as usize);
-            (at, at)
-        } else {
-            let before = if start > 0 { tokens[start as usize - 1].source.1 } else { 0 };
-            // It always holds the source of its own tokens (§1), which the
-            // tokens next to it can share, and takes in the text next to it
-            // that no input token covers.
-            let own = sources.of(start as usize, end as usize);
-            let from = if ends.contains(&start) { own.0 } else { own.0.min(before) };
-            let after = tokens.get(end as usize).map_or(text.len(), |token| token.source.0);
-            (from, own.1.max(after))
-        };
-        result.insert(index, OpaquePart { source, text: text[source.0..source.1].iter().collect() });
-    }
-    result
-}
-
-/// A join of the phonemes or of the labels of a token's parts (§5): a part
-/// with an empty string is left out, of each run of adjacent pause parts
-/// only the first is kept, and a pause part at either end is left out.
-/// Pauses are counted by part, so a part keeps its own periods and spaces.
-#[derive(Default)]
-struct Join {
-    joined: String,
-    /// Whether the last piece kept is a pause part, and where it starts.
-    pause: Option<usize>,
-}
-
-impl Join {
-    fn add(&mut self, piece: &str, pause: bool) {
-        if piece.is_empty() || (pause && (self.joined.is_empty() || self.pause.is_some())) {
-            return;
-        }
-        self.pause = pause.then_some(self.joined.len());
-        self.joined.push_str(piece);
-    }
-
-    fn result(mut self) -> String {
-        if let Some(at) = self.pause {
-            self.joined.truncate(at);
-        }
-        self.joined
-    }
-}
-
-/// What a node says and shows (§5, §11): the phonemes and the labels of its
-/// parts, joined. A part is a read input token or an opaque part. Nothing
-/// inside a constituent that emits ε is a part, the node's own included,
-/// and the walk does not enter an opaque part.
-fn spoken(g: &Lowered, tree: &ITree, tokens: &[Tok], opaque: &FxMap<u32, OpaquePart>, root: u32) -> (String, String) {
-    let mut phonemes = Join::default();
-    let mut label = Join::default();
-    let mut stack = vec![root];
-    while let Some(index) = stack.pop() {
-        let node = &tree.nodes[index as usize];
-        match node.kind {
-            IKind::Read { tok, .. } => {
-                let token = &tokens[tok as usize];
-                let sound = token.phonemes.as_deref().unwrap_or("");
-                phonemes.add(sound, sound == ".");
-                label.add(&token.label, sound == ".");
-            }
-            IKind::Close { prod, .. } => {
-                if counts_for_nothing(g, prod) {
-                    continue;
-                }
-                if let Some(part) = opaque.get(&index) {
-                    phonemes.add("?", false);
-                    label.add(&part.text, false);
-                    continue;
-                }
-                stack.extend(node.children.iter().rev());
-            }
-        }
-    }
-    (phonemes.result(), label.result())
+    g.prods[prod as usize].erased
 }
 
 /// The token that covers node `index` with the given tags (§5, §11).
@@ -518,43 +392,24 @@ fn cover(
     tree: &ITree,
     tokens: &[Tok],
     sources: &Sources,
-    opaque: &FxMap<u32, OpaquePart>,
     forwarding: &mut Forwarding,
     index: u32,
     tags: SetId,
 ) -> Result<Emitted, EngineError> {
     let (start, end) = span_of(tree, index);
     let span = (start as usize, end as usize);
-    // Two phoneme tags are an error on any token (§5).
-    let phoneme = phoneme_tag(recognizer, tags)?;
-    // A token over an opaque part has the part's source (§11).
-    let source = if let Some(part) = opaque.get(&index) {
-        part.source
-    } else if start < end {
+    let source = if start < end {
         sources.of(span.0, span.1)
     } else {
         let at = sources.empty(span.0);
         (at, at)
     };
-    // A phoneme tag decides the sound and the label, over `?` (§5).
-    let (phonemes, label) = match phoneme {
-        Some(phoneme) => sounded(phoneme),
-        None => spoken(recognizer.g, tree, tokens, opaque, index),
-    };
-    let mut token = Emitted {
-        span,
-        source,
-        tags,
-        phonemes: Some(phonemes),
-        label,
-        inserted_by: None,
-        before: Vec::new(),
-        after: Vec::new(),
-    };
-    // The parts decide the attachments too, after the phoneme tags are
-    // checked (§11).
+    let (value, image) = (String::new(), String::new());
+    let mut token =
+        Emitted { span, source, tags, value, image, inserted_by: None, before: Vec::new(), after: Vec::new() };
+    // Counted parts decide attachment forwarding (§11).
     if forwarding.on {
-        if let Some(from) = forwarded(recognizer.g, tree, tokens, opaque, index)? {
+        if let Some(from) = forwarded(recognizer.g, tree, tokens, index)? {
             // Attachments belong to one token: an input token that is the
             // one part of a second token is an error of the grammar.
             if !forwarding.inherited.insert(from) {
@@ -574,16 +429,10 @@ fn cover(
 
 /// The one input token whose attachments a token over node `root` inherits,
 /// or `None` (§11). The parts are those of the join (§5): a read input
-/// token, or an opaque part as one piece, and nothing inside a constituent
-/// that emits ε. A token with attachments among other parts, or an opaque
+/// token, or an erased part as one piece, and nothing inside a constituent
+/// that emits ε. A token with attachments among other parts, or an erased
 /// part that holds one, is an error of the grammar.
-fn forwarded(
-    g: &Lowered,
-    tree: &ITree,
-    tokens: &[Tok],
-    opaque: &FxMap<u32, OpaquePart>,
-    root: u32,
-) -> Result<Option<u32>, EngineError> {
+fn forwarded(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> Result<Option<u32>, EngineError> {
     let mut parts = 0usize;
     let mut found = None;
     let mut stack = vec![root];
@@ -598,17 +447,6 @@ fn forwarded(
             }
             IKind::Close { prod, .. } => {
                 if counts_for_nothing(g, prod) {
-                    continue;
-                }
-                if opaque.contains_key(&index) {
-                    parts += 1;
-                    if holds_attachments(g, tree, tokens, index) {
-                        return Err(EngineError {
-                            message: "an opaque part over a token with attachments, which a token over it cannot place"
-                                .to_string(),
-                            rule: Some(g.prods[prod as usize].owner),
-                        });
-                    }
                     continue;
                 }
                 stack.extend(node.children.iter().rev());
@@ -626,35 +464,13 @@ fn forwarded(
     Ok(found)
 }
 
-/// Whether an opaque part holds an input token with attachments: one that
-/// it reads outside any constituent that emits ε (§11).
-fn holds_attachments(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> bool {
-    let mut stack = vec![root];
-    while let Some(index) = stack.pop() {
-        let node = &tree.nodes[index as usize];
-        match node.kind {
-            IKind::Read { tok, .. } => {
-                if tokens[tok as usize].has_attachments() {
-                    return true;
-                }
-            }
-            IKind::Close { prod, .. } => {
-                if !counts_for_nothing(g, prod) {
-                    stack.extend(node.children.iter().rev());
-                }
-            }
-        }
-    }
-    false
-}
-
 /// An emitted token as an attachment: the same token without its span
 /// (§11), with its tags and its text as the result has them.
 fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
     Attachment {
         text: recognizer.shared.source_text(token.source.0, token.source.1),
-        phonemes: token.phonemes,
-        label: token.label,
+        value: token.value,
+        image: token.image,
         tags: recognizer.shared.tags.to_set(token.tags),
         source: token.source.0..token.source.1,
         inserted_by: token.inserted_by,
@@ -666,16 +482,7 @@ fn attachment(recognizer: &Recognizer, token: Emitted) -> Attachment {
 /// The tags an emission item's term gives a token (§11): a term that gives
 /// none is an error of the grammar, since no terminal could read the token.
 fn item_tags(recognizer: &mut Recognizer, term: &LTerm, frame: &Frame, tokens: &[Tok]) -> Result<SetId, EngineError> {
-    let set = recognizer.tag_term(term, frame, tokens, 0)?;
-    if recognizer.shared.tags.list(set).is_empty() {
-        let owner = recognizer.g.prods[frame.prod as usize].owner;
-        return Err(EngineError {
-            message: "an emission gives a token no tags, which no terminal can read; %emits ε emits nothing"
-                .to_string(),
-            rule: Some(owner),
-        });
-    }
-    Ok(set)
+    recognizer.tag_term(term, frame, tokens, 0)
 }
 
 /// A stage's implications, as tag sets of one parse (§11), indexed by
@@ -776,8 +583,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
     // The stage's implications, as tag sets of this parse (§11).
     let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
-    // The opaque parts and their texts, fixed before any token (§11).
-    let opaque = opaque_parts(g, tree, tokens, &sources, recognizer.shared.text);
+    let mut strings = crate::strings::Strings::new(g, tree, tokens, recognizer.shared.text);
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();
@@ -800,8 +606,14 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     LEmit::This(items) => {
                         // One token over the constituent per `$`, each with
                         // its term evaluated when it is made.
-                        for term in items.iter().rev() {
-                            stack.push(Work::Cover { node: index, owner: index, term: term.as_ref(), tags: *tags });
+                        for (item, term) in items.iter().enumerate().rev() {
+                            stack.push(Work::Cover {
+                                node: index,
+                                owner: index,
+                                term: term.as_ref(),
+                                tags: *tags,
+                                strings: &production.item_strings[item],
+                            });
                         }
                     }
                     LEmit::Items(items) => {
@@ -809,16 +621,23 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                         // inside the constituent is walked but their
                         // attachments (§11).
                         let (_, end) = span_of(tree, index);
-                        let child = |slot: u32| node.children[production.cap_pos[slot as usize]];
+                        let child = |slot: u32| {
+                            if slot == u32::MAX {
+                                index
+                            } else {
+                                node.children[production.cap_pos[slot as usize]]
+                            }
+                        };
                         let mut sequence = Vec::with_capacity(items.len());
-                        for item in items {
+                        for (item_index, item) in items.iter().enumerate() {
                             match item {
                                 LEmitItem::Cap(slot, term, before, after) => {
                                     let carrier = Work::Cover {
                                         node: child(*slot),
                                         owner: index,
                                         term: term.as_ref(),
-                                        tags: caps[*slot as usize].tags,
+                                        tags: if *slot == u32::MAX { *tags } else { caps[*slot as usize].tags },
+                                        strings: &production.item_strings[item_index],
                                     };
                                     if before.is_empty() && after.is_empty() {
                                         sequence.push(carrier);
@@ -841,7 +660,13 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                                     // of the capture item listed next, or at
                                     // the constituent's end.
                                     let at = anchor.map_or(end, |slot| span_of(tree, child(slot)).0);
-                                    sequence.push(Work::Insert { tag: tag.clone(), at, node: index });
+                                    sequence.push(Work::Insert {
+                                        tag: tag.as_ref(),
+                                        at,
+                                        node: index,
+                                        anchor: anchor.map(child),
+                                        strings: &production.item_strings[item_index],
+                                    });
                                 }
                             }
                         }
@@ -849,7 +674,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     }
                 }
             }
-            Work::Cover { node, owner, term, tags } => {
+            Work::Cover { node, owner, term, tags, strings: channels } => {
                 let tags = match term {
                     Some(term) => {
                         let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[owner as usize].kind else {
@@ -872,7 +697,9 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     None => tags,
                 };
                 let tags = implications.implied(&mut recognizer.shared.tags, tags);
-                out.push(cover(recognizer, tree, tokens, &sources, &opaque, &mut forwarding, node, tags)?);
+                let mut token = cover(recognizer, tree, tokens, &sources, &mut forwarding, node, tags)?;
+                (token.value, token.image) = strings.item(owner, Some(node), channels)?;
+                out.push(token);
             }
             Work::Mark => marks.push(out.len()),
             Work::Attach => {
@@ -891,11 +718,18 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 carrier.after.extend(after.into_iter().map(|token| attachment(recognizer, token)));
                 out.push(carrier);
             }
-            Work::Insert { tag, at, node } => {
+            Work::Insert { tag, at, node, anchor, strings: channels } => {
                 let (start, end) = span_of(tree, node);
                 // At the source end of the token before, or at the start of
                 // the constituent's source if `at` is its start.
-                let source = if at > start {
+                let source = if let Some(anchor) = anchor {
+                    let (a, b) = span_of(tree, anchor);
+                    if a < b {
+                        sources.of(a as usize, b as usize).0
+                    } else {
+                        sources.empty(a as usize)
+                    }
+                } else if at > start {
                     tokens[at as usize - 1].source.1
                 } else if start < end {
                     sources.of(start as usize, end as usize).0
@@ -904,19 +738,34 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                 };
                 let IKind::Close { prod, .. } = &tree.nodes[node as usize].kind else { unreachable!("a close") };
                 let owner = g.prods[*prod as usize].owner;
-                let set = recognizer.shared.tags.set_of([tag.as_str()]);
+                let IKind::Close { prod, start, end, tags, caps } = &tree.nodes[node as usize].kind else {
+                    unreachable!()
+                };
+                let frame = Frame {
+                    lexical: None,
+                    parent_structure: u32::MAX,
+                    parent_tags: Cell::new(None),
+                    structure: tree.nodes[node as usize].structure,
+                    caps: Caps::All(caps),
+                    prod: *prod,
+                    origin: *start,
+                    end: *end,
+                    tags: Cell::new(Some(*tags)),
+                    project: None,
+                };
+                let set = match tag {
+                    Some(term) => item_tags(recognizer, term, &frame, tokens)?,
+                    None => 0,
+                };
                 let set = implications.implied(&mut recognizer.shared.tags, set);
-                // Two phoneme tags are an error here too, where an
-                // implication added one (§5). An inserted token has no
-                // parts: a phoneme tag gives its phonemes and its label, or
-                // both are empty.
-                let (phonemes, label) = phoneme_tag(recognizer, set)?.map(sounded).unwrap_or_default();
+                // Inserted tokens receive their strings from item recipes.
+                let (value, image) = strings.item(node, None, channels)?;
                 out.push(Emitted {
                     span: (at as usize, at as usize),
                     source: (source, source),
                     tags: set,
-                    phonemes: Some(phonemes),
-                    label,
+                    value,
+                    image,
                     inserted_by: Some(g.rules[owner as usize].name.clone()),
                     before: Vec::new(),
                     after: Vec::new(),

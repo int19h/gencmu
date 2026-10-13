@@ -1,0 +1,42 @@
+{
+  "description": "An item override suppresses unused constituent verbatim evaluations (engine §11).",
+  "grammar": "%rule text {unit}\n%rule unit :- $.verbatim-text | _ %emits $ := \"x\"",
+  "input": "a,b",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [],
+      "source": [
+        0,
+        1
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "x",
+              "image": "x"
+            },
+            {
+              "value": "x",
+              "image": "x"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

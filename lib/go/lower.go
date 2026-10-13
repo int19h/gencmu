@@ -22,41 +22,46 @@ type slotMetadata struct {
 }
 
 type production struct {
-	closeRequested bool
-	observesCloses bool
-	base           *production
-	lexical        *rankedFrame
-	ranked         *rankedGroup
-	option         int
-	contextual     bool
-	privateNames   map[string]bool
-	rankedBindings string
-	parentTags     *domTerm
-	slot           *slotMetadata
-	num            int
-	lhs            int32
-	rhs            []symbol
-	tests          []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
-	capName        []string   // per position: the capture's name, or ""
-	capSlot        []int32    // per position: the item's capture slot, or -1
-	nslots         int
-	slotOf         map[string]int32 // capture name → slot
-	posOf          map[string]int   // capture name → its first position
-	tags           *domTerm         // nil: default tags (§4)
-	implicit       bool             // one symbol and no tags: the constituent has its symbol's tags (§3.7)
-	conds          []lcond
-	condFrom       []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
-	predictConds   []*domCond // conditions using no capture but $ of an empty production, checked at prediction
-	emit           *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing        bool       // %emits ε: the constituent emits nothing and does not count (§11)
-	opaque         bool       // %opaque: the constituent is an opaque part, which sounds ? and shows its text (§11)
-	transparent    bool
-	helper         bool
-	elided         string   // for the ε production of an optional beginning with an elidable terminal
-	elidedTest     *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
-	ruleName       string   // the rule the author wrote (for a helper, the one it serves)
-	doc            string
-	at             [2]int
+	logicalGroups     []logicalGroup
+	helperExpression  *domExpr // the written helper site, shared by split routes
+	sourceAlternative *sAlt
+	closeRequested    bool
+	observesCloses    bool
+	base              *production
+	lexical           *rankedFrame
+	ranked            *rankedGroup
+	option            int
+	contextual        bool
+	privateNames      map[string]bool
+	rankedBindings    string
+	parentTags        *domTerm
+	slot              *slotMetadata
+	num               int
+	lhs               int32
+	rhs               []symbol
+	tests             []*symTest // per position: the test its symbol must pass, or nil; nil when no symbol is tested (§4)
+	capName           []string   // per position: the capture's name, or ""
+	capSlot           []int32    // per position: the item's capture slot, or -1
+	nslots            int
+	slotOf            map[string]int32 // capture name → slot
+	posOf             map[string]int   // capture name → its first position
+	tags              *domTerm         // nil: default tags (§4)
+	inheritIndex      int
+	logicalCount      int
+	implicit          bool // one symbol and no tags: the constituent has its symbol's tags (§3.7)
+	conds             []lcond
+	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
+	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	emit              *domEmit   // as dropped and simplified for the production (§3.6)
+	nothing           bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	value, image      *domTerm
+	transparent       bool
+	helper            bool
+	elided            string   // for the ε production of an optional beginning with an elidable terminal
+	elidedTest        *symTest // the test of that terminal, if it is tested; a restored token sounds like the string of an = test (§7)
+	ruleName          string   // the rule the author wrote (for a helper, the one it serves)
+	doc               string
+	at                [2]int
 	// warnings are the features of its alternative's warnings that are on,
 	// in the order written, each giving a warning for a node of the chosen
 	// tree built by the production (§12); a helper has none.
@@ -126,17 +131,20 @@ type lowered struct {
 }
 
 type slot struct {
-	sym     symbol
-	capture string
-	test    *symTest // nil for a symbol without a test
+	logicalMark int
+	logicalExpr *domExpr
+	sym         symbol
+	capture     string
+	test        *symTest // nil for a symbol without a test
 }
 
 // symTest is a test of a symbol in a body (engine §2, §4) with its value:
-// a string for a sound test, = or ≠, and a tag set for a tag test.
+// an exact string for = or ≠, or signed stored-tag requirements.
 type symTest struct {
-	op    string
-	sound string
-	tags  []string // a tag test's tags, in code point order
+	op           string
+	other        *symTest
+	requirements []resolvedRequirement
+	sound        string
 	// written is the test as an expected list writes it after its
 	// terminal, such as ="la" (docs/output.md).
 	written string
@@ -393,10 +401,13 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
-					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					p.sourceAlternative = h.owner
+					p.helperExpression = h.path
+					b, _, _ = logicalBody(b)
+					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
 					}
-					if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.posOf = map[string]int{}
 						p.nslots = 0
 						for i, s := range b {
@@ -409,8 +420,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 								p.nslots++
 							}
 						}
-						if p.implicit && p.capSlot[0] < 0 {
-							p.capSlot[0] = int32(p.nslots)
+						if p.implicit && p.capSlot[p.inheritIndex] < 0 {
+							p.capSlot[p.inheritIndex] = int32(p.nslots)
 							p.nslots++
 						}
 						if group := lw.g.ranked.expressions[h.path]; group != nil {
@@ -489,7 +500,10 @@ func appendSlots(out, xs []slot) []slot {
 }
 
 func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
-	p := &production{num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}}
+	groups := logicalGroupsOf(body)
+	physical, count, inherit := logicalBody(body)
+	body = physical
+	p := &production{logicalGroups: groups, num: len(lw.l.prods), lhs: lhs, slotOf: map[string]int32{}, logicalCount: count, inheritIndex: inherit}
 	p.capName = make([]string, len(body))
 	p.capSlot = make([]int32, len(body))
 	for i, s := range body {
@@ -503,10 +517,10 @@ func (lw *lowerer) newProduction(lhs int32, body []slot) *production {
 			p.tests[i] = s.test
 		}
 	}
-	if len(body) == 1 {
+	if inherit >= 0 {
 		// One symbol and no tags: the symbol's tags (§3.7), read as captured.
 		p.implicit = true
-		p.capSlot[0] = 0
+		p.capSlot[inherit] = 0
 		p.nslots = 1
 	}
 	lw.l.prods = append(lw.l.prods, p)
@@ -519,6 +533,8 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	// The structural grammar counts the production, whatever its
 	// conditions (§3.3).
 	lw.structural = append(lw.structural, structuralProduction{lhs, symbolsOf(body)})
+	rawBody := body
+	body, _, _ = logicalBody(body)
 	position := map[string]int{}
 	for i, s := range body {
 		if s.capture != "" {
@@ -555,11 +571,19 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			return
 		}
 	}
-	p := lw.newProduction(lhs, body)
-	if lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
+	p := lw.newProduction(lhs, rawBody)
+	p.sourceAlternative = a
+	if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 		p.slot = &slotMetadata{source: a}
 	}
-	p.opaque = a.opaque
+	p.nothing = a.erased
+	p.value, p.image = a.alt.Value, a.alt.Image
+	if p.value == nil {
+		p.value = a.ruleValue
+	}
+	if p.image == nil {
+		p.image = a.ruleImage
+	}
 	p.ruleName = lw.l.rules[lhs].name
 	p.doc, p.at = a.doc, a.at
 	warnings, ok := lw.warnings[a]
@@ -576,7 +600,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 		p.warnings = appendCounted(nil, warnings, readerCount(), "reader steps")
 		lw.l.warns = true
 	}
-	p.transparent = len(body) == 1
+	p.transparent = p.logicalCount == 1
 	p.implicit = false
 	p.nslots = 0
 	p.posOf = make(map[string]int, len(position))
@@ -612,10 +636,10 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 	case 2:
 		p.tags = &domTerm{Kind: tmUnion, Items: written}
 	}
-	if p.tags == nil && len(body) == 1 {
+	if p.tags == nil && p.inheritIndex >= 0 {
 		p.implicit = true
-		if p.capSlot[0] < 0 {
-			p.capSlot[0] = int32(p.nslots)
+		if p.capSlot[p.inheritIndex] < 0 {
+			p.capSlot[p.inheritIndex] = int32(p.nslots)
 			p.nslots++
 		}
 	}
@@ -681,7 +705,7 @@ func (lw *lowerer) addProduction(lhs int32, body []slot, a *sAlt) {
 			e.Items = append(e.Items, it)
 		}
 		p.emit = e
-		p.nothing = a.emit.nothing()
+		p.nothing = a.erased
 	}
 }
 
@@ -704,8 +728,9 @@ func elidableTerminal(e *domExpr) (string, *domExpr) {
 	switch {
 	case e.Kind == exSeq:
 		return elidableTerminal(e.Items[0])
-	case e.Kind == exTest && isTagSymbol(e.Inner):
-		return e.Inner.Name, e
+	case e.Kind == exTest:
+		name, _ := elidableTerminal(e.Inner)
+		return name, e
 	case isTagSymbol(e):
 		return e.Name, nil
 	}
@@ -816,7 +841,11 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// (ε | x) would: first the empty sequence, then each expansion of
 		// x (§3.2).
 		if !e.Elidable && holdsCapture(inner, false) {
-			return append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			bodies := append([][]slot{{}}, lw.expand(inner, a, ruleName)...)
+			for i, body := range bodies {
+				bodies[i] = append(append([]slot{{logicalMark: 1, logicalExpr: e}}, body...), slot{logicalMark: -1, logicalExpr: e})
+			}
+			return bodies
 		}
 		if !e.Elidable && lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 && holdsCapture(inner, true) {
 			// Preserve tag arity while each helper selects one complete route.
@@ -825,9 +854,11 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			var out [][]slot
 			for _, body := range bodies {
 				selected := body
-				out = append(out, lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+				route := lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
 					return [][]slot{selected}
-				})...)
+				})[0]
+				// Each physical helper is one route through the same written optional.
+				out = append(out, append(append([]slot{{logicalMark: 1, logicalExpr: e}}, route...), slot{logicalMark: -1, logicalExpr: e}))
 			}
 			return out
 		}
@@ -840,7 +871,7 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			if t, tested := elidableTerminal(inner); t != "" {
 				elide = t
 				if tested != nil {
-					elideT = lw.tests[tested]
+					elideT = lw.boundTest(tested)
 				}
 			}
 		}
@@ -878,13 +909,25 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		return [][]slot{{{sym: symbol{id: lw.l.byName[e.Name]}}}}
 	case exTerminal:
 		return [][]slot{{{sym: lw.terminal(e.Name)}}}
+	case exLiteral:
+		v, err := lw.g.evaluateClosed(a.doc, e.Value, a.at)
+		if err != nil {
+			panic(err)
+		}
+		return [][]slot{{{sym: lw.classTerminal(stringTerminal(v.s, lw.g.uni), &charClass{literal: &v.s})}}}
+	case exWildcard:
+		return [][]slot{{{sym: lw.classTerminal("_", &charClass{wildcard: true})}}}
 	case exRange:
-		// A range or a property is a terminal whose name is its written
-		// form, and which matches by its characters rather than by a tag.
-		cc := &charClass{from: codeOfCharacterTag(e.Range[0]), to: codeOfCharacterTag(e.Range[1])}
-		return [][]slot{{{sym: lw.classTerminal(rangeName(e.Range), cc)}}}
-	case exProperty:
-		return [][]slot{{{sym: lw.classTerminal(propertyName(e.Name), &charClass{property: e.Name})}}}
+		var ends [2]string
+		for i, end := range e.Ends {
+			v, err := lw.g.evaluateClosed(a.doc, end, a.at)
+			if err != nil {
+				panic(err)
+			}
+			ends[i] = v.s
+		}
+		cc := &charClass{from: []rune(ends[0])[0], to: []rune(ends[1])[0]}
+		return [][]slot{{{sym: lw.classTerminal(stringTerminal(ends[0], lw.g.uni)+".."+stringTerminal(ends[1], lw.g.uni), cc)}}}
 	case exCapture:
 		var out [][]slot
 		for _, x := range lw.expand(e.Inner, a, ruleName) {
@@ -898,12 +941,28 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 		// helper (§3).
 		x := lw.expand(e.Inner, a, ruleName)
 		c := concat(nil, x[0])
-		c[0].test = lw.tests[e]
+		st := *lw.tests[e]
+		st.other = c[0].test
+		if st.other != nil {
+			st.written = st.other.written + st.written
+		}
+		c[0].test = &st
 		return [][]slot{c}
 	case exEmpty:
 		return [][]slot{{}}
 	}
 	panic("unknown expression " + e.Kind)
+}
+
+// boundTest retains every predicate on an elidable terminal. The omission
+// route and the written route test the same stored-tag requirements (§3.8).
+func (lw *lowerer) boundTest(e *domExpr) *symTest {
+	test := *lw.tests[e]
+	if e.Inner != nil && e.Inner.Kind == exTest {
+		test.other = lw.boundTest(e.Inner)
+		test.written = test.other.written + test.written
+	}
+	return &test
 }
 
 // derivedRules is the least set of rules closed under the productions:

@@ -1,8 +1,32 @@
 {
-  "description": "The loader rejects an invalid constant dependency or pattern type.",
-  "grammar": "%const $S \"A\"\n%const $P @(A=$S)\n%rule text ε",
+  "description": "The loader rejects an invalid constant dependency or pattern type (engine §4.1 and §10).",
+  "grammar": "%const $S \"A\"\n%const $P @A=$S\n%rule text ε",
   "input": "",
   "expect": {
-    "error": "grammar"
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          0
+        ],
+        "source": [
+          0,
+          0
+        ],
+        "tags": [],
+        "children": []
+      }
+    }
   }
 }

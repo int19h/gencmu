@@ -1,0 +1,59 @@
+{
+  "description": "Rejection at input end uses the last token's source end, even when an earlier token ends later (engine §4, §12).",
+  "grammar": "%rule text A B C",
+  "input": "a b c",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "A"
+      ],
+      "source": [
+        2,
+        3
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "B"
+      ],
+      "source": [
+        0,
+        1
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 2,
+        "source": [
+          1,
+          1
+        ],
+        "line": 1,
+        "column": 2,
+        "expected": [
+          {
+            "terminal": "C",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

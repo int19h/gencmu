@@ -1,20 +1,20 @@
 {
-  "description": "A string constant can stand for the string of a sound test (engine §2, §7).",
-  "grammar": "%const $LA \"la\"\n%rule text LE=$LA B | LE C",
+  "description": "A string constant can stand for the string of a value test (engine §2, §7).",
+  "grammar": "%const $LA \"la\"\n%rule text (LE=$LA B) | (LE C)",
   "tokens": [
     {
       "text": "la",
       "tags": [
         "LE"
       ],
-      "phonemes": "la"
+      "value": "la"
     },
     {
       "text": "b",
       "tags": [
         "B"
       ],
-      "phonemes": "b"
+      "value": "b"
     }
   ],
   "expect": {

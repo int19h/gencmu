@@ -1,0 +1,14 @@
+{
+  "description": "The covering-item recipe reads private capture $x through .source-text. Nested receivers remain subject to ranked-choice-export (engine §2.1 and §11.4).",
+  "grammar": "%rule text :: ∅ | ($x:A ≻ $x:B) %emits $ := $x.source-text",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 25
+    }
+  }
+}

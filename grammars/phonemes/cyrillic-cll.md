@@ -20,34 +20,44 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
 %extend-rule stressed-vowel
   cll-cyrillic? cll-cyrillic-stressed-vowel
 
-%rule cll-cyrillic-consonant
-  | 'б' </b/> | 'Б' </b/>
-  | 'в' </v/> | 'В' </v/>
-  | 'г' </g/> | 'Г' </g/>
-  | 'д' </d/> | 'Д' </d/>
-  | 'ж' </j/> | 'Ж' </j/>
-  | 'з' </z/> | 'З' </z/>
-  | 'к' </k/> | 'К' </k/>
-  | 'л' </l/> | 'Л' </l/>
-  | 'м' </m/> | 'М' </m/>
-  | 'н' </n/> | 'Н' </n/>
-  | 'п' </p/> | 'П' </p/>
-  | 'р' </r/> | 'Р' </r/>
-  | 'с' </s/> | 'С' </s/>
-  | 'т' </t/> | 'Т' </t/>
-  | 'ф' </f/> | 'Ф' </f/>
-  | 'х' </x/> | 'Х' </x/>
-  | 'ш' </c/> | 'Ш' </c/>
+%rule cll-cyrillic-consonant :: ∅
+  | ("б" | "Б") := "b"
+  | ("в" | "В") := "v"
+  | ("г" | "Г") := "g"
+  | ("д" | "Д") := "d"
+  | ("ж" | "Ж") := "j"
+  | ("з" | "З") := "z"
+  | ("к" | "К") := "k"
+  | ("л" | "Л") := "l"
+  | ("м" | "М") := "m"
+  | ("н" | "Н") := "n"
+  | ("п" | "П") := "p"
+  | ("р" | "Р") := "r"
+  | ("с" | "С") := "s"
+  | ("т" | "Т") := "t"
+  | ("ф" | "Ф") := "f"
+  | ("х" | "Х") := "x"
+  | ("ш" | "Ш") := "c"
 %emits
   $
 
-%rule cll-cyrillic-plain-vowel
-  'а' </a/> | 'е' </e/> | 'и' </i/> | 'о' </o/> | 'у' </u/> | 'ъ' </y/>
+%rule cll-cyrillic-plain-vowel :: ∅
+  | "а" := "a"
+  | "е" := "e"
+  | "и" := "i"
+  | "о" := "o"
+  | "у" := "u"
+  | "ъ" := "y"
 %emits
   $
 
-%rule cll-cyrillic-stressed-vowel
-  'А' </A/> | 'Е' </E/> | 'И' </I/> | 'О' </O/> | 'У' </U/> | 'Ъ' </Y/>
+%rule cll-cyrillic-stressed-vowel :: Stressed
+  | "А" := "A"
+  | "Е" := "E"
+  | "И" := "I"
+  | "О" := "O"
+  | "У" := "U"
+  | "Ъ" := "Y"
 %emits
   $
 ```

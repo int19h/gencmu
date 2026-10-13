@@ -1,6 +1,6 @@
 {
   "description": "Conditions with ∨ and ¬, and an emission list with an inserted phoneme (engine §9).",
-  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a(A) $b(B) %conditions phonemes($a) = \"x\" ∨ phonemes($a) ∈ split(phonemes($b), \".\"), ¬matches($b, r) %emits $a, /'/, $b <W>\n```\n",
+  "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g ($a:A $b:B) %conditions ($a.value = \"x\" ∨ $a.value ∈ $b.value.split(\".\")), ¬($b.matches(r)) %emits $a, ε :: Sound-0027-s := \"'\", $b :: W\n```\n",
   "expect": {
     "dom": {
       "rules": [
@@ -11,12 +11,11 @@
                 {
                   "op": "=",
                   "left": {
-                    "call": "phonemes",
-                    "args": [
-                      {
-                        "capture": "a"
-                      }
-                    ]
+                    "method": "value",
+                    "receiver": {
+                      "capture": "a"
+                    },
+                    "args": []
                   },
                   "right": {
                     "string": "x"
@@ -25,24 +24,22 @@
                 {
                   "op": "∈",
                   "left": {
-                    "call": "phonemes",
-                    "args": [
-                      {
-                        "capture": "a"
-                      }
-                    ]
+                    "method": "value",
+                    "receiver": {
+                      "capture": "a"
+                    },
+                    "args": []
                   },
                   "right": {
-                    "call": "split",
-                    "args": [
-                      {
-                        "call": "phonemes",
-                        "args": [
-                          {
-                            "capture": "b"
-                          }
-                        ]
+                    "method": "split",
+                    "receiver": {
+                      "method": "value",
+                      "receiver": {
+                        "capture": "b"
                       },
+                      "args": []
+                    },
+                    "args": [
                       {
                         "string": "."
                       }
@@ -53,10 +50,15 @@
             },
             {
               "not": {
-                "matches": {
+                "method": "matches",
+                "receiver": {
                   "capture": "b"
                 },
-                "rule": "r"
+                "args": [
+                  {
+                    "rule": "r"
+                  }
+                ]
               }
             }
           ],
@@ -66,7 +68,17 @@
                 "capture": "a"
               },
               {
-                "insert": "/'/"
+                "insert": true,
+                "tags": {
+                  "tag": "Sound-0027-s"
+                },
+                "value": {
+                  "concat": [
+                    {
+                      "string": "'"
+                    }
+                  ]
+                }
               },
               {
                 "capture": "b",

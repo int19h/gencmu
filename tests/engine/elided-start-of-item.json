@@ -1,6 +1,6 @@
 {
-  "description": "Each repetition item omits T before reading A. Both items remain available.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x {[+T] A}",
+  "description": "Each repetition item omits T before reading A. Both items remain available (engine §3.8 and §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text x\n%rule x {([+T] A)}",
   "tokens": [
     {
       "text": "a",

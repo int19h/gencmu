@@ -7,7 +7,7 @@
 <g class="rule"><rect x="40" y="34" width="151" height="24" rx="0"/><text x="115.5" y="51" textLength="134.4" lengthAdjust="spacingAndGlyphs">pattern-sequence</text></g>
 <path d="M191 46H211"/>
 <path d="M191 46a10 10 0 0 1 10 10V70a10 10 0 0 1 -10 10H136.5"/>
-<g class="terminal"><rect x="94.5" y="68" width="42" height="24" rx="12"/><text x="115.5" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">'∩'</text></g>
+<g class="terminal"><rect x="94.5" y="68" width="42" height="24" rx="12"/><text x="115.5" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;∩&quot;</text></g>
 <path d="M94.5 80H40a10 10 0 0 1 -10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M211 46h6m0 -8v16m4 -16v16"/>
 </svg>

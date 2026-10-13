@@ -1,6 +1,6 @@
 {
   "description": "A constant's value may nest 256 deep after a rule too: here 256 differences, grouped from the left (engine §9).",
-  "grammar": "%rule text A <$K>\n%const $K ~a ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B ∖ B",
+  "grammar": "%rule text A :: $K\n%const $K ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((Tag-a ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B) ∖ B)",
   "tokens": [
     {
       "text": "a",
@@ -16,7 +16,7 @@
         "kind": "rule",
         "rule": "text",
         "tags": [
-          "a"
+          "Tag-a"
         ]
       }
     }

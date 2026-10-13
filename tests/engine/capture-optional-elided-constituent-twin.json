@@ -1,6 +1,6 @@
 {
-  "description": "A plain optional retains its empty helper before the elided T. The complete reading still consumes C outside the optional.",
-  "grammar": "%ambiguity-resolution greedy\n%rule text A [y] [+T] C\n%rule y C",
+  "description": "A plain optional retains its empty helper before the elided T. The complete reading still consumes C outside the optional (engine §3.8 and §4).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (A [y] [+T] C)\n%rule y C",
   "tokens": [
     {
       "text": "a",
