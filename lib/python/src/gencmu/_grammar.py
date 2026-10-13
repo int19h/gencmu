@@ -813,7 +813,12 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                             alt.at,
                             stage,
                         )
-                    stack.extend(reversed(list(value.values())))
+                    if "method" in value:
+                        # DOM object order does not change the written
+                        # order: the receiver precedes every argument.
+                        stack.extend(reversed([value["receiver"], *value["args"]]))
+                    else:
+                        stack.extend(reversed(list(value.values())))
                 elif isinstance(value, list):
                     stack.extend(reversed(value))
     from ._families import members
