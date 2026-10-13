@@ -1639,9 +1639,13 @@ fn check_expr(grammar: &StageGrammar, expr: &Expr) -> Result<(), String> {
     }
 }
 
-fn check_span(term: &Term) -> Result<(), String> {
+fn check_span(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
     match term {
         Term::Capture(_) => Ok(()),
+        Term::Call(name, args) if name == "without-elision-except" => match &args[..] {
+            [Arg::Term(Term::Capture(_)), Arg::Rule(rule)] => check_rule(grammar, rule),
+            _ => Err(".without-elision-except takes a bare capture and one rule name".to_string()),
+        },
         Term::Call(name, args)
             if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision") =>
         {
@@ -1651,7 +1655,7 @@ fn check_span(term: &Term) -> Result<(), String> {
                     Err("without-elision() takes one bare capture: use from(without-elision($x)) for an extended query"
                         .to_string())
                 }
-                [Arg::Term(inner)] => check_span(inner),
+                [Arg::Term(inner)] => check_span(grammar, inner),
                 _ => Err(format!("{name}() takes one span")),
             }
         }
@@ -1679,9 +1683,9 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
             check_term(grammar, then)
         }
         Term::Call(name, args) => match (name.as_str(), &args[..]) {
-            ("value" | "image" | "text" | "classes" | "tags", [Arg::Term(span)]) => check_span(span),
+            ("value" | "image" | "text" | "classes" | "tags", [Arg::Term(span)]) => check_span(grammar, span),
             ("tags", [Arg::Term(span), Arg::Rule(rule)]) => {
-                check_span(span)?;
+                check_span(grammar, span)?;
                 check_rule(grammar, rule)
             }
             ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
@@ -1696,7 +1700,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 }
                 Ok(())
             }
-            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span(span),
+            ("verbatim-text" | "emitted", [Arg::Term(span)]) => check_span(grammar, span),
             // A classifier that classify names belongs to the stage (§2).
             ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
                 check_term(grammar, string)?;
@@ -1706,7 +1710,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                     Err(format!("classify names {classifier}, which no %classifier of stage {} names", grammar.name))
                 }
             }
-            ("head" | "tail" | "last" | "from" | "after" | "without-elision", _) => {
+            ("head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except", _) => {
                 Err(format!("{name}() is a span, not a value"))
             }
             ("value" | "text" | "classes" | "tags" | "split" | "classify" | "matches" | "begins" | "initial", _) => {
@@ -1728,10 +1732,10 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_term(grammar, right)
         }
         Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
-            check_span(span)?;
+            check_span(grammar, span)?;
             check_rule(grammar, rule)
         }
-        Cond::Initial(span) => check_span(span),
+        Cond::Initial(span) => check_span(grammar, span),
         Cond::Not(inner) => check_cond(grammar, inner),
         Cond::Captured(_) => Ok(()),
         Cond::If(antecedent, consequent) => {

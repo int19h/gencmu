@@ -1519,6 +1519,7 @@ impl<'a> Reader<'a> {
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
                 ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
+                ("without-elision-except", [Arg::Rule(_)]) => bare,
                 ("split", [Arg::Term(_)]) => {
                     string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
                 }
@@ -1529,6 +1530,8 @@ impl<'a> Reader<'a> {
         if !valid {
             let hint = if name == "without-elision" {
                 "; write $x.without-elision.onward for an extended restored query"
+            } else if name == "without-elision-except" {
+                "; write $x.without-elision-except(F).onward for an extended restored query"
             } else {
                 ""
             };
