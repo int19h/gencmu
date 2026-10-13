@@ -12,7 +12,7 @@ use crate::fxhash::{FxMap, FxSet};
 
 use crate::lower::{Characters, CmpOp, LCond, LTerm, Lowered, Span, Sym, SymbolTest, TestOp};
 use crate::result::Attachment;
-use crate::tags::{character_tag, difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
+use crate::tags::{difference, intersection, is_subset, union_all, SetId, TagId, TagList, Tags};
 use crate::unicode::Unicode;
 use crate::witness::{self, Fault};
 use crate::work::{self, Mutant, Work};
@@ -71,10 +71,7 @@ impl Tok {
 }
 
 impl Tok {
-    /// The token's value in canonical form, or nothing if it has none
-    /// (§5). The lowercase mapping and the removal of commas act on each
-    /// code point alone, so the canonical sound of a span is its tokens'
-    /// joined.
+    /// The token's exact stored value, cached for repeated observations.
     pub(crate) fn sound(&self, _unicode: &Unicode) -> &str {
         self.sound.get_or_init(|| self.value.as_str().into())
     }
@@ -90,10 +87,9 @@ pub(crate) fn mark_quiet(tokens: &mut [Tok], unicode: &Unicode) {
     }
 }
 
-/// Whether `tokens` sound like a string: their canonical sound is exactly
-/// it (§4, §5). A token with no value adds nothing, so an empty span
-/// sounds like the empty string. Runs of such tokens are skipped whole, so
-/// the test costs the length of the string, not of the span.
+/// Compare the exact concatenation of token values (§4, §5). Empty
+/// values contribute nothing. Runs of them are skipped whole, so the
+/// test costs the string length rather than the span length.
 fn sounds_like(tokens: &[Tok], unicode: &Unicode, sound: &str) -> bool {
     let mut rest = sound;
     let mut at = 0;
@@ -681,9 +677,6 @@ pub(crate) struct Shared<'a> {
     close_prefixes: Vec<crate::restoration::QueryPrefix>,
     pattern_grammar: usize,
     pub tags: Tags,
-    /// The tag list of each range that a term holds, by its first and last
-    /// scalar values, made once (§10).
-    ranges: FxMap<(u32, u32), Arc<TagList>>,
     pub unicode: &'a Unicode,
     pub text: &'a [char],
     /// Whether a span parses as a rule, and its tags as it: what `matches`
@@ -707,7 +700,6 @@ impl<'a> Shared<'a> {
             close_prefixes: Vec::new(),
             pattern_grammar: 0,
             tags: Tags::new(),
-            ranges: FxMap::default(),
             unicode,
             text,
             memo: FxMap::default(),
@@ -752,28 +744,7 @@ impl<'a> Shared<'a> {
         })
     }
 
-    /// The character tags of a range, from its first to its last scalar
-    /// value, the surrogates skipped (§1).
-    fn range(&mut self, first: u32, last: u32) -> Arc<TagList> {
-        if let Some(list) = self.ranges.get(&(first, last)) {
-            return list.clone();
-        }
-        let unicode = self.unicode;
-        // The list is made once, and each later evaluation shares it. Each
-        // tag counts as it is made.
-        let mut list: TagList = (first..=last)
-            .filter_map(char::from_u32)
-            .map(|c| {
-                work::count(Work::Listed, 1);
-                self.tags.tag(&character_tag(c, unicode))
-            })
-            .collect();
-        list.sort_unstable();
-        let list = Arc::new(list);
-        self.ranges.insert((first, last), list.clone());
-        list
-    }
-
+    /// The original source envelope of a token span.
     pub(crate) fn source_text(&self, start: usize, end: usize) -> String {
         self.text[start..end].iter().collect()
     }
@@ -2477,8 +2448,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     // ---- terms and conditions
 
-    /// The canonical sound of the span (§5). Runs of tokens without sound
-    /// are skipped whole, as in a sound test.
+    /// The exact input value of the span (§5). Runs of empty values
+    /// are skipped whole, as in a value test.
     fn value(&self, tokens: &[Tok], start: usize, end: usize) -> String {
         let mut sound = String::new();
         let mut at = start;
@@ -2808,7 +2779,6 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     Out::Value(match term {
                         LTerm::Str(text) => Value::Str(text.clone()),
                         LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
-                        LTerm::Range(first, last) => Value::Set(self.shared.range(*first, *last)),
                         LTerm::Empty => Value::set(TagList::new()),
                         LTerm::Union(items) => match items.first() {
                             Some(first) => {
@@ -3106,7 +3076,7 @@ mod tests {
                 .map(|index| Tok {
                     text: "x".to_string(),
                     tags: 0,
-                    value: (index + 1 == n).then(|| "a".to_string()),
+                    value: if index + 1 == n { "a".into() } else { String::new() },
                     source: (index, index + 1),
                     image: "x".to_string(),
                     sound: Default::default(),
@@ -3133,7 +3103,7 @@ mod tests {
     #[test]
     fn unions_of_many_parts_cost_their_size() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3153,7 +3123,7 @@ mod tests {
                     .map(|name| Tok {
                         text: "x".to_string(),
                         tags: shared.tags.set_of([name.as_str()]),
-                        value: None,
+                        value: String::new(),
                         source: (0, 0),
                         image: "x".to_string(),
                         sound: Default::default(),
@@ -3194,8 +3164,8 @@ mod tests {
 
     /// A dialect of one production of n captures with a condition at each.
     fn condition_at_each_capture(n: usize) -> crate::Dialect {
-        let names: Vec<String> = (0..n).map(|index| format!("$c{index}('a')")).collect();
-        let conditions: Vec<String> = (0..n).map(|index| format!("text($c{index}) = \"a\"")).collect();
+        let names: Vec<String> = (0..n).map(|index| format!("$c{index}:\"a\"")).collect();
+        let conditions: Vec<String> = (0..n).map(|index| format!("($c{index}).source-text = \"a\"")).collect();
         let grammar = format!(
             "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {}\n%conditions {}\n```\n",
             names.join(" "),
@@ -3237,12 +3207,12 @@ mod tests {
         });
     }
 
-    /// A range term evaluated again shares the list it made the first
-    /// time, so n evaluations of a range of n characters cost about n.
+    /// A capture tag term shares its interned list. Repeated evaluations
+    /// of n tags cost about n, without copying the list.
     #[test]
-    fn a_range_term_is_shared_not_copied() {
+    fn a_capture_tag_term_is_shared_not_copied() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3252,6 +3222,7 @@ mod tests {
             let mut shared = Shared::new(&dialect.unicode, &chars);
             let matchers = matchers(&g, &mut shared.tags);
             let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
+            let names: Vec<String> = (0..n).map(|i| format!("Tag-{i}")).collect();
             let frame = Frame {
                 lexical: None,
                 parent_structure: u32::MAX,
@@ -3264,12 +3235,18 @@ mod tests {
                 tags: Cell::new(None),
                 project: None,
             };
-            let range = LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1);
+            let union = LTerm::Union(names.into_iter().map(LTerm::Tag).collect());
+            let list = recognizer.tag_list(&union, &frame, &[], 0).expect("initial tag set");
+            let tags = recognizer.shared.tags.set_shared(list);
+            let caps = [Cap { close_requested: false, start: 0, end: 0, tags, structure: u32::MAX }];
+            let frame = Frame { caps: Caps::All(&caps), ..frame };
+            let range = LTerm::Tags(Span::Cap(0));
             let first = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
-            assert!(first.len() > n / 2, "{} tags in a range of {n}", first.len());
+            assert!(first.len() > n / 2, "{} tags in a capture of {n}", first.len());
             for _ in 1..n {
                 let list = recognizer.tag_list(&range, &frame, &[], 0).expect("a set");
                 assert_eq!(list.len(), first.len());
+                assert!(std::sync::Arc::ptr_eq(&list, &first));
             }
         });
     }
@@ -3292,7 +3269,7 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                value: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
                 image: "a".to_string(),
                 sound: Default::default(),
@@ -3317,7 +3294,7 @@ mod tests {
     fn a_capture_of_a_rule_with_many_ends_keeps_an_item_for_each() {
         for n in 2..=6 {
             assert_eq!(whole_items("%rule text t\n%rule t t t | A", n), 1, "t t over {n}");
-            assert_eq!(whole_items("%rule text t\n%rule t $l(t) $r(t) | A", n), n - 1, "$l(t) $r(t) over {n}");
+            assert_eq!(whole_items("%rule text t\n%rule t $l:t $r:t | A", n), n - 1, "$l:t $r:t over {n}");
         }
     }
 
@@ -3404,13 +3381,13 @@ mod tests {
     #[test]
     fn captures_share_their_prefixes() {
         for count in [100usize, 200, 400] {
-            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             // A tag term that reads every capture, the first last.
-            let tags: Vec<String> = (0..count).map(|index| format!("tags($c{})", count - 1 - index)).collect();
+            let tags: Vec<String> = (0..count).map(|index| format!("($c{}).tags", count - 1 - index)).collect();
             let dialect = single(&format!(
-                "%rule text {}\n%tags ~x ∪ {}\n%conditions text($c0) = \"a\"",
-                names.join(" "),
-                tags.join(" ∪ ")
+                "%rule text :: Tag-x ∪ {} |  {}\n%conditions $c0.source-text = \"a\"",
+                tags.join(" ∪ "),
+                names.join(" ")
             ));
             let (items, steps) = (2 * count as u64 + 4, 4 * count as u64 + 8);
             reset();
@@ -3434,7 +3411,7 @@ mod tests {
     #[test]
     fn storing_each_prefix_again_stops_at_the_bound() {
         let count = 100usize;
-        let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+        let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
         let dialect = single(&format!("%rule text {}", names.join(" ")));
         let text = "a".repeat(count);
         let _copying = Copying::on();
@@ -3480,7 +3457,7 @@ mod tests {
     fn terms_count_their_lists_and_spans_as_they_go() {
         let n = 1000usize;
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3491,7 +3468,7 @@ mod tests {
             .map(|index| Tok {
                 text: "a".to_string(),
                 tags: shared.tags.set_of(["A"]),
-                value: Some("a".to_string()),
+                value: "a".to_string(),
                 source: (index, index + 1),
                 image: "a".to_string(),
                 sound: Default::default(),
@@ -3500,7 +3477,7 @@ mod tests {
                 after: Vec::new(),
             })
             .collect();
-        let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+        let names: Vec<String> = (0..n).map(|index| format!("C{index}C")).collect();
         let classes = shared.tags.set_of(names.iter().map(String::as_str));
         let matchers = matchers(&g, &mut shared.tags);
         let mut recognizer = Recognizer { g: &g, matchers: &matchers, shared: &mut shared, recon: None };
@@ -3527,7 +3504,7 @@ mod tests {
         stops(Work::Spanned, split(LTerm::Value(Span::Whole)));
         stops(Work::Listed, split(LTerm::Str(vec!["x"; n].join(" "))));
         stops(Work::Listed, LTerm::Classes(Span::Cap(0)));
-        stops(Work::Listed, LTerm::Range(0x4E00, 0x4E00 + n as u32 - 1));
+        stops(Work::Listed, LTerm::Union(names.iter().map(|name| LTerm::Tag(name.clone())).collect()));
     }
 
     /// The value of each suffix of a run of tokens without sound, and
@@ -3536,7 +3513,7 @@ mod tests {
     #[test]
     fn spans_cost_what_they_read() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3550,7 +3527,7 @@ mod tests {
                 .map(|index| Tok {
                     text: "a".to_string(),
                     tags: 0,
-                    value: (index + 1 == n).then(|| "a".to_string()),
+                    value: if index + 1 == n { "a".into() } else { String::new() },
                     source: (index, index + 1),
                     image: "a".to_string(),
                     sound: Default::default(),
@@ -3573,7 +3550,7 @@ mod tests {
     #[test]
     fn classes_and_splits_grow_linearly() {
         let sources = [
-            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text 'a'\n```\n".to_string()),
+            ("main.md", "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```\n".to_string()),
             ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
@@ -3585,7 +3562,7 @@ mod tests {
         let made: Vec<_> = [1000usize, 4000]
             .into_iter()
             .map(|n| {
-                let names: Vec<String> = (0..n).map(|index| format!("C{index}")).collect();
+                let names: Vec<String> = (0..n).map(|index| format!("C{index}C")).collect();
                 let classes = shared.tags.set_of(names.iter().map(String::as_str));
                 let split = LTerm::Split(Box::new(LTerm::Str(names.join(" "))), Box::new(LTerm::Str(" ".to_string())));
                 (n, classes, split)
@@ -3621,9 +3598,9 @@ mod tests {
     #[test]
     fn conditions_at_each_capture_search_for_their_parts() {
         let steps = |count: usize, far: &dyn Fn(usize) -> String, most: u64| {
-            let names: Vec<String> = (0..count).map(|index| format!("$c{index}('a')")).collect();
+            let names: Vec<String> = (0..count).map(|index| format!("$c{index}:\"a\"")).collect();
             let conditions: Vec<String> =
-                (0..count).map(|index| format!("text($c{index}) = text({})", far(index))).collect();
+                (0..count).map(|index| format!("($c{index}).source-text = ({}).source-text", far(index))).collect();
             let dialect = single(&format!("%rule text {}\n%conditions {}", names.join(" "), conditions.join(", ")));
             reset();
             budget(Work::CaptureSteps, most);

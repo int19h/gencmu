@@ -34,9 +34,8 @@ pub(crate) struct ClassifierDef {
     pub at: (usize, usize),
 }
 
-/// An entry of a classifier (engine §2): its gates, its keys, each a
-/// canonical sound, whether it adds (`∈`) or removes (`∉`) the class, and
-/// the class, a name that begins with `A` to `Z`.
+/// A classifier entry holds gates, unresolved string keys, and a class.
+/// It adds (`∈`) or removes (`∉`) that class (engine §2).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Entry {
     pub guards: Vec<Guard>,
@@ -840,13 +839,6 @@ pub(crate) fn test_type_problem(op: &str, ty: Type) -> Option<String> {
     expected_problem(ty, expected).map(|problem| format!("{op} tests {}: {problem}", expected.name()))
 }
 
-/// What is wrong with the string of a sound test (engine §9), or `None`:
-/// one that no canonical sound can be, with a comma or a code point that
-/// the lowercase mapping would change.
-pub(crate) fn sound_problem(_: &str, _: &Unicode) -> Option<&'static str> {
-    None
-}
-
 fn elidable_head_json(expr: &Json) -> Option<&Json> {
     let head = match expr.get("seq").and_then(Json::as_array) {
         Some([head, ..]) => head,
@@ -1370,24 +1362,30 @@ impl Fault {
 
 /// The references to constants in a term, in the order written.
 pub(crate) fn constants_in_term<'t>(term: &'t Term, out: &mut Vec<(&'t str, (usize, usize))>) {
-    constants_in(Nested::Term(term), out);
+    constants_in(Nested::Term(term), out, false);
 }
 
 /// The references to constants in a condition, in the order written.
 pub(crate) fn constants_in_cond<'t>(cond: &'t Cond, out: &mut Vec<(&'t str, (usize, usize))>) {
-    constants_in(Nested::Cond(cond), out);
+    constants_in(Nested::Cond(cond), out, false);
 }
 
 /// The references to constants of a part, in the order written, with an
 /// explicit stack.
-fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>) {
+fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>, engine: bool) {
     let mut stack = vec![start];
     while let Some(part) = stack.pop() {
         crate::work::count(crate::work::Work::Walked, 1);
         match part {
             Nested::Term(term) => match term {
-                Term::Pattern(p) => p.constants(out),
-                Term::Const(name, at) if !name.starts_with('_') => out.push((name, *at)),
+                Term::Pattern(p) => {
+                    if engine {
+                        p.references(out)
+                    } else {
+                        p.constants(out)
+                    }
+                }
+                Term::Const(name, at) if engine || !name.starts_with('_') => out.push((name, *at)),
                 Term::Const(..) => {}
                 Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().rev().map(Nested::Term)),
                 Term::Difference(left, right) => stack.extend([Nested::Term(right), Nested::Term(left)]),
@@ -1605,30 +1603,12 @@ pub(crate) fn constants_in_rule(rule: &RuleDef) -> Vec<(&str, (usize, usize))> {
             references_in_term(term, &mut out);
         }
     }
-    rule.conditions.iter().for_each(|cond| constants_in_cond(cond, &mut out));
+    rule.conditions.iter().for_each(|cond| constants_in(Nested::Cond(cond), &mut out, true));
     out
 }
 
-fn references_in_term<'a>(root: &'a Term, out: &mut Vec<(&'a str, (usize, usize))>) {
-    constants_in_term(root, out);
-    let mut pending = vec![root];
-    while let Some(term) = pending.pop() {
-        match term {
-            Term::Const(name, at) if name.starts_with('_') => out.push((name, *at)),
-            Term::Union(items) | Term::Intersection(items) => pending.extend(items.iter().rev()),
-            Term::Difference(a, b) => {
-                pending.push(b);
-                pending.push(a);
-            }
-            Term::If(_, term) => pending.push(term),
-            Term::Call(_, args) => {
-                pending.extend(
-                    args.iter().rev().filter_map(|arg| if let Arg::Term(term) = arg { Some(term) } else { None }),
-                )
-            }
-            _ => {}
-        }
-    }
+pub(crate) fn references_in_term<'a>(root: &'a Term, out: &mut Vec<(&'a str, (usize, usize))>) {
+    constants_in(Nested::Term(root), out, true);
     out.sort_by_key(|reference| reference.1);
 }
 
@@ -1899,9 +1879,9 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
         .or_else(|| {
             let mut pending: Vec<_> = rule.alternatives.iter().map(|a| &a.expr).collect();
             while let Some(expr) = pending.pop() {
-                let terms: &[&Term] = match expr {
-                    Expr::Literal(t) => &[t],
-                    Expr::ScalarRange(a, b) => &[a, b],
+                let terms: [Option<&Term>; 2] = match expr {
+                    Expr::Literal(t) => [Some(t), None],
+                    Expr::ScalarRange(a, b) => [Some(a), Some(b)],
                     Expr::Seq(items) | Expr::Choice(items) | Expr::Ranked(items) | Expr::And(items) => {
                         pending.extend(items);
                         continue;
@@ -1917,7 +1897,7 @@ pub(crate) fn rule_type_fault(rule: &RuleDef, constants: ConstantTypes) -> Optio
                     }
                     _ => continue,
                 };
-                for term in terms {
+                for term in terms.into_iter().flatten() {
                     match term_type_in(term, constants) {
                         Err(fault) => return Some(fault),
                         Ok(ty) => {

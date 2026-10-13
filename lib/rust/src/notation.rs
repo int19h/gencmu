@@ -683,7 +683,7 @@ impl<'a> Reader<'a> {
             }));
         }
         let node = frame.node;
-        let inner = self.inner(node, &PRIMARIES)?;
+        let inner = self.inner(node, PRIMARIES)?;
         let token = || self.token(inner);
         Ok(match rule_name(inner) {
             "reference" | "tag" | "string-terminal" | "constant-reference" | "wildcard" | "range" => {
@@ -717,7 +717,7 @@ impl<'a> Reader<'a> {
                 if !is_capture_name(&name) {
                     return Err(self.error(capture, "a capture's name is all lower case"));
                 }
-                let wrapped = self.inner(primary, &PRIMARIES)?;
+                let wrapped = self.inner(primary, PRIMARIES)?;
                 if rule_name(wrapped) == "tested" {
                     let base = Self::rules(wrapped, "primary")
                         .next()
@@ -796,7 +796,7 @@ impl<'a> Reader<'a> {
         let Some(primary) = primary else {
             return Err(form());
         };
-        let head = self.inner(primary, &PRIMARIES)?;
+        let head = self.inner(primary, PRIMARIES)?;
         let is_terminal = |symbol: &Node| {
             rule_name(symbol) == "tag"
                 && Self::tokens_of(symbol).next().is_some_and(|token| is_capital(self.text(token)))
@@ -900,7 +900,7 @@ impl<'a> Reader<'a> {
         let mut value = false;
         for test in &tests {
             let tag = rule_name(test) == "tag-test";
-            if !valid || tag && (tags || value) || !tag && value {
+            if !valid || value || tag && tags {
                 return Err(self.error(test, "invalid test target or order"));
             }
             if tag {
@@ -1106,7 +1106,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Done(value));
         }
         let node = frame.node;
-        let inner = self.inner(node, &ATOMS)?;
+        let inner = self.inner(node, ATOMS)?;
         let token = || self.token(inner);
         let typed = |term: Term, ty: Type| Ok(Step::Done(Val::Term(term, ty)));
         match rule_name(inner) {
@@ -1143,9 +1143,6 @@ impl<'a> Reader<'a> {
                 typed(Term::Union(items), Type::Tags)
             }
             "range" => Err(self.error(inner, "a range is a terminal, not a value term")),
-            "property" => {
-                Err(self.error(inner, "a property is not a tag set, and stands only as a terminal in a body"))
-            }
             // A bare name is a tag literal if it begins with a capital, and
             // otherwise a rule, which only a function's argument names.
             "name" => {
@@ -1353,7 +1350,7 @@ impl<'a> Reader<'a> {
         let mut value = false;
         for test in &tests {
             let tag = rule_name(test) == "tag-test";
-            if !testable || tag && (tags || value) || !tag && value {
+            if !testable || value || tag && tags {
                 return Err(self.error(test, "invalid pattern test target or order"));
             }
             if tag {
@@ -1431,19 +1428,24 @@ impl<'a> Reader<'a> {
         let string = matches!(ty, Type::Span | Type::String | Type::Any);
         let bare = matches!(&receiver, Term::Capture(_));
         let arguments = &frame.args[..];
-        let valid = match (name, arguments) {
-            (
-                "value" | "image" | "source-text" | "first-token" | "tokens-after-first" | "last-token" | "onward"
-                | "following-tokens" | "classes" | "starts-input" | "tags",
-                [],
-            ) => span,
-            ("without-elision" | "verbatim-text" | "emitted", []) => bare,
-            ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
-            ("split", [Arg::Term(_)]) => {
-                string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
+        let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
+        let valid = if emitted_receiver {
+            matches!((name, arguments), ("value" | "image", []))
+        } else {
+            match (name, arguments) {
+                (
+                    "value" | "image" | "source-text" | "first-token" | "tokens-after-first" | "last-token" | "onward"
+                    | "following-tokens" | "classes" | "starts-input" | "tags",
+                    [],
+                ) => span,
+                ("without-elision" | "verbatim-text" | "emitted", []) => bare,
+                ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
+                ("split", [Arg::Term(_)]) => {
+                    string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
+                }
+                ("classify", [Arg::Rule(_)]) => string,
+                _ => false,
             }
-            ("classify", [Arg::Rule(_)]) => string,
-            _ => false,
         };
         if !valid {
             let hint = if name == "without-elision" {
@@ -1576,7 +1578,7 @@ impl<'a> Reader<'a> {
 
     fn resume_condition(&self, frame: &mut ConditionFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         let Some(inner) = frame.inner else {
-            let inner = self.inner(frame.node, &CONDITIONS)?;
+            let inner = self.inner(frame.node, CONDITIONS)?;
             frame.inner = Some(inner);
             return Ok(match rule_name(inner) {
                 // Parentheses make no node of their own (§9).
@@ -1640,8 +1642,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    /// A reference, or a terminal: a tag literal, a character tag, a
-    /// phoneme tag, a range or a property.
+    /// A reference, literal string, scalar range, wildcard, or engine tag.
     fn symbol(&self, node: &'a Node) -> R<Expr> {
         match rule_name(node) {
             "reference" => {
@@ -1792,7 +1793,8 @@ impl<'a> Reader<'a> {
                             if matches!(name.as_str(), "value" | "image" | "text" | "verbatim-text") =>
                         {
                             matches!(&args[..], [Arg::Term(Term::Capture(_))])
-                                || matches!(&args[..], [Arg::Term(Term::Call(name, args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
+                                || matches!(name.as_str(), "value" | "image")
+                                    && matches!(&args[..], [Arg::Term(Term::Call(name, args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
                         }
                         _ => false,
                     };
@@ -1890,7 +1892,7 @@ impl<'a> Reader<'a> {
         loop {
             let [intersection] = Self::rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
             let [atom] = Self::rules(intersection, "term-atom").collect::<Vec<_>>()[..] else { return None };
-            let inner = self.inner(atom, &ATOMS).ok()?;
+            let inner = self.inner(atom, ATOMS).ok()?;
             match rule_name(inner) {
                 "name" => {
                     let name = self.text(Self::tokens_of(inner).next()?);
@@ -2279,7 +2281,7 @@ const PRIMARIES: &[&str] = &[
     "empty",
     "constant-reference",
 ];
-const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "call", "method", "negation", "presence", "implication"];
+const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "method",
@@ -2454,9 +2456,7 @@ fn fold(items: &mut Vec<Cond>, inner: impl Fn(&mut Cond) -> Option<Vec<Cond>>) {
     *items = joined;
 }
 
-/// A directive's operand: a bare name, with a capital or not, a string, a
-/// tag literal `~name`, a phoneme tag, a character tag, a range or a
-/// property.
+/// Extract the pattern from one node, or retain its child expression.
 fn as_pattern(c: crate::patterns::Children) -> crate::patterns::Pattern {
     match c {
         crate::patterns::Children::Node(p) => *p,

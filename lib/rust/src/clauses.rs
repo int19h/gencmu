@@ -1779,16 +1779,18 @@ mod tests {
                     .collect(),
             );
             let emit = (0..n)
-                .map(|_| EmitItem::Insert("X".into()))
+                .map(|_| EmitItem::Insert(Some(Term::Tag("X".into())), Default::default()))
                 .chain(names.iter().map(|name| EmitItem::Capture(name.clone(), None, Attachments::default())))
                 .collect();
             RuleDef {
+                strings: Default::default(),
                 deferred_emission: None,
                 name: "r".into(),
                 op: Op::Define,
                 flags: Vec::new(),
                 tags: Some(tags),
                 alternatives: vec![Alternative {
+                    strings: Default::default(),
                     guards: Vec::new(),
                     expr,
                     tags: None,

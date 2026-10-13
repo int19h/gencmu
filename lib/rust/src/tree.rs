@@ -407,8 +407,7 @@ fn cover(
     let (value, image) = (String::new(), String::new());
     let mut token =
         Emitted { span, source, tags, value, image, inserted_by: None, before: Vec::new(), after: Vec::new() };
-    // The parts decide the attachments too, after the phoneme tags are
-    // checked (§11).
+    // Counted parts decide attachment forwarding (§11).
     if forwarding.on {
         if let Some(from) = forwarded(recognizer.g, tree, tokens, index)? {
             // Attachments belong to one token: an input token that is the
@@ -759,10 +758,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
                     None => 0,
                 };
                 let set = implications.implied(&mut recognizer.shared.tags, set);
-                // Two phoneme tags are an error here too, where an
-                // implication added one (§5). An inserted token has no
-                // parts: a phoneme tag gives its value and its image, or
-                // both are empty.
+                // Inserted tokens receive their strings from item recipes.
                 let (value, image) = strings.item(node, None, channels)?;
                 out.push(Emitted {
                     span: (at as usize, at as usize),

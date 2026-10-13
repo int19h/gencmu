@@ -80,6 +80,21 @@ fn string_atom(value: &Json) -> bool {
         || exact(value, &["interpolate"], &[])
 }
 
+/// Literal endpoints must already form an ordered scalar interval.
+fn literal_range(left: &Json, right: &Json) -> bool {
+    let scalar = |value: &Json| {
+        let text = value.get("string")?.as_str()?;
+        let mut chars = text.chars();
+        let first = chars.next()?;
+        chars.next().is_none().then_some(first)
+    };
+    [left, right].iter().all(|v| v.get("string").is_none() || scalar(v).is_some())
+        && match (scalar(left), scalar(right)) {
+            (Some(a), Some(b)) => a <= b,
+            _ => true,
+        }
+}
+
 fn base(value: &Json, hash: bool) -> bool {
     exact(value, &["ref"], &[])
         && value
@@ -333,6 +348,9 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     }
                     if let Some(range) = value.get("range") {
                         let Some([left, right]) = range.as_array() else { return Some("a malformed scalar range") };
+                        if !literal_range(left, right) {
+                            return Some("a malformed scalar range");
+                        }
                         pending.push((Part::String, left, depth));
                         pending.push((Part::String, right, depth));
                     }
@@ -586,6 +604,9 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         return Some("a malformed pattern range");
                     }
                     let Some([left, right]) = range.as_array() else { return Some("a malformed pattern range") };
+                    if !literal_range(left, right) {
+                        return Some("a malformed pattern range");
+                    }
                     pending.push((Part::String, left, depth));
                     pending.push((Part::String, right, depth));
                 } else if value.get("test").is_some() {

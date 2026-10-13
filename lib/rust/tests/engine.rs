@@ -94,7 +94,7 @@ fn deep_json_needs_no_deep_stack() {
 fn a_deep_result_runs_on_an_ordinary_stack() {
     let input = "a".repeat(20_000);
     let case = format!(
-        r#"{{"grammar": "%rule text text 'a' | 'a'", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
+        r#"{{"grammar": "%rule text text \"a\" | \"a\"", "input": "{input}", "expect": {{"result": {{"ok": true, "stages": [{{"verdict": "unique"}}]}}}}}}"#
     );
     run_engine_case(&parse_json(&case).unwrap()).expect("the case passes");
 }
@@ -196,7 +196,14 @@ fn emission_errors_come_in_order() {
         let text =
             std::fs::read_to_string(common::repository().join("tests").join("engine").join(name)).expect("a case");
         let case = parse_json(&text).expect("a case is JSON");
-        let (documents, pipeline) = common::case_documents(&case);
+        let (mut documents, pipeline) = common::case_documents(&case);
+        // Rust cannot supply source ranges. A preceding stage erases the
+        // comma and supplies the same three tokens with a source gap.
+        documents.insert("letters.md".into(), "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {piece}\n%rule piece letter | gap\n%rule letter \"b\" | \"1\" %emits $\n%rule gap \",\" %erased\n```\n".into());
+        documents
+            .get_mut(&pipeline)
+            .unwrap()
+            .insert_str("```jbogenbau\n".len(), "%stage letters\n%include \"letters.md\"\n");
         let dialect = gencmu::load_dialect_sources(documents, &pipeline).expect("the dialect");
         let input = case.get("input").and_then(common::Value::str).expect("an input");
         let result = dialect.parse(input, &common::case_options(&case)).expect("a result");
@@ -204,11 +211,11 @@ fn emission_errors_come_in_order() {
     };
     // A before-attachment comes before its carrier's tag term.
     let first = message("attach-error-order.json");
-    assert!(first.contains("two phoneme tags"), "{first}");
+    assert!(first.contains("different verbatim spans claim the same uncovered source text"), "{first}");
     // An inserted token comes after the items before it and their
     // attachments.
     let second = message("attach-error-insert-order.json");
-    assert!(second.contains(r#"tag("?")"#), "{second}");
+    assert!(second.contains("different verbatim spans claim the same uncovered source text"), "{second}");
 }
 
 /// The runner checks the invariants on every result, whatever the case
@@ -239,7 +246,7 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
     use common::{result_problems, witness_problem, Value};
     use gencmu::tools::{losing_witness, with_elision_checks, Loss};
     let case = parse_json(
-        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ <~x>\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n"},
+        r#"{"documents": {"p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n%rule text a | b\n%rule a w! A [+T=\"ta\"] [+U] %emits $ :: Tag-x\n%rule b A [+T=\"ta\"] [+U] [+U]\n%stage later\n%ambiguity-resolution greedy\n%rule text Tag-x\n```\n"},
             "pipeline": "p.md", "tokens": [{"text": "a", "tags": ["A"]}], "options": {"features": ["w"]}}"#,
     )
     .unwrap();
@@ -278,9 +285,9 @@ fn a_check_that_loses_its_witness_is_the_grammar_error_elision_witness_lost() {
         );
         let error = result.error.as_ref().unwrap();
         assert_eq!(error.chosen, main.tree);
-        // The records in their order of insertion, with the sound only for
+        // The records in their order of insertion, with the value only for
         // the tested terminator.
-        let completion = parse_json(r#"[{"terminal": "T", "at": 1, "source": [1, 1], "sound": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]"#).unwrap();
+        let completion = parse_json(r#"[{"terminal": "T", "at": 1, "source": [1, 1], "value": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}]"#).unwrap();
         assert_eq!(json.get("error").unwrap().get("completion"), Some(&completion));
         // The stage keeps its verdict and warnings, has no output, and no
         // later stage runs.

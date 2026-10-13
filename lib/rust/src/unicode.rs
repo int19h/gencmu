@@ -165,9 +165,8 @@ mod tests {
         for code in boundaries(text) {
             assert_eq!(reversed.category(code), bundled.category(code), "U+{code:04X}");
             assert_eq!(reversed.is_white_space(code), bundled.is_white_space(code), "U+{code:04X}");
-            if let Some(c) = char::from_u32(code) {
-                assert_eq!(reversed.lowercase(&c.to_string()), bundled.lowercase(&c.to_string()), "U+{code:04X}");
-            }
+            // Format 26 has no lowercase records. Mn still controls diagnostic escaping.
+            assert_eq!(reversed.is_mark(code), bundled.is_mark(code), "U+{code:04X}");
         }
         assert_eq!(reversed.category('a' as u32), "Ll");
         assert_eq!(reversed.category('A' as u32), "Lu");
@@ -185,7 +184,8 @@ mod tests {
         assert!(has("Cn", 'a' as u32) && has("C", 'a' as u32));
         assert!(!has("L", 'a' as u32) && !has("Cs", 'a' as u32));
         assert!(!table.is_white_space(0x20) && !table.is_white_space(0x9) && !has("White_Space", 0x20));
-        assert_eq!(table.lowercase("AB"), "AB");
+        // The engine no longer accepts a comparison normalization table (engine §1).
+        assert!(Unicode::parse("unicode 0.0.0\nlower 0041 0061\n").is_err());
         assert!(!table.is_mark(0x301));
     }
 

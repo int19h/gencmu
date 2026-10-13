@@ -211,6 +211,52 @@ pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
     }
 }
 
+/// Canonical diagnostic spelling of a string terminal (engine §9.1).
+pub(crate) fn string_name(value: &str, unicode: &Unicode) -> String {
+    let mut out = String::from("\"");
+    for c in value.chars() {
+        let n = c as u32;
+        if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
+            || unicode.is_mark(n)
+        {
+            out.push_str(&format!("$(_{n:04X})"));
+        } else {
+            out.push(c);
+            if c == '$' {
+                out.push(c);
+            }
+        }
+    }
+    out.push('"');
+    out
+}
+
+pub(crate) fn string_value(name: &str) -> Option<String> {
+    let mut chars = name.strip_prefix('"')?.strip_suffix('"')?.chars().peekable();
+    let mut out = String::new();
+    while let Some(c) = chars.next() {
+        if c != '$' {
+            out.push(c);
+            continue;
+        }
+        match chars.next()? {
+            '$' => out.push('$'),
+            '(' => {
+                let mut scalar = String::new();
+                while chars.peek().is_some_and(|c| *c != ')') {
+                    scalar.push(chars.next()?);
+                }
+                if chars.next()? != ')' {
+                    return None;
+                }
+                out.push(crate::dom::engine_scalar(&scalar)?);
+            }
+            _ => return None,
+        }
+    }
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{difference, intersection, is_subset, union_all, TagList};
@@ -275,50 +321,4 @@ mod tests {
             assert_stops(Work::Listed, most, operation);
         }
     }
-}
-
-/// Canonical diagnostic spelling of a string terminal (engine §9.1).
-pub(crate) fn string_name(value: &str, unicode: &Unicode) -> String {
-    let mut out = String::from("\"");
-    for c in value.chars() {
-        let n = c as u32;
-        if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
-            || unicode.is_mark(n)
-        {
-            out.push_str(&format!("$(_{n:04X})"));
-        } else {
-            out.push(c);
-            if c == '$' {
-                out.push(c);
-            }
-        }
-    }
-    out.push('"');
-    out
-}
-
-pub(crate) fn string_value(name: &str) -> Option<String> {
-    let mut chars = name.strip_prefix('"')?.strip_suffix('"')?.chars().peekable();
-    let mut out = String::new();
-    while let Some(c) = chars.next() {
-        if c != '$' {
-            out.push(c);
-            continue;
-        }
-        match chars.next()? {
-            '$' => out.push('$'),
-            '(' => {
-                let mut scalar = String::new();
-                while chars.peek().is_some_and(|c| *c != ')') {
-                    scalar.push(chars.next()?);
-                }
-                if chars.next()? != ')' {
-                    return None;
-                }
-                out.push(crate::dom::engine_scalar(&scalar)?);
-            }
-            _ => return None,
-        }
-    }
-    Some(out)
 }

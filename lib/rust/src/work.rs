@@ -417,11 +417,11 @@ mod tests {
     /// 8000 tokens, under a second, where the count fails.
     #[test]
     fn nested_queries_with_many_omissions_take_linear_work() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]";
         let dialect = crate::load_dialect_sources(single(grammar), "p.md").unwrap();
         let work = |n: usize, most: Option<(u64, u64)>| {
             let token = |tag: &str| InputToken {
+                image: None,
                 text: tag.to_lowercase(),
                 tags: [tag.to_string()].into_iter().collect(),
                 value: None,
@@ -471,6 +471,7 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
             value: None,
@@ -506,6 +507,7 @@ mod tests {
             })
             .collect();
         let token = |tag: &str| InputToken {
+            image: None,
             text: tag.to_lowercase(),
             tags: [tag.to_string()].into_iter().collect(),
             value: None,

@@ -141,8 +141,8 @@ fn parsing_with_and_without_the_cache() {
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
     for text in [
-        "%rule text [{piece}] {... A \\ B} [+KU #] %rule piece word | \"x\" </x/> %emits $",
-        "%ambiguity-resolution greedy elision-only\n%rule a $x(b) <\"T\" ∪ ($x ⟹ tags($x, c))> %conditions ¬matches(tail($x), d), $x",
+        "%rule text [{piece}] {... A / B} [+KU #] %rule piece word | \"x\" :: /x/ %emits $",
+        "%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x",
         "%rule broken",
     ] {
         let options = gencmu::ParseOptions::default();
@@ -159,29 +159,28 @@ fn parsing_with_and_without_the_cache() {
 const EVERY_CONSTRUCT: &str = r#"```jbogenbau
 %ambiguity-resolution greedy
 %features f g
-%const $K ~A ∪ ~B
-%redefine-const $K ~A ∪ ~B ∪ ∅
+%const $K A ∪ B
+%redefine-const $K A ∪ B ∪ ∅
 %classifier lex
   f? "mi" ∈ KOhA
-  ¬g? "do" ∉ ~KOhA
-%implies ~A ∩ ~B ⟹ ~C ∖ ~D
-%rule text
-  | f? h! $x(A) $y(LE="la") [C | $z(D)] {E} {E \ [C]} [+KU #] [+~KEI (A | B)] (F & G) 'a'..'z' '\p{L}' /a/ ~H UI∩(~B)=∅ <~T ∪ $K>
+  ¬g? "do" ∉ KOhA
+%implies A ∩ B ⟹ C ∖ D
+%rule text :: U ∪ ($x ∧ $x.source-text.classify(lex) ⊆ V ⟹ W)
+  | f? h! $x:A $y:LE="la" [C | $z:D] {E} {E / [C]} [+KU #] [+KEI (A | B)] (F & G) "a".."z" _L Sound-a H UI<¬B> :: T ∪ $K
   | g? text-tail
-  %tags ~U ∪ ($x ∧ classify(text($x), lex) ⊆ ~V ⟹ ~W)
-  %conditions , (text($x) = "ok" ∨ initial($y)) ⟹ ¬matches(head($x), text) ∧ $y, begins(tail($x), text), text($y) ∈ split("a.b", ".")
-  %emits $x <tags($x) ∩ tag(text($x))> ($y), ~Y
-  %opaque
+  %conditions , ($x.source-text = "ok" ∨ $y.starts-input) ⟹ ¬$x.first-token.matches(text) ∧ $y, $x.tokens-after-first.begins(text), $y.source-text ∈ "a.b".split(".")
+  %emits $x ($y) :: $x.tags, ε :: Y
 %rule text-tail
   ε
+  %erased
 %rule chain
-  {... A \ B}
+  {... A / B}
 %redefine-rule text-tail
   #
 %extend-rule text-tail
-  'b'
+  "b"
 %rule #
-  'c'
+  "c"
 ```
 "#;
 

@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::clauses::definition_problem;
 use crate::dom::{
-    constant_value_type, constants_in_rule, constants_in_term, expected_problem, is_sound_test, rule_type_fault,
-    sound_problem, term_type_in, tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Dom, EmitItem,
-    Expr, Fault, FeatureKind, ImplicationDef, Op, RuleDef, Term, Type,
+    constant_value_type, constants_in_rule, constants_in_term, expected_problem, rule_type_fault, term_type_in,
+    tests_in, Alternative, Arg, Channels, ClassifierDef, Cond, ConstDef, Dom, EmitItem, Expr, Fault, FeatureKind,
+    ImplicationDef, Op, RuleDef, Term, Type,
 };
 use crate::error::Error;
 use crate::fxhash::{FxMap, FxSet};
@@ -240,7 +240,9 @@ pub(crate) fn stitch(
             if let Some(problem) = &rule.deferred_emission {
                 deferred.push(located(problem.clone(), document, rule.at));
             }
-            users.push((document, rule));
+            if !constants_in_rule(rule).is_empty() {
+                users.push((document, rule));
+            }
             // The clauses are copied once for the rule, not for each
             // alternative. Each condition counts as it is copied.
             let copy_clauses = || {
@@ -991,11 +993,6 @@ impl Constants<'_> {
                         }
                         return Ok(Term::Tag(crate::tags::string_name(&value, self.unicode)));
                     }
-                    if is_sound_test(op) {
-                        if let Some(problem) = sound_problem(&result.clone().string(), self.unicode) {
-                            return Err(located(problem.into(), document, first_constant(v).unwrap_or(item)));
-                        }
-                    }
                     Ok(result.term())
                 },
             )?,
@@ -1213,21 +1210,6 @@ impl Constants<'_> {
                     deferred.push(located(problem, document, rule.at));
                 } else {
                     return Err(located(problem, document, rule.at));
-                }
-            }
-            // A string constant in a sound test must be a canonical sound
-            // (§2, §9); the error stands at the constant.
-            for alternative in &rule.alternatives {
-                for (op, value, _) in tests_in(&alternative.expr) {
-                    let Some(first) = first_constant(value).filter(|_| is_sound_test(op)) else { continue };
-                    let sound = self.evaluate(value, document, rule.at)?.string();
-                    if let Some(problem) = sound_problem(&sound, self.unicode) {
-                        return Err(located(
-                            problem.replacen("the string", &format!("the string {sound:?}"), 1),
-                            document,
-                            first,
-                        ));
-                    }
                 }
             }
             let mut calls = Vec::new();
@@ -1756,6 +1738,7 @@ mod tests {
         let dom = |n: usize| {
             let same = || Cond::Compare("=".into(), Term::Const("k".into(), (1, 1)), Term::Str("a".into()));
             let rule = RuleDef {
+                strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
@@ -1763,6 +1746,7 @@ mod tests {
                 tags: None,
                 alternatives: (0..n)
                     .map(|_| Alternative {
+                        strings: Default::default(),
                         guards: Vec::new(),
                         expr: Expr::Terminal("A".into()),
                         tags: None,
@@ -1808,7 +1792,7 @@ mod tests {
         let grammar = |n: usize| {
             let entry = |index: usize, adds: bool| Entry {
                 guards: Vec::new(),
-                keys: vec!["k".into()],
+                keys: vec![Term::Str("k".into())],
                 adds,
                 class: format!("C{index}"),
                 at: (0, 0),
@@ -1816,6 +1800,9 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                unicode: std::sync::Arc::new(
+                    crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap(),
+                ),
                 name: "s".into(),
                 rules: Vec::new(),
                 index: HashMap::new(),

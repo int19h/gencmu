@@ -50,8 +50,6 @@ pub(crate) enum LTerm {
     Str(String),
     /// The tag set of one tag.
     Tag(String),
-    /// The character tags of a range, by its first and last scalar values.
-    Range(u32, u32),
     Empty,
     Union(Vec<LTerm>),
     Inter(Vec<LTerm>),
@@ -2055,6 +2053,7 @@ mod tests {
         let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                strings: Default::default(),
                 deferred_emission: None,
                 name,
                 op: Op::Define,
@@ -2063,6 +2062,7 @@ mod tests {
                 alternatives: alternatives
                     .into_iter()
                     .map(|expr| Alternative {
+                        strings: Default::default(),
                         guards: Vec::new(),
                         expr,
                         tags: None,
@@ -2136,12 +2136,14 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            strings: Default::default(),
             deferred_emission: None,
             name: "text".into(),
             op: Op::Define,
             flags: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative {
+                strings: Default::default(),
                 guards: Vec::new(),
                 expr: Expr::Choice(captures.collect()),
                 tags: None,
@@ -2204,7 +2206,11 @@ mod tests {
         rule.emit = Some(
             (0..n)
                 .map(|index| {
-                    let attachments = Attachments { before: Vec::new(), after: vec![format!("d{index}")] };
+                    let attachments = Attachments {
+                        strings: Default::default(),
+                        before: Vec::new(),
+                        after: vec![format!("d{index}")],
+                    };
                     EmitItem::Capture(format!("c{index}"), None, attachments)
                 })
                 .collect(),
@@ -2311,42 +2317,42 @@ mod tests {
             ((z ^ (z >> 31)) % n as u64) as usize
         };
         const TAGS: [&str; 14] = [
-            "($a ⟹ ~x)",
-            "~y",
+            "($a ⟹ Tag-x)",
+            "Tag-y",
             "∅",
-            "tags($a)",
-            "($b ⟹ tags($b))",
-            "(($a ∧ $b) ⟹ ~z)",
-            "(¬$c ⟹ ~w)",
-            "($c ⟹ ($d ⟹ ~v))",
+            "$a.tags",
+            "($b ⟹ $b.tags)",
+            "(($a ∧ $b) ⟹ Tag-z)",
+            "(¬$c ⟹ Tag-w)",
+            "($c ⟹ ($d ⟹ Tag-v))",
             "($a ⟹ ∅)",
-            "(~u ∩ ∅)",
-            "($d ⟹ (tags($d) ∖ ∅))",
-            "($b ⟹ (~x ∩ tags($c)))",
-            "($c ⟹ ~y)",
-            "(text($) ≠ \"\" ⟹ ~s)",
+            "(Tag-u ∩ ∅)",
+            "($d ⟹ ($d.tags ∖ ∅))",
+            "($b ⟹ (Tag-x ∩ $c.tags))",
+            "($c ⟹ Tag-y)",
+            "($.source-text ≠ \"\" ⟹ Tag-s)",
         ];
         const CONDS: [&str; 17] = [
             "$a",
             "¬$b",
-            "($a ⟹ text($a) = \"a\")",
-            "text($b) = \"b\"",
+            "($a ⟹ $a.source-text = \"a\")",
+            "$b.source-text = \"b\"",
             "($c ⟹ $d)",
-            "($d ⟹ text($d) ≠ \"\")",
-            "text($) ≠ \"\"",
+            "($d ⟹ $d.source-text ≠ \"\")",
+            "$.source-text ≠ \"\"",
             "($a ⟹ ¬$a)",
-            "($b ⟹ text($c) = \"c\")",
-            "($c ⟹ text($) ≠ \"\")",
-            "($a ⟹ ($b ⟹ text($b) = \"b\"))",
-            "(¬$d ⟹ text($) ≠ \"q\")",
+            "($b ⟹ $c.source-text = \"c\")",
+            "($c ⟹ $.source-text ≠ \"\")",
+            "($a ⟹ ($b ⟹ $b.source-text = \"b\"))",
+            "(¬$d ⟹ $.source-text ≠ \"q\")",
             "($d ⟹ ¬$d)",
-            "($b ⟹ text($b) ≠ \"\")",
-            "text($d) = \"d\"",
-            "text($a) ≠ text($c)",
-            "(∅ ∩ tags($b)) = ∅",
+            "($b ⟹ $b.source-text ≠ \"\")",
+            "$d.source-text = \"d\"",
+            "$a.source-text ≠ $c.source-text",
+            "(∅ ∩ $b.tags) = ∅",
         ];
         const ALTERNATIVES: [&str; 6] =
-            ["$a(A) [$b(B)]", "($c(C) | $d(D))", "$a(A) $c(C)", "[$d(D)] $b(B)", "$a(A) ($b(B) | $c(C)) [$d(D)]", "A"];
+            ["$a:A [$b:B]", "($c:C | $d:D)", "$a:A $c:C", "[$d:D] $b:B", "$a:A ($b:B | $c:C) [$d:D]", "A"];
         let union = |below: &mut dyn FnMut(usize) -> usize| {
             let parts: Vec<&str> = (0..1 + below(5)).map(|_| TAGS[below(TAGS.len())]).collect();
             parts.join(" ∪ ")
@@ -2358,16 +2364,14 @@ mod tests {
                 let alternative =
                     if index == 0 && below(4) != 0 { ALTERNATIVES[4] } else { ALTERNATIVES[below(ALTERNATIVES.len())] };
                 if below(3) == 0 {
-                    format!("{alternative} <{}>", union(&mut below))
+                    format!("{alternative} :: {}", union(&mut below))
                 } else {
                     alternative.to_string()
                 }
             })
             .collect();
-        let mut grammar = format!("%ambiguity-resolution greedy\n%rule text {}\n", alternatives.join(" | "));
-        if below(4) != 0 {
-            grammar.push_str(&format!("%tags {}\n", union(&mut below)));
-        }
+        let header = if below(4) != 0 { format!(" :: {}", union(&mut below)) } else { String::new() };
+        let mut grammar = format!("%ambiguity-resolution greedy\n%rule text{header} | {}\n", alternatives.join(" | "));
         let conditions: Vec<String> = (0..below(4))
             .map(|_| {
                 let parts: Vec<&str> = (0..1 + below(4)).map(|_| CONDS[below(CONDS.len())]).collect();
@@ -2388,7 +2392,7 @@ mod tests {
     /// attach the capture before it, and inserted tags stand among them.
     fn emission(below: &mut dyn FnMut(usize) -> usize) -> String {
         if below(10) == 0 {
-            return "$ <~x>".to_string();
+            return "$ :: Tag-x".to_string();
         }
         let mut names = vec!["a", "b", "c", "d"];
         if below(5) == 0 {
@@ -2397,7 +2401,7 @@ mod tests {
         let (mut items, mut before): (Vec<String>, Option<&str>) = (Vec::new(), None);
         for name in names {
             if below(5) == 0 {
-                items.push("X".to_string());
+                items.push("ε :: X".to_string());
             }
             match below(8) {
                 0 | 1 => {}
@@ -2405,8 +2409,8 @@ mod tests {
                 choice => {
                     let attached = before.take().map_or(String::new(), |before| format!("(${before}) "));
                     let tags = match choice {
-                        5 => " <~x>",
-                        6 => " <tags($b)>",
+                        5 => " :: Tag-x",
+                        6 => " :: $b.tags",
                         _ => "",
                     };
                     items.push(format!("{attached}${name}{tags}"));

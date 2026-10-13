@@ -17,6 +17,11 @@ enum Task<'a> {
     Save(u32, Channel),
 }
 
+struct GapClaim {
+    span: (usize, usize),
+    intervals: Vec<(usize, usize)>,
+}
+
 /// One evaluation context for the complete emission, attachments included.
 pub(crate) struct Strings<'a> {
     grammar: &'a Lowered,
@@ -25,7 +30,7 @@ pub(crate) struct Strings<'a> {
     sources: Sources,
     text: &'a [char],
     covered: Vec<bool>,
-    claims: Vec<((usize, usize), Vec<(usize, usize)>)>,
+    claims: Vec<GapClaim>,
     saved: Vec<[Option<String>; 2]>,
     active: Vec<[bool; 2]>,
 }
@@ -95,13 +100,13 @@ impl<'a> Strings<'a> {
         if right < end {
             extensions.push((right, end));
         }
-        if !self.claims.iter().any(|(other, _)| *other == span) {
-            for (_, claimed) in &self.claims {
-                if extensions.iter().any(|a| claimed.iter().any(|b| a.0 < b.1 && b.0 < a.1)) {
+        if !self.claims.iter().any(|claim| claim.span == span) {
+            for claim in &self.claims {
+                if extensions.iter().any(|a| claim.intervals.iter().any(|b| a.0 < b.1 && b.0 < a.1)) {
                     return Err(Self::failure("different verbatim spans claim the same uncovered source text"));
                 }
             }
-            self.claims.push((span, extensions));
+            self.claims.push(GapClaim { span, intervals: extensions });
         }
         Ok(self.text[start..end].iter().collect())
     }

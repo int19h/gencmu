@@ -124,7 +124,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
     let bootstrap = bootstrap.replacen(
         r#""name":"symbol","op":"define","flags":[],"alternatives":["#,
-        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"'.'"}},"#,
+        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;

@@ -699,8 +699,7 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
-    /// The table of the canonical sound and the tag table that the tests of
-    /// symbols read (§4, §5).
+    /// The Unicode table and the stored tag sets used by symbol tests (§4, §5).
     unicode: &'c Unicode,
     tags: &'c Tags,
     /// In the check of `elision-only`, O and π: a test of a reference reads

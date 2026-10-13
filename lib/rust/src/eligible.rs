@@ -790,7 +790,7 @@ mod tests {
             .map(|(index, &terminal)| Tok {
                 text: "x".to_string(),
                 tags: shared.tags.set_of([terminal]),
-                value: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
                 image: "x".to_string(),
                 sound: Default::default(),
@@ -835,8 +835,7 @@ mod tests {
     /// entries that they look at grows linearly with the text.
     #[test]
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
         let operations = |n: usize, most: &dyn Fn(u64) -> u64| {
             let (eligible, operations, items) = query_work(grammar, n, 0, false, most);
             assert!(eligible.iter().all(|&eligible| eligible));
@@ -859,18 +858,17 @@ mod tests {
 
     fn written_question_work(n: usize) {
         let starts: Vec<String> = (0..n).map(|index| format!("A{index}")).collect();
-        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} <~z>")).collect();
+        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} :: Tag-z")).collect();
         let bs = vec!["b"; n].join(" ");
         let grammar = format!(
-            "%ambiguity-resolution greedy\n%rule text $q(body) C\n%conditions text($) ≠ \"\" ∧ matches($q,r)\n\
-             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev(r) [+KU tail] | {}\n\
-             %conditions $prev ⟹ text($) = \"a ku {bs}\"\n",
+            "%ambiguity-resolution greedy\n%rule text $q:body C\n%conditions $.source-text ≠ \"\" ∧ $q.matches(r)\n\n             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev:r [+KU tail] | {}\n\n             %conditions $prev ⟹ $.source-text = \"a ku {bs}\"\n",
             starts.join(" | "),
             tagged.join(" | ")
         );
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
+            image: None,
             text: text.to_string(),
             tags: tags.into_iter().collect(),
             value: None,
@@ -914,7 +912,7 @@ mod tests {
                 } else {
                     "B"
                 }]),
-                value: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
                 image: "x".to_string(),
                 sound: Default::default(),

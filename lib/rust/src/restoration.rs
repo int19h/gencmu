@@ -587,8 +587,8 @@ mod tests {
                 }
                 if witness {
                     rules = rules.replace(
-                        "matches(without-elision($x), empty)",
-                        &format!("¬matches(without-elision($x), r{depth})"),
+                        "$x.without-elision.matches(empty)",
+                        &format!("¬$x.without-elision.matches(r{depth})"),
                     );
                 }
                 let source = format!("```jbogenbau\n%stage main\n{rules}\n```\n");
@@ -605,7 +605,7 @@ mod tests {
             let fixture =
                 crate::json::parse(&std::fs::read_to_string(root.join("engine").join(file.as_str().unwrap())).unwrap())
                     .unwrap();
-            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x(empty)\n%conditions matches(without-elision($x), empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
+            let source=format!("```jbogenbau\n%stage main\n{}\n%rule unused $x:empty\n%conditions $x.without-elision.matches(empty)\n%rule empty ε\n```\n",fixture.get("grammar").unwrap().as_str().unwrap());
             let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
             let tokens = fixture
                 .get("tokens")
@@ -613,6 +613,7 @@ mod tests {
                 .unwrap_or(&[])
                 .iter()
                 .map(|t| crate::InputToken {
+                    image: None,
                     text: t.get("text").and_then(Json::as_str).unwrap_or("").into(),
                     tags: t
                         .get("tags")
@@ -658,7 +659,7 @@ mod tests {
             let mut results = Vec::new();
             let mut items = Vec::new();
             for aligned in [false, true] {
-                let grammar = if aligned { rules.clone() } else { rules.replace("without-elision($x)", "$x") };
+                let grammar = if aligned { rules.clone() } else { rules.replace("$x.without-elision", "$x") };
                 let source = format!("```jbogenbau\n%stage main\n{grammar}\n```\n");
                 let dialect = crate::load_dialect_sources([("p.md", source.as_str())], "p.md").unwrap();
                 work::reset();

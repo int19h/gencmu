@@ -1182,7 +1182,7 @@ mod tests {
 
     #[test]
     fn unused_names_share_one_lowering() {
-        let dialect = dialect("%rule text f? 'x' | 'y'");
+        let dialect = dialect("%rule text f? \"x\" | \"y\"");
         for index in 0..50 {
             let options = ParseOptions {
                 features: vec![format!("unused-{index}")],
@@ -1203,7 +1203,7 @@ mod tests {
             names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
         let entries = entries.concat();
         let dialect =
-            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w('x') <classify(text($w), c)>"));
+            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w:\"x\" :: $w.source-text.classify(c)"));
         for _ in 0..2 {
             for set in 0..1usize << names.len() {
                 let features: Vec<String> = names
@@ -1227,8 +1227,8 @@ mod tests {
     #[test]
     fn lowered_grammars_are_bounded() {
         let names = ["a", "b", "c", "d", "e", "f", "g"];
-        let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? 'x'")).collect();
-        let dialect = dialect(&format!("%rule text {} | 'y'", alternatives.join(" | ")));
+        let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? \"x\"")).collect();
+        let dialect = dialect(&format!("%rule text {} | \"y\"", alternatives.join(" | ")));
         for set in 0..1usize << names.len() {
             let features: Vec<String> = names
                 .iter()
