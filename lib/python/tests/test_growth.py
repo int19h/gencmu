@@ -66,7 +66,9 @@ class Growth(unittest.TestCase):
                 try:
                     items(case["large"], case["most"] * small)
                 except OverBudget:
-                    self.fail(f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}")
+                    self.fail(
+                        f"{case['link']}: {small} items for {case['small']} links, more than {case['most']} times as many for {case['large']}"
+                    )
 
 
 class ItemCount(unittest.TestCase):
@@ -99,11 +101,11 @@ class CaptureStorage(unittest.TestCase):
         """Parse a production of ``count`` captures over as many tokens, under
         the budgets of each count, which stop the parse at the first unit
         past one. ``works`` receives each count, by name."""
-        names = " ".join(f"$c{index}(A)" for index in range(count))
+        names = " ".join(f"$c{index}:A" for index in range(count))
         # A tag term that reads every capture, the first last. The rule rest
         # makes no captures, for a regression that parses it again.
-        tags = " ∪ ".join(f"tags($c{count - 1 - index})" for index in range(count))
-        grammar = f'%rule text {names}\n%tags ~x ∪ {tags}\n%conditions text($c0) = "a"\n%rule rest {{A}}'
+        tags = " ∪ ".join(f"$c{count - 1 - index}.tags" for index in range(count))
+        grammar = f'%rule text :: X ∪ {tags} | {names}\n%conditions $c0.source-text = "a"\n%rule rest {{A}}'
         case = {"grammar": grammar, "tokens": [{"text": "a", "tags": ["A"]}] * count}
         dialect, error = load_case_dialect(case)
         self.assertIsNone(error)
@@ -136,7 +138,7 @@ class CaptureStorage(unittest.TestCase):
             try:
                 self.storage(count, works, captures, steps_)
             except OverBudget:
-                self.fail(f"{count} captures: past a budget, at {({name: work.count for name, work in works.items()})}")
+                self.fail(f"{count} captures: past a budget, at { ({name: work.count for name, work in works.items()}) }")
 
     def test_regressions_fail_at_the_first_count_past_each_budget(self) -> None:
         # Each regression passes one budget, and the parse stops at the
@@ -190,8 +192,8 @@ class CaptureStorage(unittest.TestCase):
         """Parse a production of ``count`` captures with a condition at each
         that reads the capture ``far`` names, under a budget of the steps
         of the searches, which ``works`` receives."""
-        names = " ".join(f"$c{index}(A)" for index in range(count))
-        conditions = ", ".join(f"text($c{index}) = text({far(index)})" for index in range(count))
+        names = " ".join(f"$c{index}:A" for index in range(count))
+        conditions = ", ".join(f"$c{index}.source-text = {far(index)}.source-text" for index in range(count))
         case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
         dialect, error = load_case_dialect(case)
         self.assertIsNone(error)
@@ -253,8 +255,8 @@ class ConditionSelection(unittest.TestCase):
     def select(self, count: int, works: list[Work]) -> None:
         """Parse a production of ``count`` captures with a condition at each,
         under a budget of one step of selection for each advance."""
-        names = " ".join(f"$c{index}(A)" for index in range(count))
-        conditions = ", ".join(f'text($c{index}) = "a"' for index in range(count))
+        names = " ".join(f"$c{index}:A" for index in range(count))
+        conditions = ", ".join(f'$c{index}.source-text = "a"' for index in range(count))
         case = {"grammar": f"%rule text {names}\n%conditions {conditions}", "tokens": [{"text": "a", "tags": ["A"]}] * count}
         dialect, error = load_case_dialect(case)
         assert dialect is not None, error
@@ -337,6 +339,7 @@ class NotationGrowth(unittest.TestCase):
     def test_cases(self) -> None:
         cases = load_json(SHARED / "notation-growth.json")
         self.assertGreater(len(cases), 5)
+
         def watches() -> list[Watch]:
             return [made_items(), *reader_steps()]
 
@@ -368,7 +371,6 @@ class NotationGrowth(unittest.TestCase):
         watches = [made_items(), *reader_steps()]
         small, large = self.grows(case, lambda: watches, lambda: mock.patch.object(_dom, "flatten_groups", flatten_each))
         self.assertEqual(large.count, 5 * small + 1)
-
 
     def test_marking_a_repeated_capture_at_each_level_fails_at_the_first_step_past_its_budget(self) -> None:
         # The regression keeps each capture marked as repeated in its list,
@@ -405,7 +407,7 @@ def visits() -> list[Watch]:
     return [
         steps(Evaluator.walk_condition, 'if "op" in dom:'),
         steps(Evaluator.walk_value, 'if "string" in dom:'),
-        steps(Evaluator._span, "if isinstance(dom, dict):"),
+        steps(Evaluator._span, 'if "capture" in dom:'),
     ]
 
 

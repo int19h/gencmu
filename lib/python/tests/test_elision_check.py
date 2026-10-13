@@ -20,9 +20,17 @@ from .witness import checks, walk_witness
 
 CASE: dict[str, Any] = {
     "documents": {
-        "p.md": "```jbogenbau\n%stage main\n%ambiguity-resolution late-elision elision-only\n"
-        '%rule text a | b\n%rule a w! A [+T="ta"] [+U] %emits $ <~x>\n%rule b A [+T="ta"] [+U] [+U]\n'
-        "%stage later\n%ambiguity-resolution greedy\n%rule text ~x\n```\n",
+        "p.md": """```jbogenbau
+%stage main
+%ambiguity-resolution late-elision elision-only
+%rule text a | b
+%rule a w! A [+T="ta"] [+U] %emits $ :: X
+%rule b A [+T="ta"] [+U] [+U]
+%stage later
+%ambiguity-resolution greedy
+%rule text X
+```
+""",
     },
     "pipeline": "p.md",
     "tokens": [{"text": "a", "tags": ["A"]}],
@@ -89,7 +97,7 @@ class WitnessLostError(unittest.TestCase):
                 # only for the tested terminator.
                 self.assertEqual(
                     error["completion"],
-                    [{"terminal": "T", "at": 1, "source": [1, 1], "sound": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}],
+                    [{"terminal": "T", "at": 1, "source": [1, 1], "value": "ta"}, {"terminal": "U", "at": 1, "source": [1, 1]}],
                 )
                 # The stage keeps its verdict and warnings, has no output,
                 # and no later stage runs.

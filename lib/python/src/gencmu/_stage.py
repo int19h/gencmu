@@ -12,10 +12,22 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
-    Act, Elisions, Ranker, Ranking, Rope, actions, compare_profiles, concat,
-    count_roots, first_difference, leaf, rank, sum_profiles,
+    Act,
+    Elisions,
+    Ranker,
+    Ranking,
+    Rope,
+    actions,
+    compare_profiles,
+    concat,
+    count_roots,
+    first_difference,
+    leaf,
+    rank,
+    sum_profiles,
 )
-from ._tags import PAUSE, phoneme_of
+from ._trampoline import run
+from ._recipes import selected
 from ._unicode import UnicodeTable
 from . import _testing
 from ._restored import empty_source, restore
@@ -70,10 +82,10 @@ def derivation(forest: Forest, rope: Rope | None) -> DNode:
     return stack[0]
 
 
-def _restored_sound(test: SymbolTest | None) -> str | None:
-    """What a restored terminator sounds like: the string of its = test,
+def _restored_value(test: SymbolTest | None) -> str | None:
+    """A restored terminator's value: the string of its = test,
     or nothing (engine §7)."""
-    return test.sound if test is not None and test.op == "=" else None
+    return test.value if test is not None and test.op == "=" else None
 
 
 def _range_source(sources: Sources, start: int, end: int) -> Range:
@@ -130,7 +142,7 @@ class Tree:
                                 # The string of an = test is kept for
                                 # elision-only's restored token; the output
                                 # does not show it (engine §7).
-                                sound=_restored_sound(child.production.elided_test),
+                                value=_restored_value(child.production.elided_test),
                             )
                         )
                     else:
@@ -186,8 +198,6 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
     return warnings
 
 
-
-
 def elided_nodes(tree: Node) -> list[Node]:
     """The elided nodes of a tree in the order of its leaves."""
     found: list[Node] = []
@@ -201,88 +211,7 @@ def elided_nodes(tree: Node) -> list[Node]:
 
 
 def emits_nothing(production: Production) -> bool:
-    """Whether a production's emission is ``ε``, which makes its constituent
-    not count (engine §11). An emission that lists items keeps at least one
-    for every production (engine §9), so only ``ε`` lowers to none."""
-    return production.emit is not None and not production.emit
-
-
-def opaque_parts(root: DNode, tokens: list[Token], sources: Sources, text: str) -> dict[int, Range]:
-    """The opaque parts of a chosen derivation, each with its source,
-    keyed by the ``id`` of its node (engine §11). An opaque part is the
-    constituent of a ``%opaque`` production inside no constituent that
-    emits ``ε`` and no other opaque part. The stage fixes them before it
-    emits anything, so that every token over a part holds the same text."""
-    parts: list[DNode] = []
-    stack: list[DChild] = [root]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, DRead) or emits_nothing(node.production):
-            continue
-        if node.production.opaque:
-            parts.append(node)
-            continue
-        stack.extend(reversed(node.children))
-    # Text between two input tokens belongs to the part with a non-empty
-    # span that ends there, before one that starts there.
-    ends = {part.end for part in parts if part.start < part.end}
-    result: dict[int, Range] = {}
-    for part in parts:
-        if part.start == part.end:
-            # An empty part takes in no text. Its source is that of an empty
-            # node (engine §12).
-            result[id(part)] = _empty_source(tokens, part.start)
-            continue
-        before = tokens[part.start - 1].source[1] if part.start > 0 else 0
-        # It always holds its own tokens' sources, which the tokens next to
-        # it can share, and takes in the text next to it that no input token
-        # covers.
-        own = sources.of(part.start, part.end)
-        first = own[0] if part.start in ends else min(own[0], before)
-        after = tokens[part.end].source[0] if part.end < len(tokens) else len(text)
-        result[id(part)] = (first, max(own[1], after))
-    return result
-
-
-class Join:
-    """A join of the phonemes or of the labels of a token's parts (engine
-    §5): a part with an empty string is left out, of each run of adjacent
-    pause parts only the first is kept, and a pause part at either end is
-    left out. Pauses are counted by part, so a part keeps its own periods
-    and spaces."""
-
-    __slots__ = ("pieces", "pause")
-
-    def __init__(self) -> None:
-        self.pieces: list[str] = []
-        self.pause = False
-
-    def add(self, piece: str, pause: bool) -> None:
-        if not piece or pause and (not self.pieces or self.pause):
-            return
-        self.pieces.append(piece)
-        self.pause = pause
-
-    def result(self) -> str:
-        if self.pause:
-            self.pieces.pop()
-        return "".join(self.pieces)
-
-
-def sounded(phoneme: str) -> tuple[str, str]:
-    """The phonemes and the label of a phoneme tag ``/p/`` (engine §5):
-    ``p`` and ``p``, but a space for the label of the pause."""
-    return phoneme, " " if phoneme == PAUSE else phoneme
-
-
-def phoneme_tag(tags: Tags) -> str | None:
-    """The phonemes of an emitted token's phoneme tag, or ``None`` if
-    it has none. Two are an error of the grammar on any emitted token
-    (engine §5)."""
-    found = sorted(tag for tag in tags if phoneme_of(tag) is not None)
-    if len(found) > 1:
-        raise _GrammarFault(f"an emitted token has two phoneme tags: {', '.join(found)}")
-    return phoneme_of(found[0]) if found else None
+    return production.erased
 
 
 def implied(tags: Tags, lowered: Lowered) -> Tags:
@@ -310,7 +239,7 @@ def implied(tags: Tags, lowered: Lowered) -> Tags:
 
 
 class Emitter:
-    """Emission (engine §11): the tokens a stage hands to the next."""
+    """Separate emission, channel, and ownership walks (engine §11)."""
 
     def __init__(self, context: StageContext, forest: Forest, tree: Tree, root: DNode) -> None:
         self.context = context
@@ -319,237 +248,246 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0, len(context.tokens))
-        self.output: list[Token] = []
-        self.forwards = False
-        self.inherited: set[int] = set()
-        # The opaque parts and their sources, fixed before any token
-        # (engine §11).
-        self.opaque = opaque_parts(root, self.tokens, context.sources, context.text)
+        self.channels = {}
+        self.recipes = {}
+        self.active = set()
+        self.claims = {}
+        self.inherited = set()
+        self.forwards = any(token.before or token.after for token in self.tokens)
+        self.coverage = []
+        for start, end in sorted(token.source for token in self.tokens if token.source[0] < token.source[1]):
+            if self.coverage and start <= self.coverage[-1][1]:
+                self.coverage[-1] = (self.coverage[-1][0], max(end, self.coverage[-1][1]))
+            else:
+                self.coverage.append((start, end))
 
-    def spoken(self, part: DChild) -> tuple[str, str]:
-        """What a part says and shows: the phonemes and the labels of its
-        parts, joined (engine §5, §11). A part is a read input token or a
-        opaque part. Nothing inside a constituent that does not count is a
-        part, and the walk does not enter an opaque part."""
-        phonemes = Join()
-        label = Join()
-        stack: list[DChild] = [part]
-        while stack:
-            node = stack.pop()
+    def part_source(self, part: DChild) -> Range:
+        return self.tokens[part.token].source if isinstance(part, DRead) else self.tree.source_of(part)
+
+    def capture(self, owner: DNode, name: str) -> DChild:
+        return owner if name == "" else owner.children[owner.production.captures[name]]
+
+    def verbatim(self, part: DChild) -> str:
+        span = part.start, part.end
+        if part.start == part.end:
+            return ""
+        left, right = self.part_source(part)
+        before = self.tokens[part.start - 1].source[1] if part.start else 0
+        after = self.tokens[part.end].source[0] if part.end < len(self.tokens) else len(self.context.text)
+        start, end = left, right
+        if before < left:
+            start = before
+            for a, b in self.coverage:
+                if a >= left:
+                    break
+                if b > start:
+                    start = min(left, b)
+        if right < after:
+            end = after
+            for a, b in self.coverage:
+                if b <= right:
+                    continue
+                end = max(right, min(end, a))
+                break
+        extensions = [(start, left)] if start < left else []
+        if right < end:
+            extensions.append((right, end))
+        if span not in self.claims:
+            for other in self.claims.values():
+                if any(max(a, c) < min(b, d) for a, b in extensions for c, d in other):
+                    raise _GrammarFault("verbatim recipes claim the same uncovered text from different spans")
+            self.claims[span] = extensions
+        return self.context.text[start:end]
+
+    def string(self, part: DChild, channel: str):
+        key = id(part), channel
+        if key in self.channels:
+            return self.channels[key]
+        if isinstance(part, DRead):
+            return getattr(self.tokens[part.token], channel)
+        if part.production.erased:
+            return ""
+        if key in self.active:
+            raise _GrammarFault("a constituent recipe has a channel dependency cycle")
+        self.active.add(key)
+        try:
+            recipe = part.production.value if channel == "value" else selected(part.production.value, part.production.image)[1]
+            if recipe is not None:
+                value = yield self.recipe(part, recipe)
+            else:
+                pieces = []
+                for child in part.children:
+                    pieces.append((yield self.string(child, channel)))
+                value = "".join(pieces)
+            self.channels[key] = value
+            return value
+        finally:
+            self.active.remove(key)
+
+    def recipe(self, owner: DNode, recipe):
+        key = id(owner), id(recipe)
+        if key in self.recipes:
+            return self.recipes[key]
+        parts = []
+        for atom in recipe["concat"]:
+            if "string" in atom:
+                value = atom["string"]
+            elif "interpolate" in atom:
+                value = "".join(part["string"] for part in atom["interpolate"])
+            else:
+                method = atom["method"]
+                receiver = atom["receiver"]
+                emitted = receiver.get("method") == "emitted"
+                name = receiver["receiver"]["capture"] if emitted else receiver["capture"]
+                part = self.capture(owner, name)
+                if emitted:
+                    value = yield self.string(part, method)
+                elif method == "verbatim-text":
+                    value = self.verbatim(part)
+                elif method == "source-text":
+                    source = self.part_source(part)
+                    value = self.context.text[source[0] : source[1]] if part.start < part.end else ""
+                else:
+                    value = "".join(getattr(self.tokens[i], method) for i in range(part.start, part.end))
+            parts.append(value)
+        value = "".join(parts)
+        self.recipes[key] = value
+        return value
+
+    def item_strings(self, owner: DNode, part: DChild | None, value, image) -> tuple[str, str]:
+        if value is not None:
+            written_value = run(self.recipe(owner, value))
+        else:
+            written_value = run(self.string(part, "value")) if part is not None else ""
+        if image is not None:
+            written_image = run(self.recipe(owner, image))
+        elif value is not None:
+            written_image = written_value
+        else:
+            written_image = run(self.string(part, "image")) if part is not None else ""
+        return written_value, written_image
+
+    def forwarded(self, part: DChild) -> Token | None:
+        count = 0
+        found = None
+        pending = [part]
+        while pending:
+            node = pending.pop()
             if isinstance(node, DRead):
+                count += 1
                 token = self.tokens[node.token]
-                sound = token.phonemes or ""
-                phonemes.add(sound, sound == PAUSE)
-                label.add(token.label, sound == PAUSE)
-                continue
-            if emits_nothing(node.production):
-                continue
-            source = self.opaque.get(id(node))
-            if source is not None:
-                phonemes.add("?", False)
-                label.add(self.context.text[source[0] : source[1]], False)
-                continue
-            stack.extend(reversed(node.children))
-        return phonemes.result(), label.result()
+                if token.before or token.after:
+                    found = token
+            elif not node.production.erased:
+                pending.extend(reversed(node.children))
+        if found is not None and count > 1:
+            raise _GrammarFault("a covering token combines attached input with another counted token")
+        return found
 
-    def part_token(self, part: DChild, explicit: Tags) -> Token:
-        """The token a ``$`` item or a capture item emits over a part, with
-        the tags that the emission gives it (engine §11)."""
-        # The stage's implications apply before the phonemes and the label
-        # (engine §11).
-        tags = implied(explicit, self.context.lowered)
-        # Two phoneme tags are an error on any token (engine §5).
-        phoneme = phoneme_tag(tags)
-        # A token over an opaque part has the part's source and text (engine
-        # §11).
-        source = self.opaque.get(id(part)) if isinstance(part, DNode) else None
-        if source is None:
-            source = self.part_source(part)
+    def part_token(self, owner: DNode, part: DChild, explicit: Tags, value, image) -> Token:
+        source = self.part_source(part)
         text = self.context.text[source[0] : source[1]]
-        # A phoneme tag decides the sound and the label, over ``?`` (engine
-        # §5).
-        phonemes, label = sounded(phoneme) if phoneme is not None else self.spoken(part)
-        token = Token(text, tags, (part.start, part.end), source, phonemes, None, label)
-        # The parts decide the attachments too, after the phoneme tags are
-        # checked (engine §11).
+        written_value, written_image = self.item_strings(owner, part, value, image)
+        token = Token(text, implied(explicit, self.context.lowered), (part.start, part.end), source, written_value, image=written_image)
         origin = self.forwarded(part) if self.forwards else None
         if origin is not None:
-            # Attachments belong to one token: an input token that is the one
-            # part of a second token is an error of the grammar (engine §11).
             if id(origin) in self.inherited:
-                raise _GrammarFault(
-                    "a token with attachments is the one part of two emitted tokens, and its attachments cannot belong to both"
-                )
+                raise _GrammarFault("two covering tokens claim the same input attachments")
             self.inherited.add(id(origin))
             token.before = list(origin.before)
             token.after = list(origin.after)
         return token
 
-    def forwarded(self, part: DChild) -> Token | None:
-        """The one input token whose attachments a token over ``part``
-        inherits, or ``None`` (engine §11). The parts are those of the join
-        (engine §5): a read input token, or an opaque part as one piece, and
-        nothing inside a constituent that emits ``ε``. A token with
-        attachments among other parts, or an opaque part that holds one, is
-        an error of the grammar."""
-        parts = 0
-        found: Token | None = None
-        stack: list[DChild] = [part]
-        while stack:
-            node = stack.pop()
-            if isinstance(node, DRead):
-                parts += 1
-                token = self.tokens[node.token]
-                if token.before or token.after:
-                    found = token
-                continue
-            if emits_nothing(node.production):
-                continue
-            if id(node) in self.opaque:
-                parts += 1
-                if self.holds_attachments(node):
-                    raise _GrammarFault(
-                        f"{node.production.rule_name} is an opaque part over a token with attachments, which a token over it cannot place"
-                    )
-                continue
-            stack.extend(reversed(node.children))
-        if found is not None and parts > 1:
-            raise _GrammarFault("a token over a token with attachments and another part cannot say which part each attachment belongs to")
-        return found
+    def item_tags(self, node: DNode, term: Any) -> Tags:
+        bound = self.evaluator.bind(
+            node.production,
+            self.forest.caps[node.item],
+            (node.start, node.end, node.tag),
+            self.forest.structure[node.item] if self.forest.structure else 0,
+            self.forest.close_structure[node.item] if self.forest.close_structure else 0,
+        )
+        return self.evaluator.tags(term, bound)
 
-    def holds_attachments(self, part: DNode) -> bool:
-        """Whether an opaque part holds an input token with attachments: one
-        that it reads outside any constituent that emits ``ε`` (engine
-        §11)."""
-        stack: list[DChild] = [part]
-        while stack:
-            node = stack.pop()
-            if isinstance(node, DRead):
-                token = self.tokens[node.token]
-                if token.before or token.after:
-                    return True
-                continue
-            if emits_nothing(node.production):
-                continue
-            stack.extend(node.children)
-        return False
-
-    def part_source(self, part: DChild) -> Range:
-        if isinstance(part, DRead):
-            return self.tokens[part.token].source
-        return self.tree.source_of(part)
+    def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
+        tagtab = self.context.tagtab
+        if item[0] == "whole":
+            _, term, value, image = item
+            tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
+            out.append(self.part_token(node, node, tags, value, image))
+        elif item[0] == "capture":
+            _, position, term, _, _, value, image = item
+            part = node.children[position]
+            tags = (
+                self.item_tags(node, term)
+                if term is not None
+                else self.tokens[part.token].tags
+                if isinstance(part, DRead)
+                else tagtab.get(part.tag)
+            )
+            out.append(self.part_token(node, part, tags, value, image))
+        else:
+            _, term, anchor, value, image = item
+            if anchor == -1:
+                boundary, at = node.start, self.part_source(node)[0]
+            elif anchor is not None:
+                part = node.children[anchor]
+                boundary, at = part.start, self.part_source(part)[0]
+            else:
+                boundary = node.end
+                at = self.tokens[boundary - 1].source[1] if boundary > node.start else self.part_source(node)[0]
+            tags = self.item_tags(node, term) if term is not None else frozenset()
+            written_value, written_image = self.item_strings(node, None, value, image)
+            out.append(
+                Token(
+                    "",
+                    implied(tags, self.context.lowered),
+                    (boundary, boundary),
+                    (at, at),
+                    written_value,
+                    node.production.rule_name,
+                    written_image,
+                )
+            )
 
     def emit(self) -> list[Token]:
-        """The stage's output: what the root emits (engine §11)."""
-        # Whether any input token has attachments to forward, and the input
-        # tokens whose attachments a token has inherited (engine §11).
-        self.forwards = any(token.before or token.after for token in self.tokens)
-        self.inherited = set()
-        self.output = self.emitted(self.root)
-        return self.output
+        return self.emitted(self.root)
 
     def emitted(self, root: DChild) -> list[Token]:
-        """The tokens a constituent emits in its place in the derivation
-        (engine §11): the stage's output from the root, or an attachment
-        from a captured part. Walk the tree from the left: a constituent
-        whose production has no emission is walked, and one that has one
-        emits exactly its items, in list order, and nothing inside it is
-        walked but the attachment captures of its items. Within an item, the
-        before-attachments come first, then the carrier with its tag term,
-        then the after-attachments, and the first error ends the emission.
-        The work is a stack of tasks, so that nesting costs no recursion."""
-        out: list[Token] = []
-        # A task is ("walk", node, into), ("item", node, item, into),
-        # ("carrier", node, item, into), or ("attach", into, before, after),
-        # which gives the last token of ``into`` its new attachments.
-        work: list[tuple[Any, ...]] = [("walk", root, out)]
+        out = []
+        work = [("walk", root, out)]
         while work:
             task = work.pop()
             kind = task[0]
             if kind == "walk":
                 _, node, into = task
-                if isinstance(node, DRead):
+                if isinstance(node, DRead) or node.production.erased:
                     continue
-                emit = node.production.emit
-                if emit is None:
+                if node.production.emit is None:
                     work.extend(("walk", child, into) for child in reversed(node.children))
-                    continue
-                work.extend(("item", node, item, into) for item in reversed(emit))
+                else:
+                    work.extend(("item", node, item, into) for item in reversed(node.production.emit))
             elif kind == "item":
                 _, node, item, into = task
                 if item[0] != "capture" or not (item[3] or item[4]):
                     self.emit_item(node, item, into)
                     continue
-                before: list[Token] = []
-                after: list[Token] = []
-                steps: list[tuple[Any, ...]] = [("walk", node.children[position], before) for position in item[3]]
+                before, after = [], []
+                steps = [("walk", node.children[p], before) for p in item[3]]
                 steps.append(("carrier", node, item, into))
-                steps.extend(("walk", node.children[position], after) for position in item[4])
+                steps.extend(("walk", node.children[p], after) for p in item[4])
                 steps.append(("attach", into, before, after))
                 work.extend(reversed(steps))
             elif kind == "carrier":
                 _, node, item, into = task
                 self.emit_item(node, item, into)
             else:
-                # The carrier's token is the last of its list until the
-                # after-attachments are done, since they go to their own
-                # list. New attachments are outer to inherited ones, and an
-                # attached token has no span (engine §11).
                 _, into, before, after = task
+                for token in (*before, *after):
+                    token.span = None
                 token = into[-1]
-                for attached in (*before, *after):
-                    attached.span = None
-                if before:
-                    token.before = [*before, *token.before]
-                if after:
-                    token.after = [*token.after, *after]
+                token.before = [*before, *token.before]
+                token.after = [*token.after, *after]
         return out
-
-    def emit_item(self, node: DNode, item: tuple[Any, ...], out: list[Token]) -> None:
-        tagtab = self.context.tagtab
-        if item[0] == "whole":
-            _, term = item
-            tags = self.item_tags(node, term) if term is not None else tagtab.get(node.tag)
-            out.append(self.part_token(node, tags))
-        elif item[0] == "capture":
-            _, position, term, _, _ = item
-            part = node.children[position]
-            if term is not None:
-                tags = self.item_tags(node, term)
-            elif isinstance(part, DRead):
-                tags = self.tokens[part.token].tags
-            else:
-                tags = tagtab.get(part.tag)
-            out.append(self.part_token(part, tags))
-        else:
-            # An inserted tag stands, with an empty span, at the start of its
-            # anchor, the first written part of the capture item listed next
-            # after it, or at the end of the constituent (engine §11).
-            _, tag, anchor = item
-            boundary = node.children[anchor].start if anchor is not None else node.end
-            if boundary > node.start:
-                at = self.tokens[boundary - 1].source[1]
-            else:
-                at = self.tree.source_of(node)[0]
-            tags = implied(frozenset((tag,)), self.context.lowered)
-            # An inserted token has no parts: a phoneme tag gives its phonemes
-            # and its label, or both are empty (engine §5).
-            phoneme = phoneme_tag(tags)
-            phonemes, label = sounded(phoneme) if phoneme is not None else ("", "")
-            out.append(Token("", tags, (boundary, boundary), (at, at), phonemes, node.production.rule_name, label))
-
-    def context_caps(self, node: DNode) -> Any:
-        return self.forest.caps[node.item]
-
-    def item_tags(self, node: DNode, term: Any) -> Tags:
-        """The tags an emission item's term gives, over the constituent's
-        captures and ``$``; no tags at all is an error of the grammar, since
-        no terminal could read the token (engine §11)."""
-        bound = self.evaluator.bind(node.production, self.context_caps(node), (node.start, node.end, node.tag), self.forest.structure[node.item] if self.forest.structure else 0, self.forest.close_structure[node.item] if self.forest.close_structure else 0)
-        tags = self.evaluator.tags(term, bound)
-        if not tags:
-            raise _GrammarFault(f"{node.production.rule_name} emits a token with no tags; a rule that emits nothing says %emits ε")
-        return tags
 
 
 @dataclass
@@ -620,9 +558,7 @@ class StageRunner:
         line, column = line_column(self.text, source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
-        return ParseError(
-            "rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected
-        )
+        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected)
 
     def run(self, elision_only: bool) -> StageOutcome:
         try:
@@ -711,9 +647,7 @@ class StageRunner:
         tokens = self.tokens
         # The restoration records, in the order of the tree's leaves (engine
         # §7.2).
-        records = [
-            Restoration(node.terminal or "", node.span[0], node.source, node.sound) for node in elided_nodes(tree)
-        ]
+        records = [Restoration(node.terminal or "", node.span[0], node.source, node.value) for node in elided_nodes(tree)]
         view = restore(tokens, records)
         restored, synthetic, project = view.tokens, view.synthetic, view.project
         original_at, record_at, record_of = view.original_at, view.record_at, view.record_of
@@ -735,6 +669,7 @@ class StageRunner:
         protected = True
         if protected:
             from ._witness import walk_witness
+
             pending = [chosen]
             while pending:
                 node = pending.pop()
@@ -748,32 +683,32 @@ class StageRunner:
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
         if preferred:
-            raw = rank(forest,"none",marks=marks,check=True,unfiltered=True)
+            raw = rank(forest, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks)
         better = False
         watched_selection = False
         if protected and ranking is not None:
-            order = compare_profiles(ranking.profile,chosen_profile)
-            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order>0):
+            order = compare_profiles(ranking.profile, chosen_profile)
+            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order > 0):
                 ranking = None
             else:
                 restored_rope = None
                 for act in walk.sequence:
-                    restored_rope = concat(restored_rope,leaf(act))
+                    restored_rope = concat(restored_rope, leaf(act))
                 excluded = ranking.witness_counted is not True
-                better = excluded or order<0
+                better = excluded or order < 0
                 if watch is not None and not better and not preferred:
                     watch.ranked(ranking)
                     watched_selection = True
-                if better or ranking.verdict=="tie":
-                    competitor = ranking.first if first_difference(restored_rope,ranking.first,False) is not None else ranking.second
+                if better or ranking.verdict == "tie":
+                    competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
                     if competitor is None:
                         raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
-                    ranking.first,ranking.second = restored_rope,competitor
-                    difference = first_difference(restored_rope,competitor,True) or first_difference(restored_rope,competitor,False)
+                    ranking.first, ranking.second = restored_rope, competitor
+                    difference = first_difference(restored_rope, competitor, True) or first_difference(restored_rope, competitor, False)
                     assert difference is not None
-                    ranking.witness = (difference[1],difference[2])
+                    ranking.witness = (difference[1], difference[2])
                 if preferred:
                     ranking.raw_witness_counted = raw_counted
         if watch is not None and not watched_selection:
@@ -854,7 +789,7 @@ def _map_back(
             node.terminal = record.terminal
             node.span = (record.at, record.at)
             node.source = record.source
-            node.sound = record.sound
+            node.value = record.value
             node.token = None
         elif node.kind == "token" and node.token is not None:
             node.token = project[node.token]

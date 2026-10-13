@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library can write its results as the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.12 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 26 and writes result format 12. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -46,13 +46,15 @@ The reason is `"tie"` where a stage has two or more best readings (`docs/engine.
 
 Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the dialect still loads. One example is a classifier's entry that adds a class that a key already has.
 
-Another is an item of braces, `{x}` or `{x \ s}`, that can match no tokens. A chain, `{... x \ s}` or `{x ... \ s}`, beside another alternative after gates apply is also a defect. The message of such an error begins with the document, line and column of the entry or of the definition at fault, as `a.md:3:1:`. Where a grammar has several, the parse reports the one that `docs/engine.md` §3 puts first.
+Another is an item of braces, `{x}` or `{x / s}`, that can match no tokens. A chain, `{... x / s}` or `{x ... / s}`, beside another alternative after gates apply is also a defect. The message of such an error begins with the document, line and column of the entry or of the definition at fault, as `a.md:3:1:`. Where a grammar has several, the parse reports the one that `docs/engine.md` §3 puts first.
 
 An error of kind `grammar` whose `code` is `"elision-witness-lost"` marks a defect of the library, not of the text or the grammar. The check of `elision-only` lost the chosen derivation, which it must always find again (`docs/engine.md`, §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back, in their order. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-Its `sound` is the string of an `=` test, or `None` without that test. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. No other error has a `code`, so its `code`, `chosen` and `completion` are `None`.
+Its `value` is the exact string of an `=` test, or `None` without that test. The stage keeps its verdict, `"resolved"`, and its warnings, but it has no output. Other parse-result errors have no `code`, `chosen`, or `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
-For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes pre-built tokens in place of the characters of the first stage. Such a token has its text as its label, whatever `label` it carries (`docs/engine.md`, §5). It cannot have attachments. A token whose `before` or `after` is not empty raises `GencmuError` with `kind` `"usage"`, and the library drops empty attachment lists. The parse copies each token, so your tokens stay as they are.
+For tests and tools, `Dialect.parse_tokens(tokens, text, ...)` takes tokens in place of the first stage characters. A supplied token stores `text`, `value`, `image`, `tags`, `span`, and `source`. Each string defaults independently to `text` when the constructor receives `None`. An explicit empty string stays empty. Recognition reads `value`, and output shows `image`.
+
+A caller cannot supply attachments. Nonempty `before` or `after` lists raise `GencmuError` with `kind` `"usage"`. Empty attachment lists are accepted. The parse copies supplied tokens, so changes to a result cannot change the caller tokens.
 
 `dialect.features` lists the features of the dialect in code point order of their names, as a tuple of `Feature`. The list includes the gates of the entries of its classifiers. Each `Feature` has these fields:
 
@@ -66,19 +68,21 @@ You can use a dialect for any number of parses, and you can share it between thr
 
 ## The result
 
-`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action`, `Expected` and `Restoration` are dataclasses. A tag set is a `frozenset[str]` of tags, each in its canonical spelling, such as `KOhA`, `/a/` or `'a'` (`docs/engine.md`, §1). A character token of the first stage carries one tag, its character tag.
+`ParseResult`, `Stage`, `Node`, `Token`, `ParseError`, `ParseWarning`, `Action`, `Expected` and `Restoration` are dataclasses. A tag set is a `frozenset[str]`. User tags start with a capital, as in `KOhA`. Engine tags use the fixed inventory of `docs/engine.md` §1.
 
-A `Token` has its `text`, `phonemes`, `label`, `tags`, `span` and `source`, and `inserted_by` for a token that an emission inserted. The `label` is what the token shows to people. A pause shows as a space. An opaque part, such as the body of a `zoi` quote, shows its text as written (`docs/engine.md`, §5 and §11). A character token's label is its text.
+A stage-zero token stores one scalar as its text, value, and image. Its tags include the configured general category, its major category, and `_White_Space` where applicable. For example, `A` carries `_Lu` and `_L`. Later stages read stored tags and exact values.
+
+A `Token` has `text`, `value`, `image`, `tags`, `span`, and `source`. Only an inserted `ε` item sets `inserted_by`. Recipes supply strings, and tags never assign strings. A constituent without a channel recipe concatenates its children on that channel. `%erased` excludes its contribution. A verbatim recipe preserves original text and follows the gap-claim rules of engine §11.
 
 A `Token` also has its attachments, `before` and `after`. These are two lists of tokens that belong to it and that no later stage reads, such as the indicators after a word (`docs/engine.md`, §11). Both lists are empty unless an emission gives the token attachments. An attached token has no span, so its `span` is `None`. Its `source` is still a range of the original text.
 
-A terminal in a token node, witness or expected list is a tag, range or property. A range or property uses its written form, such as `'a'..'z'` or `'\p{L}'` (`docs/engine.md`, §4). An expected list writes a terminal that carries a test in a body with its test, such as `LE="la"` or `KOhA∩UI=∅` (`docs/output.md`). Spans are `(start, end)` tuples, and source ranges are in code points.
+A terminal in a token node, witness, or expected list is a tag, canonical string, range, or `_` wildcard. Examples include `KOhA`, `"a"`, and `"a".."z"`. Expected terminals include their exact value test or signed tag requirements, as in `LE="la"` or `KOhA<¬UI>`. Spans are `(start, end)` tuples, and source ranges count code points.
 
 `result.warnings` lists the warnings of the nodes of the chosen tree of each stage. A node has one `ParseWarning` for each warning guard `f!` of its alternative whose feature `f` is on. The warnings come in stage order and then in tree order. Each has its `stage`, `feature`, `rule`, `span` and `source`. The list is empty when there are no warnings.
 
 - `gencmu.to_json(result)` is the canonical JSON as text, in the key order of `docs/output.md`.
 - `gencmu.result_json(result)` is the same as plain data.
-- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its label. A token with attachments is a group of its before-attachments, its label and its after-attachments. So in the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`.
+- `gencmu.to_brackets(result, show_elided=False)` renders the last stage's tree as nested groups, with each token shown by its image. A token with attachments is a group of its before-attachments, its image and its after-attachments. So in the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`.
 
 ## Development
 

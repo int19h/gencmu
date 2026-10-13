@@ -953,7 +953,7 @@ def case_sources(case: dict[str, Any]) -> tuple[dict[str, str], str]:
 
 def case_tokens(case: dict[str, Any]) -> tuple[list[Token], str]:
     # A walk, since attachments nest as deep as a case writes them.
-    return run(_case_tokens(case["tokens"])), " ".join(spec["text"] for spec in case["tokens"])  # type: ignore[no-any-return]
+    return run(_case_tokens(case["tokens"])), case.get("input", " ".join(spec["text"] for spec in case["tokens"]))  # type: ignore[no-any-return]
 
 
 def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
@@ -965,15 +965,11 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
         # (tests/README.md).
         before = [replace(token, span=None) for token in (yield _case_tokens(spec["before"]))] if "before" in spec else []
         after = [replace(token, span=None) for token in (yield _case_tokens(spec["after"]))] if "after" in spec else []
-        # Each tag in its canonical spelling, as the output writes it
-        # (tests/README.md).
-        for tag in spec["tags"]:
-            if not is_tag(tag):
-                raise ValueError(f"a case token's tag {tag} is not a tag")
-        tags = frozenset(spec["tags"])
+        # Pass invalid tags to the library for usage cases.
+        tags = spec["tags"]
         text = spec["text"]
         tokens.append(
-            Token(text, tags, (index, index + 1), (position, position + len(text)), spec.get("phonemes"), before=before, after=after)
+            Token(text, tags, spec.get("span", (index, index + 1)), spec.get("source", (position, position + len(text))), spec.get("value"), image=spec.get("image"), before=before, after=after)
         )
         position += len(text) + 1
     return tokens

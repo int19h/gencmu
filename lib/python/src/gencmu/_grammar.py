@@ -15,15 +15,9 @@ from ._recent import Recent
 from ._tags import (
     EMPTY,
     Gathered,
-    code_of_character_tag,
     difference,
     intersection,
-    is_name,
-    property_name,
-    range_name,
-    range_tags,
     split_string,
-    written_test,
 )
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
@@ -33,19 +27,21 @@ from ._types import (
     constant_value_type,
     constants_in,
     expected_problem,
-    is_sound_test,
+    is_value_test,
     rule_type_fault,
     term_type_fault,
     tests_in,
     type_name,
 )
-from ._validate import Lowercase, sound_problem
+from ._validate import Marks
+from ._logical import Expansion, combine, optional, inherited
+from ._strings import scalar, literal_string, spelling, ENGINE_TAGS
 
 Dom = dict[str, Any]
 
 
 def is_terminal_name(name: str) -> bool:
-    return bool(name) and "A" <= name[0] <= "Z"
+    return bool(name) and ("A" <= name[0] <= "Z" or name in ENGINE_TAGS)
 
 
 # ---------------------------------------------------------------------------
@@ -62,10 +58,15 @@ class Alternative:
     rule_tags: Dom | None
     emit: Dom | None
     conditions: list[Dom]
-    opaque: bool
+    erased: bool
+    value: Any
+    image: Any
+    rule_value: Any
+    rule_image: Any
     document: str
     at: tuple[int, int]
     ranked_locations: dict = field(default_factory=dict, repr=False, compare=False)
+    index: int = field(default=0, repr=False, compare=False)
 
 
 @dataclass
@@ -99,31 +100,29 @@ class Change:
 @dataclass(frozen=True)
 class SymbolTest:
     """A test of a body with its value, from the constants' final values
-    (engine §2, §4): its comparator, and the string of a sound test or the
+    (engine §2, §4): its comparator, and the string of a value test or the
     tag set of a tag test. ``written`` is the test as an expected list
     writes it after its terminal (docs/output.md)."""
 
     op: str
-    sound: str | None
-    tags: frozenset[str] | None
+    value: str | None
     written: str
+    requirements: tuple[tuple[bool, frozenset[str]], ...] = ()
+    prior: SymbolTest | None = None
 
-    def holds(self, sound: str, tags: frozenset[str]) -> bool:
-        """Whether the test holds of a span that sounds like ``sound`` and
+    def holds(self, value: str, tags: frozenset[str]) -> bool:
+        """Whether the test holds of a span whose stored values join to ``value`` and
         a symbol whose own tags are ``tags`` (engine §4)."""
+        if self.prior is not None and not self.prior.holds(value, tags):
+            return False
         op = self.op
+        if op == "tags":
+            return all(tags.isdisjoint(wanted) if negated else wanted <= tags for negated, wanted in self.requirements)
         if op == "=":
-            return sound == self.sound
+            return value == self.value
         if op == "≠":
-            return sound != self.sound
-        wanted = self.tags if self.tags is not None else EMPTY
-        if op == "⊇":
-            return wanted <= tags
-        if op == "⊉":
-            return not wanted <= tags
-        if op == "∩=∅":
-            return tags.isdisjoint(wanted)
-        return not tags.isdisjoint(wanted)
+            return value != self.value
+        raise AssertionError(f"unknown symbol test {op}")
 
 
 RANKING_RULES = ("greedy", "lazy", "late-elision")
@@ -140,6 +139,7 @@ class Grammar:
     # The rule of the ranking, one of RANKING_RULES (engine §6).
     lean: str
     elision_only: bool
+    unicode: Any = field(default=None, repr=False, compare=False)
     changes: list[Change] = field(default_factory=list)
     ranked: RankedGroups | None = field(default=None, repr=False, compare=False)
     # The stage's %classifier items in stitching order, each with its
@@ -257,7 +257,7 @@ class _Constants:
     takes its previous definition.
     """
 
-    def __init__(self, stage: str, unicode: Lowercase) -> None:
+    def __init__(self, stage: str, unicode: Marks) -> None:
         self.stage = stage
         self.unicode = unicode
         self.values: dict[str, _Constant] = {}
@@ -269,7 +269,7 @@ class _Constants:
         self.deferred_emissions = []
 
     def type_of(self, name: str) -> TermType:
-        return self.values[name].type
+        return "string" if scalar(name) is not None else self.values[name].type
 
     def fault_error(self, path: str, node: Any, item: Any, problem: str) -> GencmuError:
         """The error for a construct whose types disagree, or whose value
@@ -294,6 +294,8 @@ class _Constants:
             dependencies = []
             for reference in constants_in(version["value"]):
                 name = reference["const"]
+                if scalar(name) is not None:
+                    continue
                 target = version["previous"] if name == version["name"] and version["op"] == "redefine" else self.latest.get(name)
                 if target is None:
                     raise _error(f"${name} is not defined in stage {self.stage}; dependency ${version['name']} → ${name}", version["path"], reference["at"], self.stage)
@@ -333,7 +335,7 @@ class _Constants:
             index += 1
             queued.discard(at)
             version = self.versions[at]
-            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: kinds.get(name, "any"))
+            kind, fault = constant_value_type(version["value"], version["op"] == "redefine", lambda name: "string" if scalar(name) is not None else kinds.get(name, "any"))
             if fault is not None:
                 raise self.fault_error(version["path"], fault[1], version["at"], fault[0])
             if kind in ("any", "set"):
@@ -352,7 +354,7 @@ class _Constants:
             if kind is None:
                 raise _error(f"the kind of the value of ${version['name']} is not given", version["path"], version["at"], self.stage)
             self.values = {}
-            for reference, (target, _) in zip(constants_in(version["value"]), version["dependencies"]):
+            for reference, (target, _) in zip((r for r in constants_in(version["value"]) if scalar(r["const"]) is None), version["dependencies"]):
                 self.values[reference["const"]] = target["result"]
             value = run(self._closed(version["path"], version["value"], version["at"], kind))
             version["result"] = _Constant(value, kind, version["path"])
@@ -365,7 +367,7 @@ class _Constants:
             if "pattern" in node:
                 return True
             if "const" in node:
-                if self.values[node["const"]].type == "pattern":
+                if self.type_of(node["const"]) == "pattern":
                     return True
             else:
                 for key in ("union", "intersection", "difference"):
@@ -375,7 +377,12 @@ class _Constants:
 
     def _closed_pattern(self, path: str, root: Dom, at: Any) -> Walk:
         if "constant" in root:
-            return self.values[root["constant"]].value["pattern"]
+            constant = self.values[root["constant"]]
+            if constant.type == "pattern":
+                return constant.value["pattern"]
+            if constant.type == "string":
+                return {"terminal": spelling(constant.value, self.unicode), "at": root["at"]}
+            raise self.fault_error(path, root, at, "a pattern atom requires a string or pattern constant")
         result = dict(root)
         for key in ("union", "intersection", "difference", "sequence"):
             if key in root:
@@ -386,12 +393,29 @@ class _Constants:
             if key in root:
                 result[key] = yield self._closed_pattern(path, root[key], at)
         if "test" in root:
-            value = yield self._closed(path, root["value"], at)
-            if is_sound_test(root["test"]):
-                problem = sound_problem(value, self.unicode)
-                if problem is not None:
-                    raise self.fault_error(path, root["value"], at, problem)
-            result["value"] = {"string":value} if isinstance(value, str) else {"set":value}
+            if root["test"] == "tags":
+                result["requirements"] = []
+                for requirement in root["requirements"]:
+                    value = yield self._closed(path, requirement["value"], at)
+                    result["requirements"].append({"negated": requirement["negated"], "value": {"set": value}})
+            else:
+                value = yield self._closed(path, root["value"], at)
+                result["value"] = {"string": value}
+            result["expr"] = yield self._closed_pattern(path, root["expr"], at)
+        if any(key in root for key in ("literal", "range", "wildcard")):
+            if "literal" in root:
+                value = yield self._closed(path, root["literal"], at)
+                terminal = spelling(value, self.unicode)
+            elif "range" in root:
+                ends = []
+                for end in root["range"]:
+                    ends.append((yield self._closed(path, end, at)))
+                if any(not isinstance(end, str) or len(end) != 1 for end in ends) or ends[0] > ends[1]:
+                    raise self.fault_error(path, root, at, "invalid pattern range")
+                terminal = "..".join(spelling(end, self.unicode) for end in ends)
+            else:
+                terminal = "_"
+            result = {"terminal": terminal, "at": root["at"]}
         return result
 
     def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:
@@ -401,7 +425,7 @@ class _Constants:
         one, and the error stands at that constant."""
         if "pattern" in term:
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
-        if (expected == "pattern" or self._is_pattern(term)) and any(key in term for key in ("union", "intersection", "difference")):
+        if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
             key = next(key for key in ("union", "intersection", "difference") if key in term)
             patterns = []
             for part in term[key]:
@@ -410,14 +434,18 @@ class _Constants:
             return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]
+        if "interpolate" in term:
+            parts = []
+            for part in term["interpolate"]:
+                parts.append(_string((yield self._closed(path, part, item))))
+            return "".join(parts)
         if "tag" in term:
             return frozenset((term["tag"],))
-        if "range" in term:
-            return range_tags(term["range"], self.unicode)
         if "emptySet" in term:
             return {"pattern":empty_pattern()} if expected == "pattern" else EMPTY
         if "const" in term:
-            return self.values[term["const"]].value
+            direct = scalar(term["const"])
+            return direct if direct is not None else self.values[term["const"]].value
         if "union" in term:
             gathered = Gathered()
             for part in term["union"]:
@@ -432,19 +460,14 @@ class _Constants:
         if "difference" in term:
             left = _set((yield self._closed(path, term["difference"][0], item)))
             return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
-        if term.get("call") == "split":
+        if term.get("method") == "split":
             # Left to right, as a parse evaluates a term (engine §10).
-            text, delimiter = term["args"]
+            text, delimiter = term["receiver"], term["args"][0]
             pieces = _string((yield self._closed(path, text, item)))
             seen = _string((yield self._closed(path, delimiter, item)))
             if seen == "":
                 raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
             return split_string(pieces, seen)
-        if term.get("call") == "tag":
-            name = _string((yield self._closed(path, term["args"][0], item)))
-            if not is_name(name):
-                raise self.fault_error(path, term["args"][0], item, f"tag({json.dumps(name, ensure_ascii=False)}): the string is not a name")
-            return frozenset((name,))
         raise _error("a constant's value is not a closed term", path, item, self.stage)
 
     def implication(self, path: str, implication: Dom) -> tuple[frozenset[str], frozenset[str]]:
@@ -453,7 +476,7 @@ class _Constants:
         sides: list[frozenset[str]] = []
         for side in (implication["if"], implication["then"]):
             for reference in constants_in(side):
-                if reference["const"] not in self.values:
+                if scalar(reference["const"]) is None and reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             kind, fault = term_type_fault(side, self.type_of)
             if fault is None:
@@ -468,11 +491,11 @@ class _Constants:
     def check(self) -> None:
         """Checks what the reader could not in each rule that uses a
         constant: that each is defined, that the types agree, and that a
-        constant that split or tag reads directly is a delimiter that is
-        not empty, or a name (engine §2, §9, §10)."""
+        constant that split reads directly is a delimiter that is
+        not empty (engine §2, §9, §10)."""
         for path, rule in self.users:
             for reference in constants_in(rule):
-                if reference["const"] not in self.values:
+                if scalar(reference["const"]) is None and reference["const"] not in self.values:
                     raise _error(f"${reference['const']} is not defined in stage {self.stage}", path, reference["at"], self.stage)
             fault = rule_type_fault(rule, self.type_of)
             if fault is not None:
@@ -486,6 +509,10 @@ class _Constants:
                     if "pattern" in node:
                         run(self._closed(path, node, rule["at"]))
                     else:
+                        if "range" in node:
+                            ends = [run(self._closed(path, end, rule["at"])) for end in node["range"]]
+                            if any(len(end) != 1 for end in ends) or ends[0] > ends[1]:
+                                raise self.fault_error(path, node, rule["at"], "invalid scalar range")
                         pending.extend(node.values())
             # The checks that simplification decides, which the reader left
             # to the loader, now with the constants' values (engine §9).
@@ -495,38 +522,38 @@ class _Constants:
                     self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
                 else:
                     raise _error(problem, path, rule["at"], self.stage)
-            # A string constant in a sound test must be a canonical sound
-            # (engine §2, §9); the error stands at the constant.
-            for alternative in rule["alternatives"]:
-                for test in tests_in(alternative["expr"]):
-                    found = constants_in(test["value"])
-                    if not is_sound_test(test["test"]) or not found:
-                        continue
-                    value = run(self._closed(path, test["value"], rule["at"]))
-                    wrong = sound_problem(value if isinstance(value, str) else "", self.unicode)
-                    if wrong is not None:
-                        raise _error(wrong, path, found[0]["at"], self.stage)
             for call in _calls_in(rule):
-                argument = call["args"][1] if call["call"] == "split" else call["args"][0]
-                if not isinstance(argument, dict) or "const" not in argument:
-                    continue
-                value = self.values[argument["const"]].value
-                seen = value if isinstance(value, str) else ""
-                if call["call"] == "split" and seen == "":
-                    raise _error("split has an empty delimiter", path, argument["at"], self.stage)
-                if call["call"] == "tag" and not is_name(seen):
-                    raise _error(
-                        f"tag({json.dumps(seen, ensure_ascii=False)}): the string is not a name", path, argument["at"], self.stage
-                    )
+                argument = call["args"][0]
+                if call["method"] == "split" and literal_string(argument) == "":
+                    raise self.fault_error(path, argument, rule["at"], "split has an empty delimiter")
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
         values (engine §2, §4)."""
+        prior = test["expr"].get(RESOLVED) if isinstance(test.get("expr"), dict) else None
+        if test["test"] == "tags":
+            requirements = tuple((r["negated"], _set(run(self._closed(path, r["value"], at)))) for r in test["requirements"])
+            names = sorted({(name, negated) for negated, tags in requirements for name in tags})
+            written = "<" + " ".join(("¬" if negated else "") + name for name, negated in names) + ">"
+            return SymbolTest("tags", None, written, requirements, prior)
         value = run(self._closed(path, test["value"], at))
-        written = written_test(test["test"], value)
-        if isinstance(value, str):
-            return SymbolTest(test["test"], value, None, written)
-        return SymbolTest(test["test"], None, _set(value), written)
+        written = (prior.written if prior else "") + test["test"] + spelling(value, self.unicode)
+        return SymbolTest(test["test"], value, written, (), prior)
+
+    def string(self, path: str, term: Dom, at: Any) -> str:
+        """Bind a closed string where the declaration requires one."""
+        for reference in constants_in(term):
+            name = reference["const"]
+            if scalar(name) is None and name not in self.values:
+                raise _error(f"${name} is not defined in stage {self.stage}", path, reference["at"], self.stage)
+        kind, fault = term_type_fault(term, self.type_of)
+        if fault is None:
+            problem = expected_problem(kind, "string")
+            if problem is not None:
+                fault = problem, term
+        if fault is not None:
+            raise self.fault_error(path, fault[1], at, fault[0])
+        return run(self._closed(path, term, at))
 
     def with_values(self, node: Any) -> Walk:
         """A copy of a DOM node in which each reference to a constant holds
@@ -538,11 +565,12 @@ class _Constants:
             return items
         if not isinstance(node, dict):
             return node
-        if "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+        if "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
             return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
-            constant = self.values[node["const"]]
-            return constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+            direct = scalar(node["const"])
+            constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+            return constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
         if node.get("op") in ("≅", "≇"):
             return {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
         copy: dict[str, Any] = {}
@@ -574,11 +602,12 @@ class _Constants:
                 for item in node:
                     items.append((yield resolve(item)))
                 copy = node if all(item is old for item, old in zip(items, node)) else items
-            elif "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+            elif "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
                 copy = yield self._closed("", node, None)
             elif isinstance(node.get("const"), str):
-                constant = self.values[node["const"]]
-                copy = constant.value if constant.type == "pattern" else {"const": node["const"], "at": node["at"], "value": constant.value}
+                direct = scalar(node["const"])
+                constant = _Constant(direct, "string", "") if direct is not None else self.values[node["const"]]
+                copy = constant.value if constant.type == "pattern" else {"string": constant.value} if constant.type == "string" else {"const": node["const"], "at": node["at"], "value": constant.value}
             elif node.get("op") in ("≅", "≇"):
                 copy = {**node, "right":(yield self._closed("", node["right"], None, "pattern"))}
             else:
@@ -586,11 +615,24 @@ class _Constants:
                 for key, value in node.items():
                     values[key] = yield resolve(value)
                 copy = node if all(values[key] is value for key, value in node.items()) else values
+                if copy is not node and hasattr(node, "at") and "concat" in node:
+                    from ._recipes import Recipe
+                    copy = Recipe(values["concat"], node.at)
             copies[id(node)] = copy
             return copy
 
+        sites = {(path, tuple(rule["at"])) for path, rule in self.users}
         for rule in rules.values():
             for alternative in rule.alternatives:
+                # Literal-only definitions need no binding copies. Scalar
+                # references and patterns are in users along with constants.
+                if (alternative.document, alternative.at) not in sites:
+                    continue
+                for field in ("value", "image", "rule_value", "rule_image"):
+                    recipe = getattr(alternative, field)
+                    if recipe is not None:
+                        setattr(alternative, field, run(resolve(recipe)))
+                alternative.expr = run(resolve(alternative.expr))
                 alternative.tags = run(resolve(alternative.tags))
                 alternative.rule_tags = run(resolve(alternative.rule_tags))
                 alternative.emit = run(resolve(alternative.emit))
@@ -606,7 +648,7 @@ def _string(value: Any) -> str:
 
 
 def _calls_in(node: Any) -> list[Dom]:
-    """The calls of split and tag in a rule's clauses."""
+    """The split methods in a rule's clauses."""
     found: list[Dom] = []
     stack: list[Any] = [node]
     while stack:
@@ -614,17 +656,17 @@ def _calls_in(node: Any) -> list[Dom]:
         if isinstance(current, list):
             stack.extend(reversed(current))
         elif isinstance(current, dict):
-            if current.get("call") in ("split", "tag") and isinstance(current.get("args"), list):
+            if current.get("method") == "split" and isinstance(current.get("args"), list):
                 found.append(current)
             stack.extend(reversed(list(current.values())))
     return found
 
 
-def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> Grammar:
+def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Grammar:
     """Stitch a stage's documents, in order, into one grammar. ``unicode``
-    is the loader's table, for the tags of a range in a constant's value and
-    the canonical sound of a string constant in a test."""
+    controls canonical terminal spellings in diagnostics."""
     rules: dict[str, Rule] = {}
+    written_alternatives: list[Alternative] = []
     constants = _Constants(stage, unicode)
     changes: list[Change] = []
     resolutions: list[tuple[list[str], str, Any]] = []
@@ -650,13 +692,19 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
                     rule_tags=rule.get("tags"),
                     emit=rule.get("emit"),
                     conditions=conditions,
-                    opaque=rule.get("opaque") is True,
+                    erased=rule.get("erased") is True,
+                    value=alt.get("value"),
+                    image=alt.get("image"),
+                    rule_value=rule.get("value"),
+                    rule_image=rule.get("image"),
                     document=path,
                     at=at,
                     ranked_locations=getattr(rule,"ranked_locations",{}).get(alternative_index,{}),
+                    index=alternative_index,
                 )
                 for alternative_index,alt in enumerate(rule.get("alternatives", []))
             ]
+            written_alternatives.extend(alternatives)
             previous = rules.get(name)
             op = rule.get("op")
             if op == "extend":
@@ -696,6 +744,13 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    classifier_items = [
+        (path, {**classifier, "entries": [
+            {**entry, "keys": [constants.string(path, key, entry["at"]) for key in entry["keys"]]}
+            for entry in classifier["entries"]
+        ]})
+        for path, classifier in classifier_items
+    ]
     _resolve_tests(rules, constants)
     implications = [constants.implication(path, implication) for path, implication in implication_items]
     if not resolutions:
@@ -760,7 +815,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         rules,
         args[0],
         elision_only,
-        changes,
+        unicode=unicode,
+        changes=changes,
         classifier_items=classifier_items,
         implications=implications,
     )
@@ -771,6 +827,26 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Lowercase) -> 
         grammar.ranked.validate_tags(lowered)
     if constants.deferred_emissions:
         raise constants.deferred_emissions[0]
+    from ._recipes import cycle
+    retained = {id(alternative) for rule in rules.values() for alternative in rule.alternatives}
+    for alternative in written_alternatives:
+        if id(alternative) not in retained:
+            continue
+        value = alternative.value if alternative.value is not None else alternative.rule_value
+        image = alternative.image if alternative.image is not None else alternative.rule_image
+        found = cycle(value, image)
+        if found is not None:
+            recipe, path = found
+            at = getattr(recipe, "at", alternative.at)
+            error = _error("recipe dependency cycle: " + " → ".join(path), alternative.document, at, stage)
+            if not hasattr(recipe, "at"):
+                field = next(name for name in ("value", "image", "rule_value", "rule_image") if getattr(alternative, name) is recipe)
+                error._recipe_location = alternative.at, alternative.index, field
+            raise error
+    from ._overlap import conflict
+    faulty = conflict(grammar)
+    if faulty is not None:
+        raise _error("emission carriers overlap input positions", faulty.document, faulty.at, stage)
     return grammar
 
 
@@ -825,7 +901,7 @@ def _resolve_tests(rules: dict[str, Rule], constants: _Constants) -> None:
             else:
                 copy[key] = value
         if isinstance(node.get("test"), str):
-            copy[RESOLVED] = constants.test(alt.document, node, alt.at)
+            copy[RESOLVED] = constants.test(alt.document, copy, alt.at)
         copies[id(node)] = copy
         return copy
 
@@ -859,7 +935,7 @@ class Production:
     leftmost_longest: bool = False
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
-    # sounds like the string of its = test (engine §7).
+    # stores the string of its = test (engine §7).
     elided_test: SymbolTest | None = None
     # The test of each symbol, which reads its own span and its own tags,
     # or None for a symbol without one (engine §4); None when no symbol has
@@ -874,9 +950,13 @@ class Production:
     whole_ready: bool = False
     tags_term: Dom | None = None
     emit: Any = None
-    # Whether its constituent is an opaque part, which sounds ``?`` and
-    # shows its text (engine §11). It is false for a helper.
-    opaque: bool = False
+    # Logical helpers survive capture expansion beside the physical RHS.
+    logical: tuple = ()
+    inherited: int | None = None
+    source: Any = field(default=None, repr=False, compare=False)
+    erased: bool = False
+    value: Any = None
+    image: Any = None
     # The features of the alternative's warnings, in the order they are
     # written (engine §12); none for a helper.
     warnings: tuple[str, ...] = ()
@@ -898,7 +978,7 @@ class Production:
 
     @property
     def transparent(self) -> bool:
-        return self.helper or len(self.rhs) == 1
+        return self.helper or len(self.logical) == 1
 
 
 IMPLICIT = "\u0000"
@@ -917,11 +997,11 @@ class Lowered:
     rule_productions: list[list[int]]
     rule_display: list[str]
     lean: str
-    # The ranges and properties among the terminals, by their written
+    # The strings, ranges, and wildcard among terminals, by their canonical
     # form, which is their name (engine §4): what each one matches.
     characters: dict[str, CharacterClass] = field(default_factory=dict)
     # The productions of each rule that begin with a terminal, by that
-    # terminal; those that begin with a range or a property are apart, since
+    # terminal; those that begin with strings, ranges, or wildcard are apart, since
     # a token matches them by its characters and not by a tag.
     by_first_terminal: list[dict[str, list[int]]] = field(default_factory=list)
     by_first_characters: list[dict[str, list[int]]] = field(default_factory=list)
@@ -975,9 +1055,8 @@ class Lowered:
                 self.not_terminal_first[production.lhs].append(production.id)
 
 
-CharacterClass = Union[tuple[int, int], str]
-"""What a range or a property matches: a range's first and last scalar
-values, or a property's name."""
+CharacterClass = Union[tuple[int, int], str, None]
+"""A scalar range, an exact token value, or the wildcard."""
 
 
 # A symbol of an expansion: ("t", tag) or ("n", rule id), with a third
@@ -994,6 +1073,7 @@ def written_symbol(name: str, test: SymbolTest | None) -> str:
 class _Lowerer:
     def __init__(self, grammar: Grammar, features: frozenset[str], validation: bool = False) -> None:
         self.grammar = grammar
+        self.unicode = grammar.unicode
         self.validation = validation
         self.current_expr = None
         self.helper_sources = {}
@@ -1073,25 +1153,33 @@ class _Lowerer:
         first = expr["seq"][0] if "seq" in expr and expr["seq"] else expr
         test: SymbolTest | None = first[RESOLVED] if "test" in first else None
         symbol = first["expr"] if "test" in first else first
-        name = symbol.get("terminal")
-        if name is None and is_terminal_name(symbol.get("ref", "")):
-            name = symbol["ref"]
+        name = symbol.get("ref")
+        if not is_terminal_name(name or ""):
+            name = None
         if not isinstance(name, str):
             raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
         return (name, test)
 
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
-        """A range or a property as a terminal, whose name is its written
+        """A string, range, or wildcard terminal, whose name is its canonical
         form, and which matches by its characters rather than by a tag
         (engine §4); None for any other expression."""
-        if "range" in expr:
-            ends = expr["range"]
-            name = range_name(ends)
-            self.characters[name] = (code_of_character_tag(ends[0]), code_of_character_tag(ends[1]))
+        if "literal" in expr:
+            value = literal_string(expr["literal"])
+            if value is None:
+                raise self.fail("a string terminal requires a string constant")
+            name = spelling(value, self.unicode)
+            self.characters[name] = value
             return ("t", name)
-        if "property" in expr:
-            name = property_name(expr["property"])
-            self.characters[name] = expr["property"]
+        if "wildcard" in expr:
+            self.characters["_"] = None
+            return ("t", "_")
+        if "range" in expr:
+            ends = [literal_string(end) for end in expr["range"]]
+            if any(end is None or len(end) != 1 for end in ends) or ends[0] > ends[1]:
+                raise self.fail("invalid scalar range")
+            name = "..".join(spelling(end, self.unicode) for end in ends)
+            self.characters[name] = tuple(ord(end) for end in ends)
             return ("t", name)
         return None
 
@@ -1120,7 +1208,7 @@ class _Lowerer:
             parts = []
             for item in expr["seq"]:
                 parts.append((yield self._expand(item)))
-            return [[sym for part in combination for sym in part] for combination in itertools.product(*parts)]
+            return [combine(combination) for combination in itertools.product(*parts)]
         if "ranked" in expr:
             options, labels = [], []
             for number, option in enumerate(expr["ranked"]):
@@ -1129,7 +1217,7 @@ class _Lowerer:
                 labels.extend([number] * len(expanded))
             helper = self.new_helper(options)
             self.helper_options[helper] = labels
-            return [[(("n", helper), None)]]
+            return [Expansion([(("n", helper), None)])]
         if "choice" in expr:
             options = []
             for option in expr["choice"]:
@@ -1145,7 +1233,7 @@ class _Lowerer:
             result: list[list[_Sym]] = []
             for mask in range(1, 1 << len(items)):
                 parts = [expanded[index] for index in range(len(items)) if mask >> index & 1]
-                result.extend([sym for part in combination for sym in part] for combination in itertools.product(*parts))
+                result.extend(combine(combination) for combination in itertools.product(*parts))
             return result
         if "optional" in expr:
             inner = expr["optional"]
@@ -1155,16 +1243,19 @@ class _Lowerer:
             # (ε | x) would: first the empty sequence, then each expansion
             # of x (engine §3.2).
             if not elidable and _holds_capture(inner):
-                return [[], *body]
+                return [optional(Expansion(), id(expr)), *(optional(route, id(expr)) for route in body)]
             if not elidable and self.grammar.ranked and self.grammar.ranked.groups and _holds_capture(inner, include_ranked=True):
                 # Keep tag arity, but give each route a separate helper.
                 # Descendant reachability then establishes selected absence.
-                return [[(("n", self.new_helper([route])), None)] for route in [[], *body]]
+                return [
+                    optional(Expansion([(("n", self.new_helper([route])), None)]), id(expr))
+                    for route in [Expansion(), *body]
+                ]
             # Any other optional is a helper, and a marked one is elidable,
             # with the terminal that its marker names
             # (engine §3.8).
             helper = self.new_helper([[]] + body, self.elided_terminal(inner) if elidable else None)
-            return [[(("n", helper), None)]]
+            return [Expansion([(("n", helper), None)])]
         if "repeat" in expr:
             # Flat braces are a helper, h → x | h s x, its base productions
             # first; the places inside the item come before those inside the
@@ -1174,38 +1265,22 @@ class _Lowerer:
             items = yield self._expand(expr["repeat"])
             self.brace_items.append((items, self.current_alt, self.current))
             separators = (yield self._expand(expr["separator"])) if "separator" in expr else [[]]
-            return [[(("n", self.repeat_helper(items, separators)), None)]]
+            return [Expansion([(("n", self.repeat_helper(items, separators)), None)])]
         if "empty" in expr:
-            return [[]]
+            return [Expansion()]
         if "ref" in expr:
-            return [[(self.symbol(expr["ref"]), None)]]
-        if "terminal" in expr:
-            return [[(("t", expr["terminal"]), None)]]
-        if "range" in expr or "property" in expr:
-            return [[(self.character_class(expr), None)]]
+            return [Expansion([(self.symbol(expr["ref"]), None)])]
+        if any(k in expr for k in ("range", "literal", "wildcard")):
+            return [Expansion([(self.character_class(expr), None)])]
         if "test" in expr:
             # A tested symbol lowers to its symbol with the test, and adds
             # no helper (engine §3).
             tested = yield self._expand(expr["expr"])
             kind, name = tested[0][0][0][:2]
-            return [[((kind, name, expr[RESOLVED]), None)]]
+            return [Expansion([((kind, name, expr[RESOLVED]), None)])]
         if "capture" in expr:
-            inner = expr.get("expr", {})
-            test = inner[RESOLVED] if "test" in inner else None
-            if test is not None:
-                inner = inner.get("expr", {})
-            symbol: tuple[Any, ...]
-            if "ref" in inner:
-                symbol = self.symbol(inner["ref"])
-            elif "terminal" in inner:
-                symbol = ("t", inner["terminal"])
-            elif "range" in inner or "property" in inner:
-                symbol = self.character_class(inner)  # type: ignore[assignment]
-            else:
-                raise self.fail(f"the capture ${expr['capture']} does not wrap one symbol")
-            if test is not None:
-                symbol = (symbol[0], symbol[1], test)
-            return [[(symbol, expr["capture"])]]
+            expanded = yield self._expand(expr["expr"])
+            return [Expansion([(expanded[0][0][0], expr["capture"])])]
         raise self.fail(f"an unknown expression {sorted(expr)}")
 
     def repeat_helper(self, items: list[list[_Sym]], separators: list[list[_Sym]]) -> int:
@@ -1263,6 +1338,8 @@ class _Lowerer:
             elided_test=elided[1] if elided is not None else None,
             tests=tests if any(test is not None for test in tests) else None,
             captures=captures,
+            logical=getattr(expansion, "logical", tuple(("symbol", i) for i in range(len(expansion)))),
+            source=self.current_alt,
         )
         if self.grammar.ranked and self.grammar.ranked.groups:
             source,path = (alt,None) if alt is not None else self.helper_sources[lhs]
@@ -1312,10 +1389,13 @@ class _Lowerer:
             if terms:
                 production.tags_term = terms[0] if len(terms) == 1 else {"union": terms}
             production.emit = self.lower_emit(alt.emit, captures, self.emission(alt.emit))
-            production.opaque = alt.opaque
+            production.erased = alt.erased
+            production.value = alt.value if alt.value is not None else alt.rule_value
+            production.image = alt.image if alt.image is not None else alt.rule_image
             production.warnings = tuple(guard["feature"] for guard in alt.guards if guard.get("kind") == "warning")
-        if production.tags_term is None and len(rhs) == 1 and 0 not in captures.values():
-            captures[IMPLICIT] = 0
+        production.inherited = inherited(production.logical)
+        if production.tags_term is None and production.inherited is not None and production.inherited not in captures.values():
+            captures[IMPLICIT] = production.inherited
         slots = [-1] * len(rhs)
         for index, position in enumerate(sorted(captures.values())):
             slots[position] = index
@@ -1347,15 +1427,11 @@ class _Lowerer:
     def lower_emit(self, emit: Dom | None, captures: dict[str, int], emission: Emission | None = None) -> list[tuple[Any, ...]] | None:
         """A production's emission, the items it emits in list order, less
         those whose carrier the production lacks, and each item less the
-        attachment captures it lacks (engine §3.6, §11): ``("whole", term
-        or None)`` for ``$``, ``("capture", position, term or None,
-        before, after)``, with the positions of the attachment captures
-        before it and after it, and ``("insert", tag, anchor)``, the anchor
-        being the position of the first written part of the capture item
-        listed next after it, its first before-attachment or else its
-        carrier, or ``None`` for the constituent's end. ``%emits ε`` is the
-        empty list. ``emission`` is the emission's items indexed, which
-        the productions that share it share."""
+        attachment captures it lacks (engine §3.6, §11). Each entry retains
+        its tag term and both recipes. A capture entry retains its physical
+        position and attachment positions. An insertion anchors at the
+        next covering item's first part, at the whole constituent (-1), or
+        at its end (None). Productions share the indexed ``emission``."""
         if emit is None:
             return None
         present = captures.keys() | {WHOLE}
@@ -1383,16 +1459,16 @@ class _Lowerer:
                 if not anchored:
                     assert following is not None
                     first = positions(following.get("before"))
-                    anchor = first[0] if first else captures[following["capture"]]
+                    anchor = -1 if following["capture"] == WHOLE else first[0] if first else captures[following["capture"]]
                     anchored = True
-                lowered.append(("insert", item["insert"], anchor))
+                lowered.append(("insert", own(item.get("tags")), anchor, item.get("value"), item.get("image")))
                 continue
             following, anchor, anchored = item, None, False
             if item["capture"] == WHOLE:
-                lowered.append(("whole", own(item.get("tags"))))
+                lowered.append(("whole", own(item.get("tags")), item.get("value"), item.get("image")))
             else:
                 lowered.append(
-                    ("capture", captures[item["capture"]], own(item.get("tags")), positions(item.get("before")), positions(item.get("after")))
+                    ("capture", captures[item["capture"]], own(item.get("tags")), positions(item.get("before")), positions(item.get("after")), item.get("value"), item.get("image"))
                 )
         lowered.reverse()
         return lowered

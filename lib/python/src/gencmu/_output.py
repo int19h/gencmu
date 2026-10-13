@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 11
+FORMAT = 12
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -18,9 +18,8 @@ def token_json(token: Token) -> dict[str, Any]:
 
     def shallow(current: Token) -> dict[str, Any]:
         value: dict[str, Any] = {"text": current.text}
-        if current.phonemes is not None:
-            value["phonemes"] = current.phonemes
-        value["label"] = current.label
+        value["value"] = current.value
+        value["image"] = current.image
         value["tags"] = sorted_tags(current.tags)
         if current.span is not None:
             value["span"] = list(current.span)
@@ -66,7 +65,10 @@ def node_json(node: Node) -> dict[str, Any]:
                 "span": list(current.span),
                 "source": list(current.source),
             }
-        return {"kind": "elided", "terminal": current.terminal, "span": list(current.span), "source": list(current.source)}
+        result = {"kind": "elided", "terminal": current.terminal, "span": list(current.span), "source": list(current.source)}
+        if current.value is not None:
+            result["value"] = current.value
+        return result
 
     top = shallow(node)
     stack = [(node, top)]
@@ -134,10 +136,10 @@ def error_json(error: ParseError) -> dict[str, Any]:
 
 def restoration_json(record: Restoration) -> dict[str, Any]:
     """A terminator that the check of elision-only wrote back (engine
-    §7.9), with its sound last and only for a tested terminator."""
+    §7.9), with its value last and only for a tested terminator."""
     value: dict[str, Any] = {"terminal": record.terminal, "at": record.at, "source": list(record.source)}
-    if record.sound is not None:
-        value["sound"] = record.sound
+    if record.value is not None:
+        value["value"] = record.value
     return value
 
 
@@ -213,12 +215,12 @@ class _Group:
 
 
 def _token_member(token: Token) -> Any:
-    """A token as a member of the brackets: its label, or, with attachments,
-    a group of its before-attachments, its label and its after-attachments,
+    """A token as a member of the brackets: its image, or, with attachments,
+    a group of its before-attachments, its image and its after-attachments,
     each rendered the same way (docs/output.md). Built without recursion."""
 
     def shallow(current: Token) -> Any:
-        return current.label if not current.before and not current.after else _Group([])
+        return current.image if not current.before and not current.after else _Group([])
 
     top = shallow(token)
     stack = [(token, top)]
@@ -230,7 +232,7 @@ def _token_member(token: Token) -> Any:
             inner = shallow(attached)
             member.members.append(inner)
             stack.append((attached, inner))
-        member.members.append(current.label)
+        member.members.append(current.image)
         for attached in current.after:
             inner = shallow(attached)
             member.members.append(inner)
@@ -250,11 +252,11 @@ def to_brackets(result: ParseResult, *, show_elided: bool = False) -> str:
         node, done = stack.pop()
         if node.kind == "token":
             token = tokens[node.token] if node.token is not None and node.token < len(tokens) else None
-            # A token is a member even when its label is empty, as an empty
+            # A token is a member even when its image is empty, as an empty
             # quotation's text is; only empty rule nodes are dropped.
-            # Every rendering shows a token by its label (docs/output.md). A
+            # Every rendering shows a token by its image (docs/output.md). A
             # token with attachments is a group of its before-attachments,
-            # its label and its after-attachments, each rendered the same way.
+            # its image and its after-attachments, each rendered the same way.
             rendered[id(node)] = _token_member(token) if token is not None else ""
         elif node.kind == "elided":
             rendered[id(node)] = f"⟨{(node.terminal or '').lower()}⟩" if show_elided else None
