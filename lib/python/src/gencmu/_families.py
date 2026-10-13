@@ -68,7 +68,7 @@ class FamilyMatcher:
         self.groups = {boundary: tuple(records) for boundary, records in groups.items()}
         self.records: dict[tuple, Summary] = {}
         self.tokens: dict[int, Summary] = {}
-        self.joins: dict[tuple[Summary, Summary], Summary] = {}
+        self.joins: dict[tuple[Summary, Summary], tuple[Summary, int]] = {}
         self.taken: set[Summary] = set()
 
     def size(self, boundary: int) -> int:
@@ -116,13 +116,14 @@ class FamilyMatcher:
     def record(self, identity: tuple, boundary: int, permitted: bool = False) -> Summary:
         if boundary > self.end:
             return IDENTITY
+        # Abstract costs count each logical operation, including cache hits.
+        _testing.count("family_steps", self.size(boundary))
         key = identity, boundary, permitted
         found = self.records.get(key)
         if found is not None:
             return found
         records = self.groups.get(boundary, ())
         rows = []
-        _testing.count("family_steps", self.size(boundary))
         for matched in range(len(records) + 1):
             target = 0
             if matched < len(records) and records[matched] == identity:
@@ -157,9 +158,12 @@ class FamilyMatcher:
 
     def join(self, left: Summary, right: Summary) -> Summary:
         key = left, right
-        found = self.joins.get(key)
-        if found is not None:
+        cached = self.joins.get(key)
+        if cached is not None:
+            found, cost = cached
+            _testing.count("family_steps", cost)
             return found
+        cost = 0
         if left.dead or right.dead:
             found = DEAD
         elif left.empty and right.empty:
@@ -168,19 +172,22 @@ class FamilyMatcher:
             elif right.relation is None:
                 found = left
             else:
+                cost = len(left.relation) * len(right.relation)
                 rows = tuple(self.image(right.relation, row) for row in left.relation)
                 found = Summary(empty=True, relation=rows) if any(rows) else DEAD
         elif left.empty:
+            cost = len(left.relation) if left.relation is not None else 0
             before = self.preimage(left.relation, right.before)
             found = Summary(before, right.after) if before else DEAD
         elif right.empty:
+            cost = len(right.relation) if right.relation is not None else 0
             after = self.image(right.relation, left.after)
             found = Summary(left.before, after) if after else DEAD
         elif left.after & right.before:
             found = Summary(left.before, right.after)
         else:
             found = DEAD
-        self.joins[key] = found
+        self.joins[key] = found, cost
         return found
 
     def accepts(self, summary: Summary, endpoint: int) -> bool:
