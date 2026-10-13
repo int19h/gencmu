@@ -156,9 +156,9 @@ A caller can supply its own `notation/bootstrap.json` (`docs/api.md`). Its notat
 - Then each rule of the bundled bootstrap's syntax document, except `text`, gets a wrapper: a new rule whose one alternative is a reference to it. Every reference to the rule in that document becomes a reference to its wrapper. The outcomes are `control` again.
 - Then each rule except `text` gets a name with `x` appended, in turn. The definition and every reference use that name. A rule named in `loads` gives a dialect, and the outcomes are those of `loads`. Any other rule gives the load error `grammar`. No other error escapes the library.
 
-Each item of `extraParts` gives a rule a part that the reader does not read. In the bundled bootstrap's syntax document, `find` stands once, and the bootstrap of the item has `replace` in its place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
+Each item of `extraParts` changes a rule of either notation stage. Its `find` stands once in the bundled bootstrap. The item's bootstrap has `replace` in that place ("Places in fixtures"). Each library loads the item's `document` with that bootstrap and parses its `inputs`, as above. The outcomes are those of `expect`.
 
-The extra part holds text that the reader refuses if it reads it, so an outcome other than `expect` shows that the library read it. Other items give a rule of the notation another shape, such as a `repetition` whose markers stand elsewhere. An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
+An extra part holds text that the reader refuses if it reads it. An outcome other than `expect` then shows that the library read it. Other items change constructor shapes or supply tokens that the bundled lexical stage refuses. These tokens test reader validation, including guard errors and their priority (engine §9.3). An item whose `expect` is a load error can give `where`, `{"document": "g.md", "line": 3, "column": 21}`, the place of that error in its document. The load must then fail there, as `expect.where` says for an engine case.
 
 ## External JSON cases: `json-keys.json`
 

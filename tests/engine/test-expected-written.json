@@ -1,5 +1,5 @@
 {
-  "description": "Expected terminals expand constants, sort signed requirements, remove duplicate requirements, and use canonical scalar strings (output format 12).",
+  "description": "Expected terminals expand constants, sort signed requirements, remove duplicate requirements, and use canonical scalar strings (output format 12) (engine §4).",
   "grammar": "%const $AB (B ∪ Tag-a ∪ A)\n%rule text X<$AB> | X<B> | X≠\"a$(_0022)b$(_005C)\" | X<> | X<¬W> | X<A A>",
   "tokens": [
     {

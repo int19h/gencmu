@@ -1,5 +1,5 @@
 {
-  "description": "The rule of tags is its second argument. A bare name as the first makes a call with the wrong arguments, reported at the call, not at the name (engine §9).",
+  "description": "The .tags query needs a span receiver and a rule argument. A bare rule name as the receiver is an error at that receiver (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule text $w:W :: text.tags($w)\n```\n",
   "expect": {
     "error": {

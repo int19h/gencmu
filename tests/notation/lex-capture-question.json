@@ -1,5 +1,5 @@
 {
-  "description": "The lexical stage reads the whole text, so `$a?` is `$` and the guard `a?`, since `$a` would leave `?`, which no token reads. The error is the syntax error at the guard, where `$` needs `(` (engine §9).",
+  "description": "An isolated ? after the capture token $a is no lexical token. The error stands at that question mark (engine §9.1).",
   "document": "```jbogenbau\n%rule t $a ?\n```\n",
   "expect": {
     "error": {

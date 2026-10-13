@@ -1,5 +1,5 @@
 {
-  "description": "A range or a property reads only character tags: a token of a later stage that carries none, such as one tagged with a phoneme, does not match it (engine §4).",
+  "description": "The wildcard reads a token independently of its tags. When the same token also matches A, the two terminal reads tie (engine §4, §6).",
   "grammar": "%rule text _ | A",
   "tokens": [
     {

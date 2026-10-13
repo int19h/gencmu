@@ -1,5 +1,5 @@
 {
-  "description": "The marked optional has a choice and tests a noncanonical sound. Its form error comes first, at the [ (engine §9).",
+  "description": "An uppercase value test is legal, but the marked optional's content is a choice rather than a sequence headed by one terminal. The form error stands at the opening bracket (engine §9.3).",
   "document": "```jbogenbau\n%rule a [ + KU = \"K\" | A ]\n```\n",
   "expect": {
     "error": {

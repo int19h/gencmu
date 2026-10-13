@@ -6,5 +6,5 @@
       "column": 14
     }
   },
-  "description": "A leading operator makes the written recipe atom invalid (coordinator N21)."
+  "description": "A recipe atom is checked as written. A leading set operator makes it invalid even when flattening leaves one operand (engine §9.3, §11.3)."
 }

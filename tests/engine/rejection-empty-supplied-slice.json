@@ -1,0 +1,38 @@
+{
+  "description": "With no supplied tokens, rejection at token 0 has source [0,0], even with nonempty original text (engine §4, §12).",
+  "grammar": "%rule text _",
+  "input": "a",
+  "tokens": [],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 0,
+        "source": [
+          0,
+          0
+        ],
+        "line": 1,
+        "column": 1,
+        "expected": [
+          {
+            "terminal": "_",
+            "rules": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

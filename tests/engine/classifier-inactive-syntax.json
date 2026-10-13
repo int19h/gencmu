@@ -1,5 +1,5 @@
 {
-  "description": "A key that is not a canonical sound is an error of the document, even in an entry whose gate is off for every parse. The error stands at the key (engine §9).",
+  "description": "Classifier keys are exact strings, so Mi is valid even in an inactive entry. With f off, mi gains no classifier tag and the text parses (engine §2, §10).",
   "grammar": "%classifier lex\nf? \"Mi\" ∈ KOhA\n%rule text [ { word } ]\n%rule word $w:W :: W ∪ $w.value.classify(lex)\n%emits\n$",
   "tokens": [
     {

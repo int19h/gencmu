@@ -1,5 +1,5 @@
 {
-  "description": "An attachment whose part is a recursive opaque rule is one opaque part: the attached token sounds ? and shows the text (engine §11).",
+  "description": "An attachment whose part contains a recursive verbatim image recipe keeps the text qq as its image and the ordinary value qq (engine §11.1, §11.4).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($w:word $a:quote) %emits $w ($a)\n\n\n\n%rule word \"w\" :: W\n\n%rule quote fq %emits $ :: Q\n\n\n\n%rule fq :- $.verbatim-text | \"q\" | (fq \"q\")\n\n\n```\n",

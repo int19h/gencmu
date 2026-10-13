@@ -1,5 +1,5 @@
 {
-  "description": "A \\u{...} escape can name any Unicode scalar value, the largest included (engine §9).",
+  "description": "A string can contain the largest Unicode scalar value followed by an ordinary letter. The DOM retains both scalars in that string (engine §9.1).",
   "document": "```jbogenbau\n%rule a $x:A %conditions $x.source-text = \"􏿿A\"\n```\n",
   "expect": {
     "dom": {

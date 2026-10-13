@@ -1,5 +1,5 @@
 {
-  "description": "A string constant stands wherever a string can: as the delimiter of split in a condition, and as the name of tag in a tag term (engine §2, §10).",
+  "description": "A string constant can supply a split delimiter or a classifier key. The split condition and classification through migration-tags preserve the string values (engine §2, §10).",
   "grammar": "%const $PAUSE \".\"\n%const $NAME \"KOhA\"\n%rule text $w:word %conditions KOhA ⊆ $w.tags\n\n%rule word $x:A :: $NAME.classify(migration-tags) %conditions \"b\" ∈ $x.value.split($PAUSE)\n\n%classifier migration-tags \"KOhA\" ∈ KOhA",
   "tokens": [
     {

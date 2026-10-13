@@ -1,5 +1,5 @@
 {
-  "description": "A property name is a short form: the long name '\\p{Letter}' is an error at the property (engine §1, §9).",
+  "description": "Engine tags use the documented short category names. The unknown _Letter token is an error at that token (engine §1, §9.1).",
   "document": "```jbogenbau\n%rule a B _Letter\n```\n",
   "expect": {
     "error": {

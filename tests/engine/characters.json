@@ -1,5 +1,5 @@
 {
-  "description": "The first stage reads one token per code point, tagged with its character tag and nothing else. A range and a property read a character by its tag, and each stands in the tree as its written form (engine §1, §4).",
+  "description": "Stage zero supplies one token per scalar value with stored Unicode tags. Strings and ranges read values, properties read tags, and the tree keeps their canonical terminal forms (engine §1, §4, docs/output.md).",
   "grammar": "%rule text (\"x\" _White_Space \"0\"..\"9\" \"é\")",
   "input": "x 7é",
   "expect": {

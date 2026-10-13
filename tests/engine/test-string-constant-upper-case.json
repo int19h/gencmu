@@ -1,5 +1,5 @@
 {
-  "description": "A string constant in a sound test must be a canonical sound. The loader checks it when it stitches the stage, and the error of the document stands at the reference to the constant (engine §2, §9).",
+  "description": "An uppercase string constant is valid in a value test. Its exact value La differs from the token's la, so recognition rejects with LE=\"La\" in the expected list (engine §4, §10, docs/output.md).",
   "grammar": "%const $LA \"La\"\n%rule text LE=$LA",
   "tokens": [
     {

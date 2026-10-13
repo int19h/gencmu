@@ -1,0 +1,47 @@
+{
+  "description": "The preceding optional and its terminator lie inside another plain optional with a ranked group. The group contains no capture. The present route reads D and then the written T, so .begins(r) is false (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.begins(r)\n%rule input B D T Z\n%rule r :: Queried | B [[(c ≻ c)] [+T] D T] Z\n%rule c D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    }
+  }
+}

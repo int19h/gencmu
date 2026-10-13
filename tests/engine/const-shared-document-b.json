@@ -1,5 +1,5 @@
 {
-  "description": "One document shared by two pipelines takes each pipeline's value of a constant. With pb.md, $K is ~b (engine §2, §8). const-shared-document-a.json runs pa.md over the same documents.",
+  "description": "One document shared by two pipelines takes each pipeline's value of a constant. With pb.md, $K is B (engine §2, §8). const-shared-document-a.json runs pa.md over the same documents.",
   "documents": {
     "pa.md": "```jbogenbau\n%stage main\n%include \"a.md\"\n%include \"shared.md\"\n```\n",
     "pb.md": "```jbogenbau\n%stage main\n%include \"b.md\"\n%include \"shared.md\"\n```\n",

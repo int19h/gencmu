@@ -1,5 +1,5 @@
 {
-  "description": "An input token without attachments can be the one part of two emitted tokens (engine §11).",
+  "description": "Two covering items over one consuming constituent are a document error, even when its input token has no attachments (engine §9.3, §11.4).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n%stage c\n%include \"c.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item $w:word | ($b:bb $w:word) | ($w:word $a:ii) | ($b:bb $w:word $a:ii) %emits ($b) $w ($a)\n\n\n\n%rule word \"w\" :: W | \"z\" :: Z\n\n%rule bb \"b\" :: B %emits $\n\n\n\n%rule ii \"i\" :: I %emits $\n\n\n\n```\n",

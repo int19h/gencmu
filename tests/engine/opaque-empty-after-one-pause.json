@@ -1,5 +1,5 @@
 {
-  "description": "An empty opaque part after one pause gives `?` to the phonemes of a token over it, with no pause after the `?`. The label keeps the one pause and gains nothing. The word stage's empty `zoi` quote has this shape, and a letter word over it sounds `zoi.gy.?gy.bu` (engine §5, §11).",
+  "description": "An empty verbatim constituent gives empty strings and claims no gap. The covering letter word retains the explicit periods in its value and both hyphens in its image (engine §11.1, §11.2).",
   "grammar": "%rule text $w:letter %emits $w :: W\n\n%rule letter (quote P L)\n%rule quote (L P $b:body L) %emits $b :: F\n\n%rule body :- $.verbatim-text | ε\n",
   "tokens": [
     {

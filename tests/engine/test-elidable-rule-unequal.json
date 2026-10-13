@@ -1,5 +1,5 @@
 {
-  "description": "A ≠ test on a rule reference is no error, since [x≠\"a\"] is a plain optional of the rule x and not of the terminal ~x. An absent [x≠\"a\"] is no elided node, while an absent [+~x] is one (engine §2, §3.8).",
+  "description": "A ≠ test on a rule reference is no error, since [x≠\"a\"] is a plain optional of the rule x and not of the terminal X. An absent [x≠\"a\"] is no elided node, while an absent [+X] is one (engine §2, §3.8).",
   "grammar": "%rule text ([x≠\"a\"] [+X] B)\n%rule x A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "An inserted item of %emits is one tag, so a property there is an error at the item (engine §9).",
+  "description": "An engine tag cannot stand alone as an emission item. An insertion needs ε and its explicit clauses, so the error is at the engine tag (engine §9.2, §11.1).",
   "document": "```jbogenbau\n%rule a $b:B\n%emits _L, $b\n```\n",
   "expect": {
     "error": {

@@ -1,5 +1,5 @@
 {
-  "description": "The second argument of classify names a classifier of the stage. A name that no %classifier of the stage uses is an error of the document, even where a rule has that name. The loader reports it at the definition that holds the call (engine §2).",
+  "description": "The argument of .classify names a classifier of the stage. A rule with that name does not define the classifier, so the loader reports a document error at the definition (engine §2, §9.3).",
   "grammar": "%classifier lex  \"mi\" ∈ KOhA\n\n%rule text [{word}]\n%rule word $w:W :: (Tag-w ∪ $w.value.classify(text))",
   "tokens": [
     {

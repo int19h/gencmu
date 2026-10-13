@@ -1,5 +1,5 @@
 {
-  "description": "An inserted tag before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
+  "description": "An inserted item before an item stands before its first before-attachment where the alternative has it, and before its carrier where it does not (engine §11).",
   "documents": {
     "p.md": "```jbogenbau\n%stage a\n%include \"a.md\"\n%stage b\n%include \"b.md\"\n```\n",
     "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {item}\n%rule item ($b:bb $w:word) | $w:word %emits ε :: X, ($b) $w\n\n\n\n%rule word \"w\" :: W\n\n%rule bb \"b\" :: B %emits $\n\n\n\n```\n",

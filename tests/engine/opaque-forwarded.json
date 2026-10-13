@@ -1,5 +1,5 @@
 {
-  "description": "A later stage that forwards a token over an opaque part keeps its source, its phonemes `?` and its label, the part's text. The brackets show the label, periods included (engine §5, §11, docs/output.md).",
+  "description": "Forwarding preserves the value, image, source and text of a token with a verbatim image recipe. Brackets show its image, including the periods (engine §11.1, docs/output.md).",
   "documents": {
     "p.md": "## s\n\n```jbogenbau\n%stage first\n```\n\n- [g](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## t\n\n```jbogenbau\n%stage second\n```\n\n- [h](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## u\n\n```jbogenbau\n%stage third\n```\n\n- [k](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part v | pause\n%rule v :- $.verbatim-text | (\"a\" \".\" \".\" \"b\") %emits $ :: V\n\n\n%rule pause \"-\" %emits $ :: (P ∪ Sound-002E-s) := \".\" :- \" \"\n\n```\n",

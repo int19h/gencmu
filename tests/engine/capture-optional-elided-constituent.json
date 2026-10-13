@@ -1,5 +1,5 @@
 {
-  "description": "An expanded optional leaves no helper when its capture is absent. The elided T remains between A and C.",
+  "description": "A plain optional retains its logical helper even when its capture is absent. The elided T remains between A and C, and the complete reading consumes C outside the optional (engine §3.2, §4).",
   "grammar": "%ambiguity-resolution greedy\n%rule text (A [$y:y] [+T] C)\n%rule y C",
   "tokens": [
     {

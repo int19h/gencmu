@@ -1,5 +1,5 @@
 {
-  "description": "A range is a tag-set value in a tag term and in a condition. `..` binds tighter than ∪, ∩ and ∖: 'a'..'c' ∪ 'x' is ('a'..'c') ∪ 'x' (engine §9, §10).",
+  "description": "A range is terminal syntax, not a set term. Its use in a condition is a document error at the range separator (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $c:B :: (\"a\"..\"c\" ∪ \"x\") %conditions ($c.tags ∩ \"a\"..\"z\") ≠ ∅, ($c.tags ∖ \"0\"..\"9\") ⊆ \"a\"..\"c\", $c.tags = \"x\"..\"x\"\n\n\n\n\n```\n",
   "expect": {
     "error": {

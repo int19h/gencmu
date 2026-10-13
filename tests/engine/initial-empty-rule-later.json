@@ -1,5 +1,5 @@
 {
-  "description": "A rule anchored by initial($) is not read after the start of the input (engine §4, §10).",
+  "description": "A rule anchored by $.starts-input is not read after the start of the input (engine §4, §10).",
   "grammar": "%rule text a | (W a)\n%rule a (begin W)\n%rule begin ε %conditions $.starts-input",
   "tokens": [
     {

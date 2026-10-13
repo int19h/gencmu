@@ -1,5 +1,5 @@
 {
-  "description": "A rule named in the tag term tags(span, rule) must be a rule of the stage (engine §2).",
+  "description": "A rule named in the tag term span.tags(rule) must be a rule of the stage (engine §2).",
   "grammar": "%rule text $a:A :: $a.tags(absent)",
   "tokens": [
     {

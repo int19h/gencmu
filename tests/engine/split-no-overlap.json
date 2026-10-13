@@ -1,5 +1,5 @@
 {
-  "description": "split() finds the occurrences of its delimiter from the left, and each search starts where the last occurrence ends: `aaa` split at `aa` is `a`, and `aaaa` split at `aa` is empty (engine §10).",
+  "description": ".split finds the occurrences of its delimiter from the left, and each search starts where the last occurrence ends: `aaa` split at `aa` is `a`, and `aaaa` split at `aa` is empty (engine §10).",
   "grammar": "%rule text ($x:A $y:A) %conditions $x.value.split(\"aa\") = \"a\".split(\".\"), $y.value.split(\"aa\") = ∅\n",
   "tokens": [
     {

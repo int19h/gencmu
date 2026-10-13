@@ -1,0 +1,36 @@
+{
+  "description": "The plain optional contains a one-item route and a flat-brace route. The optional contains no capture. The written [T U] cannot complete in this span, so .begins(r) is true (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.begins(r)\n%rule input B {D} T\n%rule r :: Queried | B [(c | {c})] [+T U] D T\n%rule c D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -109,8 +109,8 @@ fn notation_shapes() {
     for item in shapes.get("extraParts").expect("extraParts").array() {
         let text = |key: &str| item.get(key).and_then(Value::str).unwrap_or_else(|| panic!("{key}")).to_string();
         let (find, replace) = (text("find"), text("replace"));
-        assert_eq!(find_places(&bootstrap[syntax_at..], &find).len(), 1, "{}", text("description"));
-        let changed = with_syntax(&|syntax: String| substitute(&syntax, &find, &replace));
+        assert_eq!(find_places(&bootstrap, &find).len(), 1, "{}", text("description"));
+        let changed = substitute(&bootstrap, &find, &replace);
         assert_eq!(&outcome(item, changed), item.get("expect").expect("expect"), "{}", text("description"));
     }
 }

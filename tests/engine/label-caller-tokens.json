@@ -1,5 +1,5 @@
 {
-  "description": "A token that a caller supplies has its text as its label, whatever its phonemes. A token over it joins that label, and the brackets show it (engine §5, docs/api.md, docs/output.md).",
+  "description": "A caller token's image defaults independently to its text, even when its value differs. Captured emissions preserve both strings, and brackets show the image (engine §1, §11.1, docs/output.md).",
   "grammar": "%rule text ($a:A $b:B) %emits $a :: X, $b :: Y\n",
   "tokens": [
     {

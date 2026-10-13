@@ -1,5 +1,5 @@
 {
-  "description": "A marker after the whole item makes a right chain whose item is the whole choice: {A | B ... \\ S} (engine §3.3, §9).",
+  "description": "A marker after the whole item makes a right chain whose item is the whole choice: {A | B ... / S} (engine §3.3, §9).",
   "grammar": "%rule text {(A | B) ... / S}",
   "tokens": [
     {

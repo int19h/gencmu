@@ -1,5 +1,5 @@
 {
-  "description": "Repetitions and their separators cannot contain captures, including captures inside ranked groups.",
+  "description": "Repetitions and their separators cannot contain captures, including captures inside ranked groups (engine §3.5 and §9.3).",
   "grammar": "%rule text ( X { U / ( $x:Y≻ V ) } ≻ Z W )\n%conditions $x",
   "tokens": [
     {

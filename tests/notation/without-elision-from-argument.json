@@ -1,5 +1,5 @@
 {
-  "description": "A restored span rejects from as its argument and names the supported composition. Engine §9.",
+  "description": "The restored query method requires a bare capture receiver, not an onward span. Restoration followed by .onward is the supported composition (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B%conditions $x.onward.without-elision.matches(r)\n```\n",
   "expect": {
     "error": {

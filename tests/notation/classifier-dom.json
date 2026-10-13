@@ -1,5 +1,5 @@
 {
-  "description": "A %classifier item is a classifier with its entries: gates, decoded keys, ∈ or ∉, and a class, from a bare name or ~name. Line breaks mean nothing, so an entry can span lines and a %classifier can have no entries (engine §9, docs/output.md).",
+  "description": "A classifier item keeps its entries' gates, decoded string keys, membership operators and written class tags. Line breaks separate no entries, and an empty classifier is legal (engine §9.3, docs/output.md format 26).",
   "document": "```jbogenbau\n%classifier lexicon  \"mi\" \"do\" ∈ KOhA f? ¬g? \"u'i\" ∉ UI\n\n\n\n%classifier empty \n%rule text $w:W :: $w.value.classify(lexicon)\n```\n",
   "expect": {
     "dom": {

@@ -1,5 +1,5 @@
 {
-  "description": "`?` is an ordinary character in a comparison: the sound of an opaque token is `?`, which a sound test and a condition compare like any other string (engine §5).",
+  "description": "A verbatim image recipe leaves the ordinary value ab unchanged. The later test B=\"?\" rejects that token because no placeholder value is supplied (engine §4, §11.1).",
   "documents": {
     "p.md": "## letters\n\n```jbogenbau\n%stage letters\n```\n\n- [g.md](g.md)\n  ```jbogenbau\n  %include \"g.md\"\n  ```\n\n## bodies\n\n```jbogenbau\n%stage bodies\n```\n\n- [h.md](h.md)\n  ```jbogenbau\n  %include \"h.md\"\n  ```\n\n## compares\n\n```jbogenbau\n%stage compares\n```\n\n- [k.md](k.md)\n  ```jbogenbau\n  %include \"k.md\"\n  ```\n",
     "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text [{part}]\n%rule part letter | pause | mark\n%rule letter \"a\" :: (L ∪ Sound-0061-s) := \"a\" | \"b\" :: (L ∪ Sound-0062-s) := \"b\" | \"c\" :: (L ∪ Sound-0063-s) := \"c\" | \"d\" :: (L ∪ Sound-0064-s) := \"d\" %emits $\n\n%rule pause \" \" :: (P ∪ Sound-002E-s) := \".\" :- \" \" %emits $\n\n%rule mark \"!\"\n```\n",

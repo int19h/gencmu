@@ -1,5 +1,5 @@
 {
-  "description": "A capture can stand next to flat braces: $a(A) {B} parses, since braces are a helper and the alternative's productions keep the capture (engine §3.2, §3.5).",
+  "description": "A capture can stand next to flat braces: $a:A {B} parses, since braces are a helper and the alternative's productions keep the capture (engine §3.2, §3.5).",
   "grammar": "%rule text ($a:A {B}) %conditions $a.source-text = \"a\"\n",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "A constant can be a range, a tag set of character tags, which a condition tests (engine §2, §10).",
+  "description": "A range is expression syntax, not a term or constant value. Its use in a constant is a document error at the range separator (engine §9.2, §9.3, §10).",
   "grammar": "%const $DIGITS \"0\"..\"9\"\n%rule text digit | other\n%rule digit $c:_ %conditions $c.tags ⊆ $DIGITS\n\n%rule other $c:_ %conditions ($c.tags ∩ $DIGITS) = ∅\n",
   "input": "5",
   "expect": {

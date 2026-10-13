@@ -1,5 +1,5 @@
 {
-  "description": "A tree comparison gives the empty set its pattern type. The empty pattern matches no candidate.",
+  "description": "A tree comparison gives the empty set its pattern type. The empty pattern matches no candidate (engine §4.1 and §10).",
   "grammar": "%rule text A %conditions $ ≅ ∅\n",
   "tokens": [
     {

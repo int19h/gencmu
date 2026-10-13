@@ -1,5 +1,5 @@
 {
-  "description": "A bare name is an argument of classify only as the second. In the first argument it makes a call with the wrong arguments, so the reader reports it at the call, not at the name (engine §9).",
+  "description": "A bare rule name is not a string receiver for .classify. The error stands at that receiver rather than the classifier argument (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule text $w:W :: lex.classify(\"mi\")\n```\n",
   "expect": {
     "error": {

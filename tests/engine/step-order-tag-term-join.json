@@ -1,5 +1,5 @@
 {
-  "description": "Where an alternative's own tag term and the definition's `%tags` join, both can fail. Here the alternative's own term is tag(\"\"), and `%tags` asks a query about its own rule and span. Either error ends the parse with an error of the grammar. Which of the two messages the result has is free, so the case pins only the kind (engine §4, §3.7).",
+  "description": "The alternative and definition tag clauses both contain failing queries. Either failure ends the parse with a grammar error, so the case pins the error kind rather than its wording (engine §3.7, §4).",
   "grammar": "%rule text (A x)\n%rule x :: $.tags(x) | B :: $.tokens-after-first.tags(migration-fault)\n\n\n%rule migration-fault ε | {_} %conditions \"x\" ∈ $.value.split($.value)",
   "tokens": [
     {

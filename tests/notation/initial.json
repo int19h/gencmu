@@ -1,5 +1,5 @@
 {
-  "description": "initial(span) is a condition (engine §9, §10).",
+  "description": "The .starts-input method is a condition over its span receiver. The DOM keeps both the direct capture and the tokens-after-first receiver (engine §9.3, §10).",
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g $a:A %conditions $a.starts-input, ¬($a.tokens-after-first.starts-input)\n```\n",
   "expect": {
     "dom": {

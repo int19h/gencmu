@@ -1,5 +1,5 @@
 {
-  "description": "An inequality test on an elidable terminator is legal. Its omission has an empty sound.",
+  "description": "An inequality test on an elidable terminator is legal. Its omission has an empty sound (engine §4).",
   "grammar": "%rule text (A [+KU≠\"ku\"])",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "N32 keeps an untested # as a valid capture target.",
+  "description": "An untested # is a valid capture target (engine §9.3).",
   "document": "```jbogenbau\n%rule r $x:#\n```\n",
   "expect": {
     "dom": {

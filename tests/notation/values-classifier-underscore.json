@@ -1,5 +1,5 @@
 {
-  "description": "N27 excludes the wildcard from tag operands. Syntax errors precede reader errors.",
+  "description": "The wildcard cannot stand as a tag operand. A syntax failure there precedes any earlier reader error (engine §9.2, §9.3).",
   "document": "```jbogenbau\n%classifier c \"a\" ∈ _\n```\n",
   "expect": {
     "error": {

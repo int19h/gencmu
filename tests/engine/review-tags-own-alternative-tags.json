@@ -1,5 +1,5 @@
 {
-  "description": "A tree guard does not permit an actual own-tag read.",
+  "description": "A tree guard does not permit an actual own-tag read (engine §10).",
   "grammar": "%rule text A  :: ( ( $ ≅ @ ( A ) ) ∧ ( $.tags= X ) ) ⟹ X",
   "tokens": [
     {

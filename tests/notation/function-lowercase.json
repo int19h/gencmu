@@ -1,5 +1,5 @@
 {
-  "description": "lowercase is not a function of the notation, so a call of it is an error at the call (engine §9).",
+  "description": "The notation has no .lowercase method. The unknown method is an error at its receiver (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule a $x:B%conditions $x.source-text.lowercase= \"a\"\n```\n",
   "expect": {
     "error": {
