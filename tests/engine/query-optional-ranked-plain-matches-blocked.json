@@ -1,0 +1,41 @@
+{
+  "description": "The plain optional contains a ranked group. The optional contains no capture. The present route reads the D tokens and then the written T, so .matches(r) is false (engine §4).",
+  "grammar": "%rule text $r:input\n%conditions $r.matches(r)\n%rule input B {D} T\n%rule r :: Queried | B [(c ≻ c)] [+T] D T\n%rule c D",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "d",
+      "tags": [
+        "D"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": null
+        }
+      ],
+      "tree": null,
+      "error": {
+        "kind": "rejected",
+        "stage": "main"
+      }
+    }
+  }
+}
