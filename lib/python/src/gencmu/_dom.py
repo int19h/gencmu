@@ -9,7 +9,7 @@ from ._clauses import attachment_order, definition_problem, duplicate_captures, 
 from ._errors import GencmuError
 from ._markdown import GrammarText
 from ._model import Node, Token
-from ._strings import ENGINE_TAGS, USER_NAME, scalar, lit, literal_string
+from ._strings import ENGINE_TAGS, USER_NAME, scalar, lit_occurrences, literal_string
 from ._trampoline import Walk, run
 from ._patterns import pattern_problem
 from ._types import (
@@ -424,22 +424,11 @@ class DomBuilder:
         problem = tag_term_problem(term, memo=self.types)
         if problem is not None:
             raise self.fail(node, problem)
-        retained = lit(term)
+        retained = lit_occurrences(term)
         if retained:
-            found = [self.engine_nodes[id(t)] for t in self._tag_nodes(term) if t.get("tag") in retained and id(t) in self.engine_nodes]
+            found = [self.engine_nodes[id(t)] for t in retained if id(t) in self.engine_nodes]
             raise self.fail(min(found, key=lambda n: self.first_token(n) or 0) if found else node, "a tag clause cannot introduce engine tags")
         return term
-
-    def _tag_nodes(self, root):
-        pending = [root]
-        while pending:
-            value = pending.pop()
-            if isinstance(value, list):
-                pending.extend(reversed(value))
-            elif isinstance(value, dict):
-                if "tag" in value:
-                    yield value
-                pending.extend(reversed(list(value.values())))
 
     def _expr(self, node: Node, whole: bool = False) -> Walk:
         """An expression; ``whole`` says it is its alternative's whole

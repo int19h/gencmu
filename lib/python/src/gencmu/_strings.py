@@ -54,13 +54,18 @@ def spelling(value: str, unicode: Any) -> str:
 
 def lit(term: Any) -> frozenset[str]:
     """Engine literals retained by a complete tag clause's filters."""
+    return frozenset(node["tag"] for node in lit_occurrences(term))
+
+
+def lit_occurrences(term: Any) -> list[dict[str, Any]]:
+    """Retain each literal's identity through the provenance filters."""
     from ._trampoline import run
 
     def walk(node):
         if not isinstance(node, dict):
-            return frozenset()
+            return []
         if node.get("tag") in ENGINE_TAGS:
-            return frozenset((node["tag"],))
+            return [node]
         if "if" in node:
             return (yield walk(node["then"]))
         for key in ("union", "intersection", "difference"):
@@ -72,8 +77,12 @@ def lit(term: Any) -> frozenset[str]:
                 return result
             for part in parts[1:]:
                 found = yield walk(part)
-                result = result | found if key == "union" else result & found
+                if key == "union":
+                    result.extend(found)
+                else:
+                    common = {item["tag"] for item in result} & {item["tag"] for item in found}
+                    result = [item for item in (*result, *found) if item["tag"] in common]
             return result
-        return frozenset()
+        return []
 
     return run(walk(term))
