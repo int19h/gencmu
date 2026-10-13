@@ -116,6 +116,8 @@ A mistake of the caller is not a result. It is an error of kind `usage` (engine 
 
 `line` and `column` count from 1, in code points. Lines end at `\n`, `\r\n` or `\r`.
 
+At the end of a stage's input, a rejection has `token` equal to the number of input tokens. Its `source` is `[S,S]`, where `S` is the source end of the last stage-input token, or 0 if there are no input tokens. Its `line` and `column` locate `S` in the original text. The original text can continue after `S` (engine §4, §12).
+
 `expected` lists terminals in code point order. The library writes a tested terminal as the terminal followed by its test, as in `LE="la"`, and sorts it by that text. So `LE` comes before `LE="la"`, which comes before `LEhU`. Each terminal comes with the rules whose items can read it at that position, also in code point order. `message` is the description for people, and the shared tests do not compare its wording.
 
 Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
