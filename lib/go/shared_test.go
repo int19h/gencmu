@@ -489,6 +489,7 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 // The runner fails a case whose dialect does not load, when the case
 // expects another kind of error, or more than the error.
 func TestEngineRunnerLoadError(t *testing.T) {
+	t.Parallel()
 	grammar := "%rule text A\n%rule text A"
 	brackets := ""
 	decoded := func(v any) *any { return &v }
@@ -639,6 +640,7 @@ func decodedResult(t testing.TB, data []byte) map[string]any {
 
 // The runner fails a case that does not finish in time.
 func TestEngineRunnerTimeout(t *testing.T) {
+	t.Parallel()
 	grammar := doublingGrammar("late-elision", 25, false, "%rule text ε | rN")
 	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{}, Expect: caseExpect{}}
 	if err := checkCaseWithin(c, time.Nanosecond); err == nil || !strings.Contains(err.Error(), "did not finish") {
@@ -649,6 +651,7 @@ func TestEngineRunnerTimeout(t *testing.T) {
 // The runner refuses a result that breaks an invariant, whatever the case
 // expects: each shared mutant (tests/README.md, "Result mutants").
 func TestEngineRunnerInvariants(t *testing.T) {
+	t.Parallel()
 	for _, m := range loadResultMutants(t) {
 		res, data := mutantResult(t, m)
 		got := decodedResult(t, data)
@@ -684,6 +687,7 @@ func checkCaseWithin(c *engineCase, timeout time.Duration) error {
 }
 
 func TestEngineCases(t *testing.T) {
+	t.Parallel()
 	timeout := caseTimeout
 	if s := os.Getenv("GENCMU_CASE_TIMEOUT"); s != "" {
 		d, err := time.ParseDuration(s)
@@ -698,6 +702,7 @@ func TestEngineCases(t *testing.T) {
 	}
 	for _, f := range files {
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
+			t.Parallel()
 			c := loadCase(t, f)
 			if c.skipReason != "" {
 				t.Skip(c.skipReason)

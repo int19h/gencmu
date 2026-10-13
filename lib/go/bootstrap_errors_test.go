@@ -9,6 +9,7 @@ import (
 
 // Every library runs the same bootstrap errors and requires their document metadata.
 func TestBootstrapErrorMetadata(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile("../../tests/bootstrap-errors.json")
 	if err != nil {
 		t.Fatal(err)

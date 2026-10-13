@@ -134,6 +134,7 @@ func condJSON(c *domCond) string {
 }
 
 func TestTermSplitAsWritten(t *testing.T) {
+	t.Parallel()
 	g := presenceGen{rand.New(rand.NewSource(1))}
 	for range 3000 {
 		var term *domTerm
@@ -161,6 +162,7 @@ func TestTermSplitAsWritten(t *testing.T) {
 }
 
 func TestCondSplitAsWritten(t *testing.T) {
+	t.Parallel()
 	g := presenceGen{rand.New(rand.NewSource(2))}
 	for range 20000 {
 		var conds []*domCond
@@ -224,6 +226,7 @@ func TestCondSplitAsWritten(t *testing.T) {
 }
 
 func TestEmitSplitAsWritten(t *testing.T) {
+	t.Parallel()
 	g := presenceGen{rand.New(rand.NewSource(3))}
 	for range 3000 {
 		var items []*domEmitItem

@@ -20,6 +20,7 @@ func domValue(t testing.TB, d *domDoc) any {
 }
 
 func TestNotationCases(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -47,6 +48,7 @@ func TestNotationCases(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
+			t.Parallel()
 			dom, rerr := bundled.reader.read(c.Document, "case.md")
 			if c.Expect.Error != nil {
 				if rerr == nil {
@@ -76,6 +78,7 @@ func TestNotationCases(t *testing.T) {
 // itself (engine §8): the same names, and the same runs of documents with
 // the same DOMs.
 func TestFixpoint(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -134,6 +137,7 @@ func TestFixpoint(t *testing.T) {
 // TestCompiled checks that compiled.json agrees with a fresh reading of
 // every document it lists, and that it is the file of the grammars.
 func TestCompiled(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -183,6 +187,7 @@ func TestCompiled(t *testing.T) {
 // TestCacheUsedAndBypassed parses with the precompiled DOMs and without
 // them, and the two agree.
 func TestCacheUsedAndBypassed(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -219,6 +224,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 // TestBundledCacheSameStages loads each bundled dialect with the precompiled
 // DOMs and without them, and the two give the same stages and features.
 func TestBundledCacheSameStages(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -348,6 +354,7 @@ func sameValue(a, b reflect.Value) bool {
 
 // DOM 26 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
 func TestNotationLexicalTags(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
@@ -375,6 +382,7 @@ func TestNotationLexicalTags(t *testing.T) {
 // A tie in a stage of the notation is a grammar error that names the
 // document, with no line or column (engine §8).
 func TestNotationTie(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -400,6 +408,7 @@ func TestNotationTie(t *testing.T) {
 // The notation's lexical stage tags constants and the keywords that define
 // them (grammars/notation/lexical.md).
 func TestNotationLexicalConstants(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {
 		t.Fatal(err)
@@ -423,6 +432,7 @@ func TestNotationLexicalConstants(t *testing.T) {
 
 // Scalar constants and terminal diagnostics replace character tags (engine §1, §4).
 func TestCharacterTags(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -451,6 +461,7 @@ func TestCharacterTags(t *testing.T) {
 // The code points next to a boundary of a record are where an unsorted
 // search goes wrong first.
 func TestUnicodeTableOrder(t *testing.T) {
+	t.Parallel()
 	data, err := bundledFS.ReadFile("grammars/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -493,6 +504,7 @@ func TestUnicodeTableOrder(t *testing.T) {
 // A scalar value that a caller's table omits is Cn, without White_Space
 // or a stored Unicode category (engine §1).
 func TestUnicodeTablePartial(t *testing.T) {
+	t.Parallel()
 	uni, err := parseUnicodeTable("unicode 0.0.0\ncategory Lu 0041 005A\n")
 	if err != nil {
 		t.Fatal(err)
@@ -517,6 +529,7 @@ func TestUnicodeTablePartial(t *testing.T) {
 // knows no letters, only the white space that the notation reads between
 // tokens.
 func TestUnicodeTableOfCaller(t *testing.T) {
+	t.Parallel()
 	sources := func(rule string, table bool) map[string]string {
 		m := map[string]string{
 			"p.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n",
@@ -549,6 +562,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 // grammars/unicode.txt gives each scalar value its General_Category and
 // says which have White_Space (engine §1).
 func TestUnicodeTable(t *testing.T) {
+	t.Parallel()
 	data, err := bundledFS.ReadFile("grammars/unicode.txt")
 	if err != nil {
 		t.Fatal(err)
@@ -579,6 +593,7 @@ func TestUnicodeTable(t *testing.T) {
 // format is a miss, and so is a DOM of that shape, a repeat with min, in a
 // file of the current format.
 func TestFormat17Refused(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}

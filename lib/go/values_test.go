@@ -8,6 +8,7 @@ import (
 // A written optional can block an earlier omission even when its later
 // continuation fails. Capture expansion must keep that helper query (§4).
 func TestCapturedOptionalQueryPriority(t *testing.T) {
+	t.Parallel()
 	for _, optional := range []string{"[b]", "[$b:b]"} {
 		grammar := `%rule text $all:run
 %conditions ¬$all.begins(r)
@@ -31,6 +32,7 @@ func TestCapturedOptionalQueryPriority(t *testing.T) {
 }
 
 func TestStackedOmissionPredicates(t *testing.T) {
+	t.Parallel()
 	grammar := `%rule text [+T<U>="saved"] %emits`
 	d, err := caseDialect(&engineCase{Grammar: &grammar}, true)
 	if err != nil {
@@ -50,6 +52,7 @@ func TestStackedOmissionPredicates(t *testing.T) {
 // Nil pointers default independently. Empty pointed-to strings are stored
 // unchanged, and brackets use the image rather than the text or value.
 func TestInputStringDefaults(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text _ %emits $"))
 	for _, c := range []struct {
 		value, image         *string
@@ -75,6 +78,7 @@ func TestInputStringDefaults(t *testing.T) {
 // Comparisons and classifier keys retain case and punctuation. A scalar
 // constant can also serve as a closed method argument without a user definition.
 func TestExactStoredStrings(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage(`%ambiguity-resolution greedy
 %classifier lex
  "A,b" ∈ T
@@ -95,6 +99,7 @@ func TestExactStoredStrings(t *testing.T) {
 // An attachment cannot occur without its carrier in any expansion
 // (engine §9). A capture from another branch cannot supply that carrier.
 func TestAttachmentRequiresItsCarrier(t *testing.T) {
+	t.Parallel()
 	_, err := LoadDialectSources(oneStage(`%ambiguity-resolution greedy
 %rule text r
 %rule r $e:empty | $a:word

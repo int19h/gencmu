@@ -9,6 +9,7 @@ import (
 )
 
 func TestPatternDOM(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -47,6 +48,7 @@ func TestPatternDOM(t *testing.T) {
 	}
 }
 func TestPatternDepth(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +61,7 @@ func TestPatternDepth(t *testing.T) {
 	}
 }
 func TestPatternStateGrowth(t *testing.T) {
+	t.Parallel()
 	p := &domPattern{Kind: "children", Items: []*domPattern{{Kind: "repeat", Items: []*domPattern{patternChildren(&domPattern{Kind: "terminal", Name: "A"})}}}}
 	m := newPatternMachine([]*domPattern{p})
 	leaf := m.node("", m.empty, "A", "a", newInterner().single("A"))
@@ -73,6 +76,7 @@ func TestPatternStateGrowth(t *testing.T) {
 }
 
 func TestPatternMachineBeyondWordSize(t *testing.T) {
+	t.Parallel()
 	var roots []*domPattern
 	for i := 0; i < 150; i++ {
 		roots = append(roots, &domPattern{Kind: "terminal", Name: "A" + strconv.Itoa(i)})

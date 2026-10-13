@@ -10,6 +10,7 @@ import (
 )
 
 func TestReviewEmptyGuardWrapper(t *testing.T) {
+	t.Parallel()
 	bootstrap := reviewBootstrap(t, func(path string, dom map[string]any) {
 		for _, value := range dom["rules"].([]any) {
 			rule := value.(map[string]any)
@@ -43,6 +44,7 @@ func TestReviewEmptyGuardWrapper(t *testing.T) {
 }
 
 func TestReviewEmptyConstructorAnchor(t *testing.T) {
+	t.Parallel()
 	gt := extractGrammarText(block("A"))
 	b := &domBuilder{gt: gt}
 	end := len(gt.text)
@@ -53,6 +55,7 @@ func TestReviewEmptyConstructorAnchor(t *testing.T) {
 }
 
 func TestReviewPrivateRecipeExports(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ grammar, expression string }{
 		{`%rule text :: ∅ := $x.value | ($x:A ≻ $x:B) %emits`, "concat"},
 		{`%rule text :: ∅ :- $x.image | ($x:A ≻ $x:B) %emits`, "concat"},
@@ -114,6 +117,7 @@ func reviewCache(t *testing.T, sources map[string]string) string {
 }
 
 func TestReviewCachedRecipeCyclePositions(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -156,6 +160,7 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 	}
 }
 func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
@@ -185,6 +190,7 @@ func TestReviewRecipeLocationRecoveryPreservesCache(t *testing.T) {
 }
 
 func TestReviewRecipeProductionOrder(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}

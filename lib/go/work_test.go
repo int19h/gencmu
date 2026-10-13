@@ -7,6 +7,8 @@ import (
 
 // countWork has the parses of a test count their work, from now until the
 // test ends, and gives the counts.
+// Tests that use this process-wide hook must stay serial. Go runs them
+// before tests that call t.Parallel, so other parses cannot enter it.
 func countWork(t *testing.T) *workCounts {
 	t.Helper()
 	w := &workCounts{}

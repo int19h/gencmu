@@ -41,6 +41,7 @@ func rankEmpty(t *testing.T, grammar string) *rankResult {
 // input has exponentially many actions and elisions (engine §6). Counts of
 // 2^n do not wrap, and two runs of 2^n elisions built apart compare whole.
 func TestRankExponential(t *testing.T) {
+	t.Parallel()
 	for _, n := range []int{31, 32, 64, 100} {
 		// Under greedy, the second reading is the tied derivation that
 		// diverges first, through w, and not the one through y, which

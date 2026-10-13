@@ -611,9 +611,9 @@ func sameActions(a, b []action) bool {
 	return true
 }
 
-var printDerivations = false
-
 func TestRankingProperty(t *testing.T) {
+	t.Parallel()
+	printDerivations := false
 	cases := 5000
 	if s := os.Getenv("GENCMU_PROPERTY_CASES"); s != "" {
 		cases, _ = strconv.Atoi(s)
@@ -805,6 +805,7 @@ func TestRankingProperty(t *testing.T) {
 // start at A but end apart, so the input has three derivations (engine §4;
 // tests/engine/cycle-repeated-partial-item.json).
 func TestOracleRepeatedPartialItem(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}

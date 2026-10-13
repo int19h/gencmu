@@ -12,6 +12,7 @@ import (
 // "A grammar DOM"): each is refused when decoded, and as a compiled.json
 // entry it is a miss, so the document is read instead.
 func TestDOMRules(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	const good = `{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]}`
 	format := `"format":` + strconv.Itoa(domFormat)
@@ -508,6 +509,7 @@ func TestDOMRules(t *testing.T) {
 
 // The reader holds a document to the nesting limit too, at the rule.
 func TestReaderNesting(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	doc := func(n int) string {
 		return "```jbogenbau\n\n%rule text " + strings.Repeat("[", n) + "A" + strings.Repeat("]", n) + "\n```\n"
@@ -524,6 +526,7 @@ func TestReaderNesting(t *testing.T) {
 // The reader holds an implication to the nesting limit too, at the
 // implication (engine §9).
 func TestReaderImplicationNesting(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	// n differences, each of a tag and the next in parentheses: the
 	// innermost tag lies below n compound nodes.
@@ -573,6 +576,7 @@ func assertGrammarError(t *testing.T, err error, want string) {
 // A bootstrap with a malformed classifier is an error of the grammar
 // (engine §9).
 func TestBootstrapMalformedClassifier(t *testing.T) {
+	t.Parallel()
 	bad := `{"name":"lex","entries":[{"guards":[],"keys":[{"string":"\ud800"}],"op":"∈","class":"KOhA","at":[9999,3]}],"at":[9999,1]}`
 	assertGrammarError(t, bootstrapError(t, "classifiers", bad), "not valid UTF-8")
 }
@@ -580,6 +584,7 @@ func TestBootstrapMalformedClassifier(t *testing.T) {
 // A classifier's name stands only as the second argument of classify
 // (engine §9). Elsewhere a bootstrap is an error of the grammar.
 func TestBootstrapMisplacedClassifier(t *testing.T) {
+	t.Parallel()
 	rule := func(condition string) string {
 		return `{"name":"misplaced-classifier","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"capture":"x","expr":{"ref":"A"}}}],"conditions":[` + condition + `],"at":[9999,1]}`
 	}
@@ -599,6 +604,7 @@ func TestBootstrapMisplacedClassifier(t *testing.T) {
 // (engine §9): a compiled.json entry is a miss, and a bootstrap is an error
 // of the grammar.
 func TestDeepConstant(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	deep := strings.Repeat(`{"union":[`, 2000) + `{"tag":"a"}` + strings.Repeat(`,{"tag":"B"}]}`, 2000)
 	k := `{"name":"K","op":"define","value":` + deep + `,"at":[9999,1]}`
@@ -638,6 +644,7 @@ func TestDeepConstant(t *testing.T) {
 // and the loader makes the checks once the constants have their values
 // (engine §3.6, §9).
 func TestCachedClauseWaitsForConstant(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	grammar := func(first, last string) string {
 		return "%ambiguity-resolution greedy\n%const $E " + first + "\n%rule text :: Y ∪ ($E ∩ $x.tags) | \"b\" | $x:\"a\"\n%redefine-const $E " + last
@@ -699,6 +706,7 @@ func TestCachedClauseWaitsForConstant(t *testing.T) {
 // feature is a miss, so it never changes the dialect's features, and a
 // bootstrap with one is an error of the grammar.
 func TestGuardFeatureName(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	format := `"format":` + strconv.Itoa(domFormat)
 	classifier := func(guard string, line int) string {
@@ -762,6 +770,7 @@ func TestGuardFeatureName(t *testing.T) {
 // bootstrap that breaks it is an error of the grammar. The order of the
 // members varies, as the other libraries read JSON in order.
 func TestMixedForms(t *testing.T) {
+	t.Parallel()
 	loadBundled()
 	format := `"format":` + strconv.Itoa(domFormat)
 	src := oneStage("%ambiguity-resolution greedy\n%rule text $x:\"a\" \"b\"\n%conditions $x.source-text = \"a\"")
@@ -859,6 +868,7 @@ func TestMixedForms(t *testing.T) {
 // it is negated, as a guard of a classifier's entry has (docs/output.md).
 // A bootstrap with a guard of another member is an error of the grammar.
 func TestBootstrapGuardMembers(t *testing.T) {
+	t.Parallel()
 	rule := func(guard string) string {
 		return `{"name":"guarded-rule","op":"define","flags":[],"alternatives":[{"guards":[` + guard + `],"expr":{"ref":"A"}}],"conditions":[],"at":[9999,1]}`
 	}

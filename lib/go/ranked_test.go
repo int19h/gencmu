@@ -9,6 +9,7 @@ import (
 )
 
 func TestRankedValidationRejectsIncompleteLowering(t *testing.T) {
+	t.Parallel()
 	fault := &Error{Kind: ErrorGrammar, Message: "incomplete lowering", Document: "source.md", Line: 7}
 	got := (&rankedGroups{}).validateTags(&lowered{fault: fault.Message, faultLocation: fault})
 	if got != fault {
@@ -16,6 +17,7 @@ func TestRankedValidationRejectsIncompleteLowering(t *testing.T) {
 	}
 }
 func TestRankedLinearForest(t *testing.T) {
+	t.Parallel()
 	d := mustLoad(t, oneStage("%ambiguity-resolution late-elision\n%rule text {unit}\n%rule unit a ≻ b\n%rule a X Y\n%rule b X Y"))
 	for _, n := range []int{1, 2, 4, 8, 16} {
 		tokens := make([]Token, n*2)
@@ -34,6 +36,7 @@ func TestRankedLinearForest(t *testing.T) {
 	}
 }
 func TestRankedDOMCacheDiagnostics(t *testing.T) {
+	t.Parallel()
 	sources := oneStage("%const $K K\n%ambiguity-resolution late-elision\n%rule text :: $x ⟹ ($x.tags ∪ $K) | Q (($x:a ≻ b) ≻ c) Z\n%rule a X Y\n%rule b U V\n%rule c R S")
 	_, plain := LoadDialectSources(sources, "p.md")
 	dom, e := bundled.reader.read(sources["g.md"], "g.md")
@@ -66,6 +69,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	}
 }
 func TestRankedShortestTagWitness(t *testing.T) {
+	t.Parallel()
 	_, err := LoadDialectSources(oneStage("%ambiguity-resolution late-elision\n%rule text a ≻ b\n%rule a u | v\n%rule u deeper\n%rule deeper X\n%rule v Y\n%rule b :: ∅ | Z\n"), "p.md")
 	if err == nil {
 		t.Fatal("grammar loaded")
@@ -80,6 +84,7 @@ func TestRankedShortestTagWitness(t *testing.T) {
 	}
 }
 func TestRankedSyntaxAndRetirement(t *testing.T) {
+	t.Parallel()
 	for _, body := range []string{"a | b ≻ c", "a ≻ b | c", "| a ≻ b", "a ≻", "≻ a"} {
 		_, e := bundled.reader.read("```jbogenbau\n%rule text "+body+"\n```\n", "g.md")
 		if e == nil || e.Code != "ranked-choice-syntax" {
@@ -93,6 +98,7 @@ func TestRankedSyntaxAndRetirement(t *testing.T) {
 }
 
 func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
+	t.Parallel()
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}

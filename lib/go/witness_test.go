@@ -88,6 +88,7 @@ func lostCase(t *testing.T) (*Dialect, *engineCase) {
 // No grammar gives it while the witness of engine §7.8 holds, so the test
 // loses the witness through the library's private switch.
 func TestWitnessLost(t *testing.T) {
+	t.Parallel()
 	d, c := lostCase(t)
 	clean, log, err := runCaseLogged(d, c, &c.Options, "")
 	if err != nil || !clean.OK || log.checks != 1 || log.lost() != 0 {
@@ -150,6 +151,7 @@ func TestWitnessLost(t *testing.T) {
 // An ordinary error of the grammar in the check keeps its own message, and
 // has no code, chosen tree or completion.
 func TestCheckGrammarErrorHasNoCode(t *testing.T) {
+	t.Parallel()
 	c := loadCase(t, "../../tests/engine/reparse-competing-evaluation-error.json")
 	d, err := caseDialect(c, true)
 	if err != nil {
@@ -171,6 +173,7 @@ func TestCheckGrammarErrorHasNoCode(t *testing.T) {
 // (grammars/syntax/cll.md). The private switch loses its witness after
 // recognition.
 func TestCorpusRunnerWitnessLost(t *testing.T) {
+	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
