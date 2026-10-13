@@ -1,0 +1,14 @@
+{
+  "description": "The inserted-item recipe reads private capture $x through .emitted.image. Nested receivers remain subject to ranked-choice-export (engine §2.1 and §11.4).",
+  "grammar": "%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε := $x.emitted.image",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-export",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 25
+    }
+  }
+}
