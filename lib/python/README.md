@@ -102,7 +102,8 @@ uv pip install --group test
 ```
 
 Local tests read the sources in `src/`.
-The runner uses all available CPUs by default through `-n auto`.
+The runner selects its worker count from the available CPU cores through `-n auto`.
+The `worksteal` scheduler moves queued tests from busy workers to idle workers.
 Use `.venv/bin/python -m pytest -n 4` to select four workers.
 Use `.venv/bin/python -m pytest -n 1` for a serial suite.
 Use `-n 0` to investigate one test in the main process.

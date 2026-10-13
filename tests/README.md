@@ -24,6 +24,7 @@ Local Python tests read `src/`.
 
 Rust, Go, and JavaScript have separate corpus pools, which `GENCMU_CORPUS_WORKERS` controls.
 Python schedules corpus cases through the same pytest workers as its other tests.
+Its `worksteal` scheduler moves queued tests to idle workers.
 For a serial Rust, Go, or JavaScript suite, set both controls to `1`.
 For a serial Python suite, use `python -m pytest -n 1`.
 Use Go's `-count=1` flag when you measure a suite, so Go does not reuse a cached result.

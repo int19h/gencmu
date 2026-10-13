@@ -876,6 +876,7 @@ Nightly Python uses an installed wheel on 3.14 with four pytest workers.
 Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures.
 JavaScript uses the Node runner to schedule files.
 Python uses pytest with pytest-xdist to schedule tests in separate processes.
+Its `worksteal` scheduler balances tests with different durations.
 The `test` dependency group pins these Python development tools.
 The Python package keeps no runtime dependencies.
 

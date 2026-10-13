@@ -20,7 +20,7 @@ classifiers = [
 test = ["pytest==9.1.1", "pytest-xdist==3.8.0"]
 
 [tool.pytest.ini_options]
-addopts = "-n auto"
+addopts = "-n auto --dist worksteal"
 testpaths = ["tests"]
 
 [tool.setuptools]
