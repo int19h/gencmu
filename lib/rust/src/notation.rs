@@ -1523,7 +1523,7 @@ impl<'a> Reader<'a> {
                 ("split", [Arg::Term(_)]) => {
                     string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
                 }
-                ("classify", [Arg::Rule(_)]) => string,
+                ("classify", [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
                 _ => false,
             }
         };
