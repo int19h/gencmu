@@ -45,7 +45,7 @@ const (
 	nextNone            = iota // no elidable optional comes next
 	nextAlone                  // one comes next, and it has no constituent
 	nextConstituent            // one comes next, after the node of its constituent Y
-	nextLogicalOptional        // the preceding optional expanded captures in place
+	nextLogicalOptional        // the preceding optional has several physical routes
 )
 
 // eligibility holds the states of the items that some queried items rest on.

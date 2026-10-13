@@ -47,6 +47,7 @@ func (p *production) precedingLogicalOptional(dot int) *logicalGroup {
 type logicalPrefixKey struct {
 	alternative      *sAlt
 	expression       *domExpr
+	parent           *domExpr
 	rule             int32
 	origin, position int32
 	prefix, closes   int
@@ -126,7 +127,14 @@ func (l *logicalPriority) key(it, prefix *item) logicalPrefixKey {
 		c := l.r.caps(&prefix.itemKey).at(prefix.prod.slotOf[name])
 		fmt.Fprintf(&captures, "%d:%s/%d/%d/%d/%d/%d;", len(name), name, c.start, c.end, c.tags, c.structure, c.closes)
 	}
-	return logicalPrefixKey{alternative: it.prod.sourceAlternative, expression: g.expression, rule: it.prod.lhs, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
+	// Split helpers of a logical parent share its written site. Named rules
+	// retain their rule identity. Both keep the proof's own prefix observations.
+	rule := it.prod.lhs
+	parent := it.prod.helperExpression
+	if parent != nil {
+		rule = -1
+	}
+	return logicalPrefixKey{alternative: it.prod.sourceAlternative, expression: g.expression, parent: parent, rule: rule, origin: it.origin, position: prefix.set, prefix: prefix.prefix, closes: prefix.closes, lexical: it.prod.lexical, requested: it.prod.closeRequested, captures: captures.String()}
 }
 
 func (l *logicalPriority) permits(it, prefix *item) bool {

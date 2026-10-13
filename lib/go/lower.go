@@ -23,6 +23,7 @@ type slotMetadata struct {
 
 type production struct {
 	logicalGroups     []logicalGroup
+	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
 	closeRequested    bool
 	observesCloses    bool
@@ -400,6 +401,8 @@ func (lw *lowerer) lowerRule(r *sRule) {
 				for optionIndex, b := range h.bodies {
 					lw.structural = append(lw.structural, structuralProduction{h.rule, symbolsOf(b)})
 					p := lw.newProduction(h.rule, b)
+					p.sourceAlternative = h.owner
+					p.helperExpression = h.path
 					b, _, _ = logicalBody(b)
 					if lw.validation || lw.g.ranked != nil && len(lw.g.ranked.groups) > 0 {
 						p.slot = &slotMetadata{source: h.owner, path: h.path}
@@ -851,9 +854,11 @@ func (lw *lowerer) expandPlace(e *domExpr, a *sAlt, ruleName string) [][]slot {
 			var out [][]slot
 			for _, body := range bodies {
 				selected := body
-				out = append(out, lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
+				route := lw.helper(a, ruleName, "", nil, func(int32) [][]slot {
 					return [][]slot{selected}
-				})...)
+				})[0]
+				// Each physical helper is one route through the same written optional.
+				out = append(out, append(append([]slot{{logicalMark: 1, logicalExpr: e}}, route...), slot{logicalMark: -1, logicalExpr: e}))
 			}
 			return out
 		}

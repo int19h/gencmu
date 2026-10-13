@@ -330,3 +330,37 @@ func TestTagsQueryEligibleOnce(t *testing.T) {
 		t.Fatalf("%d searches of eligibility", n)
 	}
 }
+
+// One proof's eligible prefix cannot borrow another proof's permitted omission (§4).
+// Split optional helpers must preserve the same distinction as an ordinary helper.
+func TestSplitOptionalQueryFixedPrefix(t *testing.T) {
+	for _, prefix := range []string{"[A]", "[$a:A]"} {
+		for _, optional := range []string{"[y]", "[($c:y ≻ y)]"} {
+			for _, suffix := range []string{"", " [+U]"} {
+				for _, condition := range []string{"$all.matches(r)", "$all.begins(r)", "Queried ⊆ $all.tags(r)"} {
+					name := prefix + " " + optional + suffix + " " + condition
+					t.Run(name, func(t *testing.T) {
+						grammar := "%rule text $all:input\n%conditions " + condition +
+							"\n%rule input A B C T U\n%rule r :: Queried | " + prefix + " " + optional +
+							" [+T] C T U\n%rule y A B | A B C | B z" + suffix + "\n%rule z ε | C T"
+						dialect, err := caseDialect(&engineCase{Grammar: &grammar}, true)
+						if err != nil {
+							t.Fatal(err)
+						}
+						tokens := make([]InputToken, 5)
+						for i, tag := range []string{"A", "B", "C", "T", "U"} {
+							tokens[i] = InputToken{Text: strings.ToLower(tag), Tags: []string{tag}, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+						}
+						result, err := dialect.ParseTokens("abctu", tokens, ParseOptions{})
+						// With [+U], the prefix that permits [+T] has a forbidden [+U].
+						// Without [+U], that same prefix supplies an eligible proof.
+						want := suffix == ""
+						if err != nil || result.OK != want || !want && result.Error.Kind != ErrorRejected {
+							t.Fatalf("eligible query %v: %v %+v", want, err, result)
+						}
+					})
+				}
+			}
+		}
+	}
+}
