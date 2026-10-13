@@ -140,13 +140,15 @@ fn parsing_with_and_without_the_cache() {
     eprintln!("loading the notation dialect: {with_cache:?} with the cache, {without_cache:?} without");
     let also_cached =
         gencmu::load_dialect_sources(bundled_sources(None), "dialects/notation.md").expect("a cached load");
-    for text in [
-        "%rule text [{piece}] {... A / B} [+KU #] %rule piece word | \"x\" :: /x/ %emits $",
-        "%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x",
-        "%rule broken",
+    for (text, accepted) in [
+        ("%rule text [{piece}] {... A / B} [+KU #] %rule piece word | \"x\" :: Sound-x %emits $", true),
+        ("%ambiguity-resolution greedy elision-only\n%rule a $x:b :: \"T\" ∪ ($x ⟹ $x.tags(c)) %conditions ¬$x.tokens-after-first.matches(d), $x", true),
+        ("%rule broken", false),
     ] {
         let options = gencmu::ParseOptions::default();
-        let a = gencmu::to_json(&cached.parse(text, &options).expect("a parse"));
+        let result = cached.parse(text, &options).expect("a parse");
+        assert_eq!(result.ok, accepted, "{text}: {:?}", result.error);
+        let a = gencmu::to_json(&result);
         let b = gencmu::to_json(&fresh.parse(text, &options).expect("a parse"));
         let c = gencmu::to_json(&also_cached.parse(text, &options).expect("a parse"));
         assert_eq!(a, b, "{text}");

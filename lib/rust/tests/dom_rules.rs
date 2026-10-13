@@ -1399,7 +1399,7 @@ fn a_node_of_two_forms_is_refused() {
     let wrapped = |node: &str| with_mixed(&seq(&format!(r#"{{"capture":"w","expr":{node}}}"#), c), &condition);
     let refused = [
         second(r#"{"empty":true,"literal":{"string":"b"}}"#),
-        second(r#"{"empty":true,"literal":{"string":"b"}}"#),
+        second(r#"{"literal":{"string":"b"},"empty":true}"#),
         second(&format!(r#"{{"choice":[{b},{c}],"seq":[{c},{c}]}}"#)),
         second(&format!(r#"{{"seq":[{c},{c}],"choice":[{b},{c}]}}"#)),
         second(&format!(r#"{{"choice":[{b},{c}],"seq":[{{"ref":5}},{c}]}}"#)),
@@ -1416,7 +1416,7 @@ fn a_node_of_two_forms_is_refused() {
         with_mixed(&format!(r#"{{"seq":[{captured},{c}],"choice":[{b},{c}]}}"#), &condition),
         wrapped(r#"{"ref":"'ab'"}"#),
         wrapped(r#"{"ref":"A","literal":{"string":"b"}}"#),
-        wrapped(r#"{"ref":"A","literal":{"string":"b"}}"#),
+        wrapped(r#"{"literal":{"string":"b"},"ref":"A"}"#),
         wrapped(r#"{"ref":"x y"}"#),
         with_mixed(&seq(r#"{"capture":"w","expr":{"literal":{"string":"b"}},"ref":"B"}"#, c), &condition),
         with_mixed(&seq(captured, c), &format!(r#"{{{compared},"not":{{"captured":"w"}}}}"#)),
