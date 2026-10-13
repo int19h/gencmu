@@ -1,0 +1,21 @@
+{
+  "description": "An extra close before an empty capture's first record fails in a prefix witness (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).begins(w)\n%rule c [+T] [+V] B\n%rule w [+U] [+T] [+V]\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "description": "This nested anchored fixture bounds observation sharing under strict alignment (engine §4.1).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $c:candidate %conditions $c.without-elision.matches(rival)\n%rule candidate c B\n%rule c X c [+T] | X Z [+T]\n%rule rival r B\n%rule r X r [+T] | X s [+T] | X Z [+T]\n%rule s X r [+T] | X s [+T] | X Z [+T]\n%rule fam r",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "z",
+      "tags": [
+        "Z"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

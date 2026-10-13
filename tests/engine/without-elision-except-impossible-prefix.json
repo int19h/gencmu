@@ -1,0 +1,16 @@
+{
+  "description": "A close family keeps the impossible prefix storage bound (engine §4.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:body %conditions ¬($x.without-elision-except(fam).onward.begins(other))\n\n%rule body (\"x\" {unit})\n%rule unit (\"a\" [+T]) | (\"a\" [+U])\n%rule other \"z\"\n%rule fam unit",
+  "input": "xaaaa",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "stage": "main",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

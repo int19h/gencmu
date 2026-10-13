@@ -1,0 +1,33 @@
+{
+  "description": "A family cannot remove a candidate close (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c A X [+T] [+U] B\n%rule w A X [+T] B\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

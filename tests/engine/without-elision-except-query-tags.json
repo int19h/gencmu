@@ -1,0 +1,23 @@
+{
+  "description": "Each query form applies the same family filter (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).tags(w) = R\n%rule c X [+T] B\n%rule w X [+U] [+T] B :: R\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

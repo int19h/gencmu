@@ -1,0 +1,39 @@
+{
+  "description": "A nested query uses only its own capture and family (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $x:candidate %conditions $x.without-elision-except(outer).matches(mid)\n%rule candidate A $i:inner B\n%rule mid A $y:inner B %conditions $y.without-elision.matches(rival)\n%rule inner X [+T] Y\n%rule rival X Y\n%rule fam inner\n%rule outer rival",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

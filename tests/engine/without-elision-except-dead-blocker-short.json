@@ -1,0 +1,33 @@
+{
+  "description": "A misaligned blocker stays in the full eligibility chart (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:candidate %conditions ¬$c.without-elision-except(fam).matches(r)\n%rule candidate X Q V\n%rule r y [+V] rest\n%rule y X\n%rule rest Q V | ε\n%rule fam r",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "q",
+      "tags": [
+        "Q"
+      ]
+    },
+    {
+      "text": "v",
+      "tags": [
+        "V"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

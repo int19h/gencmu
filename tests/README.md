@@ -290,6 +290,10 @@ Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNo
 
 A family run uses `.without-elision-except`. Its entry names an engine fixture in `case`, and its strict twin in `strictCase`. Every library runs both at each size in `lengths`. The strict twin uses `.without-elision` instead.
 
+An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry retains its existing absolute bounds beside its bounds over the strict twin.
+
+Each library also runs the shared engine cases with a conformance switch for family alignment. The switch applies the whole-observation deletion test of engine §4 beside the item summaries of §4.1. Both answers must agree for every eligible family witness. Only this switch can retain permission marks for the independent test.
+
 A library records chart items, proof edges, close observation states, close sequence nodes and cycle contexts, with elapsed time and peak memory. For the family run, it also records summary states and automaton steps. A summary state is one distinct summary that some item of a family query takes. The dead summary and the identity of an empty item count only once an item takes them. Automaton steps follow the costs of engine §4.1. A witness record costs `2(n+1)` steps, and an image or preimage costs one step for each row of its relation.
 
 A join costs one image for each row. An empty item without records has the identity relation, and an image, preimage or join through it costs nothing. A close or block that the automaton does not read costs nothing, such as one beyond `b`. The JavaScript work counters call these seven `items`, `packedEdges`, `closeStates`, `closeSequences`, `summaryContexts`, `familySummaries` and `familySteps`. No library retains a marked close, so there is no count of marked events.

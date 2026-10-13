@@ -1,0 +1,23 @@
+{
+  "description": "The whole enclosing capture supplies its own closes to a family query (engine §4 and §10).",
+  "grammar": "%rule text X [+T] B\n%conditions $.without-elision-except(fam).tags(w) = R\n%rule c X [+T] B\n%rule w X [+U] [+T] B :: R\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

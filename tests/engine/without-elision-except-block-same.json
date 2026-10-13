@@ -1,0 +1,23 @@
+{
+  "description": "Closes and blocks keep their common leaf order (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c X [+T] n Y\n%rule w X [+T] n Y\n%rule fam w\n%rule n ([E] ≻ Z) [W] :: ∅",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "A shorter prefix can add a close before its kept endpoint record (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).begins(w)\n%rule c X [+T] B\n%rule w X [+U] [+T]\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

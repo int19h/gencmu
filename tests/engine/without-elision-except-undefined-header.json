@@ -1,0 +1,13 @@
+{
+  "description": "An undefined family reports at its calling definition (engine §2.2 and §9.3).",
+  "grammar": "%rule text :: ($x.without-elision-except(missing).matches(r) ⟹ Q) | $x:X\n%rule r X",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

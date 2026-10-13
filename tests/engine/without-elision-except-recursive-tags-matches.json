@@ -1,0 +1,22 @@
+{
+  "description": "Family names and query kinds cannot evade recursive-query detection (engine §2.2, §4, and §10).",
+  "grammar": "%rule text X\n%conditions $.without-elision-except(fam).tags(a) = R\n%rule a X :: R\n%conditions $.without-elision.matches(b)\n%rule b X :: R\n%conditions $.without-elision-except(other).tags(a) = R\n%rule fam a\n%rule other b",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

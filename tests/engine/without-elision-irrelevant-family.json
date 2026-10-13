@@ -1,0 +1,41 @@
+{
+  "description": "This irrelevant family fixture bounds observation sharing under strict alignment (engine §4.1).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text $c:candidate %conditions $c.without-elision.matches(rival)\n%rule candidate {X [+T]} B\n%rule rival {piece} B\n%rule piece m | n\n%rule m X [+T]\n%rule n X [+T]\n%rule fam z\n%rule z Z [+V]",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

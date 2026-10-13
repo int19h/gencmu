@@ -1,0 +1,27 @@
+{
+  "description": "Adjacent extra closes between tokens qualify under strict alignment (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision.matches(w)\n%rule c X B\n%rule w X [+U] [+V] B\n%rule fam w\n",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

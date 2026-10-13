@@ -1,0 +1,14 @@
+{
+  "description": "An extra close after an empty capture's last record fails (engine §2.2, §4, and §10).",
+  "grammar": "%rule text $c:c\n%conditions $c.without-elision-except(fam).matches(w)\n%rule c [+T] [+V]\n%rule w [+T] [+V] [+U]\n%rule fam w\n",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}
