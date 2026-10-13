@@ -104,7 +104,7 @@ uv pip install --group test
 Local tests read the sources in `src/`.
 The runner uses all available CPUs by default through `-n auto`.
 Use `.venv/bin/python -m pytest -n 4` to select four workers.
-Use `GENCMU_CORPUS_WORKERS=1 .venv/bin/python -m pytest -n 1` for a serial suite.
+Use `.venv/bin/python -m pytest -n 1` for a serial suite.
 Use `-n 0` to investigate one test in the main process.
 Corpus cases use the same pytest workers as the other tests.
 

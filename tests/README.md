@@ -24,7 +24,8 @@ Local Python tests read `src/`.
 
 Rust, Go, and JavaScript have separate corpus pools, which `GENCMU_CORPUS_WORKERS` controls.
 Python schedules corpus cases through the same pytest workers as its other tests.
-For a serial suite, set that variable to `1` and set the language runner's concurrency to `1`.
+For a serial Rust, Go, or JavaScript suite, set both controls to `1`.
+For a serial Python suite, use `python -m pytest -n 1`.
 Use Go's `-count=1` flag when you measure a suite, so Go does not reuse a cached result.
 Tests must not depend on execution order.
 Go tests with process-wide controls stay serial so other tests cannot enter those controls.
