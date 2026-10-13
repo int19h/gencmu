@@ -88,10 +88,7 @@ A terminal in a token node, witness, or expected list is a tag, canonical string
 
 `node tools/sync.js` generates the grammar copy under `src/gencmu/grammars/`. After you change `grammars/`, run `node tools/sync.js` at the repository root.
 
-The tests keep their `unittest` assertions.
-pytest with pytest-xdist runs them in separate processes.
-Each shared engine and notation fixture has a separate test method.
-The `test` dependency group pins the runner dependencies, which the wheel does not require.
+The tests keep their `unittest` assertions. pytest with pytest-xdist runs them in separate processes. Each shared engine and notation fixture has a separate test method. The `test` dependency group pins the runner dependencies, which the wheel does not require.
 
 From `lib/python`, create an environment and install the test runner:
 
@@ -101,17 +98,11 @@ uv pip install --group test
 .venv/bin/python -m pytest
 ```
 
-Local tests read the sources in `src/`.
-The runner selects its worker count from the available CPU cores through `-n auto`.
-The `worksteal` scheduler moves queued tests from busy workers to idle workers.
-Use `.venv/bin/python -m pytest -n 4` to select four workers.
-Use `.venv/bin/python -m pytest -n 1` for a serial suite.
-Use `-n 0` to investigate one test in the main process.
+Local tests read the sources in `src/`. The runner selects its worker count from the available CPU cores through `-n auto`. The `worksteal` scheduler moves queued tests from busy workers to idle workers. Use `.venv/bin/python -m pytest -n 4` to select four workers. Use `.venv/bin/python -m pytest -n 1` for a serial suite. Use `-n 0` to investigate one test in the main process.
+
 Corpus cases use the same pytest workers as the other tests.
 
-CI builds and installs the wheel, then runs the suite once with `GENCMU_INSTALLED=1`.
-The import guard refuses a source import in that mode.
-CI uses Python 3.14.
+CI builds and installs the wheel, then runs the suite once with `GENCMU_INSTALLED=1`. The import guard refuses a source import in that mode. CI uses Python 3.14.
 
 The tests cover these items:
 

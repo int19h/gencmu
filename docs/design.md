@@ -858,32 +858,17 @@ Every library runs the whole corpus. On a pull request, a core of about 3,520 ca
 
 ## CI
 
-CI has two workflows.
-`ci.yml` runs for each pull request and each push to `main`.
-Each toolchain in this list gets its own test job:
+CI has two workflows. `ci.yml` runs for each pull request and each push to `main`. Each toolchain in this list gets its own test job:
 
 - JavaScript: Node 24. The job tests generated files, runs `node --test`, and examines the package with `npm pack --dry-run`.
 - Python: 3.14. The job builds the wheel with `python -m build`, installs it, and runs `python -m pytest` once against it.
 - Go: 1.22 and stable. The job runs `go vet`, `go test`, and `go test -race` for concurrent parses. It also builds the module alone.
 - Rust: 1.75 and stable. The job runs `cargo fmt --check`, `cargo clippy`, optimized `cargo test`, and `cargo package`.
 
-The workflow also tests the playground in Chromium and Firefox.
-It runs the whole corpus in JavaScript and in the stable Rust job.
-A separate job makes sure that the JavaScript types and generated declarations agree.
-`nightly.yml` runs the whole corpus in all four languages each night and on demand.
-Nightly Python uses an installed wheel on 3.14 with four pytest workers.
+The workflow also tests the playground in Chromium and Firefox. It runs the whole corpus in JavaScript and in the stable Rust job. A separate job makes sure that the JavaScript types and generated declarations agree. `nightly.yml` runs the whole corpus in all four languages each night and on demand. Nightly Python uses an installed wheel on 3.14 with four pytest workers.
 
-Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures.
-JavaScript uses the Node runner to schedule files.
-Python uses pytest with pytest-xdist to schedule tests in separate processes.
-Its `worksteal` scheduler balances tests with different durations.
-The `test` dependency group pins these Python development tools.
-The Python package keeps no runtime dependencies.
+Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures. JavaScript uses the Node runner to schedule files. Python uses pytest with pytest-xdist to schedule tests in separate processes. Its `worksteal` scheduler balances tests with different durations. The `test` dependency group pins these Python development tools. The Python package keeps no runtime dependencies.
 
-Rust tests use optimization level 3 through `[profile.test]`.
-The runner controls are `--test-threads` or `RUST_TEST_THREADS`, Go's `-parallel`, pytest's `-n`, and Node's `--test-concurrency`.
-Rust, Go, and JavaScript keep the separate `GENCMU_CORPUS_WORKERS` control for their corpus pools.
-Python uses its pytest worker count for corpus cases too.
-The library READMEs and `tests/README.md` give local commands, including serial runs and Rust debug builds.
+Rust tests use optimization level 3 through `[profile.test]`. The runner controls are `--test-threads` or `RUST_TEST_THREADS`, Go's `-parallel`, pytest's `-n`, and Node's `--test-concurrency`. Rust, Go, and JavaScript keep the separate `GENCMU_CORPUS_WORKERS` control for their corpus pools. Python uses its pytest worker count for corpus cases too. The library READMEs and `tests/README.md` give local commands, including serial runs and Rust debug builds.
 
 The Python build backend is a build dependency. Third-party actions are pinned by commit hash. GitHub Pages serves `main` from the root with no workflow.

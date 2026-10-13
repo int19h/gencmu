@@ -40,10 +40,7 @@ npm run types           # rewrites types/ after a change to the annotations
 
 CI runs automated tests for every change. It fails if `types/` is not what `npm run types` writes.
 
-The Node test runner runs files in separate processes. Its default concurrency is one fewer than the available CPUs.
-From `lib/js`, use `node --test --test-concurrency=4` to select four processes.
-Use `GENCMU_CORPUS_WORKERS=1 node --test --test-concurrency=1` for a serial suite.
-`GENCMU_CORPUS_WORKERS` controls the existing pool for corpus cases separately.
+The Node test runner runs files in separate processes. Its default concurrency is one fewer than the available CPUs. From `lib/js`, use `node --test --test-concurrency=4` to select four processes. Use `GENCMU_CORPUS_WORKERS=1 node --test --test-concurrency=1` for a serial suite. `GENCMU_CORPUS_WORKERS` controls the existing pool for corpus cases separately.
 
 ## Tests of elision-only
 
