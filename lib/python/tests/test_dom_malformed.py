@@ -4,14 +4,39 @@ library refuses, or accepts, in a DOM (tests/README.md, engine §9)."""
 from __future__ import annotations
 
 import unittest
+from itertools import permutations
 
+from gencmu import GencmuError
 from gencmu._dialect import DOM_FORMAT, _resources, _unicode_table
+from gencmu._grammar import stitch
 from gencmu._validate import dom_problem
 
 from .shared import SHARED, load_json
 
 
 class DomMalformed(unittest.TestCase):
+    def test_family_reference_order_ignores_dom_object_order(self) -> None:
+        unicode = _unicode_table(_resources().unicode)
+        family = {"method": "without-elision-except", "receiver": {"capture": "x"}, "args": [{"rule": "missing_family"}]}
+        other = {**family, "args": [{"rule": "other_family"}]}
+        query = {"method": "matches", "receiver": family, "args": [{"rule": "missing_rival"}]}
+        implication = {"if": query, "then": {**query, "receiver": other}}
+        comparison = {"op": "=", "left": {"method": "value", "receiver": family, "args": []},
+                      "right": {"method": "value", "receiver": other, "args": []}}
+        variants = [fields for clause in (query, implication, comparison) for fields in permutations(clause.items())]
+        for fields in variants:
+            with self.subTest(fields=[name for name, _ in fields]):
+                dom = {"format": DOM_FORMAT, "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
+                       "constants": [], "classifiers": [], "implications": [],
+                       "rules": [{"op": "define", "name": "text", "flags": [], "at": [2, 1],
+                                  "alternatives": [{"guards": [], "expr": {"capture": "x", "expr": {"ref": "X"}}}],
+                                  "conditions": [dict(fields)]}]}
+                self.assertIsNone(dom_problem(dom, unicode))
+                with self.assertRaises(GencmuError) as raised:
+                    stitch("main", [("case.md", dom)], unicode)
+                self.assertIn("missing_family is not a rule", raised.exception.message)
+                self.assertEqual((raised.exception.document, raised.exception.line, raised.exception.column), ("case.md", 2, 1))
+
     def test_cases(self) -> None:
         cases = load_json(SHARED / "dom-malformed.json")
         self.assertTrue(cases, "no cases found")

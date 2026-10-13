@@ -20,6 +20,7 @@ from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
 from ._closes import Block, CloseMachine, InvalidObservation, RestoredSpan, needed, local_demand, query_prefixes
+from ._families import DEAD, IDENTITY, FamilyMatcher, Summary
 from ._model import Restoration
 from ._restored import empty_source
 
@@ -249,6 +250,9 @@ class Forest:
     close_prefix: list[int] = field(default_factory=list)
     close_machine: CloseMachine | None = None
     close_requested: bool = False
+    family: FamilyMatcher | None = None
+    family_prefix: list[Summary] = field(default_factory=list)
+    family_structure: list[Summary] = field(default_factory=list)
 
 
 @dataclass
@@ -489,7 +493,7 @@ class StageContext:
             return NestedAnswer(False, EMPTY)
         ancestry = frozenset(self.running)
         key = (rule, span.start, span.context_end, span.end, span.captured_end, prefix,
-               closes.semantic(span.observation), ancestry)
+               closes.semantic(span.observation), span.family, ancestry)
         found = self.aligned_memo.get(key)
         if found is not None:
             return found
@@ -497,12 +501,18 @@ class StageContext:
         self.running.add(request)
         try:
             raw_key = rule, span.start, span.context_end, ancestry
+            family = None
+            if span.family is not None:
+                raw_key += span.family, span.captured_end, closes.semantic(span.observation)
             qualified = self.qualified_memo.get(raw_key)
             if qualified is None:
                 number = self.lowered.rule_ids.get(rule)
                 if number is None:
                     raise _GrammarFault(f"{rule} is not a rule of this stage")
-                forest = yield Parser(self, span.start, span.context_end, observe=True).walk(number)
+                if span.family is not None:
+                    family = FamilyMatcher(closes, span.observation, span.start, span.captured_end,
+                                           self.lowered.grammar.families[span.family])
+                forest = yield Parser(self, span.start, span.context_end, observe=True, family=family).walk(number)
                 candidates = [item for item in range(len(forest.prod))
                               if item in forest.tag and forest.origin[item] == 0
                               and forest.lowered.productions[forest.prod[item]].lhs == number
@@ -515,12 +525,19 @@ class StageContext:
             accepted = False
             for item in candidates:
                 end = span.start + forest.end[item]
+                if forest.family is not None and _testing.family_check is not None:
+                    answer = forest.family.accepts(forest.family_structure[item], end)
+                    _testing.family_check(forest, item, span.start, answer)
                 if end > span.end or not prefix and end != span.end:
                     continue
                 boundary = min(span.captured_end, end)
-                candidate = closes.through(span.observation, boundary)
-                witness = closes.through(forest.close_structure[item], boundary)
-                if candidate is not None and candidate == witness:
+                if forest.family is not None:
+                    matches = forest.family.accepts(forest.family_structure[item], end)
+                else:
+                    candidate = closes.through(span.observation, boundary)
+                    witness = closes.through(forest.close_structure[item], boundary)
+                    matches = candidate is not None and candidate == witness
+                if matches:
                     accepted = True
                     tags.add(self.tagtab.get(forest.tag[item]))
             found = NestedAnswer(accepted, tags.value())
@@ -622,11 +639,12 @@ class Evaluator:
         receiver = dom.get("receiver")
         span = yield self._span(receiver, bound)
         start, end, _ = span
-        if name == "without-elision":
+        if name in ("without-elision", "without-elision-except"):
             observation = bound.close_observation(receiver["capture"])
             if observation == CloseMachine.INVALID:
                 raise InvalidObservation()
-            return RestoredSpan(start, end, end, self.end, observation)
+            family = dom["args"][0]["rule"] if name == "without-elision-except" else None
+            return RestoredSpan(start, end, end, self.end, observation, family)
         if name == "onward":
             return replace(span, end=self.end) if isinstance(span, RestoredSpan) else (start, self.end, None)
         if name == "following-tokens":
@@ -740,7 +758,7 @@ class Evaluator:
                     span = span[0], span[1], (yield whole())
                 tags = self.span_tags(span)
                 return tags if name == "tags" else frozenset(tag for tag in tags if is_class(tag))
-            if name in ("first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision"):
+            if name in ("first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"):
                 start, end, _ = yield self._span(dom, bound)
                 return self.input_value(start, end)
             raise _GrammarFault(f"unknown method .{name}")
@@ -813,8 +831,9 @@ class Evaluator:
 class Parser:
     """One Earley parse of tokens start..end of a stage's input."""
 
-    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False) -> None:
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None) -> None:
         self.observe = observe
+        self.family = family
         self.context = context
         self.base = start
         self.end = len(context.tokens) if end is None else end
@@ -890,6 +909,9 @@ class Parser:
         structures: list[int] = []
         close_prefixes: list[int] = []
         close_structures: list[int] = []
+        family = self.family
+        family_prefixes: list[Summary] = []
+        family_structures: list[Summary] = []
         machine = context.machine
         closes = context.closes
         def original(position):
@@ -1003,13 +1025,25 @@ class Parser:
             return Block((group.rule, group.source.document, group.source.at, group.alternative, group.path),
                          original(first), original(at), entry)
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0) -> None:
+        def completed_family(production, position, start, close_structure, prefix):
+            if close_structure == CloseMachine.INVALID:
+                return DEAD
+            if production.observes_closes and position == len(production.rhs) and production.elided is not None:
+                return family.close(production.elided, original(start), production.elided_owner)
+            return prefix
+
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY) -> None:
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
             if closes is not None:
                 close_prefix = closes.trim(close_prefix, original(start), original(at))
                 close_structure = completed_closes(productions[production], position, start, at, close_prefix)
                 key += close_prefix, close_structure
+            if family is not None:
+                if close_prefix == CloseMachine.INVALID:
+                    family_prefix = DEAD
+                family_structure = completed_family(productions[production], position, start, close_structure, family_prefix)
+                key += family_prefix, family_structure
             found = sets[at].get(key)
             if found is None:
                 _testing.count("items")
@@ -1025,6 +1059,11 @@ class Parser:
                 if closes is not None:
                     close_prefixes.append(close_prefix)
                     close_structures.append(close_structure)
+                if family is not None:
+                    family.take(family_prefix)
+                    family.take(family_structure)
+                    family_prefixes.append(family_prefix)
+                    family_structures.append(family_structure)
                 edges.append([edge])
                 if edge != SEED:
                     _testing.count("packed_edges")
@@ -1162,6 +1201,7 @@ class Parser:
             prefix = 0
             close_prefix = 0
             part_closes = 0
+            family_prefix = IDENTITY
             if machine is not None:
                 part_structure = structures[edge[2]] if edge[1] == 2 else terminal_structure(production, position, edge[2], edge[3])
                 symbol = production.rhs[position]
@@ -1182,6 +1222,16 @@ class Parser:
                     close_prefix = closes.concat(close_prefixes[item], part_closes)
                     close_prefix = closes.trim(close_prefix, original(origin[item]), original(at))
                 part = (*part[:3], part_structure, part_closes)
+            if family is not None:
+                if edge[1] == 2:
+                    child = edge[2]
+                    part_summary = family_structures[child]
+                    if production.observes_closes and production.rhs[position] in lowered.ranked_helpers:
+                        child_production = productions[prod[child]]
+                        part_summary = family.block(block(child_production, origin[child], end[child], child_production.lexical))
+                else:
+                    part_summary = family.token(original(edge[2]))
+                family_prefix = family.join(family_prefixes[item], part_summary)
             captured = caps[item]
             if production.slots[position] >= 0:
                 step = (captured, part)
@@ -1191,8 +1241,8 @@ class Parser:
                 captured = found
             conditions = production.conds_at.get(position)
             if conditions:
-                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix, close_prefix)
-            add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix, close_prefix)
+                return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix, close_prefix, family_prefix)
+            add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix, close_prefix, family_prefix)
             return None
 
         def checked(
@@ -1206,6 +1256,7 @@ class Parser:
             conditions: list[Any],
             prefix: int,
             close_prefix: int,
+            family_prefix: Summary = IDENTITY,
         ) -> Walk:
             """The conditions that an advance makes ready, in written order,
             and then the item, if they all hold. Once the constituent is
@@ -1223,7 +1274,7 @@ class Parser:
                         return
             except InvalidObservation:
                 return
-            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix)
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -1491,7 +1542,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures)
 
 
 def reading_last(lowered: Lowered) -> list[int]:

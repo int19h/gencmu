@@ -823,13 +823,16 @@ class DomBuilder:
             for part in self.some(arguments, "argument") if arguments else []:
                 arg = yield self._term(self.only(part, "term"), True)
                 if name == "classify" and "rule" in arg:
+                    if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
+                        raise self.fail(node, "a classifier name must start with a lowercase letter")
                     arg = {"classifier": arg["rule"]}
                 args.append(arg)
             kind, problem = term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
-            if name == "without-elision" and set(receiver) != {"capture"}:
-                problem = ".without-elision requires a bare capture; use $x.without-elision.onward"
+            if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
+                call = name + ("(F)" if name == "without-elision-except" else "")
+                problem = f".{name} requires a bare capture; use $x.{call}.onward"
             if problem is not None:
                 raise self.fail(node, problem)
             if name == "split" and literal_string(args[0]) == "":

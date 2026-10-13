@@ -127,3 +127,14 @@ python -m build
 ### Tests of elision-only
 
 `src/gencmu/_testing.py` holds a hook for the library's own tests, which the package does not export. After each check of `elision-only`, the shared and corpus runners ask whether the hook retains the chosen derivation (`tests/README.md`, `tests/witness.py`). `tests/test_elision_check.py` loses the witness on purpose and makes sure that the error `elision-witness-lost` has the required form. The hook's `faults` turn on faults of the library's own paths in the check. `tests/test_faults.py` shows that the shared cases catch each one, through the result or through the hook alone (`tests/README.md`).
+
+### Tests of close families
+
+The shared engine runner enables the private `family_check` hook for `.without-elision-except` queries.
+It compares each eligible witness with an independent deletion test over the complete observation.
+Only this test retains permission marks, which say whether a family permits an omitted terminator.
+The engine stores unmarked close observations and candidate-sized summaries instead.
+
+`tests/test_close_families.py` runs each family growth case beside its strict twin at every specified size.
+It stops before the first count past a shared bound.
+It records the seven work counts, elapsed time, and peak traced memory.

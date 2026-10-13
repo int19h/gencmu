@@ -67,6 +67,10 @@ class CheckWatch:
 
 elision_check: Callable[[CheckRun], CheckWatch] | None = None
 
+# The shared-case conformance switch compares each eligible family witness
+# with an independent, whole-observation deletion test (tests/README.md).
+family_check: Callable[[Forest, int, int, bool], None] | None = None
+
 # Every fault that ``faults`` takes, for the tests that run each one.
 FAULTS = ("omission", "reprocess", "again", "route3", "restore", "rank-restoration", "lost:context", "lost:select")
 
@@ -90,9 +94,9 @@ def fault(name: str, site: str = "") -> bool:
 work: dict[str, int] | None = None
 
 
-def count(name: str) -> None:
+def count(name: str, amount: int = 1) -> None:
     if work is not None:
-        work[name] = work.get(name, 0) + 1
+        work[name] = work.get(name, 0) + amount
 
 
 slot_admission: ContextVar = ContextVar("slot_admission", default=None)
