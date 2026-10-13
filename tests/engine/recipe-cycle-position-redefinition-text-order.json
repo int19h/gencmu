@@ -1,0 +1,13 @@
+{
+  "description": "The earlier other production cycles before the replacement of text. Replacing a rule does not move its new productions earlier in text order (engine §11.3 and §9.3).",
+  "grammar": "%rule text \"a\"\n%rule other := $.emitted.value | \"b\"\n%redefine-rule text := $.emitted.image | \"c\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 16
+    }
+  }
+}
