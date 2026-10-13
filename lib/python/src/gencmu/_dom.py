@@ -109,7 +109,7 @@ class DomBuilder:
         if index is None:
             index = node.span[0]
         if index >= len(self.tokens):
-            return self.grammar_text.position(len(self.grammar_text.text))
+            return self.grammar_text.position(self.tokens[-1].source[1] if self.tokens else 0)
         return self.grammar_text.position(self.tokens[index].source[0])
 
     def fail(self, node: Node, message: str) -> GencmuError:

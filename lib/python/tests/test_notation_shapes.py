@@ -86,11 +86,13 @@ class NotationShapes(unittest.TestCase):
         from gencmu._unicode import UnicodeTable
 
         tokens = [gencmu.Token("a", frozenset(), (0, 1), (0, 1)), gencmu.Token("b", frozenset(), (1, 2), (2, 3))]
-        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b\n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b   \n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
         for boundary, column in ((1, 3), (2, 4)):
             with self.subTest(boundary=boundary):
                 node = gencmu.Node("rule", (boundary, boundary), (0, 0), rule="padding")
                 self.assertEqual(builder.position(node), (2, column))
+        builder.tokens = []
+        self.assertEqual(builder.position(gencmu.Node("rule", (0, 0), (0, 0), rule="padding")), (2, 1))
 
     def test_a_notation_stage_that_declares_elision_only_runs_the_check(self) -> None:
         """Each notation stage runs the check of elision-only where its own
