@@ -823,6 +823,8 @@ class DomBuilder:
             for part in self.some(arguments, "argument") if arguments else []:
                 arg = yield self._term(self.only(part, "term"), True)
                 if name == "classify" and "rule" in arg:
+                    if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
+                        raise self.fail(node, "a classifier name must start with a lowercase letter")
                     arg = {"classifier": arg["rule"]}
                 args.append(arg)
             kind, problem = term_type(receiver, memo=self.types)
