@@ -859,6 +859,18 @@ class DomBuilder:
 
     def _pattern(self, node: Node) -> Walk:
         kind = node.rule
+        if kind == "pattern-atom":
+            kids = self.kids(node)
+            if not kids:
+                raise self.lacks(node, "pattern atom")
+            first = kids[0]
+            tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
+            token = first if first.kind == "token" else self.token(first)
+            name = self.text(token)
+            valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference") or first.kind == "token" and (USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
+            # Target and order errors precede conversion of a group's or
+            # nested literal's contents, just as for a tested primary.
+            self.test_order(tests, valid)
         children: list[Node] = []
         if kind == "pattern-union":
             children = self.some(node, "pattern-intersection")
@@ -873,7 +885,6 @@ class DomBuilder:
         elif kind == "pattern-path":
             children = self.some(node, "pattern-atom")
         elif kind == "pattern-atom":
-            first = self.kids(node)[0]
             if first.kind == "token" and self.text(first) == "(":
                 children = self.some(node, "pattern-union")
             elif first.rule == "pattern-literal":
@@ -906,15 +917,9 @@ class DomBuilder:
         elif kind == "pattern-item":
             result = parts[0] if parts else {"siblings":True}
         elif kind == "pattern-atom":
-            first = self.kids(node)[0]
             if parts:
                 result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
             else:
-                tests = [kid for kid in self.kids(node) if kid.rule in ("tag-test", "value-test")]
-                token = first if first.kind == "token" else self.token(first)
-                name = self.text(token)
-                valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference") or first.kind == "token" and (USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
-                self.test_order(tests, valid)
                 at = list(self.position(token))
                 if first.rule == "constant-reference":
                     value = self.value(first)
