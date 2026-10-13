@@ -107,7 +107,6 @@ class SymbolTest:
 
     op: str
     value: str | None
-    tags: frozenset[str] | None
     written: str
     requirements: tuple[tuple[bool, frozenset[str]], ...] = ()
     prior: SymbolTest | None = None
@@ -427,7 +426,7 @@ class _Constants:
         one, and the error stands at that constant."""
         if "pattern" in term:
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
-        if (expected == "pattern" or self._is_pattern(term)) and any(key in term for key in ("union", "intersection", "difference")):
+        if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
             key = next(key for key in ("union", "intersection", "difference") if key in term)
             patterns = []
             for part in term[key]:
@@ -537,10 +536,10 @@ class _Constants:
             requirements = tuple((r["negated"], _set(run(self._closed(path, r["value"], at)))) for r in test["requirements"])
             names = sorted({(name, negated) for negated, tags in requirements for name in tags})
             written = "<" + " ".join(("¬" if negated else "") + name for name, negated in names) + ">"
-            return SymbolTest("tags", None, None, written, requirements, prior)
+            return SymbolTest("tags", None, written, requirements, prior)
         value = run(self._closed(path, test["value"], at))
         written = (prior.written if prior else "") + test["test"] + spelling(value, self.unicode)
-        return SymbolTest(test["test"], value, None, written, (), prior)
+        return SymbolTest(test["test"], value, written, (), prior)
 
     def string(self, path: str, term: Dom, at: Any) -> str:
         """Bind a closed string where the declaration requires one."""
@@ -567,7 +566,7 @@ class _Constants:
             return items
         if not isinstance(node, dict):
             return node
-        if "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+        if "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
             return (yield self._closed("", node, None))
         if isinstance(node.get("const"), str):
             direct = scalar(node["const"])
@@ -604,7 +603,7 @@ class _Constants:
                 for item in node:
                     items.append((yield resolve(item)))
                 copy = node if all(item is old for item, old in zip(items, node)) else items
-            elif "pattern" in node or self._is_pattern(node) and any(key in node for key in ("union", "intersection", "difference")):
+            elif "pattern" in node or any(key in node for key in ("union", "intersection", "difference")) and self._is_pattern(node):
                 copy = yield self._closed("", node, None)
             elif isinstance(node.get("const"), str):
                 direct = scalar(node["const"])
@@ -623,10 +622,17 @@ class _Constants:
             copies[id(node)] = copy
             return copy
 
+        sites = {(path, tuple(rule["at"])) for path, rule in self.users}
         for rule in rules.values():
             for alternative in rule.alternatives:
+                # Literal-only definitions need no binding copies. Scalar
+                # references and patterns are in users along with constants.
+                if (alternative.document, alternative.at) not in sites:
+                    continue
                 for field in ("value", "image", "rule_value", "rule_image"):
-                    setattr(alternative, field, run(resolve(getattr(alternative, field))))
+                    recipe = getattr(alternative, field)
+                    if recipe is not None:
+                        setattr(alternative, field, run(resolve(recipe)))
                 alternative.expr = run(resolve(alternative.expr))
                 alternative.tags = run(resolve(alternative.tags))
                 alternative.rule_tags = run(resolve(alternative.rule_tags))

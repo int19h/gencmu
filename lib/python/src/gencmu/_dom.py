@@ -189,7 +189,7 @@ class DomBuilder:
                 classifiers.append(self.classifier(kid))
             elif kid.kind == "rule" and kid.rule == "implication-declaration":
                 implications.append(self.implication(kid))
-        return {
+        dom = {
             "format": FORMAT,
             "rules": rules,
             "directives": directives,
@@ -197,6 +197,8 @@ class DomBuilder:
             "classifiers": classifiers,
             "implications": implications,
         }
+        flatten_groups(dom)
+        return dom
 
     def classifier(self, node: Node) -> Dom:
         """A ``%classifier`` item: its name, which begins with a lower-case
@@ -683,7 +685,7 @@ class DomBuilder:
                     value = self.value(base)
                     if "tag" not in value and "const" not in value:
                         raise self.fail(operand, "a tag test requires a tag or tag-set constant")
-                    problem = expected_problem(term_type(value)[0], "tags")
+                    problem = expected_problem(term_type(value, memo=self.types)[0], "tags")
                     if problem:
                         raise self.fail(operand, problem)
                     requirements.append({"negated": negated, "value": value})
@@ -806,7 +808,7 @@ class DomBuilder:
             return {"captured": self.text(self.token(node))[1:]}
         if node.rule == "method":
             method = yield self._method(node)
-            if term_type(method)[0] != "predicate":
+            if term_type(method, memo=self.types)[0] != "predicate":
                 raise self.fail(node, "a condition requires a query or starts-input method")
             return method
         raise self.fail(node, f"unexpected {node.rule} in a condition")
@@ -1022,9 +1024,12 @@ class DomBuilder:
                     result = {"difference": [result, following]}
                     open_union = False
                 elif open_union:
-                    result["union"].extend(following.get("union", [following]))
+                    result["union"].append(following)
                 else:
-                    result = {"union": [*result.get("union", [result]), *following.get("union", [following])]}
+                    # Keep child unions shared until the completed DOM's
+                    # single flattening walk. Copying a growing child here
+                    # costs nested parentheses their depth times their size.
+                    result = {"union": [result, following]}
                     open_union = True
             return result
         if rule == "intersection":
@@ -1069,7 +1074,7 @@ class DomBuilder:
             return {"const": name, "at": list(self.position(node))}
         if rule == "method":
             result = yield self._method(node)
-            if not argument and term_type(result)[0] == "predicate":
+            if not argument and term_type(result, memo=self.types)[0] == "predicate":
                 raise self.fail(node, "a predicate cannot stand as a value term")
             return result
         raise self.fail(node, f"unexpected {rule} in a term")

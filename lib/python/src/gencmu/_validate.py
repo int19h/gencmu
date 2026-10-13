@@ -48,16 +48,29 @@ def _capture(value: Any, whole: bool = True) -> bool:
 
 
 def _guard(value: Any, gate: bool = False) -> bool:
-    return (isinstance(value, dict) and set(value) == {"feature", "kind", "negated"}
-            and isinstance(value["feature"], str) and _FEATURE.fullmatch(value["feature"]) is not None
-            and type(value["negated"]) is bool and (value["kind"] == "gate"
-            or not gate and value["kind"] == "warning" and not value["negated"]))
+    return (
+        isinstance(value, dict)
+        and set(value) == {"feature", "kind", "negated"}
+        and isinstance(value["feature"], str)
+        and _FEATURE.fullmatch(value["feature"]) is not None
+        and type(value["negated"]) is bool
+        and (value["kind"] == "gate" or not gate and value["kind"] == "warning" and not value["negated"])
+    )
 
 
 def _base(expr: Any, hash_: bool = False) -> bool:
-    return isinstance(expr, dict) and len(expr) == 1 and (
-        "ref" in expr and _ref(expr["ref"]) and (hash_ or expr["ref"] != "#")
-        or "literal" in expr or "range" in expr or expr.get("wildcard") is True)
+    return (
+        isinstance(expr, dict)
+        and len(expr) == 1
+        and (
+            "ref" in expr
+            and _ref(expr["ref"])
+            and (hash_ or expr["ref"] != "#")
+            or "literal" in expr
+            or "range" in expr
+            or expr.get("wildcard") is True
+        )
+    )
 
 
 def _target(expr: Any, hash_: bool = False) -> bool:
@@ -69,8 +82,9 @@ def _target(expr: Any, hash_: bool = False) -> bool:
         return set(expr) == {"test", "requirements", "expr"} and _base(expr["expr"])
     if expr.get("test") in ("=", "≠"):
         inner = expr.get("expr")
-        return (set(expr) == {"test", "value", "expr"}
-                and (_base(inner) or isinstance(inner, dict) and inner.get("test") == "tags" and _target(inner)))
+        return set(expr) == {"test", "value", "expr"} and (
+            _base(inner) or isinstance(inner, dict) and inner.get("test") == "tags" and _target(inner)
+        )
     return False
 
 
@@ -136,7 +150,12 @@ def dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str |
 
 def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str | None:
     arrays = ("rules", "directives", "constants", "classifiers", "implications")
-    if not isinstance(dom, dict) or type(dom.get("format")) is not int or dom["format"] != FORMAT or any(not isinstance(dom.get(k), list) for k in arrays):
+    if (
+        not isinstance(dom, dict)
+        or type(dom.get("format")) is not int
+        or dom["format"] != FORMAT
+        or any(not isinstance(dom.get(k), list) for k in arrays)
+    ):
         return f"not a DOM of format {FORMAT}"
     positions = set()
     for key in arrays:
@@ -159,23 +178,48 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
         elif name == "features":
             valid = bool(args) and all(_FEATURE.fullmatch(x) for x in args)
         else:
-            valid = args in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"])
+            valid = args in (
+                ["greedy"],
+                ["lazy"],
+                ["late-elision"],
+                ["greedy", "elision-only"],
+                ["lazy", "elision-only"],
+                ["late-elision", "elision-only"],
+            )
         if not valid:
             return "a directive has invalid operands"
     for c in dom["constants"]:
-        if set(c) != {"name", "op", "value", "at"} or not isinstance(c["name"], str) or not CONSTANT_NAME.fullmatch(c["name"]) or c["op"] not in ("define", "redefine"):
+        if (
+            set(c) != {"name", "op", "value", "at"}
+            or not isinstance(c["name"], str)
+            or not CONSTANT_NAME.fullmatch(c["name"])
+            or c["op"] not in ("define", "redefine")
+        ):
             return "a malformed constant"
         if open_part(c["value"]) is not None or _contains_engine(c["value"]):
             return "a constant requires a closed term without engine-tag literals"
         pending.append(("term", c["value"], 0, False, False))
     for c in dom["classifiers"]:
-        if set(c) != {"name", "entries", "at"} or not isinstance(c["name"], str) or not CLASSIFIER_NAME.fullmatch(c["name"]) or not isinstance(c["entries"], list):
+        if (
+            set(c) != {"name", "entries", "at"}
+            or not isinstance(c["name"], str)
+            or not CLASSIFIER_NAME.fullmatch(c["name"])
+            or not isinstance(c["entries"], list)
+        ):
             return "a malformed classifier"
         for e in c["entries"]:
-            if (not isinstance(e, dict) or set(e) != {"guards", "keys", "op", "class", "at"}
-                    or not _is_position(e["at"]) or not isinstance(e["guards"], list) or not all(_guard(g, True) for g in e["guards"])
-                    or not _items(e["keys"]) or e["op"] not in ("∈", "∉")
-                    or not isinstance(e["class"], str) or not USER_NAME.fullmatch(e["class"]) or not "A" <= e["class"][-1] <= "Z"):
+            if (
+                not isinstance(e, dict)
+                or set(e) != {"guards", "keys", "op", "class", "at"}
+                or not _is_position(e["at"])
+                or not isinstance(e["guards"], list)
+                or not all(_guard(g, True) for g in e["guards"])
+                or not _items(e["keys"])
+                or e["op"] not in ("∈", "∉")
+                or not isinstance(e["class"], str)
+                or not USER_NAME.fullmatch(e["class"])
+                or not "A" <= e["class"][-1] <= "Z"
+            ):
                 return "a malformed classifier entry"
             pending.extend(("string", x, 0, False, False) for x in e["keys"])
     for i in dom["implications"]:
@@ -186,11 +230,19 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
                 return "an implication requires closed terms without engine-tag literals"
             pending.append(("tags", term, 0, False, False))
     for r in dom["rules"]:
-        if (not set(r) <= {"name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
-                or not isinstance(r.get("name"), str) or not (r["name"] == "#" or CLASSIFIER_NAME.fullmatch(r["name"]))
-                or r.get("op") not in ("define", "redefine", "extend") or r.get("flags") not in ([], ["leftmost-longest"])
-                or r["op"] == "extend" and r["flags"] or not _items(r.get("alternatives")) or not isinstance(r.get("conditions"), list)
-                or "erased" in r and (r["erased"] is not True or any(k in r for k in ("emit", "value", "image")))):
+        if (
+            not set(r) <= {"name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"}
+            or not isinstance(r.get("name"), str)
+            or not (r["name"] == "#" or CLASSIFIER_NAME.fullmatch(r["name"]))
+            or r.get("op") not in ("define", "redefine", "extend")
+            or r.get("flags") not in ([], ["leftmost-longest"])
+            or r["op"] == "extend"
+            and r["flags"]
+            or not _items(r.get("alternatives"))
+            or not isinstance(r.get("conditions"), list)
+            or "erased" in r
+            and (r["erased"] is not True or any(k in r for k in ("emit", "value", "image")))
+        ):
             return "a malformed rule"
         for channel in ("value", "image"):
             if channel in r:
@@ -230,7 +282,12 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
                 return "an emission lists a capture twice"
         pending.extend(("condition", c, 0, False, False) for c in r["conditions"])
         for a in r["alternatives"]:
-            if not isinstance(a, dict) or not set(a) <= {"guards", "expr", "tags", "value", "image"} or not isinstance(a.get("guards"), list) or not all(_guard(g) for g in a["guards"]):
+            if (
+                not isinstance(a, dict)
+                or not set(a) <= {"guards", "expr", "tags", "value", "image"}
+                or not isinstance(a.get("guards"), list)
+                or not all(_guard(g) for g in a["guards"])
+            ):
                 return "a malformed alternative"
             pending.append(("expr", a.get("expr"), 0, True, False))
             if "tags" in a:
@@ -260,6 +317,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
 
 
 def _walk(pending: list, unicode: Marks) -> str | None:
+    types = {}
     while pending:
         kind, node, depth, whole, sealed = pending.pop()
         if depth > MAX_DEPTH:
@@ -275,11 +333,19 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                     return "ranked-choice-syntax: malformed ranked choice" if key == "ranked" else "a malformed expression"
                 pending.extend(("expr", x, below, False, sealed) for x in node[key])
             elif "optional" in node:
-                if not keys <= {"optional", "elidable"} or "elidable" in node and (node["elidable"] is not True or elidable_head(node["optional"]) is None):
+                if (
+                    not keys <= {"optional", "elidable"}
+                    or "elidable" in node
+                    and (node["elidable"] is not True or elidable_head(node["optional"]) is None)
+                ):
                     return "a malformed optional"
                 pending.append(("expr", node["optional"], below, False, sealed or "elidable" in node))
             elif "repeat" in node:
-                if not keys <= {"repeat", "separator", "chain"} or "chain" in node and (not whole or node["chain"] not in ("left", "right")):
+                if (
+                    not keys <= {"repeat", "separator", "chain"}
+                    or "chain" in node
+                    and (not whole or node["chain"] not in ("left", "right"))
+                ):
                     return "a malformed repetition"
                 pending.append(("expr", node["repeat"], below, False, True))
                 if "separator" in node:
@@ -312,7 +378,14 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 if keys != {"literal"}:
                     return "a malformed literal"
                 pending.append(("string", node["literal"], depth, False, False))
-            elif not (keys == {"ref"} and _ref(node["ref"]) or keys == {"wildcard"} and node["wildcard"] is True or keys == {"empty"} and node["empty"] is True):
+            elif not (
+                keys == {"ref"}
+                and _ref(node["ref"])
+                or keys == {"wildcard"}
+                and node["wildcard"] is True
+                or keys == {"empty"}
+                and node["empty"] is True
+            ):
                 return "a malformed expression"
             continue
         if kind == "recipe":
@@ -321,8 +394,18 @@ def _walk(pending: list, unicode: Marks) -> str | None:
             for atom in node["concat"]:
                 if isinstance(atom, dict) and "method" in atom:
                     receiver = atom.get("receiver")
-                    valid = atom.get("args") == [] and (atom["method"] in ("value", "image", "source-text", "verbatim-text") and isinstance(receiver, dict) and set(receiver) == {"capture"}
-                        or atom["method"] in ("value", "image") and isinstance(receiver, dict) and set(receiver) == {"method", "receiver", "args"} and receiver["method"] == "emitted" and receiver["args"] == [] and isinstance(receiver["receiver"], dict) and set(receiver["receiver"]) == {"capture"})
+                    valid = atom.get("args") == [] and (
+                        atom["method"] in ("value", "image", "source-text", "verbatim-text")
+                        and isinstance(receiver, dict)
+                        and set(receiver) == {"capture"}
+                        or atom["method"] in ("value", "image")
+                        and isinstance(receiver, dict)
+                        and set(receiver) == {"method", "receiver", "args"}
+                        and receiver["method"] == "emitted"
+                        and receiver["args"] == []
+                        and isinstance(receiver["receiver"], dict)
+                        and set(receiver["receiver"]) == {"capture"}
+                    )
                     if not valid:
                         return "a recipe requires one of its six captured string methods"
                     pending.append(("recipe-method", atom, below, False, False))
@@ -349,24 +432,33 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 if keys != {"if", "then"}:
                     return "a malformed condition"
                 pending.extend(("condition", node[k], below, False, False) for k in ("if", "then"))
-            elif not (keys == {"captured"} and _capture(node["captured"]) or keys == {"method", "receiver", "args"} and node["method"] in ("matches", "begins", "starts-input")):
+            elif not (
+                keys == {"captured"}
+                and _capture(node["captured"])
+                or keys == {"method", "receiver", "args"}
+                and node["method"] in ("matches", "begins", "starts-input")
+            ):
                 return "a malformed condition"
-            problem = condition_type_problem(node)
+            problem = condition_type_problem(node, memo=types)
             if problem:
                 return problem
             if "method" not in node:
                 continue
         elif kind == "tags":
-            problem = tag_term_problem(node)
+            problem = tag_term_problem(node, memo=types)
             if problem:
                 return problem
         if "method" in node:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
             recipe = kind == "recipe-method"
-            if not recipe and (node["method"] in ("verbatim-text", "emitted") or isinstance(node["receiver"], dict) and node["receiver"].get("method") == "emitted"):
+            if not recipe and (
+                node["method"] in ("verbatim-text", "emitted")
+                or isinstance(node["receiver"], dict)
+                and node["receiver"].get("method") == "emitted"
+            ):
                 return "a recipe-only method outside a recipe"
-            result, problem = term_type(node)
+            result, problem = term_type(node, memo=types)
             if problem:
                 return problem
             if kind == "string":
@@ -418,7 +510,11 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                     if not isinstance(atom["requirements"], list):
                         return "a malformed pattern tag test"
                     for requirement in atom["requirements"]:
-                        if not isinstance(requirement, dict) or set(requirement) != {"negated", "value"} or type(requirement["negated"]) is not bool:
+                        if (
+                            not isinstance(requirement, dict)
+                            or set(requirement) != {"negated", "value"}
+                            or type(requirement["negated"]) is not bool
+                        ):
                             return "a malformed pattern tag requirement"
                         operand = requirement["value"]
                         if not isinstance(operand, dict) or not (set(operand) == {"tag"} or set(operand) == {"const", "at"}):
@@ -430,7 +526,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
             key = next(k for k in ("union", "intersection", "difference") if k in node)
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):
                 return "a malformed set expression"
-            problem = term_type(node)[1]
+            problem = term_type(node, memo=types)[1]
             if problem:
                 return problem
             pending.extend(("term", x, below, False, False) for x in node[key])

@@ -12,8 +12,19 @@ from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._markdown import line_column
 from ._model import Action, Expected, Node, ParseError, ParseWarning, Range, Restoration, Tags, Token
 from ._rank import (
-    Act, Elisions, Ranker, Ranking, Rope, actions, compare_profiles, concat,
-    count_roots, first_difference, leaf, rank, sum_profiles,
+    Act,
+    Elisions,
+    Ranker,
+    Ranking,
+    Rope,
+    actions,
+    compare_profiles,
+    concat,
+    count_roots,
+    first_difference,
+    leaf,
+    rank,
+    sum_profiles,
 )
 from ._trampoline import run
 from ._recipes import selected
@@ -187,8 +198,6 @@ def warnings_of(root: DNode, tree: Tree, features: frozenset[str], stage: str) -
     return warnings
 
 
-
-
 def elided_nodes(tree: Node) -> list[Node]:
     """The elided nodes of a tree in the order of its leaves."""
     found: list[Node] = []
@@ -337,7 +346,7 @@ class Emitter:
                     value = self.verbatim(part)
                 elif method == "source-text":
                     source = self.part_source(part)
-                    value = self.context.text[source[0]:source[1]] if part.start < part.end else ""
+                    value = self.context.text[source[0] : source[1]] if part.start < part.end else ""
                 else:
                     value = "".join(getattr(self.tokens[i], method) for i in range(part.start, part.end))
             parts.append(value)
@@ -377,7 +386,7 @@ class Emitter:
 
     def part_token(self, owner: DNode, part: DChild, explicit: Tags, value, image) -> Token:
         source = self.part_source(part)
-        text = self.context.text[source[0]:source[1]]
+        text = self.context.text[source[0] : source[1]]
         written_value, written_image = self.item_strings(owner, part, value, image)
         token = Token(text, implied(explicit, self.context.lowered), (part.start, part.end), source, written_value, image=written_image)
         origin = self.forwarded(part) if self.forwards else None
@@ -390,9 +399,13 @@ class Emitter:
         return token
 
     def item_tags(self, node: DNode, term: Any) -> Tags:
-        bound = self.evaluator.bind(node.production, self.forest.caps[node.item], (node.start, node.end, node.tag),
+        bound = self.evaluator.bind(
+            node.production,
+            self.forest.caps[node.item],
+            (node.start, node.end, node.tag),
             self.forest.structure[node.item] if self.forest.structure else 0,
-            self.forest.close_structure[node.item] if self.forest.close_structure else 0)
+            self.forest.close_structure[node.item] if self.forest.close_structure else 0,
+        )
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
@@ -404,7 +417,13 @@ class Emitter:
         elif item[0] == "capture":
             _, position, term, _, _, value, image = item
             part = node.children[position]
-            tags = self.item_tags(node, term) if term is not None else self.tokens[part.token].tags if isinstance(part, DRead) else tagtab.get(part.tag)
+            tags = (
+                self.item_tags(node, term)
+                if term is not None
+                else self.tokens[part.token].tags
+                if isinstance(part, DRead)
+                else tagtab.get(part.tag)
+            )
             out.append(self.part_token(node, part, tags, value, image))
         else:
             _, term, anchor, value, image = item
@@ -418,8 +437,17 @@ class Emitter:
                 at = self.tokens[boundary - 1].source[1] if boundary > node.start else self.part_source(node)[0]
             tags = self.item_tags(node, term) if term is not None else frozenset()
             written_value, written_image = self.item_strings(node, None, value, image)
-            out.append(Token("", implied(tags, self.context.lowered), (boundary, boundary), (at, at), written_value,
-                node.production.rule_name, written_image))
+            out.append(
+                Token(
+                    "",
+                    implied(tags, self.context.lowered),
+                    (boundary, boundary),
+                    (at, at),
+                    written_value,
+                    node.production.rule_name,
+                    written_image,
+                )
+            )
 
     def emit(self) -> list[Token]:
         return self.emitted(self.root)
@@ -530,9 +558,7 @@ class StageRunner:
         line, column = line_column(self.text, source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
-        return ParseError(
-            "rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected
-        )
+        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected)
 
     def run(self, elision_only: bool) -> StageOutcome:
         try:
@@ -621,9 +647,7 @@ class StageRunner:
         tokens = self.tokens
         # The restoration records, in the order of the tree's leaves (engine
         # §7.2).
-        records = [
-            Restoration(node.terminal or "", node.span[0], node.source, node.value) for node in elided_nodes(tree)
-        ]
+        records = [Restoration(node.terminal or "", node.span[0], node.source, node.value) for node in elided_nodes(tree)]
         view = restore(tokens, records)
         restored, synthetic, project = view.tokens, view.synthetic, view.project
         original_at, record_at, record_of = view.original_at, view.record_at, view.record_of
@@ -645,6 +669,7 @@ class StageRunner:
         protected = True
         if protected:
             from ._witness import walk_witness
+
             pending = [chosen]
             while pending:
                 node = pending.pop()
@@ -658,32 +683,32 @@ class StageRunner:
         preferred = bool(lowered.ranked_helpers)
         raw_counted = True
         if preferred:
-            raw = rank(forest,"none",marks=marks,check=True,unfiltered=True)
+            raw = rank(forest, "none", marks=marks, check=True, unfiltered=True)
             raw_counted = raw is not None and raw.witness_counted is True
         ranking = _rank_check(forest, marks)
         better = False
         watched_selection = False
         if protected and ranking is not None:
-            order = compare_profiles(ranking.profile,chosen_profile)
-            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order>0):
+            order = compare_profiles(ranking.profile, chosen_profile)
+            if walk is None or not raw_counted or not preferred and (ranking.witness_counted is not True or order > 0):
                 ranking = None
             else:
                 restored_rope = None
                 for act in walk.sequence:
-                    restored_rope = concat(restored_rope,leaf(act))
+                    restored_rope = concat(restored_rope, leaf(act))
                 excluded = ranking.witness_counted is not True
-                better = excluded or order<0
+                better = excluded or order < 0
                 if watch is not None and not better and not preferred:
                     watch.ranked(ranking)
                     watched_selection = True
-                if better or ranking.verdict=="tie":
-                    competitor = ranking.first if first_difference(restored_rope,ranking.first,False) is not None else ranking.second
+                if better or ranking.verdict == "tie":
+                    competitor = ranking.first if first_difference(restored_rope, ranking.first, False) is not None else ranking.second
                     if competitor is None:
                         raise RuntimeError("Reconstruction requires a distinct best admitted competitor.")
-                    ranking.first,ranking.second = restored_rope,competitor
-                    difference = first_difference(restored_rope,competitor,True) or first_difference(restored_rope,competitor,False)
+                    ranking.first, ranking.second = restored_rope, competitor
+                    difference = first_difference(restored_rope, competitor, True) or first_difference(restored_rope, competitor, False)
                     assert difference is not None
-                    ranking.witness = (difference[1],difference[2])
+                    ranking.witness = (difference[1], difference[2])
                 if preferred:
                     ranking.raw_witness_counted = raw_counted
         if watch is not None and not watched_selection:

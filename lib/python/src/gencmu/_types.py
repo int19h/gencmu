@@ -1,7 +1,8 @@
 """The types of terms and conditions (engine §10).
 
-A term is a string, a set of strings, a tag set or a span, and no value turns
-into another. The reader gives every term its type and refuses one whose
+A term is a string, a set, a capture, or a span. Captures and spans convert
+to input values where a string is required. Methods first select on the
+actual receiver type. The reader refuses a term whose
 parts do not agree (engine §9); a DOM from elsewhere is held to the same
 rules. ``set`` is a set whose kind nothing has given yet, such as ``∅``.
 ``any`` is a constant whose type the reader cannot know, which fits any
@@ -35,8 +36,20 @@ ConstantTypes = Callable[[str], TermType]
 reader knows none, and gives every constant the type ``any``."""
 
 _SET_KINDS = frozenset(["strings", "tags", "set", "pattern"])
-_NAMES = {"pattern":"a tree pattern","string": "a string", "strings": "a set of strings", "tags": "a tag set", "span": "a span", "capture": "a capture", "restored": "a restored span", "emitted": "an emitted pair", "predicate": "a predicate", "set": "a set", "any": "a value"}
-SPAN_NOT_VALUE = "a span is not a value: tags($x) is the tag set of $x"
+_NAMES = {
+    "pattern": "a tree pattern",
+    "string": "a string",
+    "strings": "a set of strings",
+    "tags": "a tag set",
+    "span": "a span",
+    "capture": "a capture",
+    "restored": "a restored span",
+    "emitted": "an emitted pair",
+    "predicate": "a predicate",
+    "set": "a set",
+    "any": "a value",
+}
+SPAN_NOT_VALUE = "a capture or span is not a tag set; use $x.tags"
 
 
 def type_name(kind: TermType) -> str:
@@ -144,7 +157,12 @@ def expected_problem(kind: TermType, expected: TermType) -> str | None:
     """Why a term of type ``kind`` cannot stand where ``expected``, a string
     or a tag set, is needed, or None. A set of open kind takes the kind it
     is given, and a constant of unknown type fits."""
-    if kind == expected or kind == "any" or (kind == "set" and expected in ("tags", "strings", "pattern")) or (expected == "string" and kind in ("capture", "span", "restored")):
+    if (
+        kind == expected
+        or kind == "any"
+        or (kind == "set" and expected in ("tags", "strings", "pattern"))
+        or (expected == "string" and kind in ("capture", "span", "restored"))
+    ):
         return None
     if kind in ("capture", "span", "restored"):
         return SPAN_NOT_VALUE
@@ -192,6 +210,8 @@ def _term_typing(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
 
 
 def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    if not isinstance(term, dict):
+        return None, ("a malformed term", term)
     if "pattern" in term:
         tested = set()
         for node, _ in walk_pattern(term["pattern"]):
@@ -212,9 +232,15 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
             if "constant" in node:
                 kind = constants(node["constant"])
                 allowed = ("string", "any") if id(node) in tested else ("pattern", "string", "any")
-                problem = None if kind in allowed else "a tested constant requires a string" if id(node) in tested else "a pattern atom requires a string or pattern constant"
+                problem = (
+                    None
+                    if kind in allowed
+                    else "a tested constant requires a string"
+                    if id(node) in tested
+                    else "a pattern atom requires a string or pattern constant"
+                )
                 if problem is not None:
-                    return None, (problem, {"const":node["constant"], "at":node["at"]})
+                    return None, (problem, {"const": node["constant"], "at": node["at"]})
             if "test" in node:
                 operands = [r["value"] for r in node["requirements"]] if node["test"] == "tags" else [node["value"]]
                 for operand in operands:
@@ -307,6 +333,8 @@ def _condition_typing(condition: Any, constants: ConstantTypes, memo: Memo) -> W
 
 
 def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo) -> Walk:
+    if not isinstance(condition, dict):
+        return "a malformed condition", condition
     items = condition.get("any", condition.get("all"))
     if isinstance(items, list):
         for item in items:
@@ -336,9 +364,9 @@ def _condition_typing_once(condition: Any, constants: ConstantTypes, memo: Memo)
     return None
 
 
-def condition_type_problem(condition: Any) -> str | None:
+def condition_type_problem(condition: Any, memo: Optional[Memo] = None) -> str | None:
     """Why a condition's terms do not agree in type, or None."""
-    fault = condition_type_fault(condition)
+    fault = condition_type_fault(condition, memo=memo)
     return fault[0] if fault is not None else None
 
 
@@ -435,7 +463,9 @@ def rule_type_problem(rule: Any) -> str | None:
     return fault[0] if fault is not None else None
 
 
-def constant_value_type(value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None) -> FoundFault:
+def constant_value_type(
+    value: Any, redefine: bool, constants: ConstantTypes = _unknown_constants, memo: Optional[Memo] = None
+) -> FoundFault:
     """The type of a constant's value, or why it cannot be one (engine §2,
     §10): a string, a set of strings or a tag set. A redefinition keeps the
     constant's type, which gives ``∅`` its kind, so its value can be of
@@ -499,7 +529,7 @@ def constants_in(node: Any) -> list[dict[str, Any]]:
             stack.extend(reversed(current))
         elif isinstance(current, dict):
             if isinstance(current.get("constant"), str):
-                found.append({"const":current["constant"], "at":current["at"]})
+                found.append({"const": current["constant"], "at": current["at"]})
             elif isinstance(current.get("const"), str):
                 found.append(current)
             else:

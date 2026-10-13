@@ -46,7 +46,7 @@ class StrictUtf8(unittest.TestCase):
         return holder.name
 
     def test_invalid_bytes_are_a_grammar_error_of_the_document(self) -> None:
-        good = grammar("%rule text 'a'")
+        good = grammar('%rule text "a"')
         places: list[tuple[str, Callable[[bytes], dict[str, str | bytes]], str]] = [
             ("the pipeline's prose", lambda b: {"p.md": with_bytes("# A dialect @\n\n" + PIPELINE, b), "g.md": good}, "p.md"),
             (
@@ -57,7 +57,7 @@ class StrictUtf8(unittest.TestCase):
             ("an included document's prose", lambda b: {"p.md": PIPELINE, "g.md": with_bytes("# A grammar @\n\n" + good, b)}, "g.md"),
             (
                 "a comment of an included document",
-                lambda b: {"p.md": PIPELINE, "g.md": with_bytes(grammar("%rule text 'a' (* @ *)"), b)},
+                lambda b: {"p.md": PIPELINE, "g.md": with_bytes(grammar('%rule text "a" (* @ *)'), b)},
                 "g.md",
             ),
         ]
@@ -79,18 +79,18 @@ class StrictUtf8(unittest.TestCase):
         root = self.directory(
             {
                 "p.md": "# A dialect � \U0001f600\n\n" + PIPELINE,
-                "g.md": grammar("%rule text '�' '\U0001f600' '\U0010fffd' (* � \U0001f600 *)"),
+                "g.md": grammar('%rule text "�" "😀" "\U0010fffd" (* � 😀 *)'),
             }
         )
         dialect = gencmu.load_dialect_file(os.path.join(root, "p.md"))
         self.assertTrue(dialect.parse("�\U0001f600\U0010fffd", auto_features=False).ok)
         self.assertFalse(dialect.parse("�\U0001f600", auto_features=False).ok)
         # A byte order mark stays U+FEFF, so a fence after it opens no block.
-        marked = self.directory({"p.md": "﻿" + PIPELINE[PIPELINE.index("```") :], "g.md": grammar("%rule text 'a'")})
+        marked = self.directory({"p.md": "﻿" + PIPELINE[PIPELINE.index("```") :], "g.md": grammar('%rule text "a"')})
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_dialect_file(os.path.join(marked, "p.md"))
         self.assertIn("at least one %stage", str(caught.exception))
-        prose = self.directory({"p.md": "﻿" + PIPELINE, "g.md": grammar("%rule text '﻿'")})
+        prose = self.directory({"p.md": "﻿" + PIPELINE, "g.md": grammar('%rule text "\ufeff"')})
         self.assertTrue(gencmu.load_dialect_file(os.path.join(prose, "p.md")).parse("﻿", auto_features=False).ok)
 
 
@@ -114,7 +114,7 @@ class UndecodableCache(unittest.TestCase):
         return root
 
     def test_valid_documents_load_with_a_cache_that_does_not_decode(self) -> None:
-        sources = {"p.md": PIPELINE, "g.md": grammar("%rule text 'a'")}
+        sources = {"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}
         for cache in (b"\xff", b'{"format":' + str(FORMAT).encode() + b',"documents":{"\xff":{}}}'):
             root = self.bundle(compiled_json=cache)
             for use_cache in (True, False):
@@ -128,7 +128,7 @@ class UndecodableCache(unittest.TestCase):
         root = self.bundle(unicode_txt=b"unicode 15.1.0 \xff\n")
         with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
             with self.assertRaises(gencmu.GencmuError) as caught:
-                gencmu.load_dialect_sources({"p.md": PIPELINE, "g.md": grammar("%rule text 'a'")}, "p.md")
+                gencmu.load_dialect_sources({"p.md": PIPELINE, "g.md": grammar('%rule text "a"')}, "p.md")
         self.assertEqual(caught.exception.kind, "grammar")
         self.assertEqual(caught.exception.document, "unicode.txt")
 

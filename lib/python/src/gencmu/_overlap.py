@@ -80,9 +80,11 @@ def conflict(grammar):
                 continue
             for route in run(_routes(alt.expr)):
                 captures = {part["capture"]: part["expr"] for part in route if "capture" in part}
-                kept = [item for item in alt.emit["items"] if "insert" not in item and (item["capture"] == "" or item["capture"] in captures)]
+                kept = [
+                    item for item in alt.emit["items"] if "insert" not in item and (item["capture"] == "" or item["capture"] in captures)
+                ]
                 for i, left in enumerate(kept):
-                    for right in kept[i + 1:]:
+                    for right in kept[i + 1 :]:
                         if left["capture"] == right["capture"] == "":
                             if any(consuming(part, marked) for part in route):
                                 return alt

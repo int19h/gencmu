@@ -43,7 +43,9 @@ class Linear(unittest.TestCase):
             self.fail(f"{small} for {n}, more than {MOST} times as much for {4 * n}")
 
     @staticmethod
-    def count(watches: Callable[[], list[Watch]], work: Callable[[], object], budget: int | None = None, works: list[Work] | None = None) -> int:
+    def count(
+        watches: Callable[[], list[Watch]], work: Callable[[], object], budget: int | None = None, works: list[Work] | None = None
+    ) -> int:
         """The count of some work under a budget. ``works`` receives the
         count, which a test reads where the budget stops the work."""
         with count_work(*watches(), budget=budget) as counted:
@@ -53,7 +55,11 @@ class Linear(unittest.TestCase):
         return counted.count
 
     def assert_mutant_stops(
-        self, watches: Callable[[], list[Watch]], make: Callable[[int], Callable[[], object]], n: int, mutation: Callable[[], ContextManager[Any]]
+        self,
+        watches: Callable[[], list[Watch]],
+        make: Callable[[int], Callable[[], object]],
+        n: int,
+        mutation: Callable[[], ContextManager[Any]],
     ) -> None:
         """A regression, put in place by ``mutation``, stops at the first
         unit past the budget that the library's own work at n sets for 4n.
@@ -99,17 +105,17 @@ class SpanReads(Linear):
         def make(n: int) -> Callable[[], object]:
             tokens = [Token("a", frozenset({"A"}), (index, index + 1), (index, index + 1), "" if index else "a") for index in range(n)]
             context = stage_context(tokens)
-            return lambda: [context.sound_is("a", 0, end) for end in range(1, n + 1)]
+            return lambda: [context.value_is("a", 0, end) for end in range(1, n + 1)]
 
-        self.assert_linear(lambda: [calls(StageContext.sound)], make, 1000)
+        self.assert_linear(lambda: [calls(StageContext.value)], make, 1000)
 
     def test_phonemes_of_growing_prefixes_cost_the_tokens_that_sound(self) -> None:
         # Each level of a left chain asks the phonemes of the prefix it
         # spans. Only the first token sounds, so a call that read every
         # token would cost the prefixes' lengths summed.
         def case_of(n: int) -> dict[str, Any]:
-            tokens = [{"text": "a", "tags": ["A"], "phonemes": "" if index else "a"} for index in range(n)]
-            return {"grammar": '%rule text {... A}\n%conditions phonemes($) = "a"', "tokens": tokens}
+            tokens = [{"text": "a", "tags": ["A"], "value": "" if index else "a"} for index in range(n)]
+            return {"grammar": '%rule text {... A}\n%conditions $.value = "a"', "tokens": tokens}
 
         dialect, error = load_case_dialect(case_of(1))
         assert dialect is not None, error
@@ -123,7 +129,7 @@ class SpanReads(Linear):
 
             return work
 
-        self.assert_linear(lambda: [calls(StageContext.sound)], make, 100)
+        self.assert_linear(lambda: [calls(StageContext.value)], make, 100)
 
 
 class UnionFolds(Linear):
@@ -131,7 +137,7 @@ class UnionFolds(Linear):
         # Each part adds a tag of its own, so the union grows at each part,
         # in a parse's term and in a constant's alike.
         def make(n: int) -> Callable[[], object]:
-            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            term = {"union": [{"tag": f"T{index}"} for index in range(n)]}
             evaluator = Evaluator(stage_context([]), 0, 0)
             constants = _Constants("s", None)  # type: ignore[arg-type]
 
@@ -147,7 +153,7 @@ class UnionFolds(Linear):
         # The regression copies the tags gathered so far from a frozen
         # union at each part, which only a count of the freezing sees.
         def make(n: int) -> Callable[[], object]:
-            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            term = {"union": [{"tag": f"T{index}"} for index in range(n)]}
             evaluator = Evaluator(stage_context([]), 0, 0)
             return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
 
@@ -163,7 +169,7 @@ class UnionFolds(Linear):
         # part. Each reads the gathered tags in C, which only a count of
         # each operand that a line reads sees.
         def make(n: int) -> Callable[[], object]:
-            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            term = {"union": [{"tag": f"T{index}"} for index in range(n)]}
             evaluator = Evaluator(stage_context([]), 0, 0)
             return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
 
@@ -176,13 +182,12 @@ class UnionFolds(Linear):
             with self.subTest(mutant=name):
                 self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", (grown, change)))
 
-
     def test_each_operation_that_reads_the_gathered_tags_in_c_fails_at_the_first_unit_past_its_budget(self) -> None:
         # Each regression reads the growing set in one opaque operation at
         # each part. The weight of a line must see every such operation,
         # or a quadratic regression written with it passes its budget.
         def make(n: int) -> Callable[[], object]:
-            term = {"union": [{"tag": f"t{index}"} for index in range(n)]}
+            term = {"union": [{"tag": f"T{index}"} for index in range(n)]}
             evaluator = Evaluator(stage_context([]), 0, 0)
             return lambda: evaluator.value(term, None)  # type: ignore[arg-type]
 
@@ -204,6 +209,7 @@ class UnionFolds(Linear):
             change = f"if self.grown is not None:\n        {reading}\n        self.grown.update(part)"
             with self.subTest(mutant=name):
                 self.assert_mutant_stops(tag_copies, make, 2000, lambda: mutant(_tags.Gathered, "add", (grown, change)))
+
 
 def reading(table: dict[str, int], items: list[str], text: str) -> None:
     """Lines that each read one container in C, for the test of the weight."""
@@ -231,14 +237,15 @@ class Weights(unittest.TestCase):
         read = len(table) + 20 + 20 + len(text) + len(text) + 19 + len(table)
         self.assertEqual(work.count, lines + read)
 
+
 class Closures(Linear):
     def test_a_chain_of_implications_in_reverse_order_costs_its_length(self) -> None:
-        # t0 implies t1, t1 implies t2, and so on, listed last link first:
+        # T0 implies T1, T1 implies T2, and so on, listed last link first:
         # a pass over the list in order finds one new link at a time.
         def make(n: int) -> Callable[[], object]:
-            chain = [(frozenset({f"t{index}"}), frozenset({f"t{index + 1}"})) for index in reversed(range(n))]
+            chain = [(frozenset({f"T{index}"}), frozenset({f"T{index + 1}"})) for index in reversed(range(n))]
             lowered = Lowered(None, [], [], {}, [], [], "", implications=chain)  # type: ignore[arg-type]
-            start = frozenset({"t0"})
+            start = frozenset({"T0"})
 
             def work() -> None:
                 assert len(implied(start, lowered)) == n + 1
@@ -397,7 +404,8 @@ def emitting_rule(n: int) -> dict[str, Any]:
     items.extend({"capture": f"c{index}"} for index in range(n))
     return {
         "name": "text",
-        "op": "define", "flags": [],
+        "op": "define",
+        "flags": [],
         "alternatives": [{"guards": [], "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}} for index in range(n)]}}],
         "emit": {"items": items},
         "conditions": [],
@@ -462,15 +470,20 @@ class SharedClauses(Linear):
                 "name": "text",
                 "op": "define",
                 "flags": [],
-                "tags": {"union": [*({"tag": f"y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
+                "tags": {"union": [*({"tag": f"Y{index}"} for index in range(n)), {"const": "K", "at": [2, 1]}]},
                 "alternatives": [{"guards": [], "expr": {"ref": "A"}} for _ in range(n)],
                 "conditions": [
-                    {"op": "=", "left": {"call": "text", "args": [{"capture": ""}]}, "right": {"string": f"a{index}"}} for index in range(n)
+                    {
+                        "op": "=",
+                        "left": {"method": "source-text", "args": [], "receiver": {"capture": ""}},
+                        "right": {"string": f"a{index}"},
+                    }
+                    for index in range(n)
                 ],
                 "at": [3, 1],
             }
             dom = {
-                "format": 20,
+                "format": 26,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -491,9 +504,16 @@ class SharedClauses(Linear):
             expr: dict[str, Any] = {"seq": [{"test": "=", "value": {"string": "a"}, "expr": {"ref": "A"}} for _ in range(n)]}
             for _ in range(n):
                 expr = {"optional": expr}
-            rule = {"name": "text", "op": "define", "flags": [], "alternatives": [{"guards": [], "expr": expr}], "conditions": [], "at": [2, 1]}
+            rule = {
+                "name": "text",
+                "op": "define",
+                "flags": [],
+                "alternatives": [{"guards": [], "expr": expr}],
+                "conditions": [],
+                "at": [2, 1],
+            }
             dom = {
-                "format": 20,
+                "format": 26,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [],
@@ -506,37 +526,43 @@ class SharedClauses(Linear):
 
 
 def holds(index: int) -> dict[str, Any]:
-    """The condition text($ci) = "a"."""
-    return {"op": "=", "left": {"call": "text", "args": [{"capture": f"c{index}"}]}, "right": {"string": "a"}}
+    'The condition $ci.source-text = "a".'
+    return {"op": "=", "left": {"method": "source-text", "args": [], "receiver": {"capture": f"c{index}"}}, "right": {"string": "a"}}
 
 
 GUARDED: dict[str, Callable[[int], dict[str, Any]]] = {
-    "a union of guarded tags": lambda n: {"tags": {"union": [{"if": {"captured": f"c{index}"}, "then": {"tag": f"t{index}"}} for index in range(n)]}},
-    "a list of guarded conditions": lambda n: {"conditions": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]},
-    "a conjunction of guarded conditions": lambda n: {"conditions": [{"all": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]}]},
-    # A constant, which the loader resolves in the clauses that the
-    # alternatives share, and a part that tests no presence.
-    "guarded tags and a constant": lambda n: {
-        "tags": {"union": [{"const": "K", "at": [1, 1]}, *({"if": {"captured": f"c{index}"}, "then": {"tag": f"t{index}"}} for index in range(n))]}
+    "a union of guarded tags": lambda n: {
+        "tags": {"union": [{"if": {"captured": f"c{index}"}, "then": {"tag": f"T{index}"}} for index in range(n)]}
     },
-    # Conditions with no guard, each of which uses one capture, and so
-    # applies only to the production that has it.
+    "a list of guarded conditions": lambda n: {
+        "conditions": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]
+    },
+    "a conjunction of guarded conditions": lambda n: {
+        "conditions": [{"all": [{"if": {"captured": f"c{index}"}, "then": holds(index)} for index in range(n)]}]
+    },
+    "guarded tags and a constant": lambda n: {
+        "tags": {
+            "union": [
+                {"const": "K", "at": [1, 1]},
+                *({"if": {"captured": f"c{index}"}, "then": {"tag": f"T{index}"}} for index in range(n)),
+            ]
+        }
+    },
     "a list of conditions that use a capture": lambda n: {"conditions": [holds(index) for index in range(n)]},
-    # An item of %emits for each production, carried by its first capture
-    # and attaching its second, and an inserted tag that every one keeps.
     "an emission of an item for each production": lambda n: {
         "alternatives": [
             {
                 "guards": [],
-                "expr": {"seq": [{"capture": f"c{index}", "expr": {"terminal": "A"}}, {"capture": f"d{index}", "expr": {"terminal": "A"}}]},
+                "expr": {"seq": [{"capture": f"c{index}", "expr": {"ref": "A"}}, {"capture": f"d{index}", "expr": {"ref": "A"}}]},
             }
             for index in range(n)
         ],
-        "emit": {"items": [*({"capture": f"c{index}", "after": [f"d{index}"]} for index in range(n)), {"insert": "X"}]},
+        "emit": {
+            "items": [*({"capture": f"c{index}", "after": [f"d{index}"]} for index in range(n)), {"insert": True, "tags": {"tag": "X"}}]
+        },
     },
 }
-"""The clauses of a choice of n captures, $c0(A) | … | $c(n−1)(A), whose
-parts each belong to one capture, so that each production keeps one."""
+"The clauses of a choice of n captures, $c0:A | … | $c:n−1(A), whose\nparts each belong to one capture, so that each production keeps one."
 
 GUARDED_MOST = 256
 """How many units of the counted lines each production and each node of
@@ -569,17 +595,18 @@ class GuardedClauses(Linear):
     def documents(n: int, clause: Callable[[int], dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
         rule = {
             "name": "text",
-            "op": "define", "flags": [],
-            "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"terminal": "A"}}} for index in range(n)],
+            "op": "define",
+            "flags": [],
+            "alternatives": [{"guards": [], "expr": {"capture": f"c{index}", "expr": {"ref": "A"}}} for index in range(n)],
             "conditions": [],
             "at": [3, 1],
             **clause(n),
         }
         dom = {
-            "format": 20,
+            "format": 26,
             "rules": [rule],
             "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
-            "constants": [{"name": "K", "op": "define", "value": {"tag": "k"}, "at": [2, 1]}],
+            "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
             "classifiers": [],
             "implications": [],
         }
@@ -593,7 +620,10 @@ class GuardedClauses(Linear):
         assert dialect is not None, error
         _, dom = self.documents(n, clause)
         lowered = lower(stitch("s", [("t.md", dom)], dialect.unicode), frozenset())
-        output = sum(nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit) for production in lowered.productions)
+        output = sum(
+            nodes_of(production.tags_term) + nodes_of(production.conds_predict) + nodes_of(production.conds_at) + nodes_of(production.emit)
+            for production in lowered.productions
+        )
         return GUARDED_MOST * (n + output)
 
     def make(self, n: int, clause: Callable[[int], dict[str, Any]]) -> Callable[[], object]:
@@ -635,6 +665,7 @@ class GuardedClauses(Linear):
                     self.count(loading_steps, large, budget, works)
                 self.assertEqual(works[0].count, budget + 1)
 
+
 ONE_CLASS = frozenset(
     {
         "classes = table.get(key)",
@@ -665,7 +696,7 @@ class Classifiers(Linear):
     @staticmethod
     def make(n: int) -> Callable[[], object]:
         # n entries, each giving the one key a class of its own.
-        entries = [{"guards": [], "op": "∈", "class": f"C{index}", "keys": ["k"], "at": [1, 1]} for index in range(n)]
+        entries = [{"guards": [], "op": "∈", "class": f"C{index}C", "keys": ["k"], "at": [1, 1]} for index in range(n)]
         items = [("t.md", {"name": "c", "entries": entries})]
         return lambda: _grammar._resolve_classifiers(items, frozenset())
 
@@ -686,8 +717,11 @@ class Classifiers(Linear):
 
 def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, Any]:
     return {
-        "format": 20,
-        "rules": [{"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]} for line in range(len(directives), len(directives) + rules)],
+        "format": 26,
+        "rules": [
+            {"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
+            for line in range(len(directives), len(directives) + rules)
+        ],
         "directives": [{**directive, "at": [line + 1, 1]} for line, directive in enumerate(directives)],
         "constants": [],
         "classifiers": [],

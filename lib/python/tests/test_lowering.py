@@ -65,8 +65,16 @@ class LoweringErrors(unittest.TestCase):
         definition that wrote it, whatever definition makes it empty."""
         sources = {
             "p.md": PIPELINE,
-            "a.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text x y\n%rule x A\n%rule y {[A]}\n%rule z {q}\n%rule q ε\n```\n",
-            "b.md": "```jbogenbau\n%redefine-rule x {[B] \\ C}\n```\n",
+            "a.md": """```jbogenbau
+%ambiguity-resolution greedy
+%rule text x y
+%rule x A
+%rule y {[A]}
+%rule z {q}
+%rule q ε
+```
+""",
+            "b.md": "```jbogenbau\n%redefine-rule x {[B] / C}\n```\n",
         }
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=False)
         result = self.parse(dialect, [])
@@ -95,8 +103,7 @@ class CaptureGrowth(unittest.TestCase):
 
     @staticmethod
     def whole_items(grammar: str, n: int) -> int:
-        """The completed items of the production t → t t or t → $l(t) $r(t)
-        over the whole input of n tokens A."""
+        "The completed items of the production t → t t or t → $l:t $r:t\n        over the whole input of n tokens A."
         dialect, error = load_case_dialect({"grammar": grammar})
         assert dialect is not None, error
         lowered = dialect.lowered(0, frozenset())
@@ -108,7 +115,13 @@ class CaptureGrowth(unittest.TestCase):
         found = 0
         for item in range(len(forest.prod)):
             production = lowered.productions[forest.prod[item]]
-            if production.lhs == t and len(production.rhs) == 2 and forest.dot[item] == 2 and forest.origin[item] == 0 and forest.end[item] == n:
+            if (
+                production.lhs == t
+                and len(production.rhs) == 2
+                and forest.dot[item] == 2
+                and forest.origin[item] == 0
+                and forest.end[item] == n
+            ):
                 found += 1
         return found
 
@@ -116,7 +129,7 @@ class CaptureGrowth(unittest.TestCase):
         for n in range(2, 6):
             with self.subTest(n=n):
                 self.assertEqual(self.whole_items("%rule text t\n%rule t t t | A", n), 1)
-                self.assertEqual(self.whole_items("%rule text t\n%rule t $l(t) $r(t) | A", n), n - 1)
+                self.assertEqual(self.whole_items("%rule text t\n%rule t $l:t $r:t | A", n), n - 1)
 
 
 if __name__ == "__main__":
@@ -144,7 +157,11 @@ class PreparedClauses(unittest.TestCase):
         if choice == 1:
             return {"emptySet": True}
         if choice == 2:
-            return {"tags": [{"capture": rng.choice(self.NAMES)}]} if rng.random() < 0.5 else {"const": "K", "at": [1, 1], "value": frozenset(rng.choice(([], ["k"])))}
+            return (
+                {"tags": [{"capture": rng.choice(self.NAMES)}]}
+                if rng.random() < 0.5
+                else {"const": "K", "at": [1, 1], "value": frozenset(rng.choice(([], ["k"])))}
+            )
         if choice in (3, 4):
             return {"if": self.condition(rng, depth - 1, presence=True), "then": self.term(rng, depth - 1)}
         if choice == 5:

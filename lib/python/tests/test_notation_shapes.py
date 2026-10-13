@@ -67,7 +67,9 @@ class NotationShapes(unittest.TestCase):
         in `...`, which is also three `.`, and the document does not load."""
         parsed = json.loads(BOOTSTRAP)
         lexical_dom = next(d["dom"] for stage in parsed["stages"] for d in stage["documents"] if d["path"] == "notation/lexical.md")
-        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append({"guards": [], "expr": {"terminal": "'.'"}})
+        next(r for r in lexical_dom["rules"] if r["name"] == "symbol")["alternatives"].append(
+            {"guards": [], "expr": {"literal": {"string": "."}}}
+        )
         bootstrap = json.dumps(parsed, separators=(",", ":"), ensure_ascii=False)
         directive = '"name":"ambiguity-resolution","args":["greedy"]'
         lexical = bootstrap.index('"path":"notation/lexical.md"')
@@ -110,7 +112,9 @@ class NotationShapes(unittest.TestCase):
         for name in NAMES:
 
             def rename(syntax: str, name: str = name) -> str:
-                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}')
+                return syntax.replace(f'"name":"{name}","op"', f'"name":"{name}x","op"').replace(
+                    f'{{"ref":"{name}"}}', f'{{"ref":"{name}x"}}'
+                )
 
             with self.subTest(rule=name):
                 self.assertEqual(outcome(with_syntax(rename)), SHAPES["loads"].get(name, "grammar"))

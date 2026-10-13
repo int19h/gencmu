@@ -19,8 +19,11 @@ def shift(node, offset):
             shifted[id(current)] = "symbol", current[1] + offset
         elif ready:
             shifted[id(current)] = (
-                "optional", current[1] + offset, current[2],
-                tuple(shifted[id(child)] for child in current[3]), current[4],
+                "optional",
+                current[1] + offset,
+                current[2],
+                tuple(shifted[id(child)] for child in current[3]),
+                current[4],
             )
         else:
             pending.append((current, True))

@@ -808,7 +808,9 @@ def definition_problem(rule: Dom) -> str | None:
         value = alternative.get("value", rule.get("value"))
         image = alternative.get("image", rule.get("image", value))
         for recipe in (value, image):
-            if recipe is not None and not captures_in(recipe) <= present:
+            if recipe is None:
+                continue
+            if not captures_in(recipe) <= present:
                 return "a selected recipe uses a capture that its production lacks"
     # The anchor of each inserted tag, the capture of the next capture
     # item, found for every item in one backward pass.
@@ -825,7 +827,9 @@ def definition_problem(rule: Dom) -> str | None:
             return f"%emits of {rule['name']} leaves a production nothing to emit"
         for item in kept:
             for channel in ("value", "image"):
-                if channel in item and not captures_in(item[channel]) <= present:
+                if channel not in item:
+                    continue
+                if not captures_in(item[channel]) <= present:
                     return "an item recipe uses a capture that its production lacks"
             if "tags" in item and lacks(item["tags"], present):
                 return "the tags of an item of %emits use a capture a production lacks; guard the use with ⟹"
@@ -862,4 +866,8 @@ def rule_has_ranked(rule: Dom) -> bool:
 
 
 def deferred_emission_problem(message):
-    return "leaves a production nothing to emit" in message
+    return any(part in message for part in (
+        "leaves a production nothing to emit",
+        "a selected recipe uses a capture that its production lacks",
+        "an item recipe uses a capture that its production lacks",
+    ))
