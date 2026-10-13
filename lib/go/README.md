@@ -36,7 +36,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 26 supports `$x.without-elision`. This method restores captured omitted terminators for a query.
+Grammar document object model (DOM) format 27 supports `$x.without-elision`. This method restores captured omitted terminators for a query.
 
 `$x.without-elision.onward` extends the query through the original following input. Parse results use format 12.
 

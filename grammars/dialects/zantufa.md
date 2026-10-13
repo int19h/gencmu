@@ -130,7 +130,7 @@ A constituent is the text read by one rule. A pattern tests a constituent's tree
 
 A following-input condition tests words after a constituent. These conditions reserve words after the selected constituent.
 
-An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, term-initial tags, and arguments after tense or modal runs. The competing reading that satisfies the query cannot shorten the constituent's modifiers.
+An aligned category query preserves the constituent's omitted terminators. It reserves grammatical categories at fragments, quantifiers, ME arguments, description prefixes, term-initial tags, and arguments after tense or modal runs. The competing reading that satisfies the query cannot shorten the constituent's modifiers. At description prefixes, term-initial tags and tag arguments, a competing mathematical reading can also omit KUhE inside the shared stretch. That includes a KUhE just before the constituent's own omitted KEhE.
 
 A ranked choice filters alternatives at one written position. The MOI construction takes priority over SE and NAhE conversion. MAhO takes a mathematical expression before a predicate or argument. MOhE takes a predicate before an argument.
 

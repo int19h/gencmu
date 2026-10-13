@@ -152,13 +152,13 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":26,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
+Its envelope is `{"format":27,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 26 supports restored spans, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 27 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-Format 26 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":26,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 26 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":27,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -262,14 +262,22 @@ Engine constants resolve directly as scalar strings outside the user constant ve
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms.
+Rule arguments use `{"rule":"r"}`. `.tags`, `.matches`, `.begins` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms.
 
 `.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
+
+`.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
 
 For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
 
 ```json
 {"method":"matches","receiver":{"method":"without-elision","receiver":{"capture":"m"},"args":[]},"args":[{"rule":"sumti"}]}
+```
+
+`$s.without-elision-except(math).onward.begins(quantifier)` uses this condition DOM:
+
+```json
+{"method":"begins","receiver":{"method":"onward","receiver":{"method":"without-elision-except","receiver":{"capture":"s"},"args":[{"rule":"math"}]},"args":[]},"args":[{"rule":"quantifier"}]}
 ```
 
 The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
@@ -417,7 +425,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":26,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":27,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

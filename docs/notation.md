@@ -655,7 +655,9 @@ The span keeps the captured words and the candidate's closes. It restores each c
 
 `$x.without-elision.matches(R)` asks for an aligned witness over the complete capture. `$x.without-elision.begins(R)` permits a witness that ends within the capture. `$x.without-elision.onward.begins(R)` also permits a witness that ends after the capture. Following words remain raw input and permit ordinary omissions after the captured endpoint.
 
-Inside the shared stretch, the witness cannot add, drop, move, or reorder closes. At its end, a prefix must match the complete group of closes at that boundary. A restored terminator cannot supply a bare terminal read. The witness must qualify on the original input before ranked admission. Its conditions and written-terminator priority can inspect following words beyond the capture.
+Inside the shared stretch, the witness of `.without-elision` cannot add, drop, move, or reorder closes. At its end, a prefix must match the complete group of closes at that boundary. The witness of `.without-elision-except` can also add the closes that its family permits, as the paragraphs below say. It still cannot drop, move or reorder a candidate close, so a prefix still ends after the candidate's complete group. A restored terminator cannot supply a bare terminal read. The witness must qualify on the original input before ranked admission.
+
+Its conditions and written-terminator priority can inspect following words beyond the capture.
 
 A seal hides the content of a ranked group. Common entry observations describe state before the ranked group. An outside restoration view keeps that group as an opaque block with its common entry observations. The witness must keep the same block and cannot end inside it. A private capture inside an option keeps its own closes for conditions ready within the group.
 
@@ -682,7 +684,40 @@ For example, these rules hold an omitted BOI fixed:
 
 On one LETTER token with text `my`, the candidate omits BOI at its end. The restored view contains the original `my` token followed by a synthetic BOI token. The rival omits the same BOI at the same boundary, so the query holds. Changing the rival to `LETTER BOI` makes the query fail. The restored token cannot create a required written BOI on the original input.
 
-An ordinary nested query inside an aligned witness reads its original projected span with ordinary query rules. An explicit nested `$y.without-elision` fixes the witness's own captured closes. It restores no token twice. Recursive queries keep the existing grammar error across query forms and restoration views. Engine §4 gives the exact bounds, proof rules, and cache identity.
+An ordinary nested query inside an aligned witness reads its original projected span with ordinary query rules. An explicit nested `$y.without-elision` or `$y.without-elision-except(family)` fixes the witness's own captured closes. The second form also permits the closes of its own family. Neither form receives a family from an outer query. It restores no token twice. Recursive queries keep the existing grammar error across query forms and restoration views.
+
+Engine §4 gives the exact bounds, proof rules, and cache identity.
+
+`$x.without-elision-except(family)` is `$x.without-elision` with one exception. Inside the shared stretch, the witness can add closes that the named family permits.
+
+A family is an ordinary rule. Its members are the rule itself and, transitively, every rule that a member reaches through a member edge. A member edge is one written way to read exactly one rule reference in an alternative. It can pass through captures, tests, parentheses and the branches of choices. It cannot pass through a sequence, an optional, braces, `&` or a ranked group. So `m`, `$z:m` and `(m | z)` make `m` a member, while `[m]`, `[$z:m]` and `m Z` do not.
+
+The members come from the rules as written. Guards do not matter, so every alternative counts.
+
+Name only the constructs whose closes the query permits. A family that names a broad rule permits the closes of every rule that its closure reaches. For example, a family `mex-2` takes in `operand`, so it permits BOI. The `audit` command lists each family's members and the optionals that it permits.
+
+A rule owns each elidable optional that its alternatives write, at any depth. Groups, choices, optionals, braces and ranked options do not change the owner. The family permits each elidable optional that a member owns. The optional need not stand last in its rule.
+
+The witness keeps every close and block of the candidate, in order, as for `.without-elision`. It can add a close only where two things hold. The family permits the close's optional. In the witness's restored view, a kept element stands on each side of the added close, inside the shared stretch. A kept element is a token, or a close or block that the candidate also has. Other added closes can stand between the added close and those kept elements.
+
+So at the capture's start, an added close must follow a candidate close or block there. At the end of the shared stretch, it must come before one.
+
+The witness cannot add the block of a ranked choice. The block of a ranked option hides each close inside it, so such a close never becomes an added close.
+
+This is a permission, not a test that a construct is new. A witness can close a member construct earlier than the candidate does, unless written-terminator priority forbids it.
+
+Zantufa names the constructs that KUhE closes:
+
+```jbogenbau
+%rule math
+  mex-forethought | mex-rp
+```
+
+In `le ke my .e gy ke'e broda`, the inner sumti `ke my .e gy ke'e` omits no KUhE. The competing quantifier reads `.e gy` as forethought mekso, which omits KUhE before `ke'e`. That close lies inside the shared stretch, and `mex-forethought` owns it. So `$s.without-elision-except(math).onward.begins(quantifier)` holds, and the description takes the quantifier.
+
+In `le ke my .e gy broda`, the KE group omits its own KEhE at the capture's end. The quantifier's KUhE comes just before that KEhE, so it still lies inside the shared stretch, and the description takes the quantifier again.
+
+The receiver and composition rules of `.without-elision` apply unchanged. `$x.onward.without-elision-except(math)` is an error. The argument is exactly one rule name. A family whose members own no elidable optional permits nothing, and its queries answer as `.without-elision` does.
 
 ## Juxtaposition
 
