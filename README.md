@@ -8,7 +8,7 @@ A phoneme is a unit of sound. A Lojban dialect has six stages: phonemes, normali
 
 ## Try it
 
-You need Node 20 or later, and nothing else installed. Run these commands in a clone:
+You need Node 24 or later, and nothing else installed. Run these commands in a clone:
 
 ```sh
 node lib/js/cli.js parse mi klama le zarci
