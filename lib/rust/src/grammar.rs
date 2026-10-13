@@ -49,6 +49,8 @@ pub(crate) struct StitchedAlternative {
     pub alternative: Alternative,
     pub written: Option<Arc<crate::json::Json>>,
     pub written_alternative: usize,
+    /// Source order of the surviving alternative, independent of rule numbering.
+    pub text_order: usize,
     pub clauses: Arc<RuleClauses>,
     pub erased: bool,
     pub document: Arc<str>,
@@ -235,6 +237,7 @@ pub(crate) fn stitch(
     // replaces included.
     let mut users: Vec<(&Arc<str>, &RuleDef)> = Vec::new();
     let mut deferred = Vec::new();
+    let mut text_order = 0;
     for (document, dom) in documents {
         for rule in &dom.rules {
             if let Some(problem) = &rule.deferred_emission {
@@ -269,6 +272,7 @@ pub(crate) fn stitch(
                     alternative: alternative.clone(),
                     written: written.clone(),
                     written_alternative,
+                    text_order: text_order + written_alternative,
                     clauses: if work::mutated(Mutant::ClausesPerAlternative) {
                         copy_clauses()
                     } else {
@@ -279,6 +283,7 @@ pub(crate) fn stitch(
                     at: rule.at,
                 })
                 .collect();
+            text_order += rule.alternatives.len();
             let error = |message: String| Err(located(message, document, rule.at));
             let stitched = || StitchedRule {
                 flags: rule.flags.clone(),
@@ -406,10 +411,10 @@ pub(crate) fn stitch(
     if let Some(error) = deferred.into_iter().next() {
         return Err(error);
     }
-    for rule in &grammar.rules {
-        for alternative in &rule.alternatives {
-            recipe_cycles(alternative)?;
-        }
+    let mut alternatives: Vec<_> = grammar.rules.iter().flat_map(|rule| &rule.alternatives).collect();
+    alternatives.sort_by_key(|alternative| alternative.text_order);
+    for alternative in alternatives {
+        recipe_cycles(alternative)?;
     }
     emission_overlap(&grammar)?;
     Ok(grammar)
@@ -553,54 +558,78 @@ fn emission_overlap(grammar: &StageGrammar) -> Result<(), Error> {
 }
 
 /// Only whole-occurrence emitted reads can return to their own channel.
+/// Follow recipe atoms in written order, value before image (§11.3).
 fn recipe_cycles(alternative: &StitchedAlternative) -> Result<(), Error> {
     let a = &alternative.alternative.strings;
     let d = &alternative.clauses.strings;
-    let value = a.value.as_ref().or(d.value.as_ref());
-    let image = a.image.as_ref().or(d.image.as_ref());
-    let edges = |recipe: Option<&Term>| {
-        let mut dependencies = [false; 2];
-        let Some(Term::Call(_, atoms)) = recipe else { return dependencies };
+    let selected = |value: bool| {
+        let (term, at) = if value {
+            if a.value.is_some() {
+                (&a.value, a.value_at)
+            } else {
+                (&d.value, d.value_at)
+            }
+        } else if a.image.is_some() {
+            (&a.image, a.image_at)
+        } else {
+            (&d.image, d.image_at)
+        };
+        term.as_ref().map(|term| (term, at.unwrap_or(alternative.at)))
+    };
+    let recipes = [selected(true), selected(false)];
+    // An implied image selects the same expression as value. It is one
+    // evaluation identity, rather than a synthetic dependency on value.
+    let channel = |image: bool| usize::from(image && recipes[1].is_some());
+    let dependencies = recipes.map(|recipe| {
+        let mut dependencies = Vec::new();
+        let Some((Term::Call(_, atoms), _)) = recipe else { return dependencies };
         for atom in atoms {
-            if let Arg::Term(Term::Call(channel, args)) = atom {
+            if let Arg::Term(Term::Call(method, args)) = atom {
                 if let [Arg::Term(Term::Call(emitted, args))] = &args[..] {
                     if emitted == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(name))] if name.is_empty())
                     {
-                        dependencies[usize::from(channel == "image")] = true;
+                        dependencies.push(channel(method == "image"));
                     }
                 }
             }
         }
         dependencies
-    };
-    let v = edges(value);
-    let i = if image.is_some() { edges(image) } else { [value.is_some(), false] };
-    let value_cycle = v[0] || v[1] && i[0];
-    let image_cycle = i[1] || i[0] && v[1];
-    if value_cycle || image_cycle {
-        let at = if value_cycle {
-            if a.value.is_some() {
-                a.value_at
+    });
+    let mut finished = [false; 2];
+    let names = ["value", "image"];
+    for root in [0, channel(true)] {
+        if finished[root] {
+            continue;
+        }
+        let mut active = [false; 2];
+        active[root] = true;
+        let mut path = vec![(root, 0)];
+        while let Some((owner, next)) = path.last_mut() {
+            let owner = *owner;
+            if let Some(&dependency) = dependencies[owner].get(*next) {
+                *next += 1;
+                if active[dependency] {
+                    // The recipe that reads the active channel closes the
+                    // cycle. Its first atom supplies the diagnostic position.
+                    let at = recipes[owner].expect("a recipe with a dependency").1;
+                    let mut steps: Vec<_> = path.iter().map(|&(channel, _)| names[channel]).collect();
+                    steps.push(names[dependency]);
+                    return Err(located(
+                        format!("a constituent recipe cycles: {}", steps.join(" -> ")),
+                        &alternative.document,
+                        at,
+                    ));
+                }
+                if !finished[dependency] {
+                    active[dependency] = true;
+                    path.push((dependency, 0));
+                }
             } else {
-                d.value_at
+                active[owner] = false;
+                finished[owner] = true;
+                path.pop();
             }
-        } else if a.image.is_some() {
-            a.image_at
-        } else {
-            d.image_at
-        };
-        let path = if v[0] {
-            "value -> value"
-        } else if i[1] {
-            "image -> image"
-        } else {
-            "value -> image -> value"
-        };
-        return Err(located(
-            format!("a constituent recipe cycles: {path}"),
-            &alternative.document,
-            at.unwrap_or(alternative.at),
-        ));
+        }
     }
     Ok(())
 }

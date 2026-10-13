@@ -453,7 +453,7 @@ fn the_runner_accepts_generated_caller_ranges() {
 #[test]
 fn skipped_source_cases_have_stage_equivalents() {
     use common::Value;
-    let names = [
+    let mut names: Vec<String> = [
         "attach-error-in-attachment",
         "attach-error-insert-order",
         "attach-error-order",
@@ -472,8 +472,16 @@ fn skipped_source_cases_have_stage_equivalents() {
         "rejection-empty-supplied-slice",
         "rejection-supplied-slice-before-text-end",
         "rejection-supplied-slice-last-source",
-    ];
-    for name in names {
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect();
+    names.extend(case_files("engine").into_iter().filter_map(|file| {
+        let name = file.file_stem()?.to_str()?;
+        name.starts_with("query-logical-prefix-").then(|| name.to_string())
+    }));
+    for name in &names {
+        let name = name.as_str();
         let file = common::repository().join("tests/engine").join(format!("{name}.json"));
         let case = parse_json(&std::fs::read_to_string(file).unwrap()).unwrap();
         assert!(common::unexpressible_tokens(&case).is_some(), "{name}: retain the API skip");
@@ -527,7 +535,11 @@ fn skipped_source_cases_have_stage_equivalents() {
                 .map(|c| Value::String(c.to_string()).to_text())
                 .collect::<Vec<_>>()
                 .join(" | ");
-            vec![format!("%rule text {{piece}}\n%rule piece letter | gap\n%rule letter {alternatives} %emits $\n%rule gap ({gaps}) %erased")]
+            if gaps.is_empty() {
+                vec![format!("%rule text {{letter}}\n%rule letter {alternatives} %emits $")]
+            } else {
+                vec![format!("%rule text {{piece}}\n%rule piece letter | gap\n%rule letter {alternatives} %emits $\n%rule gap ({gaps}) %erased")]
+            }
         };
         let (mut documents, pipeline) = common::case_documents(&case);
         let mut prelude = String::new();

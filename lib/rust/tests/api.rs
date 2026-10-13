@@ -1161,6 +1161,35 @@ fn recipe_cycle_positions_match_with_a_dom_cache() {
     }
 }
 
+/// Engine §11.3 blames the first atom of the closing recipe. The same
+/// source order and atom order apply when the loader restores cached DOMs.
+#[test]
+fn recipe_cycle_traversal_uses_written_order_with_a_dom_cache() {
+    for (rules, marker, path) in [
+        ("%rule text A := \"prefix\" $.emitted.value", "\"prefix\"", "value -> value"),
+        ("%rule text A := $.emitted.image :- \"close\" $.emitted.value", "\"close\"", "value -> image -> value"),
+        ("%rule text A := $.emitted.image $.emitted.value :- $.emitted.image", ":- $.emitted.image", "value -> image -> image"),
+        ("%rule text A := $.emitted.value $.emitted.image :- $.emitted.image", ":= $.emitted.value", "value -> value"),
+        ("%rule text A := \"prefix\" $.emitted.image", "\"prefix\"", "value -> value"),
+        ("%rule text := $.emitted.image |\n A :- \"close\" $.emitted.value", "\"close\"", "value -> image -> value"),
+        ("%rule text A\n%rule other B := \"early\" $.emitted.value\n%extend-rule text C := $.emitted.image :- $.emitted.value", "\"early\"", "value -> value"),
+        ("%rule text A\n%rule other B := \"early\" $.emitted.value\n%redefine-rule text C := $.emitted.image :- $.emitted.value", "\"early\"", "value -> value"),
+    ] {
+        let text = format!("%ambiguity-resolution greedy\n{rules}");
+        let sources = single(&text);
+        let plain = gencmu::load_dialect_sources(&sources, "p.md").unwrap_err();
+        let dom = gencmu::tools::read_grammar_document(&grammar(&text)).unwrap();
+        let mut cached = sources;
+        cached.insert("compiled.json".into(), compiled(&text, &dom));
+        let from_cache = gencmu::load_dialect_sources(&cached, "p.md").unwrap_err();
+        assert_eq!(plain, from_cache, "{rules}");
+        let marker_offset = if marker.starts_with(':') { 3 } else { 0 };
+        let (line, column) = common::position_of(&grammar(&text), marker);
+        assert_eq!((plain.line, plain.column), (Some(line), Some(column + marker_offset)), "{rules}: {plain}");
+        assert!(plain.message.ends_with(path), "{rules}: {plain}");
+    }
+}
+
 #[test]
 fn emitted_pairs_cannot_supply_source_observations() {
     for method in ["source-text", "verbatim-text"] {
