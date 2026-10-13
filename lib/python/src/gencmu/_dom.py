@@ -865,9 +865,10 @@ class DomBuilder:
                 raise self.lacks(node, "pattern atom")
             first = kids[0]
             tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
-            token = first if first.kind == "token" else self.token(first)
-            name = self.text(token)
-            valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference") or first.kind == "token" and (USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS)
+            valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
+            if first.kind == "token":
+                name = self.text(first)
+                valid = USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS
             # Target and order errors precede conversion of a group's or
             # nested literal's contents, just as for a tested primary.
             self.test_order(tests, valid)
@@ -889,6 +890,8 @@ class DomBuilder:
                 children = self.some(node, "pattern-union")
             elif first.rule == "pattern-literal":
                 children = [self.one(first, "pattern-union") or self.only(first, "pattern-atom")]
+            elif first.rule == "pattern-union":
+                children = [first]
         else:
             raise self.fail(node, f"unexpected {kind} in a pattern")
         parts: list[Dom] = []
@@ -920,6 +923,8 @@ class DomBuilder:
             if parts:
                 result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
             else:
+                token = first if first.kind == "token" else self.token(first)
+                name = self.text(token)
                 at = list(self.position(token))
                 if first.rule == "constant-reference":
                     value = self.value(first)

@@ -60,6 +60,26 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_pattern_atoms_need_only_the_declared_parts(self) -> None:
+        from gencmu._dom import DomBuilder
+        from gencmu._markdown import jbogenbau_text
+        from gencmu._trampoline import run
+        from gencmu._unicode import UnicodeTable
+
+        token = gencmu.Token("A", frozenset(), (0, 1), (0, 1))
+        builder = DomBuilder([token], jbogenbau_text('```jbogenbau\nA\n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+
+        def rule(name: str, *children: gencmu.Node) -> gencmu.Node:
+            return gencmu.Node("rule", (0, 1), (0, 1), rule=name, children=list(children))
+
+        atom = rule("pattern-atom", gencmu.Node("token", (0, 1), (0, 1), token=0))
+        grouped = rule("pattern-union", rule("pattern-intersection", rule("pattern-sequence", rule("pattern-item", atom))))
+        # Neither constructor requires delimiter tokens in the supplied
+        # tree. Engine §9.3 reads their declared pattern parts alone.
+        for part in (rule("pattern-literal", atom), grouped):
+            with self.subTest(constructor=part.rule):
+                self.assertEqual(run(builder._pattern(rule("pattern-atom", part))), {"node": {"terminal": "A", "at": [2, 1]}})
+
     def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
         parsed = json.loads(BOOTSTRAP)
         documents = {document["path"]: document["dom"] for stage in parsed["stages"] for document in stage["documents"]}
