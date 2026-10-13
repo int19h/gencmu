@@ -1,0 +1,19 @@
+{
+  "description": "A condition resolves @(\"a\"..\"z\") before ≅ and rejects the reading. The range-identity pattern does not match \"a\"..\"m\" under engine §§2 and 10.",
+  "grammar": "%rule text \"a\"..\"m\"\n%conditions $ ≅ @(\"a\"..\"z\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null
+    }
+  }
+}

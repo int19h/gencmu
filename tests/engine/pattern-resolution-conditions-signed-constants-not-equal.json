@@ -1,0 +1,20 @@
+{
+  "description": "A condition resolves @(A<$GOOD ¬$BAD>) before ≇ and rejects the reading. The signed-constants pattern matches A under engine §§2 and 10.",
+  "grammar": "%const $GOOD Extra\n%const $BAD Blocked\n%rule text A\n%conditions $ ≇ @(A<$GOOD ¬$BAD>)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Extra"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "tree": null
+    }
+  }
+}

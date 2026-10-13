@@ -1,0 +1,57 @@
+{
+  "description": "A definition tag clause resolves @(A<$GOOD ¬$BAD>) before ≅ and assigns X. The signed-constants pattern matches A under engine §§2 and 10.",
+  "grammar": "%const $GOOD Extra\n%const $BAD Blocked\n%rule text :: ($ ≅ @(A<$GOOD ¬$BAD>) ⟹ X)\n  | A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Extra"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "format": 12,
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": []
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          1
+        ],
+        "source": [
+          0,
+          1
+        ],
+        "tags": [
+          "X"
+        ],
+        "children": [
+          {
+            "kind": "token",
+            "terminal": "A",
+            "token": 0,
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
+        ]
+      },
+      "error": null
+    }
+  }
+}
