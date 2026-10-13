@@ -289,13 +289,19 @@ var domRules = map[string]bool{
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
-	for n.Kind == KindRule {
-		if len(n.Children) == 0 {
-			return b.gt.at(n.Source[0])
+	stack := []*Node{n}
+	for len(stack) > 0 {
+		part := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if part.Kind == KindToken {
+			return b.gt.at(b.toks[part.Token].Source[0])
 		}
-		n = n.Children[0]
+		for i := len(part.Children) - 1; i >= 0; i-- {
+			stack = append(stack, part.Children[i])
+		}
 	}
-	return b.gt.at(b.toks[n.Token].Source[0])
+	// A construct with no token keeps its own anchor, including end of input.
+	return b.gt.at(n.Source[0])
 }
 
 func (b *domBuilder) fail(n *Node, format string, args ...any) {
