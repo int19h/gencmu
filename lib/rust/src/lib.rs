@@ -1,7 +1,7 @@
 //! gencmu: a Lojban parser whose grammars are literate Markdown documents,
 //! loaded at runtime.
 //!
-//! Every layer of the language, from characters to phonemes, phonemes to
+//! Every layer of the language, from characters to value, value to
 //! words and words to a parse tree, is a grammar document in one notation.
 //! A *dialect* is a pipeline document that lists the stages and the grammar
 //! documents stitched into each. This crate implements the engine that
@@ -60,6 +60,7 @@ mod recent;
 mod restoration;
 mod result;
 mod slot_stats;
+mod strings;
 mod tags;
 mod tree;
 mod unicode;

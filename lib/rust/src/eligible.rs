@@ -17,7 +17,7 @@ use std::cell::OnceCell;
 
 use crate::earley::{test_holds, Cap, Chart, Item, Tok};
 use crate::fxhash::FxMap;
-use crate::lower::{Lowered, Sym};
+use crate::lower::{Lowered, OptionalBoundary, Sym};
 use crate::tags::Tags;
 use crate::unicode::Unicode;
 use crate::work::{self, Mutant, Work};
@@ -49,11 +49,15 @@ enum Next {
     Other,
     Alone,
     Constituent,
+    Optional { expression: usize, start: usize },
 }
 
 /// The completed items of the chart by rule and origin, each with its
 /// place, in the order of their sets.
 type CompletedIndex = FxMap<(u32, u32), Vec<Place>>;
+
+/// Logical parent, optional occurrence, origin and capture scope.
+type OptionalIndex = FxMap<(u32, usize, u32, u32), Vec<Place>>;
 
 /// The chart of one nested parse, with what reading it needs.
 pub(crate) struct Proofs<'a> {
@@ -66,6 +70,7 @@ pub(crate) struct Proofs<'a> {
     /// The completed items of the whole chart by rule and origin, built
     /// once, when the first search for a blocking path needs it.
     index: OnceCell<CompletedIndex>,
+    optional_index: OnceCell<OptionalIndex>,
 }
 
 impl<'a> Proofs<'a> {
@@ -76,7 +81,7 @@ impl<'a> Proofs<'a> {
         unicode: &'a Unicode,
         tags: &'a Tags,
     ) -> Proofs<'a> {
-        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new() }
+        Proofs { g, chart, tokens, unicode, tags, index: OnceCell::new(), optional_index: OnceCell::new() }
     }
 
     /// Counts one entry of the chart or the index that a search examines,
@@ -196,6 +201,130 @@ impl<'a> Proofs<'a> {
             .max()
     }
 
+    /// All raw chart routes through the same logical optional. The index
+    /// includes partial parent readings: a blocker need not finish its rule.
+    fn optional_routes(&self, fixed: Item, expression: usize) -> &[Place] {
+        let index = self.optional_index.get_or_init(|| {
+            let mut index = OptionalIndex::default();
+            for (set, entries) in self.chart.sets.iter().enumerate() {
+                for (at, &item) in entries.items.iter().enumerate() {
+                    self.count();
+                    if let Next::Optional { expression, .. } = self.next(item) {
+                        let rule = self.g.prods[item.prod as usize].rule;
+                        let family = self.g.rules[rule as usize].family;
+                        index
+                            .entry((family, expression, item.origin, item.lexical))
+                            .or_default()
+                            .push((set as u32, at as u32));
+                    }
+                }
+            }
+            index
+        });
+        let rule = self.g.prods[fixed.prod as usize].rule;
+        let family = self.g.rules[rule as usize].family;
+        index.get(&(family, expression, fixed.origin, fixed.lexical)).map_or(&[], Vec::as_slice)
+    }
+
+    /// A sibling expansion retains the fixed prefix's symbols, tests and
+    /// capture names. Its chart item also retains the actual prefix proof.
+    fn same_prefix(&self, item: Item, other: Item) -> bool {
+        let a = &self.g.prods[item.prod as usize];
+        let b = &self.g.prods[other.prod as usize];
+        let n = item.dot as usize;
+        n == other.dot as usize
+            && a.syms[..n] == b.syms[..n]
+            && (0..n).all(|at| {
+                fn name(p: &crate::lower::Prod, at: usize) -> Option<&String> {
+                    p.cap_at[at].and_then(|slot| p.names.iter().find(|(_, s)| **s == slot).map(|(name, _)| name))
+                }
+                a.test(at) == b.test(at) && name(a, at) == name(b, at)
+            })
+            && Item { prod: other.prod, ..item } == other
+    }
+
+    /// The furthest optional route that reaches a written terminator,
+    /// measured from this proof's own prefix before the logical optional.
+    fn optional_blocked_until(&self, prefix: Place, expression: usize) -> Option<u32> {
+        let fixed = self.item(prefix);
+        let mut until = None;
+        for &after in self.optional_routes(fixed, expression) {
+            self.count();
+            if !self.reads_written(after) {
+                continue;
+            }
+            let item = self.item(after);
+            let boundary = self.g.prods[item.prod as usize]
+                .optionals
+                .iter()
+                .rev()
+                .find(|b| b.expression == expression && b.end == item.dot as usize)
+                .unwrap();
+            let mut pending = vec![after];
+            let mut seen = crate::fxhash::FxSet::default();
+            while let Some(place) = pending.pop() {
+                if !seen.insert(place) {
+                    continue;
+                }
+                self.count();
+                let item = self.item(place);
+                if item.dot as usize == boundary.start {
+                    if place.0 == prefix.0 && self.same_prefix(fixed, item) {
+                        until = Some(until.map_or(after.0, |old: u32| old.max(after.0)));
+                        break;
+                    }
+                } else {
+                    pending.extend(self.edges(place).into_iter().filter_map(|(before, _)| before));
+                }
+            }
+        }
+        until
+    }
+
+    /// Walk one eligible route back across the physical expansion of a
+    /// logical optional. Its permitted prefix and eligibility stay together.
+    fn optional_permitted(
+        &self,
+        x: usize,
+        boundary: OptionalBoundary,
+        order: &[Place],
+        edges: &[Vec<Edge>],
+        states: (&[bool], &[bool]),
+        blocked: &mut FxMap<(Place, usize), Option<u32>>,
+    ) -> bool {
+        let (e, p) = states;
+        let mut pending = vec![x];
+        let mut seen = crate::fxhash::FxSet::default();
+        while let Some(at) = pending.pop() {
+            if !seen.insert(at) {
+                continue;
+            }
+            self.count();
+            let place = order[at];
+            if self.item(place).dot as usize == boundary.start {
+                let until = *blocked
+                    .entry((place, boundary.expression))
+                    .or_insert_with(|| self.optional_blocked_until(place, boundary.expression));
+                if until.map_or(true, |end| end < order[x].0) {
+                    return true;
+                }
+                continue;
+            }
+            for edge in &edges[at] {
+                match *edge {
+                    Edge::Scan { before } if e[before] => pending.push(before),
+                    Edge::Complete { before, child, omission }
+                        if e[child] && if omission { p[before] } else { e[before] } =>
+                    {
+                        pending.push(before)
+                    }
+                    _ => {}
+                }
+            }
+        }
+        false
+    }
+
     /// What comes after the item: an elidable optional with a constituent,
     /// one without, or anything else (§4). The optional has no constituent
     /// when it stands first, when it follows a terminal, or when it follows
@@ -205,9 +334,16 @@ impl<'a> Proofs<'a> {
         let dot = item.dot as usize;
         match production.syms.get(dot) {
             Some(&Sym::N(helper)) if self.g.rules[helper as usize].elided.is_some() => {
+                if let Some(boundary) = production.optionals.iter().rev().find(|b| b.end == dot) {
+                    return Next::Optional { expression: boundary.expression, start: boundary.start };
+                }
                 match (dot, production.syms.get(dot.wrapping_sub(1))) {
                     (0, _) | (_, Some(Sym::T(_))) => Next::Alone,
-                    (1, Some(&Sym::N(first))) if first == production.rule => Next::Alone,
+                    (1, Some(&Sym::N(first)))
+                        if first == production.rule && !production.optionals.iter().any(|b| b.end == 0) =>
+                    {
+                        Next::Alone
+                    }
                     _ => Next::Constituent,
                 }
             }
@@ -359,6 +495,7 @@ impl<'a> Proofs<'a> {
         let next: Vec<Next> = order.iter().map(|&place| self.next(self.item(place))).collect();
         let mut written: FxMap<Place, bool> = FxMap::default();
         let mut blocked: FxMap<Place, Option<u32>> = FxMap::default();
+        let mut optional_blocked = FxMap::default();
         let mut e = vec![false; order.len()];
         let mut p = vec![false; order.len()];
         let mut changed = true;
@@ -403,6 +540,18 @@ impl<'a> Proofs<'a> {
                             has_p = until.map_or(true, |until| until < place.0);
                         }
                         _ => {}
+                    }
+                }
+                if has_e {
+                    if let Next::Optional { expression, start } = next[x] {
+                        has_p = self.optional_permitted(
+                            x,
+                            OptionalBoundary { expression, start, end: self.item(place).dot as usize },
+                            &order,
+                            &edges,
+                            (&e, &p),
+                            &mut optional_blocked,
+                        );
                     }
                 }
                 if has_e && !e[x] {
@@ -591,16 +740,25 @@ mod tests {
 
         /// Where an elidable optional comes next after the item: with a
         /// constituent, alone, or not at all.
-        fn next_optional(&self, (prod, dot, ..): OItem) -> Option<bool> {
+        fn next_optional(&self, (prod, dot, ..): OItem) -> Option<Option<usize>> {
             let syms = self.syms(prod);
             let Some(&Sym::N(helper)) = syms.get(dot as usize) else { return None };
             if !self.elidable(helper) {
                 return None;
             }
+            if let Some(boundary) = self.g.prods[prod as usize].optionals.iter().rev().find(|b| b.end == dot as usize) {
+                return Some(Some(boundary.start));
+            }
             let alone = dot == 0
                 || matches!(syms[dot as usize - 1], Sym::T(_))
-                || (dot == 1 && syms[0] == Sym::N(self.g.prods[prod as usize].rule));
-            Some(!alone)
+                || (dot == 1
+                    && syms[0] == Sym::N(self.g.prods[prod as usize].rule)
+                    && !self.g.prods[prod as usize].optionals.iter().any(|b| b.end == 0));
+            if alone {
+                Some(None)
+            } else {
+                Some(Some(dot as usize - 1))
+            }
         }
 
         /// The advances that make an item: the item before and the
@@ -656,34 +814,139 @@ mod tests {
             inner: &mut HashSet<(OItem, bool)>,
         ) -> Result<bool, TooMany> {
             let kind = if permit { self.next_optional(item) } else { None };
-            if kind == Some(false) && self.reads_written(item) {
+            if kind == Some(None) && self.reads_written(item) {
                 return Ok(false);
+            }
+            if let Some(Some(start)) = kind {
+                return self.search_prefix(item, item, start, inner);
             }
             for edge in self.edges(item) {
                 match edge {
-                    None => {
-                        if kind != Some(true) {
-                            return Ok(true);
-                        }
-                    }
-                    Some((before, None)) => {
-                        if kind != Some(true) && self.search(before, false, inner)? {
-                            return Ok(true);
-                        }
-                    }
-                    Some((before, Some(child))) => {
-                        if kind == Some(true) && self.forbidden_after(before, item.3) {
-                            continue;
-                        }
-                        let child_rule = self.g.prods[child.0 as usize].rule;
-                        let omission = self.syms(child.0).is_empty() && self.elidable(child_rule);
-                        if self.search(before, omission, inner)? && self.search(child, false, inner)? {
+                    None => return Ok(true),
+                    Some((before, child)) => {
+                        let omission = child.is_some_and(|child| {
+                            self.syms(child.0).is_empty() && self.elidable(self.g.prods[child.0 as usize].rule)
+                        });
+                        if self.search(before, omission, inner)?
+                            && match child {
+                                Some(child) => self.search(child, false, inner)?,
+                                None => true,
+                            }
+                        {
                             return Ok(true);
                         }
                     }
                 }
             }
             Ok(false)
+        }
+
+        /// Enumerate eligible physical routes to the fixed logical prefix.
+        /// This oracle uses a finite proof search, rather than E/P tables.
+        fn search_prefix(
+            &mut self,
+            whole: OItem,
+            item: OItem,
+            start: usize,
+            path: &mut HashSet<(OItem, bool)>,
+        ) -> Result<bool, TooMany> {
+            self.budget = self.budget.checked_sub(1).ok_or(TooMany)?;
+            if item.1 as usize == start {
+                let production = &self.g.prods[whole.0 as usize];
+                let boundary = production.optionals.iter().rev().find(|b| b.end == whole.1 as usize);
+                let forbidden = match boundary {
+                    None => self.forbidden_after(item, whole.3),
+                    Some(boundary) => self.forbidden_optional(item, boundary.expression, whole.3),
+                };
+                return Ok(!forbidden && self.search(item, false, path)?);
+            }
+            for (before, child) in self.edges(item).into_iter().flatten() {
+                let omission = child.is_some_and(|child| {
+                    self.syms(child.0).is_empty() && self.elidable(self.g.prods[child.0 as usize].rule)
+                });
+                if self.search(before, omission, path)?
+                    && match child {
+                        Some(child) => self.search(child, false, path)?,
+                        None => true,
+                    }
+                    && self.search_prefix(whole, before, start, path)?
+                {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+
+        /// Enumerate the raw routes of the same optional occurrence. None
+        /// of these blocker routes needs an eligible or completed parent.
+        fn forbidden_optional(&self, prefix: OItem, expression: usize, p: u32) -> bool {
+            let original = &self.g.prods[prefix.0 as usize];
+            for &after in &self.chart {
+                let production = &self.g.prods[after.0 as usize];
+                if self.g.rules[production.rule as usize].family != self.g.rules[original.rule as usize].family
+                    || after.3 < p
+                    || !self.reads_written(after)
+                {
+                    continue;
+                }
+                let Some(boundary) =
+                    production.optionals.iter().rev().find(|b| b.expression == expression && b.end == after.1 as usize)
+                else {
+                    continue;
+                };
+                let start = boundary.start;
+                if start != prefix.1 as usize || production.syms[..start] != original.syms[..start] {
+                    continue;
+                }
+                let mut pending = vec![after];
+                let mut seen = HashSet::new();
+                while let Some(item) = pending.pop() {
+                    if !seen.insert(item) {
+                        continue;
+                    }
+                    if item.1 as usize == start {
+                        if (prefix.1, prefix.2, prefix.3, prefix.4) == (item.1, item.2, item.3, item.4) {
+                            return true;
+                        }
+                    } else {
+                        pending.extend(self.edges(item).into_iter().flatten().map(|(before, _)| before));
+                    }
+                }
+            }
+            false
+        }
+    }
+
+    /// Independent raw-chart oracle coverage for capture-expanded and
+    /// per-route helper optionals, including a multi-symbol logical route.
+    #[test]
+    fn the_oracle_keeps_optional_blocker_routes() {
+        for optional in ["[c]", "[$c:c]", "[[$c:c]]", "[($c:c ≻ c)]", "[$c:c D]", "parent", "recursive-prefix"] {
+            let tokens = if optional == "[$c:c D]" { vec!["B", "D", "D", "T"] } else { vec!["B", "D", "T"] };
+            let tokens = if optional == "parent" { vec!["B", "D", "T", "Z"] } else { tokens };
+            let suffix = tokens[1..].join(" ");
+            let body = if optional == "recursive-prefix" {
+                "[$c:c] r [+T] D T | B | B D".to_string()
+            } else if optional == "parent" {
+                "B [[($c:c ≻ c)] [+T] D T] Z".to_string()
+            } else {
+                format!("B {optional} [+T] {suffix}")
+            };
+            let document = format!("```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%rule text r\n%rule r {body}\n%rule c D\n```\n");
+            let dialect = crate::load_dialect_sources([("main.md", document)], "main.md").unwrap();
+            let g = dialect.lowered_stage(0);
+            let start = g.rules.iter().position(|rule| rule.name == "r" && !rule.helper).unwrap() as u32;
+            let mut oracle = Oracle::new(&g, &tokens, start);
+            let witnesses = oracle.completed(start, 0, tokens.len() as u32);
+            assert!(!witnesses.is_empty(), "a raw omission reading: {optional}");
+            for witness in witnesses {
+                assert!(
+                    !oracle
+                        .search(witness, false, &mut HashSet::new())
+                        .unwrap_or_else(|_| panic!("oracle budget: {optional}")),
+                    "{optional}"
+                );
+            }
         }
     }
 
@@ -790,9 +1053,9 @@ mod tests {
             .map(|(index, &terminal)| Tok {
                 text: "x".to_string(),
                 tags: shared.tags.set_of([terminal]),
-                phonemes: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
-                label: "x".to_string(),
+                image: "x".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),
@@ -835,8 +1098,7 @@ mod tests {
     /// entries that they look at grows linearly with the text.
     #[test]
     fn the_searches_for_blocking_paths_look_at_each_set_once() {
-        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions matches($, r)\n\
-                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
+        let grammar = "%ambiguity-resolution greedy\n%rule text body B\n%conditions $.matches(r)\n\n                       %rule body {A}\n%rule r parts B\n%rule parts {part}\n%rule part A [+T]\n";
         let operations = |n: usize, most: &dyn Fn(u64) -> u64| {
             let (eligible, operations, items) = query_work(grammar, n, 0, false, most);
             assert!(eligible.iter().all(|&eligible| eligible));
@@ -859,21 +1121,20 @@ mod tests {
 
     fn written_question_work(n: usize) {
         let starts: Vec<String> = (0..n).map(|index| format!("A{index}")).collect();
-        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} <~z>")).collect();
+        let tagged: Vec<String> = (0..n).map(|index| format!("A{index} :: Tag-z")).collect();
         let bs = vec!["b"; n].join(" ");
         let grammar = format!(
-            "%ambiguity-resolution greedy\n%rule text $q(body) C\n%conditions text($) ≠ \"\" ∧ matches($q,r)\n\
-             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev(r) [+KU tail] | {}\n\
-             %conditions $prev ⟹ text($) = \"a ku {bs}\"\n",
+            "%ambiguity-resolution greedy\n%rule text $q:body C\n%conditions $.source-text ≠ \"\" ∧ $q.matches(r)\n\n             %rule body a KU tail\n%rule a {}\n%rule tail {{... B}}\n%rule r $prev:r [+KU tail] | {}\n\n             %conditions $prev ⟹ $.source-text = \"a ku {bs}\"\n",
             starts.join(" | "),
             tagged.join(" | ")
         );
         let sources = [("main.md", format!("```jbogenbau\n{grammar}```\n")), ("p.md", PIPELINE.to_string())];
         let dialect = crate::load_dialect_sources(sources, "p.md").expect("the dialect");
         let token = |text: &str, tags: Vec<String>| crate::InputToken {
+            image: None,
             text: text.to_string(),
             tags: tags.into_iter().collect(),
-            phonemes: None,
+            value: None,
         };
         let tokens: Vec<_> = [token("a", starts.clone()), token("ku", vec!["KU".to_string()])]
             .into_iter()
@@ -914,9 +1175,9 @@ mod tests {
                 } else {
                     "B"
                 }]),
-                phonemes: None,
+                value: String::new(),
                 source: (index * 2, index * 2 + 1),
-                label: "x".to_string(),
+                image: "x".to_string(),
                 sound: Default::default(),
                 quiet: 0,
                 before: Vec::new(),

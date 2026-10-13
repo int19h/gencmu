@@ -143,7 +143,7 @@ enum Deps {
 struct SlotCandidate {
     node: Node,
     edge: usize,
-    label: String,
+    image: String,
     group: usize,
 }
 #[derive(Default)]
@@ -256,7 +256,7 @@ impl Admission {
                     groups.push(vec![]);
                     groups.len() - 1
                 });
-                let candidate = SlotCandidate { node, edge, label: format!("{option:020}"), group };
+                let candidate = SlotCandidate { node, edge, image: format!("{option:020}"), group };
                 groups[group].push(candidate.clone());
                 at.entry(node).or_default().push(candidate);
                 stats.candidate_edges += 1;
@@ -314,7 +314,7 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
-                        all.insert(candidate.label.clone());
+                        all.insert(candidate.image.clone());
                     }
                 }
                 let greatest =
@@ -323,7 +323,7 @@ impl Ranker<'_> {
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let all = &self.admission.as_ref().unwrap().maxima[&context];
-            masks[choice.edge] = all.contains(&choice.label);
+            masks[choice.edge] = all.contains(&choice.image);
         }
         let a = self.admission.as_mut().unwrap();
         a.stats.retained_edges += masks.iter().filter(|x| **x).count();
@@ -699,8 +699,7 @@ pub(crate) struct Dag<'c> {
     g: &'c Lowered,
     chart: &'c Chart,
     tokens: &'c [Tok],
-    /// The table of the canonical sound and the tag table that the tests of
-    /// symbols read (§4, §5).
+    /// The Unicode table and the stored tag sets used by symbol tests (§4, §5).
     unicode: &'c Unicode,
     tags: &'c Tags,
     /// In the check of `elision-only`, O and π: a test of a reference reads

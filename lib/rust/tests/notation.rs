@@ -51,31 +51,35 @@ fn notation_cases() {
 
 /// The reader reads every form of a test in a body, with spaces inside it
 /// or not, and refuses a test after anything but a reference other than
-/// `#` or a terminal, a second test, a string that is not a canonical
-/// sound, and an operand of the wrong type (engine §9).
+/// `#` or a terminal, a second test, and an operand of the wrong type
+/// (engine §9). Exact strings preserve case and punctuation.
 #[test]
 fn tests_in_a_body_are_read_and_refused() {
-    let document = "```jbogenbau\n%const $C ~c\n%rule text $l(LE=\"la\") {UI=\"ui\" \\ A=\"a\"} [KU = \"ku\"] w≠\"\" A⊇B w⊉$C A∩(B ∪ ~c)=∅ A ∩ 'a'..'z' ≠ ∅ '\\p{L}'⊇∅ B (C)\n```\n";
+    let document = "```jbogenbau\n%const $C Tag-c\n%rule text $l:LE=\"la\" {UI=\"ui\" / A=\"a\"} [KU = \"ku\"] word≠\"\" A<B> word<¬$C> A<¬B ¬Tag-c> _L<B> _L<> B (C)\n```\n";
     let json = gencmu::tools::read_grammar_document(document).expect("a document with tests");
     let dom = parse_json(&json).expect("a DOM");
     let tests: Vec<String> = json
         .match_indices("\"test\":\"")
         .map(|(at, _)| json[at + 8..].split('"').next().unwrap_or("").to_string())
         .collect();
-    assert_eq!(tests, ["=", "=", "=", "=", "≠", "⊇", "⊉", "∩=∅", "∩≠∅", "⊇"], "{json}");
+    assert_eq!(tests, ["=", "=", "=", "=", "≠", "tags", "tags", "tags", "tags", "tags"], "{json}");
     assert!(dom.get("rules").is_some());
+    // The new value tests accept capitalization and tested capture targets.
+    for accepted in ["%rule text A=\"A\"", "%rule text A=\"b,c\"", "%rule text $x:A=\"a\""] {
+        assert!(gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{accepted}\n```\n")).is_ok());
+    }
     for refused in [
         "%rule text (A)=\"a\"",
         "%rule text A=\"a\"=\"b\"",
         "%rule text #=\"a\"",
-        "%rule text A=\"A\"",
+        "%rule text A=\"a\"<B>",
         "%rule text A⊇\"a\"",
         "%rule text A=B",
         "%rule text [A]⊇B",
         "%rule text {A}=\"a\"",
-        "%rule text $x(A)=\"a\"",
+        "%rule text ($x:A)=\"a\"",
         "%rule text ε=\"\"",
-        "%rule text A⊇(tags($x))",
+        "%rule text A⊇($x.tags)",
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{refused}\n```\n"));
         assert!(error.is_err(), "{refused} was read");
@@ -91,7 +95,7 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     // grammar text of t.md is that one character, since the text of a
     // block ends without the line break of its last line.
     let notation = read_grammar_document(
-        "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p 'a'\n%rule q 'a'\n```\n",
+        "```jbogenbau\n%ambiguity-resolution greedy\n%rule text p | q\n%rule p \"a\"\n%rule q \"a\"\n```\n",
     )
     .expect("the notation's document");
     let bootstrap = format!(
@@ -150,8 +154,10 @@ fn an_optional_is_marked_elidable_in_place() {
 #[test]
 fn braces_are_read_and_their_misplaced_forms_refused() {
     let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
-    let json = read("%rule text $a(A) {B} [{C \\ D | E}] {{F} \\ [G] {H}} {| I | J \\ | K}\n%rule l {... L \\ M}\n%rule r {N | O ...}")
-        .expect("braces");
+    let json = read(
+        "%rule text $a:A {B} [{C / D | E}] {{F} / [G] {H}} {| I | J / | K}\n%rule l {... L / M}\n%rule r {N | O ...}",
+    )
+    .expect("braces");
     let dom = parse_json(&json).expect("a DOM");
     let expect = |json: &str| parse_json(json).unwrap();
     let rules = dom.get("rules").unwrap().array();
@@ -162,24 +168,36 @@ fn braces_are_read_and_their_misplaced_forms_refused() {
         "%rule text {}",
         "%rule text {A \\}",
         "%rule text {\\ A}",
-        "%rule text {A \\ B \\ C}",
+        "%rule text {A / B / C}",
         "%rule text {... A ...}",
-        "%rule text {A \\ ... B}",
+        "%rule text {A / ... B}",
         "%rule text A ...",
-        "%rule text 'a'...'z'",
-        "%rule text (A \\ B)",
+        "%rule text \"a\"...\"z\"",
+        "%rule text (A / B)",
         "%rule text A {... B}",
         "%rule text [{... A}]",
-        "%rule text {$a(A)}",
-        "%rule text $a({A})",
+        "%rule text {$a:A}",
+        "%rule text $a:{A}",
         "%rule text {A}=\"a\"",
         "%rule text ({... A})",
         "%rule text (({A ...}))",
-        "%rule text [+KU $c(A)]",
+        "%rule text [+KU $c:A]",
         "%rule text [+(KU) #]",
         "%rule text [+KU | VAU]",
-        "%rule text [$x(A)] $x(B)",
+        "%rule text [$x:A] $x:B",
     ] {
         assert!(read(refused).is_err(), "{refused} was read");
+    }
+}
+
+#[test]
+fn pattern_test_order_precedes_invalid_bases() {
+    for body in [
+        r#"%rule text $c:A %conditions $c ≅ @(_Bogus<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ @($_D800<"bad"><A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ @("$(_D800)"=UI<A>)"#,
+    ] {
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
+        assert_eq!((error.line, error.column), (Some(2), Some(49)), "{body}: {error}");
     }
 }

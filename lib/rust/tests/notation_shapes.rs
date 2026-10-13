@@ -124,7 +124,7 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     let bootstrap = read(&["grammars", "notation", "bootstrap.json"]);
     let bootstrap = bootstrap.replacen(
         r#""name":"symbol","op":"define","flags":[],"alternatives":["#,
-        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"terminal":"'.'"}},"#,
+        r#""name":"symbol","op":"define","flags":[],"alternatives":[{"guards":[],"expr":{"literal":{"string":"."}}},"#,
         1,
     );
     let directive = r#""name":"ambiguity-resolution","args":["greedy"]"#;
@@ -146,4 +146,275 @@ fn a_notation_stage_that_declares_elision_only_runs_the_check() {
     assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{error}");
     assert!(error.to_string().contains("lexical stage of the notation"), "{error}");
     assert_eq!(error.line, None, "{error}");
+}
+
+/// Changes one syntax constructor in a caller-supplied bootstrap. Paths
+/// refer to its expression, so declaration order does not select the rule.
+fn pattern_bootstrap_expr(bootstrap: &Value, name: &str, alternative: usize, tail: &str, expression: &str) -> Value {
+    for (stage, contents) in bootstrap.get("stages").unwrap().array().iter().enumerate() {
+        for (document, contents) in contents.get("documents").unwrap().array().iter().enumerate() {
+            if contents.get("path").and_then(Value::str) != Some("notation/syntax.md") {
+                continue;
+            }
+            for (rule, contents) in contents.get("dom").unwrap().get("rules").unwrap().array().iter().enumerate() {
+                if contents.get("name").and_then(Value::str) != Some(name) {
+                    continue;
+                }
+                let mut path = parse_json(&format!(
+                    r#"["stages",{stage},"documents",{document},"dom","rules",{rule},"alternatives",{alternative},"expr"]"#
+                ))
+                .unwrap()
+                .array()
+                .to_vec();
+                path.extend(parse_json(tail).unwrap().array().iter().cloned());
+                return common::apply_mutant(
+                    bootstrap,
+                    &Value::Object(vec![
+                        ("path".into(), Value::Array(path)),
+                        ("set".into(), parse_json(expression).unwrap()),
+                    ]),
+                );
+            }
+        }
+    }
+    panic!("no syntax rule {name}");
+}
+
+fn load_pattern_probe(rules: &str, bootstrap: &Value) -> Result<gencmu::Dialect, gencmu::Error> {
+    gencmu::load_dialect_sources(
+        [
+            ("p.md", "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
+            ("main.md", format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n")),
+            ("notation/bootstrap.json", bootstrap.to_text()),
+        ],
+        "p.md",
+    )
+}
+
+fn pattern_probe(rules: &str, bootstrap: &Value, tokens: &[&str]) -> String {
+    let dialect = load_pattern_probe(rules, bootstrap).unwrap_or_else(|error| panic!("{rules}: {error}"));
+    let tokens = tokens
+        .iter()
+        .map(|text| gencmu::InputToken {
+            text: (*text).into(),
+            tags: [text.to_uppercase()].into_iter().collect(),
+            ..Default::default()
+        })
+        .collect::<Vec<_>>();
+    let result = dialect.parse_tokens(&tokens, &Default::default()).expect("a parse");
+    assert!(result.ok, "{rules}: {:?}", result.error);
+    gencmu::to_json(&result)
+}
+
+/// The atom's grouped-union part requires no delimiter tokens (§9.3).
+#[test]
+fn a_pattern_atom_reads_a_grouped_union_without_delimiters() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    let changed = pattern_bootstrap_expr(&bundled, "pattern-literal", 0, r#"["seq",2]"#, r#"{"ref":"pattern-atom"}"#);
+    let changed = pattern_bootstrap_expr(&changed, "pattern-atom", 2, "[]", r#"{"ref":"pattern-union"}"#);
+    let rules = "%const $P @(A B)\n%rule text A B\n%conditions $ ≅ $P";
+    assert_eq!(pattern_probe(rules, &changed, &["A", "B"]), pattern_probe(rules, &bundled, &["A", "B"]));
+}
+
+/// String-terminal delegates to its string or constant part. Its tests
+/// retain ordinary terminal target and order rules before base conversion.
+#[test]
+fn pattern_string_terminal_constructors_and_tests() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    let changed =
+        pattern_bootstrap_expr(&bundled, "pattern-atom", 0, r#"["seq",0,"choice",2]"#, r#"{"ref":"string-terminal"}"#);
+    for rules in [
+        "%const $P @(\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+        "%const $P @(\"a\"=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+        "%const $P @(\"a\"<A>=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P",
+    ] {
+        assert_eq!(pattern_probe(rules, &changed, &["a"]), pattern_probe(rules, &bundled, &["a"]));
+    }
+    // The constructor's constant branch replaces the separate constant
+    // alternative here, so the notation still has one reading.
+    let constants = pattern_bootstrap_expr(
+        &changed,
+        "pattern-atom",
+        0,
+        r#"["seq",0]"#,
+        r#"{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string-terminal"},{"ref":"range"},{"ref":"wildcard"}]}"#,
+    );
+    let rules = "%const $S \"a\"\n%const $P @($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
+    assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
+    for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "\"$(_D800)\"=\"a\"<A>"] {
+        let rules = format!("%const $P @({pattern})\n%rule text A");
+        let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
+        let alternate = load_pattern_probe(&rules, &changed).unwrap_err();
+        assert_eq!(ordinary, alternate, "{pattern}");
+        assert_eq!(alternate.kind, gencmu::ErrorKind::Grammar);
+        assert!(alternate.message.contains("pattern test target or order"), "{alternate}");
+    }
+}
+
+/// Unread delimiters and constructor parts do not select pattern forms.
+#[test]
+fn pattern_constructors_read_their_declared_parts() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    for (name, alternative, tail, expression, pattern, control, body, tokens) in [
+        (
+            "pattern-atom",
+            0,
+            "[]",
+            r#"{"seq":[{"ref":"empty-set"},{"choice":[{"ref":"pattern-name"},{"ref":"tag"},{"ref":"string"},{"ref":"range"},{"ref":"wildcard"},{"ref":"constant-reference"}]},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
+            "@(∅ A)",
+            "@A",
+            "%rule text A",
+            vec!["A"],
+        ),
+        (
+            "pattern-item",
+            0,
+            "[]",
+            r#"{"seq":[{"ref":"empty-set"},{"ref":"pattern-atom"}]}"#,
+            "@(∅ A)",
+            "@A",
+            "%rule text A",
+            vec!["A"],
+        ),
+        (
+            "pattern-union",
+            0,
+            "[]",
+            r#"{"seq":[{"literal":{"string":"("}},{"repeat":{"ref":"pattern-intersection"},"separator":{"choice":[{"literal":{"string":"∪"}},{"literal":{"string":"∖"}}]}},{"literal":{"string":")"}}]}"#,
+            "@((A ∖ B))",
+            "@(A ∖ B)",
+            "%rule text B",
+            vec!["B"],
+        ),
+        (
+            "pattern-path",
+            0,
+            "[]",
+            r#"{"seq":[{"literal":{"string":"("}},{"literal":{"string":"⋮"}},{"ref":"pattern-atom"},{"literal":{"string":")"}}]}"#,
+            "@((⋮A))",
+            "@(⋮A)",
+            "%rule text child B\n%rule child A",
+            vec!["A", "B"],
+        ),
+        (
+            "pattern-path",
+            1,
+            "[]",
+            r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-atom"},{"literal":{"string":"⋰"}},{"literal":{"string":")"}}]}"#,
+            "@((child⋰))",
+            "@(child⋰)",
+            "%rule text child B\n%rule child A",
+            vec!["A", "B"],
+        ),
+        (
+            "pattern-repeat",
+            0,
+            "[]",
+            r#"{"seq":[{"literal":{"string":"{"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"}"}}]}"#,
+            "@({A / S / \"$(_D800)\"})",
+            "@({A / S})",
+            "%rule text A S A",
+            vec!["A", "S", "A"],
+        ),
+    ] {
+        let changed = pattern_bootstrap_expr(&bundled, name, alternative, tail, expression);
+        let comparator = if name == "pattern-union" { "≇" } else { "≅" };
+        let rules = format!("%const $P {pattern}\n{body}\n%conditions $ {comparator} $P");
+        let control = format!("%const $P {control}\n{body}\n%conditions $ {comparator} $P");
+        assert_eq!(pattern_probe(&rules, &changed, &tokens), pattern_probe(&control, &bundled, &tokens), "{name}");
+    }
+    // A name outside §9.3 is a wrapper, including an older separator
+    // name. Its operator token remains a part of the union.
+    let wrapped =
+        pattern_bootstrap_expr(&bundled, "pattern-union", 0, r#"["separator"]"#, r#"{"ref":"pattern-separator"}"#);
+    let wrapped = pattern_bootstrap_expr(&wrapped, "pattern-name", 0, "[]", r#"{"literal":{"string":"∖"}}"#);
+    let wrapped =
+        pattern_bootstrap_expr(&wrapped, "pattern-atom", 0, r#"["seq",0,"choice",0]"#, r#"{"ref":"Lowercase-Name"}"#);
+    let text = wrapped.to_text();
+    assert_eq!(text.matches(r#""name":"pattern-name""#).count(), 1);
+    let wrapped = parse_json(&text.replace(r#""name":"pattern-name""#, r#""name":"pattern-separator""#)).unwrap();
+    let rules = "%const $P @(A ∖ B)\n%rule text B\n%conditions $ ≇ $P";
+    assert_eq!(pattern_probe(rules, &wrapped, &["B"]), pattern_probe(rules, &bundled, &["B"]));
+}
+
+/// A named constructor and a wrapper that exposes its token name the
+/// same rule. A test on that rule still fails before operand conversion.
+#[test]
+fn pattern_names_use_named_parts_or_tokens() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    for name in ["name", "reference"] {
+        let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
+        let rules = "%const $P @child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
+        assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
+        let rules = "%const $P @(child=\"$(_D800)\")\n%rule text A";
+        assert_eq!(load_pattern_probe(rules, &changed).unwrap_err(), load_pattern_probe(rules, &bundled).unwrap_err());
+    }
+}
+
+/// Missing required parts produce a grammar error at their constructor.
+#[test]
+fn missing_pattern_parts_are_grammar_errors() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    for (name, alternative, expression, pattern, missing) in [
+        (
+            "pattern-union",
+            0,
+            r#"{"seq":[{"ref":"pattern-intersection"},{"literal":{"string":"/"}},{"ref":"pattern-intersection"}]}"#,
+            "@(A / B)",
+            "union operators",
+        ),
+        ("pattern-union", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-intersection"),
+        ("pattern-intersection", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-sequence"),
+        ("pattern-sequence", 0, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern-item"),
+        ("pattern-item", 4, r#"{"ref":"empty-set"}"#, "@(∅)", "pattern item or sibling ellipsis"),
+        (
+            "pattern-brackets",
+            0,
+            r#"{"seq":[{"literal":{"string":"["}},{"literal":{"string":"]"}}]}"#,
+            "@([])",
+            "pattern-union",
+        ),
+        (
+            "pattern-repeat",
+            0,
+            r#"{"seq":[{"literal":{"string":"{"}},{"literal":{"string":"}"}}]}"#,
+            "@({})",
+            "pattern-union",
+        ),
+        ("pattern-path", 0, r#"{"seq":[{"literal":{"string":"."}},{"ref":"pattern-atom"}]}"#, "@(.A)", "path token"),
+    ] {
+        let changed = pattern_bootstrap_expr(&bundled, name, alternative, "[]", expression);
+        let error = load_pattern_probe(&format!("%const $P {pattern}\n%rule text A"), &changed).unwrap_err();
+        assert_eq!(error.kind, gencmu::ErrorKind::Grammar, "{name}: {error}");
+        assert!(error.message.contains(&format!("{name} has no {missing}")), "{error}");
+        assert_eq!(error.document.as_deref(), Some("main.md"));
+        assert_eq!(error.line, Some(3));
+    }
+}
+
+/// A supplied tree can test grouped and nested literals. Their target
+/// error precedes any invalid string inside the base.
+#[test]
+fn grouped_pattern_tests_fail_before_base_conversion() {
+    let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
+    for (alternative, expression, pattern) in [
+        (
+            2,
+            r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-union"},{"literal":{"string":")"}},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
+            "((\"$(_D800)\")<A>)",
+        ),
+        (
+            1,
+            r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
+            "(@(\"$(_D800)\")<A>)",
+        ),
+    ] {
+        let changed = pattern_bootstrap_expr(&bundled, "pattern-atom", alternative, "[]", expression);
+        let rules = format!("%const $P @{pattern}\n%rule text A");
+        let error = load_pattern_probe(&rules, &changed).unwrap_err();
+        let source = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
+        let (line, column) = common::position_of(&source, "<A>");
+        assert_eq!((error.line, error.column), (Some(line), Some(column)), "{error}");
+        assert!(error.message.contains("pattern test target or order"), "{error}");
+    }
 }

@@ -15,7 +15,6 @@ use crate::result::{
     Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
     Stage, Tags, Token, Verdict, Warning,
 };
-use crate::tags::character_tag;
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
@@ -69,7 +68,7 @@ pub struct Feature {
 ///
 /// The original text of such a parse is the tokens' texts joined with
 /// single spaces, and each token's source is its text's place in it. Each
-/// token's label is its text (engine §5). It has no attachments, since a
+/// token's image is its text (engine §5). It has no attachments, since a
 /// caller cannot supply them (engine §11).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InputToken {
@@ -78,7 +77,9 @@ pub struct InputToken {
     /// Its tags, each in its canonical spelling (engine §1).
     pub tags: Tags,
     /// What it sounds like, if anything (engine §5).
-    pub phonemes: Option<String>,
+    pub value: Option<String>,
+    /// The visible string. None uses the text.
+    pub image: Option<String>,
 }
 
 type LoweredResult = Result<Arc<Lowered>, Error>;
@@ -357,12 +358,17 @@ impl Dialect {
             for (index, &c) in chars.iter().enumerate() {
                 // Its character tag and nothing else (§1).
                 let text = c.to_string();
-                let set = tags.set_of([character_tag(c, &unicode).as_str()]);
-                // A character token's label is its text (§5).
+                let category = unicode.category(c as u32);
+                let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
+                if unicode.is_white_space(c as u32) {
+                    names.push("_White_Space".into());
+                }
+                let set = tags.set_of(names.iter().map(String::as_str));
+                // A character token's image is its text (§5).
                 public.push(Token {
                     text: text.clone(),
-                    phonemes: None,
-                    label: text.clone(),
+                    value: text.clone(),
+                    image: text.clone(),
                     tags: tags.to_set(set),
                     span: index..index + 1,
                     source: index..index + 1,
@@ -371,10 +377,10 @@ impl Dialect {
                     after: Vec::new(),
                 });
                 input.push(Tok {
-                    label: text.clone(),
-                    text,
+                    image: text.clone(),
+                    text: text.clone(),
                     tags: set,
-                    phonemes: None,
+                    value: text,
                     source: (index, index + 1),
                     sound: Default::default(),
                     quiet: 0,
@@ -389,6 +395,13 @@ impl Dialect {
     /// Parses a sequence of tokens given directly to the first stage, for
     /// tests and tools (see [`InputToken`]).
     pub fn parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error> {
+        for token in tokens {
+            if let Some(tag) =
+                token.tags.iter().find(|tag| !crate::dom::is_constant_name(tag) && !crate::dom::is_engine_tag(tag))
+            {
+                return Err(Error::usage(format!("{tag:?} is not a valid stored tag")));
+            }
+        }
         let joined: Vec<&str> = tokens.iter().map(|token| token.text.as_str()).collect();
         let chars: Vec<char> = joined.join(" ").chars().collect();
         let tokens = tokens.to_vec();
@@ -399,12 +412,12 @@ impl Dialect {
             for (index, token) in tokens.iter().enumerate() {
                 let length = token.text.chars().count();
                 let set = tags.set_of(token.tags.iter().map(String::as_str));
-                // A token that a caller supplies has its text as its label
+                // A token that a caller supplies has its text as its image
                 // (§5).
                 public.push(Token {
                     text: token.text.clone(),
-                    phonemes: token.phonemes.clone(),
-                    label: token.text.clone(),
+                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
+                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
                     tags: tags.to_set(set),
                     span: index..index + 1,
                     source: at..at + length,
@@ -415,9 +428,9 @@ impl Dialect {
                 input.push(Tok {
                     text: token.text.clone(),
                     tags: set,
-                    phonemes: token.phonemes.clone(),
+                    value: token.value.clone().unwrap_or_else(|| token.text.clone()),
                     source: (at, at + length),
-                    label: token.text.clone(),
+                    image: token.image.clone().unwrap_or_else(|| token.text.clone()),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -653,8 +666,8 @@ impl Dialect {
             let text = shared.source_text(token.source.0, token.source.1);
             public.push(Token {
                 text: text.clone(),
-                phonemes: token.phonemes.clone(),
-                label: token.label.clone(),
+                value: token.value.clone(),
+                image: token.image.clone(),
                 tags: shared.tags.to_set(token.tags),
                 span: token.span.0..token.span.1,
                 source: token.source.0..token.source.1,
@@ -665,9 +678,9 @@ impl Dialect {
             next.push(Tok {
                 text,
                 tags: token.tags,
-                phonemes: token.phonemes,
+                value: token.value,
                 source: token.source,
-                label: token.label,
+                image: token.image,
                 sound: Default::default(),
                 quiet: 0,
                 before: token.before,
@@ -853,9 +866,9 @@ impl Dialect {
                 tokens.push(Tok {
                     text: String::new(),
                     tags: shared.tags.set_of([record.terminal.as_str()]),
-                    phonemes: record.sound.clone(),
+                    value: record.value.clone().unwrap_or_default(),
                     source: (record.source.start, record.source.end),
-                    label: String::new(),
+                    image: String::new(),
                     sound: Default::default(),
                     quiet: 0,
                     before: Vec::new(),
@@ -879,7 +892,11 @@ impl Dialect {
             project.push(project[index] + u32::from(!flag));
         }
         crate::earley::mark_quiet(&mut tokens, &self.unicode);
-        let recon = Recon { observed: input, project, synthetic };
+        let mut saved_values = vec![None; tokens.len()];
+        for (index, &position) in record_at.iter().enumerate() {
+            saved_values[position as usize] = records[index].value.clone();
+        }
+        let recon = Recon { observed: input, project, synthetic, saved_values };
         // The recognition of R is not a query, and its queries share the
         // memo and the active queries of the main parse (§7.6).
         let chart = Recognizer { g, matchers, shared, recon: Some(&recon) }.recognize(&tokens, 0, g.start)?;
@@ -1165,7 +1182,7 @@ mod tests {
 
     #[test]
     fn unused_names_share_one_lowering() {
-        let dialect = dialect("%rule text f? 'x' | 'y'");
+        let dialect = dialect("%rule text f? \"x\" | \"y\"");
         for index in 0..50 {
             let options = ParseOptions {
                 features: vec![format!("unused-{index}")],
@@ -1186,7 +1203,7 @@ mod tests {
             names.iter().map(|name| format!("\n  {name}? \"x\" ∈ {}", name.to_uppercase())).collect();
         let entries = entries.concat();
         let dialect =
-            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w('x') <classify(text($w), c)>"));
+            dialect(&format!("%classifier c\n  \"x\" ∈ X{entries}\n%rule text $w:\"x\" :: $w.source-text.classify(c)"));
         for _ in 0..2 {
             for set in 0..1usize << names.len() {
                 let features: Vec<String> = names
@@ -1210,8 +1227,8 @@ mod tests {
     #[test]
     fn lowered_grammars_are_bounded() {
         let names = ["a", "b", "c", "d", "e", "f", "g"];
-        let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? 'x'")).collect();
-        let dialect = dialect(&format!("%rule text {} | 'y'", alternatives.join(" | ")));
+        let alternatives: Vec<String> = names.iter().map(|name| format!("{name}? \"x\"")).collect();
+        let dialect = dialect(&format!("%rule text {} | \"y\"", alternatives.join(" | ")));
         for set in 0..1usize << names.len() {
             let features: Vec<String> = names
                 .iter()

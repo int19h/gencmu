@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 11;
+pub const RESULT_FORMAT: u32 = 12;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -36,8 +36,8 @@ fn write_token(out: &mut String, token: &Token) {
     write_token_fields(
         out,
         &token.text,
-        token.phonemes.as_deref(),
-        &token.label,
+        &token.value,
+        &token.image,
         &token.tags,
         Some(&token.span),
         &token.source,
@@ -53,8 +53,8 @@ fn write_token(out: &mut String, token: &Token) {
 fn write_token_fields(
     out: &mut String,
     text: &str,
-    phonemes: Option<&str>,
-    label: &str,
+    value: &str,
+    image: &str,
     tags: &Tags,
     span: Option<&Range<usize>>,
     source: &Range<usize>,
@@ -62,10 +62,10 @@ fn write_token_fields(
 ) {
     out.push_str("{\"text\":");
     write_str(out, text);
-    out.push_str(",\"phonemes\":");
-    write_str(out, phonemes.unwrap_or(""));
-    out.push_str(",\"label\":");
-    write_str(out, label);
+    out.push_str(",\"value\":");
+    write_str(out, value);
+    out.push_str(",\"image\":");
+    write_str(out, image);
     out.push_str(",\"tags\":");
     write_tags(out, tags);
     if let Some(span) = span {
@@ -97,8 +97,8 @@ fn write_attachments(out: &mut String, before: &[Attachment], after: &[Attachmen
                 write_token_fields(
                     out,
                     &attachment.text,
-                    attachment.phonemes.as_deref(),
-                    &attachment.label,
+                    &attachment.value,
+                    &attachment.image,
                     &attachment.tags,
                     None,
                     &attachment.source,
@@ -132,8 +132,8 @@ pub(crate) fn write_attachment(out: &mut String, attachment: &Attachment) {
     write_token_fields(
         out,
         &attachment.text,
-        attachment.phonemes.as_deref(),
-        &attachment.label,
+        &attachment.value,
+        &attachment.image,
         &attachment.tags,
         None,
         &attachment.source,
@@ -196,6 +196,10 @@ pub(crate) fn write_node(out: &mut String, root: &Node) {
                 write_range(out, &node.span);
                 out.push_str(",\"source\":");
                 write_range(out, &node.source);
+                if let Some(value) = &node.value {
+                    out.push_str(",\"value\":");
+                    write_str(out, value);
+                }
                 out.push('}');
             }
         }
@@ -364,8 +368,8 @@ fn write_error(out: &mut String, error: &ParseError) {
             out.push_str(&record.at.to_string());
             out.push_str(",\"source\":");
             write_range(out, &record.source);
-            if let Some(sound) = &record.sound {
-                out.push_str(",\"sound\":");
+            if let Some(sound) = &record.value {
+                out.push_str(",\"value\":");
                 write_str(out, sound);
             }
             out.push('}');
@@ -436,7 +440,7 @@ pub fn node_to_json(node: &Node) -> String {
     out
 }
 
-/// A rendered node: empty, a label, or a group of rendered members.
+/// A rendered node: empty, a image, or a group of rendered members.
 enum Rendered {
     Empty,
     Leaf(String),
@@ -444,7 +448,7 @@ enum Rendered {
 }
 
 /// Renders a tree as brackets (`docs/output.md`, "Brackets"), showing each
-/// token node by the label of its token in `tokens`, the input of the
+/// token node by the image of its token in `tokens`, the input of the
 /// tree's stage.
 pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> String {
     // Bottom-up: render every node into an arena, collapsing as we go.
@@ -467,18 +471,18 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
         let rendered = match node.kind {
             NodeKind::Token => {
                 let token = node.token.and_then(|token| tokens.get(token));
-                // Every rendering shows a token by its label
+                // Every rendering shows a token by its image
                 // (docs/output.md).
-                let label = token.map_or_else(String::new, |token| token.label.clone());
-                // A token is never an empty node, even when its label is
+                let image = token.map_or_else(String::new, |token| token.image.clone());
+                // A token is never an empty node, even when its image is
                 // empty, as an empty zoi quotation's is. A token with
                 // attachments is a group of its before-attachments, its
-                // label and its after-attachments.
+                // image and its after-attachments.
                 match token {
                     Some(token) if !token.before.is_empty() || !token.after.is_empty() => {
-                        attached_group(&mut arena, &token.before, label, &token.after)
+                        attached_group(&mut arena, &token.before, image, &token.after)
                     }
-                    _ => Rendered::Leaf(label),
+                    _ => Rendered::Leaf(image),
                 }
             }
             NodeKind::Elided => {
@@ -521,7 +525,7 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
             Write::Text(text) => out.push_str(text),
             Write::Node(index, depth) => match &arena[index] {
                 Rendered::Empty => {}
-                Rendered::Leaf(label) => out.push_str(label),
+                Rendered::Leaf(image) => out.push_str(image),
                 Rendered::Group(items) => {
                     let (open, close) = match depth % 3 {
                         0 => ("(", ")"),
@@ -544,20 +548,20 @@ pub(crate) fn brackets(tree: &Node, tokens: &[Token], show_elided: bool) -> Stri
 }
 
 /// A token with attachments as a bracket group (docs/output.md): its
-/// before-attachments, its label and its after-attachments, each rendered
+/// before-attachments, its image and its after-attachments, each rendered
 /// the same way. The members go at the end of the arena, so they are
 /// never taken for nodes of the tree. Attachments nest as deep as a text
 /// is long, so each group is made once its members are, from a stack.
-fn attached_group(arena: &mut Vec<Rendered>, before: &[Attachment], label: String, after: &[Attachment]) -> Rendered {
+fn attached_group(arena: &mut Vec<Rendered>, before: &[Attachment], image: String, after: &[Attachment]) -> Rendered {
     enum Step<'a> {
         Enter(&'a Attachment),
         Leave(&'a Attachment),
     }
     // A group of members: the attachments' renderings, which are the last
-    // made, in order, with the label among them.
-    let group = |arena: &mut Vec<Rendered>, done: &mut Vec<usize>, count: usize, at: usize, label: String| {
+    // made, in order, with the image among them.
+    let group = |arena: &mut Vec<Rendered>, done: &mut Vec<usize>, count: usize, at: usize, image: String| {
         let mut members = done.split_off(done.len() - count);
-        arena.push(Rendered::Leaf(label));
+        arena.push(Rendered::Leaf(image));
         members.insert(at, arena.len() - 1);
         Rendered::Group(members)
     };
@@ -566,7 +570,7 @@ fn attached_group(arena: &mut Vec<Rendered>, before: &[Attachment], label: Strin
     while let Some(step) = steps.pop() {
         let rendered = match step {
             Step::Enter(attachment) if attachment.before.is_empty() && attachment.after.is_empty() => {
-                Rendered::Leaf(attachment.label.clone())
+                Rendered::Leaf(attachment.image.clone())
             }
             Step::Enter(attachment) => {
                 steps.push(Step::Leave(attachment));
@@ -575,14 +579,14 @@ fn attached_group(arena: &mut Vec<Rendered>, before: &[Attachment], label: Strin
             }
             Step::Leave(attachment) => {
                 let count = attachment.before.len() + attachment.after.len();
-                group(arena, &mut done, count, attachment.before.len(), attachment.label.clone())
+                group(arena, &mut done, count, attachment.before.len(), attachment.image.clone())
             }
         };
         arena.push(rendered);
         done.push(arena.len() - 1);
     }
     let count = done.len();
-    group(arena, &mut done, count, before.len(), label)
+    group(arena, &mut done, count, before.len(), image)
 }
 
 /// Renders a result's tree as brackets (`docs/output.md`), with elided

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::clauses::{simplify_cond, simplify_value, CondListSplit, EmitIndex, Simple, TermSplit};
 use crate::dom::{Arg, Chain, Cond, EmitItem, Expr, FeatureKind, Mark, Term};
 use crate::grammar::{is_terminal_name, ClassifierTables, Implication, StageGrammar, StitchedAlternative};
-use crate::tags::{code_of_character_tag, property_name, range_name};
+use crate::tags::code_of_character_tag;
 use crate::unicode::Property;
 use crate::work::{self, Mutant, Work};
 
@@ -50,20 +50,17 @@ pub(crate) enum LTerm {
     Str(String),
     /// The tag set of one tag.
     Tag(String),
-    /// The character tags of a range, by its first and last scalar values.
-    Range(u32, u32),
     Empty,
     Union(Vec<LTerm>),
     Inter(Vec<LTerm>),
     /// The members of the first set that are not in the second.
     Diff(Box<LTerm>, Box<LTerm>),
-    Phonemes(Span),
+    Value(Span),
+    Image(Span),
     Text(Span),
     /// `split(a, d)`: the set of the pieces of `a` between the occurrences
     /// of `d` (§10).
     Split(Box<LTerm>, Box<LTerm>),
-    /// `tag(a)`: the identifier tag whose name is `a`.
-    TagOf(Box<LTerm>),
     Tags(Span),
     TagsRule(Span, u32),
     Classes(Span),
@@ -109,7 +106,7 @@ pub(crate) enum LEmitItem {
     /// An inserted tag, anchored at the start of the first written part of
     /// the capture item listed next after it, or at the constituent's end
     /// if none is.
-    Insert(String, Option<u32>),
+    Insert(Option<LTerm>, Option<u32>),
 }
 
 #[derive(Debug, Clone)]
@@ -127,30 +124,19 @@ pub(crate) enum LEmit {
 /// The comparator of a test in a body (engine §2, §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum TestOp {
-    /// `X="s"`: the canonical sound of the span is `s`.
     Is,
-    /// `X≠"s"`.
     IsNot,
-    /// `X⊇t`: the own tags include every tag of `t`.
     Superset,
-    /// `X⊉t`.
-    NotSuperset,
-    /// `X∩t=∅`: the own tags include no tag of `t`.
-    Disjoint,
-    /// `X∩t≠∅`.
-    Meets,
 }
 
-/// A test of a lowered symbol, with its value: a string for a sound test
-/// and a tag set for a tag test, and the test as an expected list writes
-/// it after its terminal (docs/output.md).
+/// Exact value and signed tag requirements on one symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct SymbolTest {
     pub op: TestOp,
-    /// The string of a sound test.
     pub sound: Option<String>,
-    /// The tags of a tag test, in code point order.
     pub tags: Vec<String>,
+    pub negative: Vec<String>,
+    pub tags_test: bool,
     pub written: String,
 }
 
@@ -158,64 +144,75 @@ pub(crate) struct SymbolTest {
 pub(crate) const NO_TEST: u32 = u32::MAX;
 
 impl SymbolTest {
-    /// A test from its comparator and its value, which stitching has made a
-    /// string, `∅`, a tag or a union of tags (engine §2).
-    fn new(op: &str, value: &Term) -> SymbolTest {
-        let op = match op {
-            "=" => TestOp::Is,
-            "≠" => TestOp::IsNot,
-            "⊇" => TestOp::Superset,
-            "⊉" => TestOp::NotSuperset,
-            "∩=∅" => TestOp::Disjoint,
-            _ => TestOp::Meets,
+    fn new(op: &str, value: &Term, unicode: &crate::unicode::Unicode) -> Self {
+        let mut test = Self {
+            op: TestOp::Superset,
+            sound: None,
+            tags: Vec::new(),
+            negative: Vec::new(),
+            tags_test: op == "tags",
+            written: String::new(),
         };
-        let (sound, tags) = match value {
-            Term::Str(text) => (Some(text.clone()), Vec::new()),
-            Term::Tag(tag) => (None, vec![tag.clone()]),
-            Term::Union(items) => {
-                let mut tags: Vec<String> = items
-                    .iter()
-                    .filter_map(|item| match item {
-                        Term::Tag(tag) => Some(tag.clone()),
-                        _ => None,
-                    })
-                    .collect();
-                tags.sort();
-                tags.dedup();
-                (None, tags)
-            }
-            _ => (None, Vec::new()),
-        };
-        // The value in canonical form: a string between double quotes, a
-        // backslash before each `\` and `"`; a tag set as `∅`, its one tag,
-        // or its tags joined by ` ∪ ` in parentheses.
-        let value = match &sound {
-            Some(text) => {
-                let mut written = String::from("\"");
-                for c in text.chars() {
-                    if c == '\\' || c == '"' {
-                        written.push('\\');
+        if op == "tags" {
+            let Term::Call(_, requirements) = value else { unreachable!("a signed requirement list") };
+            for requirement in requirements {
+                let Arg::Term(requirement) = requirement else { unreachable!() };
+                let (negative, term) = match requirement {
+                    Term::Call(name, args) if name == "forbid" => {
+                        let [Arg::Term(term)] = &args[..] else { unreachable!() };
+                        (true, term)
                     }
-                    written.push(c);
+                    term => (false, term),
+                };
+                let mut pending = vec![term];
+                while let Some(term) = pending.pop() {
+                    match term {
+                        Term::Tag(tag) => if negative { &mut test.negative } else { &mut test.tags }.push(tag.clone()),
+                        Term::Union(items) => pending.extend(items),
+                        Term::EmptySet => {}
+                        _ => unreachable!("a bound tag requirement is a tag set"),
+                    }
                 }
-                written.push('"');
-                written
             }
-            None => match &tags[..] {
-                [] => "∅".to_string(),
-                [tag] => tag.clone(),
-                tags => format!("({})", tags.join(" ∪ ")),
-            },
-        };
-        let written = match op {
-            TestOp::Is => format!("={value}"),
-            TestOp::IsNot => format!("≠{value}"),
-            TestOp::Superset => format!("⊇{value}"),
-            TestOp::NotSuperset => format!("⊉{value}"),
-            TestOp::Disjoint => format!("∩{value}=∅"),
-            TestOp::Meets => format!("∩{value}≠∅"),
-        };
-        SymbolTest { op, sound, tags, written }
+            test.tags.sort();
+            test.tags.dedup();
+            test.negative.sort();
+            test.negative.dedup();
+        } else {
+            test.op = if op == "=" { TestOp::Is } else { TestOp::IsNot };
+            let Term::Str(value) = value else { unreachable!("a bound value test is a string") };
+            test.sound = Some(value.clone());
+        }
+        test.spelling(unicode);
+        test
+    }
+
+    fn spelling(&mut self, unicode: &crate::unicode::Unicode) {
+        self.written.clear();
+        if self.tags_test {
+            let mut requirements: Vec<_> = self
+                .tags
+                .iter()
+                .map(|name| (name, false))
+                .chain(self.negative.iter().map(|name| (name, true)))
+                .collect();
+            requirements.sort();
+            self.written.push('<');
+            for (index, (name, negative)) in requirements.into_iter().enumerate() {
+                if index != 0 {
+                    self.written.push(' ');
+                }
+                if negative {
+                    self.written.push('¬');
+                }
+                self.written.push_str(name);
+            }
+            self.written.push('>');
+        }
+        if let Some(value) = &self.sound {
+            self.written.push(if self.op == TestOp::Is { '=' } else { '≠' });
+            self.written.push_str(&crate::tags::string_name(value, unicode));
+        }
     }
 }
 
@@ -227,6 +224,10 @@ pub(crate) struct Prod {
     /// whose alternative introduced it.
     pub owner: u32,
     pub syms: Vec<Sym>,
+    /// Plain optional boundaries, including routes expanded for captures (§4).
+    pub optionals: Vec<OptionalBoundary>,
+    /// The physical symbol supplying logical unary inheritance.
+    pub inherited: Option<usize>,
     /// For each position, its capture slot.
     pub cap_at: Vec<Option<u32>>,
     /// For each position, the id of its symbol's test in the grammar's
@@ -237,9 +238,12 @@ pub(crate) struct Prod {
     pub cap_pos: Vec<usize>,
     pub tags: Option<LTerm>,
     pub emit: LEmit,
-    /// `%opaque`: its constituent is an opaque part, which sounds `?` and
+    pub strings: crate::dom::Channels,
+    pub item_strings: Vec<crate::dom::Channels>,
+    pub names: FxMap<String, u32>,
+    /// `%erased`: its constituent is an erased part, which sounds `?` and
     /// shows its text (§11).
-    pub opaque: bool,
+    pub erased: bool,
     /// Conditions, each with the dot at which it is evaluated, in order of
     /// that dot and then in written order.
     pub conds: Vec<(LCond, usize)>,
@@ -269,6 +273,8 @@ pub(crate) struct SlotMetadata {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LRule {
+    /// Helpers split into physical routes retain one logical identity.
+    pub family: u32,
     /// The rule's name, or for a helper the name of the rule that owns it.
     pub name: String,
     pub helper: bool,
@@ -376,9 +382,62 @@ impl Lowered {
     }
 }
 
+/// A logical plain optional and its physical range in one production.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OptionalBoundary {
+    pub expression: usize,
+    pub start: usize,
+    pub end: usize,
+}
+
 /// A symbol, its capture name and the id of its test.
 type Item = (Sym, Option<String>, Option<u32>);
-type Sequence = Vec<Item>;
+#[derive(Clone, Default)]
+struct Sequence {
+    items: Vec<Item>,
+    optionals: Vec<OptionalBoundary>,
+    logical_width: usize,
+    inherited: Option<usize>,
+}
+impl Sequence {
+    fn new() -> Self {
+        Self::default()
+    }
+    fn one(item: Item) -> Self {
+        Self { items: vec![item], logical_width: 1, inherited: Some(0), optionals: Vec::new() }
+    }
+    fn optional(&mut self, expression: usize) {
+        self.optionals.push(OptionalBoundary { expression, start: 0, end: self.items.len() });
+    }
+    fn append(&mut self, other: &Self) {
+        self.inherited = if self.logical_width == 0 {
+            other.inherited.map(|position| position + self.items.len())
+        } else if other.logical_width == 0 {
+            self.inherited
+        } else {
+            None
+        };
+        let offset = self.items.len();
+        self.optionals.extend(other.optionals.iter().map(|boundary| OptionalBoundary {
+            expression: boundary.expression,
+            start: boundary.start + offset,
+            end: boundary.end + offset,
+        }));
+        self.logical_width += other.logical_width;
+        self.items.extend(other.items.iter().cloned());
+    }
+}
+impl std::ops::Deref for Sequence {
+    type Target = Vec<Item>;
+    fn deref(&self) -> &Self::Target {
+        &self.items
+    }
+}
+impl std::ops::DerefMut for Sequence {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.items
+    }
+}
 
 struct HelperDef {
     owner: u32,
@@ -401,6 +460,8 @@ struct Lowerer<'a> {
     /// The id of each test, so that a test met again is found at once.
     test_index: FxMap<SymbolTest, u32>,
     helpers: Vec<HelperDef>,
+    /// Stable occurrence numbers retain identity across route expansion.
+    optional_ids: FxMap<usize, usize>,
     owner: u32,
     alternative: usize,
     /// For each place of sugar being expanded, and the alternative itself at
@@ -429,7 +490,7 @@ fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
     // place, so that a long sequence expands in linear time.
     if let [only] = right {
         for sequence in &mut left {
-            sequence.extend(only.iter().cloned());
+            sequence.append(only);
         }
         return left;
     }
@@ -437,7 +498,7 @@ fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
     for first in &left {
         for second in right {
             let mut sequence = first.clone();
-            sequence.extend(second.iter().cloned());
+            sequence.append(second);
             out.push(sequence);
         }
     }
@@ -445,6 +506,11 @@ fn product(mut left: Vec<Sequence>, right: &[Sequence]) -> Vec<Sequence> {
 }
 
 impl<'a> Lowerer<'a> {
+    fn optional_id(&mut self, expr: &Expr) -> usize {
+        let next = self.optional_ids.len();
+        *self.optional_ids.entry(expr as *const Expr as usize).or_insert(next)
+    }
+
     /// A terminal's id, by its name; `characters` for a range or a
     /// property, whose name is its written form, which no tag has.
     fn terminal(&mut self, name: &str, characters: Option<Characters>) -> u32 {
@@ -459,19 +525,6 @@ impl<'a> Lowerer<'a> {
     }
 
     /// A test's id: one test for each comparator and value.
-    fn test(&mut self, op: &str, value: &Term) -> u32 {
-        let test = SymbolTest::new(op, value);
-        // One lookup, where a scan of the tests was one step for each.
-        work::count(Work::Lowered, 1);
-        if let Some(&id) = self.test_index.get(&test) {
-            return id;
-        }
-        let id = self.tests.len() as u32;
-        self.test_index.insert(test.clone(), id);
-        self.tests.push(test);
-        id
-    }
-
     /// The terminator of an elidable optional, the first item of its
     /// content, and the id of its `=` test, if it has one (§3.8). The
     /// reader, or the check of a DOM, has made sure that it is one.
@@ -480,14 +533,45 @@ impl<'a> Lowerer<'a> {
             Expr::Seq(items) => &items[0],
             other => other,
         };
-        match first {
-            Expr::Ref(name) | Expr::Terminal(name) => (name.clone(), None),
-            Expr::Tested(op, value, inner) => match inner.as_ref() {
-                Expr::Ref(name) | Expr::Terminal(name) => (name.clone(), Some(self.test(op, value))),
-                _ => unreachable!("an elidable optional begins with its terminator"),
-            },
-            _ => unreachable!("an elidable optional begins with its terminator"),
+        let mut base = first;
+        while let Expr::Tested(_, _, inner) = base {
+            base = inner;
         }
+        let Expr::Ref(name) = base else { unreachable!("an elision begins with an ordinary tag") };
+        (name.clone(), self.symbol_test(first))
+    }
+
+    fn symbol_test(&mut self, expr: &Expr) -> Option<u32> {
+        let mut current = expr;
+        let mut combined: Option<SymbolTest> = None;
+        while let Expr::Tested(op, value, inner) = current {
+            let test = SymbolTest::new(op, value, &self.grammar.unicode);
+            match &mut combined {
+                None => combined = Some(test),
+                Some(combined) => {
+                    if test.tags_test {
+                        combined.tags_test = true;
+                        combined.tags = test.tags;
+                        combined.negative = test.negative;
+                    }
+                    if test.sound.is_some() {
+                        combined.sound = test.sound;
+                        combined.op = test.op;
+                    }
+                }
+            }
+            current = inner;
+        }
+        combined.map(|mut test| {
+            test.spelling(&self.grammar.unicode);
+            if let Some(&id) = self.test_index.get(&test) {
+                return id;
+            }
+            let id = self.tests.len() as u32;
+            self.test_index.insert(test.clone(), id);
+            self.tests.push(test);
+            id
+        })
     }
 
     /// Makes the helper of a place whose inside `enter` began.
@@ -541,10 +625,10 @@ impl<'a> Lowerer<'a> {
             items.iter().map(|sequence| sequence.iter().map(|(sym, ..)| *sym).collect()).collect();
         let separators = match separator {
             Some(separator) => self.expand(separator),
-            None => vec![Vec::new()],
+            None => vec![Sequence::new()],
         };
         let this = this.unwrap_or(Sym::N((self.grammar.rules.len() + self.helpers.len()) as u32));
-        let this: Vec<Sequence> = vec![vec![(this, None, None)]];
+        let this: Vec<Sequence> = vec![Sequence::one((this, None, None))];
         let recursive = match chain {
             Chain::Left => product(product(this, &separators), &items),
             Chain::Right => product(product(items.clone(), &separators), &this),
@@ -556,8 +640,12 @@ impl<'a> Lowerer<'a> {
 
     fn expand(&mut self, expr: &Expr) -> Vec<Sequence> {
         match expr {
+            Expr::Literal(Term::Str(value)) => {
+                vec![Sequence::one((Sym::T(self.terminal(&format!("\"{value}\""), None)), None, None))]
+            }
+            Expr::Literal(_) | Expr::ScalarRange(..) => unreachable!("stitching binds terminal strings"),
             Expr::Seq(items) => {
-                let mut out = vec![Vec::new()];
+                let mut out = vec![Sequence::new()];
                 for item in items {
                     let expanded = self.expand(item);
                     out = product(out, &expanded);
@@ -575,7 +663,7 @@ impl<'a> Lowerer<'a> {
                 }
                 let sym = self.helper(prods, None, expr);
                 self.helpers.last_mut().expect("a ranked helper").options = Some(options);
-                vec![vec![(sym, None, None)]]
+                vec![Sequence::one((sym, None, None))]
             }
             Expr::Choice(items) => {
                 let mut out = Vec::new();
@@ -590,7 +678,7 @@ impl<'a> Lowerer<'a> {
                 // At most MAX_AND items (§3.2), which stitching checks.
                 debug_assert!(items.len() <= crate::grammar::MAX_AND);
                 for mask in 1u64..(1u64 << items.len().min(crate::grammar::MAX_AND)) {
-                    let mut chosen = vec![Vec::new()];
+                    let mut chosen = vec![Sequence::new()];
                     for (bit, options) in expanded.iter().enumerate() {
                         if mask & (1 << bit) != 0 {
                             chosen = product(chosen, options);
@@ -604,8 +692,15 @@ impl<'a> Lowerer<'a> {
             // `(ε | x)` would: first the empty sequence, then each expansion
             // of `x` (§3.2).
             Expr::Optional(inner, Mark::Plain) if holds_capture(inner, false) => {
-                let mut out = vec![Vec::new()];
+                let mut out = vec![Sequence::new()];
                 out.extend(self.expand(inner));
+                for sequence in &mut out {
+                    if sequence.logical_width != 1 {
+                        sequence.inherited = None;
+                    }
+                    sequence.logical_width = 1;
+                    sequence.optional(self.optional_id(expr));
+                }
                 out
             }
             Expr::Optional(inner, Mark::Plain)
@@ -613,14 +708,16 @@ impl<'a> Lowerer<'a> {
             {
                 // Preserve tag arity, but select one complete route per helper.
                 // Only descendant groups reachable on that route stay unknown.
-                let mut routes = vec![Vec::new()];
+                let mut routes = vec![Sequence::new()];
                 routes.extend(self.expand(inner));
                 routes
                     .into_iter()
                     .map(|route| {
                         self.enter();
                         let sym = self.helper(vec![route], None, expr);
-                        vec![(sym, None, None)]
+                        let mut sequence = Sequence::one((sym, None, None));
+                        sequence.optional(self.optional_id(expr));
+                        sequence
                     })
                     .collect()
             }
@@ -630,39 +727,52 @@ impl<'a> Lowerer<'a> {
                 // A marked optional is elidable, with the terminal that its
                 // marker names (§3.8).
                 let elided = (*mark != Mark::Plain).then(|| self.elided_terminal(inner));
-                let mut prods = vec![Vec::new()];
+                let mut prods = vec![Sequence::new()];
                 prods.extend(body);
                 let sym = self.helper(prods, elided, expr);
-                vec![vec![(sym, None, None)]]
+                let mut sequence = Sequence::one((sym, None, None));
+                if *mark == Mark::Plain {
+                    sequence.optional(self.optional_id(expr));
+                }
+                vec![sequence]
             }
             // Flat braces are a helper, `h → x | h s x` (§3.2).
             Expr::Repeat(item, separator, _) => {
                 self.enter();
                 let prods = self.braces(item, separator.as_deref(), None, Chain::Left);
                 let sym = self.helper(prods, None, expr);
-                vec![vec![(sym, None, None)]]
+                vec![Sequence::one((sym, None, None))]
             }
-            Expr::Ref(name) => vec![vec![(self.symbol(name, true), None, None)]],
-            Expr::Terminal(name) => vec![vec![(self.symbol(name, false), None, None)]],
+            Expr::Ref(name) => vec![Sequence::one((self.symbol(name, true), None, None))],
+            Expr::Terminal(name) => vec![Sequence::one((self.symbol(name, false), None, None))],
             // A range or a property is a terminal whose name is its written
             // form, and which matches by its characters rather than by a
             // tag (engine §4).
             Expr::Range(start, end) => {
                 let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
                 let (first, last) = codes.expect("a range of two character tags, which reading checks");
-                let terminal = self.terminal(&range_name(start, end), Some(Characters::Range(first, last)));
-                vec![vec![(Sym::T(terminal), None, None)]]
+                let spelling = format!(
+                    "{}..{}",
+                    crate::tags::string_name(&char::from_u32(first).unwrap().to_string(), &self.grammar.unicode),
+                    crate::tags::string_name(&char::from_u32(last).unwrap().to_string(), &self.grammar.unicode)
+                );
+                let terminal = self.terminal(&spelling, Some(Characters::Range(first, last)));
+                vec![Sequence::one((Sym::T(terminal), None, None))]
             }
             Expr::Property(name) => {
                 let property = Property::of(name).expect("a property, which reading checks");
-                let terminal = self.terminal(&property_name(name), Some(Characters::Property(property)));
-                vec![vec![(Sym::T(terminal), None, None)]]
+                let terminal = self.terminal("_", Some(Characters::Property(property)));
+                vec![Sequence::one((Sym::T(terminal), None, None))]
             }
             // A tested symbol lowers to its symbol with the test, and adds
             // no helper (§3).
-            Expr::Tested(op, value, inner) => {
-                let test = self.test(op, value);
-                let mut out = self.expand(inner);
+            Expr::Tested(_, _, _) => {
+                let test = self.symbol_test(expr).expect("a tested symbol");
+                let mut base = expr;
+                while let Expr::Tested(_, _, inner) = base {
+                    base = inner;
+                }
+                let mut out = self.expand(base);
                 for sequence in &mut out {
                     if let Some(item) = sequence.first_mut() {
                         item.2 = Some(test);
@@ -679,7 +789,7 @@ impl<'a> Lowerer<'a> {
                 }
                 out
             }
-            Expr::Empty => vec![Vec::new()],
+            Expr::Empty => vec![Sequence::new()],
         }
     }
 }
@@ -697,7 +807,13 @@ fn holds_capture(expr: &Expr, include_ranked: bool) -> bool {
             holds_capture(item, include_ranked)
                 || separator.as_deref().is_some_and(|expr| holds_capture(expr, include_ranked))
         }
-        Expr::Ref(_) | Expr::Terminal(_) | Expr::Range(..) | Expr::Property(_) | Expr::Empty => false,
+        Expr::Ref(_)
+        | Expr::Terminal(_)
+        | Expr::Literal(_)
+        | Expr::ScalarRange(..)
+        | Expr::Range(..)
+        | Expr::Property(_)
+        | Expr::Empty => false,
     }
 }
 
@@ -759,21 +875,18 @@ impl<'a> Scope<'a> {
         Ok(match term {
             Term::Str(text) => LTerm::Str(text.clone()),
             Term::Tag(tag) => LTerm::Tag(tag.clone()),
-            Term::Range(start, end) => {
-                let codes = code_of_character_tag(start).zip(code_of_character_tag(end));
-                let (first, last) = codes.expect("a range of two character tags, which reading checks");
-                LTerm::Range(first, last)
-            }
             Term::EmptySet => LTerm::Empty,
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
             // A span is never a value (§10); the reader refuses one. And
             // stitching gives every constant its value (§2).
-            Term::Pattern(_) | Term::Capture(_) | Term::Const(..) => return Err(Missing),
+            Term::Capture(_) => LTerm::Value(self.span(term)?),
+            Term::Pattern(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
-                ("phonemes", [Arg::Term(span)]) => LTerm::Phonemes(self.span(span)?),
+                ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
+                ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
@@ -781,7 +894,6 @@ impl<'a> Scope<'a> {
                 ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
                     LTerm::Split(Box::new(self.term(string)?), Box::new(self.term(delimiter)?))
                 }
-                ("tag", [Arg::Term(name)]) => LTerm::TagOf(Box::new(self.term(name)?)),
                 ("classify", [Arg::Term(string), Arg::Classifier(classifier)]) => {
                     LTerm::Classify(Box::new(self.term(string)?), classifier.clone())
                 }
@@ -881,6 +993,7 @@ fn lower_mode(
         tests: Vec::new(),
         test_index: FxMap::default(),
         helpers: Vec::new(),
+        optional_ids: FxMap::default(),
         owner: 0,
         alternative: 0,
         places: Vec::new(),
@@ -957,7 +1070,9 @@ fn lower_mode(
     let mut rules: Vec<LRule> = grammar
         .rules
         .iter()
-        .map(|rule| LRule {
+        .enumerate()
+        .map(|(index, rule)| LRule {
+            family: index as u32,
             name: rule.name.clone(),
             helper: false,
             leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
@@ -966,8 +1081,11 @@ fn lower_mode(
             elided_test: None,
         })
         .collect();
+    let mut families = FxMap::default();
     for helper in &lowerer.helpers {
+        let family = *families.entry(helper.expr).or_insert(rules.len() as u32);
         rules.push(LRule {
+            family,
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
             leftmost_longest: false,
@@ -1019,7 +1137,7 @@ fn lower_mode(
                 names.extend(grammar.ranked.groups[*group].names.iter().cloned());
             }
             for sequence in &helper.prods {
-                for (symbol, _, _) in sequence {
+                for (symbol, _, _) in sequence.iter() {
                     if let Sym::N(rule) = symbol {
                         if let Some(child) = private_helpers.get(rule) {
                             names.extend(child.iter().cloned());
@@ -1029,7 +1147,7 @@ fn lower_mode(
             }
             // Helper sequences moved into `order` above. Inspect those sequences too.
             for pending in order.iter().filter(|p| p.rule == (user_count + i) as u32) {
-                for (symbol, _, _) in &pending.sequence {
+                for (symbol, _, _) in pending.sequence.iter() {
                     if let Sym::N(rule) = symbol {
                         if let Some(child) = private_helpers.get(rule) {
                             names.extend(child.iter().cloned());
@@ -1108,14 +1226,19 @@ fn lower_mode(
         let mut production = Prod {
             rule: pending.rule,
             owner,
-            visible: !helper && syms.len() != 1,
+            inherited: pending.sequence.inherited,
+            optionals: pending.sequence.optionals.clone(),
+            visible: !helper && pending.sequence.logical_width != 1,
             syms,
             cap_at,
             cap_pos,
             tests,
             tags: None,
             emit: LEmit::None,
-            opaque: false,
+            strings: Default::default(),
+            item_strings: Vec::new(),
+            names: names.clone(),
+            erased: false,
             conds: Vec::new(),
             cond_at: Vec::new(),
             warnings: Vec::new(),
@@ -1170,7 +1293,22 @@ fn lower_mode(
             let alternative = alternatives[pending.rule as usize][number];
             production.document = Some(alternative.document.clone());
             production.at = alternative.at;
-            production.opaque = alternative.opaque;
+            production.erased = alternative.erased;
+            production.strings = crate::dom::Channels {
+                value: alternative
+                    .alternative
+                    .strings
+                    .value
+                    .clone()
+                    .or_else(|| alternative.clauses.strings.value.clone()),
+                image: alternative
+                    .alternative
+                    .strings
+                    .image
+                    .clone()
+                    .or_else(|| alternative.clauses.strings.image.clone()),
+                ..Default::default()
+            };
             production.warnings = alternative
                 .alternative
                 .guards
@@ -1213,8 +1351,13 @@ fn lower_mode(
             };
             // The reader has made sure a tag term uses only captures its
             // alternative has, and so every production of it has (§3.3).
-            production.tags = tags
-                .map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")));
+            // Validation reads the symbolic slot clauses. Private names
+            // are diagnosed in group order before runtime binding (§2.1).
+            production.tags = if validation {
+                None
+            } else {
+                tags.map(|term| scope.term(&term).unwrap_or_else(|_| unreachable!("a tag term uses a missing capture")))
+            };
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
             let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
@@ -1273,7 +1416,7 @@ fn lower_mode(
                             .inspect(|_| work::count(Work::Walked, 1))
                             .filter(|item| match item {
                                 EmitItem::Capture(name, ..) => has(name),
-                                EmitItem::Insert(_) => true,
+                                EmitItem::Insert(..) => true,
                             })
                             .collect()
                     } else {
@@ -1290,6 +1433,7 @@ fn lower_mode(
                                         n.clone(),
                                         t.as_ref().map(|t| simplify_value(t, &has)),
                                         crate::dom::Attachments {
+                                            strings: Default::default(),
                                             before: a.before.iter().filter(|n| has(n)).cloned().collect(),
                                             after: a.after.iter().filter(|n| has(n)).cloned().collect(),
                                         },
@@ -1299,12 +1443,19 @@ fn lower_mode(
                                 .collect(),
                         );
                     }
+                    production.item_strings = items
+                        .iter()
+                        .map(|item| match item {
+                            EmitItem::Capture(_, _, attachments) => attachments.strings.clone(),
+                            EmitItem::Insert(_, strings) => strings.clone(),
+                        })
+                        .collect();
                     let mut item_tags = |term: &Option<Term>| {
                         term.as_ref().and_then(|term| scope.term(&simplify_value(term, &has)).ok())
                     };
                     let whole = |item: &&EmitItem| match item {
                         EmitItem::Capture(name, ..) => name.is_empty(),
-                        EmitItem::Insert(_) => false,
+                        EmitItem::Insert(..) => false,
                     };
                     if items.is_empty() {
                         LEmit::Nothing
@@ -1319,7 +1470,7 @@ fn lower_mode(
                                 .collect(),
                         )
                     } else {
-                        let slot = |name: &str| names.get(name).copied();
+                        let slot = |name: &str| if name.is_empty() { Some(u32::MAX) } else { names.get(name).copied() };
                         // The anchor of an inserted tag is the first written
                         // part of the capture item listed next after it: its
                         // first before-attachment that the production has,
@@ -1349,13 +1500,33 @@ fn lower_mode(
                                         slots(&attachments.after),
                                     )
                                 }
-                                EmitItem::Insert(tag) => LEmitItem::Insert(tag.clone(), anchors[index]),
+                                EmitItem::Insert(tags, _) => LEmitItem::Insert(item_tags(tags), anchors[index]),
                             });
                         }
                         LEmit::Items(lowered)
                     }
                 }
             };
+            if production.erased {
+                production.emit = LEmit::Nothing;
+            }
+        }
+        if production.tags.is_none() {
+            match pending.sequence.inherited {
+                Some(position) => {
+                    let slot = match production.cap_at[position] {
+                        Some(slot) => slot,
+                        None => {
+                            let slot = production.cap_pos.len() as u32;
+                            production.cap_pos.push(position);
+                            production.cap_at[position] = Some(slot);
+                            slot
+                        }
+                    };
+                    production.tags = Some(LTerm::Tags(Span::Cap(slot)));
+                }
+                None => production.tags = Some(LTerm::Empty),
+            }
         }
         // A production with one symbol and no tags has its symbol's tags:
         // the symbol is captured (§3.7).
@@ -1930,6 +2101,7 @@ mod tests {
         let unicode = Unicode::parse(crate::loader::bundled("unicode.txt").expect("the table")).expect("the table");
         {
             let rule = |name: String, alternatives: Vec<Expr>| RuleDef {
+                strings: Default::default(),
                 deferred_emission: None,
                 name,
                 op: Op::Define,
@@ -1938,6 +2110,7 @@ mod tests {
                 alternatives: alternatives
                     .into_iter()
                     .map(|expr| Alternative {
+                        strings: Default::default(),
                         guards: Vec::new(),
                         expr,
                         tags: None,
@@ -1946,7 +2119,7 @@ mod tests {
                     .collect(),
                 emit: None,
                 conditions: Vec::new(),
-                opaque: false,
+                erased: false,
                 at: (0, 0),
             };
             let tested = (0..n).map(|index| {
@@ -2011,12 +2184,14 @@ mod tests {
             Term::If(Box::new(Cond::Captured(format!("c{index}"))), Box::new(Term::Tag(format!("t{index}"))))
         });
         RuleDef {
+            strings: Default::default(),
             deferred_emission: None,
             name: "text".into(),
             op: Op::Define,
             flags: Vec::new(),
             tags: Some(Term::Union(guards.collect())),
             alternatives: vec![Alternative {
+                strings: Default::default(),
                 guards: Vec::new(),
                 expr: Expr::Choice(captures.collect()),
                 tags: None,
@@ -2024,7 +2199,7 @@ mod tests {
             }],
             emit: None,
             conditions: Vec::new(),
-            opaque: false,
+            erased: false,
             at: (0, 0),
         }
     }
@@ -2079,7 +2254,11 @@ mod tests {
         rule.emit = Some(
             (0..n)
                 .map(|index| {
-                    let attachments = Attachments { before: Vec::new(), after: vec![format!("d{index}")] };
+                    let attachments = Attachments {
+                        strings: Default::default(),
+                        before: Vec::new(),
+                        after: vec![format!("d{index}")],
+                    };
                     EmitItem::Capture(format!("c{index}"), None, attachments)
                 })
                 .collect(),
@@ -2186,42 +2365,42 @@ mod tests {
             ((z ^ (z >> 31)) % n as u64) as usize
         };
         const TAGS: [&str; 14] = [
-            "($a ⟹ ~x)",
-            "~y",
+            "($a ⟹ Tag-x)",
+            "Tag-y",
             "∅",
-            "tags($a)",
-            "($b ⟹ tags($b))",
-            "(($a ∧ $b) ⟹ ~z)",
-            "(¬$c ⟹ ~w)",
-            "($c ⟹ ($d ⟹ ~v))",
+            "$a.tags",
+            "($b ⟹ $b.tags)",
+            "(($a ∧ $b) ⟹ Tag-z)",
+            "(¬$c ⟹ Tag-w)",
+            "($c ⟹ ($d ⟹ Tag-v))",
             "($a ⟹ ∅)",
-            "(~u ∩ ∅)",
-            "($d ⟹ (tags($d) ∖ ∅))",
-            "($b ⟹ (~x ∩ tags($c)))",
-            "($c ⟹ ~y)",
-            "(text($) ≠ \"\" ⟹ ~s)",
+            "(Tag-u ∩ ∅)",
+            "($d ⟹ ($d.tags ∖ ∅))",
+            "($b ⟹ (Tag-x ∩ $c.tags))",
+            "($c ⟹ Tag-y)",
+            "($.source-text ≠ \"\" ⟹ Tag-s)",
         ];
         const CONDS: [&str; 17] = [
             "$a",
             "¬$b",
-            "($a ⟹ text($a) = \"a\")",
-            "text($b) = \"b\"",
+            "($a ⟹ $a.source-text = \"a\")",
+            "$b.source-text = \"b\"",
             "($c ⟹ $d)",
-            "($d ⟹ text($d) ≠ \"\")",
-            "text($) ≠ \"\"",
+            "($d ⟹ $d.source-text ≠ \"\")",
+            "$.source-text ≠ \"\"",
             "($a ⟹ ¬$a)",
-            "($b ⟹ text($c) = \"c\")",
-            "($c ⟹ text($) ≠ \"\")",
-            "($a ⟹ ($b ⟹ text($b) = \"b\"))",
-            "(¬$d ⟹ text($) ≠ \"q\")",
+            "($b ⟹ $c.source-text = \"c\")",
+            "($c ⟹ $.source-text ≠ \"\")",
+            "($a ⟹ ($b ⟹ $b.source-text = \"b\"))",
+            "(¬$d ⟹ $.source-text ≠ \"q\")",
             "($d ⟹ ¬$d)",
-            "($b ⟹ text($b) ≠ \"\")",
-            "text($d) = \"d\"",
-            "text($a) ≠ text($c)",
-            "(∅ ∩ tags($b)) = ∅",
+            "($b ⟹ $b.source-text ≠ \"\")",
+            "$d.source-text = \"d\"",
+            "$a.source-text ≠ $c.source-text",
+            "(∅ ∩ $b.tags) = ∅",
         ];
         const ALTERNATIVES: [&str; 6] =
-            ["$a(A) [$b(B)]", "($c(C) | $d(D))", "$a(A) $c(C)", "[$d(D)] $b(B)", "$a(A) ($b(B) | $c(C)) [$d(D)]", "A"];
+            ["$a:A [$b:B]", "($c:C | $d:D)", "$a:A $c:C", "[$d:D] $b:B", "$a:A ($b:B | $c:C) [$d:D]", "A"];
         let union = |below: &mut dyn FnMut(usize) -> usize| {
             let parts: Vec<&str> = (0..1 + below(5)).map(|_| TAGS[below(TAGS.len())]).collect();
             parts.join(" ∪ ")
@@ -2233,16 +2412,14 @@ mod tests {
                 let alternative =
                     if index == 0 && below(4) != 0 { ALTERNATIVES[4] } else { ALTERNATIVES[below(ALTERNATIVES.len())] };
                 if below(3) == 0 {
-                    format!("{alternative} <{}>", union(&mut below))
+                    format!("{alternative} :: {}", union(&mut below))
                 } else {
                     alternative.to_string()
                 }
             })
             .collect();
-        let mut grammar = format!("%ambiguity-resolution greedy\n%rule text {}\n", alternatives.join(" | "));
-        if below(4) != 0 {
-            grammar.push_str(&format!("%tags {}\n", union(&mut below)));
-        }
+        let header = if below(4) != 0 { format!(" :: {}", union(&mut below)) } else { String::new() };
+        let mut grammar = format!("%ambiguity-resolution greedy\n%rule text{header} | {}\n", alternatives.join(" | "));
         let conditions: Vec<String> = (0..below(4))
             .map(|_| {
                 let parts: Vec<&str> = (0..1 + below(4)).map(|_| CONDS[below(CONDS.len())]).collect();
@@ -2263,7 +2440,7 @@ mod tests {
     /// attach the capture before it, and inserted tags stand among them.
     fn emission(below: &mut dyn FnMut(usize) -> usize) -> String {
         if below(10) == 0 {
-            return "$ <~x>".to_string();
+            return "$ :: Tag-x".to_string();
         }
         let mut names = vec!["a", "b", "c", "d"];
         if below(5) == 0 {
@@ -2272,7 +2449,7 @@ mod tests {
         let (mut items, mut before): (Vec<String>, Option<&str>) = (Vec::new(), None);
         for name in names {
             if below(5) == 0 {
-                items.push("X".to_string());
+                items.push("ε :: X".to_string());
             }
             match below(8) {
                 0 | 1 => {}
@@ -2280,8 +2457,8 @@ mod tests {
                 choice => {
                     let attached = before.take().map_or(String::new(), |before| format!("(${before}) "));
                     let tags = match choice {
-                        5 => " <~x>",
-                        6 => " <tags($b)>",
+                        5 => " :: Tag-x",
+                        6 => " :: $b.tags",
                         _ => "",
                     };
                     items.push(format!("{attached}${name}{tags}"));

@@ -328,12 +328,14 @@ mod tests {
                 .collect();
             // Each stage at line 2k + 2, with its rule on the next line.
             let rule = |index: usize| RuleDef {
+                strings: Default::default(),
                 deferred_emission: None,
                 name: "text".into(),
                 op: Op::Define,
                 flags: Vec::new(),
                 tags: None,
                 alternatives: vec![Alternative {
+                    strings: Default::default(),
                     guards: Vec::new(),
                     expr: Expr::Empty,
                     tags: None,
@@ -341,7 +343,7 @@ mod tests {
                 }],
                 emit: None,
                 conditions: Vec::new(),
-                opaque: false,
+                erased: false,
                 at: (2 * index + 3, 1),
             };
             let features = directive("features", (0..n).map(|index| format!("f{index}")).collect());

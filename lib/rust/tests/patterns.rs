@@ -59,3 +59,14 @@ fn pattern_paths_use_the_dom_depth_limit() {
     assert!(gencmu::tools::read_grammar_document(&document(250)).is_ok());
     assert!(gencmu::tools::read_grammar_document(&document(3000)).is_err());
 }
+
+#[test]
+fn cached_pattern_ranges_require_ordered_scalar_literals() {
+    for (first, last, malformed) in [("a", "z", false), ("z", "a", true), ("", "z", true), ("ab", "z", true)] {
+        let dom = format!(
+            r#"{{"format":{},"rules":[],"constants":[{{"name":"P","op":"define","value":{{"pattern":{{"range":[{{"string":"{first}"}},{{"string":"{last}"}}],"at":[1,12]}}}},"at":[1,1]}}],"directives":[],"classifiers":[],"implications":[]}}"#,
+            gencmu::tools::DOM_FORMAT
+        );
+        assert_eq!(gencmu::tools::check_dom(&dom).unwrap().is_some(), malformed, "{dom}");
+    }
+}

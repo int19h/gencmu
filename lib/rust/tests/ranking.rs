@@ -370,7 +370,7 @@ fn item_text(item: &Item) -> String {
         Item::Elidable(t) => format!("[+{}]", TERMINALS[*t]),
         Item::Repeat(sym) => format!("{{{}}}", name(sym)),
         Item::OptionalRepeat(sym) => format!("[{{{}}}]", name(sym)),
-        Item::Separated(sym, t) => format!("{{{} \\ {}}}", name(sym), TERMINALS[*t]),
+        Item::Separated(sym, t) => format!("{{{} / {}}}", name(sym), TERMINALS[*t]),
     }
 }
 
@@ -392,9 +392,9 @@ fn grammar_text(source: &Source) -> String {
         if let Some(chain) = source.chains[rule] {
             let (item, separator) = (name(&chain.item), name(&chain.separator));
             let body = if chain.left {
-                format!("{{... {item} \\ {separator}}}")
+                format!("{{... {item} / {separator}}}")
             } else {
-                format!("{{{item} ... \\ {separator}}}")
+                format!("{{{item} ... / {separator}}}")
             };
             text.push_str(&format!("%rule{flag} {} {body}\n", RULES[rule]));
             continue;
@@ -407,7 +407,7 @@ fn grammar_text(source: &Source) -> String {
                     body.push("ε".to_string());
                 }
                 if let Some(tags) = tags {
-                    body.push(format!("<{tags}>"));
+                    body.push(format!(":: {tags}"));
                 }
                 body.join(" ")
             })
@@ -1041,9 +1041,10 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         .iter()
         .enumerate()
         .map(|(index, tags)| gencmu::InputToken {
+            image: None,
             text: format!("t{index}"),
             tags: tags.iter().map(|&t| TERMINALS[t].to_string()).collect(),
-            phonemes: Some(if sounds[index] { "x" } else { "y" }.to_string()),
+            value: Some(if sounds[index] { "x" } else { "y" }.to_string()),
         })
         .collect();
     let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
