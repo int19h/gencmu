@@ -1,0 +1,13 @@
+{
+  "description": "The first value atom reads image, whose own recipe cycles. Depth-first traversal reports the image recipe before the later value self-read (engine §11.3 and §9.3).",
+  "grammar": "%rule text := $.emitted.image $.emitted.value :- $.emitted.image | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 50
+    }
+  }
+}
