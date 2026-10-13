@@ -97,15 +97,19 @@ class DomBuilder:
     # -- positions and errors
 
     def first_token(self, node: Node) -> int | None:
-        while node.kind == "rule":
-            if not node.children:
-                return None
-            node = node.children[0]
-        return node.token
+        pending = [node]
+        while pending:
+            current = pending.pop()
+            if current.kind == "token":
+                return current.token
+            pending.extend(reversed(current.children))
+        return None
 
     def position(self, node: Node) -> tuple[int, int]:
         index = self.first_token(node)
         if index is None:
+            index = node.span[0]
+        if index >= len(self.tokens):
             return self.grammar_text.position(len(self.grammar_text.text))
         return self.grammar_text.position(self.tokens[index].source[0])
 

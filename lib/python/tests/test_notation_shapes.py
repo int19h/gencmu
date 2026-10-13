@@ -60,6 +60,38 @@ def with_syntax(change: Callable[[str], str]) -> str:
 
 
 class NotationShapes(unittest.TestCase):
+    def test_an_empty_leading_wrapper_preserves_the_guard_position(self) -> None:
+        parsed = json.loads(BOOTSTRAP)
+        documents = {document["path"]: document["dom"] for stage in parsed["stages"] for document in stage["documents"]}
+        lexical = documents["notation/lexical.md"]
+        next(rule for rule in lexical["rules"] if rule["name"] == "feature-character")["alternatives"].append(
+            {"guards": [], "expr": {"literal": {"string": "_"}}}
+        )
+        syntax = documents["notation/syntax.md"]
+        next(rule for rule in syntax["rules"] if rule["name"] == "guard")["alternatives"][0]["expr"] = {
+            "seq": [{"ref": "padding"}, {"ref": "Guard"}]
+        }
+        syntax["rules"].append({
+            "name": "padding", "op": "define", "flags": [],
+            "alternatives": [{"guards": [], "expr": {"empty": True}}],
+            "conditions": [], "at": [1, 1],
+        })
+        bootstrap = json.dumps(parsed, ensure_ascii=False)
+        document = '```jbogenbau\n%ambiguity-resolution greedy\n%rule text bad_name? A\n```\n'
+        self.assertEqual(outcome(bootstrap, document, [], {"document": "g.md", "line": 3, "column": 12}), "grammar")
+
+    def test_empty_constructor_positions_use_their_token_boundary(self) -> None:
+        from gencmu._dom import DomBuilder
+        from gencmu._markdown import jbogenbau_text
+        from gencmu._unicode import UnicodeTable
+
+        tokens = [gencmu.Token("a", frozenset(), (0, 1), (0, 1)), gencmu.Token("b", frozenset(), (1, 2), (2, 3))]
+        builder = DomBuilder(tokens, jbogenbau_text('```jbogenbau\na b\n```'), "g.md", UnicodeTable("unicode 0.0.0\n"))
+        for boundary, column in ((1, 3), (2, 4)):
+            with self.subTest(boundary=boundary):
+                node = gencmu.Node("rule", (boundary, boundary), (0, 0), rule="padding")
+                self.assertEqual(builder.position(node), (2, column))
+
     def test_a_notation_stage_that_declares_elision_only_runs_the_check(self) -> None:
         """Each notation stage runs the check of elision-only where its own
         directive declares it (engine §8). With greedy and elision-only on
