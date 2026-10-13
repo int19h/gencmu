@@ -34,7 +34,7 @@ pub(crate) enum Span {
     /// `$`, the whole constituent: from the item's origin to its end.
     Whole,
     /// A captured proof with fixed projected closes (§4).
-    WithoutElision(Box<Span>),
+    WithoutElision(Box<Span>, Option<u32>),
     Head(Box<Span>),
     Tail(Box<Span>),
     Last(Box<Span>),
@@ -286,6 +286,7 @@ pub(crate) struct LRule {
     /// The id of that terminator's test, if it has one: an `=` test,
     /// whose string a restored token sounds like (engine §7).
     pub elided_test: Option<u32>,
+    pub elided_owner: Option<u32>,
 }
 
 impl Prod {
@@ -325,6 +326,7 @@ impl Prod {
 #[derive(Debug, Clone)]
 pub(crate) struct Lowered {
     pub ranked: RankedRuntime,
+    pub close_families: Vec<FxSet<u32>>,
     pub rules: Vec<LRule>,
     pub prods: Vec<Prod>,
     pub terminals: Vec<String>,
@@ -848,10 +850,13 @@ impl<'a> Scope<'a> {
                 Ok(Span::Cap(slot))
             }
             Term::Call(name, args) => {
+                if let ("without-elision-except", [Arg::Term(inner), Arg::Rule(family)]) = (name.as_str(), &args[..]) {
+                    return Ok(Span::WithoutElision(Box::new(self.span(inner)?), Some(self.rule(family)?)));
+                }
                 let [Arg::Term(inner)] = &args[..] else { return Err(Missing) };
                 let inner = Box::new(self.span(inner)?);
                 match name.as_str() {
-                    "without-elision" => Ok(Span::WithoutElision(inner)),
+                    "without-elision" => Ok(Span::WithoutElision(inner, None)),
                     "head" => Ok(Span::Head(inner)),
                     "tail" => Ok(Span::Tail(inner)),
                     "last" => Ok(Span::Last(inner)),
@@ -1079,6 +1084,7 @@ fn lower_mode(
             prods: Vec::new(),
             elided: None,
             elided_test: None,
+            elided_owner: None,
         })
         .collect();
     let mut families = FxMap::default();
@@ -1092,6 +1098,7 @@ fn lower_mode(
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
+            elided_owner: helper.elided.as_ref().map(|_| helper.owner),
         });
     }
     let mut order: Vec<Pending> = Vec::new();
@@ -1557,6 +1564,7 @@ fn lower_mode(
     let tests = std::mem::take(&mut lowerer.tests);
     let elides = rules.iter().any(|rule| rule.elided.is_some());
     let mut lowered = Lowered {
+        close_families: close_families(grammar),
         ranked: RankedRuntime::default(),
         start: grammar.index["text"] as u32,
         elides,
@@ -2067,6 +2075,49 @@ fn cycles(rules: &[LRule], prods: &[Prod]) -> Vec<Option<u32>> {
         }
     }
     cycle
+}
+
+/// Membership reads only written reference paths, before gates or lowering.
+fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
+    fn edges(expr: &Expr, grammar: &StageGrammar, out: &mut Vec<u32>) {
+        match expr {
+            Expr::Ref(name) => {
+                if let Some(&rule) = grammar.index.get(name) {
+                    out.push(rule as u32);
+                }
+            }
+            Expr::Capture(_, inner) | Expr::Tested(_, _, inner) => edges(inner, grammar, out),
+            Expr::Choice(branches) => {
+                for branch in branches {
+                    edges(branch, grammar, out);
+                }
+            }
+            _ => {}
+        }
+    }
+    let links: Vec<_> = grammar
+        .rules
+        .iter()
+        .map(|rule| {
+            let mut out = Vec::new();
+            for alternative in &rule.alternatives {
+                edges(&alternative.alternative.expr, grammar, &mut out);
+            }
+            out
+        })
+        .collect();
+    (0..grammar.rules.len())
+        .map(|root| {
+            let mut members = FxSet::default();
+            let mut pending = vec![root as u32];
+            while let Some(rule) = pending.pop() {
+                if members.insert(rule) {
+                    pending.extend(&links[rule as usize]);
+                }
+            }
+            members
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -280,6 +280,7 @@ impl ESet {
 
 #[derive(Debug, Default)]
 pub(crate) struct Chart {
+    family: Option<(u32, u32)>,
     pub close_requested: bool,
     pub lexical: Vec<LexicalFrame>,
     lexical_index: FxMap<String, u32>,
@@ -306,6 +307,7 @@ pub(crate) struct Chart {
 
 #[derive(Debug, Clone)]
 pub(crate) struct LexicalFrame {
+    family: Option<(u32, u32)>,
     pub observes_closes: bool,
     pub key: String,
     pub captures: std::collections::BTreeMap<String, Cap>,
@@ -460,6 +462,7 @@ impl Chart {
         let observes_closes = outer.map_or(observing, |f| f.observes_closes);
         let id = self.lexical.len() as u32 + 1;
         self.lexical.push(LexicalFrame {
+            family: self.family,
             observes_closes,
             key: key.clone(),
             available: captures.keys().cloned().collect(),
@@ -664,6 +667,7 @@ enum NestedKey {
         match_end: usize,
         fixed_end: usize,
         observation: u32,
+        family: Option<u32>,
         active: Vec<Place>,
     },
 }
@@ -683,7 +687,7 @@ pub(crate) struct Shared<'a> {
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, (bool, SetId)>,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
-    qualified: FxMap<(Place, Vec<Place>), Vec<QualifiedWitness>>,
+    qualified: FxMap<(Place, Vec<Place>, Option<u32>), Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
     /// not.
     begins: FxMap<NestedKey, bool>,
@@ -849,7 +853,7 @@ fn span_bounds(span: &Span, frame: &Frame, input: usize) -> Bounds {
             let (start, end) = projected(frame.lexical.map_or(frame.origin, |f| f.origin), frame.end);
             (start, end, Whose::Whole)
         }
-        Span::WithoutElision(inner) => {
+        Span::WithoutElision(inner, _) => {
             let (start, end, _) = span_bounds(inner, frame, input);
             (start, end, Whose::Tokens)
         }
@@ -908,6 +912,8 @@ struct QualifiedWitness {
     end: usize,
     observation: u32,
     tags: SetId,
+    family: u32,
+    oracle: u32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -915,15 +921,18 @@ struct Alignment {
     observation: u32,
     fixed_end: usize,
     match_end: usize,
+    family: Option<(u32, u32)>,
 }
 
 impl Request<'_> {
     fn place(&self) -> Place {
         (self.rule, self.base + self.start, self.base + self.end)
     }
-    fn qualification_key(&self) -> (Place, Vec<Place>) {
+    fn qualification_key(&self) -> (Place, Vec<Place>, Option<u32>) {
         match &self.key {
-            NestedKey::Aligned { active, .. } => (self.place(), active.clone()),
+            NestedKey::Aligned { active, .. } => {
+                (self.place(), active.clone(), self.aligned.and_then(|a| a.family.map(|(_, context)| context)))
+            }
             _ => unreachable!("an aligned qualification key"),
         }
     }
@@ -1224,6 +1233,7 @@ impl<'t, 'g> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None);
         run.chart.close_requested = request.aligned.is_some();
+        run.chart.family = request.aligned.and_then(|a| a.family);
         if let Step::Predict { requested, .. } = &mut run.step {
             *requested = run.chart.close_requested;
         }
@@ -1373,7 +1383,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix.nullable || prefix.first.iter().any(|t| self.shared.reads(self.matchers[*t as usize], &tokens[at]))
         })
     }
-    fn finish_structure(&self, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
+    fn finish_structure(&self, family: Option<(u32, u32)>, item: &mut Item, set: usize, base: usize, tokens: &[Tok]) {
         if let Some(machine) = &self.shared.machine {
             let g = self.g;
             let p = &g.prods[item.prod as usize];
@@ -1420,6 +1430,17 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         };
                         let mut record = crate::restoration::record(terminal.clone(), start, observed, sound);
                         record.at += base;
+                        if let Some((family, context)) = family {
+                            let permitted = rule
+                                .elided_owner
+                                .is_some_and(|owner| g.close_families[family as usize].contains(&owner));
+                            structure = m.family_record(
+                                structure,
+                                context,
+                                crate::restoration::Aligned::Close(record.terminal.clone(), record.at),
+                                permitted,
+                            );
+                        }
                         observation = m.observations.as_mut().unwrap().close(record);
                     }
                 }
@@ -1446,7 +1467,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let end = original(frame.end);
         let child = m.concat(lexical.prefix, prefix);
         let viewed = if let Some((group, entry, start)) = lexical.restoration_seal {
-            let block = m.block(crate::restoration::Block { group, entry, start, end }, child);
+            let block = m.family_block(
+                lexical.family.map(|(_, c)| c),
+                crate::restoration::Block { group, entry, start, end },
+                child,
+            );
             m.concat(lexical.seal_prefix, block)
         } else {
             child
@@ -1505,6 +1530,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             record.at += base;
             let observation = m.observations.as_mut().unwrap().close(record);
             id = m.observing(id, observation);
+        }
+        if let Some((_, context)) = chart.family {
+            let summary = m.families.token(context, base + e, base + e + 1);
+            id = m.with_family(id, summary);
         }
         chart.terminal_states.insert(key, id);
         id
@@ -1609,11 +1638,22 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let start = if request.begins { 0 } else { witnesses.partition_point(|w| w.end < a.match_end) };
         let witnesses = &witnesses[start..limit];
         let mut m = self.shared.machine.as_ref().unwrap().borrow_mut();
-        let observations = m.observations.as_mut().unwrap();
-        let mut aligned =
-            |w: &&QualifiedWitness| observations.aligns(a.observation, w.observation, a.fixed_end.min(w.end));
+        let mut aligned = |w: &&QualifiedWitness| match a.family {
+            Some((_, context)) => {
+                let actual =
+                    w.observation != crate::restoration::INVALID && m.families.accepts(context, w.family, w.end);
+                if w.observation != crate::restoration::INVALID {
+                    m.families.compare_oracle(context, w.oracle, w.end, actual);
+                }
+                actual
+            }
+            None => m.observations.as_mut().unwrap().aligns(a.observation, w.observation, a.fixed_end.min(w.end)),
+        };
         if request.begins {
-            let accepted = witnesses.iter().any(|w| aligned(&w));
+            let mut accepted = false;
+            for w in witnesses {
+                accepted |= aligned(&w);
+            }
             self.shared.begins.insert(request.key, accepted);
             return (accepted, 0);
         }
@@ -1660,6 +1700,20 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         .unwrap()
                         .borrow()
                         .observation(chart.sets[set as usize].items[index as usize].structure),
+                    oracle: self
+                        .shared
+                        .machine
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .oracle(chart.sets[set as usize].items[index as usize].structure),
+                    family: self
+                        .shared
+                        .machine
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .family(chart.sets[set as usize].items[index as usize].structure),
                     tags: chart.sets[set as usize].tagset[index as usize],
                 })
                 .collect();
@@ -1884,7 +1938,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     where
         'g: 't,
     {
-        self.finish_structure(&mut item, set, base, tokens);
+        self.finish_structure(chart.family, &mut item, set, base, tokens);
         let g = self.g;
         let production = &g.prods[item.prod as usize];
         // A strict item never completes.
@@ -1977,6 +2031,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Puts a new item into a set, with the tags of its constituent if the
     /// conditions read them, which completion reuses.
     fn insert(chart: &mut Chart, item: Item, set: usize, strict: bool, known: SetId, recon: bool) {
+        if let Some((_, context)) = chart.family {
+            if let Some(machine) = &chart.machine {
+                let mut m = machine.borrow_mut();
+                let state = if item.structure == u32::MAX { item.prefix } else { item.structure };
+                let summary = m.family(state);
+                m.families.take(summary, context);
+            }
+        }
         let target = &mut chart.sets[set];
         work::count(Work::Items, 1);
         let index = target.items.len() as u32;
@@ -2192,7 +2254,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix: 0,
             structure: u32::MAX,
         };
-        self.finish_structure(&mut item, e + 1, 0, tokens);
+        self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
         if e + 1 >= chart.sets.len() {
             chart.sets.resize_with(e + 2, ESet::default);
         }
@@ -2277,7 +2339,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 match lexical.filter(|_| observing).and_then(|f| f.restoration_entry) {
                     Some(entry) => {
                         let original = |at: u32| base + self.recon.map_or(at, |r| r.project[at as usize]) as usize;
-                        m.block(
+                        m.family_block(
+                            chart.family.map(|(_, c)| c),
                             crate::restoration::Block {
                                 group: g.ranked.slots[&rule],
                                 start: original(cap.start),
@@ -2320,7 +2383,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             prefix,
             structure: u32::MAX,
         };
-        self.finish_structure(&mut next, into, base, tokens);
+        self.finish_structure(chart.family, &mut next, into, base, tokens);
         if chart.machine.is_some() {
             let edges = chart.links.entry((into as u32, next)).or_default();
             if !edges.contains(&(item, cap)) {
@@ -2540,7 +2603,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut pending = vec![span];
         while let Some(span) = pending.pop() {
             match span {
-                Span::WithoutElision(inner) => {
+                Span::WithoutElision(inner, _) => {
                     let structure = self.span_structure(inner, frame);
                     if self
                         .shared
@@ -2585,14 +2648,24 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         while let Span::From(inner) = anchor {
             anchor = inner;
         }
-        let aligned = if let Span::WithoutElision(inner) = anchor {
+        let aligned = if let Span::WithoutElision(inner, family) = anchor {
             let fixed_end = span_bounds(inner, frame, tokens.len()).1;
-            let m = self.shared.machine.as_ref().expect("restoration observations").borrow();
-            Some(Alignment {
-                observation: m.observation(self.span_structure(inner, frame)),
-                fixed_end: base + fixed_end,
-                match_end: base + match_end,
-            })
+            let mut m = self.shared.machine.as_ref().expect("restoration observations").borrow_mut();
+            let observation = m.observation(self.span_structure(inner, frame));
+            let family = family.map(|family| {
+                let Machine { observations, families, .. } = &mut *m;
+                (
+                    family,
+                    families.context(
+                        observations.as_ref().unwrap(),
+                        observation,
+                        base + start,
+                        base + fixed_end,
+                        family,
+                    ),
+                )
+            });
+            Some(Alignment { observation, family, fixed_end: base + fixed_end, match_end: base + match_end })
         } else {
             None
         };
@@ -2605,6 +2678,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 place: (rule, base + start, base + end),
                 match_end: a.match_end,
                 fixed_end: a.fixed_end,
+                family: a.family.map(|(_, context)| context),
                 observation: self
                     .shared
                     .machine

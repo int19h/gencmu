@@ -81,6 +81,10 @@ pub(crate) enum Work {
     /// Interned restoration observations, including cycle footprints.
     CloseStates,
     CloseSequences,
+    /// Distinct family summaries that chart items take (§4.1).
+    FamilySummaries,
+    /// Computed record moves and relation rows for family alignment.
+    FamilySteps,
     Classified,
 }
 
