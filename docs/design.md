@@ -865,6 +865,8 @@ CI has two workflows. `ci.yml` runs for each pull request and each push to `main
 - Go: 1.22 and stable. The job runs `go vet`, `go test`, and `go test -race` for concurrent parses. It also builds the module alone.
 - Rust: 1.75 and stable. The job runs `cargo fmt --check`, `cargo clippy`, optimized `cargo test`, and `cargo package`.
 
+Both Rust jobs also build a consumer from the packaged archive beside unrelated engine and notation fixtures. The published crate excludes integration tests. Its build script discovers external fixtures only when the corresponding integration test exists inside the crate.
+
 The workflow also tests the playground in Chromium and Firefox. It runs the whole corpus in JavaScript and in the stable Rust job. A separate job makes sure that the JavaScript types and generated declarations agree. `nightly.yml` runs the whole corpus in all four languages each night and on demand. Nightly Python uses an installed wheel on 3.14 with four pytest workers.
 
 Rust and Go use their standard test harnesses to schedule independent tests and shared fixtures. JavaScript uses the Node runner to schedule files. Python uses pytest with pytest-xdist to schedule tests in separate processes. Its `worksteal` scheduler balances tests with different durations. The `test` dependency group pins these Python development tools. The Python package keeps no runtime dependencies.

@@ -49,6 +49,11 @@ fn main() {
 // Give each fixture a test in the standard harness. Published crates do
 // not include repository fixtures or integration tests.
 fn shared_tests(manifest: &Path, kind: &str) {
+    let integration_test = manifest.join("tests").join(format!("{kind}.rs"));
+    println!("cargo:rerun-if-changed={}", integration_test.display());
+    if !integration_test.is_file() {
+        return;
+    }
     let root = manifest.join("../../tests").join(kind);
     println!("cargo:rerun-if-changed={}", root.display());
     let mut code = String::new();

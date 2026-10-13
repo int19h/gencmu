@@ -172,7 +172,9 @@ jobs:
       - name: Tests
         run: cargo test
       - name: The crate holds everything it needs
-        run: cargo package
+        run: |
+          cargo package
+          sh ../../tools/check-rust-package.sh target/package/gencmu-*.crate
       # The whole Lojban corpus, on each pull request (design, "Tests"):
       # about a minute on a hosted runner's cores, under 2 GB.
       - name: The whole corpus

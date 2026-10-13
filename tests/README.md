@@ -15,6 +15,8 @@ Run each command from the named library directory:
 
 Rust tests use optimization level 3. For a debug build, set `CARGO_PROFILE_TEST_OPT_LEVEL=0` and select one test. Python needs version 3.14 or later. Its README gives the local interpreter and installation commands. CI runs the Python suite once, against the installed wheel. Local Python tests read `src/`.
 
+Rust generates shared tests only when the corresponding integration test exists inside the crate. Published dependency builds read no external fixtures. The Rust README gives the packaged consumer procedure that both Rust CI versions run.
+
 Rust, Go, and JavaScript have separate corpus pools, which `GENCMU_CORPUS_WORKERS` controls. Python schedules corpus cases through the same pytest workers as its other tests. Its `worksteal` scheduler moves queued tests to idle workers. For a serial Rust, Go, or JavaScript suite, set both controls to `1`. For a serial Python suite, use `python -m pytest -n 1`. Use Go's `-count=1` flag when you measure a suite, so Go does not reuse a cached result.
 
 Tests must not depend on execution order. Go tests with process-wide controls or allocation counts stay serial. Other tests cannot enter these controls or change those counts.
