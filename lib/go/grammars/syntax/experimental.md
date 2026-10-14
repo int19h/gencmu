@@ -121,7 +121,7 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
 
 The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here.
 
-A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it. A prenex can have no terms (`zo'u mi klama`). `statement-1` keeps the left recursion of the CLL rule, with both forms of connection. So its connections group from the left.
+Every connective before `.i` belongs to the sentence and requires a following subsentence. An optional `bo` can carry a stag. A subsentence can begin with a prenex, whose terms can be absent (`zo'u mi klama`). A following subsentence can contain another such connection, so these connections group from the right. Connections after `.i` remain in `statement-1` and group from the left.
 
 A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
 
@@ -129,7 +129,6 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
 %redefine-rule statement-1
   | statement-2
   | statement-1 I statement-connective [statement-2]
-  | statement-1 statement-connective I # [statement-2]
 
 %redefine-rule statement-2
   statement-3 [I [joik | jek | ek] [stag] BO # [statement-2]]
@@ -174,7 +173,7 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   headed-bridi-tail [sentence-link]
 
 %rule sentence-link
-  statement-connective [stag] BO I # subsentence
+  statement-connective [[stag] BO] I # subsentence
 
 %rule bridi-tail-head
   | {terms / CU #} [CU #]
@@ -1027,7 +1026,7 @@ camxes-exp has no text-leading run of names. This layer excludes that form with 
 
 This layer keeps CLL's initial connective in `je mi klama`. camxes-exp contains the form, but its empty `paragraphs` makes `(!text_1 joik_jek)?` fail. Its PEG therefore rejects the text. That rejection is an accident of the PEG: `text_1` can match nothing, so `!text_1` never succeeds.
 
-The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Statement and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
+The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Connections after `.i` and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
 JACU unifies the connective families between bridi-tails. The separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri. This layer includes both constructions. It protects the same `gi'e ke` and `gi'e ba ke` boundaries. camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
 

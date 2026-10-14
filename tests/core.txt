@@ -3538,3 +3538,13 @@ i119.experimental.quantified-right-control
 i119.experimental.forethought-sumti-control
 i119.experimental.reference-control
 i119.experimental.relative-connection
+i122.experimental.a-prenex
+i122.experimental.ja-prenex
+i122.experimental.joi-prenex
+i122.experimental.vuhu-prenex
+i122.experimental.bo-prenex
+i122.experimental.missing-right
+i122.experimental.post-i-control
+i122.experimental.right-association
+i122.experimental.converted-connection
+i122.experimental.empty-prenex
