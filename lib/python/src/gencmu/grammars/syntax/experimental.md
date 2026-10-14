@@ -39,7 +39,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] #`. So free modifiers can follow an elided terminator.
 
-`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. They exclude another number part or letter word, even when that slot is empty. A written BOI permits the boundary.
+`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. The number rule excludes a following number part. The letter rule excludes a following letter word. An empty free slot still shows the next word. A written BOI permits the boundary.
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
@@ -1061,6 +1061,10 @@ In `mi klama le zarci .e pu to ke broda`, `pu` owns the parenthesis that contain
 
 camxes-exp's listed NA and tag checks parse a following predicate independently. This layer tests the selected sentence head instead. In `le nu do klama na brode`, the inner tail keeps NA before the abstraction closes. In `le nu do klama pu brode`, it keeps PU there. `brode` remains inside the description in both texts.
 
+This layer accepts `nu'i na broda` and `nu'i pu broda`, while camxes-exp rejects them. The elided NUhU ends the termset before `broda`. NA or PU stays inside as a term, and `broda` supplies the following selbri. A written NUhU gives camxes-exp the same reading.
+
+This layer accepts `mi na ca'a troci le nu jimpe vau mu'i le nu birti mi na kakne`. It also accepts `ma krinu lenu mi skami na facki la'o .gy www.lojban.org .gy`. camxes-exp rejects both texts. Each reading keeps NA in the selected inner tail before the abstraction closes.
+
 camxes-exp applies two lookaheads after its plain term connective. This layer carries the corresponding connection facts from the selected tag. It preserves connections of bridi-tails and sentences without shortening free modifiers in a separate parse.
 
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
@@ -1101,6 +1105,8 @@ A connective operator has one effective final free slot in this layer and camxes
 
 The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-barrier` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`. LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible in `la'e pa lu'u broda` and `ge la'e pa gi re broda`. The layer extends the sumti check into nested forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
 
+This layer accepts `la'e to mi pa broda` and `na'e to mi pa broda`, while camxes-exp rejects both. The parenthesis stays on the LAhE or NAhE prefix. The operand is `pa broda`.
+
 Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu klama`. camxes-exp takes the quantifier `ge abu gi by`. In `lo ge by gi re mi broda`, this layer takes `ge by gi re mi` as the possessor. camxes-exp takes `ge by gi re` as the quantifier of `mi`. Numeric forethought quantifiers remain possible, as in `lo ge pa gi re mi broda`.
 
 The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
@@ -1112,6 +1118,8 @@ Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'
 The free-modifier preference compares complete readings rather than requiring a maximal TOI or SEhU. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
 
 A number cannot end before another number part without written BOI. So `li pa joi xi re re` fails because both `re` words belong to the subscript. No operand remains after `joi`. `li pa joi xi re boi re` keeps the subscript boundary and the following operand.
+
+This layer accepts `li pa ni'e to mi broda re mai lo'o`, while camxes-exp rejects it. The ordinal `re mai` modifies the selbri inside NIhE. The outer number contains PA and that NIhE part.
 
 The replacement quotes follow camxes-exp. Under `cbm`, a name is a predicate, so a separate name-run vocative form duplicates the selbri form. This layer removes it. With `soi-clause` on, `soi` is a term, as in camxes-exp. Without it, `soi` remains CLL's free modifier.
 
