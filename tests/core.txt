@@ -3524,3 +3524,7 @@ i126.experimental.final-one
 i126.experimental.final-two
 i127.experimental.plain-borrowing-apostrophe
 i127.experimental.stressed-borrowing-apostrophe
+i185.experimental.rohoi
+i185.experimental.numeric
+i185.experimental.prenex
+i185.experimental.quoted

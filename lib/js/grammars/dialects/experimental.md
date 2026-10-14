@@ -148,6 +148,8 @@ The layer follows camxes-exp's ordered choice where that choice decides what a t
 
 ### Explicit grammar differences
 
+The PA class includes `ro'oi` beside `su'oi`. camxes-exp omits `ro'oi`, so it rejects `ro'oi broda`. This dialect reads it as a quantified description.
+
 A nucleus is the vowel center of a syllable. A glide is an `i` or `u` before a nucleus. camxes-exp adds `!glide` to its `glide` rule. No nucleus after a glide begins with another glide, so this lookahead changes no parse. The forms stage keeps the BPFK rule without it.
 
 The dialect also accepts two constructs by choice, which camxes-exp rejects. A stag is a tense or modal inside a connective. In a sentence's own terms, camxes-exp requires a stag between a connective and `bo` (`abs_term_2`). This grammar retains camxes-exp's two levels of terms but does not require that stag, so `fa mi .e bo fe do klama` parses here.
