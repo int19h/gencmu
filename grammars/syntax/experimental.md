@@ -562,7 +562,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-`joik-family` groups joik, jek and ek. `selbri-connective` adds VUhU. All four families connect selbri and tanru units. A tagged KE connection uses only `joik-family`.
+`joik-family` groups joik, jek and ek. `selbri-connective` adds VUhU. All four families connect selbri and tanru units. Abstraction markers use those four families, as in `mi nu e ka broda` and `mi nu su'i ka broda`. A tagged KE connection uses only `joik-family`.
 
 A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
