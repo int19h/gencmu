@@ -4,7 +4,7 @@ This document is the lexicon of the forms stage in the [experimental](../dialect
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The lexicon follows the classes of camxes-exp, the experimental grammar of the camxes parser. The closing section lists its additional entry. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). `tools/peg-lexicon.js` does not write the PA entry for `ro'oi`, so the file keeps it by hand.
+The lexicon follows the classes of camxes-exp, the experimental grammar of the camxes parser. The closing section lists the one entry that camxes-exp lacks. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). `tools/peg-lexicon.js` adds `ro'oi` to PA, which camxes-exp lacks.
 
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
@@ -117,8 +117,8 @@ The implication after the entries marks some words `Indicator`, which the indica
   "nu'u" ∈ NUhU
   "bi" "ce'i" "ci" "ci'i" "da'a" "dau" "du'e" "fei" "fi'u" "gai" "jau" "ji'i" "ka'o" "ki'o" ∈ PA
   "ma'u" "me'i" "mo'a" "mu" "ni'u" "no" "no'o" "pa" "pai" "pi" "pi'e" "ra'e" "rau" "re" "rei" ∈ PA
-  "ro" "ro'oi" "so" "so'a" "so'e" "so'i" "so'o" "so'u" "su'e" "su'o" "su'oi" "te'o" "tu'o" "vai" "vo" ∈ PA
-  "xa" "xo" "xo'e" "za'u" "ze" ∈ PA
+  "ro" "ro'oi" "so" "so'a" "so'e" "so'i" "so'o" "so'u" "su'e" "su'o" "su'oi" "te'o" "tu'o" ∈ PA
+  "vai" "vo" "xa" "xo" "xo'e" "za'u" "ze" ∈ PA
   "pe'e" ∈ PEhE
   "pe'o" ∈ PEhO
   "ba" "ca" "pu" ∈ PU

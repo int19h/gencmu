@@ -679,7 +679,15 @@ Both CLL dialects accept example 8.48 without `ku'o`, despite the requirement in
 
 ## Lexicons
 
-The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons use word tables from other parsers. `tools/peg-lexicon.js` generates each of them. To update either generated lexicon, run the tool again.
+The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons use word tables from other parsers. `tools/peg-lexicon.js` writes their classifier and indicator blocks. It preserves the surrounding prose, including the closing comparison. Repeated `--add CLASS=WORD` arguments declare dialect additions.
+
+The experimental command uses a local `camxes-exp.peg` from ilmentufa commit `778ea138f7d150121ca722db7536ce3b123943ac`. The declared PA addition keeps `ro'oi` through every regeneration.
+
+```sh
+node tools/peg-lexicon.js camxes-exp.peg grammars/words/lexicon-experimental.md --add "PA=ro'oi"
+```
+
+The Markdown parser requires the development dependencies from `npm ci` in `lib/js`. After a lexicon update, `node tools/sync.js` refreshes the generated files and package copies.
 
 ## The result, and why it has no types
 
