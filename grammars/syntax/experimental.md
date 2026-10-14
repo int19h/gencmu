@@ -510,35 +510,36 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
 
-The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot use the quantified constructor. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
+The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot start with a quantifier. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
-`quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `$QUANTIFIED-SUMTI` tests that actual quantified constructor, with optional relative clauses.
+`Quantifier-Start` marks a sumti whose selected first constituent is a quantifier. Connections and VUhO forward that mark from their first sumti. BO and KE groups preserve it too, even with written closers. Explicit recursion keeps the first capture in each chain. A forethought sumti does not inherit the mark from a branch. The possessor condition reads this mark rather than querying another reading.
 
 A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`.
 
 ```jbogenbau
-%const $QUANTIFIED-SUMTI @(quantifier sumti-6 [relative-clauses])
-
 %redefine-rule sumti
   | sumti-1
-  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
-  | sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
+  | $s:sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End ∪ ($s.tags ∩ Quantifier-Start)
+  | $s:sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti :: ($s.tags ∩ Quantifier-Start) ∪ ($i.tags ∩ $EXTENSIBLE-END)
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | $s:sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: ($s.tags ∩ Quantifier-Start) ∪ (KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END)
 
-%redefine-rule sumti-2
-  {... sumti-3 / sumti-connective} :: $EXTENSIBLE-END
+%redefine-rule sumti-2 :: $EXTENSIBLE-END ∪ ($s.tags ∩ Quantifier-Start)
+  | $s:sumti-3
+  | $s:sumti-2 sumti-connective sumti-3
 
-%redefine-rule sumti-3
-  {sumti-4 ... / sumti-connective [stag] BO #}
+%redefine-rule sumti-3 :: $s.tags ∩ Quantifier-Start
+  | $s:sumti-4
+  | $s:sumti-4 sumti-connective [stag] BO # sumti-3
 
 %rule sumti-connective
   ek # | joik # | jek # | VUhU #
 
 %redefine-rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses]
+  | [$q:quantifier] sumti-6 [relative-clauses] :: $q ⟹ Quantifier-Start
+  | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses] :: Quantifier-Start
 
 %redefine-rule sumti-6
   | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
@@ -566,14 +567,10 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  ¬$s.first-token.matches(quantifier-head),
-  $s ≇ $QUANTIFIED-SUMTI
-
-%rule quantifier-head
-  PA | VEI | NIhE | MOhE | PEhO | FUhA
+  Quantifier-Start ⊈ $s.tags
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>sumti</code> to <code>quantifier-head</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>sumti</code> to <code>sumti-tail</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
@@ -582,7 +579,6 @@ A description can take a forethought sentence in place of a selbri, and so can a
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-6.svg" alt="Railroad diagram of the rule sumti-6"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/quantifier-head.svg" alt="Railroad diagram of the rule quantifier-head"></p>
 </details>
 
 ## Relative clauses
