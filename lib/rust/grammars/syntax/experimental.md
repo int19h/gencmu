@@ -819,6 +819,8 @@ A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, 
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
+Both prefixes use `prefixed-connective`. An initial SE belongs to the outer conversion, while a second SE belongs to the inner connective. An initial NA keeps its own following SE. This gives a single initial SE one role rather than two readings.
+
 The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
 ```jbogenbau
@@ -827,22 +829,29 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
 
 %redefine-rule gek
   | [SE] GA #
-  | GA="ga" # (joik # | jek # | ek # | VUhU #)
+  | GA="ga" # prefixed-connective
   | (joik | jek | ek) GI #
   | stag gik
 
 %redefine-rule guhek
   | [SE] GUhA #
-  | GA="gu" # (joik # | jek # | ek # | VUhU #)
+  | GA="gu" # prefixed-connective
+
+%rule prefixed-connective
+  | SE selbri-connective
+  | $c:selbri-connective
+%conditions
+  SE ⊈ $c.first-token.tags
 
 %redefine-rule gihek
   [NA] [SE] (GIhA | GI (JOI | JA | A))
 ```
 
-<details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code> and <code>gihek</code></summary>
+<details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code>, <code>prefixed-connective</code> and <code>gihek</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/prefixed-connective.svg" alt="Railroad diagram of the rule prefixed-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
 </details>
 
