@@ -10672,15 +10672,7 @@
     for (let current = stack.pop(); current !== undefined; current = stack.pop()) {
       if (hooks.work) countWork(hooks.work, "clauses");
       if ("ref" in current) into.add(current.ref);
-      else if ("seq" in current) for (const item of current.seq) stack.push(item);
-      else if ("choice" in current) for (const item of current.choice) stack.push(item);
-      else if ("and" in current) for (const item of current.and) stack.push(item);
-      else if ("optional" in current) stack.push(current.optional);
-      else if ("repeat" in current) {
-        stack.push(current.repeat);
-        if (current.separator !== undefined) stack.push(current.separator);
-      }
-      else if ("capture" in current || "test" in current) stack.push(current.expr);
+      for (const item of expressionChildren(current)) stack.push(item);
     }
   }
 
