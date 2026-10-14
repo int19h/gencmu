@@ -142,11 +142,13 @@ The grammar has ambiguities that are not about terminators. For example, two sum
 
 camxes-exp is the baseline of this dialect, not its limit. gencmu considers every parse that its grammars allow, and a PEG (parsing expression grammar) gives up the alternatives it does not backtrack into. So the dialect accepts texts that camxes-exp rejects only because its PEG committed to a first match. An example is `sei la alis cusku`, where camxes-exp reads `la alis cusku` as one description and has no selbri left.
 
-PEG commitment also changes readings of accepted texts. In `le mlatu na mu'o pinxe le ri ladru`, camxes-exp's vocative includes `pinxe`. The dialect reads a negated sentence.
+In `le mlatu na mu'o pinxe le ri ladru`, camxes-exp keeps PINXE inside the vocative. This dialect reads a negated sentence, with PINXE as its main predicate. Its listed-NA query removes the longer vocative reading. That selected-context limitation waits for [issue #197](https://github.com/int19h/gencmu/issues/197).
+
+The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The layer preserves explicit choices that distinguish meanings. A query is a parse requested by a condition. The layer tests the selected sentence head and preserves selected prefixes in its queries. A query cannot shorten a selected free modifier. The [syntax document](../syntax/experimental.md) states these choices.
+The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. The listed-term queries retain its restrictions after bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
 
 ### Explicit grammar differences
 
@@ -176,7 +178,7 @@ A free modifier after a subscript can belong to the subscript or to the word tha
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
 
-ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. Thus `me ni'e broda brode` keeps both predicates inside NIhE. The sumti reading instead closes NIhE before `brode`, which supplies its predicate.
+ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. In `me my moi`, this dialect takes a sumti, while camxes-exp takes a mekso. This dialect accepts `me my su'i pa` as a complete mekso. camxes-exp commits to a shorter sumti and rejects it.
 
 ### Quotes and indicators
 
