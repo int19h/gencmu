@@ -564,7 +564,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
-`me-unit` ranks a sumti operand before a mekso operand. A sumti whose tests and conditions pass excludes a mekso over the same span. A sumti that cannot complete the construction excludes nothing.
+`me-unit` takes a sumti or a mekso. A sumti reading excludes a mekso only when both read the same words with the same boundaries. The mekso query restores its omitted terminators, so a competing sumti cannot move an inner close or shorten a free modifier.
 
 The whole `mex MOI #` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
 
@@ -650,7 +650,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | MEhOI anything #
 
 %rule me-unit
-  ME # (sumti ≻ mex) [+MEhU] # [MOI #]
+  ME # (sumti | $m:mex) [+MEhU] # [MOI #]
+%conditions
+  ¬$m.without-elision.matches(sumti)
 
 %rule tanru-unit-not-starting-with-ke
   tanru-unit-1-not-starting-with-ke [{CEI # tanru-unit-1}] [selbri-relative-clauses]
@@ -1053,6 +1055,12 @@ camxes-exp uses lookahead after its gihek. This layer uses the head pattern and 
 
 The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Tagged and bare-`na` single terms, including those in bare forethought branches, correspond to `tag_term`. `tag_term` has no `!selbri` or `!gek_sentence` lookahead.
 
+The parenthesis contains `broda` in `na to broda` and `na na to broda`. Each NA stands as a term. A tail NA also keeps its modifier, as in `mi klama na to broda`.
+
+In `mi klama le zarci .e pu to ke broda`, `pu` owns the parenthesis that contains `ke broda`. These readings keep the selected free modifiers instead of an earlier close from a separate query.
+
+camxes-exp's listed NA and tag checks parse a following predicate independently. This layer tests the selected sentence head instead. In `le nu do klama na brode`, the inner tail keeps NA before the abstraction closes. In `le nu do klama pu brode`, it keeps PU there. `brode` remains inside the description in both texts.
+
 camxes-exp applies two lookaheads after its plain term connective. This layer carries the corresponding connection facts from the selected tag. It preserves connections of bridi-tails and sentences without shortening free modifiers in a separate parse.
 
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
@@ -1069,7 +1077,11 @@ The description's possessor can be any unquantified sumti. camxes-exp also reads
 
 ### Tanru and linked arguments
 
-`me-unit` preserves camxes-exp's preference for sumti before mekso over the same span. It keeps the complete sumti in `mi me la'e ge my gi ny su'i zy moi`. camxes-exp's restrictive sumti lookahead instead takes a mekso. In `me my moi`, this layer takes a sumti and camxes-exp takes a mekso. This layer accepts `me my su'i pa` as mekso, while camxes-exp commits to a shorter sumti and rejects it.
+A sumti reading excludes a mekso only when both read the same words with the same boundaries. Thus `me ni'e broda brode` takes a mekso whose NIhE holds both predicates, as camxes-exp does. The same rule applies in `me ni'e broda to mi toi brode`. The sumti alternative instead closes NIhE before `brode`, which supplies its predicate.
+
+The parenthesis in `me re to le rance` contains `le rance`. The SEI clause in `me re sei mi klama broda` contains `klama broda`. A separate sumti query cannot shorten these selected free modifiers.
+
+This layer keeps the complete sumti in `mi me la'e ge my gi ny su'i zy moi`. camxes-exp's restrictive sumti lookahead instead takes a mekso. In `me my moi`, this layer takes a sumti and camxes-exp takes a mekso. This layer accepts `me my su'i pa` as mekso, while camxes-exp commits to a shorter sumti and rejects it.
 
 After a joik, jek or ek directly before KE, this layer prefers the connective's KE group. camxes-exp first takes a plain connective before a KE tanru unit. Both forms group the same words in `mi broda joi ke brode ke'e`.
 
