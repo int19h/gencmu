@@ -4,7 +4,7 @@ This document is the lexicon of the forms stage in the [Zantufa](../dialects/zan
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The lexicon gives each cmavo the selma'o that Zantufa 1.9999 gives it. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `zantufa-1.9999.peg`. That file is in Guskant's `gerna_cipra` repository, as of commit d5a5065. The tool marks no class as an indicator here, so it writes no implication. A maintainer changes the lexicon by running the tool again.
+The maintainers edit this lexicon by hand. Its baseline is the word lists of Zantufa 1.9999. The source is `zantufa-1.9999.peg` in Guskant's `gerna_cipra` repository, at commit [`d5a5065c924304cf5e9067ee6d41b584fbe1c099`](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.peg).
 
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains.
 

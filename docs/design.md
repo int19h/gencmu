@@ -679,15 +679,31 @@ Both CLL dialects accept example 8.48 without `ku'o`, despite the requirement in
 
 ## Lexicons
 
-The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons use word tables from other parsers. `tools/peg-lexicon.js` writes their classifier and indicator blocks. It preserves the surrounding prose, including the closing comparison. Repeated `--add CLASS=WORD` arguments declare dialect additions.
+All lexicons are hand-curated. The maintainers edit words and their classes by hand. If a reference parser changes, the maintainers port the relevant changes by hand.
 
-The experimental command uses a local `camxes-exp.peg` from ilmentufa commit `778ea138f7d150121ca722db7536ce3b123943ac`. The declared PA addition keeps `ro'oi` through every regeneration.
+`tools/peg-lexicon.js` compares a lexicon with the word lists of a PEG grammar. It reports each missing cmavo and each different class set. It writes no file. The comparison returns status 0 for equal tables, 1 for differences and 2 for errors.
+
+The experimental comparison uses a local `camxes-exp.peg` from ilmentufa commit `778ea138f7d150121ca722db7536ce3b123943ac`:
 
 ```sh
-node tools/peg-lexicon.js camxes-exp.peg grammars/words/lexicon-experimental.md --add "PA=ro'oi"
+node tools/peg-lexicon.js camxes-exp.peg grammars/words/lexicon-experimental.md
 ```
 
-The Markdown parser requires the development dependencies from `npm ci` in `lib/js`. After a lexicon update, `node tools/sync.js` refreshes the generated files and package copies.
+The Zantufa comparison uses a local `zantufa-1.9999.peg` from Guskant's `gerna_cipra` commit `d5a5065c924304cf5e9067ee6d41b584fbe1c099`:
+
+```sh
+node tools/peg-lexicon.js zantufa-1.9999.peg grammars/words/lexicon-zantufa.md
+```
+
+The comparison accepts lexicons without feature gates. It resolves interpolated keys and membership removals through the JavaScript library. It compares classifier classes, without implication tags. Bare `y+` denotes hesitation, not a cmavo. The `ybu` and `digit` PEG branches describe input constructs, so they supply no literal classifier keys. A mixed Y list retains its canonical `y` key.
+
+For a new lexicon, bootstrap mode prints a fresh classifier to standard output. It prints no implication:
+
+```sh
+node tools/peg-lexicon.js camxes-exp.peg --print-classifier
+```
+
+After a hand edit, `node tools/sync.js` refreshes the generated files and package copies.
 
 ## The result, and why it has no types
 

@@ -4,7 +4,7 @@ This document is the lexicon of the forms stage in the [experimental](../dialect
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The lexicon follows the classes of camxes-exp, the experimental grammar of the camxes parser. The closing section lists the one entry that camxes-exp lacks. It holds the cmavo of CLL (*The Complete Lojban Language*) and the experimental cmavo that camxes-exp reads. `tools/peg-lexicon.js` writes the classifier below from the selma'o lists of `camxes-exp.peg` in ilmentufa, as of commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). `tools/peg-lexicon.js` adds `ro'oi` to PA, which camxes-exp lacks.
+The maintainers edit this lexicon by hand. Its baseline is the word lists of camxes-exp, the experimental grammar of the camxes parser. The source is `camxes-exp.peg` in ilmentufa, at commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). The lexicon contains CLL (*The Complete Lojban Language*) cmavo and experimental cmavo. The closing section lists its additions and class differences.
 
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
@@ -176,6 +176,6 @@ The implication after the entries marks some words `Indicator`, which the indica
 
 `ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The dialect accepts `ro'oi broda` as a quantified description.
 
-The tool omits camxes-exp's Y because the forms stage reads a run of `y` as hesitation instead of a cmavo.
+The lexicon omits camxes-exp's Y because the forms stage reads a run of `y` as hesitation instead of a cmavo.
 
 camxes-exp gives each word one selma'o. It reassigns the CLL words `la`, `lai` and `la'i` to LE because it reads names as selbri. This classifier retains those classes.
