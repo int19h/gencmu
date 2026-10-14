@@ -366,7 +366,7 @@ The engine defines these rules in §3:
 - A right chain differs from `x [s r]` at its single-item level. An elidable suffix adds an omission absent from the chain. Their elision counts can therefore select different readings. A single-symbol chain item can forward tags, while the suffix form has two logical symbols. Query priority also uses their different preceding logical symbols.
 - The operator chain of `mex` and connected abstractors of `tanru-unit-2` have their own rules. Each level holds its first part. A single abstractor with `nai` or free modifiers forms its own group.
 - A chain adds a level over a single item, such as `selbri-3` over one tanru unit. The bracket renderer collapses that level because it has one child.
-- A sequence such as `x [{y}]` contains a helper as well as `x`. It does not inherit the tags of `x` under the single-symbol rule. A `number` therefore does not carry the word tags of its first `PA`. The same applies to `lerfu-string` and the three experimental `terms-…-not-starting-with-bare-gek` rules. No condition reads these tags.
+- A sequence such as `x [{y}]` contains a helper as well as `x`. It does not inherit the tags of `x` under the single-symbol rule. A `number` therefore does not carry the word tags of its first `PA`. The same applies to `lerfu-string`. No condition reads these tags.
 
 ## Elidable optionals and captures
 

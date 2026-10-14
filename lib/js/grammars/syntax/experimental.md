@@ -72,7 +72,7 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-A run of `ni'o` permits one `.i ni'o` transition at the same boundary, in `text-1` and `paragraphs`. This allows a new topic inside a reply. A second transition needs an intervening paragraph. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
+The fourth change permits one `.i ni'o` after a run of `ni'o`, in `text-1` and `paragraphs`. This allows a new topic inside a reply. Another `.i ni'o` needs a paragraph before it, so `ni'o .i ni'o .i ni'o` fails. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
@@ -127,7 +127,9 @@ All four connective families can stand before the first `.i` of a text, as in `e
 
 The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here.
 
-Every connective before `.i` belongs to the sentence and requires a following subsentence. An optional `bo` can carry a stag. A subsentence can begin with a prenex, whose terms can be absent (`zo'u mi klama`). A following subsentence can contain another such connection, so these connections group from the right. Connections after `.i` remain in `statement-1` and group from the left.
+`sentence-link` joins a sentence to a following subsentence through a connective before `.i`. A stag can stand before `bo`, but only with `bo`. The subsentence can begin with a prenex, even an empty one, as in `mi klama su'i .i zo'u do klama`. It can hold another link, so these links group from the right.
+
+A TUhE group is not a sentence, so `tu'e mi klama tu'u je .i do klama` fails, as in camxes-exp. Plain connections after `.i` stay in `statement-1` and group from the left. Connections with `bo` use `statement-2` and group from the right.
 
 A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
 
@@ -467,7 +469,7 @@ A bare NAhE cannot wrap one tagged term, even when that term omits KU. The patte
 
 The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot start with a quantifier. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
-`Quantifier-Start` marks a sumti whose selected first constituent is a quantifier. Connections and VUhO forward that mark from their first sumti. BO and KE groups preserve it too, even with written closers. Explicit recursion keeps the first capture in each chain. A forethought sumti does not inherit the mark from a branch. The possessor condition reads this mark rather than querying another reading.
+`Quantifier-Start` marks a sumti that begins with its own quantifier. A plain, BO or KE connection takes the mark from its first sumti, and so does a sumti with `vu'o`. Even when its first branch has the mark, a forethought connection has none. The rule `sumti-tail` refuses a possessor with the mark. The rules `sumti-2` and `sumti-3` use recursion, because a chain cannot name its first item.
 
 A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`.
 
@@ -817,7 +819,7 @@ A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, 
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
-Both prefixes use `prefixed-connective`. An initial SE belongs to the outer conversion, while a second SE belongs to the inner connective. An initial NA keeps its own following SE. This gives a single initial SE one role rather than two readings.
+After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
 The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
@@ -999,15 +1001,17 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` already reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits one such transition at each later topic boundary, because usage puts a new topic inside a reply. Consecutive transitions without a paragraph remain invalid. A final `ni'o` also follows camxes-exp.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits one such transition after each later run of `ni'o`, because usage puts a new topic inside a reply. CLL and camxes-exp reject `mi klama ni'o .i ni'o`. Consecutive transitions without a paragraph remain invalid. A final `ni'o` also follows camxes-exp.
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
 This layer permits all four initial connective families, as in `je mi klama`, `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1`, so a bare `e` remains a fragment. camxes-exp contains the wider form, but `text_1` can match nothing. Thus its `(!text_1 joik_jek)?` never consumes a connective. This layer makes that connective reachable. No reachable rule calls the CLL rule `plain-joik-jek`.
 
-The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Connections after `.i` and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
+The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Plain connections after `.i` and plain bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Connections after `.i` with `bo` group from the right. Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
-JACU unifies the connective families between bridi-tails. The separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri. This layer includes both constructions. It protects the same `gi'e ke` and `gi'e ba ke` boundaries. camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
+camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
+
+camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
 
 ### Terms and descriptions
 
