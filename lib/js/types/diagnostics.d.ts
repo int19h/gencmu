@@ -176,7 +176,6 @@ export type CapturePart = {
 export type CaptureStructure = {
     root: CapturePart;
     names: Map<string, number[]>;
-    together: WeakMap<Set<string>, WeakMap<Set<string>, boolean>>;
 };
 export type CaptureScopes = WeakMap<StitchedAlternative, CaptureStructure>;
 /**

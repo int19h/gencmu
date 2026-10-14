@@ -10809,180 +10809,140 @@
       part.to = next;
       return part;
     };
-    structure = { root: run(visit(alternative.expr)), names, together: new WeakMap() };
+    structure = { root: run(visit(alternative.expr)), names };
     scopes.set(alternative, structure);
     return structure;
   }
 
   /** @typedef {{expr: Expr, from: number, to: number, children: CapturePart[]}} CapturePart */
-  /** @typedef {{root: CapturePart, names: Map<string, number[]>, together: WeakMap<Set<string>, WeakMap<Set<string>, boolean>>}} CaptureStructure */
+  /** @typedef {{root: CapturePart, names: Map<string, number[]>}} CaptureStructure */
   /** @typedef {WeakMap<StitchedAlternative, CaptureStructure>} CaptureScopes */
 
   /**
-   * Whether an expression can bind the required captures and omit the
-   * forbidden ones. A sequence partitions requirements between its children.
-   * A choice tries its written branches, without multiplying their routes.
+   * The feasible presence patterns projected onto one clause's captures.
+   * Unmentioned captures never become bits. Declaration intervals let the
+   * walk skip unrelated subtrees, including independent optional captures.
    * @param {CaptureStructure} structure
-   * @param {Set<string>} required
-   * @param {Set<string>} forbidden
-   * @returns {boolean}
+   * @param {Set<string>} names
+   * @returns {{bits: Map<string, bigint>, patterns: Set<bigint>}}
    */
-  function capturesTogether(structure, required, forbidden) {
-    const old = structure.together.get(required);
-    const known = old?.get(forbidden);
-    if (known !== undefined) return known;
-    for (const name of forbidden) if (required.has(name)) return false;
-    const needed = [...required].filter((name) => name !== "");
-    const absent = [...forbidden].filter((name) => structure.names.has(name));
-    if (forbidden.has("") || needed.some((name) => forbidden.has(name) || !structure.names.has(name))) return false;
-    if (absent.length === 0 && needed.length <= 1) return true;
-    /** @param {CapturePart} part @param {string} name @returns {number | null} */
-    const positionOf = (part, name) => {
-      const positions = structure.names.get(name) ?? [];
-      let low = 0, high = positions.length;
-      while (low < high) {
-        if (hooks.work) countWork(hooks.work, "walkSteps");
-        const middle = (low + high) >>> 1;
-        if (positions[middle] < part.from) low = middle + 1;
-        else high = middle;
-      }
-      return low < positions.length && positions[low] < part.to ? positions[low] : null;
-    };
-    /** @param {CapturePart} part @param {string} name */
-    const contains = (part, name) => {
-      return positionOf(part, name) !== null;
-    };
-    /** @type {(part: CapturePart, present: string[], missing: string[]) => Generator<any, boolean, any>} */
-    const possible = function* (part, present, missing) {
+  function projectedPresence(structure, names) {
+    /** @type {Map<string, bigint>} */
+    const bits = new Map();
+    /** @type {{position: number, bit: bigint}[]} */
+    const positions = [];
+    for (const name of names) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      if (!present.length && !missing.length) return true;
-      const expr = part.expr;
-      if ("capture" in expr) return !missing.includes(expr.capture);
-      if ("optional" in expr && !present.length) return true;
-      if ("choice" in expr || "ranked" in expr) {
-        for (const child of part.children) {
-          if (present.every((name) => contains(child, name)) && (yield possible(child, present, missing.filter((name) => contains(child, name))))) return true;
-        }
-        return false;
+      if (name === "" || !structure.names.has(name)) continue;
+      const bit = 1n << BigInt(bits.size);
+      bits.set(name, bit);
+      for (const position of structure.names.get(name) ?? []) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        positions.push({ position, bit });
       }
-      // A valid body cannot bind one name in different sequence or & items.
-      // Assign each requirement to its child once, by declaration position.
-      const requests = part.children.map(() => ({ wants: /** @type {string[]} */ ([]), excludes: /** @type {string[]} */ ([]) }));
-      for (const [list, field] of /** @type {[string[], "wants" | "excludes"][]} */ ([[present, "wants"], [missing, "excludes"]])) {
-        for (const name of list) {
-          const position = positionOf(part, name);
-          if (position === null) continue;
-          let low = 0, high = part.children.length;
-          while (low < high) {
-            if (hooks.work) countWork(hooks.work, "walkSteps");
-            const middle = (low + high) >>> 1;
-            if (part.children[middle].to <= position) low = middle + 1;
-            else high = middle;
-          }
-          requests[low][field].push(name);
-        }
+    }
+    positions.sort((left, right) => {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      return left.position - right.position;
+    });
+    /** @param {Set<bigint>} left @param {Set<bigint>} right */
+    const product = (left, right) => {
+      const joined = new Set();
+      for (const a of left) for (const b of right) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        joined.add(a | b);
       }
-      let selectable = false;
-      for (let index = 0; index < part.children.length; index++) {
-        const child = part.children[index];
-        const { wants, excludes } = requests[index];
-        const reads = yield possible(child, wants, excludes);
-        if ("and" in expr) {
-          if (wants.length && !reads) return false;
-          selectable ||= reads;
-        } else if (!reads) return false;
-      }
-      return !("and" in expr) || selectable;
+      return joined;
     };
-    const result = run(possible(structure.root, needed, absent));
-    const results = old ?? new WeakMap();
-    results.set(forbidden, result);
-    if (!old) structure.together.set(required, results);
-    return result;
+    /** @type {(part: CapturePart, entries: typeof positions) => Generator<any, Set<bigint>, any>} */
+    const visit = function* (part, entries) {
+      if (hooks.work) countWork(hooks.work, "walkSteps");
+      if (!entries.length) return new Set([0n]);
+      if ("capture" in part.expr) return new Set([entries[0].bit]);
+      /** @type {Map<number, typeof positions>} */
+      const requests = new Map();
+      for (const entry of entries) {
+        let low = 0, high = part.children.length;
+        while (low < high) {
+          if (hooks.work) countWork(hooks.work, "walkSteps");
+          const middle = (low + high) >>> 1;
+          if (part.children[middle].to <= entry.position) low = middle + 1;
+          else high = middle;
+        }
+        let list = requests.get(low);
+        if (!list) requests.set(low, list = []);
+        list.push(entry);
+      }
+      const choice = "choice" in part.expr || "ranked" in part.expr;
+      const subsequence = "and" in part.expr;
+      let patterns = new Set(choice ? [] : [0n]);
+      let emptyChild = requests.size < part.children.length;
+      if (choice && emptyChild) patterns.add(0n);
+      for (const [index, requested] of requests) {
+        const child = yield visit(part.children[index], requested);
+        if (choice) {
+          for (const pattern of child) {
+            if (hooks.work) countWork(hooks.work, "walkSteps");
+            patterns.add(pattern);
+          }
+        } else {
+          if (subsequence) {
+            emptyChild ||= child.has(0n);
+            child.add(0n);
+          }
+          patterns = product(patterns, child);
+        }
+      }
+      // Flat braces select a nonempty subsequence. A zero projection still
+      // exists when a selected item mentions none of the clause's captures.
+      if (subsequence && !emptyChild) patterns.delete(0n);
+      if ("optional" in part.expr) patterns.add(0n);
+      return patterns;
+    };
+    return { bits, patterns: run(visit(structure.root, positions)) };
   }
 
   /**
-   * A query's receiver reads. Presence guards add requirements only on the
-   * branch that reads the query, rather than enumerating presence states.
+   * Query targets left by the engine's own clause reducer, for each feasible
+   * presence pattern. Conditions with missing value reads do not apply.
+   * An emission tag applies only when its carrier is present.
    * @param {unknown} node
-   * @returns {Set<string>}
+   * @param {CaptureStructure} structure
+   * @param {Set<string>} into
+   * @param {boolean} condition
+   * @param {string | undefined} [carrier]
    */
-  function unguardedCaptures(node) {
-    const names = new Set();
+  function scopedRules(node, structure, into, condition, carrier) {
+    const mentioned = new Set(carrier === undefined ? [] : [carrier]);
     const pending = [node];
     for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
       if (!current || typeof current !== "object") continue;
       const value = /** @type {Record<string, any>} */ (current);
-      if (typeof value.capture === "string") names.add(value.capture);
-      for (const child of value.if ? [value.if] : clauseChildren(value)) pending.push(child);
+      if (typeof value.capture === "string") mentioned.add(value.capture);
+      if (typeof value.captured === "string") mentioned.add(value.captured);
+      for (const child of clauseChildren(value)) pending.push(child);
     }
-    return names;
-  }
-
-  /**
-   * Necessary presence literals of a guard. Conjunctions require each part;
-   * a negated disjunction excludes each part. Other value tests stay gates.
-   * @param {unknown} node
-   * @param {boolean} truth
-   * @param {Set<string>} required
-   * @param {Set<string>} forbidden
-   */
-  function guardCaptures(node, truth, required, forbidden) {
-    const pending = [{ node, truth }];
-    for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
+    const { bits, patterns } = projectedPresence(structure, mentioned);
+    const prepared = prepareClause(node);
+    for (const pattern of patterns) {
       if (hooks.work) countWork(hooks.work, "walkSteps");
-      if (!entry.node || typeof entry.node !== "object") continue;
-      const value = /** @type {Record<string, any>} */ (entry.node);
-      if (typeof value.captured === "string") (entry.truth ? required : forbidden).add(value.captured);
-      else if (value.not) pending.push({ node: value.not, truth: !entry.truth });
-      else for (const child of (entry.truth ? value.all : value.any) ?? []) pending.push({ node: child, truth: entry.truth });
-    }
-  }
-
-  /**
-   * Query targets under structural capture requirements. Guards retain both
-   * possible presence routes. Simple presence literals restrict the branch
-   * that actually reads a query, including negated optional guards.
-   * @param {unknown} node
-   * @param {CaptureStructure} structure
-   * @param {Set<string>} into
-   */
-  function scopedRules(node, structure, into) {
-    const carrier = node && typeof node === "object" ? /** @type {Record<string, any>} */ (node).capture : undefined;
-    const pending = [{ node, required: new Set(typeof carrier === "string" ? [carrier] : []), forbidden: new Set() }];
-    for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
-      if (hooks.work) countWork(hooks.work, "walkSteps");
-      if (!entry.node || typeof entry.node !== "object") continue;
-      const value = /** @type {Record<string, any>} */ (entry.node);
-      let { required, forbidden } = entry;
-      if (value.method) required = new Set([...required, ...unguardedCaptures(value)]);
-      if (typeof value.rule === "string" && capturesTogether(structure, required, forbidden)) into.add(value.rule);
-      if (value.if) {
-        // A constant true consequent removes its condition; an empty term
-        // removes its guard too (engine §3.6).
-        if (value.then?.all?.length === 0 || value.then?.emptySet === true) continue;
-        pending.push({ node: value.if, required, forbidden });
-        required = new Set(required);
-        forbidden = new Set(forbidden);
-        guardCaptures(value.if, true, required, forbidden);
-        pending.push({ node: value.then, required, forbidden });
-      } else {
-        const joined = value.all ?? value.any ?? value.union;
-        const children = joined
-          ? (() => {
-            const prepared = prepareClause(value);
-            return keptIndexes(prepared.fixed, prepared.guards, (name) => structure.names.has(name), structure.names).map((index) => prepared.parts[index]);
-          })()
-          : clauseChildren(value);
-        if (value.all || value.any) {
-          required = new Set(required);
-          forbidden = new Set(forbidden);
-          for (const child of children) {
-            guardCaptures(child, !!value.all, required, forbidden);
-          }
-        }
-        for (const child of children) pending.push({ node: child, required, forbidden });
+      const has = (/** @type {string} */ name) => name === "" || ((bits.get(name) ?? 0n) & pattern) !== 0n;
+      if (carrier !== undefined && !has(carrier)) continue;
+      const names = new Set([""]);
+      for (const [name] of bits) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        if (has(name)) names.add(name);
+      }
+      const reduced = simplifyFor(prepared, has, names);
+      if (condition && !capturesUsed(reduced).every(has)) continue;
+      const remaining = [reduced];
+      for (let current = remaining.pop(); current !== undefined; current = remaining.pop()) {
+        if (hooks.work) countWork(hooks.work, "walkSteps");
+        if (!current || typeof current !== "object") continue;
+        const value = /** @type {Record<string, any>} */ (current);
+        if (typeof value.rule === "string") into.add(value.rule);
+        for (const child of clauseChildren(value)) remaining.push(child);
       }
     }
   }
@@ -11179,17 +11139,17 @@
           if ([alternative.tags, clauses.tags, clauses.conditions, clauses.emit?.items].some((part) => hasRuleQuery(part, queries))) {
             const structure = scopesFor(alternative, scopes);
             const has = (/** @type {string} */ name) => structure.names.has(name);
-            for (const term of [alternative.tags, clauses.tags]) if (hasRuleQuery(term, queries)) scopedRules(term, structure, found);
+            for (const term of [alternative.tags, clauses.tags]) if (hasRuleQuery(term, queries)) scopedRules(term, structure, found, false);
             if (hasRuleQuery(clauses.conditions, queries)) {
               const prepared = prepareConditions(clauses.conditions);
               for (const index of keptIndexes(prepared.fixed, prepared.guards, has, structure.names)) {
                 const part = prepared.parts[index];
-                if (hasRuleQuery(part, queries)) scopedRules(part, structure, found);
+                if (hasRuleQuery(part, queries)) scopedRules(part, structure, found, true);
               }
             }
             const items = clauses.emit?.items ?? [];
             if (hasRuleQuery(items, queries)) {
-              for (const index of presentItems(items, has, structure.names)) if (hasRuleQuery(items[index], queries)) scopedRules(items[index], structure, found);
+              for (const index of presentItems(items, has, structure.names)) if (hasRuleQuery(items[index], queries)) scopedRules(items[index].tags, structure, found, false, items[index].capture);
             }
           }
         }
