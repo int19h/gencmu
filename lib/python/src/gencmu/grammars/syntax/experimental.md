@@ -1033,7 +1033,7 @@ This layer keeps CLL's initial connective in `je mi klama`. camxes-exp contains 
 
 The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Statement and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
-camxes-exp names its heads before bridi-tails JACU, after a proposal for simpler connectives. This layer permits the same heads and protects the same `gi'e ke` and `gi'e ba ke` boundaries. camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
+JACU unifies the connective families between bridi-tails. The separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri. This layer includes both constructions. It protects the same `gi'e ke` and `gi'e ba ke` boundaries. camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
 
 ### Terms and descriptions
 
