@@ -562,7 +562,9 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
+`joik-family` groups joik, jek and ek. `selbri-connective` adds VUhU. All four families connect selbri and tanru units. A tagged KE connection uses only `joik-family`.
+
+A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
 `me-unit` ranks a sumti operand before a mekso operand. A sumti whose tests and conditions pass excludes a mekso over the same span. A sumti that cannot complete the construction excludes nothing.
 
@@ -572,7 +574,7 @@ NAhE stays outside this group. Late elision puts `na'e` on `pa moi` in `la djonz
 
 In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection.
 
-`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`.
+`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the full connective family with its KE preference. A joik, jek or ek directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik-family [stag] KE`.
 
 Where only the plain reading parses, the layer keeps it. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`.
 
@@ -591,12 +593,10 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | selbri-5
   | selbri-4 plain-selbri-connective selbri-5
   | selbri-4 joik-before-ke selbri-5-not-ke-group
-  | selbri-4 joik [stag] KE # selbri-3 [+KEhE] #
+  | selbri-4 joik-family [stag] KE # selbri-3 [+KEhE] #
 
 %rule plain-selbri-connective
-  | $j:joik #
-  | jek #
-  | ek #
+  | $j:joik-family #
   | VUhU #
 %conditions
   KE ⊈ $j.following-tokens.first-token.tags
@@ -620,7 +620,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | selbri-5-not-starting-with-ke
   | selbri-4-not-starting-with-ke plain-selbri-connective selbri-5
   | selbri-4-not-starting-with-ke joik-before-ke selbri-5-not-ke-group
-  | selbri-4-not-starting-with-ke joik [stag] KE # selbri-3 [+KEhE] #
+  | selbri-4-not-starting-with-ke joik-family [stag] KE # selbri-3 [+KEhE] #
 
 %rule selbri-5-not-starting-with-ke
   selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
@@ -676,6 +676,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | linkargs tanru-unit-1
   | MEhOI anything #
 
+%redefine-rule abstractor-chain
+  {... NU [NAI] # / selbri-connective}
+
 %rule selbri-relative-clauses
   | {selbri-relative-clause / ZIhE # | joik # | jek # | ek #}
   | gek selbri-relative-clauses gik selbri-relative-clauses
@@ -690,7 +693,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 22 rules from <code>selbri-4</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
@@ -708,6 +711,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/abstractor-chain.svg" alt="Railroad diagram of the rule abstractor-chain"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clauses.svg" alt="Railroad diagram of the rule selbri-relative-clauses"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
@@ -721,8 +725,8 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
-- An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`.
-- `operator` joins operators with the CLL rules `plain-joik-jek` and `joik-before-ke`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
+- An operator can be any of the four connective families. Each has one final slot of free modifiers.
+- Plain operator connections use `plain-selbri-connective`, with all four families. BO and KE connections use `joik-family`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
 - A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, where the grammar reads a sumti. It also cannot begin where a selbri begins. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - A quantifier also cannot begin with a forethought connection whose first half begins with one of those words. The rule `gek-barrier` finds such a start, also inside a nested connection. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`.
@@ -730,6 +734,8 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 
 `mex` is the chain of operators itself, a left chain. So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
+
+An initial SE in an operator is its mathematical conversion. The connective alternative excludes that initial SE to avoid a duplicate inner conversion.
 
 A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `#`.
 
@@ -768,9 +774,14 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 %redefine-rule operator
   | operator-1
-  | operator plain-joik-jek operator-1
+  | operator plain-selbri-connective operator-1
   | operator joik-before-ke operator-1-not-ke-group
-  | operator joik [stag] KE # operator [+KEhE] #
+  | operator joik-family [stag] KE # operator [+KEhE] #
+
+%redefine-rule operator-1
+  | operator-2
+  | guhek operator-1 gik operator-2
+  | operator-2 joik-family [stag] BO # operator-1
 
 %redefine-rule operator-2
   | mex-operator
@@ -781,9 +792,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | NAhE # mex-operator
   | MAhO # mex [+TEhU] #
   | NAhU # selbri [+TEhU] #
-  | VUhU #
-  | joik-jek
-  | ek #
+  | $c:selbri-connective
+%conditions
+  SE ⊈ $c.first-token.tags
 
 %redefine-rule number
   {number-part}
@@ -795,7 +806,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   {lerfu-word}
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier-barrier.svg" alt="Railroad diagram of the rule quantifier-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
@@ -804,6 +815,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 <p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/number.svg" alt="Railroad diagram of the rule number"></p>
@@ -827,6 +839,14 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
 %redefine-rule joik
   [NA] [SE] JOI | interval | GAhO interval GAhO
 
+%rule joik-family
+  joik | jek | ek
+
+%redefine-rule joik-before-ke
+  $j:joik-family #
+%conditions
+  KE ⊆ $j.following-tokens.first-token.tags
+
 %redefine-rule gek
   | [SE] GA #
   | GA="ga" # prefixed-connective
@@ -847,8 +867,10 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
   [NA] [SE] (GIhA | GI (JOI | JA | A))
 ```
 
-<details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code>, <code>prefixed-connective</code> and <code>gihek</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>joik</code> to <code>gihek</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/joik-family.svg" alt="Railroad diagram of the rule joik-family"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/prefixed-connective.svg" alt="Railroad diagram of the rule prefixed-connective"></p>
@@ -1031,7 +1053,7 @@ Preposed linked arguments follow camxes-exp. This layer and camxes-exp give a `b
 
 The mekso rules follow camxes-exp.peg from `quantifier` through `lerfu_string`. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists. NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
 
-A joik or jek operator has one effective free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`. Its plain-first choice also reads `joi` before a KE operator, where this layer prefers the operator connective's KE group. This layer and camxes-exp keep the plain reading when the operator continues after that group, as in `ke pi'i ke'e je bo vu'u`.
+A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`. Its plain-first choice also reads `joi` before a KE operator, where this layer prefers the operator connective's KE group. This layer and camxes-exp keep the plain reading when the operator continues after that group, as in `ke pi'i ke'e je bo vu'u`.
 
 The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. The layer extends the sumti barrier into forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
 
