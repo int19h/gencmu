@@ -271,13 +271,11 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking prefers the sumti reading where both constructs can complete. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The NUhI body ranks `gek-termset-body` before `terms-not-starting-with-bare-gek`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
+The NUhI body ranks `gek-termset-body` before `terms`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
 
-The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
+A bare forethought termset can be the first term of the plain body. A written inner `nu'u` keeps its boundary distinct from the outer body. The preference applies only when both complete bodies span the same words.
 
 NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`. In `nu'i ge ni'e broda brode gi re mi ko'a klama`, the second branch also contains `ko'a`.
-
-The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
 
 ```jbogenbau
 %redefine-rule terms-1
@@ -424,41 +422,11 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %rule gek-terms-2
   {term / CEhE #}
 
-%rule terms-not-starting-with-bare-gek
-  terms-1-not-starting-with-bare-gek [{terms-1}]
-
-%rule terms-1-not-starting-with-bare-gek
-  | terms-2-not-starting-with-bare-gek
-  | terms-1-not-starting-with-bare-gek PEhE # statement-connective terms-2
-
-%rule terms-2-not-starting-with-bare-gek
-  listed-term-not-starting-with-bare-gek [{CEhE # listed-term}]
-
-%rule listed-term-not-starting-with-bare-gek
-  | listed-term-bo-group-not-starting-with-bare-gek
-  | $t:listed-term-not-starting-with-bare-gek $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
-%conditions
-  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-bo-group-not-starting-with-bare-gek
-  | listed-term-3-not-starting-with-bare-gek
-  | $g:listed-term-bo-group-not-starting-with-bare-gek $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
-%conditions
-  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-3-not-starting-with-bare-gek
-  | $s:sumti :: $s.tags ∪ Sumti-Start
-  | listed-tagged-term
-  | termset-with-nuhi
-  | NA # KU #
-  | listed-bare-na
-  | soi-clause? soi-term
-
 %rule termset-with-nuhi
-  NUhI # (gek-termset-body ≻ terms-not-starting-with-bare-gek) [+NUhU] #
+  NUhI # (gek-termset-body ≻ terms) [+NUhU] #
 ```
 
-<details><summary>Railroad diagrams of the 36 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 30 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
@@ -488,12 +456,6 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms.svg" alt="Railroad diagram of the rule gek-terms"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms-1.svg" alt="Railroad diagram of the rule gek-terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms-2.svg" alt="Railroad diagram of the rule gek-terms-2"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-1-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-1-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-2-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-2-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-bo-group-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-3-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-3-not-starting-with-bare-gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></p>
 </details>
 
@@ -1039,6 +1001,8 @@ camxes-exp applies the same two lookaheads after its plain term connective. They
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
+
+A bare forethought termset can close with NUhU here. camxes-exp gives that form no terminator. A written closer permits the nested termset at the start of a NUhI body.
 
 Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, NIhE can close before `brode`, which becomes the quantified sumti's predicate. camxes-exp greedily keeps `broda brode` inside NIhE and takes the plain body. This layer revisits inner choices when a whole construction needs them.
 

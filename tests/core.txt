@@ -3548,3 +3548,12 @@ i122.experimental.post-i-control
 i122.experimental.right-association
 i122.experimental.converted-connection
 i122.experimental.empty-prenex
+i123.experimental.first-closed
+i123.experimental.later-closed-control
+i123.experimental.cehe-closed
+i123.experimental.a-closed
+i123.experimental.ja-closed
+i123.experimental.single-closer-control
+i123.experimental.forethought-control
+i123.experimental.unwritten-inner-control
+i123.experimental.nested-nuhi
