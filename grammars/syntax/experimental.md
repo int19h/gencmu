@@ -956,15 +956,15 @@ With BOI omitted, the first-token test starts at the selected free slot and sees
 
 So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
 
-A subscript after a subscript nests. The second subscript belongs to the first.[^cll-s18-13] So in `xa xi xa xi xa`, the first `xa` has one subscript, and that subscript has its own. The condition on the `xi` form of `free` says that no `xi` directly follows the mekso of a subscript. Every mekso ends with a slot of free modifiers, so the nested reading is always there.
+A subscript after a subscript nests. The second subscript belongs to the first.[^cll-s18-13] So in `xa xi xa xi xa`, the first `xa` has one subscript, and that subscript has its own.
 
-Without the rule, the two readings elide the same terminators.
+The `free` preference selects this nesting because the nested subscript is the longer modifier at the first `xi`.
 
 A non-XI modifier in the subscript operand's final free slot attaches to the marked word. In `mi broda xi pa boi to do toi`, the subscript and parenthesis both belong to `broda`.
 
-The second condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted closer stops the path only when no later child remains. A nonempty free slot after the closer remains the exposed final slot, as in `[+VEhO] #` or `[+BOI] #`. A written closer before the modifier leaves it in the exposed final slot.
+The condition on XI tests `$FREE-ENDING` along the actual last-child path. That pattern finds a final free slot with a `$NON-XI-FREE` modifier. A modifier inside a terminated operand stays there, even when its terminator is omitted. An omitted closer stops the path only when no later child remains. A nonempty free slot after the closer remains the exposed final slot, as in `[+VEhO] #` or `[+BOI] #`. A written closer before the modifier leaves it in the exposed final slot.
 
-The conditions exclude an exposed modifier attachment when the modifier belongs to the marked word. They keep a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
+The condition excludes an exposed modifier attachment when the modifier belongs to the marked word. It keeps a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
 
 ```jbogenbau
 %const $NON-XI-FREE @(free) ∖ @(XI ⋯)
@@ -982,7 +982,6 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   | LEhAI
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
-  XI ⊈ $m.following-tokens.first-token.tags,
   $m ≇ $FREE-ENDING
 
 %redefine-rule vocative
@@ -1144,7 +1143,7 @@ CLL states the nesting convention:[^cll-s18-13]
 
 > By convention, a subscript following another subscript is taken to be a sub-subscript
 
-camxes-exp also nests the second subscript of `xa xi xa xi xa`. camxes-std instead gives both subscripts to the first `xa`. The alternative readings omit the same terminators, so this layer requires nesting explicitly.
+camxes-exp also nests the second subscript of `xa xi xa xi xa`. camxes-std instead gives both subscripts to the first `xa`. This layer's free-modifier preference selects the nested reading.
 
 CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. This layer and the official parser attach the parenthesis in `mi broda xi pa boi to do toi` to `broda`. camxes-exp reads the subscript operand as `mex_2`, whose final free slot takes the parenthesis. This layer excludes that exposed attachment but retains modifiers inside VEI, LAhE or PEhO when the actual constructor boundary follows them.
 
