@@ -727,7 +727,7 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
 - Plain operator connections use `plain-selbri-connective`, with all four families. BO and KE connections use `joik-family`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
-- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, where the grammar reads a sumti. It also cannot begin where a selbri begins. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
+- A quantifier is a whole mekso, `pa su'i re broda`. A lerfu word cannot begin it. LAhE and NAhE can begin a numeric operand, but an actual competing sumti excludes that quantifier. It also cannot begin where a selbri begins. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - A quantifier also cannot begin with a forethought connection whose first half begins with one of those words. The rule `gek-barrier` finds such a start, also inside a nested connection. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`.
 - Where no sumti reading remains, `gek-barrier` rejects the text, as in `ge abu gi by broda cu klama`. In `lo ge by gi re mi broda`, `ge by gi re mi` is the possessor sumti, with `broda` inside the description.
@@ -744,9 +744,13 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   (* quantifier <- !selbri !sumti_6 mex *)
   $m:mex
 %conditions
-  ¬$m.first-token.matches(quantifier-barrier),
+  ¬$m.first-token.matches(quantifier-lerfu-head),
+  ¬$m.onward.begins(sumti-6),
   ¬$m.onward.begins(gek-barrier),
   ¬$m.onward.begins(selbri)
+
+%rule quantifier-lerfu-head
+  BY | LAU | TEI
 
 %rule quantifier-barrier
   BY | LAU | TEI | LAhE | NAhE
@@ -806,8 +810,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   {lerfu-word}
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/quantifier-lerfu-head.svg" alt="Railroad diagram of the rule quantifier-lerfu-head"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier-barrier.svg" alt="Railroad diagram of the rule quantifier-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></p>
@@ -1055,7 +1060,7 @@ The mekso rules follow camxes-exp.peg from `quantifier` through `lerfu_string`. 
 
 A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`. Its plain-first choice also reads `joi` before a KE operator, where this layer prefers the operator connective's KE group. This layer and camxes-exp keep the plain reading when the operator continues after that group, as in `ke pi'i ke'e je bo vu'u`.
 
-The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. The layer extends the sumti barrier into forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
+The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible, as in `la'e pa lu'u broda`. The layer extends the sumti barrier into forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
 
 Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu klama`. camxes-exp takes the quantifier `ge abu gi by`. In `lo ge by gi re mi broda`, this layer takes `ge by gi re mi` as the possessor. camxes-exp takes `ge by gi re` as the quantifier of `mi`. Numeric forethought quantifiers remain possible, as in `lo ge pa gi re mi broda`.
 
