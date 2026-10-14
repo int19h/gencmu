@@ -3640,3 +3640,8 @@ i121.experimental.gek-lahe-grouped-lerfu
 i121.experimental.gek-lahe-quantified-head
 i121.experimental.gek-lahe-sentence-control
 i121.experimental.gek-nahe-number-fragment
+i121.experimental.gek-lau-sumti
+i121.experimental.gek-tei-sumti
+i121.experimental.gek-tei-possessor
+i121.experimental.gek-incomplete-lau
+i121.experimental.gek-unclosed-tei
