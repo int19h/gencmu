@@ -263,7 +263,7 @@ After a plain term connective, two tags protect connections at other levels. `Br
 
 The tagged-term rules test the selected tag with `.without-elision.onward`. This view keeps every omitted terminator at its selected boundary. A query therefore cannot close a free modifier earlier to invent a competing connection. The BO group keeps these start tags from its first part through every recursive link.
 
-The same view excludes a tagged term when its selected tag begins a gek. Listed bare NA tests `listed-na-follower`, which also excludes a following selbri or gek-sentence. The single-term rule excludes only a connective at its NA token.
+A tag can remain a term before the GI of an enclosing connection. The complete branches determine whether a forethought reading exists. Listed bare NA tests `listed-na-follower`, which also excludes a following selbri or gek-sentence. The single-term rule excludes only a connective at its NA token.
 
 `listed-term-bo-link` permits `bo` with or without a stag, as in `fa mi .e bo fe do klama`.
 
@@ -356,11 +356,9 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
   SOI # subsentence [+SEhU] #
 
 %rule tagged-term :: ($g.without-elision.onward.begins(tag-bo-ke-bridi-tail) ⟹ Bridi-Connection-Start) ∪ ($g.without-elision.onward.begins(tag-bo-subsentence) ⟹ Sentence-Connection-Start)
-  (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
+  (* tag_term: tag free* followed by a sumti or KU_elidible free* *)
   | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | $g:tag [+KU] #
-%conditions
-  ¬$g.without-elision.onward.begins(gek)
 
 %rule listed-term
   (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
@@ -395,11 +393,10 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
   | soi-clause? soi-term
 
 %rule listed-tagged-term :: ($g.without-elision.onward.begins(tag-bo-ke-bridi-tail) ⟹ Bridi-Connection-Start) ∪ ($g.without-elision.onward.begins(tag-bo-subsentence) ⟹ Sentence-Connection-Start)
-  (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
+  (* abs_tag_term: tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
   | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
   | $g:tag [+KU] #
 %conditions
-  ¬$g.without-elision.onward.begins(gek),
   ¬$g.following-tokens.begins(selbri-after-tag)
 
 %rule selbri-after-tag
@@ -1122,6 +1119,10 @@ Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu
 The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
 
 Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
+
+A tag remains a term when the following GI belongs to an enclosing connection. This layer accepts `mi klama pu gi ba bo tavla`, while camxes-exp rejects it. The same applies to `mi klama pu gi pu bo brode` and `broda be pu gi pu bo brode`. No complete forethought reading starts at the tag.
+
+This layer also accepts `ge mi klama pu gi do klama` and `ge mi pu gi do nu'u klama`. camxes-exp rejects both texts without written KU. Their GI joins the outer branches, so PU remains a term within the first branch.
 
 ### Free modifiers and subscripts
 

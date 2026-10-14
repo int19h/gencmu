@@ -3803,3 +3803,11 @@ i130.experimental.nu-abstraction-outer-na
 i130.experimental.nu-abstraction-outer-tag
 i130.experimental.duhu-abstraction-outer-na
 i130.experimental.abstraction-written-free-outer-na
+i130.experimental.tag-before-outer-bo
+i130.experimental.tag-before-outer-bo-written-ku
+i130.experimental.tag-before-outer-gik
+i130.experimental.tag-before-outer-gik-written-ku
+i130.experimental.tag-before-termset-gik
+i130.experimental.tag-before-termset-gik-written-ku
+adhoc.camxes-exp.terms.tag-before-gek
+adhoc.camxes-exp.terms.tag-before-gek-after-be
