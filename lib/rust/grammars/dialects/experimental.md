@@ -130,6 +130,8 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
 
 A ranked choice orders alternatives at one written position. An earlier option completes that position when its own tests and conditions pass, and excludes later options over the same span. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` then elides each terminator as late as the grammar allows.
 
+The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
+
 The dialect does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
 
 The grammar has ambiguities that are not about terminators. For example, two sumti joined by an afterthought connective are also two terms joined in the same way, as in `mi .e do klama`. Rules of the grammar settle them, and the grammar lists them.
@@ -144,7 +146,7 @@ PEG commitment also changes readings of accepted texts. In `le mlatu na mu'o pin
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. A tag is a tense or modal phrase. Where camxes-exp states a lookahead (a test of the words that follow), such as `!selbri` after a tag, the layer follows it. The paragraphs below list the exceptions.
+The layer preserves explicit choices that distinguish meanings. A query is a parse requested by a condition. The layer tests the selected sentence head and preserves selected prefixes in its queries. A query cannot shorten a selected free modifier. The [syntax document](../syntax/experimental.md) states these choices.
 
 ### Explicit grammar differences
 
@@ -173,6 +175,8 @@ Second, in `mi nelci le su'u delno .enai le su'u stero delno`, the elided termin
 A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
+
+ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the same words with the same boundaries. Thus `me ni'e broda brode` keeps both predicates inside NIhE. The sumti reading instead closes NIhE before `brode`, which supplies its predicate.
 
 ### Quotes and indicators
 
