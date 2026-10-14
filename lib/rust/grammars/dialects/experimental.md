@@ -142,13 +142,13 @@ The grammar has ambiguities that are not about terminators. For example, two sum
 
 camxes-exp is the baseline of this dialect, not its limit. gencmu considers every parse that its grammars allow, and a PEG (parsing expression grammar) gives up the alternatives it does not backtrack into. So the dialect accepts texts that camxes-exp rejects only because its PEG committed to a first match. An example is `sei la alis cusku`, where camxes-exp reads `la alis cusku` as one description and has no selbri left.
 
+A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
+
+The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. The listed-term queries retain camxes-exp's restrictions after bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
+
 In `le mlatu na mu'o pinxe le ri ladru`, camxes-exp keeps PINXE inside the vocative. This dialect reads a negated sentence, with PINXE as its main predicate. Its listed-NA query removes the longer vocative reading. That selected-context limitation waits for [issue #197](https://github.com/int19h/gencmu/issues/197).
 
 The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
-
-A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
-
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. The listed-term queries retain its restrictions after bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
 
 ### Explicit grammar differences
 
