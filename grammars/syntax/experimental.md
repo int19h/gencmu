@@ -677,7 +677,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | MEhOI anything #
 
 %redefine-rule abstractor-chain
-  {... NU [NAI] # / selbri-connective}
+  {... NU # / selbri-connective}
 
 %rule selbri-relative-clauses
   | {selbri-relative-clause / ZIhE # | joik # | jek # | ek #}
