@@ -45,7 +45,7 @@ A span is a range between input token boundaries. A ranked choice filters altern
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-The `free` rule carries `leftmost-longest`, so the earliest free modifier takes the longest span among complete readings. A modifier that prevents the full text from completing excludes nothing. The stage compares elisions after this preference.
+`free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both flags contribute to one profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing. The stage compares elisions after this preference.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
@@ -916,6 +916,8 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 `fa` is an atom too, and it is the only way a place marker enters the grammar. So `fa` alone matches `tag` wherever that rule can stand: before a sumti (`fa mi`), a selbri (`mi fa klama`) or `bo`, and after `jai` (`jai fa broda`). It can be converted like a modal (`se fa`) or joined to other atoms (`mi fa pu klama`).
 
+The `tense-modal` flag prefers the earliest, longest atom run among complete readings. Thus `pu ca gi` begins one gek instead of a separate PU term before `ca gi`.
+
 ```jbogenbau
 %redefine-rule tag
   {... tense-modal / connective}
@@ -923,7 +925,7 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 %redefine-rule stag
   tag
 
-%redefine-rule tense-modal
+%redefine-rule(leftmost-longest) tense-modal
   {tense-atom}
 
 %rule tense-atom

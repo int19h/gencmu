@@ -3812,3 +3812,11 @@ i130.experimental.tag-before-termset-gik-written-ku
 adhoc.camxes-exp.terms.tag-before-gek
 adhoc.camxes-exp.terms.tag-before-gek-after-be
 i130.experimental.na-vocative-selected-context
+i130.experimental.tense-gek-time-run
+i130.experimental.tense-gek-space-run
+i130.experimental.tense-gek-connected-tag
+i130.experimental.tense-gek-linked-argument
+i130.experimental.tense-gek-head
+i130.experimental.tense-gek-relative
+i130.experimental.tense-gek-place-run
+i130.experimental.tense-gek-termset
