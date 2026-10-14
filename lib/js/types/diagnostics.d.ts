@@ -1,4 +1,4 @@
-import type { Condition, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
+import type { Condition, Expr, ParseResult, Span, StageReport, Argument, Production } from "./types.js";
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
@@ -167,7 +167,18 @@ export type Membership = {
         column: number;
     }[];
 };
-export type CaptureScopes = WeakMap<StitchedAlternative, Map<string, number>[]>;
+export type CapturePart = {
+    expr: Expr;
+    from: number;
+    to: number;
+    children: CapturePart[];
+};
+export type CaptureStructure = {
+    root: CapturePart;
+    names: Map<string, number[]>;
+    together: WeakMap<Set<string>, WeakMap<Set<string>, boolean>>;
+};
+export type CaptureScopes = WeakMap<StitchedAlternative, CaptureStructure>;
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
