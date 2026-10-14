@@ -6,7 +6,10 @@
 // Comparison exits 0 for equal tables, 1 for differences, and 2 for errors.
 // Bootstrap mode prints a fresh classifier to stdout, without implications.
 // PEG lists use `NAME <- &cmavo ( w o r d / ... ) &post_word`, with h for '.
-// A standalone y+ is hesitation, not a cmavo; a mixed Y list retains y.
+// Each relevant production must contain only that complete list form.
+// Repeated post_word lookaheads test the same position and are supported.
+// Whole-line PEG comments are ignored. Other unconsumed material is an error.
+// A standalone y+ is hesitation, not a cmavo. A mixed Y list retains y.
 // BY's ybu and PA's digit are input constructs, not spelled cmavo keys.
 import fs from "node:fs";
 import path from "node:path";
@@ -33,27 +36,32 @@ function main() {
   const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
   const classes = new Map();
-  const peg = fs.readFileSync(pegPath, "utf8");
-  const lists = [...peg.matchAll(/^([A-Z][A-Za-z]*)[ \t]+<-[ \t]+&cmavo[ \t]+\(\s*([\s\S]*?)\s*\)\s*&post_word/gm)];
-  const names = new Set(lists.map((match) => match[1]));
-  for (const match of peg.matchAll(/^([A-Z][A-Za-z]*)[ \t]+<-[ \t]+&cmavo\b/gm)) {
-    if (!names.has(match[1])) fail(`unsupported cmavo list for ${match[1]}`);
-  }
-  for (const match of lists) {
+  // Whole-line comments belong to neither the preceding nor the next rule.
+  const peg = fs.readFileSync(pegPath, "utf8").replace(/^[ \t]*(?:#|;|\/\/)[^\r\n]*/gm, "");
+  const heads = [...peg.matchAll(/^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*<-[ \t]*/gm)];
+  for (let i = 0; i < heads.length; ++i) {
+    const head = heads[i];
+    const name = head[1];
+    const body = peg.slice(head.index + head[0].length, heads[i + 1]?.index ?? peg.length).trim();
+    if (!/^[A-Z][A-Za-z]*$/.test(name) || !/&cmavo\b/.test(body)) continue;
+    // Match the entire production, including any material on later lines.
+    // An unsupported alternative or condition cannot hide after post_word.
+    const list = /^&cmavo\s+\(\s*([^()]*)\s*\)(?:\s*&post_word)+$/.exec(body);
+    if (!list) fail(`unsupported cmavo list for ${name}`);
     // A Y list containing only y+ cannot classify a word in these forms.
     // A mixed list retains its y key, as Zantufa requires.
-    if (match[1] === "Y" && match[2].trim() === "y+") continue;
-    for (const alternative of match[2].split("/")) {
-      if ((match[1] === "BY" && alternative.trim() === "ybu") ||
-          (match[1] === "PA" && alternative.trim() === "digit")) continue;
+    if (name === "Y" && list[1].trim() === "y+") continue;
+    for (const alternative of list[1].split("/")) {
+      if ((name === "BY" && alternative.trim() === "ybu") ||
+          (name === "PA" && alternative.trim() === "digit")) continue;
       const letters = alternative.trim().split(/\s+/);
       // A retained `y+` alternative lists the canonical one-letter key.
       const spelled = letters.map((letter) => (letter === "y+" ? "y" : letter));
-      if (!spelled.every((letter) => /^[a-z]$/.test(letter))) fail(`unsupported word list in ${match[1]}: ${alternative.trim()}`);
+      if (!spelled.every((letter) => /^[a-z]$/.test(letter))) fail(`unsupported word list in ${name}: ${alternative.trim()}`);
       // A key is the canonical sound, with `'` for `h`.
       const word = spelled.map((letter) => (letter === "h" ? "'" : letter)).join("");
-      if (!classes.has(match[1])) classes.set(match[1], new Set());
-      classes.get(match[1]).add(word);
+      if (!classes.has(name)) classes.set(name, new Set());
+      classes.get(name).add(word);
     }
   }
 
