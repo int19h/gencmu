@@ -3798,3 +3798,8 @@ adhoc.camxes-exp.mekso.free-after-connective-operator-elided-boi
 corpus.camxes.15409.experimental
 corpus.camxes.4580.experimental
 corpus.camxes.6682.experimental
+i130.experimental.relative-clause-outer-na
+i130.experimental.nu-abstraction-outer-na
+i130.experimental.nu-abstraction-outer-tag
+i130.experimental.duhu-abstraction-outer-na
+i130.experimental.abstraction-written-free-outer-na
