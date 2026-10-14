@@ -2,6 +2,7 @@ import type { Condition, ParseResult, Span, StageReport, Argument, Production } 
 import type { Token } from "./tokens.js";
 import type { Dialect } from "./dialect.js";
 import type { TraceEvent } from "./earley.js";
+import type { StitchedAlternative } from "./grammar.js";
 export type LineIndex = {
     characters: string[];
     breaks: number[];
@@ -166,6 +167,7 @@ export type Membership = {
         column: number;
     }[];
 };
+export type CaptureScopes = WeakMap<StitchedAlternative, Map<string, number>[]>;
 /**
  * What a grammar author should know about a dialect's grammars: per stage,
  * the rules nothing reaches, every rule a later document replaced or
