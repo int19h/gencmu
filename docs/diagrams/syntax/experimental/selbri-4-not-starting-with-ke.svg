@@ -9,10 +9,10 @@
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="260" height="24" rx="0"/><text x="170" y="85" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
 <path d="M300 80h10"/>
-<g class="rule"><rect x="310" y="68" width="210" height="24" rx="0"/><text x="415" y="85" textLength="193.2" lengthAdjust="spacingAndGlyphs">plain-selbri-connective</text></g>
-<path d="M520 80h10"/>
-<g class="rule"><rect x="530" y="68" width="84" height="24" rx="0"/><text x="572" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
-<path d="M614 80H731a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="310" y="68" width="151" height="24" rx="0"/><text x="385.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">plain-connective</text></g>
+<path d="M461 80h10"/>
+<g class="rule"><rect x="471" y="68" width="84" height="24" rx="0"/><text x="513" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
+<path d="M555 80H731a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="260" height="24" rx="0"/><text x="170" y="119" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
 <path d="M300 114h10"/>
@@ -24,7 +24,7 @@
 <path d="M40 158h20"/>
 <g class="rule"><rect x="60" y="146" width="260" height="24" rx="0"/><text x="190" y="163" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
 <path d="M320 158h10"/>
-<g class="rule"><rect x="330" y="146" width="109" height="24" rx="0"/><text x="384.5" y="163" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-family</text></g>
+<g class="rule"><rect x="330" y="146" width="109" height="24" rx="0"/><text x="384.5" y="163" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-jek-ek</text></g>
 <path d="M439 158h10"/>
 <path d="M449 158h20"/>
 <g class="rule"><rect x="469" y="146" width="50" height="24" rx="0"/><text x="494" y="163" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>

@@ -49,7 +49,7 @@
 <g class="rule"><rect x="314" y="188" width="25" height="24" rx="0"/><text x="326.5" y="205" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
 <path d="M339 200H339a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V224a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="222" width="159" height="24" rx="0"/><text x="119.5" y="239" textLength="142.8" lengthAdjust="spacingAndGlyphs">selbri-connective</text></g>
-<path d="M199 234H339a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="222" width="100" height="24" rx="0"/><text x="90" y="239" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
+<path d="M140 234H339a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M359 46h6m0 -8v16m4 -16v16"/>
 </svg>

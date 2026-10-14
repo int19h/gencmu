@@ -7,10 +7,10 @@
 <path d="M20 46h20"/>
 <g class="terminal"><rect x="40" y="34" width="33" height="24" rx="12"/><text x="56.5" y="51" textLength="16.8" lengthAdjust="spacingAndGlyphs">SE</text></g>
 <path d="M73 46h10"/>
-<g class="rule"><rect x="83" y="34" width="159" height="24" rx="0"/><text x="162.5" y="51" textLength="142.8" lengthAdjust="spacingAndGlyphs">selbri-connective</text></g>
-<path d="M242 46H262"/>
+<g class="rule"><rect x="83" y="34" width="100" height="24" rx="0"/><text x="133" y="51" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
+<path d="M183 46H203"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="159" height="24" rx="0"/><text x="119.5" y="85" textLength="142.8" lengthAdjust="spacingAndGlyphs">selbri-connective</text></g>
-<path d="M199 80H242a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M262 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="40" y="68" width="100" height="24" rx="0"/><text x="90" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
+<path d="M140 80H183a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M203 46h6m0 -8v16m4 -16v16"/>
 </svg>

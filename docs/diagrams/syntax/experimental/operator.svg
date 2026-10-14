@@ -9,10 +9,10 @@
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="68" width="84" height="24" rx="0"/><text x="82" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">operator</text></g>
 <path d="M124 80h10"/>
-<g class="rule"><rect x="134" y="68" width="210" height="24" rx="0"/><text x="239" y="85" textLength="193.2" lengthAdjust="spacingAndGlyphs">plain-selbri-connective</text></g>
-<path d="M344 80h10"/>
-<g class="rule"><rect x="354" y="68" width="100" height="24" rx="0"/><text x="404" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">operator-1</text></g>
-<path d="M454 80H652a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="134" y="68" width="151" height="24" rx="0"/><text x="209.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">plain-connective</text></g>
+<path d="M285 80h10"/>
+<g class="rule"><rect x="295" y="68" width="100" height="24" rx="0"/><text x="345" y="85" textLength="84" lengthAdjust="spacingAndGlyphs">operator-1</text></g>
+<path d="M395 80H652a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="102" width="84" height="24" rx="0"/><text x="82" y="119" textLength="67.2" lengthAdjust="spacingAndGlyphs">operator</text></g>
 <path d="M124 114h10"/>
@@ -23,7 +23,7 @@
 <path d="M20 46a10 10 0 0 1 10 10V164a10 10 0 0 0 10 10"/>
 <g class="rule"><rect x="40" y="162" width="84" height="24" rx="0"/><text x="82" y="179" textLength="67.2" lengthAdjust="spacingAndGlyphs">operator</text></g>
 <path d="M124 174h10"/>
-<g class="rule"><rect x="134" y="162" width="109" height="24" rx="0"/><text x="188.5" y="179" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-family</text></g>
+<g class="rule"><rect x="134" y="162" width="109" height="24" rx="0"/><text x="188.5" y="179" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-jek-ek</text></g>
 <path d="M243 174h10"/>
 <path d="M253 174h20"/>
 <g class="rule"><rect x="273" y="162" width="50" height="24" rx="0"/><text x="298" y="179" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
