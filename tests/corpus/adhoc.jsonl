@@ -4768,7 +4768,7 @@
 {"id":"adhoc.prose.syntax-zantufa.pin-12","text":"zoi ra'oi x ra'oi broda","dialect":"zantufa","expect":"reject","stage":"words","at":23}
 {"id":"adhoc.prose.syntax-zantufa.pin-13","text":"zoi su mi","dialect":"zantufa","expect":"reject","stage":"words","at":9}
 {"id":"adhoc.prose.syntax-zantufa.pin-14","text":"le rance","dialect":"zantufa","expect":"accept","verdict":"unique","words":["le","rance"],"brackets":"(le rance)"}
-{"id":"adhoc.prose.dialects-experimental.pin-1","text":".e ba ke","dialect":"experimental","expect":"reject","stage":"syntax","at":6,"words":["e","ba","ke"]}
+{"id":"adhoc.prose.dialects-experimental.pin-1","text":".e ba ke","dialect":"experimental","expect":"reject","stage":"syntax","at":8,"words":["e","ba","ke"],"reason":"The initial ek now introduces a nonempty text-1. The following ba ke begins a tagged KE construction but lacks its body, so rejection reaches the end instead of stopping at ke after an ek fragment."}
 {"id":"adhoc.prose.dialects-experimental.pin-2","text":"le dakli .e ba ke bevri ke'e ku","dialect":"experimental","expect":"accept","verdict":"unique","words":["le","dakli","e","ba","ke","bevri","ke'e","ku"],"brackets":"(le [dakli e ba ke bevri ke'e] ku)","reason":"The A family now forms a tagged selbri KE connection. The earlier rejection was the omitted connective family."}
 {"id":"adhoc.kihei.sa-class","text":"broda .i ki'ei ko'a sa ki'ei ko'e .i brode","dialect":"kihei","expect":"accept","verdict":"unique","words":["broda","i","ki'ei","ko'e","i","brode"],"brackets":"([broda i] [{ki'ei ko'e} i brode])"}
 {"id":"adhoc.kihei.indicator","text":"ki'ei ui ko'a .i broda","dialect":"kihei","expect":"accept","verdict":"unique","words":["ki'ei","ui","ko'a","i","broda"],"brackets":"([{ki'ei ui} ko'a] i broda)"}

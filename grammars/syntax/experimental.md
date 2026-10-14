@@ -76,12 +76,19 @@ A run of `ni'o` permits one `.i ni'o` transition at the same boundary, in `text-
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
-The layer keeps CLL's connective before the first `.i` of a text, as in `je mi klama`.
+All four connective families can stand before the first `.i` of a text, as in `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails. The first-child pattern finds the connective family even with conversion or free modifiers. The `text-token` wildcard tests whether the following text contains a token.
 
 ```jbogenbau
+%const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
+
 %redefine-rule text
-  | ¬cbm? [{NAI}] {CMEVLA} # [joik-jek] text-1
-  | [indicators & {free}] [joik-jek] text-1
+  | ¬cbm? [{NAI}] {CMEVLA} # [$c:connective] $t:text-1
+  | [indicators & {free}] [$c:connective] $t:text-1
+%conditions
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token)
+
+%rule text-token
+  _
 
 %redefine-rule indicators
   {[FUhE] indicator}
@@ -105,8 +112,9 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
   ¬$i.following-tokens.begins(joik-jek-ek)
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>text</code> to <code>lone-i</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
@@ -995,7 +1003,7 @@ The CLL grammar's `text-1` already reads initial `.i ni'o`, as [its repair list]
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
-This layer keeps CLL's initial connective in `je mi klama`. camxes-exp contains the form, but its empty `paragraphs` makes `(!text_1 joik_jek)?` fail. Its PEG therefore rejects the text. That rejection is an accident of the PEG: `text_1` can match nothing, so `!text_1` never succeeds.
+This layer permits all four initial connective families, as in `je mi klama`, `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1`, so a bare `e` remains a fragment. camxes-exp contains the wider form, but `text_1` can match nothing. Thus its `(!text_1 joik_jek)?` never consumes a connective. This layer makes that connective reachable. No reachable rule calls the CLL rule `plain-joik-jek`.
 
 The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Connections after `.i` and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
