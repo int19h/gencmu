@@ -819,6 +819,8 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 The connective rules below have no NAI slot. The indicator stage attaches every NAI after a connective, so no separate `nai` reaches the syntax at those positions.
 
+An ek connects sumti with A, and a jek connects predicates with JA. Both permit negation with NA and conversion with SE. An interval connective uses BIhI, with optional conversion. A gik separates forethought branches with GI and permits free modifiers after it.
+
 A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The condition of `listed-bare-na` excludes a bare `na` term here. The words can connect sumti or terms, and the term conditions keep the sumti reading.
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
@@ -828,8 +830,17 @@ After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su
 The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
 ```jbogenbau
+%redefine-rule ek
+  [NA] [SE] A
+
+%redefine-rule jek
+  [NA] [SE] JA
+
 %redefine-rule joik
   [NA] [SE] JOI | interval | GAhO interval GAhO
+
+%redefine-rule interval
+  [SE] BIhI
 
 %rule joik-jek-ek
   joik | jek | ek
@@ -852,6 +863,9 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
   | [SE] GUhA #
   | GA="gu" # prefixed-connective
 
+%redefine-rule gik
+  GI #
+
 %rule prefixed-connective
   | SE connective
   | $c:connective
@@ -862,13 +876,17 @@ The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ign
   [NA] [SE] (GIhA | GI (JOI | JA | A))
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>joik</code> to <code>gihek</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>ek</code> to <code>gihek</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/ek.svg" alt="Railroad diagram of the rule ek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/jek.svg" alt="Railroad diagram of the rule jek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/interval.svg" alt="Railroad diagram of the rule interval"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/joik-jek-ek.svg" alt="Railroad diagram of the rule joik-jek-ek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/connective.svg" alt="Railroad diagram of the rule connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gik.svg" alt="Railroad diagram of the rule gik"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/prefixed-connective.svg" alt="Railroad diagram of the rule prefixed-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
 </details>
@@ -917,6 +935,8 @@ A replacement quote is a free modifier. It has up to two runs of words, each ope
 
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
+A vocative starts with a run of COI words, DOI, or both. A COI run returns no tags, and DOI alone keeps its tags. The indicator stage attaches any following NAI to the preceding word, so the syntax reads no separate NAI after COI.
+
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. Where the `boi` is elided, the first free modifier does not begin with a word that the number or the string can read. After a number, that is a number part. After a lerfu string, it is a letter.
 
 So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
@@ -950,6 +970,11 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   XI ⊈ $m.following-tokens.first-token.tags,
   $m ≇ $FREE-ENDING
 
+%redefine-rule vocative
+  | {COI} :: ∅
+  | DOI
+  | {COI} DOI
+
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
 
@@ -972,8 +997,9 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   Word<¬LOhAI ¬LEhAI>
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>free</code> to <code>lohai-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
@@ -1061,11 +1087,15 @@ The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. LAhE a
 
 Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu klama`. camxes-exp takes the quantifier `ge abu gi by`. In `lo ge by gi re mi broda`, this layer takes `ge by gi re mi` as the possessor. camxes-exp takes `ge by gi re` as the quantifier of `mi`. Numeric forethought quantifiers remain possible, as in `lo ge pa gi re mi broda`.
 
-The connective rules omit camxes-exp's optional NAI because the indicator stage attaches those words first. The inherited CLL `[NAI]` items receive no separate token there. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer. Only `ga` and `gu` introduce its extended forethought forms, so `ge je` and `gu'e je` remain invalid.
+The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
+
+Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
 
 ### Free modifiers and subscripts
 
 The replacement quotes follow camxes-exp. Under `cbm`, a name is a predicate, so a separate name-run vocative form duplicates the selbri form. This layer removes it. With `soi-clause` on, `soi` is a term, as in camxes-exp. Without it, `soi` remains CLL's free modifier.
+
+The vocative omits CLL's optional NAI after COI because the indicator stage attaches it to COI. Text-initial NAI and indicators after LU remain separate syntax tokens.
 
 CLL states the nesting convention:[^cll-s18-13]
 
