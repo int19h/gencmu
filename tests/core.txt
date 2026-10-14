@@ -3522,3 +3522,5 @@ i126.experimental.initial-one
 i126.experimental.initial-two
 i126.experimental.final-one
 i126.experimental.final-two
+i127.experimental.plain-borrowing-apostrophe
+i127.experimental.stressed-borrowing-apostrophe

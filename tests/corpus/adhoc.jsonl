@@ -1415,7 +1415,7 @@
 {"id":"adhoc.camxes-exp.word-forms.slihykru.zantufa","text":"bla'ykla","dialect":"zantufa","expect":"reject","stage":"words","at":0}
 {"id":"adhoc.camxes-exp.word-forms.long-rafsi-hy-rafsi.experimental","text":"klama'ybroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama'ybroda"],"brackets":"klama'ybroda"}
 {"id":"adhoc.camxes-exp.word-forms.long-rafsi-hy-rafsi.zantufa","text":"klama'ybroda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama'ybroda"],"brackets":"klama'ybroda"}
-{"id":"adhoc.camxes-exp.word-forms.fuhivla-rafsi-apostrophe-onset.experimental","text":"kerlyfa'u'yiismu","dialect":"experimental","expect":"accept","verdict":"unique","words":["kerlyfa'u'yiismu"],"brackets":"kerlyfa'u'yiismu"}
+{"id":"adhoc.camxes-exp.word-forms.fuhivla-rafsi-apostrophe-onset.experimental","text":"kerlyfa'u'yiismu","dialect":"experimental","expect":"accept","verdict":"unique","words":["kerlyfa'u'yiismu"],"brackets":"kerlyfa'u'yiismu","reason":"The fa'u'y portion uses hy-rafsi. It does not test the borrowing rafsi onset rules."}
 {"id":"adhoc.camxes-exp.word-forms.fuhivla-rafsi-apostrophe-onset.zantufa","text":"kerlyfa'u'yiismu","dialect":"zantufa","expect":"reject","stage":"words","at":0}
 {"id":"adhoc.camxes-exp.word-forms.cmavo-before-fuhivla.experimental","text":"fa'u'yiismu","dialect":"experimental","expect":"reject","stage":"syntax","at":0,"words":["fa'u'y","iismu"]}
 {"id":"adhoc.camxes-exp.word-forms.cmavo-before-fuhivla.zantufa","text":"fa'u'yiismu","dialect":"zantufa","expect":"reject","stage":"syntax","at":0,"words":["fa'u'y","iismu"]}
