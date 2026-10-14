@@ -3822,3 +3822,7 @@ i130.experimental.tense-gek-place-run
 i130.experimental.tense-gek-termset
 corpus.camxes.12464.experimental
 i131.experimental.xi-19
+i130.experimental.lahe-number-parenthesis-tanru
+i130.experimental.nahe-number-parenthesis-tanru
+i130.experimental.lahe-number-sei-tanru
+i130.experimental.lahe-number-parenthesis-sentence
