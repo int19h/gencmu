@@ -6,6 +6,11 @@
 // Comparison exits 0 for equal tables, 1 for differences, and 2 for errors.
 // Bootstrap mode prints a fresh classifier to stdout, without implications.
 // PEG lists use `NAME <- &cmavo ( w o r d / ... ) &post_word`, with h for '.
+// A relevant production's name starts with an uppercase letter.
+// Its body starts with a cmavo predicate, whose & permits following whitespace.
+// That whitespace can include newlines. The operand permits one parenthesis pair.
+// CMAVO's category body does not start with that predicate.
+// The lowercase cmavo rule and lowercase helpers do not qualify.
 // Each relevant production must contain only that complete list form.
 // Repeated post_word lookaheads test the same position and are supported.
 // Whole-line PEG comments are ignored. Other unconsumed material is an error.
@@ -43,10 +48,10 @@ function main() {
     const head = heads[i];
     const name = head[1];
     const body = peg.slice(head.index + head[0].length, heads[i + 1]?.index ?? peg.length).trim();
-    if (!/^[A-Z][A-Za-z]*$/.test(name) || !/&cmavo\b/.test(body)) continue;
+    if (!/^[A-Z]/.test(name) || !/^&\s*(?:cmavo\b|\(\s*cmavo\s*\))/.test(body)) continue;
     // Match the entire production, including any material on later lines.
     // An unsupported alternative or condition cannot hide after post_word.
-    const list = /^&cmavo\s+\(\s*([^()]*)\s*\)(?:\s*&post_word)+$/.exec(body);
+    const list = /^&\s*(?:cmavo|\(\s*cmavo\s*\))\s*\(\s*([^()]*)\s*\)(?:\s*&\s*(?:post_word|\(\s*post_word\s*\)))+$/.exec(body);
     if (!list) fail(`unsupported cmavo list for ${name}`);
     // A Y list containing only y+ cannot classify a word in these forms.
     // A mixed list retains its y key, as Zantufa requires.
