@@ -72,7 +72,7 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-The fourth change permits `.i ni'o` after a run of `ni'o`, in `text-1` and `paragraphs`. This allows a new topic inside a reply. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
+A run of `ni'o` permits one `.i ni'o` transition at the same boundary, in `text-1` and `paragraphs`. This allows a new topic inside a reply. A second transition needs an intervening paragraph. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
@@ -1025,7 +1025,7 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` already reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer extends that form to later topic boundaries, because usage puts a new topic inside a reply. A final `ni'o` also follows camxes-exp.
+The CLL grammar's `text-1` already reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits one such transition at each later topic boundary, because usage puts a new topic inside a reply. Consecutive transitions without a paragraph remain invalid. A final `ni'o` also follows camxes-exp.
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
