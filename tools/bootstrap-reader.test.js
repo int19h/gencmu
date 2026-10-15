@@ -55,7 +55,7 @@ test("feature names retain main's initial-case rule", () => {
 test("the coordinator's error examples retain their columns", () => {
   for (const [source, column] of [
     ["%rule r $x:A<B><C>", 16], ["%stage $X", 1], ["%rule Foo A", 7],
-    ["%rule r ¬cbm! A", 13], ["%rule r ¬ cbm? A", 9],
+    ["%rule r ¬cbm! A", 14], ["%rule r ¬ cbm? A", 9],
     ['%const $_0041 "x"', 8], ['%rule r A := ∪ "a"', 14],
     ['%include "a.md" "b$c.md"', 19],
   ]) {
