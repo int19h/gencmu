@@ -861,6 +861,55 @@ mod ranked_location_tests {
 #[cfg(test)]
 mod notation_cache_tests {
     use super::*;
+    use crate::test_common::{matches, parse_json};
+
+    fn assert_pattern(case: &Json, actual: &str, path: &str) {
+        let pattern = case.get("expect").unwrap().get("dom").unwrap();
+        matches(&parse_json(&pattern.to_json()).unwrap(), &parse_json(actual).unwrap(), "dom")
+            .unwrap_or_else(|error| panic!("{path}: {error}\n{actual}"));
+    }
+
+    fn cache_paths(base: &Context, bootstrap_hash: &str, path: &str, text: &str, expected: &str) {
+        let cold =
+            Context { unicode: base.unicode.clone(), notation: base.notation.clone(), compiled: Compiled::default() };
+        for read in 0..2 {
+            assert_eq!(dom_to_json(&cold.document(path, text, false).unwrap()), expected, "{path}: cold read {read}");
+        }
+        let mut poisoned = dom_from_json(&json::parse(expected).unwrap(), &base.unicode).unwrap();
+        poisoned.rules[0].name = "cache-poison".into();
+        let poisoned = dom_to_json(&poisoned);
+        assert_eq!(dom_problem(&json::parse(&poisoned).unwrap(), &base.unicode), None, "{path}");
+        let unicode_hash = fnv1a64(super::bundled("unicode.txt").unwrap());
+        let document_hash = fnv1a64(text);
+        let stale_bootstrap = fnv1a64("another bootstrap");
+        let stale_unicode = fnv1a64("another unicode");
+        let stale_document = fnv1a64("another document");
+        for mismatch in [None, Some("document"), Some("bootstrap"), Some("unicode"), Some("format")] {
+            let bootstrap = if mismatch == Some("bootstrap") { &stale_bootstrap } else { bootstrap_hash };
+            let unicode = if mismatch == Some("unicode") { &stale_unicode } else { &unicode_hash };
+            let hash = if mismatch == Some("document") { &stale_document } else { &document_hash };
+            let format = if mismatch == Some("format") { DOM_FORMAT - 1 } else { DOM_FORMAT };
+            let dom = if mismatch.is_some() { &poisoned } else { expected };
+            let envelope = format!(
+                r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
+            );
+            let compiled = Compiled::parse(&envelope, bootstrap_hash, &unicode_hash).unwrap();
+            if mismatch.is_none() {
+                assert_eq!(compiled.by_path.len(), 1, "{path}: matching entry is admitted");
+            }
+            // A matching entry must work even without a notation reader.
+            let notation = if mismatch.is_none() {
+                Arc::new(Dialect::new(vec![], vec![], base.unicode.clone()).unwrap())
+            } else {
+                base.notation.clone()
+            };
+            let context = Context { unicode: base.unicode.clone(), notation, compiled };
+            for read in 0..2 {
+                let actual = context.document(path, text, false).unwrap();
+                assert_eq!(dom_to_json(&actual), expected, "{path}: {mismatch:?}, read {read}");
+            }
+        }
+    }
 
     #[test]
     fn shared_notation_cache_misses_cover_every_identity_field() {
@@ -881,49 +930,101 @@ mod notation_cache_tests {
             cases += 1;
             let path = file.file_name().unwrap().to_str().unwrap();
             let text = case.get("document").and_then(Json::as_str).unwrap();
-            let cold = Context {
-                unicode: bundled.unicode.clone(),
-                notation: bundled.notation.clone(),
-                compiled: Compiled::default(),
-            };
-            let expected = dom_to_json(&cold.document(path, text, false).unwrap());
-            assert_eq!(dom_to_json(&cold.document(path, text, false).unwrap()), expected, "{path}: cold reread");
-            let mut poisoned = read_document(&bundled.notation, text).unwrap();
-            poisoned.rules[0].name = "cache-poison".into();
-            let poisoned = dom_to_json(&poisoned);
-            assert_eq!(dom_problem(&json::parse(&poisoned).unwrap(), &bundled.unicode), None, "{path}");
-            let bootstrap_hash = bootstrap_hash();
-            let unicode_hash = fnv1a64(super::bundled("unicode.txt").unwrap());
-            let document_hash = fnv1a64(text);
-            let stale_bootstrap = fnv1a64("another bootstrap");
-            let stale_unicode = fnv1a64("another unicode");
-            let stale_document = fnv1a64("another document");
-            for mismatch in [None, Some("document"), Some("bootstrap"), Some("unicode"), Some("format")] {
-                let bootstrap = if mismatch == Some("bootstrap") { &stale_bootstrap } else { &bootstrap_hash };
-                let unicode = if mismatch == Some("unicode") { &stale_unicode } else { &unicode_hash };
-                let hash = if mismatch == Some("document") { &stale_document } else { &document_hash };
-                let format = if mismatch == Some("format") { DOM_FORMAT - 1 } else { DOM_FORMAT };
-                let dom = if mismatch.is_some() { &poisoned } else { &expected };
-                let envelope = format!(
-                    r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
-                );
-                let compiled = Compiled::parse(&envelope, &bootstrap_hash, &unicode_hash).unwrap();
-                if mismatch.is_none() {
-                    assert_eq!(compiled.by_path.len(), 1, "{path}: matching entry is admitted");
-                }
-                // A matching entry must work even without a notation reader.
-                let notation = if mismatch.is_none() {
-                    Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap())
-                } else {
-                    bundled.notation.clone()
-                };
-                let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
-                for read in 0..2 {
-                    let actual = context.document(path, text, false).unwrap();
-                    assert_eq!(dom_to_json(&actual), expected, "{path}: {mismatch:?}, read {read}");
-                }
-            }
+            let expected = dom_to_json(&read_document(&bundled.notation, text).unwrap());
+            assert_pattern(&case, &expected, path);
+            cache_paths(&bundled, &bootstrap_hash(), path, text, &expected);
+            eprintln!("notation cache paths: {path}");
         }
         assert!(cases > 0, "no shared notation cache cases ran");
+    }
+
+    fn field<'a>(value: &'a mut Json, name: &str) -> &'a mut Json {
+        let Json::Obj(members) = value else { panic!("expected an object") };
+        &mut members.iter_mut().find(|(key, _)| key == name).unwrap().1
+    }
+
+    fn array(value: &mut Json) -> &mut Vec<Json> {
+        let Json::Arr(items) = value else { panic!("expected an array") };
+        items
+    }
+
+    fn object<const N: usize>(members: [(&str, Json); N]) -> Json {
+        Json::Obj(members.into_iter().map(|(key, value)| (key.to_string(), value)).collect())
+    }
+
+    /// Adds the lexical aliases exactly as tests/README.md specifies.
+    fn value_notation(aliases: &[Json]) -> String {
+        let mut bootstrap = json::parse(super::bundled("notation/bootstrap.json").unwrap()).unwrap();
+        let lexical = array(field(&mut bootstrap, "stages"))
+            .iter_mut()
+            .find(|stage| stage.get("name").and_then(Json::as_str) == Some("lexical"))
+            .unwrap();
+        let document = &mut array(field(lexical, "documents"))[0];
+        let rules = array(field(field(document, "dom"), "rules"));
+        for (index, alias) in aliases.iter().enumerate() {
+            let name = format!("value-alias-{index}");
+            let tags: Vec<_> = alias
+                .get("tags")
+                .and_then(Json::as_array)
+                .unwrap()
+                .iter()
+                .map(|tag| object([("tag", tag.clone())]))
+                .collect();
+            let tag_term = if tags.len() == 1 { tags[0].clone() } else { object([("union", Json::Arr(tags))]) };
+            let expression = object([(
+                "seq",
+                Json::Arr(
+                    alias
+                        .get("spelling")
+                        .and_then(Json::as_str)
+                        .unwrap()
+                        .chars()
+                        .map(|scalar| object([("literal", object([("string", Json::Str(scalar.to_string()))]))]))
+                        .collect(),
+                ),
+            )]);
+            let piece = rules.iter_mut().find(|rule| rule.get("name").and_then(Json::as_str) == Some("piece")).unwrap();
+            array(field(piece, "alternatives"))
+                .push(object([("guards", Json::Arr(vec![])), ("expr", object([("ref", Json::Str(name.clone()))]))]));
+            let emitted = object([
+                ("capture", Json::Str(String::new())),
+                ("tags", tag_term),
+                (
+                    "value",
+                    object([("concat", Json::Arr(vec![object([("string", alias.get("value").unwrap().clone())])]))]),
+                ),
+            ]);
+            rules.push(object([
+                ("name", Json::Str(name)),
+                ("op", Json::Str("define".into())),
+                ("flags", Json::Arr(vec![Json::Str("leftmost-longest".into())])),
+                ("at", Json::Arr(vec![Json::Int(100000 + index as i64), Json::Int(1)])),
+                ("conditions", Json::Arr(vec![])),
+                ("alternatives", Json::Arr(vec![object([("guards", Json::Arr(vec![])), ("expr", expression)])])),
+                ("emit", object([("items", Json::Arr(vec![emitted]))])),
+            ]));
+        }
+        bootstrap.to_json()
+    }
+
+    #[test]
+    fn shared_supplied_notation_values_cover_names_and_cache_paths() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation-values.json");
+        let fixture = json::parse(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let cases = fixture.get("cases").and_then(Json::as_array).unwrap();
+        assert!(!cases.is_empty(), "no supplied notation cases ran");
+        let mut ids = HashSet::new();
+        for case in cases {
+            let id = case.get("id").and_then(Json::as_str).unwrap();
+            assert!(ids.insert(id), "duplicate case ID: {id}");
+            let bootstrap = value_notation(case.get("aliases").and_then(Json::as_array).unwrap());
+            let context = Context::new(super::bundled("unicode.txt").unwrap(), &bootstrap, "null").unwrap();
+            let text = case.get("document").and_then(Json::as_str).unwrap();
+            let expected =
+                dom_to_json(&read_document(&context.notation, text).unwrap_or_else(|error| panic!("{id}: {error}")));
+            assert_pattern(case, &expected, id);
+            cache_paths(&context, &fnv1a64(&bootstrap), &format!("{id}.md"), text, &expected);
+            eprintln!("supplied notation values and cache paths: {id}");
+        }
     }
 }
