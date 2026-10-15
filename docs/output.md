@@ -13,10 +13,10 @@ Libraries write object keys in the order that this document gives. They write no
 ### A parse result
 
 ```
-{"format":12,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
+{"format":13,"ok":true,"stages":[STAGE...],"tree":NODE,"error":ERROR,"warnings":[WARNING...]}
 ```
 
-`format` is the version of the result shape, 12. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
+`format` is the version of the result shape, 13. `tree` is the chosen tree of the last stage, or `null`. `error` is `null` when `ok` is true. `warnings` is present only when there is at least one parse warning (engine §12, §13).
 
 A stage has one of these forms:
 
@@ -92,6 +92,15 @@ An error has one of these forms:
 {"kind":"ambiguous","stage":"syntax","reason":"elision-only","readings":[NODE,NODE],"witness":[ACTION,ACTION],"message":"..."}
 ```
 
+A rejection can also name a failed boundary condition:
+
+```json
+{"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
+ "expected":[...],"boundary":{"rule":"listed-bare-na","condition":1,"at":3},"message":"..."}
+```
+
+`boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends. `at` is the boundary where the obligation failed.
+
 `kind` is one of these values:
 
 - `rejected`: The grammar of the stage does not accept its input.
@@ -154,13 +163,13 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":28,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
+Its envelope is `{"format":29,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 28 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants.
+DOM format 29 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants.
 
-Format 28 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":28,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 29 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":29,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -173,7 +182,7 @@ A rule has this form, in canonical member order:
 
 `op` is `define`, `redefine`, or `extend`. `tags`, `value`, `image`, `emit`, and `erased` are optional. `conditions` is an array, including when empty. `erased` is present only as `true`. `erased` and `emit` cannot coexist. An erased definition cannot carry a recipe.
 
-`flags` is `[]` or `["leftmost-longest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
+`flags` is `[]`, `["leftmost-longest"]` or `["fewest"]`. An extension always has `[]` in the document DOM, but inherits the stitched rule's flag (engine §2). Unknown values, duplicate flags and flags on extensions are errors. An item with `op: "define"` or `op: "redefine"` and `flags: []` gives the stitched rule no flags.
 
 `alternatives` is nonempty. A rule name is lowercase or `#`.
 
@@ -266,6 +275,8 @@ A method node always has `method`, `receiver`, and `args`, in that order. Its me
 
 Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags`, `.matches`, `.begins` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
 
+`.followed-by` and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice. Their receiver is `{"capture":"x"}`, or `{"capture":""}` for `$`.
+
 `.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
 
 `.without-elision-except` takes the same receiver and exactly one rule argument. `.onward` can wrap its result too. Readers reject `$x.onward.without-elision-except(f)` in the same way.
@@ -299,6 +310,7 @@ Conditions have these forms:
 {"method":"matches","receiver":SPAN,"args":[{"rule":"r"}]}
 {"method":"begins","receiver":SPAN,"args":[{"rule":"r"}]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
+{"method":"ends-input","receiver":SPAN,"args":[]}
 {"not":COND}             {"any":[COND,COND...]}       {"all":[COND,COND...]}
 {"captured":"x"}        {"if":COND,"then":COND}
 ```
@@ -427,7 +439,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":28,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":29,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 

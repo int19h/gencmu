@@ -35,7 +35,12 @@ A grammar is a sequence of rules, directives (see "Directives"), constants (see 
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
 ```
 
-`%rule(leftmost-longest) NAME` gives the rule the only supported flag, `leftmost-longest`. A flagged occurrence is a flagged rule's constituent. The flag prefers earlier starts, then longer nonempty occurrences at one start. A parse with a nonempty flagged occurrence beats one without any. "Ambiguity" gives the full comparison.
+A rule can carry one flag, written in parentheses after the keyword. There are two flags. A flagged occurrence is a flagged rule's constituent.
+
+- `%rule(leftmost-longest) NAME` prefers earlier starts, then longer nonempty occurrences at one start. A parse with a nonempty occurrence beats one without any.
+- `%rule(fewest) NAME` prefers fewer nonempty occurrences. A parse with fewer occurrences of `fewest` rules beats one with more.
+
+"Ambiguity" gives the full comparison.
 
 For example:
 
@@ -51,7 +56,7 @@ For a tense example, flagging only `simple-tense-modal` groups `pu va ca gi` as 
 
 Spaces around the parentheses and their content have no meaning. By convention, the opening parenthesis follows the keyword directly.
 
-Empty parentheses, duplicate flags, unknown flags and arguments are errors.
+Empty parentheses, two flags, unknown flags and arguments are errors.
 
 Line breaks and indentation mean nothing. So a long list of alternatives can put each alternative on a line of its own, and every `|` can also stand first. By convention, authors indent the body by two spaces under the keyword:
 
@@ -280,6 +285,8 @@ Ranked options have no local guard, tag clause, or emission clause. Ordinary alt
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
+`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. An option whose boundary tests are still open at its edges competes only with options that leave the same open tests ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
 Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
@@ -341,7 +348,7 @@ So `%rule` never quietly replaces a rule. A misspelled name in `%redefine-rule` 
 
 The alternatives that an extension adds carry the extension's own clauses, not those of the base rule. The clauses of the base rule do not apply to them. So an extension says everything about what it adds. The loader, the part of gencmu that reads the documents, reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
-`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` replaces both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
+`%extend-rule` accepts no flags and inherits the stitched rule's flag for every added alternative. `%redefine-rule(leftmost-longest)` and `%redefine-rule(fewest)` replace both the alternatives and the flag. A redefinition without parentheses removes the flag. The printed audit report names a flag change alongside the replacement. Unlike clauses, the flag belongs to the whole stitched rule.
 
 The notation has no way to remove a single alternative. A rule is small enough to restate, and a restated rule reads better than a list of deletions.
 
@@ -626,6 +633,10 @@ The predicates are:
 - `span.begins(rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
 - `span.starts-input` holds when the span begins where the parser's input begins.
 
+- `span.ends-input` holds when the span ends where the parser's input ends.
+- `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbours in the parse" below explains it.
+- `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
+
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
 Inside such a parse, a condition can ask about the very span that is being parsed, as the same rule. Such a condition defines the rule in terms of itself over the same text, negated or not. The parser reports it as an error of the grammar.
@@ -648,6 +659,8 @@ The word forms of the BPFK (a Lojban committee for language definitions), the `b
 %conditions
   $.starts-input
 ```
+
+`.ends-input` is the mirror of `.starts-input`. It holds where the span ends at the end of the input. In a nested parse, it holds at the end of the span being parsed. Like `.starts-input`, it reads positions only, so the parser decides it when it evaluates the condition.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes.
 
@@ -724,6 +737,44 @@ In `le ke my .e gy ke'e broda`, the inner sumti `ke my .e gy ke'e` omits no KUhE
 In `le ke my .e gy broda`, the KE group omits its own KEhE at the capture's end. The quantifier's KUhE comes just before that KEhE, so it still lies inside the shared stretch, and the description takes the quantifier again.
 
 The receiver and composition rules of `.without-elision` apply unchanged. `$x.onward.without-elision-except(math)` is an error. The argument is exactly one rule name. A family whose members own no elidable optional permits nothing, and its queries answer as `.without-elision` does.
+
+### Neighbours in the parse
+
+`$x.followed-by(S)` and `$x.preceded-by(S)` test the parse that the condition belongs to. They parse nothing again. The receiver is `$` or one capture. `S` is a rule name or a tag that names a terminal, or a choice of these, as in `selbri | gek-sentence`. `#` is a rule name, so `S` can name it. Its node is a nonempty free-modifier slot.
+
+`$x.followed-by(S)` holds when the parse has a node of a name in `S` whose first token is the token right after `$x`. `$x.preceded-by(S)` holds when the parse has such a node whose last token is the token right before `$x`. A node of a rule is its constituent, including each level of a chain. A node of a tag is one token that the terminal read. Optionals, braces and ranked groups make no node.
+
+A node that reads no token never counts, so an elided terminator never does. At the end of the input, nothing follows, so `followed-by` is false. At the start, `preceded-by` is false.
+
+An empty receiver stands at one position. Then `followed-by` tests the node that starts at the token there, and `preceded-by` the node that ends just before it.
+
+A condition with such a test holds or fails as any condition does. So `¬$.followed-by(B)` holds where no `B` node follows, at the end of the input too. A parse in which a condition fails does not exist. The stage ranks the parses that remain. So the chosen tree satisfies every such condition. In an emission item, a test reads the chosen tree and changes nothing about parsing.
+
+The test reads the actual neighbour, which a lookahead cannot do. In the experimental grammar, a bare `na` is no term where a selbri or a forethought sentence follows it:
+
+```jbogenbau
+%rule listed-bare-na
+  $n:NA #
+%conditions
+  ¬$n.onward.begins(na-connective),
+  ¬$.followed-by(selbri | selbri-6 | gek-sentence | #)
+```
+
+`selbri-6` covers a tanru that goes on after the term, as in `le nu do klama na brode`. There the node at `brode` is a unit of the outer tanru, not a whole selbri. `#` keeps the free modifiers after `na` in its own slot, so no later slot can take them.
+
+In `na na to broda`, the first `na` is followed by the second `na` term. No selbri starts there in that reading, so the first `na` stays a term. A lookahead `¬$.following-tokens.begins(selbri)` parses `na to broda` again. It can close the parenthesis early and find a selbri that the reading does not have.
+
+A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
+
+Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
+
+These tests can stand in a `%conditions` list and in the tag clause of an emission item. In an emission item, they read the chosen tree. They cannot stand in a header or alternative tag term, a test, a recipe, a constant, an implication, a pattern or a query argument. A list capture and its methods, such as `$s.first`, cannot be receivers.
+
+One condition of the list holds at most one such test. It can combine that test with other conditions through `¬`, `∧`, `∨` and `⟹`. If the receiver is a capture `$x`, the condition reads no other capture and no `$`. These rules keep each test on one boundary of one step ([engine §4.2](engine.md#42-boundary-obligations)).
+
+The parser decides such a test only later. So it evaluates the rest of the condition both ways, and it evaluates the later conditions and the tag term as if the test held. A grammar error in any of these is an error of the parse, even if the test later fails.
+
+Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. So a rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
 
 ## Juxtaposition
 
@@ -1005,26 +1056,29 @@ Ranked choices supply seals as well as filtering. A unique tree can differ betwe
 
 A newly resolved result reaches emission and the enabled elision-only check. A newly tied result reaches neither, has no chosen tree, output or warnings, and stops later stages.
 
-A grammar ranks every admitted parse. A flagged span is a flagged occurrence's span. A rule profile counts flagged occurrences over each nonempty span.
+A grammar ranks every admitted parse. A rule profile has two parts. Its span vector counts the occurrences of `leftmost-longest` rules over each nonempty span. Its fewest count is the number of nonempty occurrences of `fewest` rules. A flagged span is the span of a `leftmost-longest` occurrence.
 
-`leftmost-longest` compares complete parses by nonempty flagged-span counts, with earlier starts first, longer spans next, and larger counts preferred at the first difference.
+`leftmost-longest` compares complete parses by their span vectors, with earlier starts first, longer spans next, and larger counts preferred at the first difference. `fewest` then compares their fewest counts, and the smaller count wins.
 
-All flagged rules contribute together, without priority by name or declaration order. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. The flag ranks before the stage directive.
+All `leftmost-longest` rules contribute to one span vector together, without priority by name or declaration order. All `fewest` rules contribute to one count in the same way. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. Both flags rank before the stage directive.
 
-Compare two rule profiles as lists of spans:
+Compare two rule profiles in this order:
 
-1. List each flagged occurrence's nonempty span by increasing start, then decreasing end.
+1. List each `leftmost-longest` occurrence's nonempty span by increasing start, then decreasing end.
 2. Keep duplicate spans, including those from nested occurrences.
 3. Compare the lists from the front.
 4. At the first different entry, prefer the earlier start, then the later end.
 5. After an equal prefix, prefer the longer list.
-6. If the lists are equal, apply the stage directive.
+6. If the lists are equal, prefer the smaller fewest count.
+7. If the counts are equal too, apply the stage directive.
 
-Two nested flagged occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all flagged rules, counts nested and repeated occurrences, and ignores empty occurrences.
+Two nested `leftmost-longest` occurrences over one span contribute twice, so two such occurrences beat one. This document defines the flag's comparison, rather than POSIX subexpression semantics. For example, the flag pools occurrences across all `leftmost-longest` rules, counts nested and repeated occurrences, and ignores empty occurrences.
 
 A parse with a greater rule profile beats one with a lesser rule profile (engine §6). Among equal rule profiles, the stage directive applies. A parse is best if no other admitted parse beats it. The stage takes a sole best parse. Several best parses give a tie.
 
-The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every rule profile is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
+The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every span vector is zero and every fewest count is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
+
+`fewest` states a preference between whole readings. In the experimental grammar, `term-link` carries it. A connection of sumti, selbri or bridi-tails then beats a connection of terms over the same words, whatever their omitted terminators. A connection of terms remains where nothing else completes.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 
@@ -1117,6 +1171,8 @@ A reconstruction is a second parse with terminators restored. These are the omit
 Ranked choices compare spans in the reconstructed input, including restored terminators.
 
 The check retains the rule flags, but applies no stage preference. It counts flagged occurrences over projected spans. The restored chosen parse must survive ranked-choice filtering and be the sole best reconstructed reading. Another such reading gives an ambiguity error, never a replacement chosen parse.
+
+Its rule profiles hold both parts. An occurrence with an empty projected span counts in neither part.
 
 With no flagged rule, the check requires the restored chosen parse as the only admitted reading. Recognition before filtering always keeps that parse. Only its absence there reports `elision-witness-lost` (engine §7.9). Filtering can exclude that present parse and cause ordinary ambiguity. A tie ends the stage before this check.
 
