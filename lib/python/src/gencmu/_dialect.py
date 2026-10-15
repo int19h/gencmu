@@ -250,7 +250,7 @@ class NotationReader:
         for number, (name, lowered) in enumerate(self.stages):
             if name == 'syntax':
                 for token in tokens:
-                    if token.text == '%prefer':
+                    if token.value == '%prefer':
                         line, column = grammar_text.position(token.source[0])
                         raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
