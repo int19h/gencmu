@@ -1328,7 +1328,7 @@ plain-term-atom = tag-run | tag | lowercase-name | "#" | string-literal | consta
 method-chain = method-receiver method-selector {method-selector}
 method-receiver = term-atom
 method-selector = "." method-name ["(" arguments ")"]
-arguments = term {"," term}
+arguments = term {("," | "|") term}
 implication = any-of {"⟹" any-of}
 any-of = ["∨"] all-of {"∨" all-of}
 all-of = ["∧"] condition {"∧" condition}
@@ -1369,6 +1369,8 @@ classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name
 classifier-key = string-literal
 implication-declaration = "%implies" union "⟹" union
 ```
+
+`followed-by` and `preceded-by` separate targets with `|`. Other methods separate arguments with commas. Recognition accepts either separator, and the reader rejects a separator that does not match the method.
 
 Recognition names describe productions. The following mapping specifies the named constructors that the syntax stage builds. Other production names remain wrappers under §9.3. Lexical forms contribute tokens where a constructor requires tokens.
 
@@ -1720,7 +1722,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   The reader does not know the type of a constant, so it lets a constant stand for a value of any type but a span. After the loader stitches the stage, it makes sure again that the types agree (§2). It reports an error there at the first constant of the smallest construct whose parts disagree.
 - After method selection, a capture or span converts to its input value when a string is required or in `=` or `≠` (§10). It cannot convert to tags, sets, or patterns.
-- A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule is only the rule argument of `.tags`, `.matches`, `.begins`, or `.without-elision-except`, and a classifier only that of `.classify`.
+- A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
 - `.matches`, `.begins`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error.
 - An `&` of more than 16 items is an error.
 - An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, and `method`. In a condition, they are `any`, `all`, `not`, `if`, `method`, and a comparison.
