@@ -754,6 +754,8 @@ One rule profile is greater than another when it wins this comparison. Equal spa
 
 All `leftmost-longest` rules contribute to the span vector together, and all `fewest` rules to the count. Neither part gives priority by name, declaration order, production number, tags or source. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing, and helpers carry no flags. Both flags rank before the stage directive.
 
+An empty `fewest` occurrence adds zero to the count. During reconstruction (§7), an occurrence that reads only synthetic tokens remains empty after projection and also adds zero.
+
 Of two derivations with different rule profiles, the one with the greater rule profile beats the other. Of two with equal rule profiles, the one that the directive prefers beats the other. A derivation is best if no other derivation beats it.
 
 The directive (§2) is `greedy`, `lazy` or `late-elision`. The verdict is one of these:
