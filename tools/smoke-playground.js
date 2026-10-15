@@ -11,7 +11,7 @@
 // file://, as someone who cloned the repository would; given a URL, that URL
 // is checked instead, which is how a GitHub Pages deployment is tested.
 // Every preset also runs through its selector. Grammar edits expose ties
-// or change the selected operand, and Reset restores the bundled result.
+// and Reset restores the bundled result.
 //
 //   node tools/smoke-playground.js [--browser chromium|chrome|firefox] [URL]
 //
@@ -252,7 +252,7 @@ async function main() {
         edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
         document: "syntax/experimental.md", rule: "%rule me-unit",
-        edit: ["ME # (sumti ≻ mex)", "ME # (mex ≻ sumti)"], editedOutput: /me-unit\n\s+ME "me"\n\s+mex/ },
+        edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
       { label: "ME accepts a number (experimental)", output: /me-unit\n\s+ME "me"\n\s+mex[\s\S]*number-part · pa/,
         document: "syntax/experimental.md", rule: "%rule me-unit" },
       { label: "The earliest, longest tense wins (CLL)", output: /^\(mi \[viska \{\(pu va\) \(\[ca gi\] do gi \[la djan\]\)\}\]\)$/,
