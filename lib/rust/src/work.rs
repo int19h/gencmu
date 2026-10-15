@@ -85,6 +85,10 @@ pub(crate) enum Work {
     FamilySummaries,
     /// Computed record moves and relation rows for family alignment.
     FamilySteps,
+    /// Calls that construct stage-zero tokens.
+    StageZero,
+    /// Calls to canonical decomposition, including source-text methods.
+    Decompositions,
     Classified,
 }
 

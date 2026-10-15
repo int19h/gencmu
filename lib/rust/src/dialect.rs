@@ -1121,6 +1121,7 @@ fn has_sa_su(tree: &Node) -> bool {
 
 /// Stage zero keeps original source text beside decomposed values and images.
 fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[char]) -> (Vec<Tok>, Vec<Token>) {
+    crate::work::count(crate::work::Work::StageZero, 1);
     let decomposed = unicode.decompose_with_origins(chars);
     let mut input = Vec::with_capacity(decomposed.len());
     let mut public = Vec::with_capacity(decomposed.len());
@@ -1180,6 +1181,40 @@ mod tests {
         let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
         crate::load_dialect_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+    }
+
+    #[test]
+    fn automatic_feature_probe_reuses_stage_zero_and_saved_words() {
+        use crate::work::{counted, reset, Work};
+        let dialect = crate::load_dialect("experimental").unwrap();
+        assert!(dialect.features.iter().any(|feature| feature.name == "sa-su" && !feature.default));
+        let retry_control = ParseOptions { auto_features: false, ..Default::default() };
+        assert!(!dialect.parse("mi su do", &retry_control).unwrap().ok);
+        let mut ordinary = Vec::new();
+        for (text, auto_features, until) in [
+            ("mi klama", false, None),
+            ("mi klama", true, None),
+            ("mi klama", true, Some("words")),
+            ("mi su do", true, None),
+        ] {
+            let options = ParseOptions { auto_features, until: until.map(str::to_string), ..Default::default() };
+            reset();
+            let result = dialect.parse(text, &options).unwrap();
+            assert!(result.ok, "{text}: {:?}", result.error);
+            assert_eq!(counted(Work::StageZero), 1, "{text}, {auto_features}, {until:?}");
+            assert_eq!(counted(Work::Decompositions), 1, "{text}, {auto_features}, {until:?}");
+            let words = result.stages.iter().position(|stage| stage.name == "words").unwrap();
+            if let Some(next) = result.stages.get(words + 1) {
+                assert_eq!(result.stages[words].output.as_ref(), Some(&next.input));
+            } else {
+                assert_eq!(until, Some("words"));
+            }
+            if text == "mi klama" && until.is_none() {
+                ordinary.push(crate::to_json(&result));
+            }
+        }
+        assert_eq!(ordinary[0], ordinary[1]);
+        reset();
     }
 
     #[test]
