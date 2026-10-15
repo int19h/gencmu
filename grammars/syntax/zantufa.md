@@ -146,7 +146,7 @@ The opener's slot takes every leading free modifier after TO. These modifiers re
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The fragment conditions test words after each selected fragment. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
+The NA and mekso fragment conditions test actual following nodes in the complete tree. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
 
 Terms and mekso fragments use ordinary alternatives. The aligned whole query excludes a mekso when the same words and closes form an eligible terms fragment. `fragment-terms` applies the terms restrictions without adding the fragment's own VAU. This preserves connected, grouped, and recursively wrapped letters, including `my jo'u gy` and `la'e my jo'u gy`.
 
@@ -211,12 +211,10 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | links
   | linkargs
 %conditions
-  ¬$n.following-tokens.begins(terms),
-  ¬$n.following-tokens.begins(ku-word),
+  ¬$n.followed-by(terms | KU),
   ¬$t.following-tokens.begins(mex),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬$m.following-tokens.begins(sumti-5),
-  ¬$m.following-tokens.begins(selbri),
+  ¬$m.followed-by(sumti-5 | selbri),
   ¬$m.without-elision.matches(fragment-terms)
 
 %rule fragment-terms
@@ -235,11 +233,9 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 %rule terms-vau
   terms [+VAU #]
 
-%rule ku-word
-  KU
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>statement-terms</code> to <code>ku-word</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>statement-terms</code> to <code>terms-vau</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement-terms.svg" alt="Railroad diagram of the rule statement-terms"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement.svg" alt="Railroad diagram of the rule statement"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
@@ -252,7 +248,6 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
 <p><img src="../../docs/diagrams/syntax/zantufa/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/na-clause.svg" alt="Railroad diagram of the rule na-clause"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/terms-vau.svg" alt="Railroad diagram of the rule terms-vau"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/ku-word.svg" alt="Railroad diagram of the rule ku-word"></p>
 </details>
 
 ## Sentences and bridi-tails
