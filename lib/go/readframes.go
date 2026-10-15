@@ -644,7 +644,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
 			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(b.token(b.only(n, "capture-reference"))), "$")}}
-			f.compare.Op = b.text(b.token(b.only(n, "tree-comparator")))
+			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
 				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.text(b.token(name)), b.text(b.token(name)))
@@ -684,7 +684,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	case "comparison":
 		if f.right != nil {
 			f.compare.Left = in.(*domTerm)
-			f.compare.Op = b.text(b.token(b.only(n, "comparator")))
+			f.compare.Op = b.operator(b.token(b.only(n, "comparator")))
 			right := f.right
 			f.right = nil
 			return ask(&valueFrame{n: right})

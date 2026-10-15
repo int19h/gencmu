@@ -238,11 +238,16 @@ func BenchmarkReadCompiledJSON(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
+	table, err := os.ReadFile("../../grammars/unicode.txt")
+	if err != nil {
+		b.Fatal(err)
+	}
+	unicodeHash := fnv1a64(string(table))
 	text, hash := string(cache), fnv1a64(string(bootstrap))
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		if len(readCompiled(text, hash)) == 0 {
+		if len(readCompiled(text, hash, unicodeHash)) == 0 {
 			b.Fatal("cache miss")
 		}
 	}

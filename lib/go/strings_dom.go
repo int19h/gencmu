@@ -287,7 +287,7 @@ func stringTerminal(s string, uni *unicodeTable) string {
 		case c == '$':
 			b.WriteString("$$")
 		case c == '"' || c == '\\' || c <= 0x1F || c >= 0x7F && c <= 0x9F ||
-			c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD || uni.isMark(c):
+			c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD || uni.isMark(c) || uni.changesInDocument(c):
 			fmt.Fprintf(&b, "$(_%04X)", c)
 		default:
 			b.WriteRune(c)

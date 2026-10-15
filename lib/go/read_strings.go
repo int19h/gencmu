@@ -130,7 +130,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			next.Op = "tags"
 			next.Requirements = b.requirements(test)
 		} else {
-			next.Op = b.text(b.token(b.only(test, "test")))
+			next.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" {
@@ -183,7 +183,9 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 }
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
-	rs := []rune(b.text(n))
+	rs := []rune(b.tokenValue(n))
+	original := []rune(b.text(n))
+	originalIndex := 1
 	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
 		b.fail(n, "a string uses double quotes")
 	}
@@ -220,7 +222,20 @@ func (b *domBuilder) stringTerm(n *Node) *domTerm {
 			b.fail(n, "an interpolation requires a closing parenthesis")
 		}
 		name := string(rs[i+2 : end])
-		at := b.gt.at(b.toks[n.Token].Source[0] + i)
+		// Interpolation syntax survives decomposition unchanged. Find its
+		// original offset so that earlier decomposed letters do not shift it.
+		for originalIndex < len(original)-1 && !(original[originalIndex] == '$' && original[originalIndex+1] == '(') {
+			if original[originalIndex] == '$' && original[originalIndex+1] == '$' {
+				originalIndex += 2
+			} else {
+				originalIndex++
+			}
+		}
+		at := b.gt.at(b.toks[n.Token].Source[0] + originalIndex)
+		for originalIndex < len(original)-1 && original[originalIndex] != ')' {
+			originalIndex++
+		}
+		originalIndex++
 		if !constName.MatchString(name) {
 			if _, ok := engineScalar(name); !ok {
 				panic(grammarError(b.doc, at, "invalid interpolation constant %s", name))
@@ -318,7 +333,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 			e.Op = "tags"
 			e.Requirements = b.requirements(test)
 		} else {
-			e.Op = b.text(b.token(b.only(test, "test")))
+			e.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" {
