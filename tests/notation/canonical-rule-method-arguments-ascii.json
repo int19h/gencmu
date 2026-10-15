@@ -1,0 +1,60 @@
+{
+  "description": "Query methods and restored queries use decomposed rule arguments.",
+  "document": "```jbogenbau\n%rule text $x:\"a\"\n%conditions $x.matches(rK), $x.begins((rK)), K ⊆ $x.tags(((rK))), $x.without-elision-except(rK).matches(rK)\n%rule rK \"a\"\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "method": "matches",
+              "args": [
+                {
+                  "rule": "rK"
+                }
+              ]
+            },
+            {
+              "method": "begins",
+              "args": [
+                {
+                  "rule": "rK"
+                }
+              ]
+            },
+            {
+              "right": {
+                "method": "tags",
+                "args": [
+                  {
+                    "rule": "rK"
+                  }
+                ]
+              }
+            },
+            {
+              "method": "matches",
+              "receiver": {
+                "method": "without-elision-except",
+                "args": [
+                  {
+                    "rule": "rK"
+                  }
+                ]
+              },
+              "args": [
+                {
+                  "rule": "rK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "rK"
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}
