@@ -44,6 +44,13 @@ println!("{}", gencmu::to_json(&result));
 
   The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
 
+Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
+
+Grammar documents decompose too. Written string segments decompose, but interpolated engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
+
+The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
+
+
 Lowering can find grammar defects for the features of a parse. Examples include a chain beside another alternative or a repeated item that can match no tokens. The dialect loads, but parsing returns a result whose error has kind `ParseErrorKind::Grammar` and the stage's name. It does not return an `Error`. Its message begins with the document, line and column of the definition that wrote the alternative at fault, as `g.md:4:1:`.
 
 `Dialect` is `Send` and `Sync`, so threads can share one dialect freely.
@@ -99,6 +106,7 @@ The shared engine runner enables `gencmu::tools::with_family_conformance` on eac
 `cargo test` runs these tests:
 
 - The shared engine and notation cases of the repository's `tests/`, apart from cases with supplied fields that `InputToken` cannot express. The runner prints the reason for each skip
+- All 19,074 Unicode 15.1 normalization rows and every scalar omitted from part 1
 - The bootstrap fixpoint
 - The DOM cache
 - The API

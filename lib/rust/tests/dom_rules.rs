@@ -68,8 +68,9 @@ fn document_was_read(dom: &str) -> bool {
 /// The same, with a `compiled.json` of the given format.
 fn document_was_read_from(format: i64, dom: &str) -> bool {
     let compiled = format!(
-        r#"{{"format":{format},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{format},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [
@@ -231,6 +232,7 @@ fn a_well_formed_dom_is_used() {
 #[test]
 fn a_cache_of_another_format_is_a_miss() {
     assert!(!document_was_read_from(DOM_FORMAT, &with_rule("")));
+    assert!(document_was_read_from(27, &with_rule("")), "a format-27 cache is never used");
     assert!(document_was_read_from(13, &with_rule("")), "a format-13 cache is never used");
     assert!(document_was_read_from(11, &with_rule("")), "a format-11 cache is never used");
     assert!(document_was_read_from(10, &with_rule("")), "a format-10 cache is never used");
@@ -1027,8 +1029,9 @@ fn a_precompiled_constant_serves_the_parse() {
         ];
         if let Some(entry) = entry {
             let compiled = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
+                gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
                 gencmu::tools::fnv1a64(document)
             );
             sources.push(("compiled.json", compiled));
@@ -1129,8 +1132,9 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
         ];
         if let Some(entry) = entry {
             let compiled = format!(
-                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
+                r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{entry}}}}}}}"#,
                 gencmu::tools::bootstrap_hash(),
+                gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
                 gencmu::tools::fnv1a64(document)
             );
             sources.push(("compiled.json", compiled));
@@ -1335,8 +1339,9 @@ fn a_gate_of_an_entry_names_a_feature() {
 /// document, each with its kind.
 fn cached_features(dom: &str) -> Vec<(String, gencmu::FeatureKind)> {
     let compiled = format!(
-        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
+        r#"{{"format":{DOM_FORMAT},"bootstrap":"{}","unicode":"{}","documents":{{"g.md":{{"hash":"{}","dom":{dom}}}}}}}"#,
         gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
         gencmu::tools::fnv1a64(DOCUMENT)
     );
     let sources = [

@@ -1034,9 +1034,10 @@ mod tests {
             assert_eq!(crate::json::parse(&read).ok(), crate::json::parse(&dom).ok(), "{dom}\n{read}");
         }
         let compiled = format!(
-            r#"{{"format":{},"bootstrap":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
+            r#"{{"format":{},"bootstrap":"{}","unicode":"{}","documents":{{"main.md":{{"hash":"{}","dom":{dom}}},"p.md":{{"hash":"{}","dom":{pipeline}}}}}}}"#,
             crate::dom::DOM_FORMAT,
             crate::tools::bootstrap_hash(),
+            crate::json::fnv1a64(crate::loader::bundled("unicode.txt").unwrap()),
             crate::json::fnv1a64(&document),
             crate::json::fnv1a64(PIPELINE)
         );
