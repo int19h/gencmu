@@ -145,7 +145,7 @@ Ranked loading errors have these members, in this order:
 kind, code, message, group, option, expression, inheritance
 ```
 
-`kind` is `grammar`. `code` and `message` are required for the four ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
+`kind` is `grammar`. `code` and `message` are required for the five ranked loading errors. Their codes are `ranked-choice-syntax`, `ranked-choice-continuation`, `ranked-choice-boundary`, `ranked-choice-export`, and `ranked-choice-tags` (engine §2.1). Message wording is not part of conformance.
 
 `group` appears when the reader identifies a ranked group. Its members are `document`, `at`, `rule`, `alternative`, and `path`, in that order. Omit `document` and `at` when unknown. `at` identifies the first `≻` token where source exists.
 

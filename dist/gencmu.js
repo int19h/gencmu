@@ -5482,13 +5482,14 @@
   // ---- ranked.js
 
 
+
   // Written ranked groups and their local loading rules.
 
 
 
   /** @typedef {{document?:string, at?:[number,number], rule:string, alternative:number, path:string}} GroupSite */
   /** @typedef {{id:number, site:GroupSite, expr:any, source:any, final:boolean, parent:string, helper:string}} RankedGroup */
-  /** @typedef {{steps:any[], captures:Map<string,{node:any,at:number}>, ends:Map<RankedGroup,{at:number,option:number}>}} VirtualPath */
+  /** @typedef {{steps:any[], captures:Map<string,{node:any,at:number}>, ends:Map<RankedGroup,{start:number,at:number,option:number}>}} VirtualPath */
 
   // Source locations stay outside the document DOM.
   /** @type {WeakMap<object,[number,number]>} */
@@ -5580,13 +5581,6 @@
         };
         visit(source.expr, "", true, null);
       });
-      this.clauseErrors = new Map();
-      for (const group of this.groups) {
-        try {this.validateClauses(group);} catch (error) {
-          if (!(error instanceof GencmuError)) throw error;
-          this.clauseErrors.set(group,error);
-        }
-      }
     }
 
     /** @param {RankedGroup} group @param {string} code @param {string} message @param {any} [fields] @returns {never} */
@@ -5603,8 +5597,8 @@
       });
     }
 
-    /** @param {RankedGroup} group */
-    validateClauses(group) {
+    /** @param {RankedGroup} group @param {(steps:any[])=>boolean} prefixCanRead */
+    validateClauses(group, prefixCanRead) {
         const source = group.source;
         const paths = rankedVirtualPaths(source.expr, this.byExpression);
         for (const path of paths) {
@@ -5618,7 +5612,7 @@
             const capture = path.captures.get(name);
             return capture && this.owners.get(capture.node) === group;
           });
-          for (const condition of source.clauses.conditions) {
+          for (const [index,condition] of source.clauses.conditions.entries()) {
             const effective = simplifyFor(prepareClause(condition), has, names);
             if (effective === DOM_TRUE || !privateRead(condition)) continue;
             const variables = [...rankedCaptureReads(effective)];
@@ -5626,6 +5620,15 @@
             if (variables.some(name => !has(name))) continue;
             if (variables.some(name => name === "" ? !group.final : /** @type {{at:number}} */ (path.captures.get(name)).at > end.at)) {
               this.fail(group, "ranked-choice-continuation", "A private capture requires a condition ready when its ranked choice closes.", {option:end.option,expression:condition});
+            }
+            const atom = boundaryAtoms(effective).find(atom => atom.method === "preceded-by" && atom.receiver.capture === "");
+            if (atom && prefixCanRead(path.steps.slice(0,end.start))) {
+              const test = `$.preceded-by(${atom.args.map((/** @type {any} */ target) => target.rule ?? target.terminal).join(" | ")})`;
+              this.fail(group,"ranked-choice-boundary",
+                `Condition ${index+1} of ${group.parent} combines ${test} with a private capture in option ${end.option+1}. `+
+                "That option can start after the rule starts. "+
+                "Move the condition into a rule that starts with the ranked group, or test the private capture itself.",
+                {option:end.option,expression:condition});
             }
           }
           for (const term of [source.tags, source.clauses.tags]) {
@@ -5641,7 +5644,20 @@
     }
 
     /** @param {import("./types.js").Production[]} productions */
-    validateTags(productions) {
+    validate(productions) {
+      /** @type {{productive:Set<string>,nonempty:Set<string>}|undefined} */
+      let spans;
+      /** @param {any[]} steps */
+      const prefixCanRead = steps => {
+        if (!steps.length) return false;
+        const facts = spans ??= rankedSymbolSpans(productions);
+        const symbols = steps.map(step => {
+          while (step.expr) step = step.expr;
+          return step.ref;
+        });
+        return symbols.every(name => name === undefined || facts.productive.has(name)) &&
+          symbols.some(name => name === undefined || facts.nonempty.has(name));
+      };
       const unsafe = new Set(), users = new Map(), byLhs = new Map();
       const written = new Map();
       for (const p of productions) {
@@ -5662,7 +5678,7 @@
         if (!unsafe.has(parent.lhs)) {unsafe.add(parent.lhs);pending.push(parent.lhs);}
       }
       for (const group of this.groups) {
-        if (this.clauseErrors.has(group)) throw this.clauseErrors.get(group);
+        this.validateClauses(group,prefixCanRead);
         if (!unsafe.has(group.helper)) continue;
         const outward = [group.helper], seen = new Set(outward);
         let escapes = false;
@@ -5729,7 +5745,7 @@
   function rankedJoinPaths(a,b) {
     const offset = a.steps.length, captures = new Map(a.captures), ends = new Map(a.ends);
     for (const [name,capture] of b.captures) captures.set(name,{node:capture.node,at:capture.at+offset});
-    for (const [group,end] of b.ends) ends.set(group,{option:end.option,at:end.at+offset});
+    for (const [group,end] of b.ends) ends.set(group,{option:end.option,start:end.start+offset,at:end.at+offset});
     return {steps:a.steps.concat(b.steps),captures,ends};
   }
 
@@ -5752,7 +5768,7 @@
     if (expr.ranked) {
       const group = /** @type {RankedGroup} */ (groups.get(expr));
       return expr.ranked.flatMap((/** @type {any} */ child, /** @type {number} */ option) => rankedVirtualPaths(child,groups).map(path => {
-        path.ends.set(group,{at:path.steps.length,option});return path;
+        path.ends.set(group,{start:0,at:path.steps.length,option});return path;
       }));
     }
     if (expr.and) {
@@ -5765,7 +5781,10 @@
       return paths;
     }
     if (expr.optional) return [rankedEmptyPath(),...rankedVirtualPaths(expr.optional,groups)];
-    if (expr.repeat) return expr.separator ? rankedVirtualProduct(rankedVirtualPaths(expr.repeat,groups),rankedVirtualPaths(expr.separator,groups)) : rankedVirtualPaths(expr.repeat,groups);
+    if (expr.repeat) {
+      const items = rankedVirtualPaths(expr.repeat,groups);
+      return expr.separator ? items.concat(rankedVirtualProduct(items,rankedVirtualPaths(expr.separator,groups))) : items;
+    }
     const path = rankedEmptyPath();
     path.steps.push(expr);
     if (typeof expr.capture === "string") path.captures.set(expr.capture,{node:expr,at:1});
@@ -5776,6 +5795,36 @@
   function rankedLiteralEmpty(value) {
     if (value?.const && value.value !== undefined) return rankedLiteralEmpty(value.value);
     return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
+  }
+
+  /** Finite structural derivations, with and without a token (engine §2.1).
+   * @param {import("./types.js").Production[]} productions
+   */
+  function rankedSymbolSpans(productions) {
+    const productive = new Set(), nonempty = new Set();
+    /** @type {Map<string,number[]>} */
+    const users = new Map();
+    const remaining = productions.map(production => production.rhs.length);
+    for (const [index,production] of productions.entries()) {
+      if (!production.rhs.length) productive.add(production.lhs);
+      for (const symbol of production.rhs) {
+        const parents = users.get(symbol.name) ?? [];
+        parents.push(index); users.set(symbol.name,parents);
+        if (symbol.terminal) {productive.add(symbol.name); nonempty.add(symbol.name);}
+      }
+    }
+    const pending = [...productive];
+    for (let index = 0; index < pending.length; index++) for (const parent of users.get(pending[index]) ?? []) {
+      if (--remaining[parent] !== 0) continue;
+      const name = productions[parent].lhs;
+      if (!productive.has(name)) {productive.add(name); pending.push(name);}
+    }
+    const reading = [...nonempty];
+    for (let index = 0; index < reading.length; index++) for (const parent of users.get(reading[index]) ?? []) {
+      const name = productions[parent].lhs;
+      if (remaining[parent] === 0 && !nonempty.has(name)) {nonempty.add(name); reading.push(name);}
+    }
+    return {productive,nonempty};
   }
 
   // ---- recipes.js
@@ -6243,7 +6292,7 @@
         const validation = new Lowering(this, new Set());
         validation.validation = true;
         for (const rule of this.rules.values()) for (const alternative of rule.alternatives) validation.lowerAlternative(rule, alternative);
-        this.ranked.validateTags(validation.productions);
+        this.ranked.validate(validation.productions);
       }
       // Slot emission checks inspect written carriers before absent ones disappear.
       for (const { path, rule } of this.emissionUsers) {

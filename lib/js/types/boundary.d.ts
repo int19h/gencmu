@@ -98,7 +98,8 @@ export declare const boundaryDocumentErrors: WeakMap<object, {
     document: string;
     node: object;
 }>;
-/** @param {any} dom @param {any[]} tokens @param {(token:any)=>[number,number]} positionOf */
-export declare function restoreBoundaryLocations(dom: any, tokens: any[], positionOf: (token: any) => [number, number]): void;
+/** Recover positions through the same reader as an uncached document.
+ * @param {any} dom @param {any} source */
+export declare function restoreBoundaryLocations(dom: any, source: any): void;
 /** @param {any[]} productions */
 export declare function emissionTargets(productions: any[]): Set<string>;

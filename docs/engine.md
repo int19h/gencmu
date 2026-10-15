@@ -202,6 +202,10 @@ A capture inside an option belongs to its innermost ranked group. Simplify each 
 
 `$` becomes ready only at completion of the enclosing named alternative. A final ranked group can reach completion. Any suffix element, even one that can read no tokens, delays it. An unready private condition reports `ranked-choice-continuation`.
 
+After readiness validation, reject a private condition with `$.preceded-by(S)` if its option can start after the named rule starts. Both positive and negated atoms follow this rule. Report `ranked-choice-boundary` with the written condition as `expression` and the offending option as `option`. The message names the condition, the atom, and the option. It suggests two rewrites: move the condition into a rule that starts with the ranked group, or test the private capture itself.
+
+Record each group's start in every virtual expansion. Its prefix can read tokens if every prefix step has a finite structural derivation and some step has a nonempty derivation. Compute these facts over the final stitched grammar, including disabled alternatives, without conditions or symbol tests. An empty-only prefix remains legal. A forward atom on `$`, a backward atom on a private capture, and a condition without private captures retain their existing rules.
+
 Private captures cannot feed tag terms, emission items, or recipes. Inspect carriers, attachments, guards, and every nested receiver before absent-carrier pruning. A forbidden export reports `ranked-choice-export`. Common prefix and suffix captures, and whole-parent `$` emission, remain legal.
 
 A seal is an opaque leaf supplied by a ranked choice (§4.1). Private conditions retain their existing evaluation order and real captured states. A condition on `$` observes the composed parent with its seal. Feature guards and symbol tests remain ordinary gates. A failed gate provides no qualifying reading.

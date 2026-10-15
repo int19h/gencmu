@@ -289,6 +289,10 @@ Captures inside a ranked choice belong to that choice. They can serve only condi
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
+A condition cannot combine `$.preceded-by(S)` with a private ranked capture when that option can start after the rule starts. This restriction applies to positive and negated atoms. A prefix that can read only an empty sequence keeps the option at the rule's start. The loader examines structural expansions, including disabled alternatives, without evaluating conditions or symbol tests.
+
+The loading error names the condition, the backward atom, and the ranked option. Move the condition into a rule that starts with the ranked group. Alternatively, test the private capture itself, as in `$a.preceded-by(S)`. Forward atoms on `$` and backward atoms without private ranked captures remain legal.
+
 Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
 
 An action reads one token or closes a constituent. Internal named rules and ready conditions on their captures retain their own pattern views. The seal changes no output tree, omission, action, or captured constituent. An author who needs that hidden structure outside the choice cannot rank that position.
