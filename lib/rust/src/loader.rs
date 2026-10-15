@@ -235,7 +235,7 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
-    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.text == "%prefer")) {
+    if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
         let (line, column) = grammar.position(token.source.start);
         return Err(Error::grammar("unknown directive %prefer; use an inline ranked choice (A ≻ B)").at(line, column));
     }
@@ -855,5 +855,75 @@ mod ranked_location_tests {
             load(&context, &sources, "p.md").unwrap();
         }
         LOCATION_RECOVERIES.with(|count| assert_eq!(count.get(), 0, "source-location recovery ran"));
+    }
+}
+
+#[cfg(test)]
+mod notation_cache_tests {
+    use super::*;
+
+    #[test]
+    fn shared_notation_cache_misses_cover_every_identity_field() {
+        let bundled = Context::bundled().unwrap();
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/notation");
+        let mut files: Vec<_> = std::fs::read_dir(directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|extension| extension == "json"))
+            .collect();
+        files.sort();
+        let mut cases = 0;
+        for file in files {
+            let case = json::parse(&std::fs::read_to_string(&file).unwrap()).unwrap();
+            if case.get("cacheMisses") != Some(&Json::Bool(true)) {
+                continue;
+            }
+            cases += 1;
+            let path = file.file_name().unwrap().to_str().unwrap();
+            let text = case.get("document").and_then(Json::as_str).unwrap();
+            let cold = Context {
+                unicode: bundled.unicode.clone(),
+                notation: bundled.notation.clone(),
+                compiled: Compiled::default(),
+            };
+            let expected = dom_to_json(&cold.document(path, text, false).unwrap());
+            assert_eq!(dom_to_json(&cold.document(path, text, false).unwrap()), expected, "{path}: cold reread");
+            let mut poisoned = read_document(&bundled.notation, text).unwrap();
+            poisoned.rules[0].name = "cache-poison".into();
+            let poisoned = dom_to_json(&poisoned);
+            assert_eq!(dom_problem(&json::parse(&poisoned).unwrap(), &bundled.unicode), None, "{path}");
+            let bootstrap_hash = bootstrap_hash();
+            let unicode_hash = fnv1a64(super::bundled("unicode.txt").unwrap());
+            let document_hash = fnv1a64(text);
+            let stale_bootstrap = fnv1a64("another bootstrap");
+            let stale_unicode = fnv1a64("another unicode");
+            let stale_document = fnv1a64("another document");
+            for mismatch in [None, Some("document"), Some("bootstrap"), Some("unicode"), Some("format")] {
+                let bootstrap = if mismatch == Some("bootstrap") { &stale_bootstrap } else { &bootstrap_hash };
+                let unicode = if mismatch == Some("unicode") { &stale_unicode } else { &unicode_hash };
+                let hash = if mismatch == Some("document") { &stale_document } else { &document_hash };
+                let format = if mismatch == Some("format") { DOM_FORMAT - 1 } else { DOM_FORMAT };
+                let dom = if mismatch.is_some() { &poisoned } else { &expected };
+                let envelope = format!(
+                    r#"{{"format":{format},"bootstrap":"{bootstrap}","unicode":"{unicode}","documents":{{"{path}":{{"hash":"{hash}","dom":{dom}}}}}}}"#
+                );
+                let compiled = Compiled::parse(&envelope, &bootstrap_hash, &unicode_hash).unwrap();
+                if mismatch.is_none() {
+                    assert_eq!(compiled.by_path.len(), 1, "{path}: matching entry is admitted");
+                }
+                // A matching entry must work even without a notation reader.
+                let notation = if mismatch.is_none() {
+                    Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap())
+                } else {
+                    bundled.notation.clone()
+                };
+                let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
+                for read in 0..2 {
+                    let actual = context.document(path, text, false).unwrap();
+                    assert_eq!(dom_to_json(&actual), expected, "{path}: {mismatch:?}, read {read}");
+                }
+            }
+        }
+        assert!(cases > 0, "no shared notation cache cases ran");
     }
 }
