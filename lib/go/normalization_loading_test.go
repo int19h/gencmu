@@ -97,3 +97,30 @@ func TestNormalizationDiagnosticReadBack(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizationDecomposedSourceRecipes(t *testing.T) {
+	t.Parallel()
+	grammar := "%ambiguity-resolution greedy\n%rule text $x:piece\n%emits $ := $x.emitted.value :- $x.emitted.image\n%rule piece [{_}] := $.decomposed-source-text :- $.source-text"
+	for _, custom := range []bool{false, true} {
+		sources := oneStage(grammar)
+		want := "e\u0323\u0301"
+		if custom {
+			sources["unicode.txt"] = "white-space 0009 000D\nwhite-space 0020 0020\n"
+			want = "é\u0323"
+		}
+		d := mustLoad(t, sources)
+		res, err := d.Parse("é\u0323", ParseOptions{})
+		if err != nil || !res.OK {
+			t.Fatalf("custom %v: %v %#v", custom, err, res)
+		}
+		output := res.Stages[0].Output
+		if len(output) != 1 || output[0].Value != want || output[0].Image != "é\u0323" || output[0].Text != "é\u0323" {
+			t.Fatalf("custom %v: %#v", custom, output)
+		}
+	}
+	for _, recipe := range []string{"$.emitted.decomposed-source-text", "$.onward.decomposed-source-text"} {
+		if _, err := LoadDialectSources(oneStage("%ambiguity-resolution greedy\n%rule text _\n%emits $ := "+recipe), "p.md"); err == nil {
+			t.Fatalf("accepted invalid recipe: %s", recipe)
+		}
+	}
+}

@@ -58,13 +58,13 @@ func loadBundled() error {
 	return bundled.err
 }
 
-// readCompiled indexes the precompiled DOMs by text hash, when they were
-// made in this DOM format with this bootstrap and Unicode table (engine §8).
+// domCacheKey includes every input that determines a document DOM (engine §8).
 type domCacheKey struct {
 	document, bootstrap, unicode string
 	format                       int
 }
 
+// readCompiled admits an envelope only under the complete loader identity.
 func readCompiled(text, bootstrapHash, unicodeHash string) map[domCacheKey]json.RawMessage {
 	var c struct {
 		Format    int    `json:"format"`
@@ -374,11 +374,11 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 		l.reader = &r
 	}
 	l.bootstrapHash = l.reader.hash
-	cacheText := bundled.sources["compiled.json"]
 	if t, ok := norm["compiled.json"]; ok {
-		cacheText = t
+		l.compiled = readCompiled(t, l.bootstrapHash, l.uni.hash)
+	} else if l.bootstrapHash != bundled.reader.hash || l.uni.hash != bundled.uni.hash {
+		l.compiled = nil
 	}
-	l.compiled = readCompiled(cacheText, l.reader.hash, l.uni.hash)
 	return l.dialect(path.Clean(pipeline))
 }
 

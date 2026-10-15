@@ -105,3 +105,37 @@ func TestNormalizationOriginsAndCustomTable(t *testing.T) {
 		t.Fatalf("empty table: %U", []rune(got))
 	}
 }
+
+func TestNormalizationRecordOrderAndDefaults(t *testing.T) {
+	t.Parallel()
+	data, err := bundledFS.ReadFile("grammars/unicode.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(data), "\n")
+	for a, b := 0, len(lines)-1; a < b; a, b = a+1, b-1 {
+		lines[a], lines[b] = lines[b], lines[a]
+	}
+	reversed, err := parseUnicodeTable(strings.Join(lines, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := normalizationTable(t)
+	if !reflect.DeepEqual(reversed.categories, table.categories) || !reflect.DeepEqual(reversed.whiteSpace, table.whiteSpace) || !reflect.DeepEqual(reversed.decompositions, table.decompositions) || !reflect.DeepEqual(reversed.combining, table.combining) {
+		t.Fatal("record order changed the table")
+	}
+	noClasses, err := parseUnicodeTable("decompose 00E1 0061 0301\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := noClasses.decompose("á\u0323"); got != "a\u0301\u0323" {
+		t.Fatalf("missing classes reordered marks: %U", []rune(got))
+	}
+	noMappings, err := parseUnicodeTable("combining 230 0301 0301\ncombining 220 0323 0323\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := noMappings.decompose("á\u0323a\u0301\u0323"); got != "á\u0323a\u0323\u0301" {
+		t.Fatalf("missing mappings: %U", []rune(got))
+	}
+}

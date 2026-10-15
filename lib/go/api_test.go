@@ -344,45 +344,46 @@ func TestDialectFeatures(t *testing.T) {
 
 func TestMarshalResult(t *testing.T) {
 	t.Parallel()
-	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"é\" [+KU]"))
-	res, _ := d.Parse("é", ParseOptions{})
+	// Use a non-ASCII scalar that NFD leaves unchanged for serializer fixtures.
+	d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text \"ø\" [+KU]"))
+	res, _ := d.Parse("ø", ParseOptions{})
 	data, err := MarshalResult(res)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"format":12,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"é\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
+	want := `{"format":12,"ok":true,"stages":[{"name":"main","verdict":"unique","output":[]}],"tree":{"kind":"rule","rule":"text","span":[0,1],"source":[0,1],"tags":[],"children":[{"kind":"token","terminal":"\"ø\"","token":0,"span":[0,1],"source":[0,1]},{"kind":"elided","terminal":"KU","span":[1,1],"source":[1,1]}]},"error":null}`
 	if string(data) != want {
 		t.Fatalf("got  %s\nwant %s", data, want)
 	}
-	if b := Brackets(res, BracketOptions{ShowElided: true}); b != "(é ⟨ku⟩)" {
+	if b := Brackets(res, BracketOptions{ShowElided: true}); b != "(ø ⟨ku⟩)" {
 		t.Fatalf("brackets %q", b)
 	}
-	if b := Brackets(res, BracketOptions{}); b != "é" {
+	if b := Brackets(res, BracketOptions{}); b != "ø" {
 		t.Fatalf("brackets %q", b)
 	}
 	res, _ = d.Parse("x", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.HasPrefix(string(data), `{"format":12,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"é\"","rules":["text"]}],"message":`) {
+	if !strings.HasPrefix(string(data), `{"format":12,"ok":false,"stages":[{"name":"main","verdict":null}],"tree":null,"error":{"kind":"rejected","stage":"main","token":0,"source":[0,1],"line":1,"column":1,"expected":[{"terminal":"\"ø\"","rules":["text"]}],"message":`) {
 		t.Fatalf("%s", data)
 	}
 	// The warnings follow the error, only when there is one; the result's
 	// list is empty, not nil, when there is none.
-	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w! \"é\" \"x\" | \"x\""))
-	res, _ = d.Parse("éx", ParseOptions{})
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w! \"ø\" \"x\" | \"x\""))
+	res, _ = d.Parse("øx", ParseOptions{})
 	if data, _ = MarshalResult(res); res.Warnings == nil || len(res.Warnings) != 0 || strings.Contains(string(data), "warnings") {
 		t.Fatalf("%#v %s", res.Warnings, data)
 	}
-	res, _ = d.Parse("éx", ParseOptions{Features: []string{"w"}})
+	res, _ = d.Parse("øx", ParseOptions{Features: []string{"w"}})
 	data, _ = MarshalResult(res)
 	if !strings.HasSuffix(string(data), `,"error":null,"warnings":[{"stage":"main","feature":"w","rule":"text","span":[0,2],"source":[0,2]}]}`) {
 		t.Fatalf("%s", data)
 	}
 	// An emitted token stores the recipe value "?" and the source-text image.
 	// Its JSON fields follow the format 12 order.
-	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"é\"\n%emits $ :: W := \"?\" :- $.source-text"))
-	res, _ = d.Parse("éx", ParseOptions{})
+	d = mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text w \"x\"\n%rule w \"ø\"\n%emits $ :: W := \"?\" :- $.source-text"))
+	res, _ = d.Parse("øx", ParseOptions{})
 	data, _ = MarshalResult(res)
-	if !strings.Contains(string(data), `"output":[{"text":"é","value":"?","image":"é","tags":["W"],"span":[0,1],"source":[0,1]}]}`) {
+	if !strings.Contains(string(data), `"output":[{"text":"ø","value":"?","image":"ø","tags":["W"],"span":[0,1],"source":[0,1]}]}`) {
 		t.Fatalf("%s", data)
 	}
 }
