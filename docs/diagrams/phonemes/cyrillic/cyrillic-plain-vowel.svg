@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="188" height="612" viewBox="0 0 188 612" role="img" aria-label="Railroad diagram of the rule cyrillic-plain-vowel">
+<svg xmlns="http://www.w3.org/2000/svg" width="312" height="612" viewBox="0 0 312 612" role="img" aria-label="Railroad diagram of the rule cyrillic-plain-vowel">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="168" lengthAdjust="spacingAndGlyphs">cyrillic-plain-vowel</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;а&quot;</text></g>
-<path d="M82 46H142"/>
+<path d="M82 46H292"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
 <path d="M40 80h20"/>
 <g class="terminal"><rect x="60" y="68" width="42" height="24" rx="12"/><text x="81" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;е&quot;</text></g>
@@ -16,7 +16,7 @@
 <path d="M40 80a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="136" width="42" height="24" rx="12"/><text x="81" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;є&quot;</text></g>
 <path d="M102 148H102a10 10 0 0 0 10 -10V90a10 10 0 0 1 10 -10"/>
-<path d="M122 80H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M122 80H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
 <path d="M40 182h20"/>
 <g class="terminal"><rect x="60" y="170" width="42" height="24" rx="12"/><text x="81" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;и&quot;</text></g>
@@ -24,13 +24,13 @@
 <path d="M40 182a10 10 0 0 1 10 10V206a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="204" width="42" height="24" rx="12"/><text x="81" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;і&quot;</text></g>
 <path d="M102 216H102a10 10 0 0 0 10 -10V192a10 10 0 0 1 10 -10"/>
-<path d="M122 182H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M122 182H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="238" width="42" height="24" rx="12"/><text x="61" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;о&quot;</text></g>
-<path d="M82 250H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M82 250H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="272" width="42" height="24" rx="12"/><text x="61" y="289" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;у&quot;</text></g>
-<path d="M82 284H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M82 284H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V308a10 10 0 0 0 10 10"/>
 <path d="M40 318h20"/>
 <g class="terminal"><rect x="60" y="306" width="42" height="24" rx="12"/><text x="81" y="323" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ъ&quot;</text></g>
@@ -41,28 +41,34 @@
 <path d="M40 318a10 10 0 0 1 10 10V376a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="374" width="42" height="24" rx="12"/><text x="81" y="391" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ә&quot;</text></g>
 <path d="M102 386H102a10 10 0 0 0 10 -10V328a10 10 0 0 1 10 -10"/>
-<path d="M122 318H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M122 318H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V410a10 10 0 0 0 10 10"/>
 <path d="M40 420h20"/>
-<g class="terminal"><rect x="60" y="408" width="42" height="24" rx="12"/><text x="81" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;й&quot;</text></g>
-<path d="M102 420H122"/>
-<path d="M40 420a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="442" width="42" height="24" rx="12"/><text x="81" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Й&quot;</text></g>
-<path d="M102 454H102a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
+<path d="M60 420h20"/>
+<g class="terminal"><rect x="80" y="408" width="42" height="24" rx="12"/><text x="101" y="425" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;и&quot;</text></g>
+<path d="M122 420H142"/>
+<path d="M60 420a10 10 0 0 1 10 10V444a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="80" y="442" width="42" height="24" rx="12"/><text x="101" y="459" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;И&quot;</text></g>
+<path d="M122 454H122a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
+<path d="M142 420h10"/>
+<g class="rule"><rect x="152" y="408" width="100" height="24" rx="0"/><text x="202" y="425" textLength="84" lengthAdjust="spacingAndGlyphs">glide-mark</text></g>
+<path d="M252 420H272"/>
 <path d="M40 420a10 10 0 0 1 10 10V478a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="476" width="42" height="24" rx="12"/><text x="81" y="493" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ј&quot;</text></g>
-<path d="M102 488H102a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
+<path d="M102 488H252a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
 <path d="M40 420a10 10 0 0 1 10 10V512a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="60" y="510" width="42" height="24" rx="12"/><text x="81" y="527" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ј&quot;</text></g>
-<path d="M102 522H102a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
-<path d="M122 420H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M102 522H252a10 10 0 0 0 10 -10V430a10 10 0 0 1 10 -10"/>
+<path d="M272 420H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V546a10 10 0 0 0 10 10"/>
 <path d="M40 556h20"/>
-<g class="terminal"><rect x="60" y="544" width="42" height="24" rx="12"/><text x="81" y="561" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ў&quot;</text></g>
+<g class="terminal"><rect x="60" y="544" width="42" height="24" rx="12"/><text x="81" y="561" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;у&quot;</text></g>
 <path d="M102 556H122"/>
 <path d="M40 556a10 10 0 0 1 10 10V580a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="60" y="578" width="42" height="24" rx="12"/><text x="81" y="595" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ў&quot;</text></g>
+<g class="terminal"><rect x="60" y="578" width="42" height="24" rx="12"/><text x="81" y="595" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;У&quot;</text></g>
 <path d="M102 590H102a10 10 0 0 0 10 -10V566a10 10 0 0 1 10 -10"/>
-<path d="M122 556H122a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M142 46h6m0 -8v16m4 -16v16"/>
+<path d="M122 556h10"/>
+<g class="rule"><rect x="132" y="544" width="100" height="24" rx="0"/><text x="182" y="561" textLength="84" lengthAdjust="spacingAndGlyphs">glide-mark</text></g>
+<path d="M232 556H272a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M292 46h6m0 -8v16m4 -16v16"/>
 </svg>

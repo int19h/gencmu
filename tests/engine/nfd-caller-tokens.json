@@ -1,0 +1,28 @@
+{
+  "description": "Caller tokens skip decomposition.",
+  "grammar": "%rule text $_00E9\n%emits $",
+  "input": "é",
+  "tokens": [
+    {
+      "text": "é",
+      "value": "é",
+      "image": "é",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "é",
+              "image": "é"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

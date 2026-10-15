@@ -13,11 +13,12 @@ export declare function patternProblem(root: any, testFault: (test: any) => stri
  * @param {any} root
  * @param {(name:string, at:[number,number]) => any} constant
  * @param {(term:any, test:any) => any} value
- * @param {{isMark(code:number):boolean}} unicode
+ * @param {{isMark(code:number):boolean, changesInDocument?(code:number):boolean}} unicode
  * @returns {any}
  */
 export declare function resolvePattern(root: any, constant: (name: string, at: [number, number]) => any, value: (term: any, test: any) => any, unicode: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }): any;
 export declare class PatternMachine {
     /** @type {any[]} */ predicates: any[];

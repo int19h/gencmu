@@ -27,6 +27,7 @@ export type RunOptions = {
  */
 export declare class Loader {
     read: Resources;
+    unicodeHash: string;
     unicode: UnicodeTable;
     bootstrapHash: string;
     notation: Dialect;
@@ -36,6 +37,12 @@ export declare class Loader {
     cache: Map<string, GrammarDom>;
     /** @param {Resources} read */
     constructor(read: Resources);
+    /**
+     * Admit a cache envelope only under this loader's complete identity.
+     * The playground uses the same gate for DOMs retained across workers.
+     * @param {any} data
+     */
+    useCompiled(data: any): void;
     /**
      * A resource's text, or a grammar error when it is missing.
      * @param {string} path

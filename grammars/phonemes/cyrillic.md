@@ -66,8 +66,8 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | "о" :: Syllabic := "o"
   | "у" :: Syllabic := "u"
   | ("ъ" | "ы" | "ә") :: Syllabic := "y"
-  | ("й" | "Й" | "ј" | "Ј") :: ∅ := "i"
-  | ("ў" | "Ў") :: ∅ := "u"
+  | (("и" | "И") glide-mark | "ј" | "Ј") :: ∅ := "i"
+  | ("у" | "У") glide-mark :: ∅ := "u"
 %emits
   $
 
@@ -94,8 +94,8 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | "О" :: Syllabic := "o"
   | "У" :: Syllabic := "u"
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
-  | ("Й" | "Ј") :: ∅ := "i"
-  | "Ў" :: ∅ := "u"
+  | ("И" glide-mark | "Ј") :: ∅ := "i"
+  | "У" glide-mark :: ∅ := "u"
 %emits
   $
 ```

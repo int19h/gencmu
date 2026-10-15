@@ -61,6 +61,7 @@ export declare class Grammar {
     stageName: string;
     unicode: {
         isMark(code: number): boolean;
+        changesInDocument?(code: number): boolean;
     };
     /** @type {Map<string, StageConstant>} */
     constants: Map<string, StageConstant>;
@@ -139,7 +140,7 @@ export declare class Grammar {
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean}} unicode
+     * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
      *   the loader's table, for the tags of a range in a constant's value and
      *   the canonical value of a string constant in a test
      */
@@ -148,6 +149,7 @@ export declare class Grammar {
         dom: GrammarDom;
     }[], unicode: {
         isMark(code: number): boolean;
+        changesInDocument?(code: number): boolean;
     });
     /**
      * @param {string} path

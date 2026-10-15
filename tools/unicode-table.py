@@ -16,11 +16,15 @@ Format, one entry per line, code points in hexadecimal (docs/engine.md, §1):
                             Unicode scalar value once, Cn included, and no
                             surrogate
     white-space 0009 000D   a range of the White_Space property
+    decompose 00E1 0061 0301   a full canonical decomposition
+    combining 230 0300 0314   a range of one nonzero combining class
 
-The category lines come first, in the order of their code points, then the
-white-space lines.
+The records follow this order: unicode, category, white-space, decompose, combining.
+Hangul syllables decompose by arithmetic and have no records.
+The tool compares its generated decomposition with Python before it writes the file.
 """
 import pathlib
+import random
 import sys
 import unicodedata
 
@@ -57,12 +61,85 @@ def category_ranges():
         previous = code
     yield category, start, previous
 
+HANGUL_FIRST, HANGUL_LAST = 0xAC00, 0xD7A3
+
+def decompositions():
+    """The full canonical decomposition of every scalar that NFD changes, Hangul syllables aside."""
+    for code in scalar_values():
+        if HANGUL_FIRST <= code <= HANGUL_LAST:
+            continue
+        nfd = unicodedata.normalize("NFD", chr(code))
+        if nfd != chr(code):
+            yield code, [ord(c) for c in nfd]
+
+def combining_ranges():
+    """The longest runs of one nonzero Canonical_Combining_Class."""
+    run = None
+    for code in scalar_values():
+        klass = unicodedata.combining(chr(code))
+        if run and klass == run[0] and code == run[2] + 1:
+            run[2] = code
+            continue
+        if run and run[0]:
+            yield tuple(run)
+        run = [klass, code, code]
+    if run and run[0]:
+        yield tuple(run)
+
+def library_nfd(text, table, classes):
+    """The algorithm of engine §1, over the records that the tool writes."""
+    def klass(code):
+        return classes.get(code, 0)
+    out = []
+    for ch in text:
+        code = ord(ch)
+        if HANGUL_FIRST <= code <= HANGUL_LAST:
+            s = code - HANGUL_FIRST
+            out += [0x1100 + s // 588, 0x1161 + (s % 588) // 28] + ([0x11A7 + s % 28] if s % 28 else [])
+        else:
+            out += table.get(code, [code])
+    result, i = [], 0
+    while i < len(out):
+        if klass(out[i]) == 0:
+            result.append(out[i])
+            i += 1
+            continue
+        j = i
+        while j < len(out) and klass(out[j]) != 0:
+            j += 1
+        result += sorted(out[i:j], key=klass)
+        i = j
+    return "".join(map(chr, result))
+
+def check(table, ranges, samples=20000, seed=15):
+    """Stop with an error where the records disagree with Python's NFD."""
+    classes = {code: k for k, start, end in ranges for code in range(start, end + 1)}
+    for code in scalar_values():
+        c = chr(code)
+        if library_nfd(c, table, classes) != unicodedata.normalize("NFD", c):
+            raise SystemExit(f"U+{code:04X}: the records disagree with NFD")
+    marks = [code for k, s, e in ranges for code in range(s, e + 1)]
+    pool = list(table) + marks + [0x61, 0x41, 0xAC00, 0xD7A3]
+    rng = random.Random(seed)
+    for _ in range(samples):
+        s = "".join(chr(rng.choice(pool)) for _ in range(rng.randint(1, 6)))
+        if library_nfd(s, table, classes) != unicodedata.normalize("NFD", s):
+            raise SystemExit(f"{s!r}: the records disagree with NFD")
+
+
 def main():
     lines = [f"unicode {unicodedata.unidata_version}"]
     for category, start, end in category_ranges():
         lines.append(f"category {category} {start:04X} {end:04X}")
     for start, end in WHITE_SPACE:
         lines.append(f"white-space {start:04X} {end:04X}")
+    table = dict(decompositions())
+    ranges = list(combining_ranges())
+    check(table, ranges)
+    for code, scalars in table.items():
+        lines.append("decompose " + " ".join(f"{c:04X}" for c in [code] + scalars))
+    for klass, start, end in ranges:
+        lines.append(f"combining {klass} {start:04X} {end:04X}")
     path = pathlib.Path(__file__).resolve().parent.parent / "grammars" / "unicode.txt"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{path}: {len(lines)} lines, Unicode {unicodedata.unidata_version}", file=sys.stderr)

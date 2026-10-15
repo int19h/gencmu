@@ -1,0 +1,19 @@
+{
+  "description": "The source text method decomposes its covered source alone.",
+  "grammar": "%rule text [{_}]\n%emits $ := $.decomposed-source-text",
+  "input": "한",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "한"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

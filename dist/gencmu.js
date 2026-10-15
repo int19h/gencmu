@@ -33,14 +33,21 @@
       this.whiteSpace = [];
       /** @type {[number, number, string][]} */
       const ranges = [];
+      /** @type {Map<number, number[]>} */
+      this.decompositions = new Map();
+      /** @type {[number, number, number][]} */
+      this.combining = [];
       for (const line of text.split("\n")) {
         const fields = line.trim().split(/\s+/);
         if (fields[0] === "unicode") this.version = fields[1];
         else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
+        else if (fields[0] === "decompose") this.decompositions.set(parseInt(fields[1], 16), fields.slice(2).map(field => parseInt(field, 16)));
+        else if (fields[0] === "combining") this.combining.push([parseInt(fields[2], 16), parseInt(fields[3], 16), Number(fields[1])]);
         else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
       }
       // The records can stand in any order in the file (engine §1).
       ranges.sort((a, b) => a[0] - b[0]);
+      this.combining.sort((a, b) => a[0] - b[0]);
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
         this.ends.push(end);
@@ -66,6 +73,60 @@
         else return this.categories[middle];
       }
       return "Cn";
+    }
+
+    /** @param {number} code @returns {number} */
+    combiningClass(code) {
+      let low = 0, high = this.combining.length - 1;
+      while (low <= high) {
+        const middle = (low + high) >> 1;
+        const [start, end, klass] = this.combining[middle];
+        if (code < start) high = middle - 1;
+        else if (code > end) low = middle + 1;
+        else return klass;
+      }
+      return 0;
+    }
+
+    /** @param {number} code @returns {boolean} */
+    changesInDocument(code) {
+      return this.decompositions.has(code) || (code >= 0xac00 && code <= 0xd7a3) || this.combiningClass(code) !== 0;
+    }
+
+    /**
+     * Canonical decomposition, with each scalar's original code point index.
+     * Sorting only nonzero runs preserves class-zero barriers and equal classes.
+     * @param {string} text
+     * @returns {{character:string, origin:number, klass:number}[]}
+     */
+    decomposeWithOrigins(text) {
+      const result = [];
+      let origin = 0;
+      for (const character of text) {
+        const code = /** @type {number} */ (character.codePointAt(0));
+        let scalars;
+        if (code >= 0xac00 && code <= 0xd7a3) {
+          const syllable = code - 0xac00;
+          scalars = [0x1100 + Math.floor(syllable / 588), 0x1161 + Math.floor(syllable % 588 / 28)];
+          if (syllable % 28) scalars.push(0x11a7 + syllable % 28);
+        } else scalars = this.decompositions.get(code) || [code];
+        for (const scalar of scalars) result.push({ character: String.fromCodePoint(scalar), origin, klass: this.combiningClass(scalar) });
+        origin++;
+      }
+      for (let start = 0; start < result.length;) {
+        if (result[start].klass === 0) { start++; continue; }
+        let end = start + 1;
+        while (end < result.length && result[end].klass !== 0) end++;
+        const ordered = result.slice(start, end).sort((a, b) => a.klass - b.klass);
+        for (let index = start; index < end; index++) result[index] = ordered[index - start];
+        start = end;
+      }
+      return result;
+    }
+
+    /** @param {string} text @returns {string} */
+    decompose(text) {
+      return this.decomposeWithOrigins(text).map(item => item.character).join("");
     }
 
     /**
@@ -336,7 +397,7 @@
   /**
    * The canonical diagnostic spelling of a scalar string (engine §9.1).
    * @param {string} value
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {string}
    */
   function stringName(value, unicode) {
@@ -345,7 +406,7 @@
       const code = /** @type {number} */ (character.codePointAt(0));
       if (character === "$") written += "$$";
       else if (character === '"' || character === "\\" || code <= 0x1f ||
-          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) ||
+          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) || unicode.changesInDocument?.(code) ||
           (code >= 0xe000 && code <= 0xf8ff) ||
           (code >= 0xf0000 && code <= 0xffffd) ||
           (code >= 0x100000 && code <= 0x10fffd)) {
@@ -560,7 +621,7 @@
   /**
    * Whether a string is a user tag or a reserved engine tag (engine §1).
    * @param {unknown} tag
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
    * @returns {boolean}
    */
   function isTag(tag, unicode) {
@@ -2121,7 +2182,7 @@
    * @param {any} root
    * @param {(name:string, at:[number,number]) => any} constant
    * @param {(term:any, test:any) => any} value
-   * @param {{isMark(code:number):boolean}} unicode
+   * @param {{isMark(code:number):boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {any}
    */
   function resolvePattern(root, constant, value, unicode) {
@@ -2683,12 +2744,13 @@
     if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
     const tokens = [];
     let index = 0;
-    for (const character of text) {
+    const original = [...text];
+    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
       const code = /** @type {number} */ (character.codePointAt(0));
       const category = unicode.category(code);
       const tags = tagSet([`_${category}`, `_${category[0]}`]);
       if (unicode.isWhiteSpace(code)) tags.add("_White_Space");
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, character, undefined));
+      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
       index++;
     }
     return tokens;
@@ -2750,7 +2812,7 @@
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input"]);
-  const INPUT_STRINGS = new Set(["value", "image", "source-text"]);
+  const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -3332,7 +3394,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 27;
+  const DOM_FORMAT = 28;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3364,7 +3426,7 @@
    * of the value must already be checked, and its nesting bounded.
    * @param {string} op
    * @param {any} value
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
    * @returns {{problem: string, node: any} | null}
    */
   function testValueFault(op, value, unicode) {
@@ -3382,7 +3444,7 @@
    * character tags in their canonical spelling by the table, which says which
    * code points are marks, the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {string | null}
    */
   function rangeProblem(range, unicode) {
@@ -3447,7 +3509,7 @@
    * the loader's table: the lowercase mapping that the strings of value
    * tests are checked against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {string | null}
    */
@@ -3581,7 +3643,7 @@
         if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
         for (const atom of value.concat) {
           if (!stringTerm(atom)) {
-            if (!object(atom) || !["value", "image", "source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
+            if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
             const receiver = atom.receiver;
             if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return "a malformed recipe receiver";
           }
@@ -3692,7 +3754,7 @@
   /**
    * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {dom is GrammarDom}
    */
@@ -5769,7 +5831,7 @@
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean}} unicode
+     * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
      *   the loader's table, for the tags of a range in a constant's value and
      *   the canonical value of a string constant in a test
      */
@@ -9705,9 +9767,10 @@
           const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
           return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
         }
-        case "source-text": {
+        case "source-text": case "decomposed-source-text": {
           const where = observe(context, spanOf(context, receiver, scope), scope, "source-text");
-          return { string: textOf(where.context, where.start, where.end) };
+          const text = textOf(where.context, where.start, where.end);
+          return { string: term.method === "decomposed-source-text" ? where.context.unicode.decompose(text) : text };
         }
         case "split": {
           const value = evaluate(context, receiver, scope);
@@ -14362,7 +14425,7 @@
    * @param {Token[]} tokens
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    *   the configured category table for diagnostic strings
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {GrammarDom}
@@ -14395,6 +14458,10 @@
       }
       return result;
     };
+    /** @type {(node: ResultNode) => string} */
+    const value = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].value ?? text(node);
+    /** @type {(node: ResultNode) => string} */
+    const operator = (node) => ({ "≠": "≠", "∉": "∉", "⊈": "⊈", "≇": "≇" })[value(node)] || value(node);
     /** @type {(node: ResultNode) => string | null} */
     const tokenText = (node) => (node.kind === "token" ? text(node) : null);
     /** @type {(node: ResultNode, name: string) => RuleNode[]} */
@@ -14546,7 +14613,7 @@
 
         return key;
       });
-      const op = /** @type {"∈" | "∉"} */ (text(token(only(node, "classifier-operator"))));
+      const op = /** @type {"∈" | "∉"} */ (operator(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
       const name = text(token(classNode));
       if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
@@ -14920,7 +14987,7 @@
         recipeContext = false;
         if (term.method) {
           const receiver = term.receiver;
-          const input = ["value", "image", "source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
+          const input = ["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
           const emitted = ["value", "image"].includes(term.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
           if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
         }
@@ -14957,7 +15024,7 @@
         }
         return { test: "tags", requirements };
       }
-      const comparator = text(token(only(node, "test")));
+      const comparator = operator(token(only(node, "test")));
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
       if (!["string", "constant-reference"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
@@ -15069,7 +15136,7 @@
             const name = text(token(leaf));
             fail(`tree comparison requires a pattern; write @(${name}), not ${name}`,leaf);
           }
-          const op = /** @type {Comparator} */ (text(token(only(inner,"tree-comparator"))));
+          const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
@@ -15078,7 +15145,7 @@
         }
         case "comparison": {
           const [left, right] = some(inner, "union", 2);
-          const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
+          const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
           const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
@@ -15348,7 +15415,9 @@
 
     /** @param {ResultNode} tokenNode @returns {any} */
     function decode(tokenNode) {
-      const spelled = [...text(tokenNode)].slice(1, -1);
+      const spelled = [...value(tokenNode)].slice(1, -1);
+      const original = [...text(tokenNode)].slice(1, -1);
+      let originalIndex = 0;
       const segments = [];
       let literal = "";
       for (let index = 0; index < spelled.length; index++) {
@@ -15360,7 +15429,12 @@
           while (spelled[end] !== ")") end++;
           const name = spelled.slice(index + 2, end).join("");
           const [line, column] = at(tokenNode);
-          const before = spelled.slice(0, index);
+          while (originalIndex < original.length && !(original[originalIndex] === "$" && original[originalIndex + 1] === "(")) {
+            originalIndex += original[originalIndex] === "$" && original[originalIndex + 1] === "$" ? 2 : 1;
+          }
+          const before = original.slice(0, originalIndex);
+          while (originalIndex < original.length && original[originalIndex] !== ")") originalIndex++;
+          originalIndex++;
           let referenceLine = line;
           let referenceColumn = column + 1;
           for (let i = 0; i < before.length; i++) {
@@ -15893,7 +15967,9 @@
     /** @param {Resources} read */
     constructor(read) {
       this.read = read;
-      this.unicode = new UnicodeTable(this.need("unicode.txt"));
+      const unicodeText = this.need("unicode.txt");
+      this.unicodeHash = fnv1a64(unicodeText);
+      this.unicode = new UnicodeTable(unicodeText);
       try {
         const bootstrapText = this.need("notation/bootstrap.json");
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
@@ -15934,14 +16010,22 @@
         } catch {
           data = null;
         }
-        if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
-          for (const [path, entry] of Object.entries(data.documents)) {
-            if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
-          }
-        }
+        this.useCompiled(data);
       }
       /** @type {Map<string, GrammarDom>} */
       this.cache = new Map();
+    }
+
+    /**
+     * Admit a cache envelope only under this loader's complete identity.
+     * The playground uses the same gate for DOMs retained across workers.
+     * @param {any} data
+     */
+    useCompiled(data) {
+      if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash || !data.documents || typeof data.documents !== "object") return;
+      for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
+        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
+      }
     }
 
     /**
@@ -15973,7 +16057,7 @@
         throw new GencmuError("usage", `${path}: the document is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`, { document: path });
       }
       const hash = fnv1a64(text);
-      const key = `${path}\u0000${hash}`;
+      const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
       if (cached) return cached;
       const entry = this.compiled.get(path);

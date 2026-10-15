@@ -13,13 +13,14 @@ import type { Token } from "./tokens.js";
  * @param {Token[]} tokens
  * @param {(token: Token) => Position} positionOf
  * @param {string} path
- * @param {{isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
  *   the configured category table for diagnostic strings
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {GrammarDom}
  */
 export declare function treeToDom(tree: ResultNode, tokens: Token[], positionOf: (token: Token) => Position, path: string, unicode: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }, deferEmission?: boolean): GrammarDom;
 export type OperandKind = "name" | "class" | "string" | "tag" | "range" | "term";
 /**

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B%emits $x,  ε :: ( Y ∪ Z )\n```\n",
   "expect": {
     "dom": {
-      "format": 27,
+      "format": 28,
       "rules": [
         {
           "name": "a",

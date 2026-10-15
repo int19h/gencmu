@@ -24,8 +24,8 @@ const unicode = new UnicodeTable(fs.readFileSync(new URL("../grammars/unicode.tx
 
 // The symbols of one character; `..`, `...` and `¬` have rules of
 // their own in the lexer.
-const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "@", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=", "≠",
-  "∈", "∉", "⊆", "⊈", "∪", "∩", "∖", "∅", "≅", "≇", "⋯", "⋮", "⋰", "⋱", "≻"]);
+const SYMBOLS = new Set(["+", "|", "&", "(", ")", "[", "]", "{", "}", "/", ":", ".", "@", "<", ">", "#", "ε", ",", "∧", "∨", "⟹", "=",
+  "∈", "⊆", "∪", "∩", "∖", "∅", "≅", "⋯", "⋮", "⋰", "⋱", "≻"]);
 
 const KEYWORDS = new Set(["%rule", "%redefine-rule", "%extend-rule", "%conditions", "%emits", "%erased",
   "%ambiguity-resolution", "%stage", "%extend-stage", "%redefine-stage", "%include", "%features", "%const", "%redefine-const", "%classifier", "%implies"]);
@@ -60,8 +60,19 @@ const isCapital = (text) => /^[A-Z]/.test(text);
 // found once for the whole text, so the lexer's work grows with the
 // text's length. Each step of it counts as walkSteps of `hooks.work`
 // (tests/README.md).
-function lex(text, positions) {
-  const chars = [...text];
+function lex(text, originalPositions) {
+  const original = [...text];
+  const decomposed = unicode.decomposeWithOrigins(text);
+  const chars = decomposed.map(item => item.character);
+  const positions = decomposed.map(item => originalPositions[item.origin]);
+  const originalEnd = originalPositions[originalPositions.length - 1] || [1, 1];
+  positions.push(decomposed.length ? originalPositions[decomposed[decomposed.length - 1].origin + 1] || originalEnd : originalEnd);
+  const source = (start, end) => {
+    const origins = decomposed.slice(start, end).map(item => item.origin);
+    let left = original.length, right = 0;
+    for (const origin of origins) { left = Math.min(left, origin); right = Math.max(right, origin + 1); }
+    return original.slice(left, right).join("");
+  };
   const n = chars.length;
   const at = (index) => positions[index] || positions[positions.length - 1] || [1, 1];
   const isLetter = (c) => c !== undefined && /^[A-Za-z]$/.test(c);
@@ -178,6 +189,7 @@ function lex(text, positions) {
       if (chars[i + 1] === ".") found.push([i + 2, ".."]);
       reach = Math.max(reach, chars[i + 1] === "." ? Math.min(i + 3, n) : i + 1);
     }
+    if (["=", "∈", "⊆", "≅"].includes(c) && chars[i + 1] === "̸") found.push([i + 2, ({ "=": "≠", "∈": "∉", "⊆": "⊈", "≅": "≇" })[c]]);
     if (SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
@@ -212,8 +224,8 @@ function lex(text, positions) {
     if (kind?.startsWith("include:")) {
       const from = Number(kind.slice(8));
       tokens.push({ kind: "%include", text: "%include", at: at(i), end: at(i + 8) });
-      tokens.push({ kind: "include-path", text: chars.slice(from, end).join(""), at: at(from), end: at(end) });
-    } else if (kind !== null) tokens.push({ kind, text: chars.slice(i, end).join(""), at: at(i), end: at(end) });
+      tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end) });
+    } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end) });
     i = end;
   }
   return tokens;
