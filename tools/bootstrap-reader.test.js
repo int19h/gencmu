@@ -99,6 +99,8 @@ test("the bootstrap and engine readers agree on the notation documents", () => {
 test("both readers admit every new family of written forms", () => {
   const loader = notationLoader();
   for (const source of [
+    '%rule r $x:A≠"x" %conditions $x.value ≠ "x", "a" ∉ "a b".split(" "), A ⊈ $x.tags, $x ≇ @A',
+    '%rule r "é$(_0301)"', '%rule r "a$(_0301)̣"', '%rule r "$(_00E9)"', '%include "café.md"',
     "%features Cbm Other", '%include "a$b.md"',
     '%rule r "a"..$_007A', '%rule r _<¬_Lu>≠"x"',
     '%rule r := "v" :- "i" | "a" %emits',

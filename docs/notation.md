@@ -18,7 +18,11 @@ An ordinary choice is unordered: its alternatives have no priority by position. 
 
 Every token has a value and an image. Its value is the string that exact comparisons read. Its image is the string that people see. Tags never supply either string. A constituent stores neither string.
 
+Stage zero decomposes the text first, into Unicode Normalization Form D. So `é` arrives as `e` and U+0301, whether it was written precomposed or not. A grammar reads only decomposed characters. Every token's `text` and `source` still give the original spelling.
+
 Stage zero, named `input`, supplies character tokens. Both strings start as the character. A recipe is an expression that supplies a string. Later stages set strings through grammar recipes, or concatenate their non-erased parts. Forwarding keeps stored values and images. The engine never trims, merges, lowercases, or removes characters.
+
+Notation tokens follow the same image rules. The operator `≇` has decomposed image `≅` followed by U+0338, while its `text` retains `≇`. Tree renderings show the image.
 
 A string walk builds strings from constituent parts. The section "Two walks and recipes" defines how recipes replace those parts.
 
@@ -92,6 +96,8 @@ A bare lowercase name names a rule or classifier, never a tag. Capitalized user 
 A tag literal is a terminal in a body. A string literal or string constant is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
 
 A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
+
+A grammar document is decomposed too, so the written part of a string literal holds decomposed characters. `"é"` and `"e$(_0301)"` are one two-scalar string, and no stage-zero token can match it. A first-stage grammar reads `"e" $_0301`. An engine constant names an exact scalar, so `$_00E9` stays one scalar, inside a string too: `"$(_00E9)"` is U+00E9. The loader does not reorder a string's marks. A range endpoint must still be one scalar, so `"à".."ź"` is an error.
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `...` is a chain marker, so `"a"..."z"` is an error.
 
@@ -665,7 +671,7 @@ Projection maps restored positions back to original input positions.
 
 `.onward` preserves the restoration view, including through repeated calls. Other span methods first project to original tokens and return ordinary spans. `$x.without-elision.following-tokens` therefore reads the raw suffix. `.first-token`, `.tokens-after-first`, and `.last-token` expose original tokens.
 
-`.source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. `.tags(rule)` unions the tags of its aligned whole witnesses.
+`.source-text`, `.decomposed-source-text`, `.value`, `.starts-input`, and `.tags` also observe original tokens. The restored span carries no constituent tags. `.tags(rule)` unions the tags of its aligned whole witnesses.
 
 For example, these rules hold an omitted BOI fixed:
 
@@ -753,7 +759,6 @@ Every token and every constituent carries a set of tags, and a terminal matches 
 %rule source-word :: Word
   | $b:brivla-shape  :: BRIVLA ∪ $b.tags
   | $n:cmevla-shape  :: CMEVLA ∪ $n.tags
-
 
 %rule cmavo :: Cmavo ∪ $w.value.classify(lexicon)
   | $w:cmavo-shape
@@ -855,7 +860,7 @@ Recipe priority follows this table, from strongest to weakest. A capture item's 
 
 At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
 
-Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
+Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 

@@ -1,0 +1,905 @@
+{
+  "description": "The phoneme tree reads decomposed scalars and retains original scalar sources.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "МАЙКЛАМА",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          9
+        ],
+        "source": [
+          0,
+          8
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "items",
+            "span": [
+              0,
+              9
+            ],
+            "source": [
+              0,
+              8
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "run",
+                "span": [
+                  0,
+                  9
+                ],
+                "source": [
+                  0,
+                  8
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "any-run",
+                    "span": [
+                      0,
+                      9
+                    ],
+                    "source": [
+                      0,
+                      8
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "capital-run",
+                        "span": [
+                          0,
+                          9
+                        ],
+                        "source": [
+                          0,
+                          8
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "capital-shape",
+                            "span": [
+                              0,
+                              9
+                            ],
+                            "source": [
+                              0,
+                              8
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "capital-consonants",
+                                "span": [
+                                  0,
+                                  1
+                                ],
+                                "source": [
+                                  0,
+                                  1
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "capital-non-vowel",
+                                    "span": [
+                                      0,
+                                      1
+                                    ],
+                                    "source": [
+                                      0,
+                                      1
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "consonant",
+                                        "span": [
+                                          0,
+                                          1
+                                        ],
+                                        "source": [
+                                          0,
+                                          1
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "cyrillic-consonant",
+                                            "span": [
+                                              0,
+                                              1
+                                            ],
+                                            "source": [
+                                              0,
+                                              1
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "token",
+                                                "terminal": "\"М\"",
+                                                "token": 0,
+                                                "span": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "source": [
+                                                  0,
+                                                  1
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "capital-groups",
+                                "span": [
+                                  1,
+                                  9
+                                ],
+                                "source": [
+                                  1,
+                                  8
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "capital-groups",
+                                    "span": [
+                                      1,
+                                      7
+                                    ],
+                                    "source": [
+                                      1,
+                                      6
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "folded-vowel-group",
+                                        "span": [
+                                          1,
+                                          4
+                                        ],
+                                        "source": [
+                                          1,
+                                          3
+                                        ],
+                                        "tags": [
+                                          "Capital"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "folded-vowel-group-plain",
+                                            "span": [
+                                              1,
+                                              4
+                                            ],
+                                            "source": [
+                                              1,
+                                              3
+                                            ],
+                                            "tags": [
+                                              "Capital"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "folded-vowel-group",
+                                                "span": [
+                                                  1,
+                                                  2
+                                                ],
+                                                "source": [
+                                                  1,
+                                                  2
+                                                ],
+                                                "tags": [
+                                                  "Capital",
+                                                  "Folded",
+                                                  "Syllabic"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "folded-vowel",
+                                                    "span": [
+                                                      1,
+                                                      2
+                                                    ],
+                                                    "source": [
+                                                      1,
+                                                      2
+                                                    ],
+                                                    "tags": [
+                                                      "Capital",
+                                                      "Folded",
+                                                      "Syllabic"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "cyrillic-folded-vowel",
+                                                        "span": [
+                                                          1,
+                                                          2
+                                                        ],
+                                                        "source": [
+                                                          1,
+                                                          2
+                                                        ],
+                                                        "tags": [
+                                                          "Capital",
+                                                          "Folded",
+                                                          "Syllabic"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "cyrillic-vowel",
+                                                            "span": [
+                                                              1,
+                                                              2
+                                                            ],
+                                                            "source": [
+                                                              1,
+                                                              2
+                                                            ],
+                                                            "tags": [
+                                                              "Capital",
+                                                              "Folded",
+                                                              "Syllabic"
+                                                            ],
+                                                            "children": [
+                                                              {
+                                                                "kind": "token",
+                                                                "terminal": "\"А\"",
+                                                                "token": 1,
+                                                                "span": [
+                                                                  1,
+                                                                  2
+                                                                ],
+                                                                "source": [
+                                                                  1,
+                                                                  2
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "rule",
+                                                "rule": "folded-vowel",
+                                                "span": [
+                                                  2,
+                                                  4
+                                                ],
+                                                "source": [
+                                                  2,
+                                                  3
+                                                ],
+                                                "tags": [
+                                                  "Capital"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "cyrillic-folded-vowel",
+                                                    "span": [
+                                                      2,
+                                                      4
+                                                    ],
+                                                    "source": [
+                                                      2,
+                                                      3
+                                                    ],
+                                                    "tags": [
+                                                      "Capital"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "cyrillic-vowel",
+                                                        "span": [
+                                                          2,
+                                                          4
+                                                        ],
+                                                        "source": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "tags": [
+                                                          "Capital"
+                                                        ],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"И\"",
+                                                            "token": 2,
+                                                            "span": [
+                                                              2,
+                                                              3
+                                                            ],
+                                                            "source": [
+                                                              2,
+                                                              3
+                                                            ]
+                                                          },
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "letter-marks",
+                                                            "span": [
+                                                              3,
+                                                              4
+                                                            ],
+                                                            "source": [
+                                                              2,
+                                                              3
+                                                            ],
+                                                            "tags": [
+                                                              "Breve"
+                                                            ],
+                                                            "children": [
+                                                              {
+                                                                "kind": "rule",
+                                                                "rule": "letter-mark",
+                                                                "span": [
+                                                                  3,
+                                                                  4
+                                                                ],
+                                                                "source": [
+                                                                  2,
+                                                                  3
+                                                                ],
+                                                                "tags": [
+                                                                  "Breve"
+                                                                ],
+                                                                "children": [
+                                                                  {
+                                                                    "kind": "rule",
+                                                                    "rule": "named-mark",
+                                                                    "span": [
+                                                                      3,
+                                                                      4
+                                                                    ],
+                                                                    "source": [
+                                                                      2,
+                                                                      3
+                                                                    ],
+                                                                    "tags": [
+                                                                      "Breve"
+                                                                    ],
+                                                                    "children": [
+                                                                      {
+                                                                        "kind": "rule",
+                                                                        "rule": "glide-mark",
+                                                                        "span": [
+                                                                          3,
+                                                                          4
+                                                                        ],
+                                                                        "source": [
+                                                                          2,
+                                                                          3
+                                                                        ],
+                                                                        "tags": [
+                                                                          "_M",
+                                                                          "_Mn"
+                                                                        ],
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "\"$(_0306)\"",
+                                                                            "token": 3,
+                                                                            "span": [
+                                                                              3,
+                                                                              4
+                                                                            ],
+                                                                            "source": [
+                                                                              2,
+                                                                              3
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "rule",
+                                        "rule": "capital-gap",
+                                        "span": [
+                                          4,
+                                          6
+                                        ],
+                                        "source": [
+                                          3,
+                                          5
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "capital-consonants",
+                                            "span": [
+                                              4,
+                                              6
+                                            ],
+                                            "source": [
+                                              3,
+                                              5
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "capital-consonants",
+                                                "span": [
+                                                  4,
+                                                  5
+                                                ],
+                                                "source": [
+                                                  3,
+                                                  4
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "capital-non-vowel",
+                                                    "span": [
+                                                      4,
+                                                      5
+                                                    ],
+                                                    "source": [
+                                                      3,
+                                                      4
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "consonant",
+                                                        "span": [
+                                                          4,
+                                                          5
+                                                        ],
+                                                        "source": [
+                                                          3,
+                                                          4
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "cyrillic-consonant",
+                                                            "span": [
+                                                              4,
+                                                              5
+                                                            ],
+                                                            "source": [
+                                                              3,
+                                                              4
+                                                            ],
+                                                            "tags": [],
+                                                            "children": [
+                                                              {
+                                                                "kind": "token",
+                                                                "terminal": "\"К\"",
+                                                                "token": 4,
+                                                                "span": [
+                                                                  4,
+                                                                  5
+                                                                ],
+                                                                "source": [
+                                                                  3,
+                                                                  4
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "rule",
+                                                "rule": "capital-non-vowel",
+                                                "span": [
+                                                  5,
+                                                  6
+                                                ],
+                                                "source": [
+                                                  4,
+                                                  5
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "consonant",
+                                                    "span": [
+                                                      5,
+                                                      6
+                                                    ],
+                                                    "source": [
+                                                      4,
+                                                      5
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "cyrillic-consonant",
+                                                        "span": [
+                                                          5,
+                                                          6
+                                                        ],
+                                                        "source": [
+                                                          4,
+                                                          5
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"Л\"",
+                                                            "token": 5,
+                                                            "span": [
+                                                              5,
+                                                              6
+                                                            ],
+                                                            "source": [
+                                                              4,
+                                                              5
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "rule",
+                                        "rule": "folded-vowel-group",
+                                        "span": [
+                                          6,
+                                          7
+                                        ],
+                                        "source": [
+                                          5,
+                                          6
+                                        ],
+                                        "tags": [
+                                          "Capital",
+                                          "Folded",
+                                          "Syllabic"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "folded-vowel",
+                                            "span": [
+                                              6,
+                                              7
+                                            ],
+                                            "source": [
+                                              5,
+                                              6
+                                            ],
+                                            "tags": [
+                                              "Capital",
+                                              "Folded",
+                                              "Syllabic"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "cyrillic-folded-vowel",
+                                                "span": [
+                                                  6,
+                                                  7
+                                                ],
+                                                "source": [
+                                                  5,
+                                                  6
+                                                ],
+                                                "tags": [
+                                                  "Capital",
+                                                  "Folded",
+                                                  "Syllabic"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "cyrillic-vowel",
+                                                    "span": [
+                                                      6,
+                                                      7
+                                                    ],
+                                                    "source": [
+                                                      5,
+                                                      6
+                                                    ],
+                                                    "tags": [
+                                                      "Capital",
+                                                      "Folded",
+                                                      "Syllabic"
+                                                    ],
+                                                    "children": [
+                                                      {
+                                                        "kind": "token",
+                                                        "terminal": "\"А\"",
+                                                        "token": 6,
+                                                        "span": [
+                                                          6,
+                                                          7
+                                                        ],
+                                                        "source": [
+                                                          5,
+                                                          6
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "rule",
+                                    "rule": "capital-gap",
+                                    "span": [
+                                      7,
+                                      8
+                                    ],
+                                    "source": [
+                                      6,
+                                      7
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "capital-consonants",
+                                        "span": [
+                                          7,
+                                          8
+                                        ],
+                                        "source": [
+                                          6,
+                                          7
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "capital-non-vowel",
+                                            "span": [
+                                              7,
+                                              8
+                                            ],
+                                            "source": [
+                                              6,
+                                              7
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "consonant",
+                                                "span": [
+                                                  7,
+                                                  8
+                                                ],
+                                                "source": [
+                                                  6,
+                                                  7
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "cyrillic-consonant",
+                                                    "span": [
+                                                      7,
+                                                      8
+                                                    ],
+                                                    "source": [
+                                                      6,
+                                                      7
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "token",
+                                                        "terminal": "\"М\"",
+                                                        "token": 7,
+                                                        "span": [
+                                                          7,
+                                                          8
+                                                        ],
+                                                        "source": [
+                                                          6,
+                                                          7
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "rule",
+                                    "rule": "folded-vowel-group",
+                                    "span": [
+                                      8,
+                                      9
+                                    ],
+                                    "source": [
+                                      7,
+                                      8
+                                    ],
+                                    "tags": [
+                                      "Capital",
+                                      "Folded",
+                                      "Syllabic"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "folded-vowel",
+                                        "span": [
+                                          8,
+                                          9
+                                        ],
+                                        "source": [
+                                          7,
+                                          8
+                                        ],
+                                        "tags": [
+                                          "Capital",
+                                          "Folded",
+                                          "Syllabic"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "cyrillic-folded-vowel",
+                                            "span": [
+                                              8,
+                                              9
+                                            ],
+                                            "source": [
+                                              7,
+                                              8
+                                            ],
+                                            "tags": [
+                                              "Capital",
+                                              "Folded",
+                                              "Syllabic"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "cyrillic-vowel",
+                                                "span": [
+                                                  8,
+                                                  9
+                                                ],
+                                                "source": [
+                                                  7,
+                                                  8
+                                                ],
+                                                "tags": [
+                                                  "Capital",
+                                                  "Folded",
+                                                  "Syllabic"
+                                                ],
+                                                "children": [
+                                                  {
+                                                    "kind": "token",
+                                                    "terminal": "\"А\"",
+                                                    "token": 8,
+                                                    "span": [
+                                                      8,
+                                                      9
+                                                    ],
+                                                    "source": [
+                                                      7,
+                                                      8
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

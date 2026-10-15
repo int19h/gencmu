@@ -23,7 +23,7 @@ var bundled struct {
 	sources  map[string]string
 	uni      *unicodeTable
 	reader   *notationReader
-	compiled map[string]json.RawMessage
+	compiled map[domCacheKey]json.RawMessage
 	err      error
 }
 
@@ -53,28 +53,34 @@ func loadBundled() error {
 			bundled.err = err
 			return
 		}
-		bundled.compiled = readCompiled(bundled.sources["compiled.json"], bundled.reader.hash)
+		bundled.compiled = readCompiled(bundled.sources["compiled.json"], bundled.reader.hash, bundled.uni.hash)
 	})
 	return bundled.err
 }
 
-// readCompiled indexes the precompiled DOMs by text hash, when they were
-// made in this DOM format with this bootstrap (engine §8).
-func readCompiled(text, bootstrapHash string) map[string]json.RawMessage {
+// domCacheKey includes every input that determines a document DOM (engine §8).
+type domCacheKey struct {
+	document, bootstrap, unicode string
+	format                       int
+}
+
+// readCompiled admits an envelope only under the complete loader identity.
+func readCompiled(text, bootstrapHash, unicodeHash string) map[domCacheKey]json.RawMessage {
 	var c struct {
 		Format    int    `json:"format"`
 		Bootstrap string `json:"bootstrap"`
+		Unicode   string `json:"unicode"`
 		Documents map[string]struct {
 			Hash string          `json:"hash"`
 			Dom  json.RawMessage `json:"dom"`
 		} `json:"documents"`
 	}
-	out := map[string]json.RawMessage{}
-	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash {
+	out := map[domCacheKey]json.RawMessage{}
+	if text == "" || unmarshalJSON([]byte(text), &c) != nil || c.Format != domFormat || c.Bootstrap != bootstrapHash || c.Unicode != unicodeHash {
 		return out
 	}
 	for _, d := range c.Documents {
-		out[d.Hash] = d.Dom
+		out[domCacheKey{d.Hash, bootstrapHash, unicodeHash, domFormat}] = d.Dom
 	}
 	return out
 }
@@ -84,7 +90,8 @@ type loader struct {
 	read               func(p string) (string, bool)
 	uni                *unicodeTable
 	reader             *notationReader
-	compiled           map[string]json.RawMessage
+	bootstrapHash      string
+	compiled           map[domCacheKey]json.RawMessage
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
@@ -109,7 +116,7 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 		return nil, &Error{Kind: ErrorUsage, Document: p, Message: "the document is not a sequence of Unicode scalar values: " + problem}
 	}
 	if !l.noCache {
-		if raw, ok := l.compiled[fnv1a64(text)]; ok {
+		if raw, ok := l.compiled[domCacheKey{fnv1a64(text), l.bootstrapHash, l.uni.hash, domFormat}]; ok {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
@@ -294,10 +301,11 @@ func bundledLoader() (*loader, error) {
 		return nil, err
 	}
 	return &loader{
-		read:     func(p string) (string, bool) { s, ok := bundled.sources[p]; return s, ok },
-		uni:      bundled.uni,
-		reader:   bundled.reader,
-		compiled: bundled.compiled,
+		read:          func(p string) (string, bool) { s, ok := bundled.sources[p]; return s, ok },
+		uni:           bundled.uni,
+		reader:        bundled.reader,
+		bootstrapHash: bundled.reader.hash,
+		compiled:      bundled.compiled,
 	}, nil
 }
 
@@ -360,14 +368,16 @@ func loadSources(sources map[string]string, pipeline string, noCache bool) (d *D
 		if l.reader, err = newNotationReader(t, l.uni); err != nil {
 			return nil, err
 		}
-		l.compiled = readCompiled(bundled.sources["compiled.json"], l.reader.hash)
 	} else if l.uni != bundled.uni {
 		r := *bundled.reader
 		r.uni = l.uni
 		l.reader = &r
 	}
+	l.bootstrapHash = l.reader.hash
 	if t, ok := norm["compiled.json"]; ok {
-		l.compiled = readCompiled(t, l.reader.hash)
+		l.compiled = readCompiled(t, l.bootstrapHash, l.uni.hash)
+	} else if l.bootstrapHash != bundled.reader.hash || l.uni.hash != bundled.uni.hash {
+		l.compiled = nil
 	}
 	return l.dialect(path.Clean(pipeline))
 }

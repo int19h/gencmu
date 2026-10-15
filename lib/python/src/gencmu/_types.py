@@ -62,7 +62,7 @@ def _unknown_constants(name: str) -> TermType:
 
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}
-_STRING_METHODS = {"value", "image", "source-text", "verbatim-text"}
+_STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
 _PREDICATES = {"matches", "begins", "starts-input"}
 
 

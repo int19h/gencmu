@@ -13,9 +13,10 @@ from ._types import constant_value_problem, open_part, rule_type_problem, term_t
 
 class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
+    def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 27
+FORMAT = 28
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -391,7 +392,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 if isinstance(atom, dict) and "method" in atom:
                     receiver = atom.get("receiver")
                     valid = atom.get("args") == [] and (
-                        atom["method"] in ("value", "image", "source-text", "verbatim-text")
+                        atom["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text")
                         and isinstance(receiver, dict)
                         and set(receiver) == {"capture"}
                         or atom["method"] in ("value", "image")

@@ -10,7 +10,7 @@ import (
 )
 
 // A shared source DOM must resolve independently in each stage, including
-// when a matching format-27 cache supplies that DOM (engine §§2, 8, and 10).
+// when a matching format-28 cache supplies that DOM (engine §§2, 8, and 10).
 func TestPatternResolutionCachedStages(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {

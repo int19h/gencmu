@@ -11,6 +11,10 @@ export declare class UnicodeTable {
     categories: string[];
     /** @type {[number, number][]} */
     whiteSpace: [number, number][];
+    /** @type {Map<number, number[]>} */
+    decompositions: Map<number, number[]>;
+    /** @type {[number, number, number][]} */
+    combining: [number, number, number][];
     /** @param {string} text the contents of unicode.txt */
     constructor(text: string);
     /**
@@ -21,6 +25,23 @@ export declare class UnicodeTable {
      * @returns {string}
      */
     category(code: number): string;
+    /** @param {number} code @returns {number} */
+    combiningClass(code: number): number;
+    /** @param {number} code @returns {boolean} */
+    changesInDocument(code: number): boolean;
+    /**
+     * Canonical decomposition, with each scalar's original code point index.
+     * Sorting only nonzero runs preserves class-zero barriers and equal classes.
+     * @param {string} text
+     * @returns {{character:string, origin:number, klass:number}[]}
+     */
+    decomposeWithOrigins(text: string): {
+        character: string;
+        origin: number;
+        klass: number;
+    }[];
+    /** @param {string} text @returns {string} */
+    decompose(text: string): string;
     /**
      * Whether a code point is a nonspacing mark, of General_Category Mn.
      * @param {number} code

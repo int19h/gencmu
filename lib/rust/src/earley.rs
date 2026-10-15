@@ -2882,9 +2882,14 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
                             Value::Str(tokens[start..end].iter().map(|t| t.image.as_str()).collect())
                         }
-                        LTerm::Text(span) => {
+                        LTerm::Text(span) | LTerm::DecomposedText(span) => {
                             let (start, end, _) = self.checked_bounds(span, frame, tokens.len())?;
-                            Value::Str(self.text(tokens, start, end))
+                            let text = self.text(tokens, start, end);
+                            Value::Str(if matches!(term, LTerm::DecomposedText(_)) {
+                                self.shared.unicode.decompose(&text.chars().collect::<Vec<_>>())
+                            } else {
+                                text
+                            })
                         }
                         LTerm::Split(string, delimiter) => {
                             eval.push(Task::Split(delimiter), Task::Term(string));

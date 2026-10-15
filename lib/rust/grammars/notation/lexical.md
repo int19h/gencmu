@@ -2,7 +2,7 @@
 
 The lexical stage opens the [notation dialect](../dialects/notation.md). A stage is one step of a pipeline. A token is one unit that a stage reads or emits.
 
-This stage reads one token per source character. A token's value is the string that exact comparisons read. Its image is the string that people see. Each input token carries its character as both strings and the stored engine tags.
+This stage reads the decomposed character tokens of stage zero. A token's value is the string that exact comparisons read. Its image is the string that people see. Each input token carries its decomposed scalar as both strings and the stored engine tags.
 
 A tag is a named mark on a token. The rules read characters by string terminals, ranges, or engine tags such as `_White_Space`.
 
@@ -377,7 +377,7 @@ The `%include` alternative applies only when no quoted path follows. A complete 
 
 ## Symbols
 
-A symbol is punctuation that no larger lexical form contains. One-character symbols preserve their source value and image.
+A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
 The greedy reading keeps `...`, `..`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
 
@@ -386,9 +386,10 @@ The greedy reading keeps `...`, `..`, `::`, `:=`, and `:-` together as compound 
 ```jbogenbau
 %rule symbol
   | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
-  | "∧" | "∨" | "⟹" | "=" | "≠" | "∈" | "∉" | "⊆" | "⊈" | "∪" | "∩" | "∖" | "∅"
-  | "≅" | "≇" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
+  | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
+  | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
   | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
+  | ("=" | "∈" | "⊆" | "≅") $_0338
 %emits
   $
 ```

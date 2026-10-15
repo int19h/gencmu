@@ -1,0 +1,176 @@
+{
+  "description": "Declarations, extensions, guards, classifier keys, and tag runs keep decomposed names.",
+  "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K \"$(K)\"\n%classifier cK\n fK? \"K\" \"$(K)\" ∈ K\n%implies K Q ⟹ K Q\n%rule rK fK! K<K> :: K\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "features",
+          "args": [
+            "K",
+            "fK"
+          ]
+        },
+        {
+          "name": "stage",
+          "args": [
+            "sK"
+          ]
+        },
+        {
+          "name": "extend-stage",
+          "args": [
+            "sK"
+          ]
+        },
+        {
+          "name": "redefine-stage",
+          "args": [
+            "sK"
+          ]
+        }
+      ],
+      "constants": [
+        {
+          "name": "K",
+          "op": "define",
+          "value": {
+            "string": "K"
+          }
+        },
+        {
+          "name": "K",
+          "op": "redefine",
+          "value": {
+            "interpolate": [
+              {
+                "const": "K"
+              }
+            ]
+          }
+        }
+      ],
+      "classifiers": [
+        {
+          "name": "cK",
+          "entries": [
+            {
+              "guards": [
+                {
+                  "feature": "fK"
+                }
+              ],
+              "keys": [
+                {
+                  "string": "K"
+                },
+                {
+                  "interpolate": [
+                    {
+                      "const": "K"
+                    }
+                  ]
+                }
+              ],
+              "class": "K"
+            }
+          ]
+        }
+      ],
+      "implications": [
+        {
+          "if": {
+            "union": [
+              {
+                "tag": "K"
+              },
+              {
+                "tag": "Q"
+              }
+            ]
+          },
+          "then": {
+            "union": [
+              {
+                "tag": "K"
+              },
+              {
+                "tag": "Q"
+              }
+            ]
+          }
+        }
+      ],
+      "rules": [
+        {
+          "name": "rK",
+          "op": "define",
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "fK",
+                  "kind": "warning",
+                  "negated": false
+                }
+              ],
+              "expr": {
+                "test": "tags",
+                "requirements": [
+                  {
+                    "value": {
+                      "tag": "K"
+                    }
+                  }
+                ],
+                "expr": {
+                  "ref": "K"
+                }
+              },
+              "tags": {
+                "tag": "K"
+              }
+            }
+          ]
+        },
+        {
+          "name": "rK",
+          "op": "extend",
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "fK",
+                  "kind": "gate",
+                  "negated": true
+                }
+              ],
+              "expr": {
+                "ref": "K"
+              }
+            }
+          ]
+        },
+        {
+          "name": "rK",
+          "op": "redefine",
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "fK",
+                  "kind": "gate",
+                  "negated": false
+                }
+              ],
+              "expr": {
+                "ref": "K"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}

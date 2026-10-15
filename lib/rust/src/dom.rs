@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 27;
+pub const DOM_FORMAT: i64 = 28;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -1629,7 +1629,9 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "value" | "text" | "image" | "verbatim-text" | "concat" | "interpolate" => Type::String,
+        "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" | "interpolate" => {
+            Type::String
+        }
         "split" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,

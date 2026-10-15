@@ -37,7 +37,7 @@ export declare class Token {
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
      * @param {string} [image] what it shows to people (engine §5): by default
-     *   its text, as for a character token or one that a caller supplies
+     *   its text, as for a caller-supplied token
      */
     constructor(tags: TagSet, span: Span, source: Span, text: string, value?: string, insertedBy?: string | undefined, image?: string);
 }

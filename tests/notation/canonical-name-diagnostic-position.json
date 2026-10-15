@@ -1,0 +1,10 @@
+{
+  "description": "A semantic error after decomposed text reports the original column.",
+  "document": "```jbogenbau\n%rule rK \"é\" :: lower\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

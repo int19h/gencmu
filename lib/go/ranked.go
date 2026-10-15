@@ -489,7 +489,7 @@ func containsRanked(expr *domExpr) bool {
 func restoreRankedLocations(dom *domDoc, tokens []Token, position func(int) [2]int) {
 	separators := [][2]int{}
 	for _, token := range tokens {
-		if token.Text == "≻" {
+		if token.Value == "≻" {
 			separators = append(separators, position(token.Source[0]))
 		}
 	}
@@ -563,15 +563,15 @@ func (nr *notationReader) restoreLocations(text string, dom *domDoc) {
 	}
 }
 func rankedSyntaxFailure(tokens []Token, at int) bool {
-	if at < len(tokens) && tokens[at].Text == "≻" || at > 0 && at-1 < len(tokens) && tokens[at-1].Text == "≻" {
+	if at < len(tokens) && tokens[at].Value == "≻" || at > 0 && at-1 < len(tokens) && tokens[at-1].Value == "≻" {
 		return true
 	}
-	if at >= len(tokens) || tokens[at].Text != "|" {
+	if at >= len(tokens) || tokens[at].Value != "|" {
 		return false
 	}
 	levels := []bool{false}
 	for _, token := range tokens[:at] {
-		switch token.Text {
+		switch token.Value {
 		case "(", "[", "{":
 			levels = append(levels, false)
 		case ")", "]", "}":
@@ -583,7 +583,7 @@ func rankedSyntaxFailure(tokens []Token, at int) bool {
 				levels[len(levels)-1] = true
 			}
 		default:
-			if strings.HasPrefix(token.Text, "%") && len(levels) > 0 {
+			if strings.HasPrefix(token.Value, "%") && len(levels) > 0 {
 				levels[len(levels)-1] = false
 			}
 		}

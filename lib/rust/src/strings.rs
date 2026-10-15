@@ -29,6 +29,7 @@ pub(crate) struct Strings<'a> {
     tokens: &'a [Tok],
     sources: Sources,
     text: &'a [char],
+    unicode: &'a crate::unicode::Unicode,
     covered: Vec<bool>,
     claims: Vec<GapClaim>,
     saved: Vec<[Option<String>; 2]>,
@@ -36,7 +37,13 @@ pub(crate) struct Strings<'a> {
 }
 
 impl<'a> Strings<'a> {
-    pub(crate) fn new(grammar: &'a Lowered, tree: &'a ITree, tokens: &'a [Tok], text: &'a [char]) -> Self {
+    pub(crate) fn new(
+        grammar: &'a Lowered,
+        tree: &'a ITree,
+        tokens: &'a [Tok],
+        text: &'a [char],
+        unicode: &'a crate::unicode::Unicode,
+    ) -> Self {
         let mut covered = vec![false; text.len()];
         for token in tokens {
             covered[token.source.0..token.source.1].fill(true);
@@ -47,6 +54,7 @@ impl<'a> Strings<'a> {
             tokens,
             sources: Sources::new(tokens),
             text,
+            unicode,
             covered,
             claims: Vec::new(),
             saved: vec![[None, None]; tree.nodes.len()],
@@ -215,13 +223,17 @@ impl<'a> Strings<'a> {
                         values.push(match name.as_str() {
                             "value" => self.input(target, Channel::Value),
                             "image" => self.input(target, Channel::Image),
-                            "text" => {
+                            "text" | "decomposed-source-text" => {
                                 let (start, end) = self.span(target);
                                 if start == end {
                                     String::new()
                                 } else {
                                     let (start, end) = self.sources.of(start, end);
-                                    self.text[start..end].iter().collect()
+                                    if name == "decomposed-source-text" {
+                                        self.unicode.decompose(&self.text[start..end])
+                                    } else {
+                                        self.text[start..end].iter().collect()
+                                    }
                                 }
                             }
                             "verbatim-text" => self.verbatim(target)?,

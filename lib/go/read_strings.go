@@ -17,7 +17,7 @@ func unionTerm(a, b *domTerm) *domTerm {
 func (b *domBuilder) tagRun(n *Node) *domTerm {
 	for _, index := range []int{n.Span[0] - 1, n.Span[1]} {
 		if index >= 0 && index < len(b.toks) {
-			t := b.toks[index].Text
+			t := b.toks[index].Value
 			if t == "∩" || t == "∖" {
 				b.fail(n, "a tag run beside intersection or difference requires parentheses")
 			}
@@ -85,7 +85,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			tests = append(tests, p)
 		}
 	}
-	name := b.text(first)
+	name := b.tokenValue(first)
 	terminal := first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
@@ -130,7 +130,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			next.Op = "tags"
 			next.Requirements = b.requirements(test)
 		} else {
-			next.Op = b.text(b.token(b.only(test, "test")))
+			next.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" {
@@ -161,7 +161,7 @@ func (c *domChecker) recipe(t *domTerm) {
 			continue
 		}
 		r := atom.Items[0]
-		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "verbatim-text") {
+		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
 			continue
 		}
 		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
@@ -173,7 +173,7 @@ func (c *domChecker) recipe(t *domTerm) {
 
 func (b *domBuilder) constantRef(n *Node) *domTerm {
 	token := b.token(n)
-	name := strings.TrimPrefix(b.text(token), "$")
+	name := strings.TrimPrefix(b.tokenValue(token), "$")
 	if !constName.MatchString(name) {
 		if _, ok := engineScalar(name); !ok {
 			b.fail(token, "invalid scalar constant %s", name)
@@ -183,7 +183,9 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 }
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
-	rs := []rune(b.text(n))
+	rs := []rune(b.tokenValue(n))
+	original := []rune(b.sourceText(n))
+	originalIndex := 1
 	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
 		b.fail(n, "a string uses double quotes")
 	}
@@ -220,7 +222,20 @@ func (b *domBuilder) stringTerm(n *Node) *domTerm {
 			b.fail(n, "an interpolation requires a closing parenthesis")
 		}
 		name := string(rs[i+2 : end])
-		at := b.gt.at(b.toks[n.Token].Source[0] + i)
+		// Interpolation syntax survives decomposition unchanged. Find its
+		// original offset so that earlier decomposed letters do not shift it.
+		for originalIndex < len(original)-1 && !(original[originalIndex] == '$' && original[originalIndex+1] == '(') {
+			if original[originalIndex] == '$' && original[originalIndex+1] == '$' {
+				originalIndex += 2
+			} else {
+				originalIndex++
+			}
+		}
+		at := b.gt.at(b.toks[n.Token].Source[0] + originalIndex)
+		for originalIndex < len(original)-1 && original[originalIndex] != ')' {
+			originalIndex++
+		}
+		originalIndex++
 		if !constName.MatchString(name) {
 			if _, ok := engineScalar(name); !ok {
 				panic(grammarError(b.doc, at, "invalid interpolation constant %s", name))
@@ -299,7 +314,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 		b.lacks(n, "test")
 	}
 	base := b.testBase(n)
-	valid := capturedRules[base.Rule] && base.Rule != "tested" && !(base.Rule == "reference" && b.text(b.token(base)) == "#")
+	valid := capturedRules[base.Rule] && base.Rule != "tested" && !(base.Rule == "reference" && b.tokenValue(b.token(base)) == "#")
 	seenTags, seenValue := false, false
 	for _, test := range tests {
 		if !valid || test.Rule == "tag-test" && (seenTags || seenValue) || test.Rule == "value-test" && seenValue {
@@ -318,7 +333,7 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 			e.Op = "tags"
 			e.Requirements = b.requirements(test)
 		} else {
-			e.Op = b.text(b.token(b.only(test, "test")))
+			e.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
 			if part.Rule != "string" && part.Rule != "constant-reference" {
@@ -339,12 +354,12 @@ func (b *domBuilder) requirements(n *Node) []tagRequirement {
 		if part.Rule != "tag" && part.Rule != "constant-reference" && part.Rule != "name" {
 			b.fail(operand, "a tag requirement requires a tag or tag-set constant")
 		}
-		if part.Rule == "name" && !isCapital(b.text(b.token(part))) {
+		if part.Rule == "name" && !isCapital(b.tokenValue(b.token(part))) {
 			b.fail(operand, "a tag requirement requires a tag")
 		}
 		r := tagRequirement{Value: b.term(part)}
 		for _, token := range parts(p) {
-			if token.Kind == KindToken && b.text(token) == "¬" {
+			if token.Kind == KindToken && b.tokenValue(token) == "¬" {
 				r.Negated = true
 			}
 		}
@@ -366,12 +381,12 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
-		first := b.toks[atom.Span[0]].Text
+		first := b.toks[atom.Span[0]].Value
 		if first == "(" || first == "∪" || first == "∩" {
 			b.fail(atom, "a recipe atom uses no grouping or operator")
 		}
 		for i := atom.Span[0]; i < atom.Span[1]; i++ {
-			switch b.toks[i].Text {
+			switch b.toks[i].Value {
 			case "∪", "∩", "∖", "⟹":
 				b.fail(atom, "a recipe atom uses no operator")
 			}
@@ -382,7 +397,7 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 		valid := stringTermShape(t)
 		if t.Kind == tmCall && len(t.Items) == 1 {
 			receiver := t.Items[0]
-			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "verbatim-text")
+			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
 			if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
 				valid = t.Str == "value" || t.Str == "image"
 			}
@@ -418,7 +433,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		f.args = append(f.args, in.(*domTerm))
 	}
 	selector := f.selectors[f.index]
-	name := b.text(b.token(b.only(selector, "method-name")))
+	name := b.tokenValue(b.token(b.only(selector, "method-name")))
 	if f.arguments == nil {
 		f.arguments = []*Node{}
 		if arguments := one(selector, "arguments"); arguments != nil {
@@ -442,7 +457,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := isSpanTerm(receiver)
 	valid := false
 	switch name {
-	case "value", "image", "source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")

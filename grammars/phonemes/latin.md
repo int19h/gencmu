@@ -9,7 +9,7 @@ Most conventions here admit spellings that latin-strict.md rejects. Two change h
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
 - `h` writes the apostrophe.
-- A capital run carries no stress mark.
+- A capital run carries no stress mark except its accents.
 - An accent marks stress, and a breve marks a glide.
 - A digit stands for its number word.
 
@@ -17,7 +17,7 @@ Most conventions here admit spellings that latin-strict.md rejects. Two change h
 
 A punctuation character is a pause when no letter, vowel or apostrophe rule reads it, as the next paragraph defines. Texts put quotation marks, brackets and dashes around words, so `mi "klama"` reads as `mi klama`.
 
-Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is one of `Mn`, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
+Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is a combining mark of category M, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
 A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#verbatim-text) defines for verbatim images.
 
@@ -27,9 +27,39 @@ Punctuation next to the first or the last word of the text belongs to no token.
 
 The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing.
 
+A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
+
+A pause core can hold punctuation, but not a stretch that holds an ignored character. Such a stretch between two cores is a silent run. It emits a `Silent` token between two pause tokens, so that a quote body keeps its text.
+
 ```jbogenbau
 %redefine-rule pause
   spaced-pause | punctuation-pause
+
+%redefine-rule spaced-pause
+  [pause-edge] pause-cores [pause-edge]
+
+%rule pause-cores
+  | pause-core
+  | pause-cores silent-run pause-core
+
+%rule silent-run
+  $e:pause-edge
+%conditions
+  $e.matches(edge-with-comma)
+%emits
+  $ :: Silent := "" :- $.source-text
+
+%rule edge-with-comma
+  [pause-edge] comma [pause-edge]
+
+%redefine-rule pause-core
+  | core-char
+  | pause-core core-char
+  | pause-core $e:pause-edge core-char
+%conditions
+  ¬$e.matches(edge-with-comma)
+%emits
+  $ :: PAUSE := " "
 
 %rule punctuation-pause
   [commas] $c:punctuation [commas]
@@ -46,27 +76,41 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   punctuation-char | punctuation punctuation-char | punctuation commas punctuation-char
 
 %rule punctuation-char
-  $c:other-char
+  $c:other-char [{combining-mark}]
 %conditions
   ¬$c.matches(any-lojban-char),
-  ¬$c.matches(core-char)
+  ¬$c.matches(core-char),
+  ¬$.following-tokens.begins(combining-mark)
 
 %rule other-char
   $c:_
 %conditions
-  ¬$c.matches(alpha-char),
-  ¬$c.matches(mark-char),
-  ¬$c.matches(digit-char),
-  ¬$c.matches(space-char)
+  ¬$c.matches(non-punctuation-char)
+
+%rule non-punctuation-char
+  alpha-char | mark-char | digit-char | space-char
 
 %rule alpha-char
   _L
 
 %rule mark-char
-  _Mn
+  combining-mark
+
+%rule combining-mark
+  _M
 
 %rule digit-char
   "0".."9"
+
+%extend-rule comma
+  $c:_Cf
+%conditions
+  ¬$c.matches(breaking-format-char)
+
+%rule breaking-format-char
+  | $_200B
+  | $_0600..$_0605 | $_06DD | $_070F | $_0890..$_0891 | $_08E2
+  | $_110BD | $_110CD
 
 %redefine-rule run-char
   $c:_
@@ -75,17 +119,26 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   ¬$c.matches(punctuation-char)
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>pause</code> to <code>run-char</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>pause</code> to <code>run-char</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/pause-cores.svg" alt="Railroad diagram of the rule pause-cores"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/silent-run.svg" alt="Railroad diagram of the rule silent-run"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/edge-with-comma.svg" alt="Railroad diagram of the rule edge-with-comma"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/edge-char.svg" alt="Railroad diagram of the rule edge-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/punctuation.svg" alt="Railroad diagram of the rule punctuation"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/punctuation-char.svg" alt="Railroad diagram of the rule punctuation-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/non-punctuation-char.svg" alt="Railroad diagram of the rule non-punctuation-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/alpha-char.svg" alt="Railroad diagram of the rule alpha-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/comma.svg" alt="Railroad diagram of the rule comma"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/breaking-format-char.svg" alt="Railroad diagram of the rule breaking-format-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
 
@@ -130,6 +183,8 @@ The rule reads `h` and `H` as the apostrophe. A selma'o is a class of Lojban par
 ## Capital runs
 
 A run in which every vowel is a capital carries no stress mark, and the stage reads its vowels as plain vowels. A title or a shout is often written all in capitals, and its capitals do not mark stress. The run must have at least two vowel groups. So a name with one stressed syllable in capitals keeps its stress mark: `.DJORdj.` keeps its stress on `o`. The cost is that the stage reads a word of one vowel group, written in capitals, as stressed: in the text `MI KLAMA`, `MI` is `mI`.
+
+An accent on a capital still marks stress there, and the other capitals fold. So `KLÁMA` is `klAma`. An accent is written on purpose, while a title in capitals marks no stress. A capital glide, `Ĭ` or `Ŭ`, folds to its plain vowel, as the capital Cyrillic glides do.
 
 `capital-shape` is that shape: its consonants and digits and its capital vowels, written out so that two groups are required. Consonants stand between every two groups, so the rules never split adjacent vowels into separate groups. `capital-consonants` reads a decimal point between two digits, as `non-vowels` does in an ordinary run (see "Digits"). So `MI2.3KLAMA` is a capital run. `capital-consonants` does not reuse `non-vowels`, because other scripts extend `non-vowel` with forms that hold a vowel. Forms such as the zbalermorna shorthand keep a run from folding.
 
@@ -186,10 +241,16 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 %rule folded-vowel :: ∅
   | "A" := "a"
   | "E" := "e"
-  | "I" := "i"
+  | "I" [glide-mark] := "i"
   | "O" := "o"
-  | "U" := "u"
+  | "U" [glide-mark] := "u"
   | "Y" := "y"
+  | "A" stress-mark :: Stressed := "A"
+  | "E" stress-mark :: Stressed := "E"
+  | "I" stress-mark :: Stressed := "I"
+  | "O" stress-mark :: Stressed := "O"
+  | "U" stress-mark :: Stressed := "U"
+  | "Y" stress-mark :: Stressed := "Y"
 %emits
   $
 ```
@@ -212,22 +273,22 @@ A run in which every vowel is a capital carries no stress mark, and the stage re
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent, precomposed or combining, is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. A combining mark that no letter rule takes makes its run foreign, as the precomposed letter already is. So the stage reads `i` followed by U+0308 as it reads `ï`.
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So `mï` and `mi`U+093E are foreign.
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
-  | ("ĭ" | "Ĭ" | "i" glide-mark | "I" glide-mark) := "i"
-  | ("ŭ" | "Ŭ" | "u" glide-mark | "U" glide-mark) := "u"
+  | ("i" | "I") glide-mark := "i"
+  | ("u" | "U") glide-mark := "u"
 %emits
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("á" | "à" | "Á" | "À" | "a" stress-mark | "A" stress-mark) := "A"
-  | ("é" | "è" | "É" | "È" | "e" stress-mark | "E" stress-mark) := "E"
-  | ("í" | "ì" | "Í" | "Ì" | "i" stress-mark | "I" stress-mark) := "I"
-  | ("ó" | "ò" | "Ó" | "Ò" | "o" stress-mark | "O" stress-mark) := "O"
-  | ("ú" | "ù" | "Ú" | "Ù" | "u" stress-mark | "U" stress-mark) := "U"
-  | ("ý" | "ỳ" | "Ý" | "Ỳ" | "y" stress-mark | "Y" stress-mark) := "Y"
+  | ("a" | "A") stress-mark := "A"
+  | ("e" | "E") stress-mark := "E"
+  | ("i" | "I") stress-mark := "I"
+  | ("o" | "O") stress-mark := "O"
+  | ("u" | "U") stress-mark := "U"
+  | ("y" | "Y") stress-mark := "Y"
 %emits
   $
 
@@ -253,6 +314,8 @@ A single period between two digits is the decimal point, `pi`. The decimal point
 
 The `items` condition compares the pause span's original source text with `.`. Commas remain in that text, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
 
+A period between two digits is the decimal point in a foreign run too, so it belongs to the run. So `zoi gy. 3.0w .gy.` quotes the run `3.0w`. A period with something else beside it is still a pause, so `3.w` holds a pause.
+
 ```jbogenbau
 %redefine-rule items
   | run
@@ -270,6 +333,18 @@ The `items` condition compares the pause span's original source text with `.`. C
 
 %extend-rule any-lojban-char
   digit
+
+%extend-rule lojban-chars
+  $c:lojban-chars "." $d:lojban-char
+%conditions
+  $c.last-token.matches(digit-char),
+  $d.matches(digit-char)
+
+%extend-rule chars-with-non-lojban-char
+  $c:chars-with-non-lojban-char "." $d:run-char
+%conditions
+  $c.last-token.matches(digit-char),
+  $d.matches(digit-char)
 
 %rule digit
   digit-0 | digit-1 | digit-2 | digit-3 | digit-4 | digit-5 | digit-6 | digit-7 | digit-8 | digit-9
@@ -330,11 +405,13 @@ The `items` condition compares the pause span's original source text with `.`. C
   $ :: ∅ := "p", ε :: ∅ := "i"
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>items</code> to <code>decimal-point</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>items</code> to <code>decimal-point</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/items.svg" alt="Railroad diagram of the rule items"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowel.svg" alt="Railroad diagram of the rule non-vowel"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/non-vowels.svg" alt="Railroad diagram of the rule non-vowels"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/lojban-chars.svg" alt="Railroad diagram of the rule lojban-chars"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/chars-with-non-lojban-char.svg" alt="Railroad diagram of the rule chars-with-non-lojban-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit.svg" alt="Railroad diagram of the rule digit"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-0.svg" alt="Railroad diagram of the rule digit-0"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-1.svg" alt="Railroad diagram of the rule digit-1"></p>

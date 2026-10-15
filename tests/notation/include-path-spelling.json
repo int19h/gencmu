@@ -1,0 +1,16 @@
+{
+  "description": "Include operands keep the original filename spelling.",
+  "document": "```jbogenbau\n%include \"café.md\"\n```",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "include",
+          "args": [
+            "café.md"
+          ]
+        }
+      ]
+    }
+  }
+}

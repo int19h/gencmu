@@ -683,6 +683,7 @@ class Robustness(unittest.TestCase):
         compiled = {
             "format": DOM_FORMAT,
             "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json") or ""),
+            "unicode": fnv1a64(bundled_text("unicode.txt") or ""),
             "documents": {
                 "g.md": {
                     "hash": fnv1a64(sources["g.md"]),

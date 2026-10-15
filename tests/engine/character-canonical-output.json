@@ -1,6 +1,6 @@
 {
   "description": "Stage zero stores Unicode category tags, with _White_Space on the tab. Forwarded character tokens retain these tags rather than character tags (engine §1, docs/output.md).",
-  "grammar": "%rule text [{c}]\n%rule c \"a\" | \"́\" | \"'\" | $_005C | \"\" | $_0009 | \"é\" %emits $\n",
+  "grammar": "%rule text [{c}]\n%rule c \"a\" | \"́\" | \"'\" | $_005C | \"\" | $_0009 | \"e\" %emits $\n",
   "input": "á'\\\té",
   "expect": {
     "result": {
@@ -57,6 +57,24 @@
               "tags": [
                 "_L",
                 "_Ll"
+              ],
+              "value": "e",
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "text": "é",
+              "value": "́",
+              "image": "́",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "_M",
+                "_Mn"
               ]
             }
           ]

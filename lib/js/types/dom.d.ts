@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 27;
+export declare const DOM_FORMAT = 28;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const RULE_NAME: RegExp;
@@ -20,11 +20,12 @@ export declare function isSoundTest(op: string): boolean;
  * of the value must already be checked, and its nesting bounded.
  * @param {string} op
  * @param {any} value
- * @param {{isMark(code: number): boolean}} [unicode]
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
  * @returns {{problem: string, node: any} | null}
  */
 export declare function testValueFault(op: string, value: any, unicode?: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }): {
     problem: string;
     node: any;
@@ -34,35 +35,38 @@ export declare function testValueFault(op: string, value: any, unicode?: {
  * character tags in their canonical spelling by the table, which says which
  * code points are marks, the start not above the end.
  * @param {unknown} range
- * @param {{isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
  * @returns {string | null}
  */
 export declare function rangeProblem(range: unknown, unicode: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }): string | null;
 /**
  * Why a value is not a grammar DOM, or null when it is one. `unicode` is
  * the loader's table: the lowercase mapping that the strings of value
  * tests are checked against, and the marks that decide a character tag's canonical spelling.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {string | null}
  */
 export declare function domProblem(dom: unknown, unicode: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }, deferEmission?: boolean): string | null;
 /** @param {any} term @returns {Set<string>} */
 export declare function engineLiterals(term: any): Set<string>;
 /**
  * Whether a value is a grammar DOM, by the loader's table.
  * @param {unknown} dom
- * @param {{isMark(code: number): boolean}} unicode
+ * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
  * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
  * @returns {dom is GrammarDom}
  */
 export declare function isDom(dom: unknown, unicode: {
     isMark(code: number): boolean;
+    changesInDocument?(code: number): boolean;
 }, deferEmission?: boolean): dom is GrammarDom;
 /**
  * Whether a term, or a condition inside one, reads the tags of `$`, the

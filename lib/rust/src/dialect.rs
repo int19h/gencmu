@@ -352,44 +352,7 @@ impl Dialect {
 
     pub(crate) fn parse_chars(&self, chars: Vec<char>, options: &ParseOptions) -> Result<ParseResult, Error> {
         let unicode = self.unicode.clone();
-        self.run(chars, options, move |tags, chars| {
-            let mut input = Vec::with_capacity(chars.len());
-            let mut public = Vec::with_capacity(chars.len());
-            for (index, &c) in chars.iter().enumerate() {
-                // Its character tag and nothing else (§1).
-                let text = c.to_string();
-                let category = unicode.category(c as u32);
-                let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
-                if unicode.is_white_space(c as u32) {
-                    names.push("_White_Space".into());
-                }
-                let set = tags.set_of(names.iter().map(String::as_str));
-                // A character token's image is its text (§5).
-                public.push(Token {
-                    text: text.clone(),
-                    value: text.clone(),
-                    image: text.clone(),
-                    tags: tags.to_set(set),
-                    span: index..index + 1,
-                    source: index..index + 1,
-                    inserted_by: None,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-                input.push(Tok {
-                    image: text.clone(),
-                    text: text.clone(),
-                    tags: set,
-                    value: text,
-                    source: (index, index + 1),
-                    sound: Default::default(),
-                    quiet: 0,
-                    before: Vec::new(),
-                    after: Vec::new(),
-                });
-            }
-            (input, public)
-        })
+        self.run(chars, options, move |tags, chars| character_tokens(&unicode, tags, chars))
     }
 
     /// Parses a sequence of tokens given directly to the first stage, for
@@ -1156,6 +1119,51 @@ fn has_sa_su(tree: &Node) -> bool {
     false
 }
 
+/// Stage zero keeps original source text beside decomposed values and images.
+fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[char]) -> (Vec<Tok>, Vec<Token>) {
+    crate::work::count(crate::work::Work::StageZero, 1);
+    let decomposed = unicode.decompose_with_origins(chars);
+    let mut input = Vec::with_capacity(decomposed.len());
+    let mut public = Vec::with_capacity(decomposed.len());
+    for (index, scalar) in decomposed.iter().enumerate() {
+        let c = scalar.character;
+        let origin = scalar.origin;
+        // Its character tag and nothing else (§1).
+        let value = c.to_string();
+        let text = chars[origin].to_string();
+        let category = unicode.category(c as u32);
+        let mut names = vec![format!("_{category}"), format!("_{}", &category[..1])];
+        if unicode.is_white_space(c as u32) {
+            names.push("_White_Space".into());
+        }
+        let set = tags.set_of(names.iter().map(String::as_str));
+        // A character token shows its decomposed scalar (§1).
+        public.push(Token {
+            text: text.clone(),
+            value: value.clone(),
+            image: value.clone(),
+            tags: tags.to_set(set),
+            span: index..index + 1,
+            source: origin..origin + 1,
+            inserted_by: None,
+            before: Vec::new(),
+            after: Vec::new(),
+        });
+        input.push(Tok {
+            image: value.clone(),
+            text: text.clone(),
+            tags: set,
+            value,
+            source: (origin, origin + 1),
+            sound: Default::default(),
+            quiet: 0,
+            before: Vec::new(),
+            after: Vec::new(),
+        });
+    }
+    (input, public)
+}
+
 /// For the tests inside the crate: a stage's grammar lowered with no
 /// features on.
 #[cfg(test)]
@@ -1173,6 +1181,65 @@ mod tests {
         let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{rules}\n```\n");
         let pipeline = "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".to_string();
         crate::load_dialect_sources([("p.md".to_string(), pipeline), ("g.md".to_string(), grammar)], "p.md").unwrap()
+    }
+
+    #[test]
+    fn automatic_feature_probe_reuses_stage_zero_and_saved_words() {
+        use crate::work::{counted, reset, Work};
+        let dialect = crate::load_dialect("experimental").unwrap();
+        assert!(dialect.features.iter().any(|feature| feature.name == "sa-su" && !feature.default));
+        let retry_control = ParseOptions { auto_features: false, ..Default::default() };
+        assert!(!dialect.parse("mi su do", &retry_control).unwrap().ok);
+        let mut ordinary = Vec::new();
+        for (text, auto_features, until) in [
+            ("mi klama", false, None),
+            ("mi klama", true, None),
+            ("mi klama", true, Some("words")),
+            ("mi su do", true, None),
+        ] {
+            let options = ParseOptions { auto_features, until: until.map(str::to_string), ..Default::default() };
+            reset();
+            let result = dialect.parse(text, &options).unwrap();
+            assert!(result.ok, "{text}: {:?}", result.error);
+            assert_eq!(counted(Work::StageZero), 1, "{text}, {auto_features}, {until:?}");
+            assert_eq!(counted(Work::Decompositions), 1, "{text}, {auto_features}, {until:?}");
+            let words = result.stages.iter().position(|stage| stage.name == "words").unwrap();
+            if let Some(next) = result.stages.get(words + 1) {
+                assert_eq!(result.stages[words].output.as_ref(), Some(&next.input));
+            } else {
+                assert_eq!(until, Some("words"));
+            }
+            if text == "mi klama" && until.is_none() {
+                ordinary.push(crate::to_json(&result));
+            }
+        }
+        assert_eq!(ordinary[0], ordinary[1]);
+        reset();
+    }
+
+    #[test]
+    fn stage_zero_preserves_original_sources() {
+        let unicode = crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap();
+        let chars: Vec<char> = "á\u{323}\n한".chars().collect();
+        let (internal, public) = super::character_tokens(&unicode, &mut crate::tags::Tags::new(), &chars);
+        assert_eq!(public.iter().map(|t| t.value.as_str()).collect::<String>(), "a\u{323}\u{301}\n한");
+        let origins = [0, 1, 0, 2, 3, 3, 3];
+        for (index, ((token, internal), origin)) in public.iter().zip(&internal).zip(origins).enumerate() {
+            assert_eq!(token.span, index..index + 1);
+            assert_eq!(token.source, origin..origin + 1);
+            assert_eq!(token.text, chars[origin].to_string());
+            assert_eq!(token.image, token.value);
+            assert_eq!(internal.source, (origin, origin + 1));
+            assert_eq!(internal.text, token.text);
+            assert_eq!(internal.value, token.value);
+            assert_eq!(internal.image, token.image);
+        }
+        assert!(public[0].tags.contains("_Ll"));
+        assert!(public[1].tags.contains("_Mn"));
+        assert!(public[3].tags.contains("_White_Space"));
+        let sources = crate::tree::Sources::new(&internal);
+        assert_eq!(sources.of(1, 3), (0, 2));
+        assert_eq!(sources.of(4, 7), (3, 4));
     }
 
     fn cached(dialect: &Dialect) -> (usize, usize) {

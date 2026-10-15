@@ -58,6 +58,7 @@ pub(crate) enum LTerm {
     Value(Span),
     Image(Span),
     Text(Span),
+    DecomposedText(Span),
     /// `split(a, d)`: the set of the pieces of `a` between the occurrences
     /// of `d` (§10).
     Split(Box<LTerm>, Box<LTerm>),
@@ -893,6 +894,7 @@ impl<'a> Scope<'a> {
                 ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
                 ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),
+                ("decomposed-source-text", [Arg::Term(span)]) => LTerm::DecomposedText(self.span(span)?),
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
                 ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),

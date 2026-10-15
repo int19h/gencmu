@@ -33,14 +33,21 @@
       this.whiteSpace = [];
       /** @type {[number, number, string][]} */
       const ranges = [];
+      /** @type {Map<number, number[]>} */
+      this.decompositions = new Map();
+      /** @type {[number, number, number][]} */
+      this.combining = [];
       for (const line of text.split("\n")) {
         const fields = line.trim().split(/\s+/);
         if (fields[0] === "unicode") this.version = fields[1];
         else if (fields[0] === "category") ranges.push([parseInt(fields[2], 16), parseInt(fields[3], 16), fields[1]]);
+        else if (fields[0] === "decompose") this.decompositions.set(parseInt(fields[1], 16), fields.slice(2).map(field => parseInt(field, 16)));
+        else if (fields[0] === "combining") this.combining.push([parseInt(fields[2], 16), parseInt(fields[3], 16), Number(fields[1])]);
         else if (fields[0] === "white-space") this.whiteSpace.push([parseInt(fields[1], 16), parseInt(fields[2], 16)]);
       }
       // The records can stand in any order in the file (engine §1).
       ranges.sort((a, b) => a[0] - b[0]);
+      this.combining.sort((a, b) => a[0] - b[0]);
       for (const [start, end, category] of ranges) {
         this.starts.push(start);
         this.ends.push(end);
@@ -66,6 +73,60 @@
         else return this.categories[middle];
       }
       return "Cn";
+    }
+
+    /** @param {number} code @returns {number} */
+    combiningClass(code) {
+      let low = 0, high = this.combining.length - 1;
+      while (low <= high) {
+        const middle = (low + high) >> 1;
+        const [start, end, klass] = this.combining[middle];
+        if (code < start) high = middle - 1;
+        else if (code > end) low = middle + 1;
+        else return klass;
+      }
+      return 0;
+    }
+
+    /** @param {number} code @returns {boolean} */
+    changesInDocument(code) {
+      return this.decompositions.has(code) || (code >= 0xac00 && code <= 0xd7a3) || this.combiningClass(code) !== 0;
+    }
+
+    /**
+     * Canonical decomposition, with each scalar's original code point index.
+     * Sorting only nonzero runs preserves class-zero barriers and equal classes.
+     * @param {string} text
+     * @returns {{character:string, origin:number, klass:number}[]}
+     */
+    decomposeWithOrigins(text) {
+      const result = [];
+      let origin = 0;
+      for (const character of text) {
+        const code = /** @type {number} */ (character.codePointAt(0));
+        let scalars;
+        if (code >= 0xac00 && code <= 0xd7a3) {
+          const syllable = code - 0xac00;
+          scalars = [0x1100 + Math.floor(syllable / 588), 0x1161 + Math.floor(syllable % 588 / 28)];
+          if (syllable % 28) scalars.push(0x11a7 + syllable % 28);
+        } else scalars = this.decompositions.get(code) || [code];
+        for (const scalar of scalars) result.push({ character: String.fromCodePoint(scalar), origin, klass: this.combiningClass(scalar) });
+        origin++;
+      }
+      for (let start = 0; start < result.length;) {
+        if (result[start].klass === 0) { start++; continue; }
+        let end = start + 1;
+        while (end < result.length && result[end].klass !== 0) end++;
+        const ordered = result.slice(start, end).sort((a, b) => a.klass - b.klass);
+        for (let index = start; index < end; index++) result[index] = ordered[index - start];
+        start = end;
+      }
+      return result;
+    }
+
+    /** @param {string} text @returns {string} */
+    decompose(text) {
+      return this.decomposeWithOrigins(text).map(item => item.character).join("");
     }
 
     /**
@@ -336,7 +397,7 @@
   /**
    * The canonical diagnostic spelling of a scalar string (engine §9.1).
    * @param {string} value
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {string}
    */
   function stringName(value, unicode) {
@@ -345,7 +406,7 @@
       const code = /** @type {number} */ (character.codePointAt(0));
       if (character === "$") written += "$$";
       else if (character === '"' || character === "\\" || code <= 0x1f ||
-          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) ||
+          (code >= 0x7f && code <= 0x9f) || unicode.isMark(code) || unicode.changesInDocument?.(code) ||
           (code >= 0xe000 && code <= 0xf8ff) ||
           (code >= 0xf0000 && code <= 0xffffd) ||
           (code >= 0x100000 && code <= 0x10fffd)) {
@@ -560,7 +621,7 @@
   /**
    * Whether a string is a user tag or a reserved engine tag (engine §1).
    * @param {unknown} tag
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
    * @returns {boolean}
    */
   function isTag(tag, unicode) {
@@ -2121,7 +2182,7 @@
    * @param {any} root
    * @param {(name:string, at:[number,number]) => any} constant
    * @param {(term:any, test:any) => any} value
-   * @param {{isMark(code:number):boolean}} unicode
+   * @param {{isMark(code:number):boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {any}
    */
   function resolvePattern(root, constant, value, unicode) {
@@ -2561,7 +2622,7 @@
      * @param {string | undefined} insertedBy the rule that inserted it, for a
      *   token no text stands for
      * @param {string} [image] what it shows to people (engine §5): by default
-     *   its text, as for a character token or one that a caller supplies
+     *   its text, as for a caller-supplied token
      */
     constructor(tags, span, source, text, value = text, insertedBy = undefined, image = text) {
       this.tags = tags;
@@ -2672,8 +2733,8 @@
     return { lows, highs };
   }
 
-  // The first stage's input: one token per code point, tagged with its
-  // character tag and nothing else (engine §1).
+  // The first stage's input: one token per decomposed scalar, with its
+  // original source and the scalar's engine tags (engine §1).
   /**
    * @param {string} text
    * @param {UnicodeTable} unicode
@@ -2683,12 +2744,13 @@
     if (/[\uD800-\uDFFF]/u.test(text)) throw new GencmuError("usage", "the text contains a lone surrogate");
     const tokens = [];
     let index = 0;
-    for (const character of text) {
+    const original = [...text];
+    for (const { character, origin } of unicode.decomposeWithOrigins(text)) {
       const code = /** @type {number} */ (character.codePointAt(0));
       const category = unicode.category(code);
       const tags = tagSet([`_${category}`, `_${category[0]}`]);
       if (unicode.isWhiteSpace(code)) tags.add("_White_Space");
-      tokens.push(new Token(tags, [index, index + 1], [index, index + 1], character, character, undefined));
+      tokens.push(new Token(tags, [index, index + 1], [origin, origin + 1], original[origin], character, undefined, character));
       index++;
     }
     return tokens;
@@ -2750,7 +2812,7 @@
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input"]);
-  const INPUT_STRINGS = new Set(["value", "image", "source-text"]);
+  const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
 
   /**
@@ -3332,7 +3394,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 27;
+  const DOM_FORMAT = 28;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3364,7 +3426,7 @@
    * of the value must already be checked, and its nesting bounded.
    * @param {string} op
    * @param {any} value
-   * @param {{isMark(code: number): boolean}} [unicode]
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} [unicode]
    * @returns {{problem: string, node: any} | null}
    */
   function testValueFault(op, value, unicode) {
@@ -3382,7 +3444,7 @@
    * character tags in their canonical spelling by the table, which says which
    * code points are marks, the start not above the end.
    * @param {unknown} range
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @returns {string | null}
    */
   function rangeProblem(range, unicode) {
@@ -3447,7 +3509,7 @@
    * the loader's table: the lowercase mapping that the strings of value
    * tests are checked against, and the marks that decide a character tag's canonical spelling.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {string | null}
    */
@@ -3581,7 +3643,7 @@
         if (fields.length !== 1 || !Array.isArray(value.concat) || !value.concat.length) return "a malformed recipe";
         for (const atom of value.concat) {
           if (!stringTerm(atom)) {
-            if (!object(atom) || !["value", "image", "source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
+            if (!object(atom) || !["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(atom.method) || atom.args?.length !== 0) return "a malformed recipe atom";
             const receiver = atom.receiver;
             if (!(typeof receiver?.capture === "string" && Object.keys(receiver).length === 1) && !(["value", "image"].includes(atom.method) && receiver?.method === "emitted" && receiver.args?.length === 0 && typeof receiver.receiver?.capture === "string" && Object.keys(receiver.receiver).length === 1)) return "a malformed recipe receiver";
           }
@@ -3692,7 +3754,7 @@
   /**
    * Whether a value is a grammar DOM, by the loader's table.
    * @param {unknown} dom
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {dom is GrammarDom}
    */
@@ -5769,7 +5831,7 @@
     /**
      * @param {string} stageName
      * @param {{path: string, dom: GrammarDom}[]} documents
-     * @param {{isMark(code: number): boolean}} unicode
+     * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
      *   the loader's table, for the tags of a range in a constant's value and
      *   the canonical value of a string constant in a test
      */
@@ -9705,9 +9767,10 @@
           const where = observe(context, spanOf(context, receiver, scope), scope, term.method);
           return { string: where.context.tokens.slice(where.start, where.end).map(token => token[/** @type {"value" | "image"} */ (term.method)]).join("") };
         }
-        case "source-text": {
+        case "source-text": case "decomposed-source-text": {
           const where = observe(context, spanOf(context, receiver, scope), scope, "source-text");
-          return { string: textOf(where.context, where.start, where.end) };
+          const text = textOf(where.context, where.start, where.end);
+          return { string: term.method === "decomposed-source-text" ? where.context.unicode.decompose(text) : text };
         }
         case "split": {
           const value = evaluate(context, receiver, scope);
@@ -14362,14 +14425,14 @@
    * @param {Token[]} tokens
    * @param {(token: Token) => Position} positionOf
    * @param {string} path
-   * @param {{isMark(code: number): boolean}} unicode
+   * @param {{isMark(code: number): boolean, changesInDocument?(code:number):boolean}} unicode
    *   the configured category table for diagnostic strings
    * @param {boolean} [deferEmission] slot checks precede absent-carrier pruning
    * @returns {GrammarDom}
    */
   function treeToDom(tree, tokens, positionOf, path, unicode, deferEmission = false) {
     /** @type {(node: ResultNode) => string} */
-    const text = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
+    const sourceText = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].text;
     /** @type {(node: ResultNode) => Position} */
     const at = (node) => positionOf(tokens[firstToken(node)]);
     /** @type {(message: string, node: ResultNode) => never} */
@@ -14395,8 +14458,12 @@
       }
       return result;
     };
+    /** @type {(node: ResultNode) => string} */
+    const valueOf = (node) => tokens[/** @type {import("./types.js").TokenNode} */ (node).token].value;
+    /** @type {(node: ResultNode) => string} */
+    const operator = (node) => ({ "≠": "≠", "∉": "∉", "⊈": "⊈", "≇": "≇" })[valueOf(node)] || valueOf(node);
     /** @type {(node: ResultNode) => string | null} */
-    const tokenText = (node) => (node.kind === "token" ? text(node) : null);
+    const tokenValue = (node) => (node.kind === "token" ? valueOf(node) : null);
     /** @type {(node: ResultNode, name: string) => RuleNode[]} */
     const ofRule = (node, name) => parts(node).flatMap((child) => (child.kind === "rule" && child.rule === name ? [child] : []));
     /** @type {(node: ResultNode, name: string) => RuleNode | undefined} */
@@ -14475,16 +14542,16 @@
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
       if (ruleOf(item) === "directive") {
-        const name = text(token(item)).slice(1);
+        const name = valueOf(token(item)).slice(1);
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
-        if (name === "ambiguity-resolution" && operands.some((child) => text(token(child)) === "maximal")) {
+        if (name === "ambiguity-resolution" && operands.some((child) => valueOf(token(child)) === "maximal")) {
           fail("the maximal operand is retired", item);
         }
         const args = operands.map((child) => {
-            if (ruleOf(child) === "argument-word") return text(token(child));
-            if (ruleOf(child) === "argument-string") return text(token(child)).slice(1, -1);
+            if (ruleOf(child) === "argument-word") return valueOf(token(child));
+            if (ruleOf(child) === "argument-string") return sourceText(token(child)).slice(1, -1);
             // A range or a property has no tag; operandProblem has refused it.
             return tagOf(symbolPart(child));
           });
@@ -14524,7 +14591,7 @@
      */
     function readClassifier(node) {
       const nameNode = only(node, "classifier-name");
-      const name = text(token(nameNode));
+      const name = valueOf(token(nameNode));
       if (!CLASSIFIER_NAME.test(name)) fail(`${name} begins with a capital, so it is a tag; a classifier's name begins with a lower-case letter`, nameNode);
       return { name, entries: ofRule(node, "classifier-entry").map(readEntry), at: at(node) };
     }
@@ -14546,9 +14613,9 @@
 
         return key;
       });
-      const op = /** @type {"∈" | "∉"} */ (text(token(only(node, "classifier-operator"))));
+      const op = /** @type {"∈" | "∉"} */ (operator(token(only(node, "classifier-operator"))));
       const classNode = only(node, "classifier-class");
-      const name = text(token(classNode));
+      const name = valueOf(token(classNode));
       if (!/^[A-Z](?:[A-Za-z0-9_-]*[A-Z])?$/.test(name)) fail(`${name} is not a class: a class starts and ends with a capital`, classNode);
       return { guards, keys, op, class: name, at: at(node) };
     }
@@ -14581,8 +14648,8 @@
      * @returns {Generator<Step, DomConstant, any>}
      */
     function* readConstant(node) {
-      const keyword = text(token(only(node, "constant-definer")));
-      const name = text(token(only(node, "constant-reference"))).slice(1);
+      const keyword = valueOf(token(only(node, "constant-definer")));
+      const name = valueOf(token(only(node, "constant-reference"))).slice(1);
       if (!/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("an engine constant cannot be declared", only(node, "constant-reference"));
       const valueNode = only(node, "term");
       closedFor = "a constant's value";
@@ -14599,16 +14666,16 @@
      * @returns {Generator<Step, DomRule, any>}
      */
     function* readRule(node) {
-      const keyword = text(token(only(node, "definer")));
+      const keyword = valueOf(token(only(node, "definer")));
       /** @type {Partial<DomRule>} */
-      const rule = { name: text(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
+      const rule = { name: valueOf(token(only(node, "rule-name"))), op: keyword === "%extend-rule" ? "extend" : keyword === "%redefine-rule" ? "redefine" : "define" };
       if (rule.name !== "#" && !/^[a-z][A-Za-z0-9_-]*$/.test(rule.name || "")) fail("a rule name begins with a lowercase letter", only(node, "rule-name"));
       const flags = one(node, "rule-flags");
       rule.flags = [];
       if (flags) {
         if (rule.op === "extend") fail("%extend-rule accepts no flags", flags);
         for (const flag of some(flags, "rule-flag")) {
-          const name = text(token(flag));
+          const name = valueOf(token(flag));
           if (name !== "leftmost-longest") fail(`unknown rule flag ${name}`, flag);
           if (rule.flags.includes(name)) fail(`duplicate rule flag ${name}`, flag);
           rule.flags.push(name);
@@ -14645,7 +14712,7 @@
 
     /** @param {ResultNode} node @returns {import("./types.js").Guard} */
     function readGuard(node) {
-      const spelled = text(token(node));
+      const spelled = valueOf(token(node));
       const found = /^(¬?)([A-Za-z][A-Za-z0-9-]*)([?!])$/.exec(spelled);
       if (!found || (found[1] && found[3] === "!")) fail("invalid feature guard", node);
       return { feature: found[2], kind: found[3] === "!" ? "warning" : "gate", negated: found[1] === "¬" };
@@ -14666,7 +14733,7 @@
       const twice = duplicateCaptures(alternative.expr).map((capture) => /** @type {ResultNode} */ (captureNodes.get(capture)));
       if (twice.length > 0) {
         const first = twice.reduce((a, b) => (firstToken(b) < firstToken(a) ? b : a));
-        fail(`the capture $${text(token(first)).slice(1)} is read twice by one production of the alternative`, first);
+        fail(`the capture $${valueOf(token(first)).slice(1)} is read twice by one production of the alternative`, first);
       }
       const tags = one(node, "alternative-tags");
       if (tags) alternative.tags = yield readConstituentTags(tags);
@@ -14697,7 +14764,7 @@
           const items = [];
           for (const item of found) items.push(yield readExpression(item));
           const expr = {ranked:items};
-          const separator = parts(node).find(child => child.kind === "token" && text(child) === "≻");
+          const separator = parts(node).find(child => child.kind === "token" && valueOf(child) === "≻");
           if (separator) rankedLocations.set(expr,at(separator));
           return expr;
         }
@@ -14735,20 +14802,20 @@
       // Its required part first, then its markers (engine §9).
       const choice = only(node, "choice");
       const found = parts(node);
-      const markers = found.filter((child) => tokenText(child) === "+");
+      const markers = found.filter((child) => tokenValue(child) === "+");
       if (markers.length >= 2) fail("an optional has one marker + at most", markers[1]);
       if (markers.length === 0) return { optional: yield readExpression(choice) };
       const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &";
       // One conjunction of one sequence, with no leading | or & either: the
       // terminator stands directly after the marker (engine §9).
       const conjunctions = ofRule(choice, "conjunction");
-      const leading = parts(choice).some((child) => tokenText(child) === "|") ||
-        (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenText(child) === "&"));
+      const leading = parts(choice).some((child) => tokenValue(child) === "|") ||
+        (conjunctions.length === 1 && parts(conjunctions[0]).some((child) => tokenValue(child) === "&"));
       const sequences = conjunctions.length === 1 && !leading ? ofRule(conjunctions[0], "sequence") : [];
       const primary = sequences.length === 1 ? ofRule(sequences[0], "primary")[0] : undefined;
       const head = primary ? knownOf(primary, PRIMARIES) : undefined;
       /** @type {(symbol: RuleNode) => boolean} */
-      const isTerminal = (symbol) => ["tag", "reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(text(token(symbol)));
+      const isTerminal = (symbol) => ["tag", "reference"].includes(ruleOf(symbol)) && /^[A-Z]/.test(valueOf(token(symbol)));
       if (!head) fail(form, node);
       const symbol = /** @type {RuleNode} */ (head);
       if (ruleOf(symbol) === "tested") {
@@ -14776,7 +14843,7 @@
     function* readRepetition(node, whole) {
       const found = parts(node);
       const choices = some(node, "choice");
-      const markers = found.flatMap((child, index) => (tokenText(child) === "..." ? [index] : []));
+      const markers = found.flatMap((child, index) => (tokenValue(child) === "..." ? [index] : []));
       // Two markers are an error at the second, and a marker after the
       // separator is an error at that marker, whichever a reader meets first.
       if (markers.length >= 2) fail("braces have one chain marker ... at most", found[markers[1]]);
@@ -14802,7 +14869,7 @@
      */
     function* readPrimary(node, whole = false) {
       switch (ruleOf(node)) {
-        case "reference": return { ref: text(token(node)) };
+        case "reference": return { ref: valueOf(token(node)) };
         case "tag": return { ref: tagOf(token(node)) };
         case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
         case "wildcard": token(node); return { wildcard: true };
@@ -14812,7 +14879,7 @@
           if (!tests.length) lacks(node, "test");
           const wrapper = one(node, "primary");
           const symbol = wrapper ? knownOf(wrapper, PRIMARIES) : parts(node).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(node, "base primary");
-          checkTestOrder(tests, ["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)) && !(ruleOf(symbol) === "reference" && text(token(symbol)) === "#"));
+          checkTestOrder(tests, ["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(symbol)) && !(ruleOf(symbol) === "reference" && valueOf(token(symbol)) === "#"));
           // Convert the base before test operands (engine §9.3).
           let expr = yield readPrimary(symbol);
           for (const test of tests) expr = { ...(yield readTest(test)), expr };
@@ -14823,13 +14890,13 @@
           if (marked > 0) fail("a capture cannot stand inside an elidable optional, which elision restores as one unit", node);
           const captureToken = token(node);
           const inner = only(node, "primary");
-          if (text(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
-          if (!CAPTURE_NAME.test(text(captureToken).slice(1))) fail("a capture's name is all lower case", node);
+          if (valueOf(captureToken) === "$") fail("$ is the whole constituent and wraps nothing", node);
+          if (!CAPTURE_NAME.test(valueOf(captureToken).slice(1))) fail("a capture's name is all lower case", node);
           const wrapped = knownOf(inner, PRIMARIES);
           const target = one(wrapped, "primary");
           const base = ruleOf(wrapped) === "tested" ? target ? knownOf(target, PRIMARIES) : parts(wrapped).find(child => child.kind === "rule" && PRIMARIES.has(child.rule)) || lacks(wrapped, "base primary") : wrapped;
           if (!["reference", "tag", "string-terminal", "range", "wildcard"].includes(ruleOf(base))) fail("a capture wraps one symbol", node);
-          const name = text(captureToken).slice(1);
+          const name = valueOf(captureToken).slice(1);
           const expr = /** @type {Expr} */ (yield readPrimary(wrapped));
           const capture = { capture: name, expr };
           captureNodes.set(capture, node);
@@ -14861,7 +14928,7 @@
       for (const itemNode of itemNodes) {
         const targetNode = only(itemNode, "emit-target");
         const target = symbolPart(targetNode);
-        const written = target.kind === "token" ? text(target) : "";
+        const written = target.kind === "token" ? valueOf(target) : "";
         if (written !== "ε" && !written.startsWith("$")) fail("an emission target is a capture or ε", targetNode);
         /** @type {any} */
         const item = written === "ε" ? { insert: true } : { capture: written.slice(1) };
@@ -14883,7 +14950,7 @@
     /** @param {RuleNode} node @returns {string[]} */
     function readAttachment(node) {
       return some(node, "capture-reference").map(child => {
-        const name = text(token(child)).slice(1);
+        const name = valueOf(token(child)).slice(1);
         if (!name) fail("an attachment holds a named capture, not $", node);
         return name;
       });
@@ -14904,7 +14971,7 @@
     function* readRecipe(node) {
       const concat = [];
       for (const atom of some(node, "recipe-atom")) {
-        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.text))) fail("a recipe atom has no grouping or arguments", atom);
+        if (tokens.slice(atom.span[0], atom.span[1]).some(token => ["(", ")"].includes(token.value))) fail("a recipe atom has no grouping or arguments", atom);
         let current = only(atom, "term");
         for (const kind of ["term", "union", "intersection", "term-atom"]) {
           if (ruleOf(current) !== kind) fail("a recipe requires a closed string atom", atom);
@@ -14920,7 +14987,7 @@
         recipeContext = false;
         if (term.method) {
           const receiver = term.receiver;
-          const input = ["value", "image", "source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
+          const input = ["value", "image", "source-text", "decomposed-source-text", "verbatim-text"].includes(term.method) && receiver.capture !== undefined;
           const emitted = ["value", "image"].includes(term.method) && receiver.method === "emitted" && receiver.receiver.capture !== undefined;
           if (!input && !emitted) fail("a recipe requires a bare capture string method", atom);
         }
@@ -14953,11 +15020,11 @@
           const type = termType(value);
           const problem = "problem" in type ? type.problem : expectedProblem(type.type, "tags");
           if (problem) fail(problem, operand);
-          requirements.push({ negated: parts(requirement).some(child => tokenText(child) === "¬"), value });
+          requirements.push({ negated: parts(requirement).some(child => tokenValue(child) === "¬"), value });
         }
         return { test: "tags", requirements };
       }
-      const comparator = text(token(only(node, "test")));
+      const comparator = operator(token(only(node, "test")));
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
       if (!["string", "constant-reference"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
@@ -15059,26 +15126,26 @@
         case "implication":
           return yield readImplication(inner);
         case "presence":
-          return { captured: text(token(inner)).slice(1) };
+          return { captured: valueOf(token(inner)).slice(1) };
         case "tree-comparison": {
           const leftNode = only(inner,"capture-reference");
           const rightNode = only(inner,"union");
           const leaf = firstOfRule(rightNode,"name");
           // A bare name gets this error before capital-initial tag typing.
           if (leaf && tokens.slice(rightNode.span[0],rightNode.span[1]).length === 1) {
-            const name = text(token(leaf));
+            const name = valueOf(token(leaf));
             fail(`tree comparison requires a pattern; write @(${name}), not ${name}`,leaf);
           }
-          const op = /** @type {Comparator} */ (text(token(only(inner,"tree-comparator"))));
+          const op = /** @type {Comparator} */ (operator(token(only(inner,"tree-comparator"))));
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
           if (problem) fail(problem,rightNode);
-          return {op,left:{capture:text(token(leftNode)).slice(1)},right};
+          return {op,left:{capture:valueOf(token(leftNode)).slice(1)},right};
         }
         case "comparison": {
           const [left, right] = some(inner, "union", 2);
-          const op = /** @type {Comparator} */ (text(token(only(inner, "comparator"))));
+          const op = /** @type {Comparator} */ (operator(token(only(inner, "comparator"))));
           const condition = { op, left: /** @type {Term} */ (yield readTerm(left)), right: /** @type {Term} */ (yield readTerm(right)) };
           // The two sides fit the comparator (engine §10).
           const leftType = termType(condition.left);
@@ -15135,7 +15202,7 @@
         if (found.length === 1) return yield readTerm(found[0], argument);
         /** @type {string[]} */
         const operators = parts(node).flatMap((child) => {
-          const written = tokenText(child);
+          const written = tokenValue(child);
           return written === "∪" || written === "∖" ? [written] : [];
         });
         // A leading ∪ is a separator, not an operator.
@@ -15208,7 +15275,7 @@
         case "tag-run": {
           const start = node.span[0];
           const end = node.span[1];
-          if (["∩", "∖"].includes(tokens[start - 1]?.text) || ["∩", "∖"].includes(tokens[end]?.text)) fail("a tag run beside ∩ or ∖ requires parentheses", node);
+          if (["∩", "∖"].includes(tokens[start - 1]?.value) || ["∩", "∖"].includes(tokens[end]?.value)) fail("a tag run beside ∩ or ∖ requires parentheses", node);
           const union = [];
           for (const tag of some(node, "tag", 2)) union.push(yield readTerm(tag));
           return { union };
@@ -15218,7 +15285,7 @@
         case "name": {
           // A bare name is a tag literal if it begins with a capital, and
           // otherwise a rule, which only a function's argument names.
-          const name = text(token(node));
+          const name = valueOf(token(node));
           if (isCapital(name)) return { tag: name };
           if (argument) return /** @type {Term} */ (/** @type {unknown} */ ({ rule: name }));
           return fail(`${name} names a rule, which is not a value; ~${name} is the tag`, node);
@@ -15226,7 +15293,7 @@
         case "empty-set": return { emptySet: true };
         case "method": return yield readMethod(node);
         case "constant-reference": {
-          const name = text(token(node)).slice(1);
+          const name = valueOf(token(node)).slice(1);
           if (name.startsWith("_")) {
             const code = parseInt(name.slice(1), 16);
             if (!/^_[0-9A-F]{4,6}$/.test(name) || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) fail("an engine constant requires a scalar in uppercase hexadecimal", node);
@@ -15234,7 +15301,7 @@
           return { const: name, at: at(node) };
         }
         case "capture-reference": {
-          const capture = text(token(node)).slice(1);
+          const capture = valueOf(token(node)).slice(1);
           if (closedFor) fail(`${closedFor} is a closed term, and holds no capture`, node);
 
           return { capture };
@@ -15257,7 +15324,7 @@
         const nodes=some(node,kind==='pattern-union'?'pattern-intersection':'pattern-sequence');
         const items=[];for(const child of nodes)items.push(yield readPattern(child));
         if(items.length===1)return items[0];
-        const operators=parts(node).filter(n=>n.kind==='token').map(n=>text(n));
+        const operators=parts(node).filter(n=>n.kind==='token').map(n=>valueOf(n));
         let result=asPattern(items[0]);
         for(let i=1;i<items.length;i++) {
           const op=kind==='pattern-intersection'?'intersection':operators[i-1]==='∖'?'difference':'union';
@@ -15271,23 +15338,23 @@
       }
       if(kind==='pattern-item') {
         const child=parts(node)[0];if(!child)return lacks(node,'pattern item');
-        return child.kind==='token'&&text(child)==='⋯'?{siblings:true}:yield readPattern(child);
+        return child.kind==='token'&&valueOf(child)==='⋯'?{siblings:true}:yield readPattern(child);
       }
       if (kind === "pattern-atom") {
         const inner = parts(node);
         const first = inner[0];
         if (!first) return lacks(node, "pattern atom");
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
-        const testable = first.kind === "token" ? isCapital(text(first)) || text(first).startsWith("_")
+        const testable = first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
           : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first));
-        const grouped = first.kind === "token" && text(first) === "(";
+        const grouped = first.kind === "token" && valueOf(first) === "(";
         const nested = ruleOf(first) === "pattern-literal";
         checkTestOrder(tests, testable);
         if (grouped) return yield readPattern(only(node, "pattern-union"));
         if (nested) return { node: asPattern(yield readPattern(one(first, "pattern-union") || only(first, "pattern-atom"))) };
         let expr;
         if (first.kind === "token") {
-          const name = text(first);
+          const name = valueOf(first);
           expr = isCapital(name) || name.startsWith("_") ? { terminal: tagOf(first), at: at(first) } : { name, at: at(first) };
         } else if (ruleOf(first) === "tag") expr = { terminal: tagOf(token(first)), at: at(first) };
         else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
@@ -15309,7 +15376,7 @@
       }
       if(kind==='pattern-path') {
         // The operator is a direct token, before or after the named atom.
-        const operator=text(token(node));
+        const operator=valueOf(token(node));
         return {node:{path:operator==='⋮'?'descendant':operator==='⋰'?'first':'last',pattern:asPattern(yield readPattern(only(node,'pattern-atom')))}};
       }
       return fail(`unexpected ${kind} in pattern`,node);
@@ -15322,7 +15389,7 @@
     function* readMethod(node) {
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
-        const name = text(token(only(selector, "method-name")));
+        const name = valueOf(token(only(selector, "method-name")));
         const args = [];
         const argumentsNode = one(selector, "arguments");
         if (argumentsNode) for (const argument of some(argumentsNode, "argument")) args.push(yield readTerm(only(argument, "term"), true));
@@ -15348,7 +15415,9 @@
 
     /** @param {ResultNode} tokenNode @returns {any} */
     function decode(tokenNode) {
-      const spelled = [...text(tokenNode)].slice(1, -1);
+      const spelled = [...valueOf(tokenNode)].slice(1, -1);
+      const original = [...sourceText(tokenNode)].slice(1, -1);
+      let originalIndex = 0;
       const segments = [];
       let literal = "";
       for (let index = 0; index < spelled.length; index++) {
@@ -15360,7 +15429,12 @@
           while (spelled[end] !== ")") end++;
           const name = spelled.slice(index + 2, end).join("");
           const [line, column] = at(tokenNode);
-          const before = spelled.slice(0, index);
+          while (originalIndex < original.length && !(original[originalIndex] === "$" && original[originalIndex + 1] === "(")) {
+            originalIndex += original[originalIndex] === "$" && original[originalIndex + 1] === "$" ? 2 : 1;
+          }
+          const before = original.slice(0, originalIndex);
+          while (originalIndex < original.length && original[originalIndex] !== ")") originalIndex++;
+          originalIndex++;
           let referenceLine = line;
           let referenceColumn = column + 1;
           for (let i = 0; i < before.length; i++) {
@@ -15386,7 +15460,7 @@
 
     /** @param {ResultNode} tokenNode @returns {string} */
     function tagOf(tokenNode) {
-      const name = text(tokenNode);
+      const name = valueOf(tokenNode);
       if (name.startsWith("_") && !PROPERTY_NAMES.has(name.slice(1))) fail("an unknown engine tag", tokenNode);
       if (!name.startsWith("_") && !/^[A-Z][A-Za-z0-9_-]*$/.test(name)) fail("a user tag begins with a capital", tokenNode);
       return name;
@@ -15411,7 +15485,7 @@
      */
     function operandKind(node) {
       if (ruleOf(node) === "argument-string") return "string";
-      if (ruleOf(node) === "argument-word") return isCapital(text(token(node))) ? "class" : "name";
+      if (ruleOf(node) === "argument-word") return isCapital(valueOf(token(node))) ? "class" : "name";
       return "tag";
     }
   }
@@ -15893,7 +15967,9 @@
     /** @param {Resources} read */
     constructor(read) {
       this.read = read;
-      this.unicode = new UnicodeTable(this.need("unicode.txt"));
+      const unicodeText = this.need("unicode.txt");
+      this.unicodeHash = fnv1a64(unicodeText);
+      this.unicode = new UnicodeTable(unicodeText);
       try {
         const bootstrapText = this.need("notation/bootstrap.json");
         const bootstrap = readBootstrap(bootstrapText, this.unicode);
@@ -15934,14 +16010,22 @@
         } catch {
           data = null;
         }
-        if (data && data.format === DOM_FORMAT && data.bootstrap === this.bootstrapHash && data.documents && typeof data.documents === "object") {
-          for (const [path, entry] of Object.entries(data.documents)) {
-            if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
-          }
-        }
+        this.useCompiled(data);
       }
       /** @type {Map<string, GrammarDom>} */
       this.cache = new Map();
+    }
+
+    /**
+     * Admit a cache envelope only under this loader's complete identity.
+     * The playground uses the same gate for DOMs retained across workers.
+     * @param {any} data
+     */
+    useCompiled(data) {
+      if (!data || data.format !== DOM_FORMAT || data.bootstrap !== this.bootstrapHash || data.unicode !== this.unicodeHash || !data.documents || typeof data.documents !== "object") return;
+      for (const [path, entry] of Object.entries(/** @type {Record<string, any>} */ (data.documents))) {
+        if (entry && typeof entry.hash === "string" && isDom(entry.dom, this.unicode)) this.compiled.set(path, entry);
+      }
     }
 
     /**
@@ -15973,7 +16057,7 @@
         throw new GencmuError("usage", `${path}: the document is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`, { document: path });
       }
       const hash = fnv1a64(text);
-      const key = `${path}\u0000${hash}`;
+      const key = `${path}\u0000${hash}\u0000${this.bootstrapHash}\u0000${this.unicodeHash}\u0000${DOM_FORMAT}`;
       const cached = this.cache.get(key);
       if (cached) return cached;
       const entry = this.compiled.get(path);
@@ -16212,8 +16296,8 @@
       const sourceText = [...text];
       /** @type {StageReport[]} */
       const stages = continued ? continued.stages.slice() : [];
-      let tokens = options.tokens || characterTokens(text, this.loader.unicode);
-      if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
+      let tokens = continued ? /** @type {Token[]} */ (stages[stages.length - 1].output)
+        : options.tokens || characterTokens(text, this.loader.unicode);
       const last = lastStage(this.stages, options.until);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];

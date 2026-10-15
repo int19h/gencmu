@@ -178,7 +178,7 @@ for (const file of grammarFiles()) {
   const earlier = read.get(file);
   documents[file] = { hash: fnv1a64(text), dom: !moved && earlier && earlier.text === text ? earlier.dom : loader.readDocument(text, file) };
 }
-const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, documents };
+const compiled = { format: DOM_FORMAT, bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, documents };
 
 // A rule whose alternatives are single symbols does not put one on each of
 // its lines, and no line of its body holds more than 100 characters

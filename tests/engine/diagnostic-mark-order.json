@@ -1,0 +1,23 @@
+{
+  "description": "Canonical terminal spelling preserves exact scalar identity.",
+  "grammar": "%rule text \"$(_302E)$(_1B44)\"",
+  "tokens": [
+    {
+      "text": "᭄〮",
+      "tags": [],
+      "value": "᭄〮"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "\"$(_302E)$(_1B44)\""
+          }
+        ]
+      }
+    }
+  }
+}

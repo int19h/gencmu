@@ -35,6 +35,7 @@ func TestNotationCases(t *testing.T) {
 		}
 		var c struct {
 			Description string `json:"description"`
+			CacheMisses bool   `json:"cacheMisses"`
 			Document    string `json:"document"`
 			Expect      struct {
 				Dom   *any `json:"dom"`
@@ -68,6 +69,9 @@ func TestNotationCases(t *testing.T) {
 			}
 			if err := match(pattern, domValue(t, dom), "dom"); err != nil {
 				t.Fatalf("%s\n%v\n%s", c.Description, err, dom.json())
+			}
+			if c.CacheMisses {
+				notationCacheCases(t, c.Document, dom, bundled.reader)
 			}
 		})
 	}
@@ -144,6 +148,7 @@ func TestCompiled(t *testing.T) {
 	var c struct {
 		Format    int    `json:"format"`
 		Bootstrap string `json:"bootstrap"`
+		Unicode   string `json:"unicode"`
 		Documents map[string]struct {
 			Hash string          `json:"hash"`
 			Dom  json.RawMessage `json:"dom"`
@@ -152,7 +157,7 @@ func TestCompiled(t *testing.T) {
 	if err := unmarshalJSON([]byte(bundled.sources["compiled.json"]), &c); err != nil {
 		t.Fatal(err)
 	}
-	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash {
+	if c.Format != domFormat || c.Bootstrap != bundled.reader.hash || c.Unicode != bundled.uni.hash {
 		t.Fatalf("compiled.json is for format %d and bootstrap %s, not %d and %s", c.Format, c.Bootstrap, domFormat, bundled.reader.hash)
 	}
 	if len(c.Documents) == 0 {
@@ -216,7 +221,7 @@ func TestCacheUsedAndBypassed(t *testing.T) {
 		t.Error("parsing with the cache and without it differ")
 	}
 	// A cache entry for a different bootstrap is a miss.
-	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000"); len(got) != 0 {
+	if got := readCompiled(bundled.sources["compiled.json"], "0000000000000000", bundled.uni.hash); len(got) != 0 {
 		t.Error("compiled.json was used with another bootstrap")
 	}
 }
@@ -436,7 +441,7 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"é"`, 0x10FFFD: `"$(_10FFFD)"`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"$(_00E9)"`, '각': `"$(_AC01)"`, 0x10FFFD: `"$(_10FFFD)"`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
 		}
@@ -601,12 +606,12 @@ func TestFormat17Refused(t *testing.T) {
 		return `{"format":` + strconv.Itoa(format) + `,"rules":[{"name":"text","op":"define","flags":[],"alternatives":[{"guards":[],"expr":` + expr + `}],"conditions":[],"at":[2,1]}],"directives":[],"constants":[],"classifiers":[],"implications":[]}`
 	}
 	entry := func(format int, d string) string {
-		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
+		return `{"format":` + strconv.Itoa(format) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"0","dom":` + d + `}}}`
 	}
-	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash); len(got) != 1 {
+	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 1 {
 		t.Fatalf("a compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"min":1}`)), bundled.reader.hash); len(got) != 0 {
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"min":1}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 0 {
 		t.Fatal("a compiled.json of format 17 is used")
 	}
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"min":1}`)} {

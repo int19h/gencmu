@@ -140,11 +140,13 @@ def scalar_problem(text: str) -> str | None:
 
 
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
-    """The input of a pipeline's first stage: one token per code point,
-    tagged with its character tag and nothing else (engine §1)."""
+    """One token per decomposed scalar, with its original source (engine §1)."""
+    problem = scalar_problem(text)
+    if problem is not None:
+        raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
     tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
-    for index, char in enumerate(text):
+    for index, (char, origin) in enumerate(unicode.decompose_with_origins(text)):
         found = tags.get(char)
         if found is None:
             category = unicode.category(ord(char))
@@ -152,7 +154,7 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
             if unicode.is_white_space(ord(char)):
                 assigned.add("_White_Space")
             found = tags[char] = frozenset(assigned)
-        tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
+        tokens.append(Token(text[origin], found, (index, index + 1), (origin, origin + 1), value=char, image=char))
     return tokens
 
 
@@ -166,9 +168,9 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
-        # The DOMs this reader read, by the hash of the text and the DOM
-        # format. The module's lock guards it.
-        self.doms: Recent[tuple[str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        # Each DOM uses the document hash, bootstrap hash, table fingerprint
+        # and DOM format. The module's lock guards it.
+        self.doms: Recent[tuple[str, str, str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
         try:
             self.stages = self._bootstrap_stages(bootstrap, unicode)
         except GencmuError as error:
@@ -248,7 +250,7 @@ class NotationReader:
         for number, (name, lowered) in enumerate(self.stages):
             if name == 'syntax':
                 for token in tokens:
-                    if token.text == '%prefer':
+                    if token.value == '%prefer':
                         line, column = grammar_text.position(token.source[0])
                         raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
@@ -348,7 +350,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
     unicode = _unicode_table(unicode_text)
     try:
         data = json.loads(compiled)
-        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash:
+        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint:
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
@@ -398,7 +400,7 @@ class _Loader:
         # The reader keeps the DOMs it read. So the bootstrap and the Unicode
         # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
-        key = (text_hash, DOM_FORMAT)
+        key = (text_hash, self.reader.hash, self.unicode.fingerprint, DOM_FORMAT)
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:

@@ -583,7 +583,7 @@ pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) ->
     // The stage's implications, as tag sets of this parse (§11).
     let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);
     let mut out: Vec<Emitted> = Vec::new();
-    let mut strings = crate::strings::Strings::new(g, tree, tokens, recognizer.shared.text);
+    let mut strings = crate::strings::Strings::new(g, tree, tokens, recognizer.shared.text, recognizer.shared.unicode);
     let mut forwarding = Forwarding { on: tokens.iter().any(Tok::has_attachments), inherited: FxSet::default() };
     // The output positions of the marks of the items being emitted.
     let mut marks: Vec<usize> = Vec::new();

@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a B %conditions $.without-elision.matches(r)\n```\n",
   "expect": {
     "dom": {
-      "format": 27,
+      "format": 28,
       "rules": [
         {
           "conditions": [

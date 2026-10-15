@@ -54,8 +54,6 @@ class EngineCases(unittest.TestCase):
     def check_family_case(self, path: Path) -> None:
         with deadline(path.name):
             case = load_case(path)
-            if path.name in ("values-null-value.json", "values-null-image.json"):
-                self.skipTest("Python Token uses None as the documented string default, so explicit JSON null cannot express an invalid string through this constructor")
             if "parses" in case:
                 # The case parses its input several times with the one
                 # loaded dialect (tests/README.md).

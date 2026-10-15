@@ -56,14 +56,16 @@
       // One Loader for the worker's life: it caches every document's DOM by
       // path and text hash, so a document read once is not read again.
       loader = gencmu.loaderFromSources(sources);
-      for (const [path, entry] of Object.entries(message.compiled || {})) loader.compiled.set(path, entry);
+      for (const [path, entry] of Object.entries(message.compiled || {})) {
+        loader.useCompiled({ format: entry.dom.format, bootstrap: entry.bootstrap, unicode: entry.unicode, documents: { [path]: entry } });
+      }
       // Reading a document that compiled.json does not hold goes through the
       // notation grammar and can take seconds; say so, and hand the DOM back.
       const read = loader.readDocument.bind(loader);
       loader.readDocument = (markdown, path, deferEmission) => {
         phase("reading", path);
         const dom = read(markdown, path, deferEmission);
-        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), dom });
+        post({ kind: "dom", path, hash: gencmu.fnv1a64(markdown), bootstrap: loader.bootstrapHash, unicode: loader.unicodeHash, dom });
         return dom;
       };
       dialects.clear();
@@ -377,7 +379,7 @@
       worker.onmessage = (event) => {
         if (this.worker !== worker) return;
         const message = event.data;
-        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, dom: message.dom });
+        if (message.kind === "dom") this.doms.set(message.path, { hash: message.hash, bootstrap: message.bootstrap, unicode: message.unicode, dom: message.dom });
         else this.listener(message);
       };
       worker.onerror = (event) => {

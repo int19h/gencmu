@@ -580,7 +580,7 @@ pub(crate) fn restore_locations(
     position: &dyn Fn(usize) -> (usize, usize),
 ) {
     let separators: Vec<_> =
-        tokens.iter().filter(|token| token.text == "≻").map(|token| position(token.source.start)).collect();
+        tokens.iter().filter(|token| token.value == "≻").map(|token| position(token.source.start)).collect();
     let mut index = 0;
     for rule in &mut dom.rules {
         for alternative in &mut rule.alternatives {
@@ -619,17 +619,17 @@ pub(crate) fn restore_locations(
     }
 }
 pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool {
-    if tokens.get(at).is_some_and(|token| token.text == "≻")
-        || at > 0 && tokens.get(at - 1).is_some_and(|token| token.text == "≻")
+    if tokens.get(at).is_some_and(|token| token.value == "≻")
+        || at > 0 && tokens.get(at - 1).is_some_and(|token| token.value == "≻")
     {
         return true;
     }
-    if !tokens.get(at).is_some_and(|token| token.text == "|") {
+    if !tokens.get(at).is_some_and(|token| token.value == "|") {
         return false;
     }
     let mut levels = vec![false];
     for token in tokens.iter().take(at) {
-        match token.text.as_str() {
+        match token.value.as_str() {
             "(" | "[" | "{" => levels.push(false),
             ")" | "]" | "}" => {
                 levels.pop();
@@ -640,7 +640,7 @@ pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool
                 }
             }
             _ => {
-                if token.text.starts_with('%') {
+                if token.value.starts_with('%') {
                     if let Some(level) = levels.last_mut() {
                         *level = false;
                     }

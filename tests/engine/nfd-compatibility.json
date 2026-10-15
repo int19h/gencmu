@@ -1,0 +1,35 @@
+{
+  "description": "Canonical decomposition preserves original sources.",
+  "grammar": "%rule text [{c}]\n%rule c _\n%emits $",
+  "input": "ﬁＫ",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "ﬁ",
+              "image": "ﬁ",
+              "source": [
+                0,
+                1
+              ],
+              "text": "ﬁ"
+            },
+            {
+              "value": "Ｋ",
+              "image": "Ｋ",
+              "source": [
+                1,
+                2
+              ],
+              "text": "Ｋ"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

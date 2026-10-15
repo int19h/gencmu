@@ -1,0 +1,10 @@
+{
+  "description": "An invalid interpolation after decomposed names and text reports the original column.",
+  "document": "```jbogenbau\n%const $K \"x\"\n%rule rK \"é$(K)$(_110000)\"\n```",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 16
+    }
+  }
+}

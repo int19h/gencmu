@@ -18,7 +18,8 @@
 // dialect that cannot be loaded is a *Error, carrying the document, line
 // and column where known. A document is read through the notation only
 // when the bundled compiled.json has no DOM for its text under the current
-// bootstrap, so loading a bundled dialect reads no grammar at all.
+// bootstrap, Unicode table, and DOM format version. A bundled dialect
+// normally loads from the compiled cache.
 //
 // A DOM holds a document's constants, classifiers and implications as the
 // document writes them, never their values. The loader gives each constant
@@ -54,7 +55,12 @@
 // read (engine §11). Canonical JSON omits an attached token's Span.
 // Brackets shows the attachments around the carrier's Image.
 //
-// Result format 12 and grammar DOM format 27 follow docs/output.md.
+// Parse decomposes text with the shared Unicode table before stage zero.
+// Original text and source positions stay unchanged. ParseTokens bypasses
+// decomposition. The .decomposed-source-text method decomposes the original
+// source text of a span with the same table.
+//
+// Result format 12 and grammar DOM format 28 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.

@@ -22,6 +22,7 @@ def cached_sources(texts, dom):
             {
                 "format": DOM_FORMAT,
                 "bootstrap": fnv1a64(bundled_text("notation/bootstrap.json")),
+                "unicode": fnv1a64(bundled_text("unicode.txt")),
                 "documents": {"g.md": {"hash": fnv1a64(texts["g.md"]), "dom": dom}},
             }
         ),
@@ -32,7 +33,7 @@ def cached_sources(texts, dom):
 def require_compiled_cache(reader, texts):
     read = NotationReader.read
     memory_get = reader.doms.get
-    grammar_key = (fnv1a64(texts["g.md"]), DOM_FORMAT)
+    grammar_key = (fnv1a64(texts["g.md"]), reader.hash, reader.unicode.fingerprint, DOM_FORMAT)
 
     def read_source(self, text, path, *args, **kwargs):
         if path == "g.md":

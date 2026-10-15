@@ -1,0 +1,63 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "The accent recipe supplies image A while normalization supplies value a and preserves original text.",
+  "options": {
+    "until": "normalize"
+  },
+  "input": "á",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "á",
+              "value": "A",
+              "image": "A",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                2
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "á",
+              "value": "a",
+              "image": "A",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            }
+          ]
+        }
+      ],
+      "error": null
+    }
+  }
+}

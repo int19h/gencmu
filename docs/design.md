@@ -23,7 +23,7 @@ gencmu ships these parts:
 index.html                 web playground, which GitHub Pages can serve from the root
 playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
-  phonemes/                characters to phonemes: latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna
+  phonemes/                characters to phonemes: latin-experimental, cyrillic-experimental, latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna
   words/                   phonemes to words: forms, shapes, families, lexicons, stream
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
@@ -100,6 +100,8 @@ A verbatim image recipe can include adjacent text that no input token covers. It
 Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
 ## Values and images
+
+The engine decomposes every text before stage zero. So a precomposed letter and its decomposed form read alike.
 
 A value is the token string that comparisons read. An image is the token string that people see. Tags classify tokens independently of these strings. A constituent is one occurrence of a matched rule. It stores tags but neither string.
 
@@ -229,11 +231,12 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The grammar text of the bundled documents is about 160 KB. A character-level stage reads it quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
-The key of a DOM has three parts:
+The key of a DOM has four parts:
 
 - A hash of the document's text
 - A hash of the bootstrap that read it
 - The version number of the DOM format
+- A fingerprint of the Unicode table
 
 A change to any of them misses the cache. A library reads a document through the notation grammar only on a miss. In practice, that happens only for a grammar that someone wrote or edited. The playground caches the DOMs of edited documents in the same way. CI makes sure that the shipped DOMs match a fresh reading, and the tests of every library include forced cache misses.
 
@@ -268,7 +271,7 @@ The phoneme stage puts `Stressed` on the mapping that writes the stressed value.
 
 All bundled Lojban dialects map syllable commas to empty values. The forms stage reads their surviving `Syllable-Break` tag. It expresses dialect-specific restrictions on vowel boundaries through that tag. Zoi delimiter comparisons therefore ignore syllable commas while images preserve them.
 
-A foreign token retains its exact value unless the grammar explicitly maps it. Unicode lowercase mappings play no role in the engine. A value containing the Kelvin sign does not silently become its ASCII lowercase spelling.
+A foreign token retains its exact value unless the grammar explicitly maps it. Unicode lowercase mappings play no role in the engine. A value containing the fullwidth `Ｋ` does not become `K`. The Kelvin sign does, because its decomposition is canonical.
 
 ## Two walks and recipe placement
 
@@ -341,7 +344,7 @@ Verbatim text is original spelling with adjacent uncovered punctuation. `.verbat
 
 The outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. The recipe applies inside compounds because it belongs to the body constituent. Forwarding stores the result and never reconstructs it from later neighbors.
 
-An empty quote body uses plain empty concatenation and takes no neighboring punctuation. A foreign character run in the phoneme stage concatenates stage-zero character images. Its image therefore preserves its original text without a verbatim recipe.
+An empty quote body uses plain empty concatenation and takes no neighboring punctuation. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
@@ -404,7 +407,7 @@ Ranking summaries retain their cycle context. Ranked admission keeps eligibility
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern value and image remain empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its exact restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing values or tags.
 
-Grammar DOM format 27 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 12 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 28 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 12 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 

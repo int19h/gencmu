@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="442" height="404" viewBox="0 0 442 404" role="img" aria-label="Railroad diagram of the rule latin-diphthong-u">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="142.8" lengthAdjust="spacingAndGlyphs">latin-diphthong-u</text>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="terminal"><rect x="40" y="34" width="42" height="24" rx="12"/><text x="61" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;a&quot;</text></g>
+<path d="M82 46h10"/>
+<g class="rule"><rect x="92" y="34" width="310" height="24" rx="0"/><text x="247" y="51" textLength="294" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Caron ¬Accent ¬Ogonek&gt;</text></g>
+<path d="M402 46H422"/>
+<path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="68" width="42" height="24" rx="12"/><text x="61" y="85" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;a&quot;</text></g>
+<path d="M82 80h10"/>
+<g class="rule"><rect x="92" y="68" width="302" height="24" rx="0"/><text x="243" y="85" textLength="285.6" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Caron Accent ¬Ogonek&gt;</text></g>
+<path d="M394 80H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="102" width="42" height="24" rx="12"/><text x="61" y="119" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;A&quot;</text></g>
+<path d="M82 114h10"/>
+<g class="rule"><rect x="92" y="102" width="302" height="24" rx="0"/><text x="243" y="119" textLength="285.6" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Caron Accent ¬Ogonek&gt;</text></g>
+<path d="M394 114H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V138a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="136" width="42" height="24" rx="12"/><text x="61" y="153" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;A&quot;</text></g>
+<path d="M82 148h10"/>
+<g class="rule"><rect x="92" y="136" width="310" height="24" rx="0"/><text x="247" y="153" textLength="294" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Caron ¬Accent ¬Ogonek&gt;</text></g>
+<path d="M402 148H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V172a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="170" width="42" height="24" rx="12"/><text x="61" y="187" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;A&quot;</text></g>
+<path d="M82 182h10"/>
+<g class="rule"><rect x="92" y="170" width="310" height="24" rx="0"/><text x="247" y="187" textLength="294" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Caron ¬Accent ¬Ogonek&gt;</text></g>
+<path d="M402 182H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V216a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="214" width="42" height="24" rx="12"/><text x="61" y="231" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ꜷ&quot;</text></g>
+<path d="M82 226h10"/>
+<path d="M92 226h20"/>
+<g class="rule"><rect x="112" y="214" width="193" height="24" rx="0"/><text x="208.5" y="231" textLength="176.4" lengthAdjust="spacingAndGlyphs">letter-marks&lt;¬Accent&gt;</text></g>
+<path d="M305 226H325"/>
+<path d="M92 226a10 10 0 0 0 10 -10V214a10 10 0 0 1 10 -10H305a10 10 0 0 1 10 10V216a10 10 0 0 0 10 10"/>
+<path d="M325 226H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V250a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="248" width="42" height="24" rx="12"/><text x="61" y="265" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;ꜷ&quot;</text></g>
+<path d="M82 260h10"/>
+<g class="rule"><rect x="92" y="248" width="184" height="24" rx="0"/><text x="184" y="265" textLength="168" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Accent&gt;</text></g>
+<path d="M276 260H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V284a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="282" width="42" height="24" rx="12"/><text x="61" y="299" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ꜷ&quot;</text></g>
+<path d="M82 294h10"/>
+<g class="rule"><rect x="92" y="282" width="184" height="24" rx="0"/><text x="184" y="299" textLength="168" lengthAdjust="spacingAndGlyphs">letter-marks&lt;Accent&gt;</text></g>
+<path d="M276 294H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V328a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="326" width="42" height="24" rx="12"/><text x="61" y="343" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ꜷ&quot;</text></g>
+<path d="M82 338h10"/>
+<path d="M92 338h20"/>
+<g class="rule"><rect x="112" y="326" width="193" height="24" rx="0"/><text x="208.5" y="343" textLength="176.4" lengthAdjust="spacingAndGlyphs">letter-marks&lt;¬Accent&gt;</text></g>
+<path d="M305 338H325"/>
+<path d="M92 338a10 10 0 0 0 10 -10V326a10 10 0 0 1 10 -10H305a10 10 0 0 1 10 10V328a10 10 0 0 0 10 10"/>
+<path d="M325 338H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M20 46a10 10 0 0 1 10 10V372a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="40" y="370" width="42" height="24" rx="12"/><text x="61" y="387" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;Ꜷ&quot;</text></g>
+<path d="M82 382h10"/>
+<path d="M92 382h20"/>
+<g class="rule"><rect x="112" y="370" width="193" height="24" rx="0"/><text x="208.5" y="387" textLength="176.4" lengthAdjust="spacingAndGlyphs">letter-marks&lt;¬Accent&gt;</text></g>
+<path d="M305 382H325"/>
+<path d="M92 382a10 10 0 0 0 10 -10V370a10 10 0 0 1 10 -10H305a10 10 0 0 1 10 10V372a10 10 0 0 0 10 10"/>
+<path d="M325 382H402a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M422 46h6m0 -8v16m4 -16v16"/>
+</svg>

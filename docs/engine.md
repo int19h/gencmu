@@ -33,17 +33,23 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks, and private-use scalars. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks and private-use scalars. It also uses interpolation for Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
 
 A private-use scalar lies in three fixed ranges. These are U+E000 to U+F8FF, U+F0000 to U+FFFFD, and U+100000 to U+10FFFD. Neither predicate depends on the configured Unicode table.
 
-A nonspacing mark has general category Mn in the configured Unicode table. Other mark categories and combining classes do not require escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
+A nonspacing mark has general category Mn in the configured Unicode table. Scalars with a `decompose` record, Hangul syllables and scalars of nonzero combining class also require escaping. Stage zero changes each of them in a grammar document. Other marks need no escaping. An unlisted scalar has category Cn and is not a nonspacing mark.
 
 U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
 
-Stage zero is named `input`. It supplies one token for each scalar `c` at position `i`. `span` and `source` are `[i,i+1)`, and `text`, `value`, and `image` are `c`. Its stored tags are its general category, major category, and applicable `_White_Space`. Stage zero is implicit and adds no executed grammar-stage result.
+Stage zero is named `input`. It first decomposes the text into its canonical decomposition, Unicode Normalization Form D, with the configured Unicode table. Each scalar c at position i becomes its decomposition. That is the table's `decompose` record for c, the jamo of a Hangul syllable, or c itself. Each resulting scalar has origin i. Then each maximal run of scalars whose combining class is not 0 is sorted by combining class.
+
+The sort is stable, and every scalar keeps its origin. Stage zero supplies one token for each scalar dₖ of the result, at index k. Its `span` is `[k,k+1)`. Its `source` is `[i,i+1)`, where i is the origin of dₖ. Its `text` is the original text over its source. Its `value` and `image` are dₖ.
+
+Its stored tags are the general category and major category of dₖ, and `_White_Space` where it applies. Stage zero is implicit and adds no executed grammar-stage result.
+
+Decomposition is canonical only. It applies no compatibility decomposition and no case mapping, and it never composes. Sources, texts, line and column numbers, `.source-text` and `.verbatim-text` read the original text. One precomposed scalar can give several tokens with one source. Canonical reordering can put sources out of order.
 
 A text is a sequence of Unicode scalar values. A text that is not one is a usage error (§13), and the engine refuses it before it makes any character token. In JavaScript and Python, such a text is a string with a lone surrogate. In Go, it is a string that is not valid UTF-8. A Rust string is always valid. The same holds for a grammar document that the caller supplies as a string.
 
@@ -54,12 +60,19 @@ A library reads a grammar document from disk as strict UTF-8. Bytes that are not
 - `unicode 15.1.0` gives the version of the data.
 - `category Lu 0041 005A` gives a range of code points whose General_Category is `Lu`. The category is in its short form.
 - `white-space 0009 000D` gives a range of code points that have the White_Space property.
+- `decompose 00E1 0061 0301` gives the full canonical decomposition of one scalar, in canonical order. Every scalar whose decomposition differs from itself has one record, except the Hangul syllables.
 
-The table has no `lower` records or lowercase mapping.
+- `combining 230 0300 0314` gives a range of code points whose Canonical_Combining_Class is the number, from 1 to 254. A code point in no range has class 0.
+
+The Hangul syllables U+AC00 to U+D7A3 decompose by the arithmetic of the Unicode Standard, section 3.12, and the table lists none of them. The table has no compatibility decompositions, no composition data and no case data.
+
+The table has no `lower` records or lowercase mapping. Its decompositions are canonical only.
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
 A caller can supply `unicode.txt` through the API. It replaces all bundled data, including White_Space, with no fallback. The table must list the whitespace used by its grammar documents. It need not cover every scalar. An unlisted scalar gets Cn and lacks White_Space. No table supplies comparison normalization.
+
+A table without `decompose` records decomposes only Hangul syllables, and one without `combining` records reorders nothing. The bundled notation needs the `decompose` records of U+2260, U+2209, U+2288 and U+2247.
 
 `Cs` belongs only to surrogates U+D800 to U+DFFF, which the table never lists. A surrogate is not a scalar and cannot become a stage-zero token. `_Cs` is a valid stored-tag name but stage zero never assigns it.
 
@@ -115,7 +128,7 @@ In contrast, `:: _Lu` and `:: ($x ⟹ _Lu)` have `lit = {_Lu}`. Both are documen
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Classifiers cannot assign them because engine tags are not classes. Neither side of `%implies` can name one. An engine tag cannot mark an omission. Disabled gates excuse none of these document errors. Pattern constants and tests can read engine tags.
 
-Caller tokens bypass stage-zero character construction. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization. The caller can supply engine tags to represent earlier stages. Nonempty supplied attachments remain a usage error.
+Caller tokens bypass stage-zero character construction. Caller tokens also skip canonical decomposition, and the text beside them is not decomposed. Their values and images default independently to text, with explicit empty strings preserved. The engine adds no tags or normalization. The caller can supply engine tags to represent earlier stages. Nonempty supplied attachments remain a usage error.
 
 ## 2. Grammars
 
@@ -632,7 +645,9 @@ A token's `value` is its comparison string and its `image` is its visible string
 
 - A selected value recipe supplies the token value and its implied image, unless a stronger explicit image recipe applies (§11).
 - A channel without a selected recipe concatenates non-erased child contributions in order. The string walk enters child constituents but never executes their emission lists.
-- A stage-zero character has that character as both strings. A caller-supplied token defaults each omitted string independently to its text. It carries no supplied attachments.
+- A stage-zero token has its decomposed scalar as both strings (§1). A caller-supplied token defaults each omitted string independently to its text. It carries no supplied attachments.
+
+Default images preserve decomposition, rather than original spelling. For example, `≇` has image `≅` followed by U+0338. Its `text` remains `≇`. An explicit image recipe can select `.source-text` or `.verbatim-text` to preserve original spelling.
 
 The value and image joins concatenate each channel's parts in order, without trimming or merging. Empty strings contribute no characters but remain counted parts for ownership. A pause contributes the value and image that its grammar supplies. The engine knows no pause character or spacing rule.
 
@@ -652,7 +667,9 @@ Every comparison is exact. A zoi compound compares by the concatenation or value
 
 `span.source-text` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 
-In §7, `.value`, `.image`, and `.source-text` read projected original tokens. Synthetic tokens add no input string or text. Terminal tests can read their saved recognition value, while omitted pattern leaves always observe empty strings.
+`span.decomposed-source-text` is the canonical decomposition of `span.source-text`, by the algorithm of §1 and the configured Unicode table. The source text is decomposed alone: each scalar becomes its decomposition, and each run of marks of nonzero combining class is sorted by class. It is the empty string for an empty span. Where the span covers whole clusters, it equals the concatenation of the stage-zero values over the span's source.
+
+In §7, `.value`, `.image`, `.source-text`, and `.decomposed-source-text` read projected original tokens. Synthetic tokens add no input string or text. Terminal tests can read their saved recognition value, while omitted pattern leaves always observe empty strings.
 
 ## 6. Choosing a parse
 
@@ -1100,6 +1117,8 @@ The info string is `jbogenbau` when it is exactly that once leading and trailing
 
 The reader parses the grammar text with the notation dialect, `grammars/dialects/notation.md`, whose DOM ships as `grammars/notation/bootstrap.json`. The rules in §9 turn the tree that this parse produces into the document's DOM. An implementation reads the bootstrap DOM, not the notation documents, to parse any grammar, the notation documents included. Splicing the notation's pipeline (§13) with the bootstrap must reproduce the bootstrap exactly (the fixpoint). The bootstrap holds each stage as its name and its runs of items. A run is a path and a DOM that holds consecutive items of that one document.
 
+The grammar text is a text like any other, so stage zero decomposes it. Line and column numbers still count the code points of the document as written.
+
 A tie in either stage of the notation dialect, `lexical` or `syntax`, is an error of kind `grammar` of loading (§6). The error names the document. It has no line and no column, since an ambiguity has no single position. Its message names the notation stage and says that the grammar text is ambiguous. A library never puts such an error at the start of the document in place of a position.
 
 Every bootstrap failure names `notation/bootstrap.json` in its structured document field and its message. Reading and schema errors have no stage, line, or column. Stitching and lowering errors name the stage that failed. If the failure has a definition location, its structured line and column retain that location. The message also names the embedded document at that location. A failure without a definition location has no structured line or column.
@@ -1116,7 +1135,9 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-An implementation can keep the DOMs that it built before. It keys each DOM by the document's text hash, the bootstrap's hash and the DOM format version (`docs/output.md`). It treats a mismatch in any of the three as a miss. The hash is 64-bit FNV-1a over the text's UTF-8 bytes, written as 16 lower-case hexadecimal digits. Every package ships `compiled.json` beside its grammars. The file holds the DOM of each bundled grammar document in this way.
+An implementation can keep the DOMs that it built before. It keys each DOM by four values. They are the document's text hash, the bootstrap's hash, the fingerprint of the Unicode table and the DOM format version (`docs/output.md`). It treats a mismatch in any of the four as a miss. The fingerprint is the 64-bit FNV-1a hash of the table's text, written as the document hash is. A DOM depends on the table, because the table decides how stage zero decomposes the document.
+
+`compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
 
 A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every dialect that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
 
@@ -1146,7 +1167,7 @@ The lexer reads `¬` separately only when no guard starts immediately after it. 
 
 Whitespace and comments separate tokens but add no grammar node. Comments discard their contents, including backslashes, without escape or interpolation processing. Punctuation separates adjacent names. A tag test can precede one value test, as in `_<Stressed>≠"y"`. Thus `$x:A<B>` is a capture of a tested tag terminal. `$x : A < B >` has the same meaning.
 
-Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, or private-use scalar uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
+Canonical string-terminal diagnostics expand constants and interpolation. They use double quotes and double every literal `$`. A quote, backslash, control, nonspacing mark, private-use scalar, decomposable scalar or scalar of nonzero combining class uses engine-constant interpolation. Section 1 defines the exact predicates and their data sources. Hexadecimal uses uppercase and at least four digits, without unnecessary leading zeros. All other scalar values appear literally.
 
 A range's identity is its resolved pair of scalar endpoints. Its diagnostic spelling joins their canonical string literals with `..`. A tag terminal's identity and spelling are its name. Tests never alter terminal identity.
 
@@ -1325,7 +1346,7 @@ attached-item = {attachment} named-capture {attachment} [clauses]
 attachment = "(" named-capture ")"
 recipe-atom = string-literal | string-constant | capture-string-method
 capture-string-method = capture-reference "." string-method
-string-method = "value" | "image" | "source-text" | "verbatim-text"
+string-method = "value" | "image" | "source-text" | "decomposed-source-text" | "verbatim-text"
               | "emitted.value" | "emitted.image"
 pattern-atom = rule-name | terminal [tag-test] [value-test]
              | constant-reference [tag-test] [value-test] | pattern-literal | grouped-pattern
@@ -1400,7 +1421,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `tag-test` | Zero or more `tag-requirement` parts | Ordered requirements, including an empty array |
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag or tag-set constant. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
-| `test` | One `=` or `≠` token | Value comparator |
+| `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
 | `test-operand` | One recognized operand | Require a string or string constant for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base check accepts `#`. Its following tests fail at the test. |
 | `group` | One `choice` | Child expression |
@@ -1424,7 +1445,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `method-name` | One method-name token | Exact method identifier |
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
 | `argument` | One `term` | Term, or rule/classifier name in the signature's name position |
-| `string` | One complete quoted token | Decode left to right as specified below. Retain unresolved interpolation. |
+| `string` | String token | Decode its value left to right, with decomposed written segments and exact constant scalars |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
 | `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union, regardless of grouping. |
@@ -1439,11 +1460,11 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `all-of` | One or more `condition` | `all`, or sole condition. Flatten nested `all`. |
 | `condition` | One comparison, tree comparison, method, negation, presence, or grouped implication | Child condition |
 | `comparison` | Comparator, then two `union` parts | `op`, `left`, `right` |
-| `comparator` | One ordinary comparison token | Comparator string |
+| `comparator` | One ordinary comparison token | Precomposed comparator from the token value |
 | `negation` | One `condition` | `not` |
 | `presence` | One capture token | `captured`, with empty name for `$` |
 | `tree-comparison` | Capture reference, tree comparator, union | `op`, capture `left`, pattern `right` |
-| `tree-comparator` | One `≅` or `≇` token | Comparator string |
+| `tree-comparator` | One `≅` or `≇` token | Precomposed comparator from the token value |
 | `pattern-literal` | One `pattern-union` or shorthand `pattern-atom` | Pattern term with the literal's grouping boundaries |
 | `pattern-union` | One or more `pattern-intersection`, with operators | Fold union and difference left. Flatten every union operand that is itself a union. |
 | `pattern-intersection` | One or more `pattern-sequence` | Intersection, or sole predicate |
@@ -1453,6 +1474,8 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-brackets` | One `pattern-union` | Ordinary optional children |
 | `pattern-repeat` | One item union and optional separator union | Repeated children |
 | `pattern-path` | One path token and one `pattern-atom` | Descendant, first, or last path |
+
+The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. Interpolation positions count the original text. An include path keeps the token's original text, without its quotes.
 
 For a string token, the reader removes only its delimiters. It scans the content left to right, preserving ordinary characters and decoding `$$`. Each `$(NAME)` adds a constant reference with the dollar sign's source position. Its name excludes both delimiters. Adjacent literal segments merge, and empty segments disappear unless all segments are empty.
 
@@ -1513,7 +1536,6 @@ A document can hold several errors. The reader reports one, and every reader cho
 Within one constant definition or implication, the reader reports the error whose position comes first in the text, whichever check finds it.
 
 These steps make every reader report the same token for every combination of errors.
-
 
 The following complete document reports a capture error at line 2, column 9. The syntax stage recognizes the grouped target, and the reader rejects it at `$x`.
 
@@ -1705,6 +1727,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
+The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text. Interpolated constants keep their exact scalar values.
+
 String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
@@ -1729,7 +1753,7 @@ That input is the stage's input or, in a nested parse (§4), the span that the n
 
 `.onward` preserves a restored view and extends its match window to the context end. Repeated `.onward` retains the same fixed capture. `.first-token`, `.tokens-after-first`, `.last-token`, and `.following-tokens` first project to original tokens, then return ordinary spans. They remove the alignment constraint. `$x.without-elision.following-tokens` therefore starts at the original capture end and reads the raw suffix.
 
-`.source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.tags(R)` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
+`.source-text`, `.decomposed-source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.tags(R)` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
 
 During §7 reconstruction, `.without-elision` and `.without-elision-except(F)` take their closes from the current candidate's projected omission events. Neither borrows the selected main derivation's list. Neither introduces an additional synthetic token where that event already has one.
 
@@ -1744,7 +1768,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `@(BODY)` | pattern | the structural predicate in `docs/notation.md` |
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind or two patterns | union, intersection, difference |
 | `A ⟹ t` | tag set | `t` where the condition `A` holds, else `∅` |
-| `s.value`, `s.source-text` | string | §5 |
+| `s.value`, `s.source-text`, `s.decomposed-source-text` | string | §5 |
 | `a.split(d)` | set of strings | the pieces of the string `a` between the occurrences of the string `d` (below) |
 | `$x.emitted.value`, `$x.emitted.image` | string, recipes only | The selected string walk before the current item override (§11) |
 | `$NAME` | the type of its value | the value of the constant (§2) |
@@ -1800,7 +1824,7 @@ For a bare name after either tree comparator, report at that name: `tree compari
 
 | Method | Accepted receiver | Result |
 | --- | --- | --- |
-| `.value`, `.image`, `.source-text` | Capture or span | String from projected original input (§5) |
+| `.value`, `.image`, `.source-text`, `.decomposed-source-text` | Capture or span | String from projected original input (§5) |
 | `.onward` | Capture or span | Span from original start to context end |
 | `.following-tokens` | Capture or span | Ordinary span from original end to context end |
 | `.first-token`, `.last-token`, `.tokens-after-first` | Capture or span | Ordinary projected token span |
@@ -1935,7 +1959,7 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 ### 11.3 Recipe evaluation and cycles
 
-A recipe contains only string literals, string constants, and six captured string methods. They are `.value`, `.image`, `.source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
+A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
 
 Input methods read the original projected span. `.emitted` reads the string walk with constituent recipes, before any override on the current item. It can read a captured constituent that has no `%emits`. An erased part's `.emitted` gives empty strings on both channels.
 
@@ -2105,9 +2129,11 @@ A digit or split diphthong emits one covering first token and inserted following
 
 A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. This is now normalization instead of forms. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
 
-The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. Phoneme FOREIGN values preserve exact characters. Forms FOREIGN values preserve normalized phoneme sequences.
+The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. A FOREIGN token of the phoneme stage holds the decomposed characters of its run as its value, and the original spelling as its image. The forms stage passes such a token on unchanged. The forms stage makes a FOREIGN token of a run of phonemes that it cannot divide into words.
 
-Quoted bodies compare by their ordinary values and display their body image recipes. `raw-tokens` and `zohoi-payload` use `.verbatim-text` for images. `empty-zoi-body` uses empty concatenation and claims no gaps. The foreign character run uses plain character concatenation. Queries and erased post-fa'o bodies run no body recipes.
+Its value is the decomposed source text, and its image concatenates the phoneme images.
+
+Quoted bodies compare by their ordinary values and display their body image recipes. `raw-tokens` and `zohoi-payload` use `.verbatim-text` for images. `empty-zoi-body` uses empty concatenation and claims no gaps. The foreign character run takes its image from its original source text. Queries and erased post-fa'o bodies run no body recipes.
 
 Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the last y separated from preceding hesitation. A raw closing run retains every y value. A longer raw key carries neither fixed tag. No input string constructs a tag name.
 
@@ -2127,8 +2153,10 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `zoi .y. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
 | `zoi .y. bu. "Hello!" .y. bu.` | Five | `unique` | The body image is `"Hello!"` |
 | `zo'oi "Hello!"` | `experimental` | `unique` | The payload image is `"Hello!"` |
-| `zoi klama. abc .Klama.` | Five | `rejected` | A Kelvin-sign closing value does not equal `klama` |
-| `zoi klama. Klama .klama.` | Five | `unique` | The Kelvin-sign body value does not equal the delimiter |
+| `zoi klama. abc .Ｋlama.` | Five | `rejected` | A fullwidth-K closing value does not equal `klama` |
+| `zoi klama. abc .Klama.` | Five | `unique` | The Kelvin sign decomposes to `K`, so the closing delimiter matches |
+| `zoi klama. Ｋlama .klama.` | Five | `unique` | The fullwidth-K body value does not equal the delimiter |
+| `zoi klama. Klama .klama.` | Five | `unique` | The Kelvin-sign word equals the delimiter, so it closes an empty quote |
 | `abu` | Five | `unique` | The word image is `abu` |
 | `broda brode si bu` | Five | `unique` | The word image is `broda bu` |
 | `lo'u broda ybrode le'u bu` | Five | `unique` | The word image is `lo'u broda brode le'u bu` |

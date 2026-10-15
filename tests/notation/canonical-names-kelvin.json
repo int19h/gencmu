@@ -1,0 +1,98 @@
+{
+  "description": "Semantic names use their canonically decomposed values.",
+  "document": "```jbogenbau\n%features fK\n%stage sK\n%const $K \"x\"\n%classifier cK\n \"K\" ∈ K\n%implies K ⟹ K\n%rule rK fK? rK K :: K\n%rule text $x:K :: $x.value.classify(cK)\n```",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "features",
+          "args": [
+            "fK"
+          ]
+        },
+        {
+          "name": "stage",
+          "args": [
+            "sK"
+          ]
+        }
+      ],
+      "constants": [
+        {
+          "name": "K",
+          "value": {
+            "string": "x"
+          }
+        }
+      ],
+      "classifiers": [
+        {
+          "name": "cK",
+          "entries": [
+            {
+              "keys": [
+                {
+                  "string": "K"
+                }
+              ],
+              "class": "K"
+            }
+          ]
+        }
+      ],
+      "implications": [
+        {
+          "if": {
+            "tag": "K"
+          },
+          "then": {
+            "tag": "K"
+          }
+        }
+      ],
+      "rules": [
+        {
+          "name": "rK",
+          "alternatives": [
+            {
+              "guards": [
+                {
+                  "feature": "fK"
+                }
+              ],
+              "expr": {
+                "seq": [
+                  {
+                    "ref": "rK"
+                  },
+                  {
+                    "ref": "K"
+                  }
+                ]
+              },
+              "tags": {
+                "tag": "K"
+              }
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "alternatives": [
+            {
+              "tags": {
+                "method": "classify",
+                "args": [
+                  {
+                    "classifier": "cK"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}

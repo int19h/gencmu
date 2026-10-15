@@ -37,6 +37,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+#[cfg(test)]
+extern crate self as gencmu;
+#[cfg(test)]
+#[path = "../tests/common/mod.rs"]
+mod test_common;
+
 mod clauses;
 mod dialect;
 mod dom;
