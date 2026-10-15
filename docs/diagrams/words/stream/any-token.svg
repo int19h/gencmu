@@ -7,7 +7,7 @@
 <g class="rule"><rect x="40" y="34" width="126" height="24" rx="0"/><text x="103" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">payload-token</text></g>
 <path d="M166 46H186"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="68" width="58" height="24" rx="12"/><text x="69" y="85" textLength="42" lengthAdjust="spacingAndGlyphs">PAUSE</text></g>
-<path d="M98 80H166a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="40" y="68" width="92" height="24" rx="0"/><text x="86" y="85" textLength="75.6" lengthAdjust="spacingAndGlyphs">pause-run</text></g>
+<path d="M132 80H166a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M186 46h6m0 -8v16m4 -16v16"/>
 </svg>

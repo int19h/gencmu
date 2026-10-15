@@ -1,0 +1,32 @@
+{
+  "description": "A quote body keeps original images and decomposed values.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. , , .gy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {},
+            {
+              "value": "",
+              "image": ", ,"
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

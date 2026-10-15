@@ -159,7 +159,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 %rule only-hesitation
   (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
-  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation
+  first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation | silent-token
 
 %rule rahoi-form
   (* RAhOI_pre <- pre_clause RAhOI spaces? (y_rafsi / long_rafsi / y_less_rafsi / gismu) spaces? *)

@@ -53,7 +53,12 @@ A run that divides into words divides in one way only. The word forms of each fa
   $
 
 %rule run
-  word-run | foreign-token | unsegmentable-run
+  word-run | foreign-token | unsegmentable-run | silent-token
+
+%rule silent-token
+  $s:Silent
+%emits
+  $ :: $s.tags ∪ Run-Initial ∪ Run-Final
 
 %rule word-run
   run-words
@@ -69,7 +74,7 @@ A run that divides into words divides in one way only. The word forms of each fa
   ¬$f.following-tokens.begins(nonpause-phoneme),
   ¬$f.matches(word-run)
 %emits
-  $ :: FOREIGN ∪ Run-Initial ∪ Run-Final
+  $ :: FOREIGN ∪ Run-Initial ∪ Run-Final := $.decomposed-source-text :- $.image
 
 %rule phoneme-sequence
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
@@ -80,11 +85,12 @@ A run that divides into words divides in one way only. The word forms of each fa
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
 <p><img src="../../docs/diagrams/words/forms/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/words/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
 <p><img src="../../docs/diagrams/words/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
 <p><img src="../../docs/diagrams/words/forms/run.svg" alt="Railroad diagram of the rule run"></p>
+<p><img src="../../docs/diagrams/words/forms/silent-token.svg" alt="Railroad diagram of the rule silent-token"></p>
 <p><img src="../../docs/diagrams/words/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
 <p><img src="../../docs/diagrams/words/forms/foreign-token.svg" alt="Railroad diagram of the rule foreign-token"></p>
 <p><img src="../../docs/diagrams/words/forms/unsegmentable-run.svg" alt="Railroad diagram of the rule unsegmentable-run"></p>
@@ -96,7 +102,7 @@ A run that divides into words divides in one way only. The word forms of each fa
 
 The stage covers every input token. It passes pauses and the foreign runs of the phoneme stage through, and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
-A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value concatenates normalized phoneme values, while its image concatenates their phoneme images. A `zoi` delimiter compares with that value exactly as with the same phonemes read as words. The token's text retains what the author wrote.
+A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image concatenates its phoneme images. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
 
 The stage tests only a whole run for whether it divides. A part of a run has a phoneme after it, so the stage does not test it. The stage tests the run alone. Apart from the two lookaheads above, no rule of this stage reads past the end of a run. The other rules give the same answer to a test in place.
 
@@ -194,14 +200,17 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   [Syllable-Break] "y"
 
 %rule bu-form-ahead
-  [PAUSE] bu-form
+  [pause-run] bu-form
+
+%rule pause-run
+  PAUSE | pause-run Silent PAUSE
 
 %rule bu-form
   cmavo-shape="bu"
 
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>first-word</code> to <code>bu-form</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>first-word</code> to <code>bu-form</code></summary>
 <p><img src="../../docs/diagrams/words/forms/first-word.svg" alt="Railroad diagram of the rule first-word"></p>
 <p><img src="../../docs/diagrams/words/forms/ordinary-first-word.svg" alt="Railroad diagram of the rule ordinary-first-word"></p>
 <p><img src="../../docs/diagrams/words/forms/later-word.svg" alt="Railroad diagram of the rule later-word"></p>
@@ -211,6 +220,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
 <p><img src="../../docs/diagrams/words/forms/y-prefix.svg" alt="Railroad diagram of the rule y-prefix"></p>
 <p><img src="../../docs/diagrams/words/forms/y-atom.svg" alt="Railroad diagram of the rule y-atom"></p>
 <p><img src="../../docs/diagrams/words/forms/bu-form-ahead.svg" alt="Railroad diagram of the rule bu-form-ahead"></p>
+<p><img src="../../docs/diagrams/words/forms/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
 <p><img src="../../docs/diagrams/words/forms/bu-form.svg" alt="Railroad diagram of the rule bu-form"></p>
 </details>
 

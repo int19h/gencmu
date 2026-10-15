@@ -1,5 +1,5 @@
 {
-  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
+  "description": "An unsegmentable run takes its decomposed source as its value and keeps its phoneme image. Its tree preserves closes, tags and sources.",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
@@ -25,7 +25,7 @@
           "output": [
             {
               "text": "saiCLI",
-              "value": "saicli",
+              "value": "saiCLI",
               "image": "saiclI",
               "tags": [
                 "FOREIGN",

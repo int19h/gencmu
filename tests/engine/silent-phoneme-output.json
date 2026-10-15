@@ -1,0 +1,66 @@
+{
+  "description": "An ignored stretch between pause cores emits a Silent token.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi , klama",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "m"
+            },
+            {
+              "value": "i"
+            },
+            {
+              "value": " ",
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "",
+              "image": ",",
+              "tags": [
+                "Silent"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": " ",
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "value": "k"
+            },
+            {
+              "value": "l"
+            },
+            {
+              "value": "a"
+            },
+            {
+              "value": "m"
+            },
+            {
+              "value": "a"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
