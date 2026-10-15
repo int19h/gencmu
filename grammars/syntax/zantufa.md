@@ -364,6 +364,8 @@ A tag with a sumti argument has its own alternative. GI cannot follow that actua
 
 A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` and `mi klama pu ke my .e gy roi` keep one tag run.
 
+Boundary conditions test actual following predicate nodes after bare tags, `fa-jai`, and the NA clause of `brigahi`. The GI, BO, free-modifier and connective queries keep their separate parsing rules.
+
 The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
 A term-initial sumti cannot start an aligned tag. The extended prefix can read a following ROI, so `cy roi` remains a tag. This restriction applies at the term's start, rather than to every letter inside a sumti. Thus `ro my roi klama` retains the quantified sumti `ro my`. The tag can also omit KUhE inside the shared stretch. So in `ke my .e gy ke'e roi klama`, the KE group and ROI form one tag, as in Zantufa.
@@ -414,7 +416,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | POIhA # selbri [+KU #]
   | $n:na-clause [+KU #]
 %conditions
-  ¬$n.following-tokens.begins(bridi-tail),
+  ¬$n.followed-by(bridi-tail),
   ¬$n.following-tokens.begins(joik-gihek)
 
 %rule tag-term
@@ -429,11 +431,9 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   ¬$s.without-elision-except(math).onward.begins(tcita-selci),
   ¬$t.following-tokens.begins(gi-word),
   ¬$t.following-tokens.begins(free),
-  ¬$t.following-tokens.begins(tcita-selci),
-  ¬$t.following-tokens.begins(selbri),
-  ¬$t.following-tokens.begins(gek-bridi-tail),
+  ¬$t.followed-by(tcita-selci | selbri | gek-bridi-tail),
   ¬$t.following-tokens.begins(bo-word),
-  ¬$f.following-tokens.begins(tanru-unit-1)
+  ¬$f.followed-by(tanru-unit-1)
 
 %rule gi-word
   GI
