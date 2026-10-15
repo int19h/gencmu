@@ -1,0 +1,63 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "The foreign phoneme recipe keeps the original image while its default value remains decomposed.",
+  "options": {
+    "until": "normalize"
+  },
+  "input": "á",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "á",
+              "value": "á",
+              "image": "á",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                2
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "á",
+              "value": "á",
+              "image": "á",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            }
+          ]
+        }
+      ],
+      "error": null
+    }
+  }
+}

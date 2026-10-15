@@ -1,0 +1,38 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/notation.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Notation operator images use decomposition while text keeps original spelling.",
+  "options": {
+    "until": "lexical"
+  },
+  "input": "≇",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "lexical",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "≇",
+              "value": "≇",
+              "image": "≇",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                2
+              ]
+            }
+          ]
+        }
+      ],
+      "error": null
+    }
+  }
+}

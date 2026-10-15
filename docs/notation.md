@@ -22,6 +22,8 @@ Stage zero decomposes the text first, into Unicode Normalization Form D. So `é`
 
 Stage zero, named `input`, supplies character tokens. Both strings start as the character. A recipe is an expression that supplies a string. Later stages set strings through grammar recipes, or concatenate their non-erased parts. Forwarding keeps stored values and images. The engine never trims, merges, lowercases, or removes characters.
 
+Notation tokens follow the same image rules. The operator `≇` has decomposed image `≅` followed by U+0338, while its `text` retains `≇`. Tree renderings show the image.
+
 A string walk builds strings from constituent parts. The section "Two walks and recipes" defines how recipes replace those parts.
 
 ## Rules

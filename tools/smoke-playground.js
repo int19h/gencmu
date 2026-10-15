@@ -261,7 +261,8 @@ async function main() {
       { label: "A rule with preferred options (notation)", output: /choice › ranked-choice/,
         inputEdit: ["≻", "|"], editedOutput: /choice\n/, absent: /ranked-choice/ },
       { label: "A rule with tree tests (notation)", output: /tree-comparison/,
-        parts: [/tree-comparator · ≅/, /tree-comparator · ≇/, /pattern-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
+        // Stage-zero images use NFD, including the negated comparator.
+        parts: [/tree-comparator · ≅$/m, /tree-comparator · \u2245\u0338$/m, /pattern-item · ⋯/, /"⋮" "⋮"/, /"⋰" "⋰"/, /"⋱" "⋱"/] },
     ];
     const presets = await run(() => [...document.querySelectorAll("#examples option")]
       .filter((option) => option.value !== "").map((option) => ({ value: option.value, label: option.textContent })));

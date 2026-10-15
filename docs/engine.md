@@ -645,7 +645,9 @@ A token's `value` is its comparison string and its `image` is its visible string
 
 - A selected value recipe supplies the token value and its implied image, unless a stronger explicit image recipe applies (§11).
 - A channel without a selected recipe concatenates non-erased child contributions in order. The string walk enters child constituents but never executes their emission lists.
-- A stage-zero character has that character as both strings. A caller-supplied token defaults each omitted string independently to its text. It carries no supplied attachments.
+- A stage-zero token has its decomposed scalar as both strings (§1). A caller-supplied token defaults each omitted string independently to its text. It carries no supplied attachments.
+
+Default images preserve decomposition, rather than original spelling. For example, `≇` has image `≅` followed by U+0338. Its `text` remains `≇`. An explicit image recipe can select `.source-text` or `.verbatim-text` to preserve original spelling.
 
 The value and image joins concatenate each channel's parts in order, without trimming or merging. Empty strings contribute no characters but remain counted parts for ownership. A pause contributes the value and image that its grammar supplies. The engine knows no pause character or spacing rule.
 

@@ -1,0 +1,32 @@
+{
+  "description": "Default token images concatenate decomposed Lojban letters without restoring original spelling.",
+  "grammar": "%rule text \"a\" $_0301\n%emits $",
+  "input": "á",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "á",
+              "value": "á",
+              "image": "á",
+              "source": [
+                0,
+                1
+              ],
+              "span": [
+                0,
+                2
+              ]
+            }
+          ]
+        }
+      ],
+      "error": null
+    }
+  }
+}
