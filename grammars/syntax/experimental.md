@@ -45,7 +45,9 @@ A span is a range between input token boundaries. A ranked choice filters altern
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `fewest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-`free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing. The `fewest` comparison follows the span comparison. The stage compares elisions last.
+`free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
+
+The `fewest` comparison follows the span comparison. The stage compares elisions last.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
@@ -265,7 +267,7 @@ A connection that can be a sumti connection is one. Terms are connected only whe
 
 Without this rule, each of the first three texts has two readings that elide the same terminators.
 
-The plain term-link preference also selects a sumti connection over a term connection. The BO groups retain their conditions. Each condition tests the part before a BO connective and the link after it. It refuses the link when both parts can form one sumti.
+The plain term-link preference also selects a sumti connection over a term connection. The BO groups use conditions. Each condition tests the part before a BO connective and the link after it. It refuses the link when both parts can form one sumti.
 
 Two tags carry the BO conditions. `Bo-Extensible-End` marks a sumti that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. The relevant rules pass these tags from their first or last part.
 
@@ -922,7 +924,7 @@ A vocative starts with a run of COI words, DOI, or both. A COI run returns no ta
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. A written BOI permits a separate number or lerfu string after it.
 
-The number and letter-string rules refuse an actual following run part. With written BOI, that terminal follows the run, so the condition holds. With BOI omitted, another number part or letter word continues the current run. The free-slot wrappers retain their names in the tree.
+The number and letter-string rules refuse an actual following run part. With written BOI, that terminal follows the run, so the condition holds. With BOI omitted, another number part or letter word continues the current run. Both free-slot wrappers are named nodes in the tree.
 
 So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
 

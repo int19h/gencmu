@@ -1060,7 +1060,9 @@ A grammar ranks every admitted parse. A rule profile has two parts. Its span vec
 
 `leftmost-longest` compares complete parses by their span vectors, with earlier starts first, longer spans next, and larger counts preferred at the first difference. `fewest` then compares their fewest counts, and the smaller count wins.
 
-All `leftmost-longest` rules contribute to one span vector together, without priority by name or declaration order. All `fewest` rules contribute to one count in the same way. Equal spans count separately, including nested occurrences. Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. Both flags rank before the stage directive.
+All `leftmost-longest` rules contribute to one span vector together, without priority by name or declaration order. All `fewest` rules contribute to one count in the same way. Equal spans count separately, including nested occurrences.
+
+Each nonempty occurrence of a flagged rule counts, including each named chain level and each constituent with one symbol. Empty occurrences contribute nothing. The unnamed constituents of flat braces and of optionals contribute nothing, including elidable optionals. Both flags rank before the stage directive.
 
 Compare two rule profiles in this order:
 
