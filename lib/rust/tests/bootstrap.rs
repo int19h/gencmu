@@ -91,6 +91,10 @@ fn compiled_doms_match_a_fresh_reading() {
     let compiled = parse_json(&read("compiled.json")).expect("compiled.json");
     assert_eq!(compiled.get("format"), Some(&Value::Number(DOM_FORMAT as f64)));
     assert_eq!(compiled.get("bootstrap").and_then(Value::str), Some(gencmu::tools::bootstrap_hash().as_str()));
+    assert_eq!(
+        compiled.get("unicode").and_then(Value::str),
+        Some(gencmu::tools::fnv1a64(&read("unicode.txt")).as_str())
+    );
     let documents = compiled.get("documents").expect("documents").object().to_vec();
     assert!(!documents.is_empty());
     // Each document is read on a thread of its own: the Lojban grammars

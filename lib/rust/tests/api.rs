@@ -22,9 +22,10 @@ fn single(rules: &str) -> BTreeMap<String, String> {
 /// the hash of the document of `rules`, holds `dom`.
 fn compiled(rules: &str, dom: &str) -> String {
     format!(
-        "{{\"format\":{},\"bootstrap\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"documents\":{{\"g.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::DOM_FORMAT,
         gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
         gencmu::tools::fnv1a64(&grammar(rules))
     )
 }
@@ -1252,4 +1253,40 @@ fn inserted_tag_clauses_validate_rules_and_delimiters() {
         assert_eq!(error.kind, ErrorKind::Grammar, "{rules}: {error}");
         assert!(error.message.contains(message), "{rules}: {error}");
     }
+}
+
+#[test]
+fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
+    let rules = "%ambiguity-resolution greedy\n%rule text \"a\"";
+    let dom = changed_dom(rules, r#"{"literal":{"string":"a"}}"#, r#"{"literal":{"string":"b"}}"#);
+    let cache = compiled(rules, &dom);
+    let bundled_table = include_str!("../grammars/unicode.txt");
+    let bundled_hash = gencmu::tools::fnv1a64(bundled_table);
+    let custom_table = bundled_table.replace("decompose 00E9 0065 0301\n", "");
+    assert_ne!(bundled_table, custom_table);
+    let custom_hash = gencmu::tools::fnv1a64(&custom_table);
+    for (table, cache, hit) in [
+        (bundled_table, cache.clone(), true),
+        (custom_table.as_str(), cache.clone(), false),
+        (custom_table.as_str(), cache.replace(&bundled_hash, &custom_hash), true),
+        (bundled_table, cache.replace(&format!("\"unicode\":\"{bundled_hash}\","), ""), false),
+    ] {
+        let mut sources = single(rules);
+        sources.insert("unicode.txt".into(), table.into());
+        sources.insert("compiled.json".into(), cache);
+        let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
+        assert_eq!(dialect.parse("b", &no_auto()).unwrap().ok, hit);
+        assert_eq!(dialect.parse("a", &no_auto()).unwrap().ok, !hit);
+    }
+}
+
+#[test]
+fn an_include_keeps_its_original_precomposed_path() {
+    let mut sources = single("%ambiguity-resolution greedy\n%rule text \"e\" $_0301");
+    let document = sources.remove("g.md").unwrap();
+    sources.insert("café.md".into(), document);
+    sources.insert("p.md".into(), grammar("%stage main\n%include \"café.md\""));
+    let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("the exact include path");
+    assert!(dialect.parse("é", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("e\u{301}", &no_auto()).unwrap().ok);
 }

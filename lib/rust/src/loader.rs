@@ -26,7 +26,7 @@ pub(crate) fn bundled(path: &str) -> Option<&'static str> {
 }
 
 /// The precompiled DOMs of `compiled.json`, usable only when its format
-/// and bootstrap hash match. Each DOM is shared by its two keys, not
+/// and fingerprints of the bootstrap and Unicode table match. Each DOM is shared by its two keys, not
 /// copied: a copy would recurse over the JSON before `dom_from_json` checks
 /// its depth.
 #[derive(Default)]
@@ -49,7 +49,7 @@ fn take(value: Json, key: &str) -> Option<Json> {
 }
 
 impl Compiled {
-    fn parse(text: &str, bootstrap_hash: &str) -> Result<Compiled, Error> {
+    fn parse(text: &str, bootstrap_hash: &str, unicode_hash: &str) -> Result<Compiled, Error> {
         // A cache that does not parse, corrupt or malicious, is no cache:
         // every document is read through the notation instead.
         let Ok(value) = json::parse(text) else {
@@ -57,7 +57,8 @@ impl Compiled {
         };
         let mut compiled = Compiled::default();
         let usable = value.get("format").and_then(Json::as_int) == Some(DOM_FORMAT)
-            && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash);
+            && value.get("bootstrap").and_then(Json::as_str) == Some(bootstrap_hash)
+            && value.get("unicode").and_then(Json::as_str) == Some(unicode_hash);
         if !usable {
             return Ok(compiled);
         }
@@ -72,6 +73,8 @@ impl Compiled {
         Ok(compiled)
     }
 
+    // This cache belongs to one immutable context. Its format, bootstrap
+    // and Unicode identity gate all entries before document-hash lookup.
     fn lookup(&self, path: &str, hash: &str, unicode: &Unicode) -> Option<Dom> {
         let dom = match self.by_path.get(path) {
             Some((known, dom)) if known == hash => Some(dom),
@@ -180,9 +183,10 @@ fn build_notation_dialect(bootstrap: &str, unicode: Arc<Unicode>) -> Result<Dial
 
 impl Context {
     fn new(unicode: &str, bootstrap: &str, compiled: &str) -> Result<Context, Error> {
+        let unicode_hash = fnv1a64(unicode);
         let unicode = Arc::new(Unicode::parse(unicode).map_err(grammar_error)?);
         let notation = Arc::new(notation_dialect(bootstrap, unicode.clone())?);
-        let compiled = Compiled::parse(compiled, &fnv1a64(bootstrap))?;
+        let compiled = Compiled::parse(compiled, &fnv1a64(bootstrap), &unicode_hash)?;
         Ok(Context { unicode, notation, compiled })
     }
 
@@ -815,7 +819,12 @@ mod ranked_location_tests {
     fn bundled_cached_grammars_never_read_source() {
         let bundled = Context::bundled().unwrap();
         let notation = Arc::new(Dialect::new(vec![], vec![], bundled.unicode.clone()).unwrap());
-        let compiled = Compiled::parse(super::bundled("compiled.json").unwrap(), &bootstrap_hash()).unwrap();
+        let compiled = Compiled::parse(
+            super::bundled("compiled.json").unwrap(),
+            &bootstrap_hash(),
+            &fnv1a64(super::bundled("unicode.txt").unwrap()),
+        )
+        .unwrap();
         let context = Context { unicode: bundled.unicode.clone(), notation, compiled };
         let sources = MapSources {
             map: bundled::BUNDLED.iter().map(|(path, text)| (path.to_string(), text.to_string())).collect(),

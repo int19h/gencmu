@@ -218,6 +218,7 @@ pub(crate) fn string_name(value: &str, unicode: &Unicode) -> String {
         let n = c as u32;
         if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
             || unicode.is_mark(n)
+            || unicode.changes_in_document(n)
         {
             out.push_str(&format!("$(_{n:04X})"));
         } else {
