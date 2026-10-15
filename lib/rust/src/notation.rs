@@ -39,6 +39,20 @@ impl<'a> Reader<'a> {
         node.token.and_then(|token| self.tokens.get(token)).map_or("", |token| token.text.as_str())
     }
 
+    fn value(&self, node: &Node) -> &str {
+        node.token.and_then(|token| self.tokens.get(token)).map_or("", |token| token.value.as_str())
+    }
+
+    fn operator(&self, node: &Node) -> &str {
+        match self.value(node) {
+            "=\u{338}" => "≠",
+            "∈\u{338}" => "∉",
+            "⊆\u{338}" => "⊈",
+            "≅\u{338}" => "≇",
+            value => value,
+        }
+    }
+
     fn at(&self, node: &Node) -> (usize, usize) {
         (self.position)(node.source.start)
     }
@@ -180,7 +194,7 @@ impl<'a> Reader<'a> {
             keys.push(key);
         }
         let operator = self.one(node, "classifier-operator")?;
-        let adds = match self.text(self.token(operator)?) {
+        let adds = match self.operator(self.token(operator)?) {
             "∈" => true,
             "∉" => false,
             _ => return Err(self.error(operator, "invalid classifier operator")),
@@ -936,7 +950,7 @@ impl<'a> Reader<'a> {
                 }
                 ("tags".into(), Term::Call("requirements".into(), requirements))
             } else {
-                let comparator = self.text(self.token(self.one(test, "test")?)?).to_string();
+                let comparator = self.operator(self.token(self.one(test, "test")?)?).to_string();
                 let operand = self.one(test, "test-operand")?;
                 let part = self.inner(operand, ATOMS)?;
                 if !matches!(rule_name(part), "string" | "constant-reference") {
@@ -1464,7 +1478,7 @@ impl<'a> Reader<'a> {
                 }
                 ("tags".into(), Term::Call("requirements".into(), requirements))
             } else {
-                let op = self.text(self.token(self.one(test, "test")?)?).into();
+                let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
                 (op, self.string_operand(self.inner(operand, ATOMS)?)?)
             };
@@ -1678,7 +1692,7 @@ impl<'a> Reader<'a> {
                             ));
                         }
                     }
-                    frame.op = self.text(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
+                    frame.op = self.operator(self.token(self.one(inner, "tree-comparator")?)?).to_owned();
                     frame.left = Some((
                         Term::Capture(self.text(self.token(capture)?).trim_start_matches('$').to_owned()),
                         Type::Span,
@@ -1688,7 +1702,7 @@ impl<'a> Reader<'a> {
                 "comparison" => {
                     let operands = self.some(inner, "union", 2)?;
                     let comparator = self.one(inner, "comparator")?;
-                    frame.op = self.text(self.token(comparator)?).to_string();
+                    frame.op = self.operator(self.token(comparator)?).to_string();
                     frame.right = Some(operands[1]);
                     Step::Call(Frame::Union(Joined::new(operands[0], false)))
                 }
@@ -1799,14 +1813,18 @@ impl<'a> Reader<'a> {
     }
 
     fn string_term(&self, token: &'a Node) -> R<Term> {
-        let text = self.text(token);
+        let text = self.value(token);
+        // Written segments use the decomposed value. References keep their
+        // original positions, even when earlier scalars expand or reorder.
+        let original: Vec<char> = self.text(token).chars().collect();
+        let mut original_index = 1;
         let Some(body) = text.strip_prefix('"').and_then(|s| s.strip_suffix('"')) else {
             return Err(self.error(token, "a string requires double quotes"));
         };
-        let mut chars = body.chars().enumerate().peekable();
+        let mut chars = body.chars().peekable();
         let mut literal = String::new();
         let mut parts = Vec::new();
-        while let Some((index, c)) = chars.next() {
+        while let Some(c) = chars.next() {
             if c == '\\' {
                 return Err(self.error(token, "backslash is not a string escape"));
             }
@@ -1815,24 +1833,37 @@ impl<'a> Reader<'a> {
                 continue;
             }
             match chars.next() {
-                Some((_, '$')) => literal.push('$'),
-                Some((_, '(')) => {
+                Some('$') => literal.push('$'),
+                Some('(') => {
                     if !literal.is_empty() {
                         parts.push(Term::Str(std::mem::take(&mut literal)));
                     }
+                    while original_index < original.len() {
+                        if original[original_index] == '$' && original.get(original_index + 1) == Some(&'(') {
+                            break;
+                        }
+                        original_index +=
+                            if original[original_index] == '$' && original.get(original_index + 1) == Some(&'$') {
+                                2
+                            } else {
+                                1
+                            };
+                    }
+                    let reference = (self.position)(token.source.start + original_index);
+                    while original_index < original.len() && original[original_index] != ')' {
+                        original_index += 1;
+                    }
+                    original_index += 1;
                     let mut name = String::new();
-                    while chars.peek().is_some_and(|(_, c)| *c != ')') {
-                        name.push(chars.next().unwrap().1);
+                    while chars.peek().is_some_and(|c| *c != ')') {
+                        name.push(chars.next().unwrap());
                     }
                     if chars.next().is_none()
                         || !(crate::dom::is_constant_name(&name) || crate::dom::engine_scalar(&name).is_some())
                     {
-                        return Err(Error::grammar("invalid string interpolation").at(
-                            (self.position)(token.source.start + index + 1).0,
-                            (self.position)(token.source.start + index + 1).1,
-                        ));
+                        return Err(Error::grammar("invalid string interpolation").at(reference.0, reference.1));
                     }
-                    parts.push(Term::Const(name, (self.position)(token.source.start + index + 1)));
+                    parts.push(Term::Const(name, reference));
                 }
                 _ => return Err(self.error(token, "a dollar sign requires interpolation or doubling")),
             }
