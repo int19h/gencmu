@@ -54,7 +54,7 @@
 // read (engine §11). Canonical JSON omits an attached token's Span.
 // Brackets shows the attachments around the carrier's Image.
 //
-// Result format 12 and grammar DOM format 27 follow docs/output.md.
+// Result format 12 and grammar DOM format 28 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
