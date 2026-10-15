@@ -43,7 +43,11 @@ A nonspacing mark has general category Mn in the configured Unicode table. Scala
 
 U+0301 can appear as `$_0301` and U+ED80 as `$_ED80` in string notation. A quotation mark uses `$_0022` or interpolation `$(_0022)` inside a string. All engine constants require four to six uppercase hexadecimal digits and a scalar value.
 
-Stage zero is named `input`. It first decomposes the text into its canonical decomposition, Unicode Normalization Form D, with the configured Unicode table. Each scalar c at position i becomes its decomposition. That is the table's `decompose` record for c, the jamo of a Hangul syllable, or c itself. Each resulting scalar has origin i. Then each maximal run of scalars whose combining class is not 0 is sorted by combining class. The sort is stable, and every scalar keeps its origin. Stage zero supplies one token for each scalar dₖ of the result, at index k. Its `span` is `[k,k+1)`. Its `source` is `[i,i+1)`, where i is the origin of dₖ. Its `text` is the original text over its source. Its `value` and `image` are dₖ. Its stored tags are the general category and major category of dₖ, and `_White_Space` where it applies. Stage zero is implicit and adds no executed grammar-stage result.
+Stage zero is named `input`. It first decomposes the text into its canonical decomposition, Unicode Normalization Form D, with the configured Unicode table. Each scalar c at position i becomes its decomposition. That is the table's `decompose` record for c, the jamo of a Hangul syllable, or c itself. Each resulting scalar has origin i. Then each maximal run of scalars whose combining class is not 0 is sorted by combining class.
+
+The sort is stable, and every scalar keeps its origin. Stage zero supplies one token for each scalar dₖ of the result, at index k. Its `span` is `[k,k+1)`. Its `source` is `[i,i+1)`, where i is the origin of dₖ. Its `text` is the original text over its source. Its `value` and `image` are dₖ.
+
+Its stored tags are the general category and major category of dₖ, and `_White_Space` where it applies. Stage zero is implicit and adds no executed grammar-stage result.
 
 Decomposition is canonical only. It applies no compatibility decomposition and no case mapping, and it never composes. Sources, texts, line and column numbers, `.source-text` and `.verbatim-text` read the original text. One precomposed scalar can give several tokens with one source. Canonical reordering can put sources out of order.
 
@@ -66,7 +70,9 @@ The table has no `lower` records or lowercase mapping. Its decompositions are ca
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
-A caller can supply `unicode.txt` through the API. It replaces all bundled data, including White_Space, with no fallback. The table must list the whitespace used by its grammar documents. It need not cover every scalar. An unlisted scalar gets Cn and lacks White_Space. No table supplies comparison normalization. A table without `decompose` records decomposes only Hangul syllables, and one without `combining` records reorders nothing. The bundled notation needs the `decompose` records of U+2260, U+2209, U+2288 and U+2247.
+A caller can supply `unicode.txt` through the API. It replaces all bundled data, including White_Space, with no fallback. The table must list the whitespace used by its grammar documents. It need not cover every scalar. An unlisted scalar gets Cn and lacks White_Space. No table supplies comparison normalization.
+
+A table without `decompose` records decomposes only Hangul syllables, and one without `combining` records reorders nothing. The bundled notation needs the `decompose` records of U+2260, U+2209, U+2288 and U+2247.
 
 `Cs` belongs only to surrogates U+D800 to U+DFFF, which the table never lists. A surrogate is not a scalar and cannot become a stage-zero token. `_Cs` is a valid stored-tag name but stage zero never assigns it.
 
@@ -1127,7 +1133,9 @@ These locations concern embedded definitions, not lines of the bootstrap JSON. T
 
 Each stage of the notation runs as any stage does (§4 to §7, §11, §12). So each notation stage runs the check of §7 where its own directive declares `elision-only`. The bundled notation declares it in no stage, but a caller's own bootstrap can (`docs/api.md`). An ambiguity that the check finds is an error of the document in the same way as a tie. The error names the document and the notation stage, with no line or column. The caller's option for the check (`docs/api.md`) does not reach a notation stage, so it neither switches the check on there nor off.
 
-An implementation can keep the DOMs that it built before. It keys each DOM by four values. They are the document's text hash, the bootstrap's hash, the fingerprint of the Unicode table and the DOM format version (`docs/output.md`). It treats a mismatch in any of the four as a miss. The fingerprint is the 64-bit FNV-1a hash of the table's text, written as the document hash is. A DOM depends on the table, because the table decides how stage zero decomposes the document. `compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
+An implementation can keep the DOMs that it built before. It keys each DOM by four values. They are the document's text hash, the bootstrap's hash, the fingerprint of the Unicode table and the DOM format version (`docs/output.md`). It treats a mismatch in any of the four as a miss. The fingerprint is the 64-bit FNV-1a hash of the table's text, written as the document hash is. A DOM depends on the table, because the table decides how stage zero decomposes the document.
+
+`compiled.json` records the fingerprint of the bundled table. The hash is 64-bit FNV-1a over UTF-8 bytes, written as 16 lowercase hexadecimal digits. Every package ships `compiled.json` beside its grammars.
 
 A DOM holds the definitions of constants and the references to them as the document writes them. It never holds a value that the loader gives a constant when it stitches a stage (§2). In the same way, it holds a classifier's entries and an implication's terms as written, and never the value of a classifier. So one cached DOM serves every stage and every dialect that includes its document. The values of the constants exist only in a stitched stage, and neither `compiled.json` nor the bootstrap holds them.
 
@@ -1741,7 +1749,7 @@ That input is the stage's input or, in a nested parse (§4), the span that the n
 
 `.onward` preserves a restored view and extends its match window to the context end. Repeated `.onward` retains the same fixed capture. `.first-token`, `.tokens-after-first`, `.last-token`, and `.following-tokens` first project to original tokens, then return ordinary spans. They remove the alignment constraint. `$x.without-elision.following-tokens` therefore starts at the original capture end and reads the raw suffix.
 
-`.source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.tags(R)` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
+`.source-text`, `.decomposed-source-text`, `.value`, `.image`, `.starts-input`, and `.tags` observe the original projection. A restored span carries no constituent tags, so `$x.without-elision.tags` unions original token tags. `.tags(R)` runs the aligned whole query and unions its witnesses' own tags. Patterns inside a witness observe its own projected structure.
 
 During §7 reconstruction, `.without-elision` and `.without-elision-except(F)` take their closes from the current candidate's projected omission events. Neither borrows the selected main derivation's list. Neither introduces an additional synthetic token where that event already has one.
 
@@ -1756,7 +1764,7 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `@(BODY)` | pattern | the structural predicate in `docs/notation.md` |
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind or two patterns | union, intersection, difference |
 | `A ⟹ t` | tag set | `t` where the condition `A` holds, else `∅` |
-| `s.value`, `s.source-text` | string | §5 |
+| `s.value`, `s.source-text`, `s.decomposed-source-text` | string | §5 |
 | `a.split(d)` | set of strings | the pieces of the string `a` between the occurrences of the string `d` (below) |
 | `$x.emitted.value`, `$x.emitted.image` | string, recipes only | The selected string walk before the current item override (§11) |
 | `$NAME` | the type of its value | the value of the constant (§2) |
@@ -1947,7 +1955,7 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 ### 11.3 Recipe evaluation and cycles
 
-A recipe contains only string literals, string constants, and six captured string methods. They are `.value`, `.image`, `.source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
+A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
 
 Input methods read the original projected span. `.emitted` reads the string walk with constituent recipes, before any override on the current item. It can read a captured constituent that has no `%emits`. An erased part's `.emitted` gives empty strings on both channels.
 
@@ -2117,7 +2125,9 @@ A digit or split diphthong emits one covering first token and inserted following
 
 A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. This is now normalization instead of forms. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
 
-The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. A FOREIGN token of the phoneme stage holds the decomposed characters of its run as its value, and the original spelling as its image. The forms stage passes such a token on unchanged. The forms stage makes a FOREIGN token of a run of phonemes that it cannot divide into words. Its value is the decomposed source text, and its image concatenates the phoneme images.
+The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. A FOREIGN token of the phoneme stage holds the decomposed characters of its run as its value, and the original spelling as its image. The forms stage passes such a token on unchanged. The forms stage makes a FOREIGN token of a run of phonemes that it cannot divide into words.
+
+Its value is the decomposed source text, and its image concatenates the phoneme images.
 
 Quoted bodies compare by their ordinary values and display their body image recipes. `raw-tokens` and `zohoi-payload` use `.verbatim-text` for images. `empty-zoi-body` uses empty concatenation and claims no gaps. The foreign character run takes its image from its original source text. Queries and erased post-fa'o bodies run no body recipes.
 

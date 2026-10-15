@@ -427,7 +427,9 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":28,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents. A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":28,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+
+A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 

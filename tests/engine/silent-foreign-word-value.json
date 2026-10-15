@@ -1,0 +1,32 @@
+{
+  "description": "A quote keeps its original image and its independent comparison value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la'oi クリボー",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "value": "la'oi"
+            },
+            {
+              "value": "クリボ",
+              "image": "クリボー"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
