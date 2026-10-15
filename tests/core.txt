@@ -4433,3 +4433,6 @@ i197.experimental.tag-before-bei
 i197.experimental.na-before-bei
 i197.experimental.written-ku-before-tag
 i197.experimental.written-ku-before-na
+i197.experimental.ku-repair.single-bare-na-after-goi
+i197.experimental.ku-repair.multiple-na
+i197.experimental.ku-repair.tag-before-na

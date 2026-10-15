@@ -1033,7 +1033,25 @@ The same rule rejects `nu'i na broda` and `nu'i pu broda`, as camxes-exp does. A
 
 The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a term's own free modifiers from a later constituent. In `mi klama na to broda`, the NA term owns the complete parenthesis. In `mi klama na sei mi broda brode`, it owns the complete SEI clause. `na to broda` permits the same fragment reading. `na na to broda toi` fails because the first NA cannot omit KU before another NA.
 
-camxes-exp permits KU omission beyond this layer's closing-word rule and NA exception. It accepts these eleven texts that this layer rejects:
+camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
+
+Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
+
+A bare forethought termset can close with NUhU here. camxes-exp gives that form no terminator. A written closer permits the nested termset at the start of a NUhI body.
+
+Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, NIhE can close before `brode`, which becomes the quantified sumti's predicate. camxes-exp greedily keeps `broda brode` inside NIhE and takes the plain body. This layer revisits inner choices when a whole construction needs them.
+
+camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
+
+The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
+
+### Deliberate KU omission limits
+
+This layer deliberately limits KU omission more than camxes-exp. A bare `na` or tag term can omit `ku` only at the input's end, or when the next word visibly closes its place. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before a sumti in the same reading. Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
+
+Writing `ku` makes each text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `na na` becomes `na ku na ku`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
+
+camxes-exp accepts these eleven texts that this layer deliberately rejects:
 
 - `na na` places a bare NA before another NA.
 - `mi pe na klama` places a bare NA before a selbri.
@@ -1046,18 +1064,6 @@ camxes-exp permits KU omission beyond this layer's closing-word rule and NA exce
 - `na na to broda toi` places a bare NA before another NA.
 - `.i ba'a na ba ku fasnu` places a bare NA before a tag.
 - `.i lei za'u da ba na ku curmi le nu mi'ai klama lo nenri be le purdi` places a bare tag before NA.
-
-camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
-
-Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
-
-A bare forethought termset can close with NUhU here. camxes-exp gives that form no terminator. A written closer permits the nested termset at the start of a NUhI body.
-
-Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, NIhE can close before `brode`, which becomes the quantified sumti's predicate. camxes-exp greedily keeps `broda brode` inside NIhE and takes the plain body. This layer revisits inner choices when a whole construction needs them.
-
-camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
-
-The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
 
 ### Tanru and linked arguments
 
