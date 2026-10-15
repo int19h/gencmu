@@ -1027,8 +1027,9 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
         }
     }
     let compiled = format!(
-        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
+        "{{\"format\":{DOM_FORMAT},\"bootstrap\":\"{}\",\"unicode\":\"{}\",\"documents\":{{\"main.md\":{{\"hash\":\"{}\",\"dom\":{dom}}}}}}}",
         gencmu::tools::bootstrap_hash(),
+        gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")),
         gencmu::tools::fnv1a64(&document)
     );
     let sources = [

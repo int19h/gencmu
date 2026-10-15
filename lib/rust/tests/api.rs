@@ -427,8 +427,13 @@ fn positions_are_code_points() {
     assert!(result.ok);
     let output = result.stages[0].output.as_ref().unwrap();
     let sources: Vec<_> = output.iter().map(|token| token.source.clone()).collect();
-    assert_eq!(sources, [0..1, 1..2, 2..3]);
-    assert_eq!(output[0].text, "😀");
+    assert_eq!(sources, [0..1, 1..2, 1..2, 2..3]);
+    assert_eq!(
+        output.iter().map(|token| token.value.as_str()).collect::<Vec<_>>(),
+        ["😀", "e", "\u{301}", "\u{10348}"]
+    );
+    assert_eq!(output.iter().map(|token| token.text.as_str()).collect::<Vec<_>>(), ["😀", "é", "é", "\u{10348}"]);
+    assert_eq!(output.iter().map(|token| token.span.clone()).collect::<Vec<_>>(), [0..1, 1..2, 2..3, 3..4]);
 }
 
 #[test]

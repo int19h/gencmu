@@ -56,6 +56,7 @@ fn shared_json_keys() {
     for case in fixtures.get("compiled").unwrap().array() {
         let cache = mutate(text(&fixtures, "cache"), case)
             .replace("@bootstrap@", &gencmu::tools::fnv1a64(&bundled))
+            .replace("@unicode@", &gencmu::tools::fnv1a64(include_str!("../grammars/unicode.txt")))
             .replace("@source@", &gencmu::tools::fnv1a64(text(&fixtures, "grammar")));
         let document = case.get("document").and_then(Value::str).unwrap_or("g.md");
         let mut sources = BTreeMap::from([
