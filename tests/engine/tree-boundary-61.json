@@ -1,0 +1,29 @@
+{
+  "description": "A choice is one atom that meets any of its names (engine §4.2 and §6, case 61).",
+  "grammar": "%rule text a (B | C)\n%rule a A\n%conditions $.followed-by(B | C)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

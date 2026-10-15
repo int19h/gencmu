@@ -1,0 +1,28 @@
+{
+  "description": "Each chain level counts once, so both counts are two (engine §4.2 and §6, case 59).",
+  "grammar": "%rule text c | e\n%rule(fewest) c {... A}\n%rule e f f\n%rule(fewest) f A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

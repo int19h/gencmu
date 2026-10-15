@@ -1,0 +1,29 @@
+{
+  "description": "An ancestor that starts at the receiver's position counts (engine §4.2 and §6, case 10).",
+  "grammar": "%rule text A w\n%rule w m B\n%rule m ε\n%conditions $.followed-by(w)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

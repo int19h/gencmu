@@ -762,7 +762,7 @@ class Parser {
         selector.push(this.tok());
         const argsAt = this.index;
         const args = [(yield this.argument())];
-        while (this.is(",")) args.push(this.tok(), (yield this.argument()));
+        while (this.is(",") || this.is("|")) args.push(this.tok(), (yield this.argument()));
         selector.push(this.node("arguments", argsAt, args), this.expect(")"));
       }
       children.push(this.node("method-selector", at, selector));

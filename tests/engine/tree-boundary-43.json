@@ -1,0 +1,22 @@
+{
+  "description": "Records add a bounded factor, measured apart from close observations (engine §4.2 and §6, case 43).",
+  "grammar": "%rule text $x:r [Z]\n%conditions $x.without-elision.matches(r) ∧ ¬$x.followed-by(Z)\n%rule r {u}\n%rule u A [+T] | A [+U]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

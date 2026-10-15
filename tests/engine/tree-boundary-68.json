@@ -1,0 +1,26 @@
+{
+  "description": "Two failed obligations at one boundary: the earlier rule in source order wins (engine §4.2 and §6, case 68).",
+  "grammar": "%rule text p | q | B C\n%rule p A\n%conditions $.followed-by(B)\n%rule q A\n%conditions $.followed-by(C)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "p",
+          "condition": 0,
+          "at": 1
+        }
+      }
+    },
+    "error": "rejected"
+  }
+}

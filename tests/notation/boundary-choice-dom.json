@@ -1,0 +1,32 @@
+{
+  "description": "Complete-tree boundary notation (engine §9 and §10).",
+  "document": "```jbogenbau\n%rule a $x:A\n%conditions $x.followed-by(b | C | #)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 29,
+      "rules": [
+        {
+          "conditions": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": [
+                {
+                  "rule": "b"
+                },
+                {
+                  "terminal": "C"
+                },
+                {
+                  "rule": "#"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

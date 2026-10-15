@@ -1,0 +1,32 @@
+{
+  "description": "Boundary records preserve shared predictions in the reconstruction, including repeated predictions of a restoration (engine §4.2 and §7.4).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text a | b | c\n%conditions $.ends-input ∨ ¬$.followed-by(Z)\n%rule a (A [+T] y)\n%rule b (A [+T] [+T] y)\n%rule c (A [+T y] Z)\n%rule y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ],
+      "value": "a"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ],
+      "value": "b"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "error": null,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

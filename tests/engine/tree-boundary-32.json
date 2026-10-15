@@ -1,0 +1,23 @@
+{
+  "description": "Control for case 31 (engine §4.2 and §6, case 32).",
+  "grammar": "%rule text {u}\n%rule u A\n%conditions $.ends-input",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

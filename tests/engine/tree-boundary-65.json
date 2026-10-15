@@ -1,0 +1,27 @@
+{
+  "description": "An empty `#` slot is no node (engine §4.2 and §6, case 65).",
+  "grammar": "%rule text a # B\n%rule # [{F}]\n%rule a A\n%conditions $.followed-by(#)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

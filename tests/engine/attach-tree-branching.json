@@ -9,7 +9,7 @@
   "input": "wizbwz",
   "expect": {
     "result": {
-      "format": 12,
+      "format": 13,
       "ok": true,
       "stages": [
         {

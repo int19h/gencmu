@@ -1,0 +1,13 @@
+{
+  "description": "One flag per rule (engine §4.2 and §6, case 29).",
+  "grammar": "%rule text a\n%rule(leftmost-longest, fewest) a A",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 25
+    }
+  }
+}

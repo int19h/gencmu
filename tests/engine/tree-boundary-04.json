@@ -1,0 +1,23 @@
+{
+  "description": "Control for conformance case 3 (engine §4.2 and §6, case 4).",
+  "grammar": "%rule text m X | m Y\n%rule m ε\n%conditions $.followed-by(Y)",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

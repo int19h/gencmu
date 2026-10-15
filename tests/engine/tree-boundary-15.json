@@ -1,0 +1,41 @@
+{
+  "description": "The atom reads the derivation, where a reparse finds `pred` (engine §4.2 and §6, case 15).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text {term} [pred]\n%rule term N #\n%conditions ¬$.followed-by(pred)\n%rule pred [N #] W\n%rule # [{free}]\n%rule free P [{W}] [+T]",
+  "tokens": [
+    {
+      "text": "n",
+      "tags": [
+        "N"
+      ]
+    },
+    {
+      "text": "n",
+      "tags": [
+        "N"
+      ]
+    },
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "w",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "An item that a meeting drops never blocks an omission (engine §4.2 and §6, case 56).",
+  "grammar": "%rule text $x:A B T\n%conditions $x.onward.begins(r)\n%rule r y [+T]\n%rule y A | m A B\n%rule m ε\n%conditions ¬$.followed-by(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "t",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

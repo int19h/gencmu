@@ -1,0 +1,33 @@
+{
+  "description": "Only the node that ends right before counts (engine §4.2 and §6, case 8).",
+  "grammar": "%rule text p q\n%rule p A B\n%rule q C\n%conditions $.preceded-by(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

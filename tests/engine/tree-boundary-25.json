@@ -1,0 +1,13 @@
+{
+  "description": "One atom per condition item (engine §4.2 and §6, case 25).",
+  "grammar": "%rule text a | B\n%rule a A\n%conditions $.followed-by(B) ∨ $.preceded-by(B)",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 32
+    }
+  }
+}
