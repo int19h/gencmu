@@ -37,6 +37,8 @@ A stage is one step of a pipeline, with its own grammar. The pipeline is the seq
 
 Zantufa lets free modifiers follow every word (`post_clause`), with a few exceptions. These are `bu`, `fa'o`, a word of SI or BAhE, and the words inside a quote. So the translation writes `#`, the slot for free modifiers, after each terminal and after each quote. An elidable terminator keeps its slot inside its brackets, `[+KU #]`, as the reference's `KU_elidible <- KU_clause?` does. After a PA word, the free modifiers do not begin with a number (`number_post_clause`). After a BY word they do not begin with a lerfu string, and after a COI word they do not begin with a vocative.
 
+The `free` rule tests the actual terminal before the slot. Its conditions exclude a number after PA, a letter string after BY, and a vocative after COI. These words use ordinary `#` slots.
+
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
 
 [The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
@@ -873,7 +875,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule number
   (* number <- PA_clause+;  PA_post <- number_post_clause *)
-  {PA number-post}
+  {PA #}
 
 %rule lerfu-string
   (* lerfu_string <- lerfu_word+ *)
@@ -881,7 +883,7 @@ The condition removes a connective operator whose first word is SE. The alternat
 
 %rule lerfu-word
   (* lerfu_word <- BY_clause / LAU_clause lerfu_word / TEI_clause lerfu_string FOI_clause;  BY_post <- lerfu_post_clause *)
-  BY lerfu-post | LAU # lerfu-word | TEI # lerfu-string FOI #
+  BY # | LAU # lerfu-word | TEI # lerfu-string FOI #
 ```
 
 <details><summary>Railroad diagrams of the 19 rules from <code>roi-word</code> to <code>lerfu-word</code></summary>
@@ -991,7 +993,7 @@ A free modifier nests in the nearest slot that can take it. So no free modifier 
 
 An attitudinal slot takes the next free modifier. A vocative slot takes a free modifier that is not a vocative.
 
-The condition on `free` removes a modifier when another follows at the same level. It does not require each slot to read everything that can follow it.
+The `free` query parses the following words again. It rejects a modifier when those words can begin another free modifier. This also controls the nesting of free slots.
 
 A vocative takes a selbri or a sumti as its address, as in Zantufa. Zantufa merges cmevla and brivla, so a name is an ordinary tanru unit. The selbri of the address reads as far as it can, as Zantufa's does. So in `doi djan klama`, the address is the selbri `djan klama`, and the text has no bridi. To address someone by name before a bridi, a speaker ends the vocative with `do'u`, as in `doi djan do'u klama`.
 
@@ -1011,7 +1013,10 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
   | UI #
 %conditions
-  ¬$.following-tokens.begins(free)
+  ¬$.following-tokens.begins(free),
+  $ ≇ @(PA ⋰) ∨ ¬$.preceded-by(PA),
+  $ ≇ @(lerfu-string ⋰) ∨ ¬$.preceded-by(BY),
+  $ ≇ @(vocative ⋰) ∨ ¬$.preceded-by(COI)
 
 %rule parenthesis-text
   text
@@ -1020,50 +1025,18 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
 
 %rule vocative
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
-  {COI vocative-post}
-
-%rule number-post
-  (* number_post_clause <- spaces? !BU_clause (!number free)* *)
-  [{free-not-number}]
+  {COI #}
 
 %rule lohai-word
   Word<¬LOhAI ¬LEhAI>
 
-%rule free-not-number
-  $f:free
-%conditions
-  $f ≇ @(PA ⋰)
-
-%rule lerfu-post
-  (* lerfu_post_clause <- spaces? !BU_clause (!lerfu_string free)* *)
-  [{free-not-lerfu}]
-
-%rule free-not-lerfu
-  $f:free
-%conditions
-  $f ≇ @(lerfu-string ⋰)
-
-%rule vocative-post
-  (* vocative_post_clause <- spaces? !BU_clause (!vocative free)* *)
-  [{free-not-vocative}]
-
-%rule free-not-vocative
-  $f:free
-%conditions
-  $f ≇ @(vocative ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<details><summary>Railroad diagrams of <code>free</code>, <code>parenthesis-text</code>, <code>vocative</code> and <code>lohai-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/vocative-post.svg" alt="Railroad diagram of the rule vocative-post"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/free-not-vocative.svg" alt="Railroad diagram of the rule free-not-vocative"></p>
 </details>
 
 ## Differences from Zantufa 1.9999
