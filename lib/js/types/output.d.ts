@@ -66,6 +66,11 @@ export type ErrorJson = {
     source?: Span;
     line?: number;
     column?: number;
+    boundary?: {
+        rule: string;
+        condition: number;
+        at: number;
+    };
     expected?: import("./types.js").Expectation[];
     readings?: NodeJson[];
     witness?: ActionJson[];
@@ -139,6 +144,7 @@ export type DisplayValue = {
  * @property {Span} [source]
  * @property {number} [line]
  * @property {number} [column]
+ * @property {{rule:string,condition:number,at:number}} [boundary]
  * @property {import("./types.js").Expectation[]} [expected]
  * @property {NodeJson[]} [readings]
  * @property {ActionJson[]} [witness]
@@ -179,7 +185,7 @@ export type DisplayValue = {
  * member, its rule or terminal.
  * @typedef {{[name: string]: DisplayValue | DisplayValue[] | string | string[] | null}} DisplayValue
  */
-export declare const RESULT_FORMAT = 12;
+export declare const RESULT_FORMAT = 13;
 /**
  * @param {ResultNode} node
  * @returns {NodeJson}

@@ -7,6 +7,7 @@ export declare class RankedAdmission {
             furthest: number;
             context: import("./earley.js").ParseContext;
             closeRequested?: boolean;
+            boundaryFailures?: any[];
             family?: import("./family-summaries.js").FamilySummaries | null;
             familyTrace?: Map<import("./earley.js").Item, {
                 event: import("./close-observations.js").CloseEvent;
@@ -37,6 +38,7 @@ export declare class RankedAdmission {
         groups: number;
         candidateEdges: number;
         retainedEdges: number;
+        boundarySplits: any[];
     };
     /** @param {any} chart @param {any} ranked */
     constructor(chart: any, ranked: any);

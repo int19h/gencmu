@@ -4,6 +4,346 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
+  // ---- clause-walk.js
+  // The term-bearing fields of clauses. Source locations, patterns and
+  // lowered grammar links contain no open term or nested condition.
+
+  /**
+   * Children of a term, condition, recipe, emission or clause container.
+   * @param {unknown} value
+   * @returns {unknown[]}
+   */
+  function clauseChildren(value) {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== "object") return [];
+    const node = /** @type {Record<string, any>} */ (value);
+    if (node.pattern) return [];
+    if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
+    if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
+    if (node.method) return [node.receiver, ...node.args];
+    if (node.op) return [node.left, node.right];
+    if (node.if) return [node.if, node.then];
+    if (node.not) return [node.not];
+    for (const key of ["any", "all", "union", "intersection", "difference", "interpolate", "concat", "items"]) {
+      if (node[key]) return node[key];
+    }
+    if (node.const) return node.value === undefined ? [] : [node.value];
+    if (node.condition) return [node.condition];
+    if (!node.conditions && !node.tags && !node.emit && !node.value && !node.image) return [];
+    return [node.conditions, node.tags, node.emit, node.value, node.image].filter(child => child !== undefined);
+  }
+
+  /**
+   * The clauses that query and close discovery must inspect. Written clauses
+   * keep conditions deferred to a ranked frame or simplified for a capture.
+   * @param {import("./types.js").Production} production
+   * @returns {unknown[]}
+   */
+  function productionClauses(production) {
+    return [production.conditions, production.tags, production.emit,
+      production.rankedDeferred, production.parentTags,
+      production.writtenTagClauses?.alternative, production.writtenTagClauses?.definition,
+      production.source?.clauses];
+  }
+
+  /**
+   * Only the body expressions of a rule, without terminal operands.
+   * @param {import("./types.js").Expr} expr
+   * @returns {import("./types.js").Expr[]}
+   */
+  function expressionChildren(expr) {
+    if ("seq" in expr) return expr.seq;
+    if ("choice" in expr) return expr.choice;
+    if ("ranked" in expr) return expr.ranked;
+    if ("and" in expr) return expr.and;
+    if ("optional" in expr) return [expr.optional];
+    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
+    if ("capture" in expr || "test" in expr) return [expr.expr];
+    return [];
+  }
+
+  // ---- boundary.js
+  // Complete-tree neighbours, represented by finite records (engine §4.2).
+
+
+  const BOUNDARY_METHODS = new Set(["followed-by", "preceded-by"]);
+  /** @type {WeakMap<object, any>} */
+  const boundaryLocations = new WeakMap();
+  /** Preserve positions when constants or patterns copy a clause.
+   * @param {object} from @param {object} to */
+  function copyBoundaryLocation(from,to) {
+    const location = boundaryLocations.get(from);
+    if (location) boundaryLocations.set(to,location);
+  }
+  /** @param {any} node @returns {any[]} */
+  function boundaryAtoms(node) {
+    const found = [], pending = [node];
+    while (pending.length) {
+      const part = pending.pop();
+      if (part && BOUNDARY_METHODS.has(part.method)) found.push(part);
+      else for (const child of clauseChildren(part).slice().reverse()) pending.push(child);
+    }
+    return found;
+  }
+  /** @param {any} rule @returns {{problem:string,node:any}|null} */
+  function boundaryProblem(rule) {
+    const allowed = new Set();
+    for (const condition of rule.conditions) {
+      const atoms = boundaryAtoms(condition);
+      if (atoms.length > 1) return {problem:"a condition item accepts only one boundary atom",node:atoms[1]};
+      if (!atoms.length) continue;
+      const atom = atoms[0];
+      allowed.add(atom);
+      const receiver = atom.receiver.capture;
+      if (receiver !== "") {
+        const pending = [condition];
+        while (pending.length) {
+          const part = pending.pop();
+          const capture = part?.capture ?? part?.captured;
+          if (typeof capture === "string" && capture !== receiver) return {problem:"a boundary condition with a captured receiver reads only that capture",node:atom};
+          for (const child of clauseChildren(part)) pending.push(child);
+        }
+      }
+    }
+    for (const item of rule.emit?.items ?? []) for (const atom of boundaryAtoms(item.tags)) allowed.add(atom);
+    // Include bodies, tests, and recipes as forbidden surfaces too.
+    const pending = [rule];
+    while (pending.length) {
+      const part = pending.pop();
+      if (!part || typeof part !== "object") continue;
+      if (BOUNDARY_METHODS.has(part.method) && !allowed.has(part)) return {problem:"a boundary atom stands only in conditions or emission tags",node:part};
+      for (const child of Object.values(part)) if (child && typeof child === "object") pending.push(child);
+    }
+    return null;
+  }
+
+  /** Body reachability, independently of gates and conditions. @param {any} grammar */
+  function boundaryReachability(grammar) {
+    /** @param {string[]} roots */
+    const reach = roots => {
+      const rules = new Set(), terminals = new Set(), pending = [...roots];
+      while (pending.length) {
+        const name = pending.pop();
+        if (rules.has(name)) continue;
+        rules.add(name);
+        for (const alternative of grammar.rules.get(name)?.alternatives ?? []) {
+          const stack = [alternative.expr];
+          while (stack.length) {
+            const expr = stack.pop();
+            if (expr.ref) {
+              if (/^[A-Z]/.test(expr.ref)) terminals.add(expr.ref);
+              else if (!expr.ref.startsWith("_")) pending.push(expr.ref);
+            }
+            for (const child of expressionChildren(expr)) stack.push(child);
+          }
+        }
+      }
+      return {rules,terminals};
+    };
+    const queries = [], atoms = [], seen = new Set();
+    for (const rule of grammar.rules.values()) for (const alternative of rule.alternatives) {
+      const clauses = alternative.clauses;
+      if (seen.has(clauses)) {
+        const pending = [alternative.tags];
+        while (pending.length) {
+          const part = pending.pop();
+          if (part?.method && ["matches","begins","tags"].includes(part.method) && part.args[0]?.rule) queries.push({rule:rule.name,alternative,target:part.args[0].rule});
+          for (const child of clauseChildren(part)) pending.push(child);
+        }
+        continue;
+      }
+      seen.add(clauses);
+      for (const atom of boundaryAtoms([clauses.conditions,clauses.emit])) atoms.push({rule:rule.name,alternative,atom});
+      const pending = [clauses,alternative.tags];
+      while (pending.length) {
+        const part = pending.pop();
+        if (part?.method && ["matches","begins","tags"].includes(part.method) && part.args[0]?.rule) queries.push({rule:rule.name,alternative,target:part.args[0].rule});
+        for (const child of clauseChildren(part)) pending.push(child);
+      }
+    }
+    // Grammars with no atoms need no boundary reachability or query closure.
+    // In particular, do not build one transitive closure per nested query.
+    if (!atoms.length) {
+      const empty = {rules:new Set(),terminals:new Set()};
+      return {text:empty,all:empty,queries:[],atoms:[]};
+    }
+    const text = reach(["text"]), all = reach(["text",...queries.map(query => query.target)]);
+    return {text,all,queries:queries.map(query => ({...query,reached:reach([query.target])})),atoms};
+  }
+
+  // BigInt sets have no fixed maximum width. A literal carries only direction,
+  // target, and sign. Source information lives outside records for diagnostics.
+  /** @typedef {{bit:bigint,direction:string,target:bigint,positive:boolean}} BoundaryLiteral */
+  /** @typedef {{id:number,empty:boolean,start:bigint,first:bigint,end:bigint,last:bigint}} BoundaryRecord */
+  class BoundaryRecords {
+    /** @param {any[]} productions */
+    constructor(productions) {
+      this.names = new Map();
+      this.forward = 0n;
+      this.backward = 0n;
+      /** @type {BoundaryLiteral[]} */
+      this.literals = [];
+      /** @type {Map<string,BoundaryLiteral>} */
+      this.literalKeys = new Map();
+      /** @type {Map<string,BoundaryRecord>} */
+      this.records = new Map();
+      this.empty = this.intern(true,0n,0n,0n,0n);
+      const seen = new Set();
+      for (const production of productions) for (const clause of productionClauses(production)) {
+        // Emission atoms demand no offers.
+        const pending = [clause];
+        while (pending.length) {
+          const part = /** @type {any} */ (pending.pop());
+          if (!part || typeof part !== "object" || seen.has(part)) continue;
+          seen.add(part);
+          if (part.condition) for (const atom of boundaryAtoms(part.condition)) this.demand(atom);
+          else if (Array.isArray(part.conditions)) for (const atom of boundaryAtoms(part.conditions)) this.demand(atom);
+          for (const child of clauseChildren(part)) if (child !== part.emit) pending.push(child);
+        }
+      }
+    }
+    /** @param {string} name */
+    name(name) {
+      let bit = this.names.get(name);
+      if (bit === undefined) this.names.set(name,bit = 1n << BigInt(this.names.size));
+      return bit;
+    }
+    /** @param {any} atom */
+    demand(atom) {
+      const mask = atom.args.reduce((/** @type {bigint} */ bits,/** @type {any} */ arg) => bits | this.name(arg.rule ?? arg.terminal),0n);
+      if (atom.method === "followed-by") this.forward |= mask;
+      else this.backward |= mask;
+    }
+    /** @param {any} atom @param {boolean} positive */
+    literal(atom,positive) {
+      const direction = atom.method === "followed-by" ? "f" : "p";
+      const target = atom.args.reduce((/** @type {bigint} */ bits,/** @type {any} */ arg) => bits | this.name(arg.rule ?? arg.terminal),0n);
+      const key = `${direction}/${target}/${positive}`;
+      let literal = this.literalKeys.get(key);
+      if (!literal) {
+        literal = {bit:1n << BigInt(this.literals.length),direction,target,positive};
+        this.literalKeys.set(key,literal);
+        this.literals.push(literal);
+      }
+      return literal;
+    }
+    /** @param {boolean} empty @param {bigint} start @param {bigint} first @param {bigint} end @param {bigint} last */
+    intern(empty,start,first,end,last) {
+      const key = `${empty}/${start}/${first}/${end}/${last}`;
+      let record = this.records.get(key);
+      if (!record) this.records.set(key,record = {id:this.records.size,empty,start,first,end,last});
+      return record;
+    }
+    /** @param {bigint} literals @param {bigint} offers @param {string} direction @param {boolean} final @param {(literal:any)=>void} fail */
+    meet(literals,offers,direction,final,fail) {
+      let remaining = literals, failed = false;
+      for (const literal of this.literals) {
+        if (!(literals & literal.bit) || literal.direction !== direction) continue;
+        const hit = !!(literal.target & offers);
+        if (!hit && !final) continue;
+        if (hit !== literal.positive) { fail(literal); failed = true; }
+        remaining &= ~literal.bit;
+      }
+      return failed ? null : remaining;
+    }
+    /** @param {BoundaryRecord} record @param {bigint} bits */
+    append(record,bits) { return this.intern(record.empty,record.start,record.first,record.end|bits,record.last); }
+    /** @param {string} name @param {boolean} empty */
+    leaf(name,empty) {
+      const bit = this.names.get(name) ?? 0n;
+      return empty ? this.empty : this.intern(false,0n,bit & this.forward,0n,bit & this.backward);
+    }
+    /** @param {BoundaryRecord} prefix @param {BoundaryRecord} child @param {(literal:any)=>void} fail */
+    advance(prefix,child,fail) {
+      if (child.empty) {
+        if (prefix.empty) return this.append(prefix,child.end);
+        // Rule 2 meets only the empty child's backward literals. The prefix's
+        // own literals must reach the next nonempty constituent unchanged.
+        const end = this.meet(child.end,prefix.last,"p",false,fail);
+        return end === null ? null : this.append(prefix,end);
+      }
+      if (prefix.empty) {
+        const start = this.meet(prefix.end|child.start,child.first,"f",false,fail);
+        return start === null ? null : this.intern(false,start,child.first,child.end,child.last);
+      }
+      const middle = prefix.end|child.start;
+      const forward = this.meet(middle,child.first,"f",true,fail);
+      const backward = this.meet(middle,prefix.last,"p",true,fail);
+      return forward === null || backward === null ? null : this.intern(false,prefix.start,prefix.first,child.end,child.last);
+    }
+    /** @param {BoundaryRecord} record @param {string|null} name @param {bigint} backward @param {bigint} forward @param {(literal:any)=>void} fail */
+    complete(record,name,backward,forward,fail) {
+      if (record.empty) return this.append(record,backward|forward);
+      const bit = this.names.get(name) ?? 0n;
+      const first = record.first|(bit & this.forward), last = record.last|(bit & this.backward);
+      const start = this.meet(record.start,first,"f",false,fail);
+      if (start === null) return null;
+      const end = this.meet(record.end,last,"p",false,fail);
+      return end === null ? null : this.intern(false,start|backward,first,end|forward,last);
+    }
+    /** @param {BoundaryRecord} record @param {(literal:any)=>void} fail */
+    accepts(record,fail = () => {}) {
+      const pending = record.start|record.end;
+      let accepted = true;
+      for (const literal of this.literals) if (pending & literal.bit && literal.positive) { fail(literal); accepted = false; }
+      return accepted;
+    }
+    /** The option's facts after qualification, without the prefix's facts. @param {BoundaryRecord} prefix @param {BoundaryRecord} child */
+    open(prefix,child) {
+      if (child.empty) {
+        const end = prefix.empty ? child.end : this.meet(child.end,prefix.last,"p",false,() => {});
+        return end === null ? null : `E/${end}`;
+      }
+      return prefix.empty ? child.id : `N/${child.end}/${child.last}`;
+    }
+  }
+
+  /** @type {WeakMap<object,any[]>} */
+  const cachedAtoms = new WeakMap();
+  /** @param {any} condition */
+  function firstBoundaryAtom(condition) {
+    let found = cachedAtoms.get(condition);
+    if (!found) cachedAtoms.set(condition,found=boundaryAtoms(condition));
+    return found[0];
+  }
+  /** @type {WeakMap<any[],BoundaryRecords|null>} */
+  const machines = new WeakMap();
+  /** @param {any[]} productions */
+  function boundaryMachine(productions) {
+    if (!machines.has(productions)) {
+      const machine = new BoundaryRecords(productions);
+      machines.set(productions,machine.forward || machine.backward ? machine : null);
+    }
+    return machines.get(productions) ?? null;
+  }
+
+  /** A cached document needs source positions only when it raises an error.
+   * @type {WeakMap<object,{document:string,node:object}>} */
+  const boundaryDocumentErrors = new WeakMap();
+  /** @param {any} dom @param {any[]} tokens @param {(token:any)=>[number,number]} positionOf */
+  function restoreBoundaryLocations(dom,tokens,positionOf) {
+    const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
+    const selectors = tokens.flatMap((token,index) => BOUNDARY_METHODS.has(token.value) && tokens[index-1]?.text === "." && tokens[index+1]?.text === "(" ? [index] : []);
+    if (atoms.length !== selectors.length) return;
+    atoms.forEach((/** @type {any} */ atom,/** @type {number} */ index) => {
+      const at = selectors[index];
+      boundaryLocations.set(atom,{at:positionOf(tokens[at-2])});
+      for (let argument=0;argument<atom.args.length;argument++) boundaryLocations.set(atom.args[argument],{at:positionOf(tokens[at+2+2*argument])});
+    });
+  }
+
+  /** @type {WeakMap<object,Set<string>>} */
+  const emissionDemands = new WeakMap();
+  /** @param {any[]} productions */
+  function emissionTargets(productions) {
+    let names = emissionDemands.get(productions);
+    if (!names) {
+      names = new Set(productions.flatMap(p => boundaryAtoms(p.emit).flatMap(a => a.args.map((/** @type {any} */ target) => target.rule ?? target.terminal))));
+      emissionDemands.set(productions,names);
+    }
+    return names;
+  }
+
   // ---- unicode.js
   // The character data of grammars/unicode.txt: the General_Category of a
   // character, the White_Space property, the
@@ -287,6 +627,7 @@
    * @property {number} structuralTransitions structural transitions computed
    * @property {number} packedEdges distinct packed forest edges
    * @property {number} summaryContexts summary results stored per traversal
+   * @property {number} boundaryRecords distinct boundary records used in recognitions
    * @property {number} items the items that the recognizer made
    * @property {number} captures the captured parts that the recognizer made
    * @property {number} captureSteps the steps that find a captured part from
@@ -333,10 +674,10 @@
    *   count that the work may reach
    */
 
-  /** @typedef {"familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+  /** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 
   /** @type {readonly WorkKind[]} */
-  const WORK_KINDS = ["familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
+  const WORK_KINDS = ["boundaryRecords","familySummaries", "familySteps", "closeStates", "closeSequences", "structuralStates", "structuralTransitions", "packedEdges", "summaryContexts", "items", "captures", "captureSteps", "captureLookups", "edgeChecks", "conditions", "visits", "valueSteps", "tags", "implications", "walkSteps", "lowering", "closures", "clauses", "groups", "traversal", "splice", "text"];
 
   /**
    * Counts of every kind at zero, for a test to set as `hooks.work`.
@@ -368,8 +709,8 @@
     if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
   }
 
-  /** @type {{familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
-  const hooks = { elisionCheck: null, work: null, slotAdmission: null,
+  /** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null}} */
+  const hooks = { boundaryAdmission:null, elisionCheck: null, work: null, slotAdmission: null,
     /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null };
 
   /**
@@ -752,6 +1093,7 @@
    * @property {Span} [source]
    * @property {number} [line]
    * @property {number} [column]
+   * @property {{rule:string,condition:number,at:number}} [boundary]
    * @property {import("./types.js").Expectation[]} [expected]
    * @property {NodeJson[]} [readings]
    * @property {ActionJson[]} [witness]
@@ -798,7 +1140,7 @@
    */
 
 
-  const RESULT_FORMAT = 12;
+  const RESULT_FORMAT = 13;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -896,6 +1238,7 @@
     if (error.line !== undefined) result.line = error.line;
     if (error.column !== undefined) result.column = error.column;
     if (error.expected !== undefined) result.expected = error.expected;
+    if (error.boundary !== undefined) result.boundary = error.boundary;
     if (error.readings !== undefined) result.readings = error.readings.map(nodeJson);
     // Only an error of elision-only has a witness (docs/output.md).
     if (error.witness !== undefined && error.reason === "elision-only") result.witness = error.witness.map(actionJson);
@@ -1457,64 +1800,6 @@
       }
     }
     return null;
-  }
-
-  // ---- clause-walk.js
-  // The term-bearing fields of clauses. Source locations, patterns and
-  // lowered grammar links contain no open term or nested condition.
-
-  /**
-   * Children of a term, condition, recipe, emission or clause container.
-   * @param {unknown} value
-   * @returns {unknown[]}
-   */
-  function clauseChildren(value) {
-    if (Array.isArray(value)) return value;
-    if (!value || typeof value !== "object") return [];
-    const node = /** @type {Record<string, any>} */ (value);
-    if (node.pattern) return [];
-    if (node.string !== undefined || node.tag !== undefined || node.captured !== undefined || node.rule || node.classifier) return [];
-    if (typeof node.capture === "string" && !node.tags && !node.value && !node.image) return [];
-    if (node.method) return [node.receiver, ...node.args];
-    if (node.op) return [node.left, node.right];
-    if (node.if) return [node.if, node.then];
-    if (node.not) return [node.not];
-    for (const key of ["any", "all", "union", "intersection", "difference", "interpolate", "concat", "items"]) {
-      if (node[key]) return node[key];
-    }
-    if (node.const) return node.value === undefined ? [] : [node.value];
-    if (node.condition) return [node.condition];
-    if (!node.conditions && !node.tags && !node.emit && !node.value && !node.image) return [];
-    return [node.conditions, node.tags, node.emit, node.value, node.image].filter(child => child !== undefined);
-  }
-
-  /**
-   * The clauses that query and close discovery must inspect. Written clauses
-   * keep conditions deferred to a ranked frame or simplified for a capture.
-   * @param {import("./types.js").Production} production
-   * @returns {unknown[]}
-   */
-  function productionClauses(production) {
-    return [production.conditions, production.tags, production.emit,
-      production.rankedDeferred, production.parentTags,
-      production.writtenTagClauses?.alternative, production.writtenTagClauses?.definition,
-      production.source?.clauses];
-  }
-
-  /**
-   * Only the body expressions of a rule, without terminal operands.
-   * @param {import("./types.js").Expr} expr
-   * @returns {import("./types.js").Expr[]}
-   */
-  function expressionChildren(expr) {
-    if ("seq" in expr) return expr.seq;
-    if ("choice" in expr) return expr.choice;
-    if ("ranked" in expr) return expr.ranked;
-    if ("and" in expr) return expr.and;
-    if ("optional" in expr) return [expr.optional];
-    if ("repeat" in expr) return expr.separator === undefined ? [expr.repeat] : [expr.repeat, expr.separator];
-    if ("capture" in expr || "test" in expr) return [expr.expr];
-    return [];
   }
 
   // ---- close-families.js
@@ -2811,7 +3096,7 @@
   // Receiver-first method signatures (engine §10).
 
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
-  const QUERY_METHODS = new Set(["matches", "begins", "starts-input"]);
+  const QUERY_METHODS = new Set(["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
 
@@ -2842,8 +3127,11 @@
       if (!span || args.length) return `${name} requires a span and no arguments`;
     } else if (name === "matches" || name === "begins") {
       if (!span || args.length !== 1 || !rule(0)) return `${name} requires a span and one rule name`;
-    } else if (name === "starts-input") {
-      if (!span || args.length) return "starts-input requires a span and no arguments";
+    } else if (name === "followed-by" || name === "preceded-by") {
+      if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return `${name} requires a bare capture`;
+      if (!args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return `${name} requires rule names or tag terminals`;
+    } else if (name === "starts-input" || name === "ends-input") {
+      if (!span || args.length) return `${name} requires a span and no arguments`;
     } else if (name === "tags") {
       if (!span || args.length > 1 || (args.length === 1 && !rule(0))) return "tags requires a span and optionally one rule name";
     } else if (name === "classes") {
@@ -3236,76 +3524,6 @@
     return null;
   }
 
-  // ---- recipes.js
-  // Recipe selection and loading checks (engine §11.3).
-
-
-  /** @import { Recipe, Position, GrammarDom } from "./types.js" */
-  /** @type {WeakMap<object,Position>} */
-  const recipeLocations = new WeakMap();
-  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
-  const recipeFailures = new WeakMap();
-
-  /** @param {object} source @param {object} target */
-  function copyRecipeLocation(source,target) {
-    const at = recipeLocations.get(source);
-    if (at) recipeLocations.set(target,at);
-  }
-
-  /** @param {GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>Position} positionOf */
-  function restoreRecipeLocations(dom,tokens,positionOf) {
-    const starts = tokens.flatMap((token,index) => [":=",":-"].includes(token.text) ? [tokens[index+1]] : []);
-    /** @type {Recipe[]} */
-    const recipes = [];
-    for (const rule of dom.rules) {
-      for (const recipe of [rule.value,rule.image]) if (recipe) recipes.push(recipe);
-      for (const alternative of rule.alternatives) for (const recipe of [alternative.value,alternative.image]) if (recipe) recipes.push(recipe);
-      for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
-    }
-    if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
-  }
-
-  /**
-   * @param {Recipe|undefined} value
-   * @param {Recipe|undefined} image
-   * @param {string} document
-   */
-  function validateRecipeCycles(value,image,document) {
-    const selected = {value, image:image ?? value};
-    const impliedImage = image === undefined && value !== undefined;
-    /** @type {("value"|"image")[]} */
-    const path = [];
-    const done = new Set();
-    /** @param {"value"|"image"} channel */
-    const visit = channel => {
-      if (channel === "image" && impliedImage) channel = "value";
-      if (done.has(channel)) return;
-      const recipe = selected[channel];
-      if (!recipe) { done.add(channel); return; }
-      path.push(channel);
-      for (const atom of recipe.concat) {
-        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
-        const receiver = atom.receiver;
-        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
-        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
-        if (path.includes(next)) {
-          const at = recipeLocations.get(recipe);
-          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
-          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
-            document, ...(at ? {line:at[0],column:at[1]} : {}),
-          });
-          recipeFailures.set(error,{document,recipe});
-          throw error;
-        }
-        visit(next);
-      }
-      path.pop();
-      done.add(channel);
-    };
-    visit("value");
-    visit("image");
-  }
-
   // ---- trampoline.js
   // Runs mutually recursive readers and walks without the call stack, so a
   // document's nesting cannot exhaust it (engine §9).
@@ -3369,6 +3587,7 @@
   }
 
   // ---- dom.js
+
   // Checks that a grammar DOM that did not come from reading a document, the
   // bootstrap's or a precompiled one from compiled.json, has the shape the
   // reader would have given it (docs/output.md, "The DOM"), so that a corrupt
@@ -3394,7 +3613,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 28;
+  const DOM_FORMAT = 29;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3563,7 +3782,7 @@
       push("term", implication.if); push("term", implication.then);
     }
     for (const rule of dom.rules) {
-      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && RULE_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => flag !== "leftmost-longest") || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
+      if (!exact(rule, ["name", "op", "flags", "tags", "value", "image", "alternatives", "emit", "conditions", "erased", "at"]) || !(typeof rule.name === "string" && RULE_NAME.test(rule.name)) || !["define", "redefine", "extend"].includes(rule.op) || !Array.isArray(rule.flags) || rule.flags.length > 1 || rule.flags.some((/** @type {string} */ flag) => !["leftmost-longest", "fewest"].includes(flag)) || (rule.op === "extend" && rule.flags.length) || !Array.isArray(rule.alternatives) || !rule.alternatives.length || !Array.isArray(rule.conditions)) return "a malformed rule";
       if ("erased" in rule && (rule.erased !== true || rule.emit || rule.value || rule.image)) return "a malformed erased rule";
       if (rule.tags !== undefined) push("tags", rule.tags, 0, { constituent: true });
       if (rule.value !== undefined) push("recipe", rule.value);
@@ -3683,7 +3902,8 @@
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
-            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
+            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !BOUNDARY_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
           }
@@ -3701,7 +3921,7 @@
     }
     for (const rule of dom.rules) {
       if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length)) return "a duplicate capture";
-      const problem = definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
+      const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
     }
     for (const definition of dom.constants) {
       if (openPart(definition.value)) return "a constant is not closed";
@@ -3897,7 +4117,7 @@
     // Down the chain of guards, in a loop.
     let current = node;
     while (isDomObject(current) && !(typeof current.op === "string" || "not" in current || "all" in current || "any" in current ||
-      (typeof current.method === "string" && ["matches", "begins", "starts-input"].includes(current.method)) || "captured" in current || "constant" in current)) {
+      (typeof current.method === "string" && ["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"].includes(current.method)) || "captured" in current || "constant" in current)) {
       if (!("if" in current)) return false;
       current = current.then;
     }
@@ -4953,7 +5173,7 @@
       if ("problem" in receiver) return receiver;
       const types = [];
       for (const arg of term.args) {
-        if (arg.rule || arg.classifier) types.push("name");
+        if (arg.rule || arg.classifier || arg.terminal) types.push("name");
         else {
           const found = yield typing(arg, constants);
           if ("problem" in found) return found;
@@ -5557,7 +5777,78 @@
     return value?.emptySet === true || value?.set instanceof Set && value.set.size === 0;
   }
 
+  // ---- recipes.js
+  // Recipe selection and loading checks (engine §11.3).
+
+
+  /** @import { Recipe, Position, GrammarDom } from "./types.js" */
+  /** @type {WeakMap<object,Position>} */
+  const recipeLocations = new WeakMap();
+  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
+  const recipeFailures = new WeakMap();
+
+  /** @param {object} source @param {object} target */
+  function copyRecipeLocation(source,target) {
+    const at = recipeLocations.get(source);
+    if (at) recipeLocations.set(target,at);
+  }
+
+  /** @param {GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>Position} positionOf */
+  function restoreRecipeLocations(dom,tokens,positionOf) {
+    const starts = tokens.flatMap((token,index) => [":=",":-"].includes(token.text) ? [tokens[index+1]] : []);
+    /** @type {Recipe[]} */
+    const recipes = [];
+    for (const rule of dom.rules) {
+      for (const recipe of [rule.value,rule.image]) if (recipe) recipes.push(recipe);
+      for (const alternative of rule.alternatives) for (const recipe of [alternative.value,alternative.image]) if (recipe) recipes.push(recipe);
+      for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
+    }
+    if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
+  }
+
+  /**
+   * @param {Recipe|undefined} value
+   * @param {Recipe|undefined} image
+   * @param {string} document
+   */
+  function validateRecipeCycles(value,image,document) {
+    const selected = {value, image:image ?? value};
+    const impliedImage = image === undefined && value !== undefined;
+    /** @type {("value"|"image")[]} */
+    const path = [];
+    const done = new Set();
+    /** @param {"value"|"image"} channel */
+    const visit = channel => {
+      if (channel === "image" && impliedImage) channel = "value";
+      if (done.has(channel)) return;
+      const recipe = selected[channel];
+      if (!recipe) { done.add(channel); return; }
+      path.push(channel);
+      for (const atom of recipe.concat) {
+        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
+        const receiver = atom.receiver;
+        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
+        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
+        if (path.includes(next)) {
+          const at = recipeLocations.get(recipe);
+          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
+          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
+            document, ...(at ? {line:at[0],column:at[1]} : {}),
+          });
+          recipeFailures.set(error,{document,recipe});
+          throw error;
+        }
+        visit(next);
+      }
+      path.pop();
+      done.add(channel);
+    };
+    visit("value");
+    visit("image");
+  }
+
   // ---- ranked-frame.js
+
   // Lexical entry state for transparent helpers in a ranked alternative.
 
 
@@ -5631,6 +5922,11 @@
     const positions = new Map(production.captures.map((/** @type {any} */ c) => [c.name,c.index]));
     const result = [];
     for (const raw of clauses) {
+      const atom = firstBoundaryAtom(raw);
+      if (production.helper && atom) {
+        const receiver = atom.receiver.capture;
+        if (receiver !== "" && prefix.has(receiver)) continue;
+      }
       if (production.lexicalFrame && [...rankedCaptureReads(raw)].some(n => production.sourcePrivate.has(n)
         && !production.rankedPrivate.has(n) && !production.lexicalFrame.knownPrivate.has(n) && !positions.has(n) && !prefix.has(n))) continue;
       for (const simplified of partsFor(prepareConditions([raw]), n => present.has(n), present)) {
@@ -5729,6 +6025,7 @@
   function rankedConditionVariables(condition) {return [...rankedCaptureReads(condition)];}
 
   // ---- grammar.js
+
 
 
   // A stage's grammar: its documents stitched together (engine §2) and
@@ -5905,6 +6202,37 @@
       this.tests = new WeakMap();
       if (!this.resolution) {
         throw new GencmuError("grammar", `stage ${stageName} has no %ambiguity-resolution`, { stage: stageName });
+      }
+      /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
+      this.boundarySites = new WeakMap();
+      let ruleOrder = 0;
+      for (const rule of this.rules.values()) {
+        let conditionIndex = 0;
+        const definitions = new Set();
+        for (const alternative of rule.alternatives) {
+          if (definitions.has(alternative.clauses)) continue;
+          definitions.add(alternative.clauses);
+          // Repeated includes share DOM nodes, but each definition has its
+          // own position in the stitched condition list.
+          const sites = new WeakMap();
+          this.boundarySites.set(alternative.clauses,sites);
+          for (const condition of alternative.clauses.conditions) {
+            for (const atom of boundaryAtoms(condition)) sites.set(atom,{rule:rule.name,condition:conditionIndex,order:ruleOrder});
+            conditionIndex++;
+          }
+        }
+        ruleOrder++;
+      }
+      this.boundaries = boundaryReachability(this);
+      for (const {atom,alternative} of this.boundaries.atoms) for (const target of atom.args) {
+        if (!(target.rule ? this.boundaries.all.rules.has(target.rule) : this.boundaries.all.terminals.has(target.terminal))) {
+          const location = boundaryLocations.get(target);
+          const at = location?.at;
+          const error = new GencmuError("grammar",`${alternative.document}: boundary target ${target.rule ?? target.terminal} is unreachable`,
+            {document:alternative.document,...(at ? {line:at[0],column:at[1]} : {})});
+          boundaryDocumentErrors.set(error,{document:alternative.document,node:target});
+          throw error;
+        }
       }
       this.checkReferences();
       this.families = closeFamilies(this.rules);
@@ -6281,6 +6609,7 @@
       const copy = Object.fromEntries(Object.entries(node).map(([key, value]) => [key, this.resolvePatterns(value, path, at)]));
       copyRankedLocation(node,copy);
       copyRecipeLocation(node,copy);
+      copyBoundaryLocation(node,copy);
       return copy;
     }
 
@@ -6544,6 +6873,7 @@
     for (const [key, value] of Object.entries(record)) copy[key] = resolveNode(value, constants);
     copyRankedLocation(record,copy);
     copyRecipeLocation(record,copy);
+    copyBoundaryLocation(record,copy);
     return copy;
   }
 
@@ -6581,6 +6911,7 @@
       for (const item of value) yield* clauseRules(item);
     } else if (value !== null && typeof value === "object") {
       const node = /** @type {Record<string, unknown>} */ (value);
+      if (BOUNDARY_METHODS.has(/** @type {string} */ (node.method))) return;
       if (typeof node.rule === "string") yield node.rule;
       for (const child of clauseChildren(node)) yield* clauseRules(child);
     }
@@ -6654,6 +6985,7 @@
         resolution: /** @type {Resolution} */ (this.grammar.resolution),
         ranked: this.grammar.ranked,
         families: this.grammar.families,
+        boundarySites:this.grammar.boundarySites,
       };
     }
 
@@ -7250,8 +7582,10 @@
   }
 
   // ---- earley.js
+
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
+
 
 
 
@@ -7285,6 +7619,7 @@
    * @property {number} furthest the last position whose set holds an item
    * @property {ParseContext} context
    * @property {boolean} [closeRequested]
+   * @property {any[]} [boundaryFailures]
    * @property {FamilySummaries|null} [family]
    * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
    */
@@ -7657,6 +7992,9 @@
      */
     constructor(lowered, tokens, sourceText, unicode, interner) {
       this.lowered = lowered;
+      this.boundaries = boundaryMachine(lowered.productions);
+      /** @type {any} */
+      this.emissionBoundaries = null;
       const patterns = demandedPatterns(lowered.productions);
       this.patterns = patterns.length ? new PatternMachine(patterns) : null;
       this.closeRules = closeDemands(lowered);
@@ -7778,6 +8116,10 @@
       this.dot = dot;
       this.origin = origin;
       this.slots = slots;
+      /** @type {any} */
+      this.boundary = null;
+      /** @type {any[]} */
+      this.boundaryIntroduced = [];
       this.prefix = -1;
       this.structure = -1;
       /** @type {CloseObservation|null} */
@@ -8093,7 +8435,7 @@
         if (kind !== "begins" && set.position !== constraint.matchEnd) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      const qualified = eligibleWitnesses(chart, witnesses);
+      const qualified = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses));
       const aligned = qualified.filter(item => {
         const answer = !!item.observation && (chart.family
           ? !!item.familySummary && chart.family.accepts(item.familySummary, item.end)
@@ -8111,7 +8453,7 @@
         answer = tags.result();
       } else answer = aligned.length !== 0;
     } else   if (kind === "matches") {
-      answer = eligibleWitnesses(chart, rootItems(chart, rule)).length > 0;
+      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule))).length > 0;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
@@ -8120,10 +8462,10 @@
         if (set === undefined) continue;
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
-      answer = eligibleWitnesses(chart, witnesses).length > 0;
+      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).length > 0;
     } else {
       const result = new TagUnion();
-      for (const item of eligibleWitnesses(chart, rootItems(chart, rule))) result.add(context.interner.get(item.tagId));
+      for (const item of eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)))) result.add(context.interner.get(item.tagId));
       answer = result.result();
     }
     context.nested.set(query.key, answer);
@@ -8168,6 +8510,9 @@
     context.inputStart = start;
     context.inputEnd = end;
     const { lowered, tokens } = context;
+    /** @type {any[]} */
+    let boundaryFailures = [];
+    const boundarySeen = new Set();
     /** @type {ChartSet[]} */
     const sets = [];
     // A set is made when something first looks at it: once a set is empty,
@@ -8241,10 +8586,15 @@
     // Adds the item `previous` makes advanced over `child`, or over the token
     // before the set when `child` is null; a prediction when both are null.
     // `strict` says whether the step that makes it is strict (engine §7.4).
-    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Captured, previous: Item | null, child: Item | null, tagId: number, strict?: boolean) => void} */
-    const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false) => {
+    /** @type {(set: ChartSet, production: Production, dot: number, origin: number, slots: Captured, previous: Item | null, child: Item | null, tagId: number, strict?: boolean, obligations?: any[]) => void} */
+    const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false, obligations = []) => {
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
+      const fail = (/** @type {any} */ literal, /** @type {number} */ at) => boundaryFailures.push({literal,at,production,origin,end:set.position,previous,child,obligations,slots});
+      const boundary = boundaryStep(context,production,dot,origin,set.position,previous,child,obligations,fail);
+      if (context.boundaries && !boundary) return;
+      if (context.boundaries && !query && dot === production.rhs.length && production.lhs === rule && origin === start && set.position === end &&
+          !context.boundaries.accepts(boundary,literal => fail(literal,boundary.start & literal.bit ? origin : set.position))) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
@@ -8254,6 +8604,7 @@
       if (context.patterns) key = `${key}/${projected.prefix}/${projected.structure}`;
       if (close) key = `${key}/c${close.prefix.id}/${close.observation.id}`;
       if (summary) key = `${key}/family${summary.id}`;
+      if (boundary) key = `${key}/b${boundary.id}`;
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
@@ -8303,6 +8654,12 @@
         return;
       }
       item = new Item(production, dot, origin, slots, previous, child);
+      if (boundary && !boundarySeen.has(boundary.id)) {
+        boundarySeen.add(boundary.id);
+        if (hooks.work) countWork(hooks.work,"boundaryRecords");
+      }
+      item.boundary = boundary;
+      item.boundaryIntroduced = obligations;
       item.prefix = projected.prefix;
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
@@ -8371,8 +8728,10 @@
       // A restoration whose item exists is another way to build it. Each
       // lookup counts, so that a search slower than the index fails a budget.
       if (hooks.work) countWork(hooks.work, "edgeChecks");
+      if (context.boundaries) key = `${key}/b${context.boundaries.empty.id}`;
       if (target.index.has(key)) return;
       const item = new Item(production, 0, position, null, null, null);
+      item.boundary = context.boundaries?.empty ?? null;
       item.prefix = context.patterns?.empty ?? -1;
       item.structure = structure;
       item.observationPrefix = context.closes?.empty ?? null;
@@ -8505,7 +8864,7 @@
         }
       }
       if (step.scope?.invalidRestoration) return;
-      add(set, production, 0, set.position, null, null, null, value, strict && !fault("F16", "item"));
+      add(set, production, 0, set.position, null, null, null, value, strict && !fault("F16", "item"), step.obligations);
     };
 
     // The item advanced over its next symbol, which spans [from, to) and was
@@ -8573,7 +8932,7 @@
         }
       }
       if (step.scope?.invalidRestoration) return null;
-      return { dot: item.dot + 1, slots, tagId: value };
+      return { dot: item.dot + 1, slots, tagId: value, obligations:step.obligations };
     };
 
     // Whether a symbol after an item's next symbol can read (engine §7.4).
@@ -8634,14 +8993,14 @@
             const current = /** @type {Item} */ (entry);
             if (kind === PREDICT) predictIndex++;
             else if (kind === EMPTIES) {
-              if (value) add(set, current.production, value.dot, current.origin, value.slots, current, waiting[next], value.tagId, current.strict);
+              if (value) add(set, current.production, value.dot, current.origin, value.slots, current, waiting[next], value.tagId, current.strict, value.obligations);
               next++;
             } else if (kind === TERMINAL) {
-              if (value) add(setAt(at + 1), current.production, value.dot, current.origin, value.slots, current, null, value.tagId, strictly);
+              if (value) add(setAt(at + 1), current.production, value.dot, current.origin, value.slots, current, null, value.tagId, strictly, value.obligations);
               kind = NEXT;
             } else {
               const waiter = waiting[next];
-              if (value) add(set, waiter.production, value.dot, waiter.origin, value.slots, waiter, current, value.tagId, current.origin === at && waiter.strict);
+              if (value) add(set, waiter.production, value.dot, waiter.origin, value.slots, waiter, current, value.tagId, current.origin === at && waiter.strict, value.obligations);
               next++;
             }
           }
@@ -8654,6 +9013,7 @@
                 set = setAt(at);
                 if (at > start && set.items.length === 0) break;
                 furthest = at;
+                if (boundaryFailures.length) boundaryFailures = boundaryFailures.filter(failure => failure.end >= at);
                 if (at > start) {
                   // Nothing is added to a set once the next one is being
                   // built: its index, queue and predictions can go, which a
@@ -8734,7 +9094,7 @@
                   const advanced = advance(current, at, at, done);
                   if (advanced === HALT) break pausing;
                   if (advanced) {
-                    add(set, current.production, advanced.dot, current.origin, advanced.slots, current, done, advanced.tagId, current.strict);
+                    add(set, current.production, advanced.dot, current.origin, advanced.slots, current, done, advanced.tagId, current.strict, advanced.obligations);
                   }
                 }
                 break;
@@ -8743,7 +9103,7 @@
                 const advanced = advance(current, at, at + 1, null);
                 if (advanced === HALT) break pausing;
                 if (advanced) {
-                  add(setAt(at + 1), current.production, advanced.dot, current.origin, advanced.slots, current, null, advanced.tagId, strictly);
+                  add(setAt(at + 1), current.production, advanced.dot, current.origin, advanced.slots, current, null, advanced.tagId, strictly, advanced.obligations);
                 }
                 break;
               }
@@ -8758,7 +9118,7 @@
                   const advanced = advance(waiter, current.origin, at, current);
                   if (advanced === HALT) break pausing;
                   if (advanced) {
-                    add(set, waiter.production, advanced.dot, waiter.origin, advanced.slots, waiter, current, advanced.tagId, empty && waiter.strict);
+                    add(set, waiter.production, advanced.dot, waiter.origin, advanced.slots, waiter, current, advanced.tagId, empty && waiter.strict, advanced.obligations);
                   }
                 }
                 break;
@@ -8769,7 +9129,7 @@
           step = NEXT;
           /** @type {(position: number) => ChartSet} */
           const peek = (position) => sets[position - start] || new ChartSet(position);
-          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned, family, familyTrace };
+          return { sets, start, end, setAt: peek, furthest, context, closeRequested: !!query?.aligned, family, familyTrace, boundaryFailures };
         }
         step = kind;
         item = entry;
@@ -8789,7 +9149,7 @@
   /**
    * An item advanced: its new dot, its captured parts, and its tags if it is
    * complete, or -1.
-   * @typedef {{dot: number, slots: Captured, tagId: number}} Advanced
+   * @typedef {{dot: number, slots: Captured, tagId: number, obligations?:any[]}} Advanced
    */
 
   /**
@@ -9207,7 +9567,8 @@
       const { condition, readyAt: at } = conditions[index];
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
-      const held = holds(scope.observing, condition, scope);
+      const atom = firstBoundaryAtom(condition);
+      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step) : holds(scope.observing, condition, scope);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
       if (!held || scope.invalidRestoration) return condition;
     }
@@ -9236,7 +9597,7 @@
    * between its conditions and its tag term, so that the tag term runs at
    * most once in the step. This saves time only: how many times a step
    * evaluates its tag term is not observable (engine §4).
-   * @typedef {{scope: ChartScope | null, structure: number, observation: CloseObservation|null}} StepScope
+   * @typedef {{scope: ChartScope | null, structure: number, observation: CloseObservation|null, obligations?:any[]}} StepScope
    */
 
   /** @type {WeakMap<Production, Map<string, number>>} */
@@ -10000,6 +10361,14 @@
     if ("captured" in condition) throw new GencmuError("grammar", "a presence test outlived lowering");
     if ("method" in condition) {
       const span = spanOf(context, condition.receiver, scope);
+      if (BOUNDARY_METHODS.has(condition.method)) {
+        if (scope.boundaryValue !== undefined) return scope.boundaryValue;
+        return /** @type {NonNullable<Scope["boundary"]>} */ (scope.boundary)(condition);
+      }
+      if (condition.method === "ends-input") {
+        const where = observe(context,span,scope,"ends-input");
+        return where.end === where.context.inputEnd;
+      }
       if (condition.method === "starts-input") {
         const where = observe(context, span, scope, "starts-input");
         return where.start === where.context.inputStart;
@@ -10216,11 +10585,17 @@
   // there, with the rules that could have read it.
   /**
    * @param {Chart} chart
-   * @returns {{position: number, expected: Expectation[]}}
+   * @returns {{position: number, expected: Expectation[], boundary?:any}}
    */
   function rejectionOf(chart) {
     const position = chart.furthest;
-    return { position, expected: expectedAt(chart, position) };
+    const failures = (chart.boundaryFailures ?? []).filter(failure => failure.end >= position);
+    const candidates = failures.flatMap(failure => boundarySources(chart.context,failure));
+    candidates.sort((a,b) => a.at-b.at || a.order-b.order || a.condition-b.condition);
+    /** @type {{position:number,expected:Expectation[],boundary?:any}} */
+    const result = {position,expected:expectedAt(chart,position)};
+    if (candidates.length) { const {rule,condition,at} = candidates[0]; result.boundary = {rule,condition,at}; }
+    return result;
   }
 
   /**
@@ -10263,7 +10638,91 @@
     }));
   }
 
+  /** Evaluate each Boolean assignment in the existing order, across query halts.
+   * @param {any} context @param {any} condition @param {any} scope @param {any} atom @param {any} step */
+  function boundaryCondition(context,condition,scope,atom,step) {
+    scope.boundaryValue = true;
+    const yes = holds(context,condition,scope);
+    const withYes = (/** @type {boolean} */ value) => {
+      value = value && !scope.invalidRestoration;
+      scope.invalidRestoration = false;
+      scope.boundaryValue = false;
+      const no = holds(context,condition,scope);
+      const finish = (/** @type {boolean} */ other) => {
+        delete scope.boundaryValue;
+        other = other && !scope.invalidRestoration;
+        scope.invalidRestoration = false;
+        if (!value && !other) return false;
+        if (value !== other) {
+          // Common whole-rule conditions also run at the lexical ranked step
+          // for their ordinary failures and error order. Their obligation is
+          // introduced at the actual named completion, never at a helper edge.
+          const production = scope.production;
+          if (production.helper && atom.receiver.capture === "" &&
+              ![...rankedCaptureReads(condition)].some(name => production.sourcePrivate?.has(name))) return true;
+          const machine = context.boundaries ?? scope.context.boundaries;
+          const receiver = scope.capture(atom.receiver.capture);
+          const source = production.lexicalFrame?.root.logicalSource ?? production.logicalSource;
+          (step.obligations ??= []).push({atom,condition,literal:machine.literal(atom,!!value),
+            site:scope.context.lowered.boundarySites.get(source?.clauses)?.get(atom),
+            at:atom.method === "followed-by" ? receiver.end : receiver.start});
+        }
+        return true;
+      };
+      return no === HALT ? pause(finish) : finish(no);
+    };
+    return yes === HALT ? pause(withYes) : withYes(yes);
+  }
+  /** @param {any} context @param {any} production @param {number} dot @param {number} origin @param {number} end @param {any} previous @param {any} child @param {any[]} obligations @param {(literal:any,at:number)=>void} fail */
+  function boundaryStep(context,production,dot,origin,end,previous,child,obligations,fail) {
+    const machine = context.boundaries;
+    if (!machine) return null;
+    let record = previous?.boundary ?? machine.empty;
+    let ownBack = 0n, ownForward = 0n, before = 0n, after = 0n;
+    for (const {atom,literal} of obligations) {
+      if (atom.receiver.capture === "") {
+        if (literal.direction === "f") ownForward |= literal.bit; else ownBack |= literal.bit;
+      } else if (literal.direction === "f") after |= literal.bit; else before |= literal.bit;
+    }
+    if (previous) {
+      record = machine.append(record,before);
+      const leaf = child?.boundary ?? machine.leaf(production.rhs[dot-1].name,originalPosition(context,end-1) === originalPosition(context,end));
+      record = machine.advance(record,leaf,(/** @type {any} */ literal) => fail(literal,previous.end));
+      if (!record) return null;
+      record = machine.append(record,after);
+    }
+    if (dot === production.rhs.length) record = machine.complete(record,production.helper ? null : production.lhs,ownBack,ownForward,(/** @type {any} */ literal) => fail(literal,literal.direction === "f" ? origin : end));
+    return record;
+  }
+  /** @param {any} chart @param {any[]} witnesses */
+  function boundaryWitnesses(chart,witnesses) {
+    const machine = chart.context.boundaries;
+    return machine ? witnesses.filter(item => machine.accepts(item.boundary)) : witnesses;
+  }
+  /** Recover diagnostic provenance from proof edges, never from record identity.
+   * @param {any} context @param {any} failure */
+  function boundarySources(context,failure) {
+    const found = [], pending = [failure], seen = new Set();
+    while (pending.length) {
+      const item = pending.pop();
+      if (!item || seen.has(item)) continue;
+      seen.add(item);
+      const production = item.production;
+      for (const obligation of item.boundaryIntroduced ?? item.obligations ?? []) {
+        if (obligation.literal !== failure.literal) continue;
+        if (obligation.at !== failure.at || !obligation.site) continue;
+        found.push({...obligation.site,at:originalPosition(context,obligation.at)});
+      }
+      for (const edge of item.edges ?? [{kind:"complete",previous:item.previous,child:item.child}]) {
+        if (edge.kind === "scan") pending.push(edge.previous);
+        if (edge.kind === "complete") pending.push(edge.previous,edge.child);
+      }
+    }
+    return found;
+  }
+
   // ---- diagnostics.js
+
   // Diagnostics for people: what went wrong with a text or a grammar, said in
   // the grammar's own terms. The CLI and the playground print these; nothing
   // here changes what a parse computes.
@@ -10697,9 +11156,10 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(BOUNDARY_METHODS.has(term.method) ? " | " : ", ")})` : ""}` };
     if ("interpolate" in term) return leaf(quoted(term.interpolate.map(part => "string" in part ? part.string.replaceAll("$", "$$") : `$(${part.const})`).join("")));
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
+    if ("terminal" in term) return leaf(term.terminal);
     return leaf(`$${term.capture}`);
   }
 
@@ -10744,6 +11204,7 @@
    * @typedef {object} StageAudit
    * @property {string} name
    * @property {string} resolution
+   * @property {any[]} boundaryNotes
    * @property {FamilyAudit[]} families close families in first-call order
    * @property {import("./pipeline.js").StageChange[]} stageChanges
    * @property {number} rules
@@ -11281,6 +11742,7 @@
         idleErasures,
         memberships: [...memberships.values()],
         families: auditFamilies(grammar),
+        boundaryNotes: auditBoundaries(grammar),
       };
     });
   }
@@ -11300,6 +11762,15 @@
         const flags = change.flagChange;
         const note = flags ? ` (flags changed from ${flags.from.join(", ") || "none"} to ${flags.to.join(", ") || "none"})` : "";
         lines.push(`  ${change.rule} ${change.kind} by ${change.document} (defined in ${change.previous})${note}`);
+      }
+      for (const note of stage.boundaryNotes) {
+        if (note.kind === "query-rule") lines.push(`  boundary note: ${note.rule} is reached by ${note.query} in ${note.document}:${note.line}:${note.column}`);
+        else {
+          const surface = note.condition === null ? "emission tags" : `condition ${note.condition}`;
+          const source = `${note.document}:${note.line}:${note.column}`;
+          const atom = `$${note.receiver}.${note.method}(${note.targets.join(" | ")})`;
+          lines.push(`  boundary note: target ${note.target} of ${atom} in ${note.rule} ${surface} at ${source} is built only by queries`);
+        }
       }
       for (const idle of stage.idleErasures) lines.push(`  ${idle.rule} in ${idle.document} erases, although nothing under it could emit and no token could cover it`);
       for (const family of stage.families) {
@@ -11410,6 +11881,31 @@
       lines.push("could read nothing next");
     }
     return lines.join("\n");
+  }
+
+  /** @param {any} grammar */
+  function auditBoundaries(grammar) {
+    const {atoms,queries,text} = grammar.boundaries, notes = [], seen = new Set();
+    for (const query of queries) for (const {rule,alternative,atom} of atoms) {
+      if (!boundaryAtoms(alternative.clauses.conditions).includes(atom) || !query.reached.rules.has(rule)) continue;
+      const key = `${rule}/${query.rule}/${query.alternative.order}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      notes.push({kind:"query-rule",rule,query:query.rule,document:query.alternative.document,...query.alternative.at});
+    }
+    for (const {rule,alternative,atom} of atoms) for (const target of atom.args) {
+      const name = target.rule ?? target.terminal;
+      if ((target.rule ? text.rules : text.terminals).has(name)) continue;
+      const condition = grammar.boundarySites.get(alternative.clauses)?.get(atom)?.condition ?? null;
+      const receiver = atom.receiver.capture;
+      const targets = atom.args.map((/** @type {any} */ target)=>target.rule ?? target.terminal);
+      const key = JSON.stringify([rule,alternative.order,condition,receiver,atom.method,targets,name]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      notes.push({kind:"query-target",rule,target:name,condition,receiver,targets,
+        method:atom.method,document:alternative.document,...alternative.at});
+    }
+    return notes;
   }
 
   // ---- emission-overlap.js
@@ -12029,7 +12525,7 @@
           /** @type {ElisionSeq} */
           let vector;
           /** @type {RuleProfile} */
-          let profile = [];
+          let profile = ZERO_PROFILE;
           let least;
           let total;
           if (edge.kind === "seed" || edge.kind === "restore") {
@@ -12055,10 +12551,10 @@
             least = Math.min(2, before.least * child.least);
             total = Math.min(2, before.total * child.total);
           }
-          if (current.dot === current.production.rhs.length && current.production.flags.includes("leftmost-longest")) {
+          if (current.dot === current.production.rhs.length && current.production.flags.length) {
             const p = this.profileProject?.[current.origin] ?? current.origin;
             const q = this.profileProject?.[current.end] ?? current.end;
-            if (p < q) profile = sumProfiles(profile, [[p, q, 1]]);
+            if (p < q) profile = sumProfiles(profile, occurrenceProfile(current.production.flags[0],p,q));
           }
           if (!admitted || admitted.has(index)) addEdge(all, index, vector, least, total, profile);
         });
@@ -12458,7 +12954,7 @@
         if (hooks.work) countWork(hooks.work, "groups");
         if (seen.has(item)) continue;
         seen.add(item);
-        if (item.production.flags.includes("leftmost-longest")) this.profiles = true;
+        if (item.production.flags.length) this.profiles = true;
         for (const edge of item.edges) {
           if (hooks.work) countWork(hooks.work, "groups");
           if (edge.kind === "seed" || edge.kind === "restore") continue;
@@ -12550,7 +13046,7 @@
       let ranked = roots;
       let tied = false;
       /** @type {RuleProfile} */
-      let profile = [];
+      let profile = ZERO_PROFILE;
       /** @type {boolean | null} */
       let witnessCounted = null;
       if (this.elisions || this.profiles) {
@@ -12709,7 +13205,7 @@
 
   /** @returns {ElisionSummary} */
   function noDerivation() {
-    return { vector: null, profile: [], least: 0, total: 0, kept: new Set() };
+    return { vector: null, profile: ZERO_PROFILE, least: 0, total: 0, kept: new Set() };
   }
 
   /**
@@ -12734,7 +13230,7 @@
    * @param {number} total
    * @param {RuleProfile} [profile]
    */
-  function addEdge(summary, index, vector, least, total, profile = []) {
+  function addEdge(summary, index, vector, least, total, profile = ZERO_PROFILE) {
     summary.total = Math.min(2, summary.total + total);
     const order = summary.vector === null ? -1 : compareProfiles(profile, summary.profile) || compareElisions(vector, summary.vector);
     if (order < 0) {
@@ -12849,7 +13345,14 @@
   // enumeration of every derivation.
   const internals = { actions, firstDifference, totalOrder, decide, visible, concat, leaf, concatElisions };
 
-  /** @typedef {[number, number, Count][]} RuleProfile */
+  /** @typedef {[number, number, Count][]} SpanVector */
+  /** @typedef {{spans:SpanVector,fewest:Count}} RuleProfile */
+  /** @type {RuleProfile} */
+  const ZERO_PROFILE = {spans:[],fewest:0};
+  /** @param {string} flag @param {number} start @param {number} end @returns {RuleProfile} */
+  function occurrenceProfile(flag,start,end) {
+    return flag === "fewest" ? {spans:[],fewest:1} : {spans:[[start,end,1]],fewest:0};
+  }
 
   /**
    * Compares sparse span counts in start order and reverse end order.
@@ -12859,6 +13362,11 @@
    * @returns {number}
    */
   function compareProfiles(left, right) {
+    return compareSpans(left.spans,right.spans) || (left.fewest < right.fewest ? -1 : left.fewest > right.fewest ? 1 : 0);
+  }
+
+  /** @param {SpanVector} left @param {SpanVector} right */
+  function compareSpans(left,right) {
     for (let i = 0; i < Math.max(left.length, right.length); i++) {
       const a = left[i];
       const b = right[i];
@@ -12879,9 +13387,16 @@
    * @returns {RuleProfile}
    */
   function sumProfiles(left, right) {
+    if (!left.spans.length && left.fewest === 0) return right;
+    if (!right.spans.length && right.fewest === 0) return left;
+    return {spans:sumSpans(left.spans,right.spans),fewest:add(left.fewest,right.fewest)};
+  }
+
+  /** @param {SpanVector} left @param {SpanVector} right @returns {SpanVector} */
+  function sumSpans(left,right) {
     if (!left.length) return right;
     if (!right.length) return left;
-    /** @type {RuleProfile} */
+    /** @type {SpanVector} */
     const result = [];
     let i = 0;
     let j = 0;
@@ -12907,12 +13422,12 @@
    */
   function derivationProfile(root) {
     /** @type {RuleProfile} */
-    let profile = [];
+    let profile = ZERO_PROFILE;
     const pending = [root];
     for (let node = pending.pop(); node; node = pending.pop()) {
       if ("read" in node) continue;
-      if (node.production.flags.includes("leftmost-longest") && node.start < node.end) {
-        profile = sumProfiles(profile, [[node.start, node.end, 1]]);
+      if (node.production.flags.length && node.start < node.end) {
+        profile = sumProfiles(profile, occurrenceProfile(node.production.flags[0],node.start,node.end));
       }
       for (const child of node.children) pending.push(child);
     }
@@ -13013,6 +13528,7 @@
   // ---- ranked-admission.js
 
 
+
   // Admission uses finite eligible facts, before the ordinary ranker.
   class RankedAdmission {
     /** @param {any} chart @param {any} ranked */
@@ -13023,7 +13539,8 @@
       this.at = new Map();
       this.maxima = new Map();
       this.masks = new Map();
-      this.stats = {chartFacts:0,groups:0,candidateEdges:0,retainedEdges:0};
+      this.stats = {chartFacts:0,groups:0,candidateEdges:0,retainedEdges:0,boundarySplits:/** @type {any[]} */ ([])};
+      const boundaryGroups = new Map();
       const helpers = new Map(chart.context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
       const written = (/** @type {any} */ p) => [p.owner ?? p.lhs,p.source?.at,ranked.paths.get(p.writtenExpression) ?? ''];
       const prefix = (/** @type {any} */ item) => {
@@ -13035,7 +13552,7 @@
         return [item.production.lexicalFrame?.key ?? null,written(item.production),item.origin,
           item.production.rhs.slice(0,item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
           item.production.rhs.slice(item.dot).map((/** @type {any} */ s) => [helpers.has(s.name) ? written(helpers.get(s.name)) : s.name,s.terminal,s.test]),
-          item.prefix,captures.reverse(),item.strict,item.restores];
+          item.prefix,captures.reverse(),item.strict,item.restores,item.boundary?.id ?? null];
       };
       for (const set of (this.forest?.chart ?? chart).sets) if (set) for (const item of set.items) {
         this.stats.chartFacts++;
@@ -13045,7 +13562,16 @@
           if (edge.kind !== 'complete') continue;
           const scope = item.slotScope;
           const ancestry = scope ? [scope.frames.map(prefix),scope.bounds.map((/** @type {any} */ b) => [written(b.carrier.production),b.carrier.origin,b.carrier.end])] : null;
-          const key = JSON.stringify([group.id,prefix(edge.previous),ancestry,edge.child.origin,edge.child.end]);
+          const baseKey = JSON.stringify([group.id,prefix(edge.previous),ancestry,edge.child.origin,edge.child.end]);
+          const open = chart.context.boundaries?.open(edge.previous.boundary,edge.child.boundary) ?? null;
+          const key = JSON.stringify([baseKey,open]);
+          if (chart.context.boundaries) {
+            let parts = boundaryGroups.get(baseKey);
+            if (!parts) boundaryGroups.set(baseKey,parts=new Set());
+            const priorSize = parts.size;
+            parts.add(open);
+            if (priorSize === 1 && parts.size === 2) this.stats.boundarySplits.push({group:group.site,entry:baseKey,start:edge.child.origin,end:edge.child.end});
+          }
           let candidates = this.groups.get(key);
           if (!candidates) this.groups.set(key,candidates=[]);
           candidates.push({item,index,edge,option:edge.child.production.rankedOption});
@@ -13056,6 +13582,7 @@
         }
       }
       this.stats.groups = this.groups.size;
+      if (this.stats.boundarySplits.length) hooks.boundaryAdmission?.(this.stats.boundarySplits,chart);
     }
 
     /** @param {any} item @param {string} context */
@@ -13459,6 +13986,7 @@
   }
 
   // ---- stage.js
+
   // Running one stage: recognition, the choice of a parse, the result tree
   // (engine §12), emission (engine §11) and elision-only (engine §7).
 
@@ -13549,6 +14077,7 @@
           token: rejection.position,
           source: sourceAt(tokens, rejection.position),
           expected: rejection.expected,
+          ...(rejection.boundary ? {boundary:rejection.boundary} : {}),
           message: `the ${this.name} stage could not continue at token ${rejection.position}` +
             (rejection.expected.length ? `; expected ${rejection.expected.map((e) => e.terminal).join(", ")}` : ""),
         };
@@ -14080,6 +14609,14 @@
       this.node = node;
       this.context = context;
     }
+    /** @param {any} atom */
+    boundary(atom) {
+      const span = this.capture(atom.receiver.capture);
+      const followed = atom.method === "followed-by";
+      const at = followed ? span.end : span.start;
+      const offers = (followed ? this.context.emissionBoundaries.first : this.context.emissionBoundaries.last).get(at);
+      return !!offers && atom.args.some((/** @type {any} */ target) => offers.has(target.rule ?? target.terminal));
+    }
     /** @param {string} name */
     capture(name) {
       if (name === "") return { observation: this.node.item.observation, structure: this.node.item.structure, patterns: this.context.patterns, start: this.node.start, end: this.node.end, tags: nodeTags(this.node, this.context) };
@@ -14257,6 +14794,21 @@
    * @returns {Token[]}
    */
   function emit(root, context) {
+    // Emission atoms observe this one chosen derivation. They request no
+    // recognition offers, and never split an admission group.
+    const first = new Map(), last = new Map();
+    const demanded = emissionTargets(context.lowered.productions);
+    const pending = demanded.size ? [root] : [];
+    const offer = (/** @type {Map<number,Set<string>>} */ map,/** @type {number} */ at,/** @type {string} */ name) => { let names = map.get(at); if (!names) map.set(at,names=new Set()); names.add(name); };
+    while (pending.length) {
+      const node = /** @type {Derivation} */ (pending.pop());
+      if (node.start < node.end) {
+        const name = "read" in node ? node.read.terminal : node.production.helper ? null : node.production.lhs;
+        if (name !== null && demanded.has(name)) { offer(first,node.start,name); offer(last,node.end,name); }
+      }
+      if (!("read" in node)) for (const child of node.children) pending.push(child);
+    }
+    context.emissionBoundaries = {first,last};
     const strings = new StringWalk(context,node => new TreeScope(node,context));
     return emitted(root, { context, strings, forwards: context.tokens.some(hasAttachments), inherited: new Set() });
   }
@@ -14399,6 +14951,7 @@
   }
 
   // ---- reader.js
+
 
   // From the notation's syntax tree to a grammar DOM (engine §9).
 
@@ -14676,8 +15229,9 @@
         if (rule.op === "extend") fail("%extend-rule accepts no flags", flags);
         for (const flag of some(flags, "rule-flag")) {
           const name = valueOf(token(flag));
-          if (name !== "leftmost-longest") fail(`unknown rule flag ${name}`, flag);
+          if (!["leftmost-longest", "fewest"].includes(name)) fail(`unknown rule flag ${name}`, flag);
           if (rule.flags.includes(name)) fail(`duplicate rule flag ${name}`, flag);
+          if (rule.flags.length) fail("a rule accepts only one flag", flag);
           rule.flags.push(name);
         }
       }
@@ -14705,6 +15259,8 @@
       if (one(node, "erased-clause")) rule.erased = true;
       rule.at = at(node);
       flattenGroups(rule);
+      const boundaryFault = boundaryProblem(rule);
+      if (boundaryFault) fail(boundaryFault.problem, boundaryLocations.get(boundaryFault.node)?.tree ?? node);
       const problem = definitionProblem(rule, deferEmission);
       if (problem) fail(problem, node);
       return /** @type {DomRule} */ (rule);
@@ -15390,15 +15946,23 @@
       let receiver = yield readTerm(only(only(node, "method-receiver"), "term-atom"), true);
       for (const selector of some(node, "method-selector")) {
         const name = valueOf(token(only(selector, "method-name")));
+        /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
         if (argumentsNode) for (const argument of some(argumentsNode, "argument")) args.push(yield readTerm(only(argument, "term"), true));
         if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
+        if (BOUNDARY_METHODS.has(name)) {
+          for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
+        }
+        if (argumentsNode) {
+          const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
+          if (separators.some(separator => separator !== (BOUNDARY_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
+        }
         const found = termType(receiver);
         if ("problem" in found) fail(found.problem, node);
         const types = [];
         for (const arg of args) {
-          if (arg.rule || arg.classifier) types.push("name");
+          if (arg.rule || arg.classifier || arg.terminal) types.push("name");
           else {
             const type = termType(arg);
             if ("problem" in type) fail(type.problem, node);
@@ -15409,6 +15973,8 @@
         if (problem) fail(problem, node);
         if (closedFor && (name !== "split" || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
+        boundaryLocations.set(receiver, {tree:node,at:at(node)});
+        if (argumentsNode) ofRule(argumentsNode,"argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
       }
       return receiver;
     }
@@ -15925,6 +16491,7 @@
   // ---- dialect.js
 
 
+
   // Dialects: loading pipeline documents and their grammars, reading grammar
   // documents with the notation dialect (engine §8), and running a text
   // through the stages (engine §13).
@@ -16114,10 +16681,11 @@
       try { return build(); } catch (error) {
         if (!(error instanceof GencmuError)) throw error;
         const recipe = recipeFailures.get(error);
+        const boundary = boundaryDocumentErrors.get(error);
         const ranked = error.code?.startsWith("ranked-choice-") && error.group?.document && !error.group.at;
-        if (!ranked && (!recipe || error.where.line !== undefined)) throw error;
+        if (!ranked && ((!recipe && !boundary) || error.where.line !== undefined)) throw error;
         // Only a diagnostic needs locations absent from a cached DOM.
-        const document = /** @type {string} */ (recipe ? recipe.document : error.group?.document);
+        const document = /** @type {string} */ (boundary ? boundary.document : recipe ? recipe.document : error.group?.document);
         const text = this.need(document);
         const dom = this.documentDom(document);
         const {text:body,positions} = extractGrammarText(text,document);
@@ -16127,6 +16695,7 @@
           const positionOf = (/** @type {Token} */ token) => /** @type {[number,number]} */ (positions[token.source[0]] ?? [1,1]);
           restoreRankedLocations(dom,tokens,positionOf);
           restoreRecipeLocations(dom,tokens,positionOf);
+          restoreBoundaryLocations(dom,tokens,positionOf);
         }
         // Rebuild from the same written DOMs to retain every diagnostic field.
         return build();
@@ -16705,6 +17274,7 @@
    * @property {Span} [source]
    * @property {number} [line]
    * @property {number} [column]
+   * @property {{rule:string,condition:number,at:number}} [boundary]
    * @property {Expectation[]} [expected]
    * @property {ResultNode[]} [readings]
    * @property {Witness} [witness] for an error of elision-only, where its
@@ -17046,7 +17616,7 @@
   /**
    * A function's argument: a term, the name of a rule, or the name of a
    * classifier.
-   * @typedef {Term | {rule: string} | {classifier: string}} Argument
+   * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------
@@ -17158,6 +17728,7 @@
   /**
    * A grammar lowered for one set of features.
    * @typedef {object} LoweredGrammar
+   * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
    * @property {Production[]} productions
    * @property {Map<string, Production[]>} byLhs
    * @property {Resolution} resolution
@@ -17235,6 +17806,8 @@
   /**
    * Where a term looks up its captures.
    * @typedef {object} Scope
+   * @property {boolean} [boundaryValue]
+   * @property {(atom:any)=>boolean} [boundary]
    * @property {(name: string) => SpanValue} capture
    */
 

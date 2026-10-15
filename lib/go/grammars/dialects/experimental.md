@@ -136,7 +136,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../syntax/experimental.md"
   ```
 
-A ranked choice orders alternatives at one written position. An earlier option completes that position when its own tests and conditions pass, and excludes later options over the same span. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` then elides each terminator as late as the grammar allows.
+A ranked choice orders alternatives at one written position. An earlier option completes that position when its own tests and conditions pass, and excludes later options over the same span. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. The `fewest` preference then favors fewer plain term links. `late-elision` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
 
@@ -152,11 +152,11 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. The listed-term queries retain camxes-exp's restrictions after bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
-
-In `le mlatu na mu'o pinxe le ri ladru`, camxes-exp keeps PINXE inside the vocative. This dialect reads a negated sentence, with PINXE as its main predicate. Its listed-NA query removes the longer vocative reading. That selected-context limitation waits for [issue #197](https://github.com/int19h/gencmu/issues/197).
+The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. Tree conditions retain the restrictions after listed bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
 
 The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
+
+A plain term link remains when no larger connection completes. This permits `broda be mi .e pu ke brode ke'e bo brodi` and `mi klama .e to do .e pu bo .i do klama`. camxes-exp rejects both because its ordered choice commits to a connection that cannot complete.
 
 ### Explicit grammar differences
 

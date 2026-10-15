@@ -394,7 +394,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   Identifier
 
 %rule arguments
-  {argument / ","}
+  {argument / ("," | "|")}
 
 %rule argument
   term

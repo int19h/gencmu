@@ -17,6 +17,7 @@ export declare function helperSlotForest(chart: import("./earley.js").Chart, nam
         furthest: number;
         context: import("./earley.js").ParseContext;
         closeRequested?: boolean;
+        boundaryFailures?: any[];
         family?: import("./family-summaries.js").FamilySummaries | null;
         familyTrace?: Map<import("./earley.js").Item, {
             event: import("./close-observations.js").CloseEvent;
