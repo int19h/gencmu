@@ -134,3 +134,35 @@ class DecomposedSource(unittest.TestCase):
         result = dialect.parse_tokens([token], "á\u0301\u0323")
         self.assertTrue(result.ok, result.error)
         self.assertEqual(result.stages[0].output[0].value, "\u0301")
+
+
+class FeatureProbe(unittest.TestCase):
+    def test_stage_zero_runs_once_and_continuation_uses_saved_words(self) -> None:
+        from unittest.mock import patch
+
+        dialect = gencmu.load_dialect("experimental")
+        for options in ({}, {"auto_features": False}, {"until": "words"}):
+            with self.subTest(options=options):
+                with patch.object(dialect.unicode, "decompose_with_origins", wraps=dialect.unicode.decompose_with_origins) as decompose:
+                    with patch.object(dialect, "_run", wraps=dialect._run) as run:
+                        result = dialect.parse("mi klama", **options)
+                self.assertTrue(result.ok, result.error)
+                self.assertEqual(decompose.call_args_list, [unittest.mock.call("mi klama")])
+                if not options:
+                    self.assertEqual(run.call_count, 2)
+                    words = next(stage for stage in result.stages if stage.name == "words")
+                    self.assertIs(run.call_args_list[1].args[1], words.output)
+                    following = result.stages[result.stages.index(words) + 1]
+                    self.assertIs(following.input, words.output)
+
+    def test_feature_restart_reuses_stage_zero(self) -> None:
+        from unittest.mock import patch
+
+        dialect = gencmu.load_dialect("experimental")
+        with patch.object(dialect.unicode, "decompose_with_origins", wraps=dialect.unicode.decompose_with_origins) as decompose:
+            with patch.object(dialect, "_run", wraps=dialect._run) as run:
+                result = dialect.parse("mi su klama")
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual(decompose.call_count, 1)
+        self.assertEqual(run.call_count, 2)
+        self.assertIs(run.call_args_list[0].args[1], run.call_args_list[1].args[1])
