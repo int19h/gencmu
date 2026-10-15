@@ -1,10 +1,10 @@
 {
-  "description": "The experimental structural families preserve their witnesses during reconstruction. The head, operand, wrapper, and omitted-boundary cases retain their expected trees.",
+  "description": "Written KU permits the first tag term inside the NAhE operand. Reconstruction preserves the operand when it restores the remaining elided terminators.",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
-  "input": "mi na'e pu .e ca lu'u klama",
+  "input": "mi na'e pu ku .e ca lu'u klama",
   "options": {
     "elisionOnly": true
   },
@@ -12,6 +12,6 @@
     "result": {
       "ok": true
     },
-    "brackets": "([mi {na'e (pu [e ca]) lu'u}] klama)"
+    "brackets": "([mi {na'e ([pu ku] [e ca]) lu'u}] klama)"
   }
 }
