@@ -750,19 +750,19 @@ An empty receiver stands at one position. Then `followed-by` tests the node that
 
 A condition with such a test holds or fails as any condition does. So `¬$.followed-by(B)` holds where no `B` node follows, at the end of the input too. A parse in which a condition fails does not exist. The stage ranks the parses that remain. So the chosen tree satisfies every such condition. In an emission item, a test reads the chosen tree and changes nothing about parsing.
 
-The test reads the actual neighbour, which a lookahead cannot do. In the experimental grammar, a bare `na` is no term where a selbri or a forethought sentence follows it:
+The test reads the actual neighbor in the selected reading. In the experimental grammar, a bare NA term can omit KU before a closing word or a sumti:
 
 ```jbogenbau
 %rule listed-bare-na
   $n:NA #
 %conditions
   ¬$n.onward.begins(na-connective),
-  ¬$.followed-by(selbri | selbri-6 | gek-sentence | #)
+  $.ends-input ∨ ¬($PLACE-CLOSE ∩ $.following-tokens.first-token.tags ⊆ ∅) ∨ $.followed-by(gihek | sumti)
 ```
 
-`selbri-6` covers a tanru that goes on after the term, as in `le nu do klama na brode`. There the node at `brode` is a unit of the outer tanru, not a whole selbri. `#` keeps the free modifiers after `na` in its own slot, so no later slot can take them.
+`$PLACE-CLOSE` holds the closing-word tags listed in the experimental grammar. The receiver includes the term's own free modifiers. A written closing word and the input's end permit KU omission. The atom also permits a following gihek or sumti of the same reading.
 
-In `na na to broda`, the first `na` is followed by the second `na` term. No selbri starts there in that reading, so the first `na` stays a term. A lookahead `¬$.following-tokens.begins(selbri)` parses `na to broda` again. It can close the parenthesis early and find a selbri that the reading does not have.
+In `na mi`, the NA term can omit KU because the following sumti belongs to that reading. A separate query can find a sumti with different free modifiers or elisions. The atom reads only the selected reading's nodes.
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
 
