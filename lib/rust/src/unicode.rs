@@ -131,6 +131,7 @@ impl Unicode {
     /// Canonical decomposition, with original scalar indices kept through
     /// stable ordering of each run of nonzero combining classes.
     pub(crate) fn decompose_with_origins(&self, text: &[char]) -> Vec<Decomposed> {
+        crate::work::count(crate::work::Work::Decompositions, 1);
         let mut result = Vec::with_capacity(text.len());
         for (origin, &character) in text.iter().enumerate() {
             let code = character as u32;
