@@ -985,6 +985,11 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
         tokens.append(
             Token(text, tags, spec.get("span", (index, index + 1)), spec.get("source", (position, position + len(text))), spec.get("value"), image=spec.get("image"), before=before, after=after)
         )
+        # None selects the constructor default. Set explicit JSON null on
+        # the stored field so that malformed-token cases reach validation.
+        for field in ("value", "image"):
+            if field in spec and spec[field] is None:
+                setattr(tokens[-1], field, None)
         position += len(text) + 1
     return tokens
 
