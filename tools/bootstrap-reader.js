@@ -223,7 +223,7 @@ function lex(text, originalPositions) {
     const [end, kind] = /** @type {[number, string | null]} */ (starting[i].found.find(([e]) => readable[e]));
     if (kind?.startsWith("include:")) {
       const from = Number(kind.slice(8));
-      tokens.push({ kind: "%include", text: "%include", at: at(i), end: at(i + 8) });
+      tokens.push({ kind: "%include", text: "%include", value: "%include", at: at(i), end: at(i + 8) });
       tokens.push({ kind: "include-path", text: source(from, end), value: chars.slice(from, end).join(""), at: at(from), end: at(end) });
     } else if (kind !== null) tokens.push({ kind, text: source(i, end), value: chars.slice(i, end).join(""), at: at(i), end: at(end) });
     i = end;
@@ -329,7 +329,7 @@ class Parser {
     while (this.peek()) {
       const kind = this.kindAt();
       if (DIRECTIVES.has(kind)) children.push((yield this.directive()));
-      else if (this.peek().text === "%prefer") this.fail("unknown directive %prefer; use an inline ranked choice (A ≻ B)");
+      else if (this.peek().value === "%prefer") this.fail("unknown directive %prefer; use an inline ranked choice (A ≻ B)");
       else if (RULE_KEYWORDS.has(kind)) children.push((yield this.rule()));
       else if (CONSTANT_KEYWORDS.has(kind)) children.push((yield this.constantDefinition()));
       else if (kind === "%classifier") children.push(this.classifier());
@@ -528,7 +528,7 @@ class Parser {
     const start = this.index;
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) return yield this.range();
     switch (this.kindAt()) {
-      case "identifier": return this.leaf(isCapital(this.peek().text) ? "tag" : "reference");
+      case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
       case "#": return this.leaf("reference");
       case "tag": return this.leaf("tag");
       case "string": case "constant": return this.node("string-terminal", start, [this.stringOperand()]);
@@ -731,7 +731,7 @@ class Parser {
         base = this.leaf("name"); break;
       case "identifier": case "tag": {
         const tags = [];
-        const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().text));
+        const isTag = () => this.is("tag") || (this.is("identifier") && isCapital(this.peek().value));
         if (!isTag()) base = this.leaf("name");
         else {
           tags.push(this.leaf("tag"));

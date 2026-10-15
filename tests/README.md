@@ -159,6 +159,10 @@ Apart from the table, each library's own tests lose the witness on purpose after
 
 Each library reads the document as a grammar document (engine §8, §9). The reading makes a DOM (document object model), as `docs/output.md` describes. The library matches the DOM against the pattern, or it compares the position of the error with the expected position. The reader reports a syntax error at the first token that cannot continue the document. It reports an error of §9 at the first token of the offending construct.
 
+Every library also runs a notation case with `cacheMisses: true` through its document loader. The document first loads without a compiled entry. A matching compiled entry must give the same DOM.
+
+Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
+
 ## Bootstrap errors: `bootstrap-errors.json`
 
 Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.

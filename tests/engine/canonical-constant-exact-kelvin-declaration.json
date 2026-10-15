@@ -1,0 +1,21 @@
+{
+  "description": "Canonical constant names bind across bare and interpolated references without decomposing their scalar values.",
+  "grammar": "%const $K $_00E9\n%rule text $K \"$(K)\"",
+  "tokens": [
+    {
+      "text": "é",
+      "tags": [],
+      "value": "é"
+    },
+    {
+      "text": "é",
+      "tags": [],
+      "value": "é"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

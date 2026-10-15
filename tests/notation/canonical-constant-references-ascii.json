@@ -1,0 +1,47 @@
+{
+  "description": "Bare and interpolated constant references use the same decomposed name and preserve exact scalar constants.",
+  "document": "```jbogenbau\n%const $K $_00E9\n%rule text $K \"$(K)\"\n```",
+  "expect": {
+    "dom": {
+      "constants": [
+        {
+          "name": "K",
+          "value": {
+            "const": "_00E9"
+          }
+        }
+      ],
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "literal": {
+                      "const": "K"
+                    }
+                  },
+                  {
+                    "literal": {
+                      "interpolate": [
+                        {
+                          "const": "K",
+                          "at": [
+                            3,
+                            16
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}
