@@ -1,0 +1,22 @@
+{
+  "description": "A rejection at the end of decomposed input uses the last token's original source end.",
+  "grammar": "%rule text \"a\" $_0323 $_0301 \"x\"",
+  "input": "ạ́",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "main",
+        "token": 3,
+        "source": [
+          2,
+          2
+        ],
+        "line": 1,
+        "column": 3
+      }
+    },
+    "error": "rejected"
+  }
+}

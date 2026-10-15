@@ -1,0 +1,59 @@
+{
+  "description": "Canonical diagnostic spellings name exact scalars through interpolation.",
+  "document": "```jbogenbau\n%rule text \"$(_00E9)\" \"$(_00E0)\"..\"$(_017A)\" \"$(_302E)$(_1B44)\"\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "literal": {
+                      "interpolate": [
+                        {
+                          "const": "_00E9"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "range": [
+                      {
+                        "interpolate": [
+                          {
+                            "const": "_00E0"
+                          }
+                        ]
+                      },
+                      {
+                        "interpolate": [
+                          {
+                            "const": "_017A"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "literal": {
+                      "interpolate": [
+                        {
+                          "const": "_302E"
+                        },
+                        {
+                          "const": "_1B44"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

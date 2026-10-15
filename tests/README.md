@@ -181,7 +181,7 @@ An extra part holds text that the reader refuses if it reads it. An outcome othe
 
 ## External JSON cases: `json-keys.json`
 
-The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name.
+The shared cases exercise exact member names, escaped names, duplicate members, ignored values, and raw DOM contents. Bootstrap cases change the bundled bootstrap and require either a working reader or a grammar error with its document attribution. Cache cases use different source and cached grammars, so the parsing result proves whether the loader reads the cache. The optional `document` field selects the included document name. The cache template uses `@unicode@` for the fingerprint of the Unicode table.
 
 The `loads` and `cached` fields state the expected behavior. Rust rejects ignored integers outside signed 64-bit range because of a reader limit. For those cases, `rustLoads` and `rustCached` record the current Rust behavior, and each note names the limit.
 
