@@ -47,7 +47,9 @@ The word stage marks individually quoted words and delimiters with `Word`. It ma
 
 A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag. The stage ranks admitted derivations by `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag.
+
+The stage first prefers fewer plain term links through `fewest`. It then ranks admitted derivations by `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 The stage does not declare `elision-only`. A PEG repetition reads as far as it can, and late elision usually selects the same reading. Each terminator marked `_elidible` in the reference is elidable here, with an optional such as `[+KU]`. The separators `cu` and `i'au` remain ordinary optionals.
 
@@ -384,7 +386,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   (* term <- term_1 (!(joik tag BO_clause? CU) joik_ek term_1)* *)
   term-1 [{term-link}]
 
-%rule term-link
+%rule(fewest) term-link
   $j:joik-ek term-1
 %conditions
   $j ≇ @(joik) ∨ ¬$j.following-tokens.begins(tag-bo-cu)
@@ -470,13 +472,13 @@ A sumti can be a pro-sumti, a quote, letters, an abstraction, a description, a m
 
 A description's inner sumti cannot start an aligned quantifier. The prefix query preserves its actual closes while it tests that category. Thus `lo my jo'u gy prenu` keeps its connected inner sumti, while `le ke my ke'e broda` takes a quantifier. The quantifier can also omit KUhE inside the shared stretch, even just before an omitted KEhE. So `le ke my .e gy ke'e broda` and `le ke my .e gy broda` take a quantifier too.
 
-A connective after a sumti joins that sumti to the next one, not the term to the next term. So `ba mi .e do klama` has one term, the tense `ba` with the sumti `mi .e do`. The term rule sees a connective only where the sumti cannot take it. A term reads its whole sumti first. The conditions prevent that sumti from stopping before another link.
+A connective after a sumti joins that sumti to the next one, not the term to the next term. So `ba mi .e do klama` has one term, the tense `ba` with the sumti `mi .e do`. The term rule sees a connective only where the sumti cannot take it. A term reads its whole sumti first. The plain-link preference and the BO condition keep the sumti whole.
 
 A connective before a sumti or relative clause remains available for sumti syntax. `sumti-or-relative` names those two followers. The `lerfu-operator` query starts after the selected operator, including its modifiers.
 
 `$JOIK-EK-OP` covers a joik-ek and its SE-converted operator form. The operator rule lifts SE outside its connective, so the pattern needs both shapes. Thus `by se jo'u cy cu klama` keeps its connected sumti. SE applied to an arithmetic operator receives no exemption.
 
-The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping before another link. Each says that no further link follows the whole run of sumti. The run is a rule of its own, which the condition captures, since a list in braces is never captured. The rules `sumti-1-link` and `sumti-2-link` are only for the conditions, and the trees do not contain them.
+The plain `term-link` rule carries `fewest`, so a sumti connection wins over a term connection when both complete. `sumti-1-run` retains its node in the tree. The BO-level `sumti-2` condition refuses a run before another BO link. Its helper `sumti-2-link` occurs only in that query.
 
 ```jbogenbau
 
@@ -486,15 +488,10 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
 
 %rule sumti-1
   (* sumti_1 <- sumti_2 (joik_ek sumti_2)* *)
-  $r:sumti-1-run
-%conditions
-  ¬$r.following-tokens.begins(sumti-1-link)
+  sumti-1-run
 
 %rule sumti-1-run
   {sumti-2 / joik-ek}
-
-%rule sumti-1-link
-  joik-ek sumti-2
 
 %rule sumti-2
   (* sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)* *)
@@ -574,11 +571,10 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
   $s ≇ @(tag ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>sumti</code> to <code>sumti-tail-1</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti-1-run.svg" alt="Railroad diagram of the rule sumti-1-run"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/sumti-1-link.svg" alt="Railroad diagram of the rule sumti-1-link"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti-2-run.svg" alt="Railroad diagram of the rule sumti-2-run"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/sumti-2-link.svg" alt="Railroad diagram of the rule sumti-2-link"></p>
