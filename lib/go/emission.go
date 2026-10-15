@@ -175,6 +175,8 @@ func (em *stringEmitter) channel(root *occurrence, channel int) string {
 			result = literalParts(em.run.spanImage(s))
 		case "source-text":
 			result = literalParts(em.run.spanText(s))
+		case "decomposed-source-text":
+			result = literalParts(em.run.ps.uni.decompose(em.run.spanText(s)))
 		case "verbatim-text":
 			result = literalParts(em.verbatim(a, b))
 		}
@@ -212,6 +214,8 @@ func (em *stringEmitter) recipe(o *occurrence, recipe *domTerm) string {
 			result.WriteString(em.run.spanImage(s))
 		case "source-text":
 			result.WriteString(em.run.spanText(s))
+		case "decomposed-source-text":
+			result.WriteString(em.run.ps.uni.decompose(em.run.spanText(s)))
 		case "verbatim-text":
 			result.WriteString(em.verbatim(a, b))
 		}

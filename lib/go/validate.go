@@ -1006,7 +1006,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			ok = len(args) == 2 && args[0] != nil && args[0].Kind == tmCapture && isRule(args[1])
 		case "without-elision":
 			ok = len(args) == 1 && args[0] != nil && args[0].Kind == tmCapture
-		case "value", "image", "source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
+		case "value", "image", "source-text", "decomposed-source-text", "classes", "first-token", "tokens-after-first", "last-token", "onward", "following-tokens":
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
@@ -1280,7 +1280,7 @@ var callStrings = map[string]string{"split": "two strings", "classify": "a strin
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
-	case "value", "image", "source-text", "verbatim-text":
+	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
 		return tyString
 	case "split":
 		return tyStrings
