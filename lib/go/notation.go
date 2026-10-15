@@ -446,6 +446,30 @@ func (b *domBuilder) text(n *Node) string {
 	return ""
 }
 
+// value reads the decomposed spelling. Text remains the original spelling.
+func (b *domBuilder) tokenValue(n *Node) string {
+	if n.Kind == KindToken {
+		return b.toks[n.Token].Value
+	}
+	return b.tokenValue(b.token(n))
+}
+
+func canonicalOperator(value string) string {
+	switch value {
+	case "=\u0338":
+		return "≠"
+	case "∈\u0338":
+		return "∉"
+	case "⊆\u0338":
+		return "⊈"
+	case "≅\u0338":
+		return "≇"
+	}
+	return value
+}
+
+func (b *domBuilder) operator(n *Node) string { return canonicalOperator(b.tokenValue(n)) }
+
 func (b *domBuilder) document(root *Node) *domDoc {
 	d := &domDoc{Rules: []*domRule{}, Directives: []*domDirective{}, Constants: []*domConst{}, Classifiers: []*domClassifier{}, Implications: []*domImplication{}}
 	for _, c := range ruleParts(root) {
@@ -578,7 +602,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 		key := b.stringTerm(b.token(b.only(p, "string")))
 		e.KeyTerms = append(e.KeyTerms, key)
 	}
-	e.Op = b.text(b.token(b.only(n, "classifier-operator")))
+	e.Op = b.operator(b.token(b.only(n, "classifier-operator")))
 	classNode := b.only(n, "classifier-class")
 	written := b.text(b.token(classNode))
 	e.Class = written
@@ -778,10 +802,10 @@ func (b *domBuilder) comparator(testNode *Node) string {
 	var op strings.Builder
 	for _, p := range parts(testNode) {
 		if p.Kind == KindToken {
-			op.WriteString(b.text(p))
+			op.WriteString(b.tokenValue(p))
 		}
 	}
-	return op.String()
+	return canonicalOperator(op.String())
 }
 
 // capturedRules are the rules of the symbols a capture can wrap (engine §9).

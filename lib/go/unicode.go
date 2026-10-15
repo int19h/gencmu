@@ -222,3 +222,9 @@ func (t *unicodeTable) decompose(text string) string {
 	}
 	return result.String()
 }
+
+// changesInDocument identifies scalars that require exact diagnostic escapes.
+func (t *unicodeTable) changesInDocument(c rune) bool {
+	_, mapped := t.decompositions[c]
+	return mapped || c >= 0xac00 && c <= 0xd7a3 || t.combiningClass(c) != 0
+}

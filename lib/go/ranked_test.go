@@ -48,7 +48,7 @@ func TestRankedDOMCacheDiagnostics(t *testing.T) {
 	if _, err := LoadDialectSources(sources, "p.md"); err != nil {
 		t.Fatalf("cache bypass control does not load: %v", err)
 	}
-	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
 	_, cached := LoadDialectSources(sources, "p.md")
 	if plain == nil || !reflect.DeepEqual(plain, cached) {
 		t.Fatalf("%+v\n%+v", plain, cached)
@@ -103,7 +103,7 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	sources := oneStage("%ambiguity-resolution late-elision\n%rule text Q (a ≻ b) Z\n%rule a X Y\n%rule b X Y")
-	documents := map[string]json.RawMessage{}
+	documents := map[domCacheKey]json.RawMessage{}
 	for path, text := range sources {
 		dom, err := bundled.reader.read(text, path)
 		if err != nil {
@@ -116,10 +116,10 @@ func TestValidRankedCacheSkipsLocationRecovery(t *testing.T) {
 				}
 			}
 		}
-		documents[fnv1a64(text)] = dom.json()
+		documents[domCacheKey{fnv1a64(text), bundled.reader.hash, bundled.uni.hash, domFormat}] = dom.json()
 	}
 	// A missing reader makes any source parse or location recovery fail.
-	l := &loader{uni: bundled.uni, compiled: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}
+	l := &loader{uni: bundled.uni, bootstrapHash: bundled.reader.hash, compiled: documents, read: func(path string) (string, bool) { text, ok := sources[path]; return text, ok }}
 	for i := 0; i < 2; i++ {
 		if _, err := l.dialect("p.md"); err != nil {
 			t.Fatal(err)
