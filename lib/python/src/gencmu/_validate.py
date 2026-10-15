@@ -392,7 +392,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 if isinstance(atom, dict) and "method" in atom:
                     receiver = atom.get("receiver")
                     valid = atom.get("args") == [] and (
-                        atom["method"] in ("value", "image", "source-text", "verbatim-text")
+                        atom["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text")
                         and isinstance(receiver, dict)
                         and set(receiver) == {"capture"}
                         or atom["method"] in ("value", "image")

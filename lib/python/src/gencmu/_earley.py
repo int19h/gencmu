@@ -750,8 +750,9 @@ class Evaluator:
                 return self.input_value(span[0], span[1])
             if name == "image":
                 return "".join(self.context.tokens[i].image for i in range(span[0], span[1]))
-            if name == "source-text":
-                return self.context.span_text(span[0], span[1])
+            if name in ("source-text", "decomposed-source-text"):
+                text = self.context.span_text(span[0], span[1])
+                return self.context.unicode.decompose(text) if name == "decomposed-source-text" else text
             if name in ("tags", "classes"):
                 whole = span[2]
                 if callable(whole):

@@ -349,7 +349,7 @@ class DomBuilder:
             if "method" in value:
                 receiver = value["receiver"]
                 emitted = receiver.get("method") == "emitted" and receiver.get("args") == [] and set(receiver.get("receiver", {})) == {"capture"}
-                if value["args"] or not (value["method"] in ("value", "image", "source-text", "verbatim-text") and set(receiver) == {"capture"}
+                if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
                     or value["method"] in ("value", "image") and emitted):
                     raise self.fail(atom, "invalid recipe method chain")
             elif "string" not in value and "const" not in value and "interpolate" not in value:

@@ -344,9 +344,11 @@ class Emitter:
                     value = yield self.string(part, method)
                 elif method == "verbatim-text":
                     value = self.verbatim(part)
-                elif method == "source-text":
+                elif method in ("source-text", "decomposed-source-text"):
                     source = self.part_source(part)
                     value = self.context.text[source[0] : source[1]] if part.start < part.end else ""
+                    if method == "decomposed-source-text":
+                        value = self.context.unicode.decompose(value)
                 else:
                     value = "".join(getattr(self.tokens[i], method) for i in range(part.start, part.end))
             parts.append(value)

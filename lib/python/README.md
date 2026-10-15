@@ -74,6 +74,8 @@ Stage zero canonically decomposes the input with the shared Unicode table. Each 
 
 A `Token` has `text`, `value`, `image`, `tags`, `span`, and `source`. Only an inserted `ε` item sets `inserted_by`. Recipes supply strings, and tags never assign strings. A constituent without a channel recipe concatenates its children on that channel. `%erased` excludes its contribution. A verbatim recipe preserves original text and follows the gap-claim rules of engine §11.
 
+The grammar method `.decomposed-source-text` returns the canonical decomposition of the original source text over a span. It uses the configured Unicode table. An empty span returns an empty string. The method works in conditions and string recipes.
+
 A `Token` also has its attachments, `before` and `after`. These are two lists of tokens that belong to it and that no later stage reads, such as the indicators after a word (`docs/engine.md`, §11). Both lists are empty unless an emission gives the token attachments. An attached token has no span, so its `span` is `None`. Its `source` is still a range of the original text.
 
 A terminal in a token node, witness, or expected list is a tag, canonical string, range, or `_` wildcard. Examples include `KOhA`, `"a"`, and `"a".."z"`. Expected terminals include their exact value test or signed tag requirements, as in `LE="la"` or `KOhA<¬UI>`. Spans are `(start, end)` tuples, and source ranges count code points.
