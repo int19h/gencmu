@@ -56,7 +56,7 @@ The orthography has no apostrophe between vowels. Two adjacent vowel letters are
 
 So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
 
-A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain.
+A capital full vowel letter, or a combining accent after one, marks stress, as in Latin. A glide never marks stress, as the Latin `ĭ` of [latin.md](latin.md) does not. The full vowel carries the syllable's stress. So a capital glide is plain, and an accent after a glide makes its run foreign. Inside an all-capital run, the stage folds a capital vowel or glide, that is, it reads the letter as plain. An accented capital keeps its stress there.
 
 ```jbogenbau
 %rule cyrillic-plain-vowel
@@ -96,6 +96,12 @@ A capital full vowel letter, or a combining accent after one, marks stress, as i
   | ("Ъ" | "Ы" | "Ә") :: Syllabic := "y"
   | ("И" glide-mark | "Ј") :: ∅ := "i"
   | "У" glide-mark :: ∅ := "u"
+  | "А" stress-mark :: Stressed ∪ Syllabic := "A"
+  | ("Е" | "Э" | "Є") stress-mark :: Stressed ∪ Syllabic := "E"
+  | ("И" | "І") stress-mark :: Stressed ∪ Syllabic := "I"
+  | "О" stress-mark :: Stressed ∪ Syllabic := "O"
+  | "У" stress-mark :: Stressed ∪ Syllabic := "U"
+  | ("Ъ" | "Ы" | "Ә") stress-mark :: Stressed ∪ Syllabic := "Y"
 %emits
   $
 ```

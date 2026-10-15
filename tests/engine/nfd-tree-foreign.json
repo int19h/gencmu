@@ -1,0 +1,1432 @@
+{
+  "description": "The phoneme tree reads decomposed scalars and retains original scalar sources.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. Où .gy.",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "span": [
+          0,
+          16
+        ],
+        "source": [
+          0,
+          15
+        ],
+        "tags": [],
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "items",
+            "span": [
+              0,
+              15
+            ],
+            "source": [
+              0,
+              14
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "items",
+                "span": [
+                  0,
+                  11
+                ],
+                "source": [
+                  0,
+                  10
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "items",
+                    "span": [
+                      0,
+                      6
+                    ],
+                    "source": [
+                      0,
+                      6
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "items",
+                        "span": [
+                          0,
+                          3
+                        ],
+                        "source": [
+                          0,
+                          3
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "run",
+                            "span": [
+                              0,
+                              3
+                            ],
+                            "source": [
+                              0,
+                              3
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "ordinary-run",
+                                "span": [
+                                  0,
+                                  3
+                                ],
+                                "source": [
+                                  0,
+                                  3
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "letters",
+                                    "span": [
+                                      0,
+                                      3
+                                    ],
+                                    "source": [
+                                      0,
+                                      3
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "letters-after-vowel",
+                                        "span": [
+                                          0,
+                                          3
+                                        ],
+                                        "source": [
+                                          0,
+                                          3
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "letters-after-consonant",
+                                            "span": [
+                                              0,
+                                              1
+                                            ],
+                                            "source": [
+                                              0,
+                                              1
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "non-vowels",
+                                                "span": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "source": [
+                                                  0,
+                                                  1
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "non-vowel",
+                                                    "span": [
+                                                      0,
+                                                      1
+                                                    ],
+                                                    "source": [
+                                                      0,
+                                                      1
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "consonant",
+                                                        "span": [
+                                                          0,
+                                                          1
+                                                        ],
+                                                        "source": [
+                                                          0,
+                                                          1
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"z\"",
+                                                            "token": 0,
+                                                            "span": [
+                                                              0,
+                                                              1
+                                                            ],
+                                                            "source": [
+                                                              0,
+                                                              1
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "rule",
+                                            "rule": "vowel-group",
+                                            "span": [
+                                              1,
+                                              3
+                                            ],
+                                            "source": [
+                                              1,
+                                              3
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "vowel-group-plain",
+                                                "span": [
+                                                  1,
+                                                  3
+                                                ],
+                                                "source": [
+                                                  1,
+                                                  3
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "vowel-group",
+                                                    "span": [
+                                                      1,
+                                                      2
+                                                    ],
+                                                    "source": [
+                                                      1,
+                                                      2
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "vowel",
+                                                        "span": [
+                                                          1,
+                                                          2
+                                                        ],
+                                                        "source": [
+                                                          1,
+                                                          2
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "rule",
+                                                            "rule": "plain-vowel",
+                                                            "span": [
+                                                              1,
+                                                              2
+                                                            ],
+                                                            "source": [
+                                                              1,
+                                                              2
+                                                            ],
+                                                            "tags": [],
+                                                            "children": [
+                                                              {
+                                                                "kind": "token",
+                                                                "terminal": "\"o\"",
+                                                                "token": 1,
+                                                                "span": [
+                                                                  1,
+                                                                  2
+                                                                ],
+                                                                "source": [
+                                                                  1,
+                                                                  2
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "vowel",
+                                                    "span": [
+                                                      2,
+                                                      3
+                                                    ],
+                                                    "source": [
+                                                      2,
+                                                      3
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "rule",
+                                                        "rule": "plain-vowel",
+                                                        "span": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "source": [
+                                                          2,
+                                                          3
+                                                        ],
+                                                        "tags": [],
+                                                        "children": [
+                                                          {
+                                                            "kind": "token",
+                                                            "terminal": "\"i\"",
+                                                            "token": 2,
+                                                            "span": [
+                                                              2,
+                                                              3
+                                                            ],
+                                                            "source": [
+                                                              2,
+                                                              3
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "pause",
+                        "span": [
+                          3,
+                          4
+                        ],
+                        "source": [
+                          3,
+                          4
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "spaced-pause",
+                            "span": [
+                              3,
+                              4
+                            ],
+                            "source": [
+                              3,
+                              4
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "pause-core",
+                                "span": [
+                                  3,
+                                  4
+                                ],
+                                "source": [
+                                  3,
+                                  4
+                                ],
+                                "tags": [
+                                  "_White_Space",
+                                  "_Z",
+                                  "_Zs"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "core-char",
+                                    "span": [
+                                      3,
+                                      4
+                                    ],
+                                    "source": [
+                                      3,
+                                      4
+                                    ],
+                                    "tags": [
+                                      "_White_Space",
+                                      "_Z",
+                                      "_Zs"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "space-char",
+                                        "span": [
+                                          3,
+                                          4
+                                        ],
+                                        "source": [
+                                          3,
+                                          4
+                                        ],
+                                        "tags": [
+                                          "_White_Space",
+                                          "_Z",
+                                          "_Zs"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "_White_Space",
+                                            "token": 3,
+                                            "span": [
+                                              3,
+                                              4
+                                            ],
+                                            "source": [
+                                              3,
+                                              4
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "rule",
+                        "rule": "run",
+                        "span": [
+                          4,
+                          6
+                        ],
+                        "source": [
+                          4,
+                          6
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "ordinary-run",
+                            "span": [
+                              4,
+                              6
+                            ],
+                            "source": [
+                              4,
+                              6
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "letters",
+                                "span": [
+                                  4,
+                                  6
+                                ],
+                                "source": [
+                                  4,
+                                  6
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "letters-after-vowel",
+                                    "span": [
+                                      4,
+                                      6
+                                    ],
+                                    "source": [
+                                      4,
+                                      6
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "letters-after-consonant",
+                                        "span": [
+                                          4,
+                                          5
+                                        ],
+                                        "source": [
+                                          4,
+                                          5
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "non-vowels",
+                                            "span": [
+                                              4,
+                                              5
+                                            ],
+                                            "source": [
+                                              4,
+                                              5
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "non-vowel",
+                                                "span": [
+                                                  4,
+                                                  5
+                                                ],
+                                                "source": [
+                                                  4,
+                                                  5
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "rule",
+                                                    "rule": "consonant",
+                                                    "span": [
+                                                      4,
+                                                      5
+                                                    ],
+                                                    "source": [
+                                                      4,
+                                                      5
+                                                    ],
+                                                    "tags": [],
+                                                    "children": [
+                                                      {
+                                                        "kind": "token",
+                                                        "terminal": "\"g\"",
+                                                        "token": 4,
+                                                        "span": [
+                                                          4,
+                                                          5
+                                                        ],
+                                                        "source": [
+                                                          4,
+                                                          5
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "rule",
+                                        "rule": "vowel-group",
+                                        "span": [
+                                          5,
+                                          6
+                                        ],
+                                        "source": [
+                                          5,
+                                          6
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "vowel",
+                                            "span": [
+                                              5,
+                                              6
+                                            ],
+                                            "source": [
+                                              5,
+                                              6
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "rule",
+                                                "rule": "plain-vowel",
+                                                "span": [
+                                                  5,
+                                                  6
+                                                ],
+                                                "source": [
+                                                  5,
+                                                  6
+                                                ],
+                                                "tags": [],
+                                                "children": [
+                                                  {
+                                                    "kind": "token",
+                                                    "terminal": "\"y\"",
+                                                    "token": 5,
+                                                    "span": [
+                                                      5,
+                                                      6
+                                                    ],
+                                                    "source": [
+                                                      5,
+                                                      6
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "pause",
+                    "span": [
+                      6,
+                      8
+                    ],
+                    "source": [
+                      6,
+                      8
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "spaced-pause",
+                        "span": [
+                          6,
+                          8
+                        ],
+                        "source": [
+                          6,
+                          8
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "pause-core",
+                            "span": [
+                              6,
+                              8
+                            ],
+                            "source": [
+                              6,
+                              8
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "pause-core",
+                                "span": [
+                                  6,
+                                  7
+                                ],
+                                "source": [
+                                  6,
+                                  7
+                                ],
+                                "tags": [
+                                  "_P",
+                                  "_Po"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "core-char",
+                                    "span": [
+                                      6,
+                                      7
+                                    ],
+                                    "source": [
+                                      6,
+                                      7
+                                    ],
+                                    "tags": [
+                                      "_P",
+                                      "_Po"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "\".\"",
+                                        "token": 6,
+                                        "span": [
+                                          6,
+                                          7
+                                        ],
+                                        "source": [
+                                          6,
+                                          7
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "core-char",
+                                "span": [
+                                  7,
+                                  8
+                                ],
+                                "source": [
+                                  7,
+                                  8
+                                ],
+                                "tags": [
+                                  "_White_Space",
+                                  "_Z",
+                                  "_Zs"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "space-char",
+                                    "span": [
+                                      7,
+                                      8
+                                    ],
+                                    "source": [
+                                      7,
+                                      8
+                                    ],
+                                    "tags": [
+                                      "_White_Space",
+                                      "_Z",
+                                      "_Zs"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "_White_Space",
+                                        "token": 7,
+                                        "span": [
+                                          7,
+                                          8
+                                        ],
+                                        "source": [
+                                          7,
+                                          8
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "run",
+                    "span": [
+                      8,
+                      11
+                    ],
+                    "source": [
+                      8,
+                      10
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "non-lojban-char-run",
+                        "span": [
+                          8,
+                          11
+                        ],
+                        "source": [
+                          8,
+                          10
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "chars-with-non-lojban-char",
+                            "span": [
+                              8,
+                              11
+                            ],
+                            "source": [
+                              8,
+                              10
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "lojban-chars",
+                                "span": [
+                                  8,
+                                  10
+                                ],
+                                "source": [
+                                  8,
+                                  10
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "lojban-chars",
+                                    "span": [
+                                      8,
+                                      9
+                                    ],
+                                    "source": [
+                                      8,
+                                      9
+                                    ],
+                                    "tags": [
+                                      "_L",
+                                      "_Lu"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "lojban-char",
+                                        "span": [
+                                          8,
+                                          9
+                                        ],
+                                        "source": [
+                                          8,
+                                          9
+                                        ],
+                                        "tags": [
+                                          "_L",
+                                          "_Lu"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "run-char",
+                                            "span": [
+                                              8,
+                                              9
+                                            ],
+                                            "source": [
+                                              8,
+                                              9
+                                            ],
+                                            "tags": [
+                                              "_L",
+                                              "_Lu"
+                                            ],
+                                            "children": [
+                                              {
+                                                "kind": "token",
+                                                "terminal": "_",
+                                                "token": 8,
+                                                "span": [
+                                                  8,
+                                                  9
+                                                ],
+                                                "source": [
+                                                  8,
+                                                  9
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "rule",
+                                    "rule": "lojban-char",
+                                    "span": [
+                                      9,
+                                      10
+                                    ],
+                                    "source": [
+                                      9,
+                                      10
+                                    ],
+                                    "tags": [
+                                      "_L",
+                                      "_Ll"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "run-char",
+                                        "span": [
+                                          9,
+                                          10
+                                        ],
+                                        "source": [
+                                          9,
+                                          10
+                                        ],
+                                        "tags": [
+                                          "_L",
+                                          "_Ll"
+                                        ],
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "_",
+                                            "token": 9,
+                                            "span": [
+                                              9,
+                                              10
+                                            ],
+                                            "source": [
+                                              9,
+                                              10
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "non-lojban-char",
+                                "span": [
+                                  10,
+                                  11
+                                ],
+                                "source": [
+                                  9,
+                                  10
+                                ],
+                                "tags": [
+                                  "_M",
+                                  "_Mn"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "run-char",
+                                    "span": [
+                                      10,
+                                      11
+                                    ],
+                                    "source": [
+                                      9,
+                                      10
+                                    ],
+                                    "tags": [
+                                      "_M",
+                                      "_Mn"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "_",
+                                        "token": 10,
+                                        "span": [
+                                          10,
+                                          11
+                                        ],
+                                        "source": [
+                                          9,
+                                          10
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "pause",
+                "span": [
+                  11,
+                  13
+                ],
+                "source": [
+                  10,
+                  12
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "spaced-pause",
+                    "span": [
+                      11,
+                      13
+                    ],
+                    "source": [
+                      10,
+                      12
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "pause-core",
+                        "span": [
+                          11,
+                          13
+                        ],
+                        "source": [
+                          10,
+                          12
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "pause-core",
+                            "span": [
+                              11,
+                              12
+                            ],
+                            "source": [
+                              10,
+                              11
+                            ],
+                            "tags": [
+                              "_White_Space",
+                              "_Z",
+                              "_Zs"
+                            ],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "core-char",
+                                "span": [
+                                  11,
+                                  12
+                                ],
+                                "source": [
+                                  10,
+                                  11
+                                ],
+                                "tags": [
+                                  "_White_Space",
+                                  "_Z",
+                                  "_Zs"
+                                ],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "space-char",
+                                    "span": [
+                                      11,
+                                      12
+                                    ],
+                                    "source": [
+                                      10,
+                                      11
+                                    ],
+                                    "tags": [
+                                      "_White_Space",
+                                      "_Z",
+                                      "_Zs"
+                                    ],
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "_White_Space",
+                                        "token": 11,
+                                        "span": [
+                                          11,
+                                          12
+                                        ],
+                                        "source": [
+                                          10,
+                                          11
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "core-char",
+                            "span": [
+                              12,
+                              13
+                            ],
+                            "source": [
+                              11,
+                              12
+                            ],
+                            "tags": [
+                              "_P",
+                              "_Po"
+                            ],
+                            "children": [
+                              {
+                                "kind": "token",
+                                "terminal": "\".\"",
+                                "token": 12,
+                                "span": [
+                                  12,
+                                  13
+                                ],
+                                "source": [
+                                  11,
+                                  12
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "run",
+                "span": [
+                  13,
+                  15
+                ],
+                "source": [
+                  12,
+                  14
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "ordinary-run",
+                    "span": [
+                      13,
+                      15
+                    ],
+                    "source": [
+                      12,
+                      14
+                    ],
+                    "tags": [],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "letters",
+                        "span": [
+                          13,
+                          15
+                        ],
+                        "source": [
+                          12,
+                          14
+                        ],
+                        "tags": [],
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "letters-after-vowel",
+                            "span": [
+                              13,
+                              15
+                            ],
+                            "source": [
+                              12,
+                              14
+                            ],
+                            "tags": [],
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "letters-after-consonant",
+                                "span": [
+                                  13,
+                                  14
+                                ],
+                                "source": [
+                                  12,
+                                  13
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "non-vowels",
+                                    "span": [
+                                      13,
+                                      14
+                                    ],
+                                    "source": [
+                                      12,
+                                      13
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "non-vowel",
+                                        "span": [
+                                          13,
+                                          14
+                                        ],
+                                        "source": [
+                                          12,
+                                          13
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "rule",
+                                            "rule": "consonant",
+                                            "span": [
+                                              13,
+                                              14
+                                            ],
+                                            "source": [
+                                              12,
+                                              13
+                                            ],
+                                            "tags": [],
+                                            "children": [
+                                              {
+                                                "kind": "token",
+                                                "terminal": "\"g\"",
+                                                "token": 13,
+                                                "span": [
+                                                  13,
+                                                  14
+                                                ],
+                                                "source": [
+                                                  12,
+                                                  13
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "rule",
+                                "rule": "vowel-group",
+                                "span": [
+                                  14,
+                                  15
+                                ],
+                                "source": [
+                                  13,
+                                  14
+                                ],
+                                "tags": [],
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "vowel",
+                                    "span": [
+                                      14,
+                                      15
+                                    ],
+                                    "source": [
+                                      13,
+                                      14
+                                    ],
+                                    "tags": [],
+                                    "children": [
+                                      {
+                                        "kind": "rule",
+                                        "rule": "plain-vowel",
+                                        "span": [
+                                          14,
+                                          15
+                                        ],
+                                        "source": [
+                                          13,
+                                          14
+                                        ],
+                                        "tags": [],
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "\"y\"",
+                                            "token": 14,
+                                            "span": [
+                                              14,
+                                              15
+                                            ],
+                                            "source": [
+                                              13,
+                                              14
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "edge-pause",
+            "span": [
+              15,
+              16
+            ],
+            "source": [
+              14,
+              15
+            ],
+            "tags": [],
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "spaced-pause",
+                "span": [
+                  15,
+                  16
+                ],
+                "source": [
+                  14,
+                  15
+                ],
+                "tags": [],
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "pause-core",
+                    "span": [
+                      15,
+                      16
+                    ],
+                    "source": [
+                      14,
+                      15
+                    ],
+                    "tags": [
+                      "_P",
+                      "_Po"
+                    ],
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "core-char",
+                        "span": [
+                          15,
+                          16
+                        ],
+                        "source": [
+                          14,
+                          15
+                        ],
+                        "tags": [
+                          "_P",
+                          "_Po"
+                        ],
+                        "children": [
+                          {
+                            "kind": "token",
+                            "terminal": "\".\"",
+                            "token": 15,
+                            "span": [
+                              15,
+                              16
+                            ],
+                            "source": [
+                              14,
+                              15
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

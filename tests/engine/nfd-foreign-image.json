@@ -1,0 +1,44 @@
+{
+  "description": "A phoneme foreign token preserves its original image and decomposes its value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "fa'o café",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "f"
+            },
+            {
+              "value": "a"
+            },
+            {
+              "value": "'"
+            },
+            {
+              "value": "o"
+            },
+            {
+              "value": " "
+            },
+            {
+              "value": "café",
+              "image": "café",
+              "tags": [
+                "FOREIGN"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

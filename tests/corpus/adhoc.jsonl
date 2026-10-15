@@ -4992,3 +4992,168 @@
 {"id":"adhoc.words.orthography.nfd.zoi-kelvin-body.zantufa","text":"zoi klama. Klama .klama.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","klama","","klama","klama"],"brackets":"([zoi klama  klama] klama)"}
 {"id":"adhoc.words.orthography.nfd.zoi-kelvin-body.cll-ebnf","text":"zoi klama. Klama .klama.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","klama","","klama","klama"],"brackets":"([zoi klama  klama] klama)"}
 {"id":"adhoc.words.orthography.nfd.zoi-kelvin-body.kihei","text":"zoi klama. Klama .klama.","dialect":"kihei","expect":"accept","verdict":"unique","words":["zoi","klama","","klama","klama"],"brackets":"([zoi klama  klama] klama)"}
+{"id":"adhoc.words.orthography.marks.spacing-mark.bpfk","text":"miा klama","dialect":"bpfk","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.enclosing-mark.bpfk","text":"mi⃝ klama","dialect":"bpfk","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.spacing-mark-starts-run.bpfk","text":"mi ाklama","dialect":"bpfk","expect":"reject","stage":"words","at":3}
+{"id":"adhoc.words.orthography.capital-run.breve-glide.bpfk","text":"ĬAKLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-u.bpfk","text":"ŬAKLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ua","klama"],"brackets":"(ua klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-combining.bpfk","text":"ĬAKLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.lowercase-breve-glide.bpfk","text":"ĭAKLAMA","dialect":"bpfk","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.foreign.decimal-point-before-foreign.bpfk","text":"zoi gy. 3.0w .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","3.0w","gy"],"brackets":"(zoi gy 3.0w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-foreign.bpfk","text":"zoi gy. w3.0 .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","w3.0","gy"],"brackets":"(zoi gy w3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-faho.bpfk","text":"fa'o 3.0w","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.foreign.decimal-points-in-foreign-run.bpfk","text":"zoi gy. 3.0.5w .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","3.0.5w","gy"],"brackets":"(zoi gy 3.0.5w gy)"}
+{"id":"adhoc.words.foreign.period-beside-letter-is-pause.bpfk","text":"zoi gy. 3.w .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","3.w","gy"],"brackets":"(zoi gy 3.w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-before-sharp-s.bpfk","text":"zoi gy. 3.0ß .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","3.0ß","gy"],"brackets":"(zoi gy 3.0ß gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-sharp-s.bpfk","text":"zoi gy. ß3.0 .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","ß3.0","gy"],"brackets":"(zoi gy ß3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-sharp-s-after-faho.bpfk","text":"fa'o 3.0ß","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses.bpfk","text":"KLÁMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses-cyrillic.bpfk","text":"КЛА́МА","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.one-group-stays-ordinary.bpfk","text":"MÍ KLAMA","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.format.soft-hyphen.bpfk","text":"kla­ma","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.word-joiner.bpfk","text":"kla⁠ma","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.zero-width-space.bpfk","text":"mi​klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.byte-order-mark.bpfk","text":"﻿mi klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.joiner-in-emoji.bpfk","text":"mi 👨‍👩 do","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","do"],"brackets":"(mi do)"}
+{"id":"adhoc.words.orthography.format.decimal-point.bpfk","text":"2­.3","dialect":"bpfk","expect":"accept","verdict":"unique","words":["re","ci"],"brackets":"(re ci)"}
+{"id":"adhoc.words.orthography.format.only.bpfk","text":"­‍","dialect":"bpfk","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.format.visible-sign.bpfk","text":"mi؀klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.unsegmentable-run-never-closes.bpfk","text":"zoi klama. klamá .klama.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","klama","klamá","klama"],"brackets":"(zoi klama klamá klama)"}
+{"id":"adhoc.words.foreign.comma-body.bpfk","text":"zoi gy. , .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy",",","gy"],"brackets":"(zoi gy , gy)"}
+{"id":"adhoc.words.silent.two-comma-runs.bpfk","text":"zoi gy. , , .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy",", ,","gy"],"brackets":"(zoi gy , , gy)"}
+{"id":"adhoc.words.silent.two-runs-y-delimiter.bpfk","text":"zoi .y. bu. , , .y. bu.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","y bu",", ,","y bu"],"brackets":"(zoi y bu , , y bu)"}
+{"id":"adhoc.words.silent.letteral-over-body.bpfk","text":"zoi gy. , .gy. bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi gy , gy bu"],"brackets":"zoi gy , gy bu"}
+{"id":"adhoc.words.silent.zei-over-body.bpfk","text":"zoi gy. , .gy. zei klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi gy , gy zei klama"],"brackets":"zoi gy , gy zei klama"}
+{"id":"adhoc.words.silent.phoneme-output.bpfk","text":"mi , klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.format-character-body.bpfk","text":"zoi gy. ­ .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","­","gy"],"brackets":"(zoi gy ­ gy)"}
+{"id":"adhoc.words.foreign.comma-between-body-runs.bpfk","text":"zoi gy. a , b .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","a , b","gy"],"brackets":"(zoi gy a , b gy)"}
+{"id":"adhoc.words.orthography.comma-between-words.bpfk","text":"mi , klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.letteral-comma.bpfk","text":"mi , bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.letteral-y-comma.bpfk","text":".y. , bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-yy-comma.bpfk","text":".yy. , bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-by-comma.bpfk","text":"by , bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["by bu"],"brackets":"by bu"}
+{"id":"adhoc.words.silent.letteral-word-joiner.bpfk","text":"mi ⁠ bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.zohoi-comma.bpfk","text":"zo'oi , bu","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zo'oi bu"],"brackets":"zo'oi bu"}
+{"id":"adhoc.words.silent.zoi-y-close-comma.bpfk","text":"zoi .y. bu. da .y. , bu.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zoi-y-open-comma.bpfk","text":"zoi .y. , bu. da .y. bu.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zei-comma.bpfk","text":"da , zei de","dialect":"bpfk","expect":"accept","verdict":"unique","words":["da zei de"],"brackets":"da zei de"}
+{"id":"adhoc.words.silent.si-comma.bpfk","text":"mi , si klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.silent.zoi-edge-comma.bpfk","text":"zoi gy. , x .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy",", x","gy"],"brackets":"(zoi gy , x gy)"}
+{"id":"adhoc.words.silent.zoi-edge-comma-after.bpfk","text":"zoi gy. x , .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","x ,","gy"],"brackets":"(zoi gy x , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several.bpfk","text":"zoi gy. , , x , , .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy",", , x , ,","gy"],"brackets":"(zoi gy , , x , , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several-attached.bpfk","text":"zoi ,, by bu , , by","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","by","bu , ,","by"],"brackets":"(zoi by bu , , by)"}
+{"id":"adhoc.words.silent.comma-with-punctuation.bpfk","text":"zoi gy. ,! .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy",",!","gy"],"brackets":"(zoi gy ,! gy)"}
+{"id":"adhoc.words.silent.punctuation-alone.bpfk","text":"mi ,! klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.punctuation-control.bpfk","text":"mi ! klama","dialect":"bpfk","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.punctuation-body.bpfk","text":"zoi gy. !!! .gy.","dialect":"bpfk","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.orthography.marks.spacing-mark.experimental","text":"miा klama","dialect":"experimental","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.enclosing-mark.experimental","text":"mi⃝ klama","dialect":"experimental","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.spacing-mark-starts-run.experimental","text":"mi ाklama","dialect":"experimental","expect":"reject","stage":"words","at":3}
+{"id":"adhoc.words.orthography.capital-run.breve-glide.experimental","text":"ĬAKLAMA","dialect":"experimental","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-u.experimental","text":"ŬAKLAMA","dialect":"experimental","expect":"accept","verdict":"unique","words":["ua","klama"],"brackets":"(ua klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-combining.experimental","text":"ĬAKLAMA","dialect":"experimental","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.lowercase-breve-glide.experimental","text":"ĭAKLAMA","dialect":"experimental","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.foreign.decimal-point-before-foreign.experimental","text":"zoi gy. 3.0w .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","3.0w","gy"],"brackets":"(zoi gy 3.0w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-foreign.experimental","text":"zoi gy. w3.0 .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","w3.0","gy"],"brackets":"(zoi gy w3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-faho.experimental","text":"fa'o 3.0w","dialect":"experimental","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.foreign.decimal-points-in-foreign-run.experimental","text":"zoi gy. 3.0.5w .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","3.0.5w","gy"],"brackets":"(zoi gy 3.0.5w gy)"}
+{"id":"adhoc.words.foreign.period-beside-letter-is-pause.experimental","text":"zoi gy. 3.w .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","3.w","gy"],"brackets":"(zoi gy 3.w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-before-sharp-s.experimental","text":"zoi gy. 3.0ß .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","3.0ß","gy"],"brackets":"(zoi gy 3.0ß gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-sharp-s.experimental","text":"zoi gy. ß3.0 .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","ß3.0","gy"],"brackets":"(zoi gy ß3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-sharp-s-after-faho.experimental","text":"fa'o 3.0ß","dialect":"experimental","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses.experimental","text":"KLÁMA","dialect":"experimental","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses-cyrillic.experimental","text":"КЛА́МА","dialect":"experimental","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.one-group-stays-ordinary.experimental","text":"MÍ KLAMA","dialect":"experimental","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.format.soft-hyphen.experimental","text":"kla­ma","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.word-joiner.experimental","text":"kla⁠ma","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.zero-width-space.experimental","text":"mi​klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.byte-order-mark.experimental","text":"﻿mi klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.joiner-in-emoji.experimental","text":"mi 👨‍👩 do","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","do"],"brackets":"(mi do)"}
+{"id":"adhoc.words.orthography.format.decimal-point.experimental","text":"2­.3","dialect":"experimental","expect":"accept","verdict":"unique","words":["re","ci"],"brackets":"(re ci)"}
+{"id":"adhoc.words.orthography.format.only.experimental","text":"­‍","dialect":"experimental","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.format.visible-sign.experimental","text":"mi؀klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.unsegmentable-run-never-closes.experimental","text":"zoi klama. klamá .klama.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","klama","klamá","klama"],"brackets":"(zoi klama klamá klama)"}
+{"id":"adhoc.words.foreign.comma-body.experimental","text":"zoi gy. , .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy",",","gy"],"brackets":"(zoi gy , gy)"}
+{"id":"adhoc.words.silent.two-comma-runs.experimental","text":"zoi gy. , , .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy",", ,","gy"],"brackets":"(zoi gy , , gy)"}
+{"id":"adhoc.words.silent.two-runs-y-delimiter.experimental","text":"zoi .y. bu. , , .y. bu.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","y bu",", ,","y bu"],"brackets":"(zoi y bu , , y bu)"}
+{"id":"adhoc.words.silent.letteral-over-body.experimental","text":"zoi gy. , .gy. bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy , gy bu"],"brackets":"zoi gy , gy bu"}
+{"id":"adhoc.words.silent.zei-over-body.experimental","text":"zoi gy. , .gy. zei klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy , gy zei klama"],"brackets":"zoi gy , gy zei klama"}
+{"id":"adhoc.words.silent.phoneme-output.experimental","text":"mi , klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.format-character-body.experimental","text":"zoi gy. ­ .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","­","gy"],"brackets":"(zoi gy ­ gy)"}
+{"id":"adhoc.words.foreign.comma-between-body-runs.experimental","text":"zoi gy. a , b .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","a , b","gy"],"brackets":"(zoi gy a , b gy)"}
+{"id":"adhoc.words.orthography.comma-between-words.experimental","text":"mi , klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.letteral-comma.experimental","text":"mi , bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.letteral-y-comma.experimental","text":".y. , bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-yy-comma.experimental","text":".yy. , bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-by-comma.experimental","text":"by , bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["by bu"],"brackets":"by bu"}
+{"id":"adhoc.words.silent.letteral-word-joiner.experimental","text":"mi ⁠ bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.zohoi-comma.experimental","text":"zo'oi , bu","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi","bu"],"brackets":"(zo'oi bu)"}
+{"id":"adhoc.words.silent.zoi-y-close-comma.experimental","text":"zoi .y. bu. da .y. , bu.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zoi-y-open-comma.experimental","text":"zoi .y. , bu. da .y. bu.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zei-comma.experimental","text":"da , zei de","dialect":"experimental","expect":"accept","verdict":"unique","words":["da zei de"],"brackets":"da zei de"}
+{"id":"adhoc.words.silent.si-comma.experimental","text":"mi , si klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.silent.zoi-edge-comma.experimental","text":"zoi gy. , x .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy",", x","gy"],"brackets":"(zoi gy , x gy)"}
+{"id":"adhoc.words.silent.zoi-edge-comma-after.experimental","text":"zoi gy. x , .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","x ,","gy"],"brackets":"(zoi gy x , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several.experimental","text":"zoi gy. , , x , , .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy",", , x , ,","gy"],"brackets":"(zoi gy , , x , , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several-attached.experimental","text":"zoi ,, by bu , , by","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","by","bu , ,","by"],"brackets":"(zoi by bu , , by)"}
+{"id":"adhoc.words.silent.comma-with-punctuation.experimental","text":"zoi gy. ,! .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy",",!","gy"],"brackets":"(zoi gy ,! gy)"}
+{"id":"adhoc.words.silent.punctuation-alone.experimental","text":"mi ,! klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.punctuation-control.experimental","text":"mi ! klama","dialect":"experimental","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.punctuation-body.experimental","text":"zoi gy. !!! .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.orthography.marks.spacing-mark.zantufa","text":"miा klama","dialect":"zantufa","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.enclosing-mark.zantufa","text":"mi⃝ klama","dialect":"zantufa","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.orthography.marks.spacing-mark-starts-run.zantufa","text":"mi ाklama","dialect":"zantufa","expect":"reject","stage":"words","at":3}
+{"id":"adhoc.words.orthography.capital-run.breve-glide.zantufa","text":"ĬAKLAMA","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-u.zantufa","text":"ŬAKLAMA","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ua","klama"],"brackets":"(ua klama)"}
+{"id":"adhoc.words.orthography.capital-run.breve-glide-combining.zantufa","text":"ĬAKLAMA","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ia","klama"],"brackets":"(ia klama)"}
+{"id":"adhoc.words.orthography.capital-run.lowercase-breve-glide.zantufa","text":"ĭAKLAMA","dialect":"zantufa","expect":"reject","stage":"words","at":0}
+{"id":"adhoc.words.foreign.decimal-point-before-foreign.zantufa","text":"zoi gy. 3.0w .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","3.0w","gy"],"brackets":"(zoi gy 3.0w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-foreign.zantufa","text":"zoi gy. w3.0 .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","w3.0","gy"],"brackets":"(zoi gy w3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-faho.zantufa","text":"fa'o 3.0w","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.foreign.decimal-points-in-foreign-run.zantufa","text":"zoi gy. 3.0.5w .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","3.0.5w","gy"],"brackets":"(zoi gy 3.0.5w gy)"}
+{"id":"adhoc.words.foreign.period-beside-letter-is-pause.zantufa","text":"zoi gy. 3.w .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","3.w","gy"],"brackets":"(zoi gy 3.w gy)"}
+{"id":"adhoc.words.foreign.decimal-point-before-sharp-s.zantufa","text":"zoi gy. 3.0ß .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","3.0ß","gy"],"brackets":"(zoi gy 3.0ß gy)"}
+{"id":"adhoc.words.foreign.decimal-point-after-sharp-s.zantufa","text":"zoi gy. ß3.0 .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","ß3.0","gy"],"brackets":"(zoi gy ß3.0 gy)"}
+{"id":"adhoc.words.foreign.decimal-point-sharp-s-after-faho.zantufa","text":"fa'o 3.0ß","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses.zantufa","text":"KLÁMA","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.accent-stresses-cyrillic.zantufa","text":"КЛА́МА","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klAma"],"brackets":"klAma"}
+{"id":"adhoc.words.orthography.capital-run.one-group-stays-ordinary.zantufa","text":"MÍ KLAMA","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mI","klama"],"brackets":"(mI klama)"}
+{"id":"adhoc.words.orthography.format.soft-hyphen.zantufa","text":"kla­ma","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.word-joiner.zantufa","text":"kla⁠ma","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.orthography.format.zero-width-space.zantufa","text":"mi​klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.byte-order-mark.zantufa","text":"﻿mi klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.orthography.format.joiner-in-emoji.zantufa","text":"mi 👨‍👩 do","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","do"],"brackets":"(mi do)"}
+{"id":"adhoc.words.orthography.format.decimal-point.zantufa","text":"2­.3","dialect":"zantufa","expect":"accept","verdict":"unique","words":["re","ci"],"brackets":"(re ci)"}
+{"id":"adhoc.words.orthography.format.only.zantufa","text":"­‍","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
+{"id":"adhoc.words.orthography.format.visible-sign.zantufa","text":"mi؀klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.unsegmentable-run-never-closes.zantufa","text":"zoi klama. klamá .klama.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","klama","klamá","klama"],"brackets":"(zoi klama klamá klama)"}
+{"id":"adhoc.words.foreign.comma-body.zantufa","text":"zoi gy. , .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy",",","gy"],"brackets":"(zoi gy , gy)"}
+{"id":"adhoc.words.silent.two-comma-runs.zantufa","text":"zoi gy. , , .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy",", ,","gy"],"brackets":"(zoi gy , , gy)"}
+{"id":"adhoc.words.silent.two-runs-y-delimiter.zantufa","text":"zoi .y. bu. , , .y. bu.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","y bu",", ,","y bu"],"brackets":"(zoi y bu , , y bu)"}
+{"id":"adhoc.words.silent.letteral-over-body.zantufa","text":"zoi gy. , .gy. bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi gy , gy bu"],"brackets":"zoi gy , gy bu"}
+{"id":"adhoc.words.silent.zei-over-body.zantufa","text":"zoi gy. , .gy. zei klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.silent.phoneme-output.zantufa","text":"mi , klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.format-character-body.zantufa","text":"zoi gy. ­ .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","­","gy"],"brackets":"(zoi gy ­ gy)"}
+{"id":"adhoc.words.foreign.comma-between-body-runs.zantufa","text":"zoi gy. a , b .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","a , b","gy"],"brackets":"(zoi gy a , b gy)"}
+{"id":"adhoc.words.orthography.comma-between-words.zantufa","text":"mi , klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.letteral-comma.zantufa","text":"mi , bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.letteral-y-comma.zantufa","text":".y. , bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-yy-comma.zantufa","text":".yy. , bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["y bu"],"brackets":"y bu"}
+{"id":"adhoc.words.silent.letteral-by-comma.zantufa","text":"by , bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["by bu"],"brackets":"by bu"}
+{"id":"adhoc.words.silent.letteral-word-joiner.zantufa","text":"mi ⁠ bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi bu"],"brackets":"mi bu"}
+{"id":"adhoc.words.silent.zohoi-comma.zantufa","text":"zo'oi , bu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zo'oi bu"],"brackets":"zo'oi bu"}
+{"id":"adhoc.words.silent.zoi-y-close-comma.zantufa","text":"zoi .y. bu. da .y. , bu.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zoi-y-open-comma.zantufa","text":"zoi .y. , bu. da .y. bu.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","y bu","da","y bu"],"brackets":"(zoi y bu da y bu)"}
+{"id":"adhoc.words.silent.zei-comma.zantufa","text":"da , zei de","dialect":"zantufa","expect":"accept","verdict":"unique","words":["de"],"brackets":"de"}
+{"id":"adhoc.words.silent.si-comma.zantufa","text":"mi , si klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
+{"id":"adhoc.words.silent.zoi-edge-comma.zantufa","text":"zoi gy. , x .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy",", x","gy"],"brackets":"(zoi gy , x gy)"}
+{"id":"adhoc.words.silent.zoi-edge-comma-after.zantufa","text":"zoi gy. x , .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","x ,","gy"],"brackets":"(zoi gy x , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several.zantufa","text":"zoi gy. , , x , , .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy",", , x , ,","gy"],"brackets":"(zoi gy , , x , , gy)"}
+{"id":"adhoc.words.silent.zoi-edge-several-attached.zantufa","text":"zoi ,, by bu , , by","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","by","bu , ,","by"],"brackets":"(zoi by bu , , by)"}
+{"id":"adhoc.words.silent.comma-with-punctuation.zantufa","text":"zoi gy. ,! .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy",",!","gy"],"brackets":"(zoi gy ,! gy)"}
+{"id":"adhoc.words.silent.punctuation-alone.zantufa","text":"mi ,! klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.silent.punctuation-control.zantufa","text":"mi ! klama","dialect":"zantufa","expect":"accept","verdict":"unique","words":["mi","klama"],"brackets":"(mi klama)"}
+{"id":"adhoc.words.foreign.punctuation-body.zantufa","text":"zoi gy. !!! .gy.","dialect":"zantufa","expect":"accept","verdict":"unique","words":["zoi","gy","","gy"],"brackets":"(zoi gy  gy)"}
+{"id":"adhoc.words.silent.rahói-comma.zantufa","text":"ra'oi , broda","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi","broda"],"brackets":"(ra'oi broda)"}
+{"id":"adhoc.words.foreign.unsegmentable-run-never-closes-cll.cll-ebnf","text":"zoi klama. klAmA .klama.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi","klama","klAmA","klama"],"brackets":"(zoi klama klAmA klama)"}
+{"id":"adhoc.words.foreign.unsegmentable-run-never-closes-cll.kihei","text":"zoi klama. klAmA .klama.","dialect":"kihei","expect":"accept","verdict":"unique","words":["zoi","klama","klAmA","klama"],"brackets":"(zoi klama klAmA klama)"}

@@ -111,6 +111,8 @@ The rule `empty` reads a prefix that leaves no units. Its first three alternativ
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
+A silent run stands between two pauses and holds an ignored character. `pause-run` reads it with the pauses around it as one pause. A quote body keeps it.
+
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
 `Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
@@ -120,8 +122,12 @@ A pause token has value `" "`, and `$PAUSE` names that string. Gap recipes use i
 ```jbogenbau
 %const $PAUSE " "
 
+%rule pause-run
+  | PAUSE
+  | pause-run Silent PAUSE := " " :- " "
+
 %rule spacing
-  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
+  [$p:pause-run] [$h:hesitations [$q:pause-run]]
     :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
 
 %rule skipped
@@ -143,11 +149,12 @@ A pause token has value `" "`, and `$PAUSE` names that string. Gap recipes use i
 
 %rule hesitations
   | hesitation :: ∅
-  | $h:hesitations PAUSE hesitation :: Gap-Pause
+  | $h:hesitations pause-run hesitation :: Gap-Pause
   | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>spacing</code> to <code>hesitations</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>pause-run</code> to <code>hesitations</code></summary>
+<p><img src="../../docs/diagrams/words/stream/pause-run.svg" alt="Railroad diagram of the rule pause-run"></p>
 <p><img src="../../docs/diagrams/words/stream/spacing.svg" alt="Railroad diagram of the rule spacing"></p>
 <p><img src="../../docs/diagrams/words/stream/skipped.svg" alt="Railroad diagram of the rule skipped"></p>
 <p><img src="../../docs/diagrams/words/stream/erasures.svg" alt="Railroad diagram of the rule erasures"></p>
@@ -183,7 +190,7 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   | $y:y-bu-word :: $y.tags
 
 %rule y-bu-word
-  $b:y-key [PAUSE] $u:bu-word
+  $b:y-key [pause-run] $u:bu-word
     :: Word ∪ BY ∪ Y-Letter ∪ $b.tags
      ∪ Run-Initial ∩ $b.first-token.tags ∪ Run-Final ∩ $u.last-token.tags
 %emits
@@ -240,7 +247,7 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
   | quiet-gap hesitation
 
 %rule pause-gap
-  [quiet-gap] PAUSE [hesitations [PAUSE]] := $PAUSE
+  [quiet-gap] pause-run [hesitations [pause-run]] := $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -300,7 +307,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅
 
 %rule raw-y-letter
-  raw-y-base [PAUSE] bu-word
+  raw-y-base [pause-run] bu-word
 
 %rule zohoi-hesitation
   $h:y-run
@@ -309,10 +316,10 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %erased
 
 %rule zohoi-hesitations
-  zohoi-hesitation | zohoi-hesitations [PAUSE] zohoi-hesitation
+  zohoi-hesitation | zohoi-hesitations [pause-run] zohoi-hesitation
 
 %rule zohoi-gap
-  PAUSE [zohoi-hesitations [PAUSE]] := $PAUSE
+  pause-run [zohoi-hesitations [pause-run]] := $PAUSE
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>single-word-quote</code> to <code>zohoi-gap</code></summary>
@@ -343,8 +350,9 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule zoi-y-quote :: $m.tags
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:raw-tokens PAUSE $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
 %conditions
   Y-Letter ⊆ $open.tags,
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
@@ -353,8 +361,9 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $m, $open :: Word, $content :: Quoted-Text, $close :: Word
 
 %rule zoi-quote :: $m.tags
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:raw-tokens PAUSE $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
 %conditions
   Y-Letter ⊈ $open.tags,
   $open.value = $close.value,
@@ -374,13 +383,13 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 %rule delimiter-gap
   | [delimiter-quiet-gap]
-  | [delimiter-quiet-gap] PAUSE [delimiter-hesitations [PAUSE]] := $PAUSE
+  | [delimiter-quiet-gap] pause-run [delimiter-hesitations [pause-run]] := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation
 
 %rule delimiter-hesitations
-  delimiter-hesitation | delimiter-hesitations [PAUSE] delimiter-hesitation
+  delimiter-hesitation | delimiter-hesitations [pause-run] delimiter-hesitation
 
 %rule delimiter-hesitation
   $h:y-run
@@ -390,9 +399,27 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 %rule empty-zoi-body
   ε
+
+%rule zoi-body :- $.verbatim-text
+  | [silent-before] raw-tokens [silent-after]
+
+%rule silent-before
+  | Silent quiet-pause
+  | silent-before Silent quiet-pause
+
+%rule silent-after
+  | quiet-pause Silent
+  | silent-after quiet-pause Silent
+
+%rule silent-body := "" :- $.verbatim-text
+  | Silent
+  | silent-body PAUSE Silent
+
+%rule quiet-pause
+  PAUSE := "" :- " "
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>zoi-y-quote</code> to <code>empty-zoi-body</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
 <p><img src="../../docs/diagrams/words/stream/zoi-y-quote.svg" alt="Railroad diagram of the rule zoi-y-quote"></p>
 <p><img src="../../docs/diagrams/words/stream/zoi-quote.svg" alt="Railroad diagram of the rule zoi-quote"></p>
 <p><img src="../../docs/diagrams/words/stream/zoi-marker.svg" alt="Railroad diagram of the rule zoi-marker"></p>
@@ -402,6 +429,11 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 <p><img src="../../docs/diagrams/words/stream/delimiter-hesitations.svg" alt="Railroad diagram of the rule delimiter-hesitations"></p>
 <p><img src="../../docs/diagrams/words/stream/delimiter-hesitation.svg" alt="Railroad diagram of the rule delimiter-hesitation"></p>
 <p><img src="../../docs/diagrams/words/stream/empty-zoi-body.svg" alt="Railroad diagram of the rule empty-zoi-body"></p>
+<p><img src="../../docs/diagrams/words/stream/zoi-body.svg" alt="Railroad diagram of the rule zoi-body"></p>
+<p><img src="../../docs/diagrams/words/stream/silent-before.svg" alt="Railroad diagram of the rule silent-before"></p>
+<p><img src="../../docs/diagrams/words/stream/silent-after.svg" alt="Railroad diagram of the rule silent-after"></p>
+<p><img src="../../docs/diagrams/words/stream/silent-body.svg" alt="Railroad diagram of the rule silent-body"></p>
+<p><img src="../../docs/diagrams/words/stream/quiet-pause.svg" alt="Railroad diagram of the rule quiet-pause"></p>
 </details>
 
 ### Closing delimiter runs
@@ -437,7 +469,7 @@ The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zant
   cmavo-token | payload-token<¬Cmavo>
 
 %rule raw-y-close
-  $y:raw-y-key [PAUSE] $b:matched-close-token :: $y.tags
+  $y:raw-y-key [pause-run] $b:matched-close-token :: $y.tags
 %conditions
   $b.value = "bu",
   Run-Initial ⊆ $y.first-token.tags,
@@ -532,7 +564,7 @@ An outer body recipe stops descendant image evaluation. Recursive bodies therefo
   | zohoi-payload payload-token
 
 %rule any-token
-  payload-token | PAUSE
+  payload-token | pause-run
 
 %rule payload-token
   Word | Hesitation | FOREIGN
