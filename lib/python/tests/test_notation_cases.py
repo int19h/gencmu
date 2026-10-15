@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from copy import deepcopy
 import json
 import unittest
+from unittest.mock import patch
 
 import gencmu
-from gencmu._dialect import read_document
+from gencmu._dialect import DOM_FORMAT, _Loader, _Resources, _resources, read_document
+from gencmu._hash import fnv1a64
 
 from .shared import add_case_tests, cases, load_case, mismatch, write_json
 
@@ -24,6 +27,8 @@ class NotationCases(unittest.TestCase):
             dom = read_document(case["document"], path.name)
             problem = mismatch(expect["dom"], dom)
             self.assertIsNone(problem, f"{path.name}: {problem}\n{write_json(dom)[:2000]}")
+            if case.get("cacheMisses"):
+                self.check_cache_misses(path.name, case["document"], dom)
         else:
             with self.assertRaises(gencmu.GencmuError) as caught:
                 read_document(case["document"], path.name)
@@ -32,6 +37,39 @@ class NotationCases(unittest.TestCase):
             for key in ("line", "column"):
                 if key in expect["error"]:
                     self.assertEqual(getattr(error, key), expect["error"][key], f"{path.name}: {error}")
+
+    def check_cache_misses(self, name: str, document: str, expected: dict) -> None:
+        resources = _resources()
+        cold = _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, None), use_cache=False)
+        self.assertEqual(cold.dom(name), expected)
+        envelope = {
+            "format": DOM_FORMAT,
+            "bootstrap": cold.reader.hash,
+            "unicode": cold.unicode.fingerprint,
+            "documents": {name: {"hash": fnv1a64(document), "dom": expected}},
+        }
+
+        def loader(compiled):
+            return _Loader({name: document}.get, _Resources(resources.unicode, resources.bootstrap, json.dumps(compiled)))
+
+        cached = loader(envelope)
+        self.assertIn(fnv1a64(document), cached.compiled)
+        with patch.object(cached.reader, "read", side_effect=AssertionError("compiled cache was bypassed")):
+            self.assertEqual(cached.dom(name), expected)
+            self.assertEqual(cached.dom(name), expected)
+        for key in ("document", "bootstrap", "unicode", "format"):
+            with self.subTest(cache_mismatch=key):
+                stale = deepcopy(envelope)
+                stale["documents"][name]["dom"]["rules"][0]["name"] = "cache-poison"
+                if key == "document":
+                    stale["documents"][name]["hash"] = fnv1a64("another document")
+                elif key == "format":
+                    stale["format"] = DOM_FORMAT - 1
+                else:
+                    stale[key] = fnv1a64("another " + key)
+                missed = loader(stale)
+                self.assertEqual(missed.dom(name), expected)
+                self.assertEqual(missed.dom(name), expected)
 
 
 class NotationTies(unittest.TestCase):

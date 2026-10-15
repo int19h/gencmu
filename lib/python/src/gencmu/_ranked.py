@@ -266,7 +266,7 @@ def has_ranked(dom):
 def restore_locations(dom, tokens, position):
     if not has_ranked(dom):
         return dom
-    separators = [position(token.source[0]) for token in tokens if token.text == '≻']
+    separators = [position(token.source[0]) for token in tokens if token.value == '≻']
     index = 0
     from ._dom import DeferredDom
     copy = DeferredDom(dom, getattr(dom, 'deferred_emissions', ()))
@@ -296,19 +296,19 @@ def restore_locations(dom, tokens, position):
 
 
 def syntax_failure(tokens, at):
-    if at < len(tokens) and tokens[at].text == '≻' or at > 0 and at-1 < len(tokens) and tokens[at-1].text == '≻':
+    if at < len(tokens) and tokens[at].value == '≻' or at > 0 and at-1 < len(tokens) and tokens[at-1].value == '≻':
         return True
-    if at >= len(tokens) or tokens[at].text != '|':
+    if at >= len(tokens) or tokens[at].value != '|':
         return False
     levels = [False]
     for token in tokens[:at]:
-        if token.text in ('(', '[', '{'):
+        if token.value in ('(', '[', '{'):
             levels.append(False)
-        elif token.text in (')', ']', '}'):
+        elif token.value in (')', ']', '}'):
             if levels:
                 levels.pop()
-        elif token.text == '≻' and levels:
+        elif token.value == '≻' and levels:
             levels[-1] = True
-        elif token.text.startswith('%') and levels:
+        elif token.value.startswith('%') and levels:
             levels[-1] = False
     return bool(levels and levels[-1])
