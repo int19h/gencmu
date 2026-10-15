@@ -1,0 +1,39 @@
+{
+  "description": "Plain and tested elidable terminators use decomposed names.",
+  "document": "```jbogenbau\n%rule text [+K] [+K=\"x\"]\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "seq": [
+                  {
+                    "optional": {
+                      "ref": "K"
+                    },
+                    "elidable": true
+                  },
+                  {
+                    "optional": {
+                      "expr": {
+                        "ref": "K"
+                      },
+                      "test": "=",
+                      "value": {
+                        "string": "x"
+                      }
+                    },
+                    "elidable": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cacheMisses": true
+}

@@ -163,6 +163,18 @@ Every library also runs a notation case with `cacheMisses: true` through its doc
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
+The reference library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
+
+Open names are names that grammar authors choose.
+
+The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin sign in each open name context. Their DOM patterns assert rule names, tags, constant names, features, classifier names, classes, and query arguments. Patterns and elidable terminators assert their own names. Captures require lowercase ASCII, and fixed keywords, methods, flags, and engine names have no Kelvin spelling.
+
+## Supplied notation values: `notation-values.json`
+
+Each case gives a document, lexical aliases, and a DOM pattern. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and matches its DOM. It also runs the cold, matching, and mismatched cache paths described above.
+
+The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
+
 ## Bootstrap errors: `bootstrap-errors.json`
 
 Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.

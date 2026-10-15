@@ -1,0 +1,593 @@
+{
+  "description": "Supplied notation values cover names that cannot contain uppercase K in the bundled notation.",
+  "cases": [
+    {
+      "id": "canonical-value-capture-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "$xK",
+          "value": "$x",
+          "tags": [
+            "Capture"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "capture": "x"
+                  }
+                }
+              ],
+              "conditions": [
+                {
+                  "if": {
+                    "captured": "x"
+                  },
+                  "then": {
+                    "left": {
+                      "receiver": {
+                        "capture": "x"
+                      }
+                    }
+                  }
+                },
+                {
+                  "left": {
+                    "receiver": {
+                      "capture": "x"
+                    }
+                  }
+                },
+                {
+                  "left": {
+                    "capture": "x"
+                  }
+                }
+              ],
+              "emit": {
+                "items": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "seq": [
+                      {
+                        "capture": "x"
+                      },
+                      {
+                        "capture": "y"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "emit": {
+                "items": [
+                  {
+                    "capture": "y",
+                    "before": [
+                      "x"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-method-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "methodK",
+          "value": "matches",
+          "tags": [
+            "Identifier",
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $x:\"a\" %conditions $x.methodK(rK)\n%rule rK \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "method": "matches",
+                  "args": [
+                    {
+                      "rule": "rK"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-rule-flag-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "flagK",
+          "value": "leftmost-longest",
+          "tags": [
+            "Identifier",
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule (flagK) text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "flags": [
+                "leftmost-longest"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-directive-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%featureK",
+          "value": "%features",
+          "tags": [
+            "KW-FEATURES"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%featureK fK\n%rule text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "directives": [
+            {
+              "name": "features",
+              "args": [
+                "fK"
+              ]
+            }
+          ],
+          "rules": [
+            {
+              "name": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-rule-definer-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%replaceK",
+          "value": "%redefine-rule",
+          "tags": [
+            "KW-REDEFINE-RULE"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%replaceK text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "name": "text",
+              "op": "redefine"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-constant-definer-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%replaceK",
+          "value": "%redefine-const",
+          "tags": [
+            "KW-REDEFINE-CONST"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%replaceK $K \"a\"\n%rule text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "constants": [
+            {
+              "name": "K",
+              "op": "redefine"
+            }
+          ],
+          "rules": [
+            {
+              "name": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-engine-tag-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "_engineK",
+          "value": "_L",
+          "tags": [
+            "Engine-Tag"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text _engineK\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "ref": "_L"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-engine-scalar-ascii",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "$_engineK",
+          "value": "$_0041",
+          "tags": [
+            "Constant"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $_engineK\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "literal": {
+                      "const": "_0041"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-capture-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "$xK",
+          "value": "$x",
+          "tags": [
+            "Capture"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $xK:\"a\"\n%conditions $xK ⟹ $xK.value = \"a\", $xK.value = \"a\", $xK ≅ @\"a\"\n%emits $xK\n%rule attached $xK:\"a\" $y:\"b\" %emits ($xK) $y\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "capture": "x"
+                  }
+                }
+              ],
+              "conditions": [
+                {
+                  "if": {
+                    "captured": "x"
+                  },
+                  "then": {
+                    "left": {
+                      "receiver": {
+                        "capture": "x"
+                      }
+                    }
+                  }
+                },
+                {
+                  "left": {
+                    "receiver": {
+                      "capture": "x"
+                    }
+                  }
+                },
+                {
+                  "left": {
+                    "capture": "x"
+                  }
+                }
+              ],
+              "emit": {
+                "items": [
+                  {
+                    "capture": "x"
+                  }
+                ]
+              }
+            },
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "seq": [
+                      {
+                        "capture": "x"
+                      },
+                      {
+                        "capture": "y"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "emit": {
+                "items": [
+                  {
+                    "capture": "y",
+                    "before": [
+                      "x"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-method-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "methodK",
+          "value": "matches",
+          "tags": [
+            "Identifier",
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $x:\"a\" %conditions $x.methodK(rK)\n%rule rK \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "conditions": [
+                {
+                  "method": "matches",
+                  "args": [
+                    {
+                      "rule": "rK"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "rK"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-rule-flag-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "flagK",
+          "value": "leftmost-longest",
+          "tags": [
+            "Identifier",
+            "Lowercase-Name"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule (flagK) text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "flags": [
+                "leftmost-longest"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-directive-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%featureK",
+          "value": "%features",
+          "tags": [
+            "KW-FEATURES"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%featureK fK\n%rule text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "directives": [
+            {
+              "name": "features",
+              "args": [
+                "fK"
+              ]
+            }
+          ],
+          "rules": [
+            {
+              "name": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-rule-definer-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%replaceK",
+          "value": "%redefine-rule",
+          "tags": [
+            "KW-REDEFINE-RULE"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%replaceK text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "name": "text",
+              "op": "redefine"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-constant-definer-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "%replaceK",
+          "value": "%redefine-const",
+          "tags": [
+            "KW-REDEFINE-CONST"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%replaceK $K \"a\"\n%rule text \"a\"\n```",
+      "expect": {
+        "dom": {
+          "constants": [
+            {
+              "name": "K",
+              "op": "redefine"
+            }
+          ],
+          "rules": [
+            {
+              "name": "text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-engine-tag-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "_engineK",
+          "value": "_L",
+          "tags": [
+            "Engine-Tag"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text _engineK\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "ref": "_L"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "canonical-value-engine-scalar-kelvin",
+      "description": "A supplied notation gives this semantic name its token value.",
+      "aliases": [
+        {
+          "spelling": "$_engineK",
+          "value": "$_0041",
+          "tags": [
+            "Constant"
+          ]
+        }
+      ],
+      "document": "```jbogenbau\n%rule text $_engineK\n```",
+      "expect": {
+        "dom": {
+          "rules": [
+            {
+              "alternatives": [
+                {
+                  "expr": {
+                    "literal": {
+                      "const": "_0041"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
