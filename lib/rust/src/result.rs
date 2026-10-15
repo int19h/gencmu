@@ -17,12 +17,12 @@ pub struct Token {
     /// What the token sounds like (engine §5), if anything.
     pub value: String,
     /// What the token shows to people (engine §5): for a character token
-    /// or one that a caller supplies, its text.
+    /// it is the decomposed scalar. A caller token defaults to its text.
     pub image: String,
     /// The token's tags.
     pub tags: Tags,
     /// The range of the previous stage's tokens this token covers; for the
-    /// first stage's input, the character's own position.
+    /// first stage's input, the scalar's decomposed position.
     pub span: Range<usize>,
     /// The range of the original text this token covers, in code points.
     pub source: Range<usize>,
