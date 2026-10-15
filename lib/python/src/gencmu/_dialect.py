@@ -140,11 +140,13 @@ def scalar_problem(text: str) -> str | None:
 
 
 def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
-    """The input of a pipeline's first stage: one token per code point,
-    tagged with its character tag and nothing else (engine §1)."""
+    """One token per decomposed scalar, with its original source (engine §1)."""
+    problem = scalar_problem(text)
+    if problem is not None:
+        raise GencmuError(f"the text is not a sequence of Unicode scalar values: {problem}", kind="usage")
     tags: dict[str, frozenset[str]] = {}
     tokens: list[Token] = []
-    for index, char in enumerate(text):
+    for index, (char, origin) in enumerate(unicode.decompose_with_origins(text)):
         found = tags.get(char)
         if found is None:
             category = unicode.category(ord(char))
@@ -152,7 +154,7 @@ def character_tokens(text: str, unicode: UnicodeTable) -> list[Token]:
             if unicode.is_white_space(ord(char)):
                 assigned.add("_White_Space")
             found = tags[char] = frozenset(assigned)
-        tokens.append(Token(char, found, (index, index + 1), (index, index + 1)))
+        tokens.append(Token(text[origin], found, (index, index + 1), (origin, origin + 1), value=char, image=char))
     return tokens
 
 
