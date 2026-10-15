@@ -16296,8 +16296,8 @@
       const sourceText = [...text];
       /** @type {StageReport[]} */
       const stages = continued ? continued.stages.slice() : [];
-      let tokens = options.tokens || characterTokens(text, this.loader.unicode);
-      if (continued) tokens = /** @type {Token[]} */ (stages[stages.length - 1].output);
+      let tokens = continued ? /** @type {Token[]} */ (stages[stages.length - 1].output)
+        : options.tokens || characterTokens(text, this.loader.unicode);
       const last = lastStage(this.stages, options.until);
       for (let index = stages.length; index <= last; index++) {
         const stage = this.stages[index];
