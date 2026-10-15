@@ -366,7 +366,7 @@ The engine defines these rules in §3:
 - A right chain differs from `x [s r]` at its single-item level. An elidable suffix adds an omission absent from the chain. Their elision counts can therefore select different readings. A single-symbol chain item can forward tags, while the suffix form has two logical symbols. Query priority also uses their different preceding logical symbols.
 - The operator chain of `mex` and connected abstractors of `tanru-unit-2` have their own rules. Each level holds its first part. A single abstractor with `nai` or free modifiers forms its own group.
 - A chain adds a level over a single item, such as `selbri-3` over one tanru unit. The bracket renderer collapses that level because it has one child.
-- A sequence such as `x [{y}]` contains a helper as well as `x`. It does not inherit the tags of `x` under the single-symbol rule. A `number` therefore does not carry the word tags of its first `PA`. The same applies to `lerfu-string` and the three experimental `terms-…-not-starting-with-bare-gek` rules. No condition reads these tags.
+- A sequence such as `x [{y}]` contains a helper as well as `x`. It does not inherit the tags of `x` under the single-symbol rule. A `number` therefore does not carry the word tags of its first `PA`. The same applies to `lerfu-string`. No condition reads these tags.
 
 ## Elidable optionals and captures
 
@@ -679,7 +679,31 @@ Both CLL dialects accept example 8.48 without `ku'o`, despite the requirement in
 
 ## Lexicons
 
-The maintainers edit the CLL lexicon by hand. The experimental and Zantufa lexicons use word tables from other parsers. `tools/peg-lexicon.js` generates each of them. To update either generated lexicon, run the tool again.
+All lexicons are hand-curated. The maintainers edit words and their classes by hand. If a reference parser changes, the maintainers port the relevant changes by hand.
+
+`tools/peg-lexicon.js` compares a lexicon with the word lists of a PEG grammar. It reports each missing cmavo and each different class set. It writes no file. The comparison returns status 0 for equal tables, 1 for differences and 2 for errors.
+
+The experimental comparison uses a local `camxes-exp.peg` from ilmentufa commit `778ea138f7d150121ca722db7536ce3b123943ac`:
+
+```sh
+node tools/peg-lexicon.js camxes-exp.peg grammars/words/lexicon-experimental.md
+```
+
+The Zantufa comparison uses a local `zantufa-1.9999.peg` from Guskant's `gerna_cipra` commit `d5a5065c924304cf5e9067ee6d41b584fbe1c099`:
+
+```sh
+node tools/peg-lexicon.js zantufa-1.9999.peg grammars/words/lexicon-zantufa.md
+```
+
+The comparison accepts lexicons without feature gates. It resolves interpolated keys and membership removals through the JavaScript library. It compares classifier classes, without implication tags. Bare `y+` denotes hesitation, not a cmavo. The `ybu` and `digit` PEG branches describe input constructs, so they supply no literal classifier keys. A mixed Y list retains its canonical `y` key.
+
+For a new lexicon, bootstrap mode prints a fresh classifier to standard output. It prints no implication:
+
+```sh
+node tools/peg-lexicon.js camxes-exp.peg --print-classifier
+```
+
+After a hand edit, `node tools/sync.js` refreshes the generated files and package copies.
 
 ## The result, and why it has no types
 

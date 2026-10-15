@@ -47,7 +47,7 @@ So `to mi klama` holds `mi klama` in its parenthesis, because the other reading 
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
-- In a tanru and between operators, `ke` directly after a joik opens the connective's own group. The selbri and mekso sections explain that choice.
+- In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
 - A connection that can be a sumti connection is one ("Terms").
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
@@ -72,16 +72,27 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-The fourth change permits `.i ni'o` after a run of `ni'o`, in `text-1` and `paragraphs`. This allows a new topic inside a reply. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
+The fourth change permits one `.i ni'o` after a run of `ni'o`, in `text-1` and `paragraphs`. This allows a new topic inside a reply. Another `.i ni'o` needs a paragraph before it, so `ni'o .i ni'o .i ni'o` fails. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
-The layer keeps CLL's connective before the first `.i` of a text, as in `je mi klama`.
+All four connective families can stand before the first `.i` of a text, as in `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1` after it. So a bare `e` stays an ek fragment, and a bare `su'i` fails.
+
+A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
+
+The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
 
 ```jbogenbau
+%const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
+
 %redefine-rule text
-  | ¬cbm? [{NAI}] {CMEVLA} # [joik-jek] text-1
-  | [indicators & {free}] [joik-jek] text-1
+  | ¬cbm? [{NAI}] {CMEVLA} # (text-1 ≻ $c:connective $t:text-1)
+  | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
+%conditions
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token)
+
+%rule text-token
+  _
 
 %redefine-rule indicators
   {[FUhE] indicator}
@@ -90,7 +101,7 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
   UI | CAI | NAI | DAhO | FUhO
 
 %redefine-rule text-1
-  [{(I (jek | joik | ek) | lone-i) [[tag] BO] #}] [{NIhO} # [I # {NIhO} #]] [paragraphs]
+  [{(I joik-jek-ek | lone-i) [[tag] BO] #}] [{NIhO} # [I # {NIhO} #]] [paragraphs]
 
 %redefine-rule paragraphs
   paragraph [{NIhO} # [paragraphs | I # {NIhO} # [paragraphs]]]
@@ -102,13 +113,12 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
   (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
   $i:I
 %conditions
-  ¬$i.following-tokens.begins(ek),
-  ¬$i.following-tokens.begins(jek),
-  ¬$i.following-tokens.begins(joik)
+  ¬$i.following-tokens.begins(joik-jek-ek)
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>text</code> to <code>lone-i</code></summary>
+<details><summary>Railroad diagrams of the 8 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
@@ -119,26 +129,24 @@ The layer keeps CLL's connective before the first `.i` of a text, as in `je mi k
 
 ## Statements and fragments
 
-The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `statement-connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here.
+The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A statement connective can also precede `.i`, as in `mi klama joi .i do klama`. Both are `connective`. Before `bo` after `.i`, the connective can also be an ek, and the tense is a `stag`, which is a `tag` here.
 
-A connective with an optional stag and `bo` can also precede `.i` inside a sentence, with a subsentence after it. A prenex can have no terms (`zo'u mi klama`). `statement-1` keeps the left recursion of the CLL rule, with both forms of connection. So its connections group from the left.
+`sentence-link` joins a sentence to a following subsentence through a connective before `.i`. A stag can stand before `bo`, but only with `bo`. The subsentence can begin with a prenex, even an empty one, as in `mi klama su'i .i zo'u do klama`. It can hold another link, so these links group from the right.
+
+A TUhE group is not a sentence, so `tu'e mi klama tu'u je .i do klama` fails, as in camxes-exp. Plain connections after `.i` stay in `statement-1` and group from the left. Connections with `bo` use `statement-2` and group from the right.
 
 A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
 
 ```jbogenbau
 %redefine-rule statement-1
   | statement-2
-  | statement-1 I statement-connective [statement-2]
-  | statement-1 statement-connective I # [statement-2]
+  | statement-1 I connective [statement-2]
 
 %redefine-rule statement-2
-  statement-3 [I [joik | jek | ek] [stag] BO # [statement-2]]
+  statement-3 [I [joik-jek-ek] [stag] BO # [statement-2]]
 
 %redefine-rule statement-3
   sentence | [tag] TUhE # text-1 [+TUhU] #
-
-%rule statement-connective
-  joik # | jek # | ek # | VUhU #
 
 %redefine-rule fragment
   ek # | gihek # | quantifier | terms [+VAU] # | prenex | relative-clauses | links | linkargs
@@ -147,11 +155,10 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   [terms] ZOhU #
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>statement-1</code> to <code>prenex</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>statement-1</code> to <code>prenex</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-2.svg" alt="Railroad diagram of the rule statement-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-3.svg" alt="Railroad diagram of the rule statement-3"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/statement-connective.svg" alt="Railroad diagram of the rule statement-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/fragment.svg" alt="Railroad diagram of the rule fragment"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/prenex.svg" alt="Railroad diagram of the rule prenex"></p>
 </details>
@@ -174,7 +181,7 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   headed-bridi-tail [sentence-link]
 
 %rule sentence-link
-  statement-connective [stag] BO I # subsentence
+  connective [[stag] BO] I # subsentence
 
 %rule bridi-tail-head
   | {terms / CU #} [CU #]
@@ -215,16 +222,13 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
   gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [+KEhE] # | NA # gek-sentence
 
 %rule bridi-tail-connective
-  gihek # | selbri-connective
-
-%rule selbri-connective
-  joik # | jek # | ek # | VUhU #
+  gihek # | connective
 
 %redefine-rule tail-terms
   [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 15 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
@@ -238,13 +242,12 @@ The same endpoint pattern applies to an initial head, a head after `ke`, a conne
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-3-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-connective.svg" alt="Railroad diagram of the rule selbri-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
 </details>
 
 ## Terms
 
-The layer joins terms at two levels. A connective, an optional stag and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. So `bo` binds tighter: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are joik, jek, ek or VUhU (`term-connective`), so `mi joi do klama` has one term before its selbri.
+The layer joins terms at two levels. A connective, an optional stag and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. So `bo` binds tighter: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are joik, jek, ek or VUhU (`connective`), so `mi joi do klama` has one term before its selbri.
 
 The layer reads terms in two contexts. A `listed-term` stands in a sentence's head or tail terms, a prenex, a fragment or a `nu'i` termset. A tense or modal there cannot form a term if a selbri or gek-sentence follows its free modifiers. A bare `na` there cannot form a term where a selbri, gek-sentence or connective begins at it. A `term` follows `be`, `bei`, GOI, LAhE or NAhE, which each take one term.
 
@@ -272,17 +275,15 @@ A forethought termset needs no `nu'i`, and its two branches can hold different n
 
 The ranking prefers the sumti reading where both constructs can complete. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
 
-The NUhI body ranks `gek-termset-body` before `terms-not-starting-with-bare-gek`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
+The NUhI body ranks `gek-termset-body` before `terms`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
 
-The first term inside the plain NUhI body cannot itself be a bare forethought termset. That restriction avoids repeating the forethought NUhI form.
+A bare forethought termset can be the first term of the plain body. A written inner `nu'u` keeps its boundary distinct from the outer body. The preference applies only when both complete bodies span the same words.
 
 NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`. In `nu'i ge ni'e broda brode gi re mi ko'a klama`, the second branch also contains `ko'a`.
 
-The `-not-starting-with-bare-gek` rules state that restriction: they repeat the term rules with only the first term restricted. A chain repeats one item, so it cannot restrict only its first item. These rules write the restricted first item apart. `terms-1-not-starting-with-bare-gek` is left recursion, which groups as the chain `terms-1` does. The other two are a first item and an optional list, flat as `terms` and `terms-2` are.
-
 ```jbogenbau
 %redefine-rule terms-1
-  {... terms-2 / PEhE # statement-connective}
+  {... terms-2 / PEhE # connective}
 
 %redefine-rule terms-2
   (* terms_2 <- abs_term (cehe_sa* CEhE_clause free* abs_term)* *)
@@ -303,10 +304,10 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-link
-  term-connective [stag] BO # $u:term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective [stag] BO # $u:term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
 %rule term-link
-  $c:term-connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  $c:connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -318,9 +319,6 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 %rule tag-bo-subsentence
   (* tag_bo_subsentence <- stag BO_clause I_clause *)
   stag BO I
-
-%rule term-connective
-  joik # | jek # | ek # | VUhU #
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
@@ -340,7 +338,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   ¬$n.onward.begins(na-connective)
 
 %rule na-connective
-  gek | ek | jek | joik | gihek
+  gek | joik-jek-ek | gihek
 
 %rule soi-term
   SOI # subsentence [+SEhU] #
@@ -367,10 +365,10 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-link
-  term-connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 
 %rule listed-term-link
-  $c:term-connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  $c:connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
 %conditions
   ¬$c.following-tokens.begins(tag-bo-ke-bridi-tail),
   ¬$c.following-tokens.begins(tag-bo-subsentence)
@@ -402,7 +400,7 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   ¬$n.onward.begins(listed-na-follower)
 
 %rule listed-na-follower
-  selbri | gek-sentence | ek | jek | joik | gihek
+  selbri | gek-sentence | joik-jek-ek | gihek
 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
@@ -420,46 +418,16 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
   {gek-terms-1}
 
 %rule gek-terms-1
-  {... gek-terms-2 / PEhE # statement-connective}
+  {... gek-terms-2 / PEhE # connective}
 
 %rule gek-terms-2
   {term / CEhE #}
 
-%rule terms-not-starting-with-bare-gek
-  terms-1-not-starting-with-bare-gek [{terms-1}]
-
-%rule terms-1-not-starting-with-bare-gek
-  | terms-2-not-starting-with-bare-gek
-  | terms-1-not-starting-with-bare-gek PEhE # statement-connective terms-2
-
-%rule terms-2-not-starting-with-bare-gek
-  listed-term-not-starting-with-bare-gek [{CEhE # listed-term}]
-
-%rule listed-term-not-starting-with-bare-gek
-  | listed-term-bo-group-not-starting-with-bare-gek
-  | $t:listed-term-not-starting-with-bare-gek $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
-%conditions
-  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-bo-group-not-starting-with-bare-gek
-  | listed-term-3-not-starting-with-bare-gek
-  | $g:listed-term-bo-group-not-starting-with-bare-gek $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
-%conditions
-  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-3-not-starting-with-bare-gek
-  | $s:sumti :: $s.tags ∪ Sumti-Start
-  | listed-tagged-term
-  | termset-with-nuhi
-  | NA # KU #
-  | listed-bare-na
-  | soi-clause? soi-term
-
 %rule termset-with-nuhi
-  NUhI # (gek-termset-body ≻ terms-not-starting-with-bare-gek) [+NUhU] #
+  NUhI # (gek-termset-body ≻ terms) [+NUhU] #
 ```
 
-<details><summary>Railroad diagrams of the 36 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 29 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
@@ -468,7 +436,6 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 <p><img src="../../docs/diagrams/syntax/experimental/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tag-bo-ke-bridi-tail.svg" alt="Railroad diagram of the rule tag-bo-ke-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tag-bo-subsentence.svg" alt="Railroad diagram of the rule tag-bo-subsentence"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/term-connective.svg" alt="Railroad diagram of the rule term-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-3.svg" alt="Railroad diagram of the rule term-3"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bare-na.svg" alt="Railroad diagram of the rule bare-na"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/na-connective.svg" alt="Railroad diagram of the rule na-connective"></p>
@@ -489,18 +456,12 @@ The `-not-starting-with-bare-gek` rules state that restriction: they repeat the 
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms.svg" alt="Railroad diagram of the rule gek-terms"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms-1.svg" alt="Railroad diagram of the rule gek-terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-terms-2.svg" alt="Railroad diagram of the rule gek-terms-2"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-1-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-1-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-2-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule terms-2-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-bo-group-not-starting-with-bare-gek"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-3-not-starting-with-bare-gek.svg" alt="Railroad diagram of the rule listed-term-3-not-starting-with-bare-gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-with-nuhi.svg" alt="Railroad diagram of the rule termset-with-nuhi"></p>
 </details>
 
 ## Sumti
 
-Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their values. The new sumti are these:
+Sumti connectives are ek, joik, jek or VUhU (`connective`). This change and the new mekso below leave the CLL rule `joik-ek` unused. After `vu'o`, a connected sumti can follow the relative clauses or replace them, and `vu'o` can also end the sumti (`mi vu'o`). Under `cbm` a cmevla is a selbri word, so the layer removes the `la CMEVLA` name form, and `la .alis.` is a description. That form begins with `la`, `lai` or `la'i`, which are words of LE here, and `name-marker` names them by their values. The new sumti are these:
 
 - `na'e` and `lu'u` surround a sumti, without `bo`.
 - `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
@@ -510,35 +471,33 @@ Sumti connectives are ek, joik, jek or VUhU (`sumti-connective`). This change an
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
 
-The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot use the quantified constructor. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
+The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot start with a quantifier. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
-`quantifier-head` lists the selma'o that can begin a quantifier. A quantifier can also begin with a forethought connective, as in `lo ge pa gi re mi broda`. `$QUANTIFIED-SUMTI` tests that actual quantified constructor, with optional relative clauses.
+`Quantifier-Start` marks a sumti that begins with its own quantifier. A plain, BO or KE connection takes the mark from its first sumti, and so does a sumti with `vu'o`. Even when its first branch has the mark, a forethought connection has none. The rule `sumti-tail` refuses a possessor with the mark. The rules `sumti-2` and `sumti-3` use recursion, because a chain cannot name its first item.
 
 A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`.
 
 ```jbogenbau
-%const $QUANTIFIED-SUMTI @(quantifier sumti-6 [relative-clauses])
-
 %redefine-rule sumti
   | sumti-1
-  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
-  | sumti-1 VUhO # [relative-clauses] sumti-connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
+  | $s:sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End ∪ ($s.tags ∩ Quantifier-Start)
+  | $s:sumti-1 VUhO # [relative-clauses] connective $i:sumti :: ($s.tags ∩ Quantifier-Start) ∪ ($i.tags ∩ $EXTENSIBLE-END)
 
 %redefine-rule sumti-1
   | sumti-2
-  | sumti-2 sumti-connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
+  | $s:sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: ($s.tags ∩ Quantifier-Start) ∪ (KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END)
 
-%redefine-rule sumti-2
-  {... sumti-3 / sumti-connective} :: $EXTENSIBLE-END
+%redefine-rule sumti-2 :: $EXTENSIBLE-END ∪ ($s.tags ∩ Quantifier-Start)
+  | $s:sumti-3
+  | $s:sumti-2 connective sumti-3
 
-%redefine-rule sumti-3
-  {sumti-4 ... / sumti-connective [stag] BO #}
-
-%rule sumti-connective
-  ek # | joik # | jek # | VUhU #
+%redefine-rule sumti-3 :: $s.tags ∩ Quantifier-Start
+  | $s:sumti-4
+  | $s:sumti-4 connective [stag] BO # sumti-3
 
 %redefine-rule sumti-5
-  [quantifier] sumti-6 [relative-clauses] | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses]
+  | [$q:quantifier] sumti-6 [relative-clauses] :: $q ⟹ Quantifier-Start
+  | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses] :: Quantifier-Start
 
 %redefine-rule sumti-6
   | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
@@ -566,23 +525,17 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  ¬$s.first-token.matches(quantifier-head),
-  $s ≇ $QUANTIFIED-SUMTI
-
-%rule quantifier-head
-  PA | VEI | NIhE | MOhE | PEhO | FUhA
+  Quantifier-Start ⊈ $s.tags
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>sumti</code> to <code>quantifier-head</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>sumti</code> to <code>sumti-tail</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti.svg" alt="Railroad diagram of the rule sumti"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-1.svg" alt="Railroad diagram of the rule sumti-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-2.svg" alt="Railroad diagram of the rule sumti-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-3.svg" alt="Railroad diagram of the rule sumti-3"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/sumti-connective.svg" alt="Railroad diagram of the rule sumti-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-5.svg" alt="Railroad diagram of the rule sumti-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-6.svg" alt="Railroad diagram of the rule sumti-6"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sumti-tail.svg" alt="Railroad diagram of the rule sumti-tail"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/quantifier-head.svg" alt="Railroad diagram of the rule quantifier-head"></p>
 </details>
 
 ## Relative clauses
@@ -591,7 +544,7 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ```jbogenbau
 %redefine-rule relative-clauses
-  | {relative-clause / ZIhE # | joik # | jek # | ek #}
+  | {relative-clause / ZIhE # | joik-jek-ek #}
   | gek relative-clauses gik relative-clauses
 
 %redefine-rule relative-clause
@@ -605,7 +558,9 @@ Consecutive relative clauses can be joined by a joik, a jek or an ek, as well as
 
 ## Selbri and tanru
 
-Selbri and tanru-unit connectives are joik, jek, ek or VUhU (`selbri-connective`). A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
+`joik-jek-ek` groups joik, jek and ek. `connective` adds VUhU. All four families connect selbri and tanru units. Abstraction markers use those four families, as in `mi nu e ka broda` and `mi nu su'i ka broda`. A KE connection uses only `joik-jek-ek`.
+
+A bare `fa`, which matches the rule `tag`, can come before a selbri. The term after `be` or `bei` can be absent. The new tanru units are a cmevla, under `cbm`, and preposed linked arguments (`lo be mi broda`). `me'oi` with the word that it quotes is a tanru unit too (`le me'oi klama cu broda`).
 
 `me-unit` ranks a sumti operand before a mekso operand. A sumti whose tests and conditions pass excludes a mekso over the same span. A sumti that cannot complete the construction excludes nothing.
 
@@ -615,7 +570,7 @@ NAhE stays outside this group. Late elision puts `na'e` on `pa moi` in `la djonz
 
 In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection.
 
-`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain. In the plain form of `selbri-4`, the connective is `plain-selbri-connective`, the CLL rule `plain-joik-jek` with this layer's connectives. As in CLL, a joik directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik [stag] KE`.
+`selbri-4` keeps the left recursion of the CLL rule, and `selbri-5` is a right chain. In the plain form of `selbri-4`, the connective is `plain-connective`, all four families, with the KE preference. A joik, jek or ek directly before `ke` is `joik-before-ke`, and its unit cannot be only a `ke` group. So `mi broda joi ke brode ke'e` joins a `ke` group with `joi`, through `joik-jek-ek [stag] KE`.
 
 Where only the plain reading parses, the layer keeps it. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`.
 
@@ -632,20 +587,18 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 ```jbogenbau
 %redefine-rule selbri-4
   | selbri-5
-  | selbri-4 plain-selbri-connective selbri-5
+  | selbri-4 plain-connective selbri-5
   | selbri-4 joik-before-ke selbri-5-not-ke-group
-  | selbri-4 joik [stag] KE # selbri-3 [+KEhE] #
+  | selbri-4 joik-jek-ek [stag] KE # selbri-3 [+KEhE] #
 
-%rule plain-selbri-connective
-  | $j:joik #
-  | jek #
-  | ek #
+%rule plain-connective
+  | $j:joik-jek-ek #
   | VUhU #
 %conditions
   KE ⊈ $j.following-tokens.first-token.tags
 
 %redefine-rule selbri-5
-  {selbri-6 ... / selbri-connective [stag] BO #}
+  {selbri-6 ... / connective [stag] BO #}
 
 %rule selbri-not-starting-with-ke
   [tag] selbri-1-not-starting-with-ke
@@ -661,12 +614,12 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 
 %rule selbri-4-not-starting-with-ke
   | selbri-5-not-starting-with-ke
-  | selbri-4-not-starting-with-ke plain-selbri-connective selbri-5
+  | selbri-4-not-starting-with-ke plain-connective selbri-5
   | selbri-4-not-starting-with-ke joik-before-ke selbri-5-not-ke-group
-  | selbri-4-not-starting-with-ke joik [stag] KE # selbri-3 [+KEhE] #
+  | selbri-4-not-starting-with-ke joik-jek-ek [stag] KE # selbri-3 [+KEhE] #
 
 %rule selbri-5-not-starting-with-ke
-  selbri-6-not-starting-with-ke [selbri-connective [stag] BO # selbri-5]
+  selbri-6-not-starting-with-ke [connective [stag] BO # selbri-5]
 
 %rule selbri-6-not-starting-with-ke
   tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
@@ -719,8 +672,11 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | linkargs tanru-unit-1
   | MEhOI anything #
 
+%redefine-rule abstractor-chain
+  {... NU # / connective}
+
 %rule selbri-relative-clauses
-  | {selbri-relative-clause / ZIhE # | joik # | jek # | ek #}
+  | {selbri-relative-clause / ZIhE # | joik-jek-ek #}
   | gek selbri-relative-clauses gik selbri-relative-clauses
 
 %rule selbri-relative-clause
@@ -733,9 +689,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 22 rules from <code>selbri-4</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/plain-selbri-connective.svg" alt="Railroad diagram of the rule plain-selbri-connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/plain-connective.svg" alt="Railroad diagram of the rule plain-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-1-not-starting-with-ke"></p>
@@ -751,6 +707,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/abstractor-chain.svg" alt="Railroad diagram of the rule abstractor-chain"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clauses.svg" alt="Railroad diagram of the rule selbri-relative-clauses"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
@@ -764,15 +721,17 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string is a run of lerfu words, with no PA word in it. So `li pa by` is two terms, and `mi viska cy no` is not a text.
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a `pe'o` forethought expression or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`, and a forethought operator needs `pe'o`.
-- An operator can be a connective, a joik, jek or ek. A joik or jek operator has one slot of free modifiers, the one at the end of `joik-jek`.
-- `operator` joins operators with the CLL rules `plain-joik-jek` and `joik-before-ke`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
-- A quantifier is a whole mekso, `pa su'i re broda`. It cannot begin with a lerfu word, `la'e` or `na'e`, where the grammar reads a sumti. It also cannot begin where a selbri begins. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
-- A quantifier also cannot begin with a forethought connection whose first half begins with one of those words. The rule `gek-barrier` finds such a start, also inside a nested connection. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
-- A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`.
+- An operator can be any of the four connective families. Each has one final slot of free modifiers.
+- Plain operator connections use `plain-connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
+- A quantifier is a whole mekso, as in `pa su'i re broda`. A competing `sumti-6` or selbri at its start excludes it. The `sumti-6` constructor holds a sumti without its own outer quantifier. Numeric LAhE and NAhE operands remain possible where no such sumti exists. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
+- The first branch of a forethought quantifier cannot begin a `sumti-6` either. The rule `gek-barrier` tests that branch, including nested connections. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
+- A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`. Numeric references also remain possible, as in `ge la'e pa gi re broda`.
 - Where no sumti reading remains, `gek-barrier` rejects the text, as in `ge abu gi by broda cu klama`. In `lo ge by gi re mi broda`, `ge by gi re mi` is the possessor sumti, with `broda` inside the description.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 
 `mex` is the chain of operators itself, a left chain. So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
+
+An initial SE in an operator is its mathematical conversion. The connective alternative excludes that initial SE to avoid a duplicate inner conversion.
 
 A number is followed by `free-after-number`, and a lerfu string by `free-after-lerfu-string`, defined under "Free modifiers", and not by a plain `#`.
 
@@ -781,15 +740,12 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   (* quantifier <- !selbri !sumti_6 mex *)
   $m:mex
 %conditions
-  ¬$m.first-token.matches(quantifier-barrier),
+  ¬$m.onward.begins(sumti-6),
   ¬$m.onward.begins(gek-barrier),
   ¬$m.onward.begins(selbri)
 
-%rule quantifier-barrier
-  BY | LAU | TEI | LAhE | NAhE
-
 %rule gek-barrier
-  gek (quantifier-barrier | gek-barrier)
+  gek (sumti-6 | gek-barrier)
 
 %redefine-rule mex
   {... mex-1 / operator}
@@ -811,9 +767,14 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 %redefine-rule operator
   | operator-1
-  | operator plain-joik-jek operator-1
+  | operator plain-connective operator-1
   | operator joik-before-ke operator-1-not-ke-group
-  | operator joik [stag] KE # operator [+KEhE] #
+  | operator joik-jek-ek [stag] KE # operator [+KEhE] #
+
+%redefine-rule operator-1
+  | operator-2
+  | guhek operator-1 gik operator-2
+  | operator-2 joik-jek-ek [stag] BO # operator-1
 
 %redefine-rule operator-2
   | mex-operator
@@ -824,9 +785,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | NAhE # mex-operator
   | MAhO # mex [+TEhU] #
   | NAhU # selbri [+TEhU] #
-  | VUhU #
-  | joik-jek
-  | ek #
+  | $c:connective
+%conditions
+  SE ⊈ $c.first-token.tags
 
 %redefine-rule number
   {number-part}
@@ -840,13 +801,13 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 <details><summary>Railroad diagrams of the 13 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/quantifier-barrier.svg" alt="Railroad diagram of the rule quantifier-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-2.svg" alt="Railroad diagram of the rule operator-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-operator.svg" alt="Railroad diagram of the rule mex-operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/number.svg" alt="Railroad diagram of the rule number"></p>
@@ -858,34 +819,75 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 The connective rules below have no NAI slot. The indicator stage attaches every NAI after a connective, so no separate `nai` reaches the syntax at those positions.
 
+An ek connects sumti with A, and a jek connects predicates with JA. Both permit negation with NA and conversion with SE. An interval connective uses BIhI, with optional conversion. A gik separates forethought branches with GI and permits free modifiers after it.
+
 A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The condition of `listed-bare-na` excludes a bare `na` term here. The words can connect sumti or terms, and the term conditions keep the sumti reading.
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
+After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
+
 The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
 
 ```jbogenbau
+%redefine-rule ek
+  [NA] [SE] A
+
+%redefine-rule jek
+  [NA] [SE] JA
+
 %redefine-rule joik
   [NA] [SE] JOI | interval | GAhO interval GAhO
 
+%redefine-rule interval
+  [SE] BIhI
+
+%rule joik-jek-ek
+  joik | jek | ek
+
+%rule connective
+  joik-jek-ek # | VUhU #
+
+%redefine-rule joik-before-ke
+  $j:joik-jek-ek #
+%conditions
+  KE ⊆ $j.following-tokens.first-token.tags
+
 %redefine-rule gek
   | [SE] GA #
-  | GA="ga" # (joik # | jek # | ek # | VUhU #)
-  | (joik | jek | ek) GI #
+  | GA="ga" # prefixed-connective
+  | joik-jek-ek GI #
   | stag gik
 
 %redefine-rule guhek
   | [SE] GUhA #
-  | GA="gu" # (joik # | jek # | ek # | VUhU #)
+  | GA="gu" # prefixed-connective
+
+%redefine-rule gik
+  GI #
+
+%rule prefixed-connective
+  | SE connective
+  | $c:connective
+%conditions
+  SE ⊈ $c.first-token.tags
 
 %redefine-rule gihek
   [NA] [SE] (GIhA | GI (JOI | JA | A))
 ```
 
-<details><summary>Railroad diagrams of <code>joik</code>, <code>gek</code>, <code>guhek</code> and <code>gihek</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>ek</code> to <code>gihek</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/ek.svg" alt="Railroad diagram of the rule ek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/jek.svg" alt="Railroad diagram of the rule jek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/joik.svg" alt="Railroad diagram of the rule joik"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/interval.svg" alt="Railroad diagram of the rule interval"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/joik-jek-ek.svg" alt="Railroad diagram of the rule joik-jek-ek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/connective.svg" alt="Railroad diagram of the rule connective"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/gik.svg" alt="Railroad diagram of the rule gik"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/prefixed-connective.svg" alt="Railroad diagram of the rule prefixed-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
 </details>
 
@@ -905,13 +907,10 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 
 ```jbogenbau
 %redefine-rule tag
-  {... tense-modal / tag-connective}
+  {... tense-modal / connective}
 
 %redefine-rule stag
   tag
-
-%rule tag-connective
-  joik # | jek # | ek # | VUhU #
 
 %redefine-rule tense-modal
   {tense-atom}
@@ -923,10 +922,9 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
   | [NAhE] [SE] FA #
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>tag</code> to <code>tense-atom</code></summary>
+<details><summary>Railroad diagrams of <code>tag</code>, <code>stag</code>, <code>tense-modal</code> and <code>tense-atom</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/tag.svg" alt="Railroad diagram of the rule tag"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/stag.svg" alt="Railroad diagram of the rule stag"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tag-connective.svg" alt="Railroad diagram of the rule tag-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tense-modal.svg" alt="Railroad diagram of the rule tense-modal"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tense-atom.svg" alt="Railroad diagram of the rule tense-atom"></p>
 </details>
@@ -936,6 +934,8 @@ A joik, jek, ek or VUhU connects tenses and modals, and `tag` is a left chain of
 A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads the words inside as raw words ([`../words/lohai.md`](../words/lohai.md)).
 
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
+
+A vocative starts with a run of COI words, DOI, or both. A COI run returns no tags, and DOI alone keeps its tags. The indicator stage attaches any following NAI to the preceding word, so the syntax reads no separate NAI after COI.
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. Where the `boi` is elided, the first free modifier does not begin with a word that the number or the string can read. After a number, that is a number part. After a lerfu string, it is a letter.
 
@@ -970,6 +970,11 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   XI ⊈ $m.following-tokens.first-token.tags,
   $m ≇ $FREE-ENDING
 
+%redefine-rule vocative
+  | {COI} :: ∅
+  | DOI
+  | {COI} DOI
+
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
 
@@ -992,8 +997,9 @@ The conditions exclude an exposed modifier attachment when the modifier belongs 
   Word<¬LOhAI ¬LEhAI>
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>free</code> to <code>lohai-word</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
@@ -1025,15 +1031,19 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` already reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer extends that form to later topic boundaries, because usage puts a new topic inside a reply. A final `ni'o` also follows camxes-exp.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits one such transition after each later run of `ni'o`, because usage puts a new topic inside a reply. CLL and camxes-exp reject `mi klama ni'o .i ni'o`. Consecutive transitions without a paragraph remain invalid. A final `ni'o` also follows camxes-exp.
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
-This layer keeps CLL's initial connective in `je mi klama`. camxes-exp contains the form, but its empty `paragraphs` makes `(!text_1 joik_jek)?` fail. Its PEG therefore rejects the text. That rejection is an accident of the PEG: `text_1` can match nothing, so `!text_1` never succeeds.
+This layer permits all four initial connective families, as in `je mi klama`, `e mi klama` and `su'i mi klama`. An ek or a VUhU needs a nonempty `text-1`, so a bare `e` remains a fragment. camxes-exp contains the wider form, but `text_1` can match nothing. Thus its `(!text_1 joik_jek)?` never consumes a connective. This layer makes that connective reachable. No reachable rule calls the CLL rules `joik-jek` or `plain-joik-jek`.
 
-The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Statement and bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
+Where both complete, the ek fragment takes priority over the initial connective. Thus `e ni'o` and `e .i mi klama` keep their fragment readings. This preference also applies after the initial name run with `cbm` off.
 
-camxes-exp names its heads before bridi-tails JACU, after a proposal for simpler connectives. This layer permits the same heads and protects the same `gi'e ke` and `gi'e ba ke` boundaries. camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
+The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Plain connections after `.i` and plain bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Connections after `.i` with `bo` group from the right. Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
+
+camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
+
+camxes-exp uses lookahead after its gihek. This layer uses the head pattern and the `-not-starting-with-ke` rules.
 
 ### Terms and descriptions
 
@@ -1045,6 +1055,8 @@ camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its o
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
 
+A bare forethought termset can close with NUhU here. camxes-exp gives that form no terminator. A written closer permits the nested termset at the start of a NUhI body.
+
 Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, NIhE can close before `brode`, which becomes the quantified sumti's predicate. camxes-exp greedily keeps `broda brode` inside NIhE and takes the plain body. This layer revisits inner choices when a whole construction needs them.
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
@@ -1055,7 +1067,11 @@ The description's possessor can be any unquantified sumti. camxes-exp also reads
 
 `me-unit` preserves camxes-exp's preference for sumti before mekso over the same span. It keeps the complete sumti in `mi me la'e ge my gi ny su'i zy moi`. camxes-exp's restrictive sumti lookahead instead takes a mekso. In `me my moi`, this layer takes a sumti and camxes-exp takes a mekso. This layer accepts `me my su'i pa` as mekso, while camxes-exp commits to a shorter sumti and rejects it.
 
-After a joik directly before KE, this layer prefers the connective's KE group, as CLL does. camxes-exp first takes a plain connective before a KE tanru unit. In `mi broda joi ke brode ke'e`, both readings group the same words. Where only the plain reading completes, this layer and camxes-exp keep it. The [official parser](cll.md#printed-rules-and-translations), CLL's reference implementation, instead rejects `mi broda joi ke brode ke'e bo brodi`. Its lexer, the component that divides input into tokens, makes `joi ke` one token.
+After a joik, jek or ek directly before KE, this layer prefers the connective's KE group. camxes-exp first takes a plain connective before a KE tanru unit. Both forms group the same words in `mi broda joi ke brode ke'e`.
+
+CLL has a dedicated KE form only for joik.[^cll-s21-1] This layer also gives jek and ek that form. CLL and camxes-exp read `mi broda je ke brode ke'e` as a plain connection. This layer gives the KE group to the connective instead.
+
+Where only the plain reading completes, this layer and camxes-exp keep it. The [official parser](cll.md#printed-rules-and-translations) rejects `mi broda joi ke brode ke'e bo brodi`. A lexer divides text into tokens. That parser's lexer treats `joi ke` as one token.
 
 Preposed linked arguments follow camxes-exp. This layer and camxes-exp give a `be` group to the preceding unit when one exists. camxes-std, the standard grammar of the camxes parser, agrees. Thus `zdani be mi vorme` gives `be mi` to `zdani`, and `le tutci be sigdanva le marna` gives an empty group to `tutci`. The alternative attachments elide the same terminators. In `be mi klama be do`, both this layer and camxes-exp give `be do` to `klama`.
 
@@ -1063,17 +1079,23 @@ Preposed linked arguments follow camxes-exp. This layer and camxes-exp give a `b
 
 The mekso rules follow camxes-exp.peg from `quantifier` through `lerfu_string`. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists. NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
 
-A joik or jek operator has one effective free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`. Its plain-first choice also reads `joi` before a KE operator, where this layer prefers the operator connective's KE group. This layer and camxes-exp keep the plain reading when the operator continues after that group, as in `ke pi'i ke'e je bo vu'u`.
+A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`.
 
-The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. The layer extends the sumti barrier into forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
+`plain-connective` and `joik-before-ke` give JOI, JA and A the same KE preference in operators. camxes-exp first reads the plain connective. It joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `ke pi'i ke'e je bo vu'u`.
+
+The quantifier restrictions follow camxes-exp's `!sumti_6` and `!selbri`. LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible in `la'e pa lu'u broda` and `ge la'e pa gi re broda`. The layer extends the sumti check into nested forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
 
 Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu klama`. camxes-exp takes the quantifier `ge abu gi by`. In `lo ge by gi re mi broda`, this layer takes `ge by gi re mi` as the possessor. camxes-exp takes `ge by gi re` as the quantifier of `mi`. Numeric forethought quantifiers remain possible, as in `lo ge pa gi re mi broda`.
 
-The connective rules omit camxes-exp's optional NAI because the indicator stage attaches those words first. The inherited CLL `[NAI]` items receive no separate token there. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer. Only `ga` and `gu` introduce its extended forethought forms, so `ge je` and `gu'e je` remain invalid.
+The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
+
+Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
 
 ### Free modifiers and subscripts
 
 The replacement quotes follow camxes-exp. Under `cbm`, a name is a predicate, so a separate name-run vocative form duplicates the selbri form. This layer removes it. With `soi-clause` on, `soi` is a term, as in camxes-exp. Without it, `soi` remains CLL's free modifier.
+
+The vocative omits CLL's optional NAI after COI because the indicator stage attaches it to COI. Text-initial NAI and indicators after LU remain separate syntax tokens.
 
 CLL states the nesting convention:[^cll-s18-13]
 

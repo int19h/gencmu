@@ -77,7 +77,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 <p><img src="../../docs/diagrams/words/experimental/slihykru.svg" alt="Railroad diagram of the rule slihykru"></p>
 </details>
 
-The onset after a borrowing rafsi head can be an apostrophe. So `kerlyfa'u'yiismu` is one word: the rafsi `kerly` and `fa'u'y`, and the borrowing `iismu`.
+The onset after a borrowing rafsi head can be an apostrophe. `spageti'ybroda` uses `fuhivla-rafsi` before `broda`. `spageti'ykla` uses `stressed-fuhivla-rafsi` before `kla`. Each example needs the apostrophe onset in its own rule.
 
 ```jbogenbau
 %redefine-rule fuhivla-rafsi  (* fuhivla_rafsi <- &unstressed_syllable fuhivla_head onset y h? *)
