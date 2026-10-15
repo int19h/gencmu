@@ -1,0 +1,36 @@
+{
+  "description": "The four decomposed negated operators keep their DOM operator names.",
+  "document": "```jbogenbau\n%rule r $x:A≠\"x\" %conditions $x.value ≠ \"x\", \"a\" ∉ \"a b\".split(\" \"), A ⊈ $x.tags, $x ≇ @A\n```",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "alternatives": [
+            {
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "test": "≠"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "op": "≠"
+            },
+            {
+              "op": "∉"
+            },
+            {
+              "op": "⊈"
+            },
+            {
+              "op": "≇"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

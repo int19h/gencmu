@@ -203,7 +203,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 27. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 28. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -437,3 +437,9 @@ The sentence on each line makes its own claim. When a document quotes an unpinne
 A phrase names a line by its content, not by its number. So an edit above the line never changes the entry. The phrase is a part of the line's Markdown, such as a few words of the sentence that quotes the text. It names the one line of the document that quotes the text and holds the phrase. The check reports a phrase on no such line or on several. It also reports an entry that names no lines and covers several, and a named line that does not need the entry.
 
 Lines that begin with `#` are comments. An entry that the check does not need is an error, so the list does not keep stale entries.
+
+## Unicode normalization
+
+`unicode/NormalizationTest.txt` is the complete Unicode 15.1 normalization conformance file from Unicode.org. Each library tests its canonical decomposition against every data line. Columns 1, 2 and 3 decompose to column 3. Columns 4 and 5 decompose to column 5. Every scalar that part 1 omits decomposes to itself.
+
+The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact interpolated constants, original interpolation positions and original include paths.

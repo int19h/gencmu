@@ -46,10 +46,11 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   punctuation-char | punctuation punctuation-char | punctuation commas punctuation-char
 
 %rule punctuation-char
-  $c:other-char
+  $c:other-char [{combining-mark}]
 %conditions
   ¬$c.matches(any-lojban-char),
-  ¬$c.matches(core-char)
+  ¬$c.matches(core-char),
+  ¬$.following-tokens.begins(combining-mark)
 
 %rule other-char
   $c:_
@@ -65,6 +66,9 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 %rule mark-char
   _Mn
 
+%rule combining-mark
+  _M
+
 %rule digit-char
   "0".."9"
 
@@ -75,7 +79,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
   ¬$c.matches(punctuation-char)
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>pause</code> to <code>run-char</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>pause</code> to <code>run-char</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
@@ -85,6 +89,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 <p><img src="../../docs/diagrams/phonemes/latin/other-char.svg" alt="Railroad diagram of the rule other-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/alpha-char.svg" alt="Railroad diagram of the rule alpha-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/mark-char.svg" alt="Railroad diagram of the rule mark-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/combining-mark.svg" alt="Railroad diagram of the rule combining-mark"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/digit-char.svg" alt="Railroad diagram of the rule digit-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/run-char.svg" alt="Railroad diagram of the rule run-char"></p>
 </details>
@@ -216,18 +221,18 @@ A vowel with an acute or a grave accent, precomposed or combining, is the stress
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
-  | ("ĭ" | "Ĭ" | "i" glide-mark | "I" glide-mark) := "i"
-  | ("ŭ" | "Ŭ" | "u" glide-mark | "U" glide-mark) := "u"
+  | ("i" | "I") glide-mark := "i"
+  | ("u" | "U") glide-mark := "u"
 %emits
   $
 
 %extend-rule stressed-vowel :: Stressed
-  | ("á" | "à" | "Á" | "À" | "a" stress-mark | "A" stress-mark) := "A"
-  | ("é" | "è" | "É" | "È" | "e" stress-mark | "E" stress-mark) := "E"
-  | ("í" | "ì" | "Í" | "Ì" | "i" stress-mark | "I" stress-mark) := "I"
-  | ("ó" | "ò" | "Ó" | "Ò" | "o" stress-mark | "O" stress-mark) := "O"
-  | ("ú" | "ù" | "Ú" | "Ù" | "u" stress-mark | "U" stress-mark) := "U"
-  | ("ý" | "ỳ" | "Ý" | "Ỳ" | "y" stress-mark | "Y" stress-mark) := "Y"
+  | ("a" | "A") stress-mark := "A"
+  | ("e" | "E") stress-mark := "E"
+  | ("i" | "I") stress-mark := "I"
+  | ("o" | "O") stress-mark := "O"
+  | ("u" | "U") stress-mark := "U"
+  | ("y" | "Y") stress-mark := "Y"
 %emits
   $
 

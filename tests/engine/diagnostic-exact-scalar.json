@@ -1,0 +1,23 @@
+{
+  "description": "Canonical terminal spelling preserves exact scalar identity.",
+  "grammar": "%rule text $_00E9",
+  "tokens": [
+    {
+      "text": "é",
+      "tags": [],
+      "value": "é"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "children": [
+          {
+            "terminal": "\"$(_00E9)\""
+          }
+        ]
+      }
+    }
+  }
+}

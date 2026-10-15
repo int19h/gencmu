@@ -164,7 +164,7 @@ A comma stands only between two letters of a run. Between two vowels it is the s
 <p><img src="../../docs/diagrams/phonemes/latin-strict/any-lojban-char.svg" alt="Railroad diagram of the rule any-lojban-char"></p>
 </details>
 
-A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value and image concatenate its exact characters, without applying the phoneme mappings. Different foreign runs therefore need not compare equally.
+A run that is not an ordinary run is foreign. It contains a character that this orthography does not read, as `mi klama?` does. The stage emits it as one `FOREIGN` token. Its value concatenates its characters as stage zero decomposed them, without applying the phoneme mappings. Its image is the run's source text, the original spelling. Different foreign runs therefore need not compare equally.
 
 A foreign run has at least one character that no rule of `any-lojban-char` reads by itself. The rule `letters` always reads a run without one. So the stage tests only a run with one, and a long run of letters costs nothing more. A run neither begins nor ends with a comma, which is part of the pause next to it. A run character is any character but whitespace and the period. `run-char` reads it with `_`, then excludes those pause characters through conditions.
 
@@ -176,7 +176,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
   ¬$r.first-token.matches(comma),
   ¬$r.last-token.matches(comma)
 %emits
-  $ :: FOREIGN
+  $ :: FOREIGN :- $.source-text
 
 %rule chars-with-non-lojban-char
   | non-lojban-char

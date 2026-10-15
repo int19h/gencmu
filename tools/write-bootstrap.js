@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument } from "./bootstrap-reader.js";
 import { splicePipeline } from "../lib/js/src/pipeline.js";
+import { Loader } from "../lib/js/src/dialect.js";
 import { DOM_FORMAT } from "../lib/js/src/dom.js";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "grammars");
@@ -18,5 +19,16 @@ const { stages } = splicePipeline("dialects/notation.md", (documentPath) => {
   const file = path.join(root, documentPath);
   return fs.existsSync(file) ? readDocument(fs.readFileSync(file, "utf8"), documentPath) : undefined;
 });
-fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), JSON.stringify({ format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) }) + "\n");
+const bootstrap = JSON.stringify({ format: DOM_FORMAT, stages: stages.map((stage) => ({ name: stage.name, documents: stage.documents })) }) + "\n";
+// The new engine must read the candidate before the writer replaces the file.
+const loader = new Loader(relative => {
+  if (relative === "notation/bootstrap.json") return bootstrap;
+  if (relative === "compiled.json") return undefined;
+  const file = path.join(root, relative);
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : undefined;
+});
+const reread = loader.pipeline("dialects/notation.md");
+const engine = JSON.stringify({ format: DOM_FORMAT, stages: reread.stages.map(stage => ({ name: stage.name, documents: stage.documents })) }) + "\n";
+if (engine !== bootstrap) throw new Error("the bootstrap reader and engine reader disagree");
+fs.writeFileSync(path.join(root, "notation", "bootstrap.json"), bootstrap);
 console.log("wrote grammars/notation/bootstrap.json");

@@ -1,7 +1,7 @@
 {
   "description": "Stage zero supplies one token per scalar value with stored Unicode tags. Strings and ranges read values, properties read tags, and the tree keeps their canonical terminal forms (engine §1, §4, docs/output.md).",
-  "grammar": "%rule text (\"x\" _White_Space \"0\"..\"9\" \"é\")",
-  "input": "x 7é",
+  "grammar": "%rule text (\"x\" _White_Space \"0\"..\"9\" \"ð\")",
+  "input": "x 7ð",
   "expect": {
     "result": {
       "ok": true,
@@ -23,7 +23,7 @@
           },
           {
             "kind": "token",
-            "terminal": "\"é\""
+            "terminal": "\"ð\""
           }
         ]
       }

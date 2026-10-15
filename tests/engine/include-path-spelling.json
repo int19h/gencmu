@@ -1,0 +1,14 @@
+{
+  "description": "An include path keeps its original precomposed spelling.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%include \"café.md\"\n```",
+    "café.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text \"a\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

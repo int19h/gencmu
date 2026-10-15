@@ -4017,3 +4017,2452 @@ white-space 2028 2029
 white-space 202F 202F
 white-space 205F 205F
 white-space 3000 3000
+decompose 00C0 0041 0300
+decompose 00C1 0041 0301
+decompose 00C2 0041 0302
+decompose 00C3 0041 0303
+decompose 00C4 0041 0308
+decompose 00C5 0041 030A
+decompose 00C7 0043 0327
+decompose 00C8 0045 0300
+decompose 00C9 0045 0301
+decompose 00CA 0045 0302
+decompose 00CB 0045 0308
+decompose 00CC 0049 0300
+decompose 00CD 0049 0301
+decompose 00CE 0049 0302
+decompose 00CF 0049 0308
+decompose 00D1 004E 0303
+decompose 00D2 004F 0300
+decompose 00D3 004F 0301
+decompose 00D4 004F 0302
+decompose 00D5 004F 0303
+decompose 00D6 004F 0308
+decompose 00D9 0055 0300
+decompose 00DA 0055 0301
+decompose 00DB 0055 0302
+decompose 00DC 0055 0308
+decompose 00DD 0059 0301
+decompose 00E0 0061 0300
+decompose 00E1 0061 0301
+decompose 00E2 0061 0302
+decompose 00E3 0061 0303
+decompose 00E4 0061 0308
+decompose 00E5 0061 030A
+decompose 00E7 0063 0327
+decompose 00E8 0065 0300
+decompose 00E9 0065 0301
+decompose 00EA 0065 0302
+decompose 00EB 0065 0308
+decompose 00EC 0069 0300
+decompose 00ED 0069 0301
+decompose 00EE 0069 0302
+decompose 00EF 0069 0308
+decompose 00F1 006E 0303
+decompose 00F2 006F 0300
+decompose 00F3 006F 0301
+decompose 00F4 006F 0302
+decompose 00F5 006F 0303
+decompose 00F6 006F 0308
+decompose 00F9 0075 0300
+decompose 00FA 0075 0301
+decompose 00FB 0075 0302
+decompose 00FC 0075 0308
+decompose 00FD 0079 0301
+decompose 00FF 0079 0308
+decompose 0100 0041 0304
+decompose 0101 0061 0304
+decompose 0102 0041 0306
+decompose 0103 0061 0306
+decompose 0104 0041 0328
+decompose 0105 0061 0328
+decompose 0106 0043 0301
+decompose 0107 0063 0301
+decompose 0108 0043 0302
+decompose 0109 0063 0302
+decompose 010A 0043 0307
+decompose 010B 0063 0307
+decompose 010C 0043 030C
+decompose 010D 0063 030C
+decompose 010E 0044 030C
+decompose 010F 0064 030C
+decompose 0112 0045 0304
+decompose 0113 0065 0304
+decompose 0114 0045 0306
+decompose 0115 0065 0306
+decompose 0116 0045 0307
+decompose 0117 0065 0307
+decompose 0118 0045 0328
+decompose 0119 0065 0328
+decompose 011A 0045 030C
+decompose 011B 0065 030C
+decompose 011C 0047 0302
+decompose 011D 0067 0302
+decompose 011E 0047 0306
+decompose 011F 0067 0306
+decompose 0120 0047 0307
+decompose 0121 0067 0307
+decompose 0122 0047 0327
+decompose 0123 0067 0327
+decompose 0124 0048 0302
+decompose 0125 0068 0302
+decompose 0128 0049 0303
+decompose 0129 0069 0303
+decompose 012A 0049 0304
+decompose 012B 0069 0304
+decompose 012C 0049 0306
+decompose 012D 0069 0306
+decompose 012E 0049 0328
+decompose 012F 0069 0328
+decompose 0130 0049 0307
+decompose 0134 004A 0302
+decompose 0135 006A 0302
+decompose 0136 004B 0327
+decompose 0137 006B 0327
+decompose 0139 004C 0301
+decompose 013A 006C 0301
+decompose 013B 004C 0327
+decompose 013C 006C 0327
+decompose 013D 004C 030C
+decompose 013E 006C 030C
+decompose 0143 004E 0301
+decompose 0144 006E 0301
+decompose 0145 004E 0327
+decompose 0146 006E 0327
+decompose 0147 004E 030C
+decompose 0148 006E 030C
+decompose 014C 004F 0304
+decompose 014D 006F 0304
+decompose 014E 004F 0306
+decompose 014F 006F 0306
+decompose 0150 004F 030B
+decompose 0151 006F 030B
+decompose 0154 0052 0301
+decompose 0155 0072 0301
+decompose 0156 0052 0327
+decompose 0157 0072 0327
+decompose 0158 0052 030C
+decompose 0159 0072 030C
+decompose 015A 0053 0301
+decompose 015B 0073 0301
+decompose 015C 0053 0302
+decompose 015D 0073 0302
+decompose 015E 0053 0327
+decompose 015F 0073 0327
+decompose 0160 0053 030C
+decompose 0161 0073 030C
+decompose 0162 0054 0327
+decompose 0163 0074 0327
+decompose 0164 0054 030C
+decompose 0165 0074 030C
+decompose 0168 0055 0303
+decompose 0169 0075 0303
+decompose 016A 0055 0304
+decompose 016B 0075 0304
+decompose 016C 0055 0306
+decompose 016D 0075 0306
+decompose 016E 0055 030A
+decompose 016F 0075 030A
+decompose 0170 0055 030B
+decompose 0171 0075 030B
+decompose 0172 0055 0328
+decompose 0173 0075 0328
+decompose 0174 0057 0302
+decompose 0175 0077 0302
+decompose 0176 0059 0302
+decompose 0177 0079 0302
+decompose 0178 0059 0308
+decompose 0179 005A 0301
+decompose 017A 007A 0301
+decompose 017B 005A 0307
+decompose 017C 007A 0307
+decompose 017D 005A 030C
+decompose 017E 007A 030C
+decompose 01A0 004F 031B
+decompose 01A1 006F 031B
+decompose 01AF 0055 031B
+decompose 01B0 0075 031B
+decompose 01CD 0041 030C
+decompose 01CE 0061 030C
+decompose 01CF 0049 030C
+decompose 01D0 0069 030C
+decompose 01D1 004F 030C
+decompose 01D2 006F 030C
+decompose 01D3 0055 030C
+decompose 01D4 0075 030C
+decompose 01D5 0055 0308 0304
+decompose 01D6 0075 0308 0304
+decompose 01D7 0055 0308 0301
+decompose 01D8 0075 0308 0301
+decompose 01D9 0055 0308 030C
+decompose 01DA 0075 0308 030C
+decompose 01DB 0055 0308 0300
+decompose 01DC 0075 0308 0300
+decompose 01DE 0041 0308 0304
+decompose 01DF 0061 0308 0304
+decompose 01E0 0041 0307 0304
+decompose 01E1 0061 0307 0304
+decompose 01E2 00C6 0304
+decompose 01E3 00E6 0304
+decompose 01E6 0047 030C
+decompose 01E7 0067 030C
+decompose 01E8 004B 030C
+decompose 01E9 006B 030C
+decompose 01EA 004F 0328
+decompose 01EB 006F 0328
+decompose 01EC 004F 0328 0304
+decompose 01ED 006F 0328 0304
+decompose 01EE 01B7 030C
+decompose 01EF 0292 030C
+decompose 01F0 006A 030C
+decompose 01F4 0047 0301
+decompose 01F5 0067 0301
+decompose 01F8 004E 0300
+decompose 01F9 006E 0300
+decompose 01FA 0041 030A 0301
+decompose 01FB 0061 030A 0301
+decompose 01FC 00C6 0301
+decompose 01FD 00E6 0301
+decompose 01FE 00D8 0301
+decompose 01FF 00F8 0301
+decompose 0200 0041 030F
+decompose 0201 0061 030F
+decompose 0202 0041 0311
+decompose 0203 0061 0311
+decompose 0204 0045 030F
+decompose 0205 0065 030F
+decompose 0206 0045 0311
+decompose 0207 0065 0311
+decompose 0208 0049 030F
+decompose 0209 0069 030F
+decompose 020A 0049 0311
+decompose 020B 0069 0311
+decompose 020C 004F 030F
+decompose 020D 006F 030F
+decompose 020E 004F 0311
+decompose 020F 006F 0311
+decompose 0210 0052 030F
+decompose 0211 0072 030F
+decompose 0212 0052 0311
+decompose 0213 0072 0311
+decompose 0214 0055 030F
+decompose 0215 0075 030F
+decompose 0216 0055 0311
+decompose 0217 0075 0311
+decompose 0218 0053 0326
+decompose 0219 0073 0326
+decompose 021A 0054 0326
+decompose 021B 0074 0326
+decompose 021E 0048 030C
+decompose 021F 0068 030C
+decompose 0226 0041 0307
+decompose 0227 0061 0307
+decompose 0228 0045 0327
+decompose 0229 0065 0327
+decompose 022A 004F 0308 0304
+decompose 022B 006F 0308 0304
+decompose 022C 004F 0303 0304
+decompose 022D 006F 0303 0304
+decompose 022E 004F 0307
+decompose 022F 006F 0307
+decompose 0230 004F 0307 0304
+decompose 0231 006F 0307 0304
+decompose 0232 0059 0304
+decompose 0233 0079 0304
+decompose 0340 0300
+decompose 0341 0301
+decompose 0343 0313
+decompose 0344 0308 0301
+decompose 0374 02B9
+decompose 037E 003B
+decompose 0385 00A8 0301
+decompose 0386 0391 0301
+decompose 0387 00B7
+decompose 0388 0395 0301
+decompose 0389 0397 0301
+decompose 038A 0399 0301
+decompose 038C 039F 0301
+decompose 038E 03A5 0301
+decompose 038F 03A9 0301
+decompose 0390 03B9 0308 0301
+decompose 03AA 0399 0308
+decompose 03AB 03A5 0308
+decompose 03AC 03B1 0301
+decompose 03AD 03B5 0301
+decompose 03AE 03B7 0301
+decompose 03AF 03B9 0301
+decompose 03B0 03C5 0308 0301
+decompose 03CA 03B9 0308
+decompose 03CB 03C5 0308
+decompose 03CC 03BF 0301
+decompose 03CD 03C5 0301
+decompose 03CE 03C9 0301
+decompose 03D3 03D2 0301
+decompose 03D4 03D2 0308
+decompose 0400 0415 0300
+decompose 0401 0415 0308
+decompose 0403 0413 0301
+decompose 0407 0406 0308
+decompose 040C 041A 0301
+decompose 040D 0418 0300
+decompose 040E 0423 0306
+decompose 0419 0418 0306
+decompose 0439 0438 0306
+decompose 0450 0435 0300
+decompose 0451 0435 0308
+decompose 0453 0433 0301
+decompose 0457 0456 0308
+decompose 045C 043A 0301
+decompose 045D 0438 0300
+decompose 045E 0443 0306
+decompose 0476 0474 030F
+decompose 0477 0475 030F
+decompose 04C1 0416 0306
+decompose 04C2 0436 0306
+decompose 04D0 0410 0306
+decompose 04D1 0430 0306
+decompose 04D2 0410 0308
+decompose 04D3 0430 0308
+decompose 04D6 0415 0306
+decompose 04D7 0435 0306
+decompose 04DA 04D8 0308
+decompose 04DB 04D9 0308
+decompose 04DC 0416 0308
+decompose 04DD 0436 0308
+decompose 04DE 0417 0308
+decompose 04DF 0437 0308
+decompose 04E2 0418 0304
+decompose 04E3 0438 0304
+decompose 04E4 0418 0308
+decompose 04E5 0438 0308
+decompose 04E6 041E 0308
+decompose 04E7 043E 0308
+decompose 04EA 04E8 0308
+decompose 04EB 04E9 0308
+decompose 04EC 042D 0308
+decompose 04ED 044D 0308
+decompose 04EE 0423 0304
+decompose 04EF 0443 0304
+decompose 04F0 0423 0308
+decompose 04F1 0443 0308
+decompose 04F2 0423 030B
+decompose 04F3 0443 030B
+decompose 04F4 0427 0308
+decompose 04F5 0447 0308
+decompose 04F8 042B 0308
+decompose 04F9 044B 0308
+decompose 0622 0627 0653
+decompose 0623 0627 0654
+decompose 0624 0648 0654
+decompose 0625 0627 0655
+decompose 0626 064A 0654
+decompose 06C0 06D5 0654
+decompose 06C2 06C1 0654
+decompose 06D3 06D2 0654
+decompose 0929 0928 093C
+decompose 0931 0930 093C
+decompose 0934 0933 093C
+decompose 0958 0915 093C
+decompose 0959 0916 093C
+decompose 095A 0917 093C
+decompose 095B 091C 093C
+decompose 095C 0921 093C
+decompose 095D 0922 093C
+decompose 095E 092B 093C
+decompose 095F 092F 093C
+decompose 09CB 09C7 09BE
+decompose 09CC 09C7 09D7
+decompose 09DC 09A1 09BC
+decompose 09DD 09A2 09BC
+decompose 09DF 09AF 09BC
+decompose 0A33 0A32 0A3C
+decompose 0A36 0A38 0A3C
+decompose 0A59 0A16 0A3C
+decompose 0A5A 0A17 0A3C
+decompose 0A5B 0A1C 0A3C
+decompose 0A5E 0A2B 0A3C
+decompose 0B48 0B47 0B56
+decompose 0B4B 0B47 0B3E
+decompose 0B4C 0B47 0B57
+decompose 0B5C 0B21 0B3C
+decompose 0B5D 0B22 0B3C
+decompose 0B94 0B92 0BD7
+decompose 0BCA 0BC6 0BBE
+decompose 0BCB 0BC7 0BBE
+decompose 0BCC 0BC6 0BD7
+decompose 0C48 0C46 0C56
+decompose 0CC0 0CBF 0CD5
+decompose 0CC7 0CC6 0CD5
+decompose 0CC8 0CC6 0CD6
+decompose 0CCA 0CC6 0CC2
+decompose 0CCB 0CC6 0CC2 0CD5
+decompose 0D4A 0D46 0D3E
+decompose 0D4B 0D47 0D3E
+decompose 0D4C 0D46 0D57
+decompose 0DDA 0DD9 0DCA
+decompose 0DDC 0DD9 0DCF
+decompose 0DDD 0DD9 0DCF 0DCA
+decompose 0DDE 0DD9 0DDF
+decompose 0F43 0F42 0FB7
+decompose 0F4D 0F4C 0FB7
+decompose 0F52 0F51 0FB7
+decompose 0F57 0F56 0FB7
+decompose 0F5C 0F5B 0FB7
+decompose 0F69 0F40 0FB5
+decompose 0F73 0F71 0F72
+decompose 0F75 0F71 0F74
+decompose 0F76 0FB2 0F80
+decompose 0F78 0FB3 0F80
+decompose 0F81 0F71 0F80
+decompose 0F93 0F92 0FB7
+decompose 0F9D 0F9C 0FB7
+decompose 0FA2 0FA1 0FB7
+decompose 0FA7 0FA6 0FB7
+decompose 0FAC 0FAB 0FB7
+decompose 0FB9 0F90 0FB5
+decompose 1026 1025 102E
+decompose 1B06 1B05 1B35
+decompose 1B08 1B07 1B35
+decompose 1B0A 1B09 1B35
+decompose 1B0C 1B0B 1B35
+decompose 1B0E 1B0D 1B35
+decompose 1B12 1B11 1B35
+decompose 1B3B 1B3A 1B35
+decompose 1B3D 1B3C 1B35
+decompose 1B40 1B3E 1B35
+decompose 1B41 1B3F 1B35
+decompose 1B43 1B42 1B35
+decompose 1E00 0041 0325
+decompose 1E01 0061 0325
+decompose 1E02 0042 0307
+decompose 1E03 0062 0307
+decompose 1E04 0042 0323
+decompose 1E05 0062 0323
+decompose 1E06 0042 0331
+decompose 1E07 0062 0331
+decompose 1E08 0043 0327 0301
+decompose 1E09 0063 0327 0301
+decompose 1E0A 0044 0307
+decompose 1E0B 0064 0307
+decompose 1E0C 0044 0323
+decompose 1E0D 0064 0323
+decompose 1E0E 0044 0331
+decompose 1E0F 0064 0331
+decompose 1E10 0044 0327
+decompose 1E11 0064 0327
+decompose 1E12 0044 032D
+decompose 1E13 0064 032D
+decompose 1E14 0045 0304 0300
+decompose 1E15 0065 0304 0300
+decompose 1E16 0045 0304 0301
+decompose 1E17 0065 0304 0301
+decompose 1E18 0045 032D
+decompose 1E19 0065 032D
+decompose 1E1A 0045 0330
+decompose 1E1B 0065 0330
+decompose 1E1C 0045 0327 0306
+decompose 1E1D 0065 0327 0306
+decompose 1E1E 0046 0307
+decompose 1E1F 0066 0307
+decompose 1E20 0047 0304
+decompose 1E21 0067 0304
+decompose 1E22 0048 0307
+decompose 1E23 0068 0307
+decompose 1E24 0048 0323
+decompose 1E25 0068 0323
+decompose 1E26 0048 0308
+decompose 1E27 0068 0308
+decompose 1E28 0048 0327
+decompose 1E29 0068 0327
+decompose 1E2A 0048 032E
+decompose 1E2B 0068 032E
+decompose 1E2C 0049 0330
+decompose 1E2D 0069 0330
+decompose 1E2E 0049 0308 0301
+decompose 1E2F 0069 0308 0301
+decompose 1E30 004B 0301
+decompose 1E31 006B 0301
+decompose 1E32 004B 0323
+decompose 1E33 006B 0323
+decompose 1E34 004B 0331
+decompose 1E35 006B 0331
+decompose 1E36 004C 0323
+decompose 1E37 006C 0323
+decompose 1E38 004C 0323 0304
+decompose 1E39 006C 0323 0304
+decompose 1E3A 004C 0331
+decompose 1E3B 006C 0331
+decompose 1E3C 004C 032D
+decompose 1E3D 006C 032D
+decompose 1E3E 004D 0301
+decompose 1E3F 006D 0301
+decompose 1E40 004D 0307
+decompose 1E41 006D 0307
+decompose 1E42 004D 0323
+decompose 1E43 006D 0323
+decompose 1E44 004E 0307
+decompose 1E45 006E 0307
+decompose 1E46 004E 0323
+decompose 1E47 006E 0323
+decompose 1E48 004E 0331
+decompose 1E49 006E 0331
+decompose 1E4A 004E 032D
+decompose 1E4B 006E 032D
+decompose 1E4C 004F 0303 0301
+decompose 1E4D 006F 0303 0301
+decompose 1E4E 004F 0303 0308
+decompose 1E4F 006F 0303 0308
+decompose 1E50 004F 0304 0300
+decompose 1E51 006F 0304 0300
+decompose 1E52 004F 0304 0301
+decompose 1E53 006F 0304 0301
+decompose 1E54 0050 0301
+decompose 1E55 0070 0301
+decompose 1E56 0050 0307
+decompose 1E57 0070 0307
+decompose 1E58 0052 0307
+decompose 1E59 0072 0307
+decompose 1E5A 0052 0323
+decompose 1E5B 0072 0323
+decompose 1E5C 0052 0323 0304
+decompose 1E5D 0072 0323 0304
+decompose 1E5E 0052 0331
+decompose 1E5F 0072 0331
+decompose 1E60 0053 0307
+decompose 1E61 0073 0307
+decompose 1E62 0053 0323
+decompose 1E63 0073 0323
+decompose 1E64 0053 0301 0307
+decompose 1E65 0073 0301 0307
+decompose 1E66 0053 030C 0307
+decompose 1E67 0073 030C 0307
+decompose 1E68 0053 0323 0307
+decompose 1E69 0073 0323 0307
+decompose 1E6A 0054 0307
+decompose 1E6B 0074 0307
+decompose 1E6C 0054 0323
+decompose 1E6D 0074 0323
+decompose 1E6E 0054 0331
+decompose 1E6F 0074 0331
+decompose 1E70 0054 032D
+decompose 1E71 0074 032D
+decompose 1E72 0055 0324
+decompose 1E73 0075 0324
+decompose 1E74 0055 0330
+decompose 1E75 0075 0330
+decompose 1E76 0055 032D
+decompose 1E77 0075 032D
+decompose 1E78 0055 0303 0301
+decompose 1E79 0075 0303 0301
+decompose 1E7A 0055 0304 0308
+decompose 1E7B 0075 0304 0308
+decompose 1E7C 0056 0303
+decompose 1E7D 0076 0303
+decompose 1E7E 0056 0323
+decompose 1E7F 0076 0323
+decompose 1E80 0057 0300
+decompose 1E81 0077 0300
+decompose 1E82 0057 0301
+decompose 1E83 0077 0301
+decompose 1E84 0057 0308
+decompose 1E85 0077 0308
+decompose 1E86 0057 0307
+decompose 1E87 0077 0307
+decompose 1E88 0057 0323
+decompose 1E89 0077 0323
+decompose 1E8A 0058 0307
+decompose 1E8B 0078 0307
+decompose 1E8C 0058 0308
+decompose 1E8D 0078 0308
+decompose 1E8E 0059 0307
+decompose 1E8F 0079 0307
+decompose 1E90 005A 0302
+decompose 1E91 007A 0302
+decompose 1E92 005A 0323
+decompose 1E93 007A 0323
+decompose 1E94 005A 0331
+decompose 1E95 007A 0331
+decompose 1E96 0068 0331
+decompose 1E97 0074 0308
+decompose 1E98 0077 030A
+decompose 1E99 0079 030A
+decompose 1E9B 017F 0307
+decompose 1EA0 0041 0323
+decompose 1EA1 0061 0323
+decompose 1EA2 0041 0309
+decompose 1EA3 0061 0309
+decompose 1EA4 0041 0302 0301
+decompose 1EA5 0061 0302 0301
+decompose 1EA6 0041 0302 0300
+decompose 1EA7 0061 0302 0300
+decompose 1EA8 0041 0302 0309
+decompose 1EA9 0061 0302 0309
+decompose 1EAA 0041 0302 0303
+decompose 1EAB 0061 0302 0303
+decompose 1EAC 0041 0323 0302
+decompose 1EAD 0061 0323 0302
+decompose 1EAE 0041 0306 0301
+decompose 1EAF 0061 0306 0301
+decompose 1EB0 0041 0306 0300
+decompose 1EB1 0061 0306 0300
+decompose 1EB2 0041 0306 0309
+decompose 1EB3 0061 0306 0309
+decompose 1EB4 0041 0306 0303
+decompose 1EB5 0061 0306 0303
+decompose 1EB6 0041 0323 0306
+decompose 1EB7 0061 0323 0306
+decompose 1EB8 0045 0323
+decompose 1EB9 0065 0323
+decompose 1EBA 0045 0309
+decompose 1EBB 0065 0309
+decompose 1EBC 0045 0303
+decompose 1EBD 0065 0303
+decompose 1EBE 0045 0302 0301
+decompose 1EBF 0065 0302 0301
+decompose 1EC0 0045 0302 0300
+decompose 1EC1 0065 0302 0300
+decompose 1EC2 0045 0302 0309
+decompose 1EC3 0065 0302 0309
+decompose 1EC4 0045 0302 0303
+decompose 1EC5 0065 0302 0303
+decompose 1EC6 0045 0323 0302
+decompose 1EC7 0065 0323 0302
+decompose 1EC8 0049 0309
+decompose 1EC9 0069 0309
+decompose 1ECA 0049 0323
+decompose 1ECB 0069 0323
+decompose 1ECC 004F 0323
+decompose 1ECD 006F 0323
+decompose 1ECE 004F 0309
+decompose 1ECF 006F 0309
+decompose 1ED0 004F 0302 0301
+decompose 1ED1 006F 0302 0301
+decompose 1ED2 004F 0302 0300
+decompose 1ED3 006F 0302 0300
+decompose 1ED4 004F 0302 0309
+decompose 1ED5 006F 0302 0309
+decompose 1ED6 004F 0302 0303
+decompose 1ED7 006F 0302 0303
+decompose 1ED8 004F 0323 0302
+decompose 1ED9 006F 0323 0302
+decompose 1EDA 004F 031B 0301
+decompose 1EDB 006F 031B 0301
+decompose 1EDC 004F 031B 0300
+decompose 1EDD 006F 031B 0300
+decompose 1EDE 004F 031B 0309
+decompose 1EDF 006F 031B 0309
+decompose 1EE0 004F 031B 0303
+decompose 1EE1 006F 031B 0303
+decompose 1EE2 004F 031B 0323
+decompose 1EE3 006F 031B 0323
+decompose 1EE4 0055 0323
+decompose 1EE5 0075 0323
+decompose 1EE6 0055 0309
+decompose 1EE7 0075 0309
+decompose 1EE8 0055 031B 0301
+decompose 1EE9 0075 031B 0301
+decompose 1EEA 0055 031B 0300
+decompose 1EEB 0075 031B 0300
+decompose 1EEC 0055 031B 0309
+decompose 1EED 0075 031B 0309
+decompose 1EEE 0055 031B 0303
+decompose 1EEF 0075 031B 0303
+decompose 1EF0 0055 031B 0323
+decompose 1EF1 0075 031B 0323
+decompose 1EF2 0059 0300
+decompose 1EF3 0079 0300
+decompose 1EF4 0059 0323
+decompose 1EF5 0079 0323
+decompose 1EF6 0059 0309
+decompose 1EF7 0079 0309
+decompose 1EF8 0059 0303
+decompose 1EF9 0079 0303
+decompose 1F00 03B1 0313
+decompose 1F01 03B1 0314
+decompose 1F02 03B1 0313 0300
+decompose 1F03 03B1 0314 0300
+decompose 1F04 03B1 0313 0301
+decompose 1F05 03B1 0314 0301
+decompose 1F06 03B1 0313 0342
+decompose 1F07 03B1 0314 0342
+decompose 1F08 0391 0313
+decompose 1F09 0391 0314
+decompose 1F0A 0391 0313 0300
+decompose 1F0B 0391 0314 0300
+decompose 1F0C 0391 0313 0301
+decompose 1F0D 0391 0314 0301
+decompose 1F0E 0391 0313 0342
+decompose 1F0F 0391 0314 0342
+decompose 1F10 03B5 0313
+decompose 1F11 03B5 0314
+decompose 1F12 03B5 0313 0300
+decompose 1F13 03B5 0314 0300
+decompose 1F14 03B5 0313 0301
+decompose 1F15 03B5 0314 0301
+decompose 1F18 0395 0313
+decompose 1F19 0395 0314
+decompose 1F1A 0395 0313 0300
+decompose 1F1B 0395 0314 0300
+decompose 1F1C 0395 0313 0301
+decompose 1F1D 0395 0314 0301
+decompose 1F20 03B7 0313
+decompose 1F21 03B7 0314
+decompose 1F22 03B7 0313 0300
+decompose 1F23 03B7 0314 0300
+decompose 1F24 03B7 0313 0301
+decompose 1F25 03B7 0314 0301
+decompose 1F26 03B7 0313 0342
+decompose 1F27 03B7 0314 0342
+decompose 1F28 0397 0313
+decompose 1F29 0397 0314
+decompose 1F2A 0397 0313 0300
+decompose 1F2B 0397 0314 0300
+decompose 1F2C 0397 0313 0301
+decompose 1F2D 0397 0314 0301
+decompose 1F2E 0397 0313 0342
+decompose 1F2F 0397 0314 0342
+decompose 1F30 03B9 0313
+decompose 1F31 03B9 0314
+decompose 1F32 03B9 0313 0300
+decompose 1F33 03B9 0314 0300
+decompose 1F34 03B9 0313 0301
+decompose 1F35 03B9 0314 0301
+decompose 1F36 03B9 0313 0342
+decompose 1F37 03B9 0314 0342
+decompose 1F38 0399 0313
+decompose 1F39 0399 0314
+decompose 1F3A 0399 0313 0300
+decompose 1F3B 0399 0314 0300
+decompose 1F3C 0399 0313 0301
+decompose 1F3D 0399 0314 0301
+decompose 1F3E 0399 0313 0342
+decompose 1F3F 0399 0314 0342
+decompose 1F40 03BF 0313
+decompose 1F41 03BF 0314
+decompose 1F42 03BF 0313 0300
+decompose 1F43 03BF 0314 0300
+decompose 1F44 03BF 0313 0301
+decompose 1F45 03BF 0314 0301
+decompose 1F48 039F 0313
+decompose 1F49 039F 0314
+decompose 1F4A 039F 0313 0300
+decompose 1F4B 039F 0314 0300
+decompose 1F4C 039F 0313 0301
+decompose 1F4D 039F 0314 0301
+decompose 1F50 03C5 0313
+decompose 1F51 03C5 0314
+decompose 1F52 03C5 0313 0300
+decompose 1F53 03C5 0314 0300
+decompose 1F54 03C5 0313 0301
+decompose 1F55 03C5 0314 0301
+decompose 1F56 03C5 0313 0342
+decompose 1F57 03C5 0314 0342
+decompose 1F59 03A5 0314
+decompose 1F5B 03A5 0314 0300
+decompose 1F5D 03A5 0314 0301
+decompose 1F5F 03A5 0314 0342
+decompose 1F60 03C9 0313
+decompose 1F61 03C9 0314
+decompose 1F62 03C9 0313 0300
+decompose 1F63 03C9 0314 0300
+decompose 1F64 03C9 0313 0301
+decompose 1F65 03C9 0314 0301
+decompose 1F66 03C9 0313 0342
+decompose 1F67 03C9 0314 0342
+decompose 1F68 03A9 0313
+decompose 1F69 03A9 0314
+decompose 1F6A 03A9 0313 0300
+decompose 1F6B 03A9 0314 0300
+decompose 1F6C 03A9 0313 0301
+decompose 1F6D 03A9 0314 0301
+decompose 1F6E 03A9 0313 0342
+decompose 1F6F 03A9 0314 0342
+decompose 1F70 03B1 0300
+decompose 1F71 03B1 0301
+decompose 1F72 03B5 0300
+decompose 1F73 03B5 0301
+decompose 1F74 03B7 0300
+decompose 1F75 03B7 0301
+decompose 1F76 03B9 0300
+decompose 1F77 03B9 0301
+decompose 1F78 03BF 0300
+decompose 1F79 03BF 0301
+decompose 1F7A 03C5 0300
+decompose 1F7B 03C5 0301
+decompose 1F7C 03C9 0300
+decompose 1F7D 03C9 0301
+decompose 1F80 03B1 0313 0345
+decompose 1F81 03B1 0314 0345
+decompose 1F82 03B1 0313 0300 0345
+decompose 1F83 03B1 0314 0300 0345
+decompose 1F84 03B1 0313 0301 0345
+decompose 1F85 03B1 0314 0301 0345
+decompose 1F86 03B1 0313 0342 0345
+decompose 1F87 03B1 0314 0342 0345
+decompose 1F88 0391 0313 0345
+decompose 1F89 0391 0314 0345
+decompose 1F8A 0391 0313 0300 0345
+decompose 1F8B 0391 0314 0300 0345
+decompose 1F8C 0391 0313 0301 0345
+decompose 1F8D 0391 0314 0301 0345
+decompose 1F8E 0391 0313 0342 0345
+decompose 1F8F 0391 0314 0342 0345
+decompose 1F90 03B7 0313 0345
+decompose 1F91 03B7 0314 0345
+decompose 1F92 03B7 0313 0300 0345
+decompose 1F93 03B7 0314 0300 0345
+decompose 1F94 03B7 0313 0301 0345
+decompose 1F95 03B7 0314 0301 0345
+decompose 1F96 03B7 0313 0342 0345
+decompose 1F97 03B7 0314 0342 0345
+decompose 1F98 0397 0313 0345
+decompose 1F99 0397 0314 0345
+decompose 1F9A 0397 0313 0300 0345
+decompose 1F9B 0397 0314 0300 0345
+decompose 1F9C 0397 0313 0301 0345
+decompose 1F9D 0397 0314 0301 0345
+decompose 1F9E 0397 0313 0342 0345
+decompose 1F9F 0397 0314 0342 0345
+decompose 1FA0 03C9 0313 0345
+decompose 1FA1 03C9 0314 0345
+decompose 1FA2 03C9 0313 0300 0345
+decompose 1FA3 03C9 0314 0300 0345
+decompose 1FA4 03C9 0313 0301 0345
+decompose 1FA5 03C9 0314 0301 0345
+decompose 1FA6 03C9 0313 0342 0345
+decompose 1FA7 03C9 0314 0342 0345
+decompose 1FA8 03A9 0313 0345
+decompose 1FA9 03A9 0314 0345
+decompose 1FAA 03A9 0313 0300 0345
+decompose 1FAB 03A9 0314 0300 0345
+decompose 1FAC 03A9 0313 0301 0345
+decompose 1FAD 03A9 0314 0301 0345
+decompose 1FAE 03A9 0313 0342 0345
+decompose 1FAF 03A9 0314 0342 0345
+decompose 1FB0 03B1 0306
+decompose 1FB1 03B1 0304
+decompose 1FB2 03B1 0300 0345
+decompose 1FB3 03B1 0345
+decompose 1FB4 03B1 0301 0345
+decompose 1FB6 03B1 0342
+decompose 1FB7 03B1 0342 0345
+decompose 1FB8 0391 0306
+decompose 1FB9 0391 0304
+decompose 1FBA 0391 0300
+decompose 1FBB 0391 0301
+decompose 1FBC 0391 0345
+decompose 1FBE 03B9
+decompose 1FC1 00A8 0342
+decompose 1FC2 03B7 0300 0345
+decompose 1FC3 03B7 0345
+decompose 1FC4 03B7 0301 0345
+decompose 1FC6 03B7 0342
+decompose 1FC7 03B7 0342 0345
+decompose 1FC8 0395 0300
+decompose 1FC9 0395 0301
+decompose 1FCA 0397 0300
+decompose 1FCB 0397 0301
+decompose 1FCC 0397 0345
+decompose 1FCD 1FBF 0300
+decompose 1FCE 1FBF 0301
+decompose 1FCF 1FBF 0342
+decompose 1FD0 03B9 0306
+decompose 1FD1 03B9 0304
+decompose 1FD2 03B9 0308 0300
+decompose 1FD3 03B9 0308 0301
+decompose 1FD6 03B9 0342
+decompose 1FD7 03B9 0308 0342
+decompose 1FD8 0399 0306
+decompose 1FD9 0399 0304
+decompose 1FDA 0399 0300
+decompose 1FDB 0399 0301
+decompose 1FDD 1FFE 0300
+decompose 1FDE 1FFE 0301
+decompose 1FDF 1FFE 0342
+decompose 1FE0 03C5 0306
+decompose 1FE1 03C5 0304
+decompose 1FE2 03C5 0308 0300
+decompose 1FE3 03C5 0308 0301
+decompose 1FE4 03C1 0313
+decompose 1FE5 03C1 0314
+decompose 1FE6 03C5 0342
+decompose 1FE7 03C5 0308 0342
+decompose 1FE8 03A5 0306
+decompose 1FE9 03A5 0304
+decompose 1FEA 03A5 0300
+decompose 1FEB 03A5 0301
+decompose 1FEC 03A1 0314
+decompose 1FED 00A8 0300
+decompose 1FEE 00A8 0301
+decompose 1FEF 0060
+decompose 1FF2 03C9 0300 0345
+decompose 1FF3 03C9 0345
+decompose 1FF4 03C9 0301 0345
+decompose 1FF6 03C9 0342
+decompose 1FF7 03C9 0342 0345
+decompose 1FF8 039F 0300
+decompose 1FF9 039F 0301
+decompose 1FFA 03A9 0300
+decompose 1FFB 03A9 0301
+decompose 1FFC 03A9 0345
+decompose 1FFD 00B4
+decompose 2000 2002
+decompose 2001 2003
+decompose 2126 03A9
+decompose 212A 004B
+decompose 212B 0041 030A
+decompose 219A 2190 0338
+decompose 219B 2192 0338
+decompose 21AE 2194 0338
+decompose 21CD 21D0 0338
+decompose 21CE 21D4 0338
+decompose 21CF 21D2 0338
+decompose 2204 2203 0338
+decompose 2209 2208 0338
+decompose 220C 220B 0338
+decompose 2224 2223 0338
+decompose 2226 2225 0338
+decompose 2241 223C 0338
+decompose 2244 2243 0338
+decompose 2247 2245 0338
+decompose 2249 2248 0338
+decompose 2260 003D 0338
+decompose 2262 2261 0338
+decompose 226D 224D 0338
+decompose 226E 003C 0338
+decompose 226F 003E 0338
+decompose 2270 2264 0338
+decompose 2271 2265 0338
+decompose 2274 2272 0338
+decompose 2275 2273 0338
+decompose 2278 2276 0338
+decompose 2279 2277 0338
+decompose 2280 227A 0338
+decompose 2281 227B 0338
+decompose 2284 2282 0338
+decompose 2285 2283 0338
+decompose 2288 2286 0338
+decompose 2289 2287 0338
+decompose 22AC 22A2 0338
+decompose 22AD 22A8 0338
+decompose 22AE 22A9 0338
+decompose 22AF 22AB 0338
+decompose 22E0 227C 0338
+decompose 22E1 227D 0338
+decompose 22E2 2291 0338
+decompose 22E3 2292 0338
+decompose 22EA 22B2 0338
+decompose 22EB 22B3 0338
+decompose 22EC 22B4 0338
+decompose 22ED 22B5 0338
+decompose 2329 3008
+decompose 232A 3009
+decompose 2ADC 2ADD 0338
+decompose 304C 304B 3099
+decompose 304E 304D 3099
+decompose 3050 304F 3099
+decompose 3052 3051 3099
+decompose 3054 3053 3099
+decompose 3056 3055 3099
+decompose 3058 3057 3099
+decompose 305A 3059 3099
+decompose 305C 305B 3099
+decompose 305E 305D 3099
+decompose 3060 305F 3099
+decompose 3062 3061 3099
+decompose 3065 3064 3099
+decompose 3067 3066 3099
+decompose 3069 3068 3099
+decompose 3070 306F 3099
+decompose 3071 306F 309A
+decompose 3073 3072 3099
+decompose 3074 3072 309A
+decompose 3076 3075 3099
+decompose 3077 3075 309A
+decompose 3079 3078 3099
+decompose 307A 3078 309A
+decompose 307C 307B 3099
+decompose 307D 307B 309A
+decompose 3094 3046 3099
+decompose 309E 309D 3099
+decompose 30AC 30AB 3099
+decompose 30AE 30AD 3099
+decompose 30B0 30AF 3099
+decompose 30B2 30B1 3099
+decompose 30B4 30B3 3099
+decompose 30B6 30B5 3099
+decompose 30B8 30B7 3099
+decompose 30BA 30B9 3099
+decompose 30BC 30BB 3099
+decompose 30BE 30BD 3099
+decompose 30C0 30BF 3099
+decompose 30C2 30C1 3099
+decompose 30C5 30C4 3099
+decompose 30C7 30C6 3099
+decompose 30C9 30C8 3099
+decompose 30D0 30CF 3099
+decompose 30D1 30CF 309A
+decompose 30D3 30D2 3099
+decompose 30D4 30D2 309A
+decompose 30D6 30D5 3099
+decompose 30D7 30D5 309A
+decompose 30D9 30D8 3099
+decompose 30DA 30D8 309A
+decompose 30DC 30DB 3099
+decompose 30DD 30DB 309A
+decompose 30F4 30A6 3099
+decompose 30F7 30EF 3099
+decompose 30F8 30F0 3099
+decompose 30F9 30F1 3099
+decompose 30FA 30F2 3099
+decompose 30FE 30FD 3099
+decompose F900 8C48
+decompose F901 66F4
+decompose F902 8ECA
+decompose F903 8CC8
+decompose F904 6ED1
+decompose F905 4E32
+decompose F906 53E5
+decompose F907 9F9C
+decompose F908 9F9C
+decompose F909 5951
+decompose F90A 91D1
+decompose F90B 5587
+decompose F90C 5948
+decompose F90D 61F6
+decompose F90E 7669
+decompose F90F 7F85
+decompose F910 863F
+decompose F911 87BA
+decompose F912 88F8
+decompose F913 908F
+decompose F914 6A02
+decompose F915 6D1B
+decompose F916 70D9
+decompose F917 73DE
+decompose F918 843D
+decompose F919 916A
+decompose F91A 99F1
+decompose F91B 4E82
+decompose F91C 5375
+decompose F91D 6B04
+decompose F91E 721B
+decompose F91F 862D
+decompose F920 9E1E
+decompose F921 5D50
+decompose F922 6FEB
+decompose F923 85CD
+decompose F924 8964
+decompose F925 62C9
+decompose F926 81D8
+decompose F927 881F
+decompose F928 5ECA
+decompose F929 6717
+decompose F92A 6D6A
+decompose F92B 72FC
+decompose F92C 90CE
+decompose F92D 4F86
+decompose F92E 51B7
+decompose F92F 52DE
+decompose F930 64C4
+decompose F931 6AD3
+decompose F932 7210
+decompose F933 76E7
+decompose F934 8001
+decompose F935 8606
+decompose F936 865C
+decompose F937 8DEF
+decompose F938 9732
+decompose F939 9B6F
+decompose F93A 9DFA
+decompose F93B 788C
+decompose F93C 797F
+decompose F93D 7DA0
+decompose F93E 83C9
+decompose F93F 9304
+decompose F940 9E7F
+decompose F941 8AD6
+decompose F942 58DF
+decompose F943 5F04
+decompose F944 7C60
+decompose F945 807E
+decompose F946 7262
+decompose F947 78CA
+decompose F948 8CC2
+decompose F949 96F7
+decompose F94A 58D8
+decompose F94B 5C62
+decompose F94C 6A13
+decompose F94D 6DDA
+decompose F94E 6F0F
+decompose F94F 7D2F
+decompose F950 7E37
+decompose F951 964B
+decompose F952 52D2
+decompose F953 808B
+decompose F954 51DC
+decompose F955 51CC
+decompose F956 7A1C
+decompose F957 7DBE
+decompose F958 83F1
+decompose F959 9675
+decompose F95A 8B80
+decompose F95B 62CF
+decompose F95C 6A02
+decompose F95D 8AFE
+decompose F95E 4E39
+decompose F95F 5BE7
+decompose F960 6012
+decompose F961 7387
+decompose F962 7570
+decompose F963 5317
+decompose F964 78FB
+decompose F965 4FBF
+decompose F966 5FA9
+decompose F967 4E0D
+decompose F968 6CCC
+decompose F969 6578
+decompose F96A 7D22
+decompose F96B 53C3
+decompose F96C 585E
+decompose F96D 7701
+decompose F96E 8449
+decompose F96F 8AAA
+decompose F970 6BBA
+decompose F971 8FB0
+decompose F972 6C88
+decompose F973 62FE
+decompose F974 82E5
+decompose F975 63A0
+decompose F976 7565
+decompose F977 4EAE
+decompose F978 5169
+decompose F979 51C9
+decompose F97A 6881
+decompose F97B 7CE7
+decompose F97C 826F
+decompose F97D 8AD2
+decompose F97E 91CF
+decompose F97F 52F5
+decompose F980 5442
+decompose F981 5973
+decompose F982 5EEC
+decompose F983 65C5
+decompose F984 6FFE
+decompose F985 792A
+decompose F986 95AD
+decompose F987 9A6A
+decompose F988 9E97
+decompose F989 9ECE
+decompose F98A 529B
+decompose F98B 66C6
+decompose F98C 6B77
+decompose F98D 8F62
+decompose F98E 5E74
+decompose F98F 6190
+decompose F990 6200
+decompose F991 649A
+decompose F992 6F23
+decompose F993 7149
+decompose F994 7489
+decompose F995 79CA
+decompose F996 7DF4
+decompose F997 806F
+decompose F998 8F26
+decompose F999 84EE
+decompose F99A 9023
+decompose F99B 934A
+decompose F99C 5217
+decompose F99D 52A3
+decompose F99E 54BD
+decompose F99F 70C8
+decompose F9A0 88C2
+decompose F9A1 8AAA
+decompose F9A2 5EC9
+decompose F9A3 5FF5
+decompose F9A4 637B
+decompose F9A5 6BAE
+decompose F9A6 7C3E
+decompose F9A7 7375
+decompose F9A8 4EE4
+decompose F9A9 56F9
+decompose F9AA 5BE7
+decompose F9AB 5DBA
+decompose F9AC 601C
+decompose F9AD 73B2
+decompose F9AE 7469
+decompose F9AF 7F9A
+decompose F9B0 8046
+decompose F9B1 9234
+decompose F9B2 96F6
+decompose F9B3 9748
+decompose F9B4 9818
+decompose F9B5 4F8B
+decompose F9B6 79AE
+decompose F9B7 91B4
+decompose F9B8 96B8
+decompose F9B9 60E1
+decompose F9BA 4E86
+decompose F9BB 50DA
+decompose F9BC 5BEE
+decompose F9BD 5C3F
+decompose F9BE 6599
+decompose F9BF 6A02
+decompose F9C0 71CE
+decompose F9C1 7642
+decompose F9C2 84FC
+decompose F9C3 907C
+decompose F9C4 9F8D
+decompose F9C5 6688
+decompose F9C6 962E
+decompose F9C7 5289
+decompose F9C8 677B
+decompose F9C9 67F3
+decompose F9CA 6D41
+decompose F9CB 6E9C
+decompose F9CC 7409
+decompose F9CD 7559
+decompose F9CE 786B
+decompose F9CF 7D10
+decompose F9D0 985E
+decompose F9D1 516D
+decompose F9D2 622E
+decompose F9D3 9678
+decompose F9D4 502B
+decompose F9D5 5D19
+decompose F9D6 6DEA
+decompose F9D7 8F2A
+decompose F9D8 5F8B
+decompose F9D9 6144
+decompose F9DA 6817
+decompose F9DB 7387
+decompose F9DC 9686
+decompose F9DD 5229
+decompose F9DE 540F
+decompose F9DF 5C65
+decompose F9E0 6613
+decompose F9E1 674E
+decompose F9E2 68A8
+decompose F9E3 6CE5
+decompose F9E4 7406
+decompose F9E5 75E2
+decompose F9E6 7F79
+decompose F9E7 88CF
+decompose F9E8 88E1
+decompose F9E9 91CC
+decompose F9EA 96E2
+decompose F9EB 533F
+decompose F9EC 6EBA
+decompose F9ED 541D
+decompose F9EE 71D0
+decompose F9EF 7498
+decompose F9F0 85FA
+decompose F9F1 96A3
+decompose F9F2 9C57
+decompose F9F3 9E9F
+decompose F9F4 6797
+decompose F9F5 6DCB
+decompose F9F6 81E8
+decompose F9F7 7ACB
+decompose F9F8 7B20
+decompose F9F9 7C92
+decompose F9FA 72C0
+decompose F9FB 7099
+decompose F9FC 8B58
+decompose F9FD 4EC0
+decompose F9FE 8336
+decompose F9FF 523A
+decompose FA00 5207
+decompose FA01 5EA6
+decompose FA02 62D3
+decompose FA03 7CD6
+decompose FA04 5B85
+decompose FA05 6D1E
+decompose FA06 66B4
+decompose FA07 8F3B
+decompose FA08 884C
+decompose FA09 964D
+decompose FA0A 898B
+decompose FA0B 5ED3
+decompose FA0C 5140
+decompose FA0D 55C0
+decompose FA10 585A
+decompose FA12 6674
+decompose FA15 51DE
+decompose FA16 732A
+decompose FA17 76CA
+decompose FA18 793C
+decompose FA19 795E
+decompose FA1A 7965
+decompose FA1B 798F
+decompose FA1C 9756
+decompose FA1D 7CBE
+decompose FA1E 7FBD
+decompose FA20 8612
+decompose FA22 8AF8
+decompose FA25 9038
+decompose FA26 90FD
+decompose FA2A 98EF
+decompose FA2B 98FC
+decompose FA2C 9928
+decompose FA2D 9DB4
+decompose FA2E 90DE
+decompose FA2F 96B7
+decompose FA30 4FAE
+decompose FA31 50E7
+decompose FA32 514D
+decompose FA33 52C9
+decompose FA34 52E4
+decompose FA35 5351
+decompose FA36 559D
+decompose FA37 5606
+decompose FA38 5668
+decompose FA39 5840
+decompose FA3A 58A8
+decompose FA3B 5C64
+decompose FA3C 5C6E
+decompose FA3D 6094
+decompose FA3E 6168
+decompose FA3F 618E
+decompose FA40 61F2
+decompose FA41 654F
+decompose FA42 65E2
+decompose FA43 6691
+decompose FA44 6885
+decompose FA45 6D77
+decompose FA46 6E1A
+decompose FA47 6F22
+decompose FA48 716E
+decompose FA49 722B
+decompose FA4A 7422
+decompose FA4B 7891
+decompose FA4C 793E
+decompose FA4D 7949
+decompose FA4E 7948
+decompose FA4F 7950
+decompose FA50 7956
+decompose FA51 795D
+decompose FA52 798D
+decompose FA53 798E
+decompose FA54 7A40
+decompose FA55 7A81
+decompose FA56 7BC0
+decompose FA57 7DF4
+decompose FA58 7E09
+decompose FA59 7E41
+decompose FA5A 7F72
+decompose FA5B 8005
+decompose FA5C 81ED
+decompose FA5D 8279
+decompose FA5E 8279
+decompose FA5F 8457
+decompose FA60 8910
+decompose FA61 8996
+decompose FA62 8B01
+decompose FA63 8B39
+decompose FA64 8CD3
+decompose FA65 8D08
+decompose FA66 8FB6
+decompose FA67 9038
+decompose FA68 96E3
+decompose FA69 97FF
+decompose FA6A 983B
+decompose FA6B 6075
+decompose FA6C 242EE
+decompose FA6D 8218
+decompose FA70 4E26
+decompose FA71 51B5
+decompose FA72 5168
+decompose FA73 4F80
+decompose FA74 5145
+decompose FA75 5180
+decompose FA76 52C7
+decompose FA77 52FA
+decompose FA78 559D
+decompose FA79 5555
+decompose FA7A 5599
+decompose FA7B 55E2
+decompose FA7C 585A
+decompose FA7D 58B3
+decompose FA7E 5944
+decompose FA7F 5954
+decompose FA80 5A62
+decompose FA81 5B28
+decompose FA82 5ED2
+decompose FA83 5ED9
+decompose FA84 5F69
+decompose FA85 5FAD
+decompose FA86 60D8
+decompose FA87 614E
+decompose FA88 6108
+decompose FA89 618E
+decompose FA8A 6160
+decompose FA8B 61F2
+decompose FA8C 6234
+decompose FA8D 63C4
+decompose FA8E 641C
+decompose FA8F 6452
+decompose FA90 6556
+decompose FA91 6674
+decompose FA92 6717
+decompose FA93 671B
+decompose FA94 6756
+decompose FA95 6B79
+decompose FA96 6BBA
+decompose FA97 6D41
+decompose FA98 6EDB
+decompose FA99 6ECB
+decompose FA9A 6F22
+decompose FA9B 701E
+decompose FA9C 716E
+decompose FA9D 77A7
+decompose FA9E 7235
+decompose FA9F 72AF
+decompose FAA0 732A
+decompose FAA1 7471
+decompose FAA2 7506
+decompose FAA3 753B
+decompose FAA4 761D
+decompose FAA5 761F
+decompose FAA6 76CA
+decompose FAA7 76DB
+decompose FAA8 76F4
+decompose FAA9 774A
+decompose FAAA 7740
+decompose FAAB 78CC
+decompose FAAC 7AB1
+decompose FAAD 7BC0
+decompose FAAE 7C7B
+decompose FAAF 7D5B
+decompose FAB0 7DF4
+decompose FAB1 7F3E
+decompose FAB2 8005
+decompose FAB3 8352
+decompose FAB4 83EF
+decompose FAB5 8779
+decompose FAB6 8941
+decompose FAB7 8986
+decompose FAB8 8996
+decompose FAB9 8ABF
+decompose FABA 8AF8
+decompose FABB 8ACB
+decompose FABC 8B01
+decompose FABD 8AFE
+decompose FABE 8AED
+decompose FABF 8B39
+decompose FAC0 8B8A
+decompose FAC1 8D08
+decompose FAC2 8F38
+decompose FAC3 9072
+decompose FAC4 9199
+decompose FAC5 9276
+decompose FAC6 967C
+decompose FAC7 96E3
+decompose FAC8 9756
+decompose FAC9 97DB
+decompose FACA 97FF
+decompose FACB 980B
+decompose FACC 983B
+decompose FACD 9B12
+decompose FACE 9F9C
+decompose FACF 2284A
+decompose FAD0 22844
+decompose FAD1 233D5
+decompose FAD2 3B9D
+decompose FAD3 4018
+decompose FAD4 4039
+decompose FAD5 25249
+decompose FAD6 25CD0
+decompose FAD7 27ED3
+decompose FAD8 9F43
+decompose FAD9 9F8E
+decompose FB1D 05D9 05B4
+decompose FB1F 05F2 05B7
+decompose FB2A 05E9 05C1
+decompose FB2B 05E9 05C2
+decompose FB2C 05E9 05BC 05C1
+decompose FB2D 05E9 05BC 05C2
+decompose FB2E 05D0 05B7
+decompose FB2F 05D0 05B8
+decompose FB30 05D0 05BC
+decompose FB31 05D1 05BC
+decompose FB32 05D2 05BC
+decompose FB33 05D3 05BC
+decompose FB34 05D4 05BC
+decompose FB35 05D5 05BC
+decompose FB36 05D6 05BC
+decompose FB38 05D8 05BC
+decompose FB39 05D9 05BC
+decompose FB3A 05DA 05BC
+decompose FB3B 05DB 05BC
+decompose FB3C 05DC 05BC
+decompose FB3E 05DE 05BC
+decompose FB40 05E0 05BC
+decompose FB41 05E1 05BC
+decompose FB43 05E3 05BC
+decompose FB44 05E4 05BC
+decompose FB46 05E6 05BC
+decompose FB47 05E7 05BC
+decompose FB48 05E8 05BC
+decompose FB49 05E9 05BC
+decompose FB4A 05EA 05BC
+decompose FB4B 05D5 05B9
+decompose FB4C 05D1 05BF
+decompose FB4D 05DB 05BF
+decompose FB4E 05E4 05BF
+decompose 1109A 11099 110BA
+decompose 1109C 1109B 110BA
+decompose 110AB 110A5 110BA
+decompose 1112E 11131 11127
+decompose 1112F 11132 11127
+decompose 1134B 11347 1133E
+decompose 1134C 11347 11357
+decompose 114BB 114B9 114BA
+decompose 114BC 114B9 114B0
+decompose 114BE 114B9 114BD
+decompose 115BA 115B8 115AF
+decompose 115BB 115B9 115AF
+decompose 11938 11935 11930
+decompose 1D15E 1D157 1D165
+decompose 1D15F 1D158 1D165
+decompose 1D160 1D158 1D165 1D16E
+decompose 1D161 1D158 1D165 1D16F
+decompose 1D162 1D158 1D165 1D170
+decompose 1D163 1D158 1D165 1D171
+decompose 1D164 1D158 1D165 1D172
+decompose 1D1BB 1D1B9 1D165
+decompose 1D1BC 1D1BA 1D165
+decompose 1D1BD 1D1B9 1D165 1D16E
+decompose 1D1BE 1D1BA 1D165 1D16E
+decompose 1D1BF 1D1B9 1D165 1D16F
+decompose 1D1C0 1D1BA 1D165 1D16F
+decompose 2F800 4E3D
+decompose 2F801 4E38
+decompose 2F802 4E41
+decompose 2F803 20122
+decompose 2F804 4F60
+decompose 2F805 4FAE
+decompose 2F806 4FBB
+decompose 2F807 5002
+decompose 2F808 507A
+decompose 2F809 5099
+decompose 2F80A 50E7
+decompose 2F80B 50CF
+decompose 2F80C 349E
+decompose 2F80D 2063A
+decompose 2F80E 514D
+decompose 2F80F 5154
+decompose 2F810 5164
+decompose 2F811 5177
+decompose 2F812 2051C
+decompose 2F813 34B9
+decompose 2F814 5167
+decompose 2F815 518D
+decompose 2F816 2054B
+decompose 2F817 5197
+decompose 2F818 51A4
+decompose 2F819 4ECC
+decompose 2F81A 51AC
+decompose 2F81B 51B5
+decompose 2F81C 291DF
+decompose 2F81D 51F5
+decompose 2F81E 5203
+decompose 2F81F 34DF
+decompose 2F820 523B
+decompose 2F821 5246
+decompose 2F822 5272
+decompose 2F823 5277
+decompose 2F824 3515
+decompose 2F825 52C7
+decompose 2F826 52C9
+decompose 2F827 52E4
+decompose 2F828 52FA
+decompose 2F829 5305
+decompose 2F82A 5306
+decompose 2F82B 5317
+decompose 2F82C 5349
+decompose 2F82D 5351
+decompose 2F82E 535A
+decompose 2F82F 5373
+decompose 2F830 537D
+decompose 2F831 537F
+decompose 2F832 537F
+decompose 2F833 537F
+decompose 2F834 20A2C
+decompose 2F835 7070
+decompose 2F836 53CA
+decompose 2F837 53DF
+decompose 2F838 20B63
+decompose 2F839 53EB
+decompose 2F83A 53F1
+decompose 2F83B 5406
+decompose 2F83C 549E
+decompose 2F83D 5438
+decompose 2F83E 5448
+decompose 2F83F 5468
+decompose 2F840 54A2
+decompose 2F841 54F6
+decompose 2F842 5510
+decompose 2F843 5553
+decompose 2F844 5563
+decompose 2F845 5584
+decompose 2F846 5584
+decompose 2F847 5599
+decompose 2F848 55AB
+decompose 2F849 55B3
+decompose 2F84A 55C2
+decompose 2F84B 5716
+decompose 2F84C 5606
+decompose 2F84D 5717
+decompose 2F84E 5651
+decompose 2F84F 5674
+decompose 2F850 5207
+decompose 2F851 58EE
+decompose 2F852 57CE
+decompose 2F853 57F4
+decompose 2F854 580D
+decompose 2F855 578B
+decompose 2F856 5832
+decompose 2F857 5831
+decompose 2F858 58AC
+decompose 2F859 214E4
+decompose 2F85A 58F2
+decompose 2F85B 58F7
+decompose 2F85C 5906
+decompose 2F85D 591A
+decompose 2F85E 5922
+decompose 2F85F 5962
+decompose 2F860 216A8
+decompose 2F861 216EA
+decompose 2F862 59EC
+decompose 2F863 5A1B
+decompose 2F864 5A27
+decompose 2F865 59D8
+decompose 2F866 5A66
+decompose 2F867 36EE
+decompose 2F868 36FC
+decompose 2F869 5B08
+decompose 2F86A 5B3E
+decompose 2F86B 5B3E
+decompose 2F86C 219C8
+decompose 2F86D 5BC3
+decompose 2F86E 5BD8
+decompose 2F86F 5BE7
+decompose 2F870 5BF3
+decompose 2F871 21B18
+decompose 2F872 5BFF
+decompose 2F873 5C06
+decompose 2F874 5F53
+decompose 2F875 5C22
+decompose 2F876 3781
+decompose 2F877 5C60
+decompose 2F878 5C6E
+decompose 2F879 5CC0
+decompose 2F87A 5C8D
+decompose 2F87B 21DE4
+decompose 2F87C 5D43
+decompose 2F87D 21DE6
+decompose 2F87E 5D6E
+decompose 2F87F 5D6B
+decompose 2F880 5D7C
+decompose 2F881 5DE1
+decompose 2F882 5DE2
+decompose 2F883 382F
+decompose 2F884 5DFD
+decompose 2F885 5E28
+decompose 2F886 5E3D
+decompose 2F887 5E69
+decompose 2F888 3862
+decompose 2F889 22183
+decompose 2F88A 387C
+decompose 2F88B 5EB0
+decompose 2F88C 5EB3
+decompose 2F88D 5EB6
+decompose 2F88E 5ECA
+decompose 2F88F 2A392
+decompose 2F890 5EFE
+decompose 2F891 22331
+decompose 2F892 22331
+decompose 2F893 8201
+decompose 2F894 5F22
+decompose 2F895 5F22
+decompose 2F896 38C7
+decompose 2F897 232B8
+decompose 2F898 261DA
+decompose 2F899 5F62
+decompose 2F89A 5F6B
+decompose 2F89B 38E3
+decompose 2F89C 5F9A
+decompose 2F89D 5FCD
+decompose 2F89E 5FD7
+decompose 2F89F 5FF9
+decompose 2F8A0 6081
+decompose 2F8A1 393A
+decompose 2F8A2 391C
+decompose 2F8A3 6094
+decompose 2F8A4 226D4
+decompose 2F8A5 60C7
+decompose 2F8A6 6148
+decompose 2F8A7 614C
+decompose 2F8A8 614E
+decompose 2F8A9 614C
+decompose 2F8AA 617A
+decompose 2F8AB 618E
+decompose 2F8AC 61B2
+decompose 2F8AD 61A4
+decompose 2F8AE 61AF
+decompose 2F8AF 61DE
+decompose 2F8B0 61F2
+decompose 2F8B1 61F6
+decompose 2F8B2 6210
+decompose 2F8B3 621B
+decompose 2F8B4 625D
+decompose 2F8B5 62B1
+decompose 2F8B6 62D4
+decompose 2F8B7 6350
+decompose 2F8B8 22B0C
+decompose 2F8B9 633D
+decompose 2F8BA 62FC
+decompose 2F8BB 6368
+decompose 2F8BC 6383
+decompose 2F8BD 63E4
+decompose 2F8BE 22BF1
+decompose 2F8BF 6422
+decompose 2F8C0 63C5
+decompose 2F8C1 63A9
+decompose 2F8C2 3A2E
+decompose 2F8C3 6469
+decompose 2F8C4 647E
+decompose 2F8C5 649D
+decompose 2F8C6 6477
+decompose 2F8C7 3A6C
+decompose 2F8C8 654F
+decompose 2F8C9 656C
+decompose 2F8CA 2300A
+decompose 2F8CB 65E3
+decompose 2F8CC 66F8
+decompose 2F8CD 6649
+decompose 2F8CE 3B19
+decompose 2F8CF 6691
+decompose 2F8D0 3B08
+decompose 2F8D1 3AE4
+decompose 2F8D2 5192
+decompose 2F8D3 5195
+decompose 2F8D4 6700
+decompose 2F8D5 669C
+decompose 2F8D6 80AD
+decompose 2F8D7 43D9
+decompose 2F8D8 6717
+decompose 2F8D9 671B
+decompose 2F8DA 6721
+decompose 2F8DB 675E
+decompose 2F8DC 6753
+decompose 2F8DD 233C3
+decompose 2F8DE 3B49
+decompose 2F8DF 67FA
+decompose 2F8E0 6785
+decompose 2F8E1 6852
+decompose 2F8E2 6885
+decompose 2F8E3 2346D
+decompose 2F8E4 688E
+decompose 2F8E5 681F
+decompose 2F8E6 6914
+decompose 2F8E7 3B9D
+decompose 2F8E8 6942
+decompose 2F8E9 69A3
+decompose 2F8EA 69EA
+decompose 2F8EB 6AA8
+decompose 2F8EC 236A3
+decompose 2F8ED 6ADB
+decompose 2F8EE 3C18
+decompose 2F8EF 6B21
+decompose 2F8F0 238A7
+decompose 2F8F1 6B54
+decompose 2F8F2 3C4E
+decompose 2F8F3 6B72
+decompose 2F8F4 6B9F
+decompose 2F8F5 6BBA
+decompose 2F8F6 6BBB
+decompose 2F8F7 23A8D
+decompose 2F8F8 21D0B
+decompose 2F8F9 23AFA
+decompose 2F8FA 6C4E
+decompose 2F8FB 23CBC
+decompose 2F8FC 6CBF
+decompose 2F8FD 6CCD
+decompose 2F8FE 6C67
+decompose 2F8FF 6D16
+decompose 2F900 6D3E
+decompose 2F901 6D77
+decompose 2F902 6D41
+decompose 2F903 6D69
+decompose 2F904 6D78
+decompose 2F905 6D85
+decompose 2F906 23D1E
+decompose 2F907 6D34
+decompose 2F908 6E2F
+decompose 2F909 6E6E
+decompose 2F90A 3D33
+decompose 2F90B 6ECB
+decompose 2F90C 6EC7
+decompose 2F90D 23ED1
+decompose 2F90E 6DF9
+decompose 2F90F 6F6E
+decompose 2F910 23F5E
+decompose 2F911 23F8E
+decompose 2F912 6FC6
+decompose 2F913 7039
+decompose 2F914 701E
+decompose 2F915 701B
+decompose 2F916 3D96
+decompose 2F917 704A
+decompose 2F918 707D
+decompose 2F919 7077
+decompose 2F91A 70AD
+decompose 2F91B 20525
+decompose 2F91C 7145
+decompose 2F91D 24263
+decompose 2F91E 719C
+decompose 2F91F 243AB
+decompose 2F920 7228
+decompose 2F921 7235
+decompose 2F922 7250
+decompose 2F923 24608
+decompose 2F924 7280
+decompose 2F925 7295
+decompose 2F926 24735
+decompose 2F927 24814
+decompose 2F928 737A
+decompose 2F929 738B
+decompose 2F92A 3EAC
+decompose 2F92B 73A5
+decompose 2F92C 3EB8
+decompose 2F92D 3EB8
+decompose 2F92E 7447
+decompose 2F92F 745C
+decompose 2F930 7471
+decompose 2F931 7485
+decompose 2F932 74CA
+decompose 2F933 3F1B
+decompose 2F934 7524
+decompose 2F935 24C36
+decompose 2F936 753E
+decompose 2F937 24C92
+decompose 2F938 7570
+decompose 2F939 2219F
+decompose 2F93A 7610
+decompose 2F93B 24FA1
+decompose 2F93C 24FB8
+decompose 2F93D 25044
+decompose 2F93E 3FFC
+decompose 2F93F 4008
+decompose 2F940 76F4
+decompose 2F941 250F3
+decompose 2F942 250F2
+decompose 2F943 25119
+decompose 2F944 25133
+decompose 2F945 771E
+decompose 2F946 771F
+decompose 2F947 771F
+decompose 2F948 774A
+decompose 2F949 4039
+decompose 2F94A 778B
+decompose 2F94B 4046
+decompose 2F94C 4096
+decompose 2F94D 2541D
+decompose 2F94E 784E
+decompose 2F94F 788C
+decompose 2F950 78CC
+decompose 2F951 40E3
+decompose 2F952 25626
+decompose 2F953 7956
+decompose 2F954 2569A
+decompose 2F955 256C5
+decompose 2F956 798F
+decompose 2F957 79EB
+decompose 2F958 412F
+decompose 2F959 7A40
+decompose 2F95A 7A4A
+decompose 2F95B 7A4F
+decompose 2F95C 2597C
+decompose 2F95D 25AA7
+decompose 2F95E 25AA7
+decompose 2F95F 7AEE
+decompose 2F960 4202
+decompose 2F961 25BAB
+decompose 2F962 7BC6
+decompose 2F963 7BC9
+decompose 2F964 4227
+decompose 2F965 25C80
+decompose 2F966 7CD2
+decompose 2F967 42A0
+decompose 2F968 7CE8
+decompose 2F969 7CE3
+decompose 2F96A 7D00
+decompose 2F96B 25F86
+decompose 2F96C 7D63
+decompose 2F96D 4301
+decompose 2F96E 7DC7
+decompose 2F96F 7E02
+decompose 2F970 7E45
+decompose 2F971 4334
+decompose 2F972 26228
+decompose 2F973 26247
+decompose 2F974 4359
+decompose 2F975 262D9
+decompose 2F976 7F7A
+decompose 2F977 2633E
+decompose 2F978 7F95
+decompose 2F979 7FFA
+decompose 2F97A 8005
+decompose 2F97B 264DA
+decompose 2F97C 26523
+decompose 2F97D 8060
+decompose 2F97E 265A8
+decompose 2F97F 8070
+decompose 2F980 2335F
+decompose 2F981 43D5
+decompose 2F982 80B2
+decompose 2F983 8103
+decompose 2F984 440B
+decompose 2F985 813E
+decompose 2F986 5AB5
+decompose 2F987 267A7
+decompose 2F988 267B5
+decompose 2F989 23393
+decompose 2F98A 2339C
+decompose 2F98B 8201
+decompose 2F98C 8204
+decompose 2F98D 8F9E
+decompose 2F98E 446B
+decompose 2F98F 8291
+decompose 2F990 828B
+decompose 2F991 829D
+decompose 2F992 52B3
+decompose 2F993 82B1
+decompose 2F994 82B3
+decompose 2F995 82BD
+decompose 2F996 82E6
+decompose 2F997 26B3C
+decompose 2F998 82E5
+decompose 2F999 831D
+decompose 2F99A 8363
+decompose 2F99B 83AD
+decompose 2F99C 8323
+decompose 2F99D 83BD
+decompose 2F99E 83E7
+decompose 2F99F 8457
+decompose 2F9A0 8353
+decompose 2F9A1 83CA
+decompose 2F9A2 83CC
+decompose 2F9A3 83DC
+decompose 2F9A4 26C36
+decompose 2F9A5 26D6B
+decompose 2F9A6 26CD5
+decompose 2F9A7 452B
+decompose 2F9A8 84F1
+decompose 2F9A9 84F3
+decompose 2F9AA 8516
+decompose 2F9AB 273CA
+decompose 2F9AC 8564
+decompose 2F9AD 26F2C
+decompose 2F9AE 455D
+decompose 2F9AF 4561
+decompose 2F9B0 26FB1
+decompose 2F9B1 270D2
+decompose 2F9B2 456B
+decompose 2F9B3 8650
+decompose 2F9B4 865C
+decompose 2F9B5 8667
+decompose 2F9B6 8669
+decompose 2F9B7 86A9
+decompose 2F9B8 8688
+decompose 2F9B9 870E
+decompose 2F9BA 86E2
+decompose 2F9BB 8779
+decompose 2F9BC 8728
+decompose 2F9BD 876B
+decompose 2F9BE 8786
+decompose 2F9BF 45D7
+decompose 2F9C0 87E1
+decompose 2F9C1 8801
+decompose 2F9C2 45F9
+decompose 2F9C3 8860
+decompose 2F9C4 8863
+decompose 2F9C5 27667
+decompose 2F9C6 88D7
+decompose 2F9C7 88DE
+decompose 2F9C8 4635
+decompose 2F9C9 88FA
+decompose 2F9CA 34BB
+decompose 2F9CB 278AE
+decompose 2F9CC 27966
+decompose 2F9CD 46BE
+decompose 2F9CE 46C7
+decompose 2F9CF 8AA0
+decompose 2F9D0 8AED
+decompose 2F9D1 8B8A
+decompose 2F9D2 8C55
+decompose 2F9D3 27CA8
+decompose 2F9D4 8CAB
+decompose 2F9D5 8CC1
+decompose 2F9D6 8D1B
+decompose 2F9D7 8D77
+decompose 2F9D8 27F2F
+decompose 2F9D9 20804
+decompose 2F9DA 8DCB
+decompose 2F9DB 8DBC
+decompose 2F9DC 8DF0
+decompose 2F9DD 208DE
+decompose 2F9DE 8ED4
+decompose 2F9DF 8F38
+decompose 2F9E0 285D2
+decompose 2F9E1 285ED
+decompose 2F9E2 9094
+decompose 2F9E3 90F1
+decompose 2F9E4 9111
+decompose 2F9E5 2872E
+decompose 2F9E6 911B
+decompose 2F9E7 9238
+decompose 2F9E8 92D7
+decompose 2F9E9 92D8
+decompose 2F9EA 927C
+decompose 2F9EB 93F9
+decompose 2F9EC 9415
+decompose 2F9ED 28BFA
+decompose 2F9EE 958B
+decompose 2F9EF 4995
+decompose 2F9F0 95B7
+decompose 2F9F1 28D77
+decompose 2F9F2 49E6
+decompose 2F9F3 96C3
+decompose 2F9F4 5DB2
+decompose 2F9F5 9723
+decompose 2F9F6 29145
+decompose 2F9F7 2921A
+decompose 2F9F8 4A6E
+decompose 2F9F9 4A76
+decompose 2F9FA 97E0
+decompose 2F9FB 2940A
+decompose 2F9FC 4AB2
+decompose 2F9FD 29496
+decompose 2F9FE 980B
+decompose 2F9FF 980B
+decompose 2FA00 9829
+decompose 2FA01 295B6
+decompose 2FA02 98E2
+decompose 2FA03 4B33
+decompose 2FA04 9929
+decompose 2FA05 99A7
+decompose 2FA06 99C2
+decompose 2FA07 99FE
+decompose 2FA08 4BCE
+decompose 2FA09 29B30
+decompose 2FA0A 9B12
+decompose 2FA0B 9C40
+decompose 2FA0C 9CFD
+decompose 2FA0D 4CCE
+decompose 2FA0E 4CED
+decompose 2FA0F 9D67
+decompose 2FA10 2A0CE
+decompose 2FA11 4CF8
+decompose 2FA12 2A105
+decompose 2FA13 2A20E
+decompose 2FA14 2A291
+decompose 2FA15 9EBB
+decompose 2FA16 4D56
+decompose 2FA17 9EF9
+decompose 2FA18 9EFE
+decompose 2FA19 9F05
+decompose 2FA1A 9F0F
+decompose 2FA1B 9F16
+decompose 2FA1C 9F3B
+decompose 2FA1D 2A600
+combining 230 0300 0314
+combining 232 0315 0315
+combining 220 0316 0319
+combining 232 031A 031A
+combining 216 031B 031B
+combining 220 031C 0320
+combining 202 0321 0322
+combining 220 0323 0326
+combining 202 0327 0328
+combining 220 0329 0333
+combining 1 0334 0338
+combining 220 0339 033C
+combining 230 033D 0344
+combining 240 0345 0345
+combining 230 0346 0346
+combining 220 0347 0349
+combining 230 034A 034C
+combining 220 034D 034E
+combining 230 0350 0352
+combining 220 0353 0356
+combining 230 0357 0357
+combining 232 0358 0358
+combining 220 0359 035A
+combining 230 035B 035B
+combining 233 035C 035C
+combining 234 035D 035E
+combining 233 035F 035F
+combining 234 0360 0361
+combining 233 0362 0362
+combining 230 0363 036F
+combining 230 0483 0487
+combining 220 0591 0591
+combining 230 0592 0595
+combining 220 0596 0596
+combining 230 0597 0599
+combining 222 059A 059A
+combining 220 059B 059B
+combining 230 059C 05A1
+combining 220 05A2 05A7
+combining 230 05A8 05A9
+combining 220 05AA 05AA
+combining 230 05AB 05AC
+combining 222 05AD 05AD
+combining 228 05AE 05AE
+combining 230 05AF 05AF
+combining 10 05B0 05B0
+combining 11 05B1 05B1
+combining 12 05B2 05B2
+combining 13 05B3 05B3
+combining 14 05B4 05B4
+combining 15 05B5 05B5
+combining 16 05B6 05B6
+combining 17 05B7 05B7
+combining 18 05B8 05B8
+combining 19 05B9 05BA
+combining 20 05BB 05BB
+combining 21 05BC 05BC
+combining 22 05BD 05BD
+combining 23 05BF 05BF
+combining 24 05C1 05C1
+combining 25 05C2 05C2
+combining 230 05C4 05C4
+combining 220 05C5 05C5
+combining 18 05C7 05C7
+combining 230 0610 0617
+combining 30 0618 0618
+combining 31 0619 0619
+combining 32 061A 061A
+combining 27 064B 064B
+combining 28 064C 064C
+combining 29 064D 064D
+combining 30 064E 064E
+combining 31 064F 064F
+combining 32 0650 0650
+combining 33 0651 0651
+combining 34 0652 0652
+combining 230 0653 0654
+combining 220 0655 0656
+combining 230 0657 065B
+combining 220 065C 065C
+combining 230 065D 065E
+combining 220 065F 065F
+combining 35 0670 0670
+combining 230 06D6 06DC
+combining 230 06DF 06E2
+combining 220 06E3 06E3
+combining 230 06E4 06E4
+combining 230 06E7 06E8
+combining 220 06EA 06EA
+combining 230 06EB 06EC
+combining 220 06ED 06ED
+combining 36 0711 0711
+combining 230 0730 0730
+combining 220 0731 0731
+combining 230 0732 0733
+combining 220 0734 0734
+combining 230 0735 0736
+combining 220 0737 0739
+combining 230 073A 073A
+combining 220 073B 073C
+combining 230 073D 073D
+combining 220 073E 073E
+combining 230 073F 0741
+combining 220 0742 0742
+combining 230 0743 0743
+combining 220 0744 0744
+combining 230 0745 0745
+combining 220 0746 0746
+combining 230 0747 0747
+combining 220 0748 0748
+combining 230 0749 074A
+combining 230 07EB 07F1
+combining 220 07F2 07F2
+combining 230 07F3 07F3
+combining 220 07FD 07FD
+combining 230 0816 0819
+combining 230 081B 0823
+combining 230 0825 0827
+combining 230 0829 082D
+combining 220 0859 085B
+combining 230 0898 0898
+combining 220 0899 089B
+combining 230 089C 089F
+combining 230 08CA 08CE
+combining 220 08CF 08D3
+combining 230 08D4 08E1
+combining 220 08E3 08E3
+combining 230 08E4 08E5
+combining 220 08E6 08E6
+combining 230 08E7 08E8
+combining 220 08E9 08E9
+combining 230 08EA 08EC
+combining 220 08ED 08EF
+combining 27 08F0 08F0
+combining 28 08F1 08F1
+combining 29 08F2 08F2
+combining 230 08F3 08F5
+combining 220 08F6 08F6
+combining 230 08F7 08F8
+combining 220 08F9 08FA
+combining 230 08FB 08FF
+combining 7 093C 093C
+combining 9 094D 094D
+combining 230 0951 0951
+combining 220 0952 0952
+combining 230 0953 0954
+combining 7 09BC 09BC
+combining 9 09CD 09CD
+combining 230 09FE 09FE
+combining 7 0A3C 0A3C
+combining 9 0A4D 0A4D
+combining 7 0ABC 0ABC
+combining 9 0ACD 0ACD
+combining 7 0B3C 0B3C
+combining 9 0B4D 0B4D
+combining 9 0BCD 0BCD
+combining 7 0C3C 0C3C
+combining 9 0C4D 0C4D
+combining 84 0C55 0C55
+combining 91 0C56 0C56
+combining 7 0CBC 0CBC
+combining 9 0CCD 0CCD
+combining 9 0D3B 0D3C
+combining 9 0D4D 0D4D
+combining 9 0DCA 0DCA
+combining 103 0E38 0E39
+combining 9 0E3A 0E3A
+combining 107 0E48 0E4B
+combining 118 0EB8 0EB9
+combining 9 0EBA 0EBA
+combining 122 0EC8 0ECB
+combining 220 0F18 0F19
+combining 220 0F35 0F35
+combining 220 0F37 0F37
+combining 216 0F39 0F39
+combining 129 0F71 0F71
+combining 130 0F72 0F72
+combining 132 0F74 0F74
+combining 130 0F7A 0F7D
+combining 130 0F80 0F80
+combining 230 0F82 0F83
+combining 9 0F84 0F84
+combining 230 0F86 0F87
+combining 220 0FC6 0FC6
+combining 7 1037 1037
+combining 9 1039 103A
+combining 220 108D 108D
+combining 230 135D 135F
+combining 9 1714 1715
+combining 9 1734 1734
+combining 9 17D2 17D2
+combining 230 17DD 17DD
+combining 228 18A9 18A9
+combining 222 1939 1939
+combining 230 193A 193A
+combining 220 193B 193B
+combining 230 1A17 1A17
+combining 220 1A18 1A18
+combining 9 1A60 1A60
+combining 230 1A75 1A7C
+combining 220 1A7F 1A7F
+combining 230 1AB0 1AB4
+combining 220 1AB5 1ABA
+combining 230 1ABB 1ABC
+combining 220 1ABD 1ABD
+combining 220 1ABF 1AC0
+combining 230 1AC1 1AC2
+combining 220 1AC3 1AC4
+combining 230 1AC5 1AC9
+combining 220 1ACA 1ACA
+combining 230 1ACB 1ACE
+combining 7 1B34 1B34
+combining 9 1B44 1B44
+combining 230 1B6B 1B6B
+combining 220 1B6C 1B6C
+combining 230 1B6D 1B73
+combining 9 1BAA 1BAB
+combining 7 1BE6 1BE6
+combining 9 1BF2 1BF3
+combining 7 1C37 1C37
+combining 230 1CD0 1CD2
+combining 1 1CD4 1CD4
+combining 220 1CD5 1CD9
+combining 230 1CDA 1CDB
+combining 220 1CDC 1CDF
+combining 230 1CE0 1CE0
+combining 1 1CE2 1CE8
+combining 220 1CED 1CED
+combining 230 1CF4 1CF4
+combining 230 1CF8 1CF9
+combining 230 1DC0 1DC1
+combining 220 1DC2 1DC2
+combining 230 1DC3 1DC9
+combining 220 1DCA 1DCA
+combining 230 1DCB 1DCC
+combining 234 1DCD 1DCD
+combining 214 1DCE 1DCE
+combining 220 1DCF 1DCF
+combining 202 1DD0 1DD0
+combining 230 1DD1 1DF5
+combining 232 1DF6 1DF6
+combining 228 1DF7 1DF8
+combining 220 1DF9 1DF9
+combining 218 1DFA 1DFA
+combining 230 1DFB 1DFB
+combining 233 1DFC 1DFC
+combining 220 1DFD 1DFD
+combining 230 1DFE 1DFE
+combining 220 1DFF 1DFF
+combining 230 20D0 20D1
+combining 1 20D2 20D3
+combining 230 20D4 20D7
+combining 1 20D8 20DA
+combining 230 20DB 20DC
+combining 230 20E1 20E1
+combining 1 20E5 20E6
+combining 230 20E7 20E7
+combining 220 20E8 20E8
+combining 230 20E9 20E9
+combining 1 20EA 20EB
+combining 220 20EC 20EF
+combining 230 20F0 20F0
+combining 230 2CEF 2CF1
+combining 9 2D7F 2D7F
+combining 230 2DE0 2DFF
+combining 218 302A 302A
+combining 228 302B 302B
+combining 232 302C 302C
+combining 222 302D 302D
+combining 224 302E 302F
+combining 8 3099 309A
+combining 230 A66F A66F
+combining 230 A674 A67D
+combining 230 A69E A69F
+combining 230 A6F0 A6F1
+combining 9 A806 A806
+combining 9 A82C A82C
+combining 9 A8C4 A8C4
+combining 230 A8E0 A8F1
+combining 220 A92B A92D
+combining 9 A953 A953
+combining 7 A9B3 A9B3
+combining 9 A9C0 A9C0
+combining 230 AAB0 AAB0
+combining 230 AAB2 AAB3
+combining 220 AAB4 AAB4
+combining 230 AAB7 AAB8
+combining 230 AABE AABF
+combining 230 AAC1 AAC1
+combining 9 AAF6 AAF6
+combining 9 ABED ABED
+combining 26 FB1E FB1E
+combining 230 FE20 FE26
+combining 220 FE27 FE2D
+combining 230 FE2E FE2F
+combining 220 101FD 101FD
+combining 220 102E0 102E0
+combining 230 10376 1037A
+combining 220 10A0D 10A0D
+combining 230 10A0F 10A0F
+combining 230 10A38 10A38
+combining 1 10A39 10A39
+combining 220 10A3A 10A3A
+combining 9 10A3F 10A3F
+combining 230 10AE5 10AE5
+combining 220 10AE6 10AE6
+combining 230 10D24 10D27
+combining 230 10EAB 10EAC
+combining 220 10EFD 10EFF
+combining 220 10F46 10F47
+combining 230 10F48 10F4A
+combining 220 10F4B 10F4B
+combining 230 10F4C 10F4C
+combining 220 10F4D 10F50
+combining 230 10F82 10F82
+combining 220 10F83 10F83
+combining 230 10F84 10F84
+combining 220 10F85 10F85
+combining 9 11046 11046
+combining 9 11070 11070
+combining 9 1107F 1107F
+combining 9 110B9 110B9
+combining 7 110BA 110BA
+combining 230 11100 11102
+combining 9 11133 11134
+combining 7 11173 11173
+combining 9 111C0 111C0
+combining 7 111CA 111CA
+combining 9 11235 11235
+combining 7 11236 11236
+combining 7 112E9 112E9
+combining 9 112EA 112EA
+combining 7 1133B 1133C
+combining 9 1134D 1134D
+combining 230 11366 1136C
+combining 230 11370 11374
+combining 9 11442 11442
+combining 7 11446 11446
+combining 230 1145E 1145E
+combining 9 114C2 114C2
+combining 7 114C3 114C3
+combining 9 115BF 115BF
+combining 7 115C0 115C0
+combining 9 1163F 1163F
+combining 9 116B6 116B6
+combining 7 116B7 116B7
+combining 9 1172B 1172B
+combining 9 11839 11839
+combining 7 1183A 1183A
+combining 9 1193D 1193E
+combining 7 11943 11943
+combining 9 119E0 119E0
+combining 9 11A34 11A34
+combining 9 11A47 11A47
+combining 9 11A99 11A99
+combining 9 11C3F 11C3F
+combining 7 11D42 11D42
+combining 9 11D44 11D45
+combining 9 11D97 11D97
+combining 9 11F41 11F42
+combining 1 16AF0 16AF4
+combining 230 16B30 16B36
+combining 6 16FF0 16FF1
+combining 1 1BC9E 1BC9E
+combining 216 1D165 1D166
+combining 1 1D167 1D169
+combining 226 1D16D 1D16D
+combining 216 1D16E 1D172
+combining 220 1D17B 1D182
+combining 230 1D185 1D189
+combining 220 1D18A 1D18B
+combining 230 1D1AA 1D1AD
+combining 230 1D242 1D244
+combining 230 1E000 1E006
+combining 230 1E008 1E018
+combining 230 1E01B 1E021
+combining 230 1E023 1E024
+combining 230 1E026 1E02A
+combining 230 1E08F 1E08F
+combining 230 1E130 1E136
+combining 230 1E2AE 1E2AE
+combining 230 1E2EC 1E2EF
+combining 232 1E4EC 1E4ED
+combining 220 1E4EE 1E4EE
+combining 230 1E4EF 1E4EF
+combining 220 1E8D0 1E8D6
+combining 230 1E944 1E949
+combining 7 1E94A 1E94A

@@ -1,0 +1,20 @@
+{
+  "description": "A verbatim image keeps the original spelling.",
+  "grammar": "%rule text [{_}]\n%emits $ := $.decomposed-source-text :- $.verbatim-text",
+  "input": "Où",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "Où",
+              "image": "Où"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
