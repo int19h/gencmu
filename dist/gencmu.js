@@ -320,15 +320,16 @@
   /** A cached document needs source positions only when it raises an error.
    * @type {WeakMap<object,{document:string,node:object}>} */
   const boundaryDocumentErrors = new WeakMap();
-  /** @param {any} dom @param {any[]} tokens @param {(token:any)=>[number,number]} positionOf */
-  function restoreBoundaryLocations(dom,tokens,positionOf) {
+  /** Recover positions through the same reader as an uncached document.
+   * @param {any} dom @param {any} source */
+  function restoreBoundaryLocations(dom,source) {
     const atoms = dom.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
-    const selectors = tokens.flatMap((token,index) => BOUNDARY_METHODS.has(token.value) && tokens[index-1]?.text === "." && tokens[index+1]?.text === "(" ? [index] : []);
-    if (atoms.length !== selectors.length) return;
+    const originals = source.rules.flatMap((/** @type {any} */ rule) => boundaryAtoms([rule.conditions,rule.emit]));
+    if (atoms.length !== originals.length) return;
     atoms.forEach((/** @type {any} */ atom,/** @type {number} */ index) => {
-      const at = selectors[index];
-      boundaryLocations.set(atom,{at:positionOf(tokens[at-2])});
-      for (let argument=0;argument<atom.args.length;argument++) boundaryLocations.set(atom.args[argument],{at:positionOf(tokens[at+2+2*argument])});
+      const original = originals[index];
+      copyBoundaryLocation(original,atom);
+      atom.args.forEach((/** @type {any} */ argument,/** @type {number} */ target) => copyBoundaryLocation(original.args[target],argument));
     });
   }
 
@@ -16688,14 +16689,16 @@
         const document = /** @type {string} */ (boundary ? boundary.document : recipe ? recipe.document : error.group?.document);
         const text = this.need(document);
         const dom = this.documentDom(document);
-        const {text:body,positions} = extractGrammarText(text,document);
-        const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
-        if (lexical.ok) {
-          const tokens = /** @type {Token[]} */ (lexical.stages[0].output);
-          const positionOf = (/** @type {Token} */ token) => /** @type {[number,number]} */ (positions[token.source[0]] ?? [1,1]);
-          restoreRankedLocations(dom,tokens,positionOf);
-          restoreRecipeLocations(dom,tokens,positionOf);
-          restoreBoundaryLocations(dom,tokens,positionOf);
+        if (boundary) restoreBoundaryLocations(dom,this.readDocument(text,document,true));
+        else {
+          const {text:body,positions} = extractGrammarText(text,document);
+          const lexical = this.notation.parse(body,{features:new Set(),until:"lexical"});
+          if (lexical.ok) {
+            const tokens = /** @type {Token[]} */ (lexical.stages[0].output);
+            const positionOf = (/** @type {Token} */ token) => /** @type {[number,number]} */ (positions[token.source[0]] ?? [1,1]);
+            restoreRankedLocations(dom,tokens,positionOf);
+            restoreRecipeLocations(dom,tokens,positionOf);
+          }
         }
         // Rebuild from the same written DOMs to retain every diagnostic field.
         return build();
