@@ -1725,6 +1725,8 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
+The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text. Interpolated constants keep their exact scalar values.
+
 String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
