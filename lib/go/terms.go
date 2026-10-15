@@ -384,8 +384,12 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		case "image":
 			w.endTerm(value{kind: vString, s: ev.run.spanImage(w.span(ev, t.Items[0]))})
 			return nil
-		case "source-text":
-			w.endTerm(value{kind: vString, s: ev.run.spanText(w.span(ev, t.Items[0]))})
+		case "source-text", "decomposed-source-text":
+			text := ev.run.spanText(w.span(ev, t.Items[0]))
+			if t.Str == "decomposed-source-text" {
+				text = ev.run.ps.uni.decompose(text)
+			}
+			w.endTerm(value{kind: vString, s: text})
 			return nil
 		case "split":
 			// A set of strings (§10); an empty delimiter that only a parse

@@ -161,7 +161,7 @@ func (c *domChecker) recipe(t *domTerm) {
 			continue
 		}
 		r := atom.Items[0]
-		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "verbatim-text") {
+		if r.Kind == tmCapture && (atom.Str == "value" || atom.Str == "image" || atom.Str == "source-text" || atom.Str == "decomposed-source-text" || atom.Str == "verbatim-text") {
 			continue
 		}
 		if r.Kind == tmCall && r.Str == "emitted" && len(r.Items) == 1 && r.Items[0].Kind == tmCapture && (atom.Str == "value" || atom.Str == "image") {
@@ -397,7 +397,7 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 		valid := stringTermShape(t)
 		if t.Kind == tmCall && len(t.Items) == 1 {
 			receiver := t.Items[0]
-			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "verbatim-text")
+			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
 			if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
 				valid = t.Str == "value" || t.Str == "image"
 			}
@@ -457,7 +457,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := isSpanTerm(receiver)
 	valid := false
 	switch name {
-	case "value", "image", "source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
