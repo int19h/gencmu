@@ -437,7 +437,7 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"é"`, 0x10FFFD: `"$(_10FFFD)"`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"$(_00E9)"`, '각': `"$(_AC01)"`, 0x10FFFD: `"$(_10FFFD)"`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
 		}

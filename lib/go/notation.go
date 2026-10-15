@@ -446,7 +446,7 @@ func (b *domBuilder) text(n *Node) string {
 	return ""
 }
 
-// value reads the decomposed spelling. Text remains the original spelling.
+// tokenValue reads the decomposed spelling. Text remains the original spelling.
 func (b *domBuilder) tokenValue(n *Node) string {
 	if n.Kind == KindToken {
 		return b.toks[n.Token].Value

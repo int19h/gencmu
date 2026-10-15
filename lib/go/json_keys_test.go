@@ -47,6 +47,15 @@ func TestSharedJSONKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	unicode, err := os.ReadFile("../../grammars/unicode.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cacheIdentity := strings.NewReplacer(
+		"@bootstrap@", fnv1a64(string(bundled)),
+		"@source@", fnv1a64(fixtures.Grammar),
+		"@unicode@", fnv1a64(string(unicode)),
+	)
 	mutate := func(text, find, replacement string) string {
 		t.Helper()
 		if !strings.Contains(text, find) {
@@ -97,7 +106,7 @@ func TestSharedJSONKeys(t *testing.T) {
 				s[item.Document] = fixtures.Grammar
 				s["p.md"] = fmt.Sprintf("```jbogenbau\n%%stage main\n%%include %q\n```\n", item.Document)
 			}
-			s["compiled.json"] = strings.ReplaceAll(strings.ReplaceAll(mutate(fixtures.Cache, item.Find, item.Replace), "@bootstrap@", fnv1a64(string(bundled))), "@source@", fnv1a64(fixtures.Grammar))
+			s["compiled.json"] = cacheIdentity.Replace(mutate(fixtures.Cache, item.Find, item.Replace))
 			d, err := LoadDialectSources(s, "p.md")
 			if err != nil {
 				t.Fatal(err)

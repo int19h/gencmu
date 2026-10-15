@@ -66,6 +66,10 @@ A `*Dialect` is safe for concurrent use. Source positions count Unicode code poi
 
 A `Token` has `Value`, the string that recognition reads, and `Image`, the string that brackets show. Both strings remain exact. Each grammar recipe computes its chosen output channel. Ordinary concatenation adds no separator. The engine applies no lowercase conversion, comma removal, or pause join.
 
+The engine applies Unicode Normalization Form D (NFD) before stage zero. NFD splits precomposed characters and orders their combining marks. The shared Unicode table supplies all mappings and combining classes. The engine keeps the original text and source positions. `ParseTokens` bypasses decomposition.
+
+Grammar documents use the same decomposition. Written strings decompose, but interpolated constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 28. The fingerprint is the FNV-1a hash of the table text.
+
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 
 ## The grammar copy
