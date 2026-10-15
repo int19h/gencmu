@@ -106,3 +106,31 @@ class GrammarReading(unittest.TestCase):
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text ' + terminal)
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         self.assertTrue(dialect.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)
+
+
+class DecomposedSource(unittest.TestCase):
+    def test_conditions_and_recipes_use_the_configured_table(self) -> None:
+        table = bundled_text("unicode.txt") or ""
+        sparse = "\n".join(line for line in table.splitlines() if not line.startswith(("decompose ", "combining ")))
+        for data, expected in ((table, "e\u0301"), (sparse, "é")):
+            with self.subTest(expected=expected):
+                texts = {"unicode.txt": data, "p.md": document('%stage main\n%include "g.md"'),
+                         "g.md": document('%ambiguity-resolution greedy\n%rule text $x:_\n%conditions $x.decomposed-source-text = "é"\n'
+                                          '%emits\n$x := $x.decomposed-source-text :- $x.source-text')}
+                dialect = gencmu.load_dialect_sources(texts, "p.md")
+                token = gencmu.Token("é", frozenset(), (0, 1), (0, 1), value="untouched")
+                result = dialect.parse_tokens([token], "é")
+                self.assertTrue(result.ok, result.error)
+                output = result.stages[0].output[0]
+                self.assertEqual((output.value, output.image, output.text, output.source), (expected, "é", "é", (0, 1)))
+                self.assertEqual(token.value, "untouched")
+
+    def test_an_observed_source_is_decomposed_alone(self) -> None:
+        texts = {"p.md": document('%stage main\n%include "g.md"'),
+                 "g.md": document('%ambiguity-resolution greedy\n%rule text $x:_\n%emits\n$x := $x.decomposed-source-text')}
+        dialect = gencmu.load_dialect_sources(texts, "p.md")
+        # The token covers the acute alone, outside the preceding cluster.
+        token = gencmu.Token("\u0301", frozenset(), (0, 1), (1, 2), value="x")
+        result = dialect.parse_tokens([token], "á\u0301\u0323")
+        self.assertTrue(result.ok, result.error)
+        self.assertEqual(result.stages[0].output[0].value, "\u0301")
