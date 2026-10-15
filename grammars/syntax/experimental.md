@@ -39,7 +39,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] #`. So free modifiers can follow an elided terminator.
 
-`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. The number rule excludes a following number part. The letter rule excludes a following letter word. An empty free slot still shows the next word. A written BOI permits the boundary.
+The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
@@ -767,12 +767,17 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 %redefine-rule number
   {number-part}
+%conditions
+  ¬$.followed-by(number-part)
 
 %rule number-part
   PA | NIhE # selbri [+TEhU] # | MOhE # sumti [+TEhU] #
 
 %redefine-rule lerfu-string
   {lerfu-word}
+%conditions
+  ¬$.followed-by(lerfu-word)
+
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
@@ -917,7 +922,7 @@ A vocative starts with a run of COI words, DOI, or both. A COI run returns no ta
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. A written BOI permits a separate number or lerfu string after it.
 
-With BOI omitted, the first-token test starts at the selected free slot and sees the remaining input, even when the slot reads nothing. PA, NIhE and MOhE start number parts. BY, LAU and TEI start letter words. Another such word therefore continues the current number or string. The constants `$NUMBER-START` and `$LERFU-START` hold these classes.
+The number and letter-string rules refuse an actual following run part. With written BOI, that terminal follows the run, so the condition holds. With BOI omitted, another number part or letter word continues the current run. The free-slot wrappers retain their names in the tree.
 
 So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
 
@@ -957,21 +962,11 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
 
-%const $NUMBER-START PA ∪ NIhE ∪ MOhE
-
-%const $LERFU-START BY ∪ LAU ∪ TEI
-
 %rule free-after-number
-  (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
-  [+BOI] $f:#
-%conditions
-  BOI ⊆ $.first-token.tags ∨ $NUMBER-START ∩ $f.onward.first-token.tags ⊆ ∅
+  [+BOI] #
 
 %rule free-after-lerfu-string
-  (* lerfu_string BOI_elidible free*: after an elided boi, the string has read every letter *)
-  [+BOI] $f:#
-%conditions
-  BOI ⊆ $.first-token.tags ∨ $LERFU-START ∩ $f.onward.first-token.tags ⊆ ∅
+  [+BOI] #
 
 %rule lohai-word
   Word<¬LOhAI ¬LEhAI>
