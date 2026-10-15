@@ -428,9 +428,11 @@ A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neit
 
 An `%extend-rule` takes its own header clauses, never those of the base definition. This stressed mapping supplies its tag explicitly:
 
+Stage zero decomposes the text, so an accented letter arrives as its base and a combining mark.
+
 ```jbogenbau
 %extend-rule stressed-vowel
-  | "Á" :: Stressed := "A"
+  | "A" $_0301 :: Stressed := "A"
 %emits
 ```
 

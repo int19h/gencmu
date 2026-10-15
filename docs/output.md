@@ -43,6 +43,8 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `image` always exists and can be empty or contain line breaks. It can include adjacent text outside the token's source interval. `text` remains the original source interval and never expands through an image recipe.
 
+In the first stage, a token over one precomposed character has that character's source and text, though its value is decomposed.
+
 `insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
 
 `before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicator stage of the `cll-ebnf` dialect emits:
@@ -152,13 +154,13 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":27,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
+Its envelope is `{"format":28,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 27 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
+DOM format 28 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants.
 
-Format 26 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":27,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 28 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":28,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -425,7 +427,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":27,"bootstrap":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. A library uses an entry only when the format, the hash of the bootstrap and the hash of the document all match.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":28,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents. A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 
 A precompiled DOM holds the document's constants, classifiers and implications as the document writes them. The loader gives the constants their values when it stitches a stage, and a stage resolves a classifier for the features of a parse. So one precompiled DOM serves every stage, dialect and set of features that uses the document (engine §2, §8).
 
