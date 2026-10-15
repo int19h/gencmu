@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 A layer is a document that changes earlier rules. The syntax layer follows camxes-exp, the experimental grammar of the camxes parser. [`../syntax/experimental.md`](../syntax/experimental.md) explains its additions to CLL.
 
-A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is the phoneme stage of the bpfk dialect ([`bpfk.md`](bpfk.md)). The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
+A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. The phoneme stage is that of the bpfk dialect, with the conventions of `latin-experimental.md` and `cyrillic-experimental.md`. The forms stage reads the working word forms of the BPFK, the Lojban language planning committee ([`../words/bpfk.md`](../words/bpfk.md)). A selma'o is a word class of cmavo. A lexicon gives the experimental cmavo their selma'o.
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`../words/experimental.md`](../words/experimental.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds bare NAI indicators and keeps flat attachment.
 
@@ -32,6 +32,10 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
   ```jbogenbau
   %include "../phonemes/latin.md"
   ```
+- [Experimental Latin conventions](../phonemes/latin-experimental.md): genuine punctuation, quotation marks, marks, glide letters, krulermorna and the dieresis
+  ```jbogenbau
+  %include "../phonemes/latin-experimental.md"
+  ```
 - [Cyrillic orthography](../phonemes/cyrillic.md): gencmu's Cyrillic, the default
   ```jbogenbau
   %include "../phonemes/cyrillic.md"
@@ -39,6 +43,10 @@ The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, whi
 - [The Cyrillic orthography of CLL](../phonemes/cyrillic-cll.md): the Cyrillic of CLL[^cll-s3-12], which a caller chooses with the feature `cll-cyrillic`
   ```jbogenbau
   %include "../phonemes/cyrillic-cll.md"
+  ```
+- [Experimental Cyrillic conventions](../phonemes/cyrillic-experimental.md): marks on the letters of both Cyrillic orthographies
+  ```jbogenbau
+  %include "../phonemes/cyrillic-experimental.md"
   ```
 - [zbalermorna](../phonemes/zbalermorna.md)
   ```jbogenbau
