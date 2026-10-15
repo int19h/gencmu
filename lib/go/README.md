@@ -36,7 +36,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 27 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
+Grammar document object model (DOM) format 28 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 

@@ -173,7 +173,7 @@ class Compiled(unittest.TestCase):
 
 class Lexical(unittest.TestCase):
     def test_the_lexical_stage_tags_braces_and_the_backslash(self) -> None:
-        """Stored token tags follow the format-27 lexical grammar.
+        """Stored token tags follow the format-28 lexical grammar.
 
         Punctuation retains its stage-zero categories. Strings carry their
         lexical tag. Backslash values use engine interpolation (engine §9).

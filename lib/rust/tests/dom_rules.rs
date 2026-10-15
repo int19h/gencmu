@@ -97,7 +97,7 @@ fn a_well_formed_dom_is_used() {
     // Attachments before and after a named capture (§11).
     assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"y","before":["x"]}]}"#)));
     assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x","after":["y"]}]}"#)));
-    // `%emits ε` inserts a token in format 27 (§9).
+    // `%emits ε` inserts a token in format 28 (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[{"insert":true}]}"#)));
     // `%erased` removes the constituent from emission and counted parts (§11).
     assert!(!document_was_read(&dom(B, r#","erased":true"#, "", DOM_FORMAT, r#""greedy""#)));
