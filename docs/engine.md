@@ -2219,6 +2219,8 @@ A grammar error found while parsing is a result. Examples are a nested parse ask
 
 ## 14. Bundled dialect contracts
 
+In experimental syntax, an initial connective never immediately follows a leading free modifier in the same derivation.
+
 In experimental syntax, a bare NA or tag term can omit KU only before a written closing word or the input's end. The term includes its own free modifiers before this test. The closing words are I, NIhO, CU, GI, BEI, a gihek, and every written terminator. A bare NA term can also omit KU before a sumti in the same derivation. Plain and BO term links use the sumti checks of `grammars/syntax/experimental.md`.
 
 Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.

@@ -86,6 +86,8 @@ A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern fi
 
 The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
 
+An initial connective cannot immediately follow a leading free modifier in the same reading. Thus `doi zed jinvi jena morji` reads the vocative `doi zed` before one sentence with connected bridi-tails.
+
 ```jbogenbau
 %const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
 
@@ -93,7 +95,8 @@ The ranked choice compares complete candidates and prefers the form without an i
   | ¬cbm? [{NAI}] {CMEVLA} # (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
-  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token)
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token),
+  ¬$c.preceded-by(free)
 
 %rule text-token
   _
