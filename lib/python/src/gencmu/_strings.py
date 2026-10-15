@@ -44,7 +44,8 @@ def spelling(value: str, unicode: Any) -> str:
             out.append("$$")
         elif (code <= 0x1F or 0x7F <= code <= 0x9F or code in (0x22, 0x5C)
               or 0xE000 <= code <= 0xF8FF or 0xF0000 <= code <= 0xFFFFD
-              or 0x100000 <= code <= 0x10FFFD or unicode.is_mark(code)):
+              or 0x100000 <= code <= 0x10FFFD or unicode.is_mark(code)
+              or unicode.changes_in_document(code)):
             out.append(f"$(_{code:04X})")
         else:
             out.append(char)

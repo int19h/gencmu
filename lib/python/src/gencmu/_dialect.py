@@ -168,9 +168,9 @@ class NotationReader:
     def __init__(self, bootstrap: str, unicode: UnicodeTable) -> None:
         self.hash = fnv1a64(bootstrap)
         self.unicode = unicode
-        # The DOMs this reader read, by the hash of the text and the DOM
-        # format. The module's lock guards it.
-        self.doms: Recent[tuple[str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
+        # Each DOM uses the document hash, bootstrap hash, table fingerprint
+        # and DOM format. The module's lock guards it.
+        self.doms: Recent[tuple[str, str, str, int], Dom] = Recent(_MAX_DOMS, _MAX_DOM_SIZE)
         try:
             self.stages = self._bootstrap_stages(bootstrap, unicode)
         except GencmuError as error:
@@ -350,7 +350,7 @@ def _compiled_index(compiled: str | None, bootstrap_hash: str, unicode_text: str
     unicode = _unicode_table(unicode_text)
     try:
         data = json.loads(compiled)
-        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash:
+        if data.get("format") == DOM_FORMAT and data.get("bootstrap") == bootstrap_hash and data.get("unicode") == unicode.fingerprint:
             for entry in data.get("documents", {}).values():
                 # A malformed entry is a miss: its document is read afresh.
                 if isinstance(entry, dict) and isinstance(entry.get("hash"), str) and dom_problem(entry.get("dom"), unicode) is None:
@@ -400,7 +400,7 @@ class _Loader:
         # The reader keeps the DOMs it read. So the bootstrap and the Unicode
         # table are part of the key: a value test that one table accepts
         # another may refuse (engine §9).
-        key = (text_hash, DOM_FORMAT)
+        key = (text_hash, self.reader.hash, self.unicode.fingerprint, DOM_FORMAT)
         if self.use_cache:
             found = self.compiled.get(text_hash)
             if found is not None:
