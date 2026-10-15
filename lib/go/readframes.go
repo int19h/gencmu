@@ -171,7 +171,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "repetition":
 		return f.startRepetition(b)
 	case "reference":
-		return give(&domExpr{Kind: exRef, Name: b.text(b.token(n))})
+		return give(&domExpr{Kind: exRef, Name: b.tokenValue(b.token(n))})
 	case "tag":
 		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n))})
 	case "string-terminal":
@@ -195,10 +195,10 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 		}
 		captureToken := b.token(n)
 		inner := b.only(n, "primary")
-		if b.text(captureToken) == "$" {
+		if b.tokenValue(captureToken) == "$" {
 			b.fail(n, "$ is the whole constituent and wraps nothing")
 		}
-		name := strings.TrimPrefix(b.text(captureToken), "$")
+		name := strings.TrimPrefix(b.tokenValue(captureToken), "$")
 		if !captureName.MatchString(name) {
 			b.fail(n, "a capture's name is all lower case")
 		}
@@ -239,7 +239,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	choice := b.only(n, "choice")
 	var markers []*Node
 	for _, p := range parts(n) {
-		if p.Kind == KindToken && b.text(p) == "+" {
+		if p.Kind == KindToken && b.tokenValue(p) == "+" {
 			markers = append(markers, p)
 		}
 	}
@@ -253,7 +253,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 	const form = "an elidable optional begins with its terminator, a name with a capital or ~name, written directly after the marker, and joins it to nothing with | or &"
 	hasToken := func(node *Node, text string) bool {
 		for _, p := range parts(node) {
-			if p.Kind == KindToken && b.text(p) == text {
+			if p.Kind == KindToken && b.tokenValue(p) == text {
 				return true
 			}
 		}
@@ -270,7 +270,7 @@ func (f *exprFrame) startOptional(b *domBuilder) readStep {
 		}
 	}
 	isTerminal := func(symbol *Node) bool {
-		return (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.text(b.token(symbol)))
+		return (symbol.Rule == "tag" || symbol.Rule == "reference") && isCapital(b.tokenValue(b.token(symbol)))
 	}
 	switch {
 	case head == nil:
@@ -305,7 +305,7 @@ func (f *exprFrame) startRepetition(b *domBuilder) readStep {
 	}
 	var markers []int
 	for i, p := range found {
-		if p.Kind == KindToken && b.text(p) == "..." {
+		if p.Kind == KindToken && b.tokenValue(p) == "..." {
 			markers = append(markers, i)
 		}
 	}
@@ -470,7 +470,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		var ops []string
 		for _, p := range parts(n) {
 			if p.Kind == KindToken {
-				if t := b.text(p); t == "∪" || t == "∖" {
+				if t := b.tokenValue(p); t == "∪" || t == "∖" {
 					ops = append(ops, t)
 				}
 			}
@@ -509,7 +509,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "name":
 		// A bare name is a tag literal if it begins with a capital, and
 		// otherwise a rule, which only a function's argument names.
-		name := b.text(b.token(n))
+		name := b.tokenValue(b.token(n))
 		switch {
 		case isCapital(name):
 			return give(&domTerm{Kind: tmTag, Str: name})
@@ -522,7 +522,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 	case "constant-reference":
 		return give(b.constantRef(n))
 	case "capture-reference":
-		name := strings.TrimPrefix(b.text(b.token(n)), "$")
+		name := strings.TrimPrefix(b.tokenValue(b.token(n)), "$")
 		if b.closedFor != "" {
 			b.fail(n, "%s is a closed term, and holds no capture", b.closedFor)
 		}
@@ -643,11 +643,11 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			f.pass = true
 			return ask(&conditionFrame{n: b.knownOf(n, conditionRules)})
 		case "tree-comparison":
-			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.text(b.token(b.only(n, "capture-reference"))), "$")}}
+			f.compare = &domCond{Kind: cdCompare, Left: &domTerm{Kind: tmCapture, Str: strings.TrimPrefix(b.tokenValue(b.token(b.only(n, "capture-reference"))), "$")}}
 			f.compare.Op = b.operator(b.token(b.only(n, "tree-comparator")))
 			right := b.only(n, "union")
 			if name := firstOfRule(right, "name"); name != nil && firstOfRule(right, "pattern-literal") == nil && len(ofRule(right, "intersection")) == 1 {
-				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.text(b.token(name)), b.text(b.token(name)))
+				b.fail(name, "tree comparison requires a pattern; write @(%s), not %s", b.tokenValue(b.token(name)), b.tokenValue(b.token(name)))
 			}
 			return ask(&valueFrame{n: right})
 		case "comparison":
@@ -657,7 +657,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 			return ask(&valueFrame{n: ps[0]})
 		case "negation", "method", "implication":
 		case "presence":
-			return give(&domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.text(b.token(n)), "$")})
+			return give(&domCond{Kind: cdCaptured, Rule: strings.TrimPrefix(b.tokenValue(b.token(n)), "$")})
 		default:
 			b.fail(n, "unexpected %s in a condition", n.Rule)
 		}

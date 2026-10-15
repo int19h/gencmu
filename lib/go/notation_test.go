@@ -35,6 +35,7 @@ func TestNotationCases(t *testing.T) {
 		}
 		var c struct {
 			Description string `json:"description"`
+			CacheMisses bool   `json:"cacheMisses"`
 			Document    string `json:"document"`
 			Expect      struct {
 				Dom   *any `json:"dom"`
@@ -68,6 +69,9 @@ func TestNotationCases(t *testing.T) {
 			}
 			if err := match(pattern, domValue(t, dom), "dom"); err != nil {
 				t.Fatalf("%s\n%v\n%s", c.Description, err, dom.json())
+			}
+			if c.CacheMisses {
+				notationCacheCases(t, c.Document, dom)
 			}
 		})
 	}

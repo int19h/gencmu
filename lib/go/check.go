@@ -106,6 +106,8 @@ type elisionWatch struct {
 // which a parse takes through an unexported field of ParseOptions, so that
 // no caller can set them and parses that run at once keep them apart.
 type privateOptions struct {
+	// stageZero observes character construction, before decomposition.
+	stageZero     func([]rune)
 	familyOracle  func(*recognizer, *item)
 	slotAdmission func(slotStatistics)
 	// elisionCheck, when set, receives each check of elision-only that

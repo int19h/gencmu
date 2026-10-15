@@ -677,14 +677,14 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 			first := xs[0]
 			// Groups and nested literals cannot take tests. Reject those tests
 			// before scheduling their contents for conversion (engine §9.3).
-			if first.Kind == KindToken && b.text(first) == "(" || first.Rule == "pattern-literal" {
+			if first.Kind == KindToken && b.tokenValue(first) == "(" || first.Rule == "pattern-literal" {
 				for _, part := range ruleParts(n) {
 					if part.Rule == "tag-test" || part.Rule == "value-test" {
 						b.fail(part, "invalid pattern test target or order")
 					}
 				}
 			}
-			if first.Kind == KindToken && b.text(first) == "(" {
+			if first.Kind == KindToken && b.tokenValue(first) == "(" {
 				children = ofRule(n, "pattern-union")
 			} else if first.Rule == "pattern-literal" {
 				children = ofRule(first, "pattern-union")
@@ -717,7 +717,7 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 				var ops []string
 				for _, t := range parts(n) {
 					if t.Kind == KindToken {
-						ops = append(ops, b.text(t))
+						ops = append(ops, b.tokenValue(t))
 					}
 				}
 				for i, x := range xs[1:] {
@@ -770,7 +770,7 @@ func (b *domBuilder) readPattern(root *Node) *domPattern {
 			result = &domPattern{Kind: "repeat", Items: xs}
 		case "pattern-path":
 			// The direct operator token can follow the named atom.
-			operator := b.text(b.token(n))
+			operator := b.tokenValue(b.token(n))
 			name := map[string]string{"⋮": "descendant", "⋰": "first", "⋱": "last"}[operator]
 			result = patternChildren(&domPattern{Kind: "path", Name: name, Items: []*domPattern{patternNode(xs[0])}})
 		}

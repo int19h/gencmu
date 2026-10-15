@@ -56,6 +56,9 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 // characterTokens is the first stage's input (engine §1): one token per
 // decomposed code point, with original sources and category tags.
 func (ps *parseState) characterTokens() []Token {
+	if ps.private != nil && ps.private.stageZero != nil {
+		ps.private.stageZero(ps.text)
+	}
 	decomposed := ps.uni.decomposeWithOrigins(ps.text)
 	toks := make([]Token, len(decomposed))
 	for i, scalar := range decomposed {
