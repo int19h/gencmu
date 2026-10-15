@@ -1527,8 +1527,18 @@ impl<'a> Reader<'a> {
         } else {
             match (name, arguments) {
                 (
-                    "value" | "image" | "source-text" | "first-token" | "tokens-after-first" | "last-token" | "onward"
-                    | "following-tokens" | "classes" | "starts-input" | "tags",
+                    "value"
+                    | "image"
+                    | "source-text"
+                    | "decomposed-source-text"
+                    | "first-token"
+                    | "tokens-after-first"
+                    | "last-token"
+                    | "onward"
+                    | "following-tokens"
+                    | "classes"
+                    | "starts-input"
+                    | "tags",
                     [],
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
@@ -1903,7 +1913,10 @@ impl<'a> Reader<'a> {
                         Term::Str(_) | Term::Const(..) => true,
                         Term::Call(name, args) if name == "interpolate" => !args.is_empty(),
                         Term::Call(name, args)
-                            if matches!(name.as_str(), "value" | "image" | "text" | "verbatim-text") =>
+                            if matches!(
+                                name.as_str(),
+                                "value" | "image" | "text" | "decomposed-source-text" | "verbatim-text"
+                            ) =>
                         {
                             matches!(&args[..], [Arg::Term(Term::Capture(_))])
                                 || matches!(name.as_str(), "value" | "image")

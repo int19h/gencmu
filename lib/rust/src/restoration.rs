@@ -402,7 +402,12 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
     fn term(t: &LTerm, p: &Prod, w: &mut FxSet<u32>, todo: &mut Vec<u32>) {
         match t {
             LTerm::TagsRule(s, r) => query(s, *r, p, w, todo),
-            LTerm::Text(s) | LTerm::Value(s) | LTerm::Image(s) | LTerm::Tags(s) | LTerm::Classes(s) => span(s, p, w),
+            LTerm::Text(s)
+            | LTerm::DecomposedText(s)
+            | LTerm::Value(s)
+            | LTerm::Image(s)
+            | LTerm::Tags(s)
+            | LTerm::Classes(s) => span(s, p, w),
             LTerm::If(c, t) => {
                 cond(c, p, w, todo);
                 term(t, p, w, todo);
@@ -737,6 +742,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
         match t {
             LTerm::TagsRule(s, _)
             | LTerm::Text(s)
+            | LTerm::DecomposedText(s)
             | LTerm::Value(s)
             | LTerm::Image(s)
             | LTerm::Tags(s)

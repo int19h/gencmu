@@ -136,7 +136,7 @@ fn recipe_atom(value: &Json) -> bool {
                 || receiver.get("method").and_then(Json::as_str) == Some("emitted")
                     && receiver.get("receiver").is_some_and(bare_capture)
         }
-        Some("source-text" | "verbatim-text") => bare_capture(receiver),
+        Some("source-text" | "decomposed-source-text" | "verbatim-text") => bare_capture(receiver),
         _ => false,
     }
 }
@@ -511,8 +511,15 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                                     && receiver.get("method").and_then(Json::as_str) == Some("emitted")
                         }
                         (
-                            "source-text" | "first-token" | "last-token" | "tokens-after-first" | "onward"
-                            | "following-tokens" | "classes" | "tags",
+                            "source-text"
+                            | "decomposed-source-text"
+                            | "first-token"
+                            | "last-token"
+                            | "tokens-after-first"
+                            | "onward"
+                            | "following-tokens"
+                            | "classes"
+                            | "tags",
                             [],
                         ) => span(receiver),
                         ("tags", [arg]) => {
