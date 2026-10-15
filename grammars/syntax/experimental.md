@@ -265,11 +265,11 @@ A connection that can be a sumti connection is one. Terms are connected only whe
 
 Without this rule, each of the first three texts has two readings that elide the same terminators.
 
-The rules `term` and `term-bo-group`, and their forms in a list of terms, state the rule. Each is left-recursive, so that its condition sees the part before a connective and the link after it. The condition refuses a link where the part before ends with a sumti that the connective can extend, and the link begins with a sumti. So the tree of three or more connected terms nests to the left, as they group.
+The plain term-link preference also selects a sumti connection over a term connection. The BO groups retain their conditions. Each condition tests the part before a BO connective and the link after it. It refuses the link when both parts can form one sumti.
 
-Tags carry what the condition needs, so that it never parses the part before again. A tag `Link-Extensible-End` says that a part ends with a sumti that a plain connective can extend. `Bo-Extensible-End` says the same for a connective with `bo`. `Sumti-Start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each of these rules passes them up from its first or its last part.
+Two tags carry the BO conditions. `Bo-Extensible-End` marks a sumti that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. The relevant rules pass these tags from their first or last part.
 
-`sumti-2` has both end tags, since a connective can always extend it. A `ke` group with a written `ke'e` has none, so `mi .e ke do ke'e .e ko'a klama` joins two terms. After `vu'o`, a plain connective can extend the sumti, but a connective with `bo` cannot. `$EXTENSIBLE-END` holds the two end tags.
+`sumti-2` carries `Bo-Extensible-End`. A `ke` group with written `ke'e` lacks it, so `mi .e ke do ke'e .e ko'a klama` joins terms. A BO connective cannot extend a sumti after `vu'o`.
 
 A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `Sumti-Start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
 
@@ -296,24 +296,20 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 %redefine-rule term
   (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
   | term-bo-group
-  | $t:term $l:term-link :: $l.tags ∩ $EXTENSIBLE-END
-%conditions
-  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
+  | term term-link
 
 %rule term-bo-group
   (* term_2 <- term_3 (joik_ek stag? BO_clause term_3)* *)
   | term-3
-  | $g:term-bo-group $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:term-bo-group $l:term-bo-link :: $l.tags ∩ Bo-Extensible-End
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule term-bo-link
-  connective [stag] BO # $u:term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective [stag] BO # $u:term-3 :: $u.tags ∩ (Bo-Extensible-End ∪ Sumti-Start)
 
 %rule(fewest) term-link
-  connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-
-%const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
+  connective term-bo-group
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -338,28 +334,26 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
-  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
-  | $g:tag [+KU] #
+  | tag $s:sumti :: $s.tags ∩ Bo-Extensible-End
+  | tag [+KU] #
 
 %rule listed-term
   (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
   | listed-term-bo-group
-  | $t:listed-term $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
-%conditions
-  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
+  | listed-term listed-term-link
 
 %rule listed-term-bo-group
   (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
   | listed-term-3
-  | $g:listed-term-bo-group $l:listed-term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:listed-term-bo-group $l:listed-term-bo-link :: $l.tags ∩ Bo-Extensible-End
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
 %rule listed-term-bo-link
-  connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ (Bo-Extensible-End ∪ Sumti-Start)
 
 %rule(fewest) listed-term-link
-  connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
+  connective listed-term-bo-group
 
 %rule listed-term-3
   (* abs_term_3 <- sumti / abs_tag_term / termset *)
@@ -374,8 +368,8 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 
 %rule listed-tagged-term
   (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
-  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
-  | $g:tag [+KU] #
+  | tag $s:sumti :: $s.tags ∩ Bo-Extensible-End
+  | tag [+KU] #
 %conditions
   $ ≇ $BARE-TAG ∨ ¬$.followed-by(selbri | selbri-6 | gek-sentence | #)
 
@@ -460,14 +454,14 @@ A description can take a forethought sentence in place of a selbri, and so can a
 ```jbogenbau
 %redefine-rule sumti
   | sumti-1
-  | $s:sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End ∪ ($s.tags ∩ Quantifier-Start)
-  | $s:sumti-1 VUhO # [relative-clauses] connective $i:sumti :: ($s.tags ∩ Quantifier-Start) ∪ ($i.tags ∩ $EXTENSIBLE-END)
+  | $s:sumti-1 VUhO # [relative-clauses] :: $s.tags ∩ Quantifier-Start
+  | $s:sumti-1 VUhO # [relative-clauses] connective $i:sumti :: $s.tags ∩ Quantifier-Start ∪ ($i.tags ∩ Bo-Extensible-End)
 
 %redefine-rule sumti-1
   | sumti-2
-  | $s:sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: ($s.tags ∩ Quantifier-Start) ∪ (KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END)
+  | $s:sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: $s.tags ∩ Quantifier-Start ∪ (KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ Bo-Extensible-End)
 
-%redefine-rule sumti-2 :: $EXTENSIBLE-END ∪ ($s.tags ∩ Quantifier-Start)
+%redefine-rule sumti-2 :: Bo-Extensible-End ∪ ($s.tags ∩ Quantifier-Start)
   | $s:sumti-3
   | $s:sumti-2 connective sumti-3
 
@@ -1042,7 +1036,7 @@ The listed-term restrictions reject `nu'i na broda` and `nu'i pu broda`, as camx
 
 A bare NA term keeps its own free modifiers. Thus `mi klama na to broda` contains a term whose parenthesis holds BRODA. In `na to broda`, `na na to broda` and `na na na to broda`, each NA is a term. The last term owns the parenthesis, as in camxes-exp. Written TOI keeps these terms in `na to broda toi`, `na na to broda toi` and `mi klama na to broda toi`.
 
-camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
+camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses `fewest` for plain links and conditions for BO links. Both therefore prefer the sumti when both readings complete.
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
 
