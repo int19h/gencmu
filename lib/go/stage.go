@@ -54,16 +54,18 @@ func (ps *parseState) lineColumn(pos int) (int, int) {
 }
 
 // characterTokens is the first stage's input (engine §1): one token per
-// code point, with stored General_Category, major category and White_Space tags.
+// decomposed code point, with original sources and category tags.
 func (ps *parseState) characterTokens() []Token {
-	toks := make([]Token, len(ps.text))
-	for i, c := range ps.text {
+	decomposed := ps.uni.decomposeWithOrigins(ps.text)
+	toks := make([]Token, len(decomposed))
+	for i, scalar := range decomposed {
+		c, origin := scalar.character, scalar.origin
 		category := ps.uni.category(c)
 		tags := []string{"_" + category, "_" + category[:1]}
 		if ps.uni.isWhiteSpace(c) {
 			tags = append(tags, "_White_Space")
 		}
-		toks[i] = Token{Text: string(c), Value: string(c), Image: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{i, i + 1}}
+		toks[i] = Token{Text: string(ps.text[origin]), Value: string(c), Image: string(c), Tags: tags, Span: [2]int{i, i + 1}, Source: [2]int{origin, origin + 1}}
 	}
 	return toks
 }
