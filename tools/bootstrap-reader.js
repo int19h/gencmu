@@ -112,10 +112,18 @@ function lex(text, originalPositions) {
     }
     return { end: j + 1, reach: j };
   };
-  // Whether a guard begins at `j`: a name and `?` or `!`, or `¬`, a name
-  // and `?`.
-  const guardAt = (j) => (isLetter(chars[j]) && (chars[featureEnds[j]] === "?" || chars[featureEnds[j]] === "!")) ||
-    (chars[j] === "¬" && isLetter(chars[j + 1]) && chars[featureEnds[j + 1]] === "?");
+  // The end of a guard at `j`, or null when no guard starts there.
+  const guardEnd = (j) => {
+    if (isLetter(chars[j])) {
+      const end = featureEnds[j];
+      return chars[end] === "?" || chars[end] === "!" ? end + 1 : null;
+    }
+    if (chars[j] === "¬" && isLetter(chars[j + 1])) {
+      const end = featureEnds[j + 1];
+      if (chars[end] === "?") return end + 1;
+    }
+    return null;
+  };
   // The pieces that can begin at `i`, each its end and its kind (null for
   // layout), longest first, and the furthest character that any of them,
   // complete or not, reaches.
@@ -148,12 +156,14 @@ function lex(text, originalPositions) {
     }
     if (c === "¬") {
       // `¬`, a negation, unless a guard begins after it; or `¬`, a name
-      // and `?`, a guard. The negation reads its `¬` before its condition
-      // fails.
+      // and `?`, a guard. A doomed negation can read the following guard
+      // before the boundary condition fails, so that guard's end counts
+      // toward the furthest live position.
       const end = isLetter(chars[i + 1]) ? featureEnds[i + 1] : i + 1;
+      const following = guardEnd(i + 1);
       if (end > i + 1 && chars[end] === "?") found.push([end + 1, "guard"]);
-      if (!guardAt(i + 1)) found.push([i + 1, "¬"]);
-      reach = Math.max(reach, end, i + 1);
+      if (following === null) found.push([i + 1, "¬"]);
+      reach = Math.max(reach, end, i + 1, following ?? 0);
     }
     if (c === "$") {
       prefixed(i + 1, (word) => (isCapital(word.slice(1)) ? "constant" : "capture"));
