@@ -30,7 +30,7 @@ class JsonKeys(unittest.TestCase):
         for item in fixtures["compiled"]:
             with self.subTest(case=item["description"]):
                 self.assertIn(item["find"], fixtures["cache"])
-                cache = fixtures["cache"].replace(item["find"], item["replace"], 1).replace("@bootstrap@", fnv1a64(bundled)).replace("@source@", fnv1a64(fixtures["grammar"]))
+                cache = fixtures["cache"].replace(item["find"], item["replace"], 1).replace("@bootstrap@", fnv1a64(bundled)).replace("@unicode@", fnv1a64((REPOSITORY / "grammars/unicode.txt").read_text())).replace("@source@", fnv1a64(fixtures["grammar"]))
                 document = item.get("document", "g.md")
                 case_sources = {"p.md": '```jbogenbau\n%stage main\n%include ' + json.dumps(document) + '\n```\n', document: fixtures["grammar"]}
                 dialect = gencmu.load_dialect_sources({**case_sources, "compiled.json": cache}, "p.md")

@@ -483,7 +483,7 @@ class SharedClauses(Linear):
                 "at": [3, 1],
             }
             dom = {
-                "format": 27,
+                "format": 28,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -513,7 +513,7 @@ class SharedClauses(Linear):
                 "at": [2, 1],
             }
             dom = {
-                "format": 27,
+                "format": 28,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [],
@@ -603,7 +603,7 @@ class GuardedClauses(Linear):
             **clause(n),
         }
         dom = {
-            "format": 27,
+            "format": 28,
             "rules": [rule],
             "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -717,7 +717,7 @@ class Classifiers(Linear):
 
 def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, Any]:
     return {
-        "format": 27,
+        "format": 28,
         "rules": [
             {"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)

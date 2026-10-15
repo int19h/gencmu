@@ -482,7 +482,7 @@ class PrecompiledDomRules(unittest.TestCase):
         sources = {"p.md": PIPELINE, "g.md": DOCUMENT, "h.md": NEXT}
         if dom is not None:
             sources["compiled.json"] = json.dumps(
-                {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
+                {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
             )
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=dom is not None)
         return gencmu.to_json(dialect.parse("a", auto_features=False))
@@ -1085,7 +1085,7 @@ class CharacterClassLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse("zb", auto_features=False))
 
@@ -1240,7 +1240,7 @@ class MixedFormLoading(unittest.TestCase):
 
         def parse(dom: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(MIXED_DOCUMENT), "dom": dom}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(tokens, "ok b", auto_features=False))
 
@@ -1372,7 +1372,7 @@ class Constants(unittest.TestCase):
 
         def parse(entry: Dom) -> str:
             documents = {"g.md": {"hash": fnv1a64(CONSTANT_SOURCES["g.md"]), "dom": entry}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
             return gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False))
 
@@ -1420,7 +1420,7 @@ class Constants(unittest.TestCase):
         self.assertEqual(dom_problem(read_json(deep)), "nested too deeply")
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
         compiled = (
-            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}",'
+            f'{{"format":{DOM_FORMAT},"bootstrap":"{bootstrap_hash}","unicode":"{fnv1a64(bundled_text("unicode.txt") or "")}",'
             f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
         )
         dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
@@ -1457,7 +1457,7 @@ class Constants(unittest.TestCase):
             sources = {**CONSTANT_SOURCES, "g.md": text}
             if entry is not None:
                 documents = {"g.md": {"hash": fnv1a64(text), "dom": entry}}
-                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+                sources["compiled.json"] = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             try:
                 dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=entry is not None)
             except gencmu.GencmuError as error:
@@ -1693,7 +1693,7 @@ class Classifiers(unittest.TestCase):
 
         def cached(part: Dom) -> gencmu.Dialect:
             documents = {"g.md": {"hash": fnv1a64(sources["g.md"]), "dom": dom(part)}}
-            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "documents": documents})
+            compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             return gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
 
         self.assertIsNone(dom_problem(dom(well_formed)))

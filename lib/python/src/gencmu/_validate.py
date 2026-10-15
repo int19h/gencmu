@@ -13,9 +13,10 @@ from ._types import constant_value_problem, open_part, rule_type_problem, term_t
 
 class Marks(Protocol):
     def is_mark(self, code: int) -> bool: ...
+    def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 27
+FORMAT = 28
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME

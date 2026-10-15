@@ -120,6 +120,14 @@ class DomBuilder:
         assert node.kind == "token" and node.token is not None
         return self.tokens[node.token].text
 
+    def token_value(self, node: Node) -> str:
+        assert node.kind == "token" and node.token is not None
+        return self.tokens[node.token].value
+
+    def operator(self, node: Node) -> str:
+        value = self.token_value(node)
+        return {"≠": "≠", "∉": "∉", "⊈": "⊈", "≇": "≇"}.get(value, value)
+
     def kids(self, node: Node) -> list[Node]:
         """A node's children, reading every unmapped rule in its place."""
         result: list[Node] = []
@@ -225,7 +233,7 @@ class DomBuilder:
             guards.append(value)
         for key_node in self.some(node, "classifier-key"):
             keys.append(self.value(self.only(key_node, "string")))
-        op = self.text(self.token(self.only(node, "classifier-operator")))
+        op = self.operator(self.token(self.only(node, "classifier-operator")))
         class_node = self.only(node, "classifier-class")
         name = self.text(self.token(class_node))
         if USER_NAME.fullmatch(name) is None or not "A" <= name[-1] <= "Z":
@@ -599,7 +607,9 @@ class DomBuilder:
         return None
 
     def decode(self, token: Node) -> Dom:
-        text = self.text(token)
+        text = self.token_value(token)
+        original = self.text(token)
+        original_index = 1
         parts = []
         plain = []
         i = 1
@@ -615,17 +625,21 @@ class DomBuilder:
                 continue
             if text[i:i + 2] != "$(":
                 raise self.fail(token, "invalid string interpolation")
+            while original_index < len(original) - 1 and original[original_index:original_index + 2] != "$(":
+                original_index += 2 if original[original_index:original_index + 2] == "$$" else 1
+            reference_index = original_index
+            original_index = original.find(")", original_index + 2) + 1
             end = text.find(")", i + 2)
             name = text[i + 2:end]
             if end < 0 or not (USER_NAME.fullmatch(name) or scalar(name) is not None):
                 index = self.first_token(token)
-                line, column = self.grammar_text.position(self.tokens[index].source[0] + i)
+                line, column = self.grammar_text.position(self.tokens[index].source[0] + reference_index)
                 raise GencmuError("invalid string constant name", document=self.document, line=line, column=column)
             if plain:
                 parts.append({"string": "".join(plain)})
                 plain = []
             index = self.first_token(token)
-            position = self.grammar_text.position(self.tokens[index].source[0] + i)
+            position = self.grammar_text.position(self.tokens[index].source[0] + reference_index)
             parts.append({"const": name, "at": list(position)})
             i = end + 1
         if plain:
@@ -683,7 +697,7 @@ class DomBuilder:
                     requirements.append({"negated": negated, "value": value})
                 expr = {"test": "tags", "requirements": requirements, "expr": expr}
             else:
-                op = self.text(self.token(self.only(test, "test")))
+                op = self.operator(self.token(self.only(test, "test")))
                 operand = self.only(test, "test-operand")
                 base = self.known_of(operand, _ATOMS)
                 if base.rule not in ("string", "constant-reference"):
@@ -767,7 +781,7 @@ class DomBuilder:
     def _simple_condition(self, node: Node) -> Walk:
         if node.rule == "tree-comparison":
             left = {"capture":self.text(self.token(self.only(node, "capture-reference")))[1:]}
-            op = self.text(self.token(self.only(node, "tree-comparator")))
+            op = self.operator(self.token(self.only(node, "tree-comparator")))
             operand = self.only(node, "union")
             name = self._first_of_rule(operand, "name")
             if name is not None and self._first_of_rule(operand, "pattern-literal") is None and len(self.some(operand, "intersection")) == 1:
@@ -782,7 +796,7 @@ class DomBuilder:
             return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
             terms = self.some(node, "union", 2)
-            op = self.text(self.token(self.only(node, "comparator")))
+            op = self.operator(self.token(self.only(node, "comparator")))
             left = yield self._term(terms[0])
             right = yield self._term(terms[1])
             # The two sides fit the comparator (engine §10).

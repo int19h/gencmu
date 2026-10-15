@@ -64,6 +64,7 @@ class Compiled(unittest.TestCase):
         assert bootstrap is not None
         self.assertEqual(self.compiled["format"], DOM_FORMAT)
         self.assertEqual(self.compiled["bootstrap"], fnv1a64(bootstrap))
+        self.assertEqual(self.compiled["unicode"], fnv1a64(bundled_text("unicode.txt") or ""))
 
     def test_every_document_agrees_with_a_fresh_reading(self) -> None:
         self.assertTrue(self.compiled["documents"])
@@ -149,7 +150,7 @@ class Compiled(unittest.TestCase):
         empty: Dom = {"rules": [], "directives": [], "constants": [], "classifiers": [], "implications": []}
 
         def load(file_format: int, dom: Dom) -> gencmu.Dialect:
-            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
+            compiled = {"format": file_format, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(document), "dom": dom}}}
             return gencmu.load_dialect_sources({**sources, "compiled.json": json.dumps(compiled)}, "p.md")
 
         with self.assertRaises(gencmu.GencmuError):

@@ -6,6 +6,7 @@ from __future__ import annotations
 from bisect import bisect_right
 
 from ._errors import GencmuError
+from ._hash import fnv1a64
 
 CATEGORIES = (
     "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Mc", "Me", "Nd", "Nl", "No", "Pc", "Pd", "Ps", "Pe", "Pi", "Pf", "Po",
@@ -21,6 +22,7 @@ class UnicodeTable:
         white_space: list[tuple[int, int]] = []
         combining: list[tuple[int, int, int]] = []
         self.decompositions: dict[int, tuple[int, ...]] = {}
+        self.fingerprint = fnv1a64(text)
         self.version = ""
         for number, line in enumerate(text.splitlines(), 1):
             fields = line.split()
