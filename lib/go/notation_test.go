@@ -71,7 +71,7 @@ func TestNotationCases(t *testing.T) {
 				t.Fatalf("%s\n%v\n%s", c.Description, err, dom.json())
 			}
 			if c.CacheMisses {
-				notationCacheCases(t, c.Document, dom)
+				notationCacheCases(t, c.Document, dom, bundled.reader)
 			}
 		})
 	}

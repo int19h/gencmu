@@ -9,7 +9,7 @@ import (
 
 // notationCacheCases implements cacheMisses in tests/README.md. A poisoned
 // entry remains valid, so a stale cache hit cannot hide behind DOM rejection.
-func notationCacheCases(t *testing.T, document string, expected *domDoc) {
+func notationCacheCases(t *testing.T, document string, expected *domDoc, reader *notationReader) {
 	t.Helper()
 	const path = "case.md"
 	expectedJSON := domValue(t, expected)
@@ -20,6 +20,8 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc) {
 				t.Fatal(err)
 			}
 			l.read = func(p string) (string, bool) { return document, p == path }
+			l.reader = reader
+			l.bootstrapHash = reader.hash
 			l.compiled = nil
 			if mode != "cold" {
 				raw := expected.json()
@@ -58,6 +60,10 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc) {
 				l.compiled = readCompiled(string(envelope), l.bootstrapHash, l.uni.hash)
 				if mode == "matching" && len(l.compiled) != 1 {
 					t.Fatal("matching cache not admitted")
+				}
+				if mode == "matching" {
+					// A matching cache must work without a notation reader.
+					l.reader = nil
 				}
 			}
 			for repeat := 0; repeat < 2; repeat++ {
