@@ -1,5 +1,5 @@
 //! The character table of `grammars/unicode.txt` (engine §1): the
-//! General_Category and White_Space properties. Every library reads this
+//! category, whitespace, decomposition and combining-class properties. Every library reads this
 //! table rather than its platform's Unicode data.
 
 /// The General_Category values in their short form (engine §1).
@@ -43,6 +43,15 @@ pub(crate) struct Unicode {
     /// and the category's short form.
     categories: Vec<(u32, u32, &'static str)>,
     white_space: Vec<(u32, u32)>,
+    decompositions: Vec<(u32, Vec<char>)>,
+    combining: Vec<(u32, u32, u8)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Decomposed {
+    pub character: char,
+    pub origin: usize,
+    klass: u8,
 }
 
 fn hex(field: Option<&str>, line: usize) -> Result<u32, String> {
@@ -52,7 +61,12 @@ fn hex(field: Option<&str>, line: usize) -> Result<u32, String> {
 
 impl Unicode {
     pub(crate) fn parse(text: &str) -> Result<Unicode, String> {
-        let mut table = Unicode { categories: Vec::new(), white_space: Vec::new() };
+        let mut table = Unicode {
+            categories: Vec::new(),
+            white_space: Vec::new(),
+            decompositions: Vec::new(),
+            combining: Vec::new(),
+        };
         for (index, line) in text.lines().enumerate() {
             let number = index + 1;
             let mut fields = line.split_whitespace();
@@ -70,12 +84,89 @@ impl Unicode {
                 Some("white-space") => {
                     table.white_space.push((hex(fields.next(), number)?, hex(fields.next(), number)?))
                 }
+                Some("decompose") => {
+                    let code = hex(fields.next(), number)?;
+                    let scalars = fields
+                        .map(|field| {
+                            let code = hex(Some(field), number)?;
+                            char::from_u32(code).ok_or_else(|| format!("unicode.txt line {number}: an invalid scalar"))
+                        })
+                        .collect::<Result<Vec<_>, String>>()?;
+                    table.decompositions.push((code, scalars));
+                }
+                Some("combining") => {
+                    let klass = fields
+                        .next()
+                        .unwrap_or("")
+                        .parse::<u8>()
+                        .map_err(|_| format!("unicode.txt line {number}: a bad combining class"))?;
+                    table.combining.push((hex(fields.next(), number)?, hex(fields.next(), number)?, klass));
+                }
                 Some(other) => return Err(format!("unicode.txt line {number}: an unknown entry {other:?}")),
             }
         }
         table.categories.sort_unstable();
         table.white_space.sort_unstable();
+        table.decompositions.sort_unstable_by_key(|entry| entry.0);
+        table.combining.sort_unstable();
         Ok(table)
+    }
+
+    pub(crate) fn combining_class(&self, code: u32) -> u8 {
+        let index = self.combining.partition_point(|&(first, _, _)| first <= code);
+        if index > 0 && self.combining[index - 1].1 >= code {
+            self.combining[index - 1].2
+        } else {
+            0
+        }
+    }
+
+    /// Whether writing this scalar literally can change a grammar string.
+    pub(crate) fn changes_in_document(&self, code: u32) -> bool {
+        (0xAC00..=0xD7A3).contains(&code)
+            || self.decompositions.binary_search_by_key(&code, |entry| entry.0).is_ok()
+            || self.combining_class(code) != 0
+    }
+
+    /// Canonical decomposition, with original scalar indices kept through
+    /// stable ordering of each run of nonzero combining classes.
+    pub(crate) fn decompose_with_origins(&self, text: &[char]) -> Vec<Decomposed> {
+        let mut result = Vec::with_capacity(text.len());
+        for (origin, &character) in text.iter().enumerate() {
+            let code = character as u32;
+            let mut push = |character| {
+                result.push(Decomposed { character, origin, klass: self.combining_class(character as u32) })
+            };
+            if (0xAC00..=0xD7A3).contains(&code) {
+                let syllable = code - 0xAC00;
+                push(char::from_u32(0x1100 + syllable / 588).unwrap());
+                push(char::from_u32(0x1161 + (syllable % 588) / 28).unwrap());
+                if syllable % 28 != 0 {
+                    push(char::from_u32(0x11A7 + syllable % 28).unwrap());
+                }
+            } else if let Ok(index) = self.decompositions.binary_search_by_key(&code, |entry| entry.0) {
+                for &scalar in &self.decompositions[index].1 {
+                    push(scalar);
+                }
+            } else {
+                push(character);
+            }
+        }
+        let mut start = 0;
+        while start < result.len() {
+            if result[start].klass == 0 {
+                start += 1;
+                continue;
+            }
+            let end = start + result[start..].iter().take_while(|scalar| scalar.klass != 0).count();
+            result[start..end].sort_by_key(|scalar| scalar.klass);
+            start = end;
+        }
+        result
+    }
+
+    pub(crate) fn decompose(&self, text: &[char]) -> String {
+        self.decompose_with_origins(text).iter().map(|scalar| scalar.character).collect()
     }
 
     /// The General_Category of a code point, in its short form, found by a
@@ -165,7 +256,11 @@ mod tests {
         for code in boundaries(text) {
             assert_eq!(reversed.category(code), bundled.category(code), "U+{code:04X}");
             assert_eq!(reversed.is_white_space(code), bundled.is_white_space(code), "U+{code:04X}");
-            // Format 26 has no lowercase records. Mn still controls diagnostic escaping.
+            assert_eq!(reversed.combining_class(code), bundled.combining_class(code));
+            assert_eq!(reversed.changes_in_document(code), bundled.changes_in_document(code));
+            if let Some(c) = char::from_u32(code) {
+                assert_eq!(reversed.decompose_with_origins(&[c]), bundled.decompose_with_origins(&[c]));
+            }
             assert_eq!(reversed.is_mark(code), bundled.is_mark(code), "U+{code:04X}");
         }
         assert_eq!(reversed.category('a' as u32), "Ll");
@@ -201,5 +296,63 @@ mod tests {
         assert!(has("Any", 0x10FFFF));
         assert!(is_property_name("Nd") && is_property_name("Z") && !is_property_name("lu"));
         assert!(!is_property_name("Letter") && !is_property_name("L&"));
+    }
+    #[test]
+    fn normalization_conformance() {
+        let unicode = table();
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/unicode/NormalizationTest.txt");
+        let text = std::fs::read_to_string(path).expect("NormalizationTest.txt");
+        let mut listed = std::collections::HashSet::new();
+        let mut part = "";
+        let mut count = 0;
+        for line in text.lines() {
+            let data = line.split('#').next().unwrap().trim();
+            if data.starts_with('@') {
+                part = data.split_whitespace().next().unwrap();
+                continue;
+            }
+            if data.is_empty() {
+                continue;
+            }
+            let columns: Vec<Vec<char>> = data
+                .split(';')
+                .take(5)
+                .map(|column| {
+                    column
+                        .split_whitespace()
+                        .map(|hex| char::from_u32(u32::from_str_radix(hex, 16).unwrap()).unwrap())
+                        .collect()
+                })
+                .collect();
+            for index in 0..5 {
+                let expected: String = columns[if index < 3 { 2 } else { 4 }].iter().collect();
+                assert_eq!(unicode.decompose(&columns[index]), expected, "row {}, column {}", count + 1, index + 1);
+            }
+            if part == "@Part1" {
+                listed.insert(columns[0][0]);
+            }
+            count += 1;
+        }
+        assert_eq!(count, 19074);
+        for code in 0..=0x10FFFF {
+            if let Some(c) = char::from_u32(code).filter(|c| !listed.contains(c)) {
+                assert_eq!(unicode.decompose(&[c]), c.to_string(), "unlisted U+{code:04X}");
+            }
+        }
+    }
+
+    #[test]
+    fn decomposition_origins_and_partial_tables() {
+        let unicode = table();
+        let text: Vec<char> = "á\u{323}\u{300}\u{301}한".chars().collect();
+        let decomposed = unicode.decompose_with_origins(&text);
+        assert_eq!(decomposed.iter().map(|s| s.character).collect::<String>(), "a\u{323}\u{301}\u{300}\u{301}한");
+        assert_eq!(decomposed.iter().map(|s| s.origin).collect::<Vec<_>>(), [0, 1, 0, 2, 3, 4, 4, 4]);
+        let mappings = Unicode::parse("decompose 00E1 0061 0301\n").unwrap();
+        assert_eq!(mappings.decompose(&['á', '\u{323}']), "a\u{301}\u{323}");
+        assert_eq!(mappings.decompose(&['한']), "한");
+        let classes = Unicode::parse("combining 230 0301 0301\ncombining 220 0323 0323\n").unwrap();
+        assert_eq!(classes.decompose(&['á', '\u{323}']), "á\u{323}");
+        assert_eq!(classes.decompose(&['a', '\u{301}', '\u{323}']), "a\u{323}\u{301}");
     }
 }
