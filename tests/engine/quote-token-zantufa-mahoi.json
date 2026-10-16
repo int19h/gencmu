@@ -23,10 +23,6 @@
         },
         {
           "name": "words",
-          "tree": {
-            "kind": "rule",
-            "rule": "text"
-          },
           "output": [
             {
               "image": "ma'oi coi",
@@ -39,7 +35,11 @@
             }
           ]
         }
-      ]
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
     }
   }
 }

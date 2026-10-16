@@ -222,7 +222,7 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 Every complete quote is one opaque unit and emits one token. Later operations see its opening class and no class from its contents or closing marker. Indicators after it and BAhE before it mark the whole quote.
 
-The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image preserves the quote's verbatim spelling. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
+The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image preserves the quote's verbatim spelling within its source interval. A single-run quote also preserves adjacent uncovered payload punctuation. Neighboring quotes therefore cannot claim the same ignored comma. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -267,7 +267,7 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
 
 ```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker word-gap $w:read-word :: $m.tags :- $.verbatim-text
+  $m:word-quote-marker word-gap $w:read-word :: $m.tags :- $.source-text
 %emits
   $
 
@@ -349,7 +349,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 %const $Y-PROPERTIES
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
-%rule zoi-y-quote :: $m.tags :- $.verbatim-text
+%rule zoi-y-quote :: $m.tags :- $.source-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -360,7 +360,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 %emits
   $
 
-%rule zoi-quote :: $m.tags :- $.verbatim-text
+%rule zoi-quote :: $m.tags :- $.source-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -508,7 +508,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 `lohu-stream` separates paused, quiet, and absent gaps, so each gap has one reading. The shared gap rules execute no eraser inside the quote.
 
 ```jbogenbau
-%rule lohu-quote :: $m.tags :- $.verbatim-text
+%rule lohu-quote :: $m.tags :- $.source-text
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
 %emits

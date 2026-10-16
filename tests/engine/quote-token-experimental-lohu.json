@@ -23,10 +23,6 @@
         },
         {
           "name": "words",
-          "tree": {
-            "kind": "rule",
-            "rule": "text"
-          },
           "output": [
             {
               "image": "lo'u coi le'u",
@@ -39,7 +35,11 @@
             }
           ]
         }
-      ]
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
     }
   }
 }

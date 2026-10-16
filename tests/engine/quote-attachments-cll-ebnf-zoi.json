@@ -1,0 +1,48 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "BAhE marks a whole quote. Indicators attach to it, except in Zantufa, whose syntax reads the following free modifiers.",
+  "options": {
+    "until": "indicators"
+  },
+  "input": "ba'e zoi gy. 你好é .gy ui",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words"
+        },
+        {
+          "name": "indicators",
+          "output": [
+            {
+              "image": "zoi gy. 你好é .gy",
+              "before": [
+                {
+                  "image": "ba'e"
+                }
+              ],
+              "after": [
+                {
+                  "image": "ui"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

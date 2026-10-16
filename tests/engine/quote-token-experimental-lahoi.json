@@ -23,10 +23,6 @@
         },
         {
           "name": "words",
-          "tree": {
-            "kind": "rule",
-            "rule": "text"
-          },
           "output": [
             {
               "image": "la'oi 你好é",
@@ -39,7 +35,11 @@
             }
           ]
         }
-      ]
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
     }
   }
 }

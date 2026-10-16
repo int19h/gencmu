@@ -1,0 +1,48 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "BAhE marks a whole quote. Indicators attach to it, except in Zantufa, whose syntax reads the following free modifiers.",
+  "options": {
+    "until": "indicators"
+  },
+  "input": "ba'e ma'oi coi ui",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words"
+        },
+        {
+          "name": "indicators",
+          "output": [
+            {
+              "image": "ma'oi coi",
+              "before": [
+                {
+                  "image": "ba'e"
+                }
+              ],
+              "after": [
+                {
+                  "image": "ui"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
