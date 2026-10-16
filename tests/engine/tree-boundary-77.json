@@ -1,0 +1,43 @@
+{
+  "description": "Different offers prevent dominance and preserve the needed fallback (engine §4.2 and §6.1, case 77).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text m t\n%rule m B\n%conditions ¬$.followed-by(x)\n%rule t (p ≻ q) :: ∅\n%rule p x\n%rule x A\n%rule q y\n%rule y A",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "m"
+          },
+          {
+            "rule": "t",
+            "children": [
+              {
+                "rule": "q"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

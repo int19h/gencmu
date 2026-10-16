@@ -882,11 +882,15 @@ def compare_vectors(left: Vector, right: Vector) -> int:
             taken_a = taken_b = 0
 
 
-Profile = tuple[tuple[int, int, int], ...]
+class Profile(tuple):
+    def __new__(cls, spans=(), fewest=0):
+        result = super().__new__(cls, spans)
+        result.fewest = fewest
+        return result
 """Nonempty spans and exact occurrence counts, in profile order."""
 
 
-def compare_profiles(a: Profile, b: Profile) -> int:
+def compare_spans(a: Profile, b: Profile) -> int:
     for x, y in zip(a, b):
         left, right = (x[0], -x[1], -x[2]), (y[0], -y[1], -y[2])
         if left != right:
@@ -894,11 +898,16 @@ def compare_profiles(a: Profile, b: Profile) -> int:
     return -1 if len(a) > len(b) else (1 if len(a) < len(b) else 0)
 
 
+def compare_profiles(a: Profile, b: Profile) -> int:
+    return compare_spans(a, b) or ((getattr(a, "fewest", 0) > getattr(b, "fewest", 0)) - (getattr(a, "fewest", 0) < getattr(b, "fewest", 0)))
+
+
 def sum_profiles(a: Profile, b: Profile) -> Profile:
+    fewest = getattr(a, "fewest", 0) + getattr(b, "fewest", 0)
     if not a:
-        return b
+        return Profile(b, fewest)
     if not b:
-        return a
+        return Profile(a, fewest)
     out: list[tuple[int, int, int]] = []
     i = j = 0
     while i < len(a) and j < len(b):
@@ -916,7 +925,7 @@ def sum_profiles(a: Profile, b: Profile) -> Profile:
             j += 1
     out.extend(a[i:])
     out.extend(b[j:])
-    return tuple(out)
+    return Profile(out, fewest)
 
 
 class Summary:
@@ -1009,6 +1018,8 @@ class Elisions(Summaries):
                 start, end = project[start], project[end]
             if production.leftmost_longest and start < end:
                 profile = sum_profiles(profile, ((start, end, 1),))
+            if production.fewest and start < end:
+                profile = Profile(profile, getattr(profile, "fewest", 0) + 1)
             # A restoration elides nothing (engine §7.7).
             if self.elided[forest.prod[item]] and forest.edges[item][0][1] != RESTORE:
                 at = forest.origin[item]
@@ -1143,7 +1154,7 @@ def rank_original(forest: Forest, lean: str, marks=None, check=False, admission=
     input has no derivation that counts."""
     if not forest.roots:
         return None
-    if lean == "late-elision" or any(production.leftmost_longest for production in forest.lowered.productions):
+    if lean == "late-elision" or any(production.leftmost_longest or production.fewest for production in forest.lowered.productions):
         ranker = Elisions(forest, lean)
     else:
         ranker = Ranker(forest, lean)

@@ -1,0 +1,36 @@
+{
+  "description": "Rule profiles rank before fewest counts (engine §4.2 and §6, case 20).",
+  "grammar": "%rule text x | y\n%rule(leftmost-longest) l A\n%rule(fewest) f B\n%rule x l f\n%rule y A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "x"
+          }
+        ]
+      }
+    }
+  }
+}

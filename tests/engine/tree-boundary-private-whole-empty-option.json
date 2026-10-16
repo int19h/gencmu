@@ -1,0 +1,22 @@
+{
+  "description": "An empty private capture does not move the whole-rule atom to the option start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r\n  C ($a:aa ≻ $b:bb) :: ∅\n%conditions\n  $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa ε\n%rule bb A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

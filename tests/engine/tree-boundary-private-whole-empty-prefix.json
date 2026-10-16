@@ -1,0 +1,44 @@
+{
+  "description": "An empty-only prefix keeps the option at the named rule start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r prefix ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A\n%rule prefix empty\n%rule empty ε",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "prefix"
+              },
+              {
+                "rule": "bb"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

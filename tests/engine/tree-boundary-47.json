@@ -1,0 +1,36 @@
+{
+  "description": "A forward target is no last offer, so the options compete (engine §4.2 and §6, case 47).",
+  "grammar": "%rule text (u ≻ v)\n%conditions ¬$.followed-by(p)\n%rule u X p\n%rule p A\n%rule v X A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "u"
+          }
+        ]
+      }
+    }
+  }
+}

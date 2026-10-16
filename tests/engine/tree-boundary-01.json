@@ -1,0 +1,29 @@
+{
+  "description": "A negative atom removes the reading that `lazy` prefers (engine §4.2 and §6, case 1).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text {item}\n%rule item pair | single\n%rule pair X X\n%rule single X\n%conditions ¬$.followed-by(item)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

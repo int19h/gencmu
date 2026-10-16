@@ -1,0 +1,36 @@
+{
+  "description": "An emission atom demands nothing, so admission is unchanged (engine §4.2 and §6, case 34).",
+  "grammar": "%rule text X (p ≻ q)\n%emits $ :: X ∪ ($.preceded-by(p) ⟹ Y)\n%rule p A\n%rule q A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": [
+                "X"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

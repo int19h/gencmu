@@ -1,0 +1,60 @@
+{
+  "description": "Repeated extension documents keep distinct condition indices. The earliest failed instance wins, and later definitions count both instances.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%include \"g.md\"\n%include \"e.md\"\n%include \"e.md\"\n%include \"f.md\"\n```",
+    "g.md": "```jbogenbau\n%ambiguity-resolution greedy\n%rule text r | B\n%rule r C\n```",
+    "e.md": "```jbogenbau\n%extend-rule r ¬later? A\n%conditions $.followed-by(B)\n```",
+    "f.md": "```jbogenbau\n%extend-rule r later? A\n%conditions $.followed-by(C)\n```"
+  },
+  "pipeline": "pipeline.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "rejected",
+            "boundary": {
+              "rule": "r",
+              "condition": 0,
+              "at": 1
+            }
+          }
+        },
+        "error": "rejected"
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "later"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "rejected",
+            "boundary": {
+              "rule": "r",
+              "condition": 2,
+              "at": 1
+            }
+          }
+        },
+        "error": "rejected"
+      }
+    }
+  ]
+}

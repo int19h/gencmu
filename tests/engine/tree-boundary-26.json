@@ -1,0 +1,8 @@
+{
+  "description": "A capture receiver read with another capture (engine §4.2 and §6, case 26).",
+  "grammar": "%rule text $a:A $b:B\n%conditions $a.followed-by(B) ∨ $b.tags = ∅",
+  "tokens": [],
+  "expect": {
+    "error": "grammar"
+  }
+}

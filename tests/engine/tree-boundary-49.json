@@ -1,0 +1,21 @@
+{
+  "description": "A backward literal at the start meets no first offer (engine §4.2 and §6, case 49).",
+  "grammar": "%rule text r\n%rule r m A\n%rule m ε\n%conditions $.preceded-by(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

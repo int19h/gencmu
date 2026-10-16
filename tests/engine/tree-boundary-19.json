@@ -1,0 +1,36 @@
+{
+  "description": "A flagged reading remains where nothing else completes (engine §4.2 and §6, case 19).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text p | q\n%rule(fewest) p A (B | C)\n%rule q A [+T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

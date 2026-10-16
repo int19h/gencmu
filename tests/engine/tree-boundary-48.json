@@ -1,0 +1,27 @@
+{
+  "description": "A backward literal meets only last offers (engine §4.2 and §6, case 48).",
+  "grammar": "%rule text a b\n%rule a A\n%rule b B\n%conditions $.preceded-by(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

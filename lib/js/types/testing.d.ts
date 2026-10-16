@@ -80,6 +80,10 @@ export type WorkCounts = {
      */
     summaryContexts: number;
     /**
+     * distinct boundary records used in recognitions
+     */
+    boundaryRecords: number;
+    /**
      * the items that the recognizer made
      */
     items: number;
@@ -181,7 +185,7 @@ export type WorkCounts = {
      */
     budget?: Partial<Record<WorkKind, number>>;
 };
-export type WorkKind = "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
+export type WorkKind = "boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text";
 /**
  * What the check of engine §7 hands its test hook.
  * @typedef {object} ElisionCheckRun
@@ -217,6 +221,7 @@ export type WorkKind = "familySummaries" | "familySteps" | "closeStates" | "clos
  * @property {number} structuralTransitions structural transitions computed
  * @property {number} packedEdges distinct packed forest edges
  * @property {number} summaryContexts summary results stored per traversal
+ * @property {number} boundaryRecords distinct boundary records used in recognitions
  * @property {number} items the items that the recognizer made
  * @property {number} captures the captured parts that the recognizer made
  * @property {number} captureSteps the steps that find a captured part from
@@ -262,7 +267,7 @@ export type WorkKind = "familySummaries" | "familySteps" | "closeStates" | "clos
  * @property {Partial<Record<WorkKind, number>>} [budget] the most of each
  *   count that the work may reach
  */
-/** @typedef {"familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
+/** @typedef {"boundaryRecords" | "familySummaries" | "familySteps" | "closeStates" | "closeSequences" | "structuralStates" | "structuralTransitions" | "packedEdges" | "summaryContexts" | "items" | "captures" | "captureSteps" | "captureLookups" | "edgeChecks" | "conditions" | "visits" | "valueSteps" | "tags" | "implications" | "walkSteps" | "lowering" | "closures" | "clauses" | "groups" | "traversal" | "splice" | "text"} WorkKind */
 /** @type {readonly WorkKind[]} */
 export declare const WORK_KINDS: readonly WorkKind[];
 /**
@@ -285,8 +290,9 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number}) => void) | null}} */
+/** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null}} */
 export declare const hooks: {
+    boundaryAdmission: ((splits: any[], chart: any) => void) | null;
     familyAlignment: ((summary: boolean, direct: boolean) => void) | null;
     elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null;
     work: WorkCounts | null;
@@ -295,6 +301,7 @@ export declare const hooks: {
         groups: number;
         candidateEdges: number;
         retainedEdges: number;
+        boundarySplits?: any[];
     }) => void) | null;
 };
 /**

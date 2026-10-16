@@ -335,7 +335,7 @@ async function main() {
       console.log(`example works in ${browser}: ${check.label}`);
     }
 
-    // Format 12 separates original text, normalized values and images.
+    // Format 13 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
     await choose("dialects/cll-ebnf.md");
     const tokenText = "ba'e m,I ui nai klAma";
@@ -356,7 +356,7 @@ async function main() {
     assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
       ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
       ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 12 fields and recursive attachments");
+    ]}, "the token table must show format 13 fields and recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -376,13 +376,13 @@ async function main() {
       "display JSON must render images and nested attachments");
     await page.locator("#tab-canonical").click();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
-    assert.equal(canonical.format, 12);
+    assert.equal(canonical.format, 13);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
-    console.log(`format 12 token and tree views work in ${browser}`);
+    console.log(`format 13 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
     const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
     const navigationText = "mi se su'i pa re moi";

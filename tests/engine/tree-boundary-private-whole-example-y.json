@@ -1,0 +1,28 @@
+{
+  "description": "The example is a loading error even when this input satisfies its backward condition (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r\n  C ($a:aa ≻ $b:bb) :: ∅\n%conditions\n  $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

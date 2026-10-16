@@ -78,6 +78,11 @@ export type ParseError = {
     source?: Span;
     line?: number;
     column?: number;
+    boundary?: {
+        rule: string;
+        condition: number;
+        at: number;
+    };
     expected?: Expectation[];
     readings?: ResultNode[];
     /**
@@ -519,6 +524,8 @@ export type ConstantTerm = {
 export type Argument = Term | {
     rule: string;
 } | {
+    terminal: string;
+} | {
     classifier: string;
 };
 export type GrammarSymbol = {
@@ -564,6 +571,10 @@ export type Capture = {
 export type ReadyCondition = {
     condition: Condition;
     readyAt: number;
+    /**
+     * whether this step introduces a whole-rule boundary literal
+     */
+    wholeBoundary?: boolean;
 };
 export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
@@ -574,6 +585,10 @@ export type Production = {
     sourcePrivate?: Set<string>;
     contextual?: boolean;
     rankedDeferred?: Condition[];
+    /**
+     * effective conditions across static ranked entry contexts
+     */
+    rankedConditions?: ReadyCondition[];
     parentTags?: Term;
     lexicalFrame?: any;
     closeRequested?: boolean;
@@ -640,6 +655,11 @@ export type Resolution = {
     elisionOnly: boolean;
 };
 export type LoweredGrammar = {
+    boundarySites: WeakMap<object, WeakMap<object, {
+        rule: string;
+        condition: number;
+        order: number;
+    }>>;
     productions: Production[];
     byLhs: Map<string, Production[]>;
     resolution: Resolution;
@@ -736,6 +756,8 @@ export type AlignedSpan = {
     view: ReturnType<typeof import("./restoration.js").restoreTokens>;
 };
 export type Scope = {
+    boundaryValue?: boolean;
+    boundary?: (atom: any) => boolean;
     capture: (name: string) => SpanValue;
 };
 export type Rope = {
@@ -861,6 +883,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Span} [source]
  * @property {number} [line]
  * @property {number} [column]
+ * @property {{rule:string,condition:number,at:number}} [boundary]
  * @property {Expectation[]} [expected]
  * @property {ResultNode[]} [readings]
  * @property {Witness} [witness] for an error of elision-only, where its
@@ -1161,7 +1184,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A function's argument: a term, the name of a rule, or the name of a
  * classifier.
- * @typedef {Term | {rule: string} | {classifier: string}} Argument
+ * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string}} Argument
  */
 /**
  * @typedef {object} GrammarSymbol
@@ -1208,6 +1231,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} ReadyCondition
  * @property {Condition} condition
  * @property {number} readyAt
+ * @property {boolean} [wholeBoundary] whether this step introduces a whole-rule boundary literal
  */
 /**
  * A production of a lowered grammar (engine §3).
@@ -1220,6 +1244,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Set<string>} [sourcePrivate]
  * @property {boolean} [contextual]
  * @property {Condition[]} [rankedDeferred]
+ * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
  * @property {Term} [parentTags]
  * @property {any} [lexicalFrame]
  * @property {boolean} [closeRequested]
@@ -1262,6 +1287,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A grammar lowered for one set of features.
  * @typedef {object} LoweredGrammar
+ * @property {WeakMap<object,WeakMap<object,{rule:string,condition:number,order:number}>>} boundarySites
  * @property {Production[]} productions
  * @property {Map<string, Production[]>} byLhs
  * @property {Resolution} resolution
@@ -1332,6 +1358,8 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * Where a term looks up its captures.
  * @typedef {object} Scope
+ * @property {boolean} [boundaryValue]
+ * @property {(atom:any)=>boolean} [boundary]
  * @property {(name: string) => SpanValue} capture
  */
 /**

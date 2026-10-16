@@ -1,0 +1,27 @@
+{
+  "description": "Complete-tree boundary notation (engine §9 and §10).",
+  "document": "```jbogenbau\n%rule a A\n%conditions ¬$.preceded-by(B)\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "not": {
+                "method": "preceded-by",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": [
+                  {
+                    "terminal": "B"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

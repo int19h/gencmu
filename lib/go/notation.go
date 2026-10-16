@@ -241,6 +241,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
+	hasBoundary   bool
 	deferEmission bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
@@ -641,6 +642,7 @@ func (b *domBuilder) implicationDeclaration(n *Node) *domImplication {
 const constantInBody = "a constant cannot stand in a body: a body names a class of tokens with a rule, such as %rule digit '0'..'9'"
 
 func (b *domBuilder) rule(n *Node) *domRule {
+	b.hasBoundary = false
 	// The definer, the name, the alternatives and the clauses; the syntax
 	// allows at most one of each clause, in order.
 	definer := b.token(b.only(n, "definer"))
@@ -662,7 +664,7 @@ func (b *domBuilder) rule(n *Node) *domRule {
 		}
 		for _, flag := range b.some(list, "rule-flag", 1) {
 			name := b.tokenValue(b.token(flag))
-			if name != "leftmost-longest" {
+			if name != "leftmost-longest" && name != "fewest" {
 				b.fail(flag, "unknown rule flag %s", name)
 			}
 			if len(r.Flags) > 0 {
@@ -702,6 +704,11 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	r.Erased = one(n, "erased-clause") != nil
 	flattenGroups(r)
+	if b.hasBoundary {
+		if atom, msg := boundaryRuleProblem(r); msg != "" {
+			panic(grammarError(b.doc, atom.At, "%s", msg))
+		}
+	}
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
 		if b.deferEmission && deferredEmissionProblem(msg) && ruleHasRanked(r) {

@@ -1,0 +1,23 @@
+{
+  "description": "A negative atom is true at the end (engine §4.2 and §6, case 6).",
+  "grammar": "%rule text a [b]\n%rule a A\n%conditions ¬$.followed-by(b)\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

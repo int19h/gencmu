@@ -1,0 +1,8 @@
+{
+  "description": "A list capture and its methods are no receivers (engine §4.2 and §6, case 63).",
+  "grammar": "%rule text {$s:A} B\n%conditions $s.last.followed-by(B)",
+  "tokens": [],
+  "expect": {
+    "error": "grammar"
+  }
+}

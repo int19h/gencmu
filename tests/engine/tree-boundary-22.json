@@ -1,0 +1,29 @@
+{
+  "description": "Options with different open facts do not exclude each other (engine §4.2 and §6, case 22).",
+  "grammar": "%rule text (p ≻ q) t\n%rule p B\n%rule q B\n%rule t C\n%conditions ¬$.preceded-by(p)",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

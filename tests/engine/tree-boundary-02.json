@@ -1,0 +1,35 @@
+{
+  "description": "The last item has no follower (engine §4.2 and §6, case 2).",
+  "grammar": "%ambiguity-resolution lazy\n%rule text {item}\n%rule item pair | single\n%rule pair X X\n%rule single X\n%conditions ¬$.followed-by(item)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

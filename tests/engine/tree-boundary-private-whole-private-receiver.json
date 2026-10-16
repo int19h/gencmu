@@ -1,0 +1,50 @@
+{
+  "description": "Testing the private capture puts the backward atom on its own boundary (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r C ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$a.preceded-by(C)\n%rule aa A\n%rule bb A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "terminal": "C"
+              },
+              {
+                "rule": "bb"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "description": "Complete-tree boundary notation (engine §9 and §10).",
+  "document": "```jbogenbau\n%rule a A\n%conditions $.ends-input\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "conditions": [
+            {
+              "method": "ends-input",
+              "receiver": {
+                "capture": ""
+              },
+              "args": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 12
+FORMAT = 13
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -119,6 +119,8 @@ def error_json(error: ParseError) -> dict[str, Any]:
         value["column"] = error.column
     if error.expected is not None:
         value["expected"] = [{"terminal": entry.terminal, "rules": list(entry.rules)} for entry in error.expected]
+    if error.boundary is not None:
+        value["boundary"] = {name: error.boundary[name] for name in ("rule", "condition", "at")}
     if error.readings is not None:
         value["readings"] = [node_json(reading) for reading in error.readings]
     # Only an error of elision-only has a witness (docs/output.md).

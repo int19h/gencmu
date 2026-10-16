@@ -6,7 +6,7 @@ import (
 )
 
 // resultFormat is the version of docs/output.md.
-const resultFormat = 12
+const resultFormat = 13
 
 // MarshalResult writes the canonical JSON of a result (docs/output.md).
 func MarshalResult(result *ParseResult) ([]byte, error) {
@@ -323,6 +323,15 @@ func writeError(w *jsonWriter, e *ParseError) {
 			w.raw("]}")
 		}
 		w.raw("]")
+		if b := e.Boundary; b != nil {
+			w.raw(`,"boundary":{"rule":`)
+			w.str(b.Rule)
+			w.raw(`,"condition":`)
+			w.int(b.Condition)
+			w.raw(`,"at":`)
+			w.int(b.At)
+			w.raw("}")
+		}
 	case ErrorAmbiguous:
 		w.raw(`,"readings":[`)
 		for i, r := range e.Readings {

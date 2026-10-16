@@ -1,0 +1,85 @@
+{
+  "description": "A fewest occurrence that reads only a synthetic token adds zero, so reconstruction reports elision-only ambiguity.",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x | y | z\n%rule x A [+T] B\n%rule y A f B\n%rule z A [+U] [+V] B\n%rule(fewest) f T",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "elision-only",
+        "readings": [
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "x",
+                "children": [
+                  {
+                    "terminal": "A"
+                  },
+                  {
+                    "kind": "elided",
+                    "terminal": "T"
+                  },
+                  {
+                    "terminal": "B"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "y",
+                "children": [
+                  {
+                    "terminal": "A"
+                  },
+                  {
+                    "rule": "f",
+                    "span": [
+                      1,
+                      1
+                    ],
+                    "children": [
+                      {
+                        "kind": "elided",
+                        "terminal": "T"
+                      }
+                    ]
+                  },
+                  {
+                    "terminal": "B"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

@@ -1,3 +1,4 @@
+import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
@@ -22,6 +23,7 @@ export type Chart = {
     furthest: number;
     context: ParseContext;
     closeRequested?: boolean;
+    boundaryFailures?: any[];
     family?: FamilySummaries | null;
     familyTrace?: Map<Item, {
         event: CloseEvent;
@@ -45,6 +47,7 @@ export type Chart = {
  * @property {number} furthest the last position whose set holds an item
  * @property {ParseContext} context
  * @property {boolean} [closeRequested]
+ * @property {any[]} [boundaryFailures]
  * @property {FamilySummaries|null} [family]
  * @property {Map<Item,{event:CloseEvent,permitted:boolean}[]>|null} [familyTrace]
  */
@@ -78,6 +81,9 @@ export declare function structuralRead(context: ParseContext, terminal: string, 
 export declare function terminalObservation(context: ParseContext, terminal: string, at: number): CloseObservation | null;
 export declare class ParseContext {
     lowered: LoweredGrammar;
+    boundaries: import("./boundary.js").BoundaryRecords | null;
+    /** @type {any} */
+    emissionBoundaries: any;
     patterns: PatternMachine | null;
     closeRules: Set<string>;
     /** @type {CloseObservations|null} */
@@ -227,6 +233,10 @@ export declare class Item {
     dot: number;
     origin: number;
     slots: Captured;
+    /** @type {any} */
+    boundary: any;
+    /** @type {BoundaryAnnotations|null} */
+    boundaryAnnotations: BoundaryAnnotations | null;
     prefix: number;
     structure: number;
     /** @type {CloseObservation|null} */
@@ -390,11 +400,12 @@ export type Advanced = {
     dot: number;
     slots: Captured;
     tagId: number;
+    obligations?: any[];
 };
 /**
  * An item advanced: its new dot, its captured parts, and its tags if it is
  * complete, or -1.
- * @typedef {{dot: number, slots: Captured, tagId: number}} Advanced
+ * @typedef {{dot: number, slots: Captured, tagId: number, obligations?:any[]}} Advanced
  */
 /**
  * A symbol as the diagnostics write it: its name, followed by its test if
@@ -437,6 +448,7 @@ export type StepScope = {
     scope: ChartScope | null;
     structure: number;
     observation: CloseObservation | null;
+    obligations?: any[];
 };
 /** @implements {Scope} */
 declare class ChartScope implements Scope {
@@ -518,11 +530,12 @@ export type Comparison = Extract<Condition, {
 }>;
 /**
  * @param {Chart} chart
- * @returns {{position: number, expected: Expectation[]}}
+ * @returns {{position: number, expected: Expectation[], boundary?:any}}
  */
 export declare function rejectionOf(chart: Chart): {
     position: number;
     expected: Expectation[];
+    boundary?: any;
 };
 /**
  * The terminals the parse could have read at a position, each with the

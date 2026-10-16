@@ -1,0 +1,29 @@
+{
+  "description": "In a nested parse, `.ends-input` holds at the span's end (engine §4.2 and §6, case 33).",
+  "grammar": "%rule text $a:A B\n%conditions $a.matches(w)\n%rule w A\n%conditions $.ends-input",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

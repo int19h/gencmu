@@ -579,6 +579,21 @@ impl Implications {
 /// (§11).
 pub(crate) fn emit(recognizer: &mut Recognizer, tree: &ITree, tokens: &[Tok]) -> Result<Vec<Emitted>, EngineError> {
     let g = recognizer.g;
+    recognizer.shared.emission_boundaries.clear();
+    for node in &tree.nodes {
+        let (name, start, end) = match &node.kind {
+            IKind::Read { tok, terminal } => (g.terminals[*terminal as usize].as_str(), *tok, *tok + 1),
+            IKind::Close { prod, start, end, .. } => {
+                let r = &g.rules[g.prods[*prod as usize].rule as usize];
+                if r.helper || start == end {
+                    continue;
+                }
+                (r.name.as_str(), *start, *end)
+            }
+        };
+        recognizer.shared.emission_boundaries.entry((true, start)).or_default().insert(name.to_string());
+        recognizer.shared.emission_boundaries.entry((false, end)).or_default().insert(name.to_string());
+    }
     let sources = Sources::new(tokens);
     // The stage's implications, as tag sets of this parse (§11).
     let mut implications = Implications::new(&mut recognizer.shared.tags, &g.implications);

@@ -179,7 +179,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 %rule negation
   "¬"
 %conditions
-  ¬$.following-tokens.begins(guard)
+  ¬$.followed-by(guard)
 %emits
   $
 ```

@@ -22,6 +22,7 @@ type slotMetadata struct {
 }
 
 type production struct {
+	boundaryOriginal  map[*domCond]*domCond
 	logicalGroups     []logicalGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
@@ -52,6 +53,7 @@ type production struct {
 	conds             []lcond
 	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
 	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
 	emit              *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing           bool       // %emits ε: the constituent emits nothing and does not count (§11)
 	value, image      *domTerm
@@ -88,6 +90,7 @@ type lcond struct {
 
 type lrule struct {
 	leftmostLongest bool
+	fewest          bool
 	name            string
 	helper          bool
 	owner           string
@@ -97,6 +100,8 @@ type lrule struct {
 }
 
 type lowered struct {
+	boundaryOnce   sync.Once
+	boundary       *boundaryMachine
 	rankedHelpers  map[int32]*rankedGroup
 	writtenHelpers map[int32]string
 	stage          *stageGrammar
@@ -240,7 +245,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	lw := &lowerer{helperNodes: map[int32]*helperNode{}, rankOptions: map[int32][]int{}, commonConds: map[*sAlt]map[string][]*domCond{}, validation: validation, g: g, l: l, features: features, terms: map[*domTerm]*termLowering{}, condsOf: map[condsKey]*condLowering{}, emits: map[*domEmit]*emitSplit{}, warnings: map[*sAlt][]string{}}
 	for _, r := range g.rules {
 		l.byName[r.name] = int32(len(l.rules))
-		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0, name: r.name, owner: r.name, scc: -1})
+		l.rules = append(l.rules, &lrule{leftmostLongest: len(r.flags) > 0 && r.flags[0] == "leftmost-longest", fewest: len(r.flags) > 0 && r.flags[0] == "fewest", name: r.name, owner: r.name, scc: -1})
 	}
 	for _, r := range g.rules {
 		if lw.lowerRule(r); l.fault != "" {

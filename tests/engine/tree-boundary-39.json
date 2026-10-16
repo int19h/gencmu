@@ -1,0 +1,35 @@
+{
+  "description": "An erased constituent is still a node (engine §4.2 and §6, case 39).",
+  "grammar": "%rule text a e B\n%rule a A\n%conditions $.followed-by(e)\n%rule e E\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "e",
+      "tags": [
+        "E"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

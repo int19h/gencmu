@@ -1,4 +1,4 @@
-//! Schema validation for format 28. The work list bounds the complete DOM
+//! Schema validation for format 29. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 
@@ -190,6 +190,9 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     }
                 }
                 "rules" => {
+                    if let Some(problem) = boundary_problem(item) {
+                        return Some(problem);
+                    }
                     if !exact(
                         item,
                         &["name", "op", "flags", "alternatives", "conditions", "at"],
@@ -202,7 +205,8 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let flags = item.get("flags").and_then(Json::as_array);
                     if !flags.is_some_and(|flags| {
                         flags.is_empty()
-                            || flags == [Json::Str("leftmost-longest".into())]
+                            || flags.len() == 1
+                                && matches!(flags[0].as_str(), Some("leftmost-longest" | "fewest"))
                                 && item.get("op").and_then(Json::as_str) != Some("extend")
                     }) {
                         return Some("a malformed rule flag");
@@ -588,7 +592,19 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let args = value.get("args").and_then(Json::as_array);
                     if !span(receiver)
                         || !match (value.get("method").and_then(Json::as_str), args) {
-                            (Some("starts-input"), Some([])) => true,
+                            (Some("starts-input" | "ends-input"), Some([])) => true,
+                            (Some("followed-by" | "preceded-by"), Some(args)) => {
+                                bare_capture(receiver)
+                                    && !args.is_empty()
+                                    && args.iter().all(|arg| {
+                                        exact(arg, &["rule"], &[])
+                                            && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                                            || exact(arg, &["terminal"], &[])
+                                                && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| {
+                                                    s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s)
+                                                })
+                                    })
+                            }
                             (Some("matches" | "begins"), Some([arg])) => {
                                 exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                             }
@@ -814,4 +830,53 @@ fn any_engine_literal(root: &Term) -> bool {
         }
     }
     false
+}
+
+fn json_parts(value: &Json) -> impl Iterator<Item = &Json> {
+    value.as_array().unwrap_or(&[]).iter().chain(value.as_object().unwrap_or(&[]).iter().map(|(_, value)| value))
+}
+fn json_boundary_atoms(value: &Json) -> Vec<&Json> {
+    let mut found = Vec::new();
+    let mut pending = vec![value];
+    while let Some(value) = pending.pop() {
+        if matches!(value.get("method").and_then(Json::as_str), Some("followed-by" | "preceded-by")) {
+            found.push(value);
+        } else {
+            pending.extend(json_parts(value));
+        }
+    }
+    found
+}
+fn boundary_problem(rule: &Json) -> Option<&'static str> {
+    let mut allowed = FxSet::default();
+    for condition in rule.get("conditions").and_then(Json::as_array).unwrap_or(&[]) {
+        let atoms = json_boundary_atoms(condition);
+        if atoms.len() > 1 {
+            return Some("a condition item accepts only one boundary atom");
+        }
+        for atom in atoms {
+            allowed.insert(atom as *const Json);
+            if let Some(receiver) = atom.get("receiver").and_then(|r| r.get("capture")).and_then(Json::as_str) {
+                if !receiver.is_empty() {
+                    let mut pending = vec![condition];
+                    while let Some(part) = pending.pop() {
+                        let capture = part.get("capture").or_else(|| part.get("captured")).and_then(Json::as_str);
+                        if capture.is_some_and(|name| name != receiver) {
+                            return Some("a boundary condition with a captured receiver reads only that capture");
+                        }
+                        pending.extend(json_parts(part));
+                    }
+                }
+            }
+        }
+    }
+    for item in rule.get("emit").and_then(|v| v.get("items")).and_then(Json::as_array).unwrap_or(&[]) {
+        if let Some(tags) = item.get("tags") {
+            allowed.extend(json_boundary_atoms(tags).iter().map(|v| *v as *const Json));
+        }
+    }
+    if json_boundary_atoms(rule).iter().any(|v| !allowed.contains(&(*v as *const Json))) {
+        return Some("a boundary atom stands only in conditions or emission tags");
+    }
+    None
 }

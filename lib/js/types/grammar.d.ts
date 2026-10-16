@@ -123,6 +123,36 @@ export declare class Grammar {
      * @type {WeakMap<object, SymbolTest>}
      */
     tests: WeakMap<object, SymbolTest>;
+    /** @type {WeakMap<RuleClauses,WeakMap<object,{rule:string,condition:number,order:number}>>} */
+    boundarySites: WeakMap<RuleClauses, WeakMap<object, {
+        rule: string;
+        condition: number;
+        order: number;
+    }>>;
+    boundaries: {
+        text: {
+            rules: Set<any>;
+            terminals: Set<any>;
+        };
+        all: {
+            rules: Set<any>;
+            terminals: Set<any>;
+        };
+        queries: {
+            rule: any;
+            alternative: any;
+            target: any;
+            reached: {
+                rules: Set<any>;
+                terminals: Set<any>;
+            };
+        }[];
+        atoms: {
+            rule: any;
+            alternative: any;
+            atom: any;
+        }[];
+    };
     families: Map<string, Set<string>>;
     ranked: RankedGroups;
     /**

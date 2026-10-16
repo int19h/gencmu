@@ -1,0 +1,29 @@
+{
+  "description": "A name that only queries build is legal, and the atom reads the witness (engine §4.2 and §6, case 66).",
+  "grammar": "%rule text $x:A B\n%conditions $x.onward.begins(w)\n%rule w u y\n%rule u A\n%conditions $.followed-by(y)\n%rule y B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

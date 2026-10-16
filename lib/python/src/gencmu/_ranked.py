@@ -44,12 +44,15 @@ class Route:
     length: int = 0
     captures: dict = field(default_factory=dict)
     ends: dict = field(default_factory=dict)
+    steps: tuple = ()
+    bindings: dict = field(default_factory=dict)
 
 
 def join(left, right):
     return Route(left.length + right.length,
                  left.captures | {name: (node, at + left.length) for name, (node, at) in right.captures.items()},
-                 left.ends | {group: (at + left.length, option) for group, (at, option) in right.ends.items()})
+                 left.ends | {group: (start + left.length, at + left.length, option) for group, (start, at, option) in right.ends.items()},
+                 left.steps + right.steps, left.bindings | right.bindings)
 
 
 def product(left, right):
@@ -65,31 +68,31 @@ class RankedGroups:
             for alternative, source in enumerate(rule.alternatives):
                 self.source_sites[id(source)] = {"document":source.document,"at":list(source.at),"rule":rule.name,"alternative":alternative,"path":""}
                 self.visit(source.expr, '', True, None, rule.name, alternative, source)
-        for group in self.groups:
-            try:
-                self.validate_clauses(group)
-            except GencmuError as error:
-                self.clause_errors[group] = error
 
-    def validate_clauses(self, group):
+    def validate_clauses(self, group, prefix_can_read=lambda steps: False):
         for route in self.routes(group.source.expr):
             if group not in route.ends:
                 continue
-            end, option = route.ends[group]
+            start, end, option = route.ends[group]
             present = {''} | route.captures.keys()
             def private(names):
                 return any(name in route.captures and self.owners.get(route.captures[name][0]) is group for name in names)
-            for condition in group.source.conditions:
-                if not private(reads(condition)):
-                    continue
+            for index, condition in enumerate(group.source.conditions):
                 effective = simplify_condition(condition, present)
-                if isinstance(effective, bool):
+                if effective is True or not any(route.bindings.get(name) is group for name in reads(condition)):
                     continue
                 variables = reads(effective)
                 if not variables <= present:
                     continue
                 if any(not group.final if name == '' else route.captures[name][1] > end for name in variables):
                     self.fail(group, 'ranked-choice-continuation', 'A private capture requires a condition ready when its ranked choice closes.', option=option, expression=condition)
+                from ._boundary import atoms
+                atom = next((atom for atom in atoms(effective) if atom['method'] == 'preceded-by' and atom['receiver']['capture'] == ''), None)
+                if atom is not None and prefix_can_read(route.steps[:start]):
+                    targets = ' | '.join(arg.get('rule', arg.get('terminal')) for arg in atom['args'])
+                    self.fail(group, 'ranked-choice-boundary',
+                              f'Condition {index + 1} of {group.rule} combines $.preceded-by({targets}) with a private capture in option {option + 1}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.',
+                              option=option, expression=condition)
             for term in (group.source.tags, group.source.rule_tags):
                 if term is not None and private(reads(term)):
                     self.fail(group, 'ranked-choice-export', 'A tag term cannot read a private ranked capture.', option=option, expression=term)
@@ -136,7 +139,12 @@ class RankedGroups:
             out = []
             for option, child in enumerate(expr['ranked']):
                 for route in (yield self._routes(child)):
-                    route.ends[self.expressions[id(expr)]] = (route.length, option)
+                    group = self.expressions[id(expr)]
+                    names = reads(group.expr)
+                    for nested in route.ends:
+                        names -= reads(nested.expr)
+                    route.bindings.update((name, group) for name in names)
+                    route.ends[group] = (0, route.length, option)
                     out.append(route)
             return out
         if 'and' in expr:
@@ -154,8 +162,8 @@ class RankedGroups:
             return [Route(), *(yield self._routes(expr['optional']))]
         if 'repeat' in expr:
             out = yield self._routes(expr['repeat'])
-            return product(out, (yield self._routes(expr['separator']))) if 'separator' in expr else out
-        return [Route(1, {expr['capture']: (id(expr), 1)} if 'capture' in expr else {})]
+            return out + product(out, (yield self._routes(expr['separator']))) if 'separator' in expr else out
+        return [Route(1, {expr['capture']: (id(expr), 1)} if 'capture' in expr else {}, steps=(expr,))]
 
     def site(self, source, path='', group=False):
         site = dict(self.source_sites[id(source)])
@@ -196,6 +204,39 @@ class RankedGroups:
         self.fail(group, 'ranked-choice-tags', 'A ranked choice must discard its returned tags or return provably empty tags.', expression=group.expr)
 
     def validate_tags(self, lowered):
+        from collections import deque
+        productive, nonempty, users = set(), set(), {}
+        remaining = []
+        for i, p in enumerate(lowered.productions):
+            remaining.append(sum(not terminal for terminal in p.terminal))
+            if not remaining[-1]: productive.add(p.lhs)
+            for terminal, symbol in zip(p.terminal, p.rhs):
+                if not terminal: users.setdefault(symbol, []).append(i)
+        queue = deque(productive)
+        while queue:
+            for i in users.get(queue.popleft(), ()):
+                remaining[i] -= 1
+                p = lowered.productions[i]
+                if remaining[i] == 0 and p.lhs not in productive:
+                    productive.add(p.lhs)
+                    queue.append(p.lhs)
+        for i, p in enumerate(lowered.productions):
+            if remaining[i] == 0 and any(p.terminal): nonempty.add(p.lhs)
+        queue = deque(nonempty)
+        while queue:
+            for i in users.get(queue.popleft(), ()):
+                p = lowered.productions[i]
+                if remaining[i] == 0 and p.lhs not in nonempty:
+                    nonempty.add(p.lhs)
+                    queue.append(p.lhs)
+        def prefix_can_read(steps):
+            symbols = []
+            for step in steps:
+                while "expr" in step: step = step["expr"]
+                name = step.get("ref")
+                symbols.append(lowered.rule_ids.get(name) if name in lowered.rule_ids else None)
+            return (all(symbol is None or symbol in productive for symbol in symbols)
+                    and any(symbol is None or symbol in nonempty for symbol in symbols))
         unsafe, users, helpers = set(), {}, {}
         for production in lowered.productions:
             slot = production.slot
@@ -217,8 +258,7 @@ class RankedGroups:
                     unsafe.add(parent.lhs)
                     pending.append(parent.lhs)
         for group in self.groups:
-            if group in self.clause_errors:
-                raise self.clause_errors[group]
+            self.validate_clauses(group, prefix_can_read)
             helper = helpers.get(group)
             if helper not in unsafe:
                 continue

@@ -39,13 +39,13 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] #`. So free modifiers can follow an elided terminator.
 
-`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. The number rule excludes a following number part or letter word. The letter rule excludes a following letter word or PA. An empty free slot still shows the next word. A written BOI permits the boundary.
+The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. Numbers continue with number parts or letter words. Letter strings continue with letter words or PA. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
-A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
+A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs.
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
-`free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both flags contribute to one profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing. The stage compares elisions after this preference.
+`free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
@@ -90,6 +90,8 @@ A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern fi
 
 The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
 
+An initial connective cannot immediately follow a leading free modifier in the same reading. Thus `doi zed jinvi jena morji` reads the vocative `doi zed` before one sentence with connected bridi-tails. So `coi je mi klama` and `doi djan do'u je do klama` fail, as in camxes-exp.
+
 ```jbogenbau
 %const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
 
@@ -97,7 +99,8 @@ The ranked choice compares complete candidates and prefers the form without an i
   | ¬cbm? [{NAI}] {CMEVLA} # (text-1 ≻ $c:connective $t:text-1)
   | [indicators & {free}] (text-1 ≻ $c:connective $t:text-1)
 %conditions
-  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token)
+  $c ≇ $NEEDS-TEXT ∨ $t.first-token.matches(text-token),
+  ¬$c.preceded-by(free)
 
 %rule text-token
   _
@@ -183,13 +186,13 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
 
 A bridi-tail can have terms before its selbri. The terms and `cu` before a selbri form a `bridi-tail-head`. In a head, runs of terms and single `cu` words alternate: `mi cu do klama`, `cu mi klama`. A head can stand before the first bridi-tail of a sentence, and after each connective between bridi-tails. Examples are `mi klama je do tavla` and `mi klama gi'e cu do tavla`.
 
-A term in a head is a term of a list. There a tense or modal, or a bare `na`, is not a term where a selbri follows it ("Terms" below). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. And `mi na klama` negates its selbri.
+A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `mi pu klama` has the tense `pu` on its selbri, and so does `mi pu sei do klama se'u klama`. And `mi na klama` negates its selbri.
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
 
 A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
 
-The listed-term queries apply in heads, tails, prenexes, fragments and `nu'i` termsets. They reserve a bare NA or tag for a following selbri or gek-sentence. A separate endpoint pattern excludes an unclosed tag at the end of a head. A written KU or final CU prevents that match.
+The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -204,14 +207,10 @@ The listed-term queries apply in heads, tails, prenexes, fragments and `nu'i` te
   | CU # [{terms / CU #} [CU #]]
 
 %rule headed-bridi-tail
-  [$h:bridi-tail-head] bridi-tail
-%conditions
-  $h ≇ @(⋱ @(tag KU="" [#]))
+  [bridi-tail-head] bridi-tail
 
 %rule headed-bridi-tail-2
-  [$h:bridi-tail-head] bridi-tail-2
-%conditions
-  $h ≇ @(⋱ @(tag KU="" [#]))
+  [bridi-tail-head] bridi-tail-2
 
 %redefine-rule bridi-tail
   bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
@@ -220,10 +219,8 @@ The listed-term queries apply in heads, tails, prenexes, fragments and `nu'i` te
   bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
 
 %rule connected-bridi-tail
-  | $h:bridi-tail-head bridi-tail-2
+  | bridi-tail-head bridi-tail-2
   | bridi-tail-2-not-starting-with-ke
-%conditions
-  $h ≇ @(⋱ @(tag KU="" [#]))
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
@@ -263,60 +260,49 @@ The listed-term queries apply in heads, tails, prenexes, fragments and `nu'i` te
 
 ## Terms
 
-The layer joins terms at two levels. A connective, an optional stag and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. So `bo` binds tighter: `broda be na ku .e bo na ku .a na ku` is `(na ku .e bo na ku) .a na ku`. The connectives are joik, jek, ek or VUhU (`connective`), so `mi joi do klama` has one term before its selbri.
+The layer joins terms at two levels. A connective, an optional stag, and `bo` join terms into a `term-bo-group`. A plain connective joins those groups through `term-link`. Thus `broda be na ku .e bo na ku .a na ku` groups its terms as `(na ku .e bo na ku) .a na ku`. Joik, jek, ek, and VUhU supply these connectives.
 
-The layer reads terms in two contexts. A `listed-term` stands in a sentence's head or tail terms, a prenex, a fragment or a `nu'i` termset. A `term` follows `be`, `bei`, GOI, LAhE or NAhE, which each take one term.
+A term stands in heads, tails, prenexes, fragments, and NUhI termsets. BE, BEI, GOI, LAhE, and NAhE each take one term. Branches of a bare forethought termset also take terms.
 
-A listed bare NA or tag cannot stand before a selbri or gek-sentence. Queries enforce this restriction in every list position. A written KU or a final CU keeps the term distinct from the following selbri. A bare `na` is not a term where a connective begins at its NA token.
+A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words include `.i`, `ni'o`, `cu`, `gi`, `bei`, `zo'u`, `ce'e`, `pe'e`, and a written terminator of a surrounding construction. `fa'oi` and `oi'i` also separate sentences, and `fi'ai` also closes a prenex. An omitted terminator never counts as a closing word.
 
-A term in a branch of a bare forethought termset (`gek-terms`) also follows the single-term rules. These permit a following selbri or gek-sentence. So `mi pe na klama` has a bare `na` after `pe`.
+A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
-After a plain term connective, two tags protect connections at other levels. `Bridi-Connection-Start` marks a group that starts with a stag and `bo` or `ke` before a selbri or gek-sentence. `Sentence-Connection-Start` marks a group that starts with a stag, `bo` and `.i`. These forms remain connections of bridi-tails and sentences.
+JA, A, JOI, and VUhU alone do not close a term's place. These words can also connect tenses or terms.
 
-The tagged-term rules test the selected tag with `.without-elision.onward`. This view keeps the omitted terminators inside the selected tag. A query cannot shorten a free modifier inside that capture. The BO group keeps these start tags from its first part through every recursive link.
+A bare NA term can also omit KU before any term in the same reading. These terms include sumti, tagged terms, termsets, SOI terms, and other bare NA terms. Thus `ro da na ka'e` and `na fa mi klama` parse. A tag term keeps the closing-word rule. A tag with its own sumti uses the separate tagged-term alternative and needs no KU.
 
-A tag can remain a term before the GI of an enclosing connection. A following GI does not by itself remove the tag term. Where a longer atom run begins a gek, the tense-modal preference selects the gek.
+The KU test starts after the term's own free modifiers. The test of the next written word uses its selma'o. The gihek and term tests read the complete tree. They parse nothing again.
 
-Listed bare NA tests `listed-na-follower`, which also excludes a following selbri or gek-sentence. The single-term rule excludes only a connective at its NA token.
+The same KU rule applies in lists and single-term positions. A written KU permits either term before any following constituent. A bare `na` cannot begin a term where its NA token starts a connective.
 
-`listed-term-bo-link` permits `bo` with or without a stag, as in `fa mi .e bo fe do klama`.
+A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
 
-A connection that can be a sumti connection is one. Terms are connected only where the parts on the two sides of the connective cannot form one sumti. So `mi .e do klama` and `mi .e bo do klama` join two sumti. In `mi cadzu ca la pacac. bi'o la recac.`, the modal `ca` applies to one connected sumti. But `mi .e ca do klama` joins two terms, because `ca do` is a modal term and not a sumti.
+Three tags carry these facts through the tree. `Link-Extensible-End` marks a sumti that a plain connective can extend. `Bo-Extensible-End` marks one that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. `$EXTENSIBLE-END` holds the two end tags.
 
-Without this rule, each of the first three texts has two readings that elide the same terminators.
+`sumti-2` carries both end tags. A KE group with written KEhE lacks them. Thus `mi .e ke do ke'e .e ko'a klama` joins terms. After VUhO, a plain connective can extend the sumti, but a BO connective cannot.
 
-The rules `term` and `term-bo-group`, and their forms in a list of terms, state the rule. Each is left-recursive, so that its condition sees the part before a connective and the link after it. The condition refuses a link where the part before ends with a sumti that the connective can extend, and the link begins with a sumti. So the tree of three or more connected terms nests to the left, as they group.
+A termset closed by written NUhU is not a sumti, and a link that starts with it has no `Sumti-Start` tag. Thus `mi .e ge do gi ti nu'u klama` joins terms. Without NUhU, `mi .e ge do gi ti klama` joins sumti.
 
-Tags carry what the condition needs, so that it never parses the part before again. A tag `Link-Extensible-End` says that a part ends with a sumti that a plain connective can extend. `Bo-Extensible-End` says the same for a connective with `bo`. `Sumti-Start` says that a link begins with a sumti. A tense or modal before the sumti keeps these tags. Each of these rules passes them up from its first or its last part.
+Each term level has its own link rules and sumti conditions. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
 
-`sumti-2` has both end tags, since a connective can always extend it. A `ke` group with a written `ke'e` has none, so `mi .e ke do ke'e .e ko'a klama` joins two terms. After `vu'o`, a plain connective can extend the sumti, but a connective with `bo` cannot. `$EXTENSIBLE-END` holds the two end tags.
+PEhE takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 
-A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `Sumti-Start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
-
-`pe'e` takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. The added terms are bare `na` and a `soi` clause enabled by `soi-clause`. That clause contains a subsentence and ends with `se'u`. `fi'oi` belongs to SOI.
+A bare forethought termset needs no NUhI, and its branches can hold different numbers of terms. Its first branch ends in `termset-branch`, which elides NUhU before GI. A competing forethought sumti elides nothing there, so `late-elision` prefers it.
 
 The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
 
-A forethought termset needs no `nu'i`, and its two branches can hold different numbers of terms. The same words can often form a gek sumti or a termset.
+Thus `ge mi gi do ce'e ti` contains a connected sumti followed by CEhE and another term. In `broda be ge mi gi do ce'e ti be'o`, BE instead takes a termset. Its single argument cannot continue with CEhE after a sumti.
 
-The ranking prefers the sumti reading where both constructs can complete. The first branch of a termset, `termset-branch`, ends in `nu'u`, which the termset elides before `gi`. The sumti elides nothing there, so `late-elision` prefers it. So `ge mi gi do ce'e ti` is the sumti `ge mi gi do` followed by `ce'e ti`. But `broda be ge mi gi do ce'e ti be'o` has a termset, because the single argument of `be` cannot continue with `ce'e ti`.
+Inside NUhI, a ranked choice prefers `gek-termset-body` over `terms` when both complete over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. A bare forethought termset can also start the plain body. A written inner NUhU keeps its boundary distinct from the outer body.
 
-The NUhI body ranks `gek-termset-body` before `terms`. A qualified forethought body excludes a plain body over the same span. Thus `nu'i ge mi gi do nu'u` contains two termset branches. The excluded plain body wraps the connected sumti `ge mi gi do` inside NUhI. In `nu'i ge mi gi do ko'a klama`, the second branch contains `do ko'a`.
-
-A bare forethought termset can be the first term of the plain body. A written inner `nu'u` keeps its boundary distinct from the outer body. The preference applies only when both complete bodies span the same words.
-
-NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`. In `nu'i ge ni'e broda brode gi re mi ko'a klama`, the second branch also contains `ko'a`.
+NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`.
 
 ```jbogenbau
 %redefine-rule terms-1
   {... terms-2 / PEhE # connective}
 
-%redefine-rule terms-2
-  (* terms_2 <- abs_term (cehe_sa* CEhE_clause free* abs_term)* *)
-  {listed-term / CEhE #}
-
 %redefine-rule term
-  (* term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence term_2)* *)
   | term-bo-group
   | $t:term $l:term-link :: $l.tags ∩ $EXTENSIBLE-END
 %conditions
@@ -325,7 +311,7 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 %rule term-bo-group
   (* term_2 <- term_3 (joik_ek stag? BO_clause term_3)* *)
   | term-3
-  | $g:term-bo-group $l:term-bo-link :: ($g.tags ∩ (Sumti-Start ∪ $CONNECTION-START)) ∪ ($l.tags ∩ $EXTENSIBLE-END)
+  | $g:term-bo-group $l:term-bo-link :: ($g.tags ∩ Sumti-Start) ∪ ($l.tags ∩ $EXTENSIBLE-END)
 %conditions
   Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
 
@@ -334,21 +320,12 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 
 %rule term-link
   connective $g:term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-%conditions
-  Bridi-Connection-Start ⊈ $g.tags,
-  Sentence-Connection-Start ⊈ $g.tags
-
-%rule tag-bo-ke-bridi-tail
-  (* tag_bo_ke_bridi_tail <- stag (BO_clause / KE_clause) CU_elidible free* (selbri / gek_sentence) *)
-  stag (BO | KE) [CU] # (selbri | gek-sentence)
-
-%rule tag-bo-subsentence
-  (* tag_bo_subsentence <- stag BO_clause I_clause *)
-  stag BO I
-
-%const $CONNECTION-START Bridi-Connection-Start ∪ Sentence-Connection-Start
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
+
+%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI
+
+%const $BARE-TAG @(tag KU="" [#])
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -363,7 +340,8 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
   $n:NA #
 %conditions
-  ¬$n.onward.begins(na-connective)
+  ¬$n.onward.begins(na-connective),
+  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -371,61 +349,12 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
 %rule soi-term
   SOI # subsentence [+SEhU] #
 
-%rule tagged-term :: ($g.without-elision.onward.begins(tag-bo-ke-bridi-tail) ⟹ Bridi-Connection-Start) ∪ ($g.without-elision.onward.begins(tag-bo-subsentence) ⟹ Sentence-Connection-Start)
+%rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
-  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
-  | $g:tag [+KU] #
-
-%rule listed-term
-  (* abs_term_1 <- abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)* *)
-  | listed-term-bo-group
-  | $t:listed-term $l:listed-term-link :: $l.tags ∩ $EXTENSIBLE-END
+  | tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
+  | tag [+KU] #
 %conditions
-  Link-Extensible-End ⊈ $t.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-bo-group
-  (* abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*, with the stag optional *)
-  | listed-term-3
-  | $g:listed-term-bo-group $l:listed-term-bo-link :: ($g.tags ∩ (Sumti-Start ∪ $CONNECTION-START)) ∪ ($l.tags ∩ $EXTENSIBLE-END)
-%conditions
-  Bo-Extensible-End ⊈ $g.tags ∨ Sumti-Start ⊈ $l.tags
-
-%rule listed-term-bo-link
-  connective [stag] BO # $u:listed-term-3 :: $u.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-
-%rule listed-term-link
-  connective $g:listed-term-bo-group :: $g.tags ∩ ($EXTENSIBLE-END ∪ Sumti-Start)
-%conditions
-  Bridi-Connection-Start ⊈ $g.tags,
-  Sentence-Connection-Start ⊈ $g.tags
-
-%rule listed-term-3
-  (* abs_term_3 <- sumti / abs_tag_term / termset *)
-  | $s:sumti :: $s.tags ∪ Sumti-Start
-  | listed-tagged-term
-  | termset
-  | NA # KU #
-  | listed-bare-na
-  | soi-clause? soi-term
-
-%rule listed-tagged-term :: ($g.without-elision.onward.begins(tag-bo-ke-bridi-tail) ⟹ Bridi-Connection-Start) ∪ ($g.without-elision.onward.begins(tag-bo-subsentence) ⟹ Sentence-Connection-Start)
-  (* abs_tag_term: !gek tag free* !selbri !gek_sentence, then a sumti or an elided KU *)
-  | $g:tag $s:sumti :: $s.tags ∩ $EXTENSIBLE-END
-  | $g:tag [+KU] #
-%conditions
-  ¬$g.following-tokens.begins(selbri-after-tag)
-
-%rule selbri-after-tag
-  # (selbri | gek-sentence)
-
-%rule listed-bare-na
-  (* !selbri !gek_sentence !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
-  $n:NA #
-%conditions
-  ¬$n.onward.begins(listed-na-follower)
-
-%rule listed-na-follower
-  selbri | gek-sentence | joik-jek-ek | gihek
+  $ ≇ $BARE-TAG ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek)
 
 %redefine-rule termset
   (* termset <- gek_termset / NUhI_clause free* gek terms NUhU_elidible free* gik terms NUhU_elidible free* / NUhI_clause free* terms NUhU_elidible free* *)
@@ -452,29 +381,17 @@ NIhE keeps an ordinary elidable TEhU, so `ni'e broda` can end before `brode`. In
   NUhI # (gek-termset-body ≻ terms) [+NUhU] #
 ```
 
-<details><summary>Railroad diagrams of the 29 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 17 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/terms-2.svg" alt="Railroad diagram of the rule terms-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-bo-link.svg" alt="Railroad diagram of the rule term-bo-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tag-bo-ke-bridi-tail.svg" alt="Railroad diagram of the rule tag-bo-ke-bridi-tail"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tag-bo-subsentence.svg" alt="Railroad diagram of the rule tag-bo-subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-3.svg" alt="Railroad diagram of the rule term-3"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bare-na.svg" alt="Railroad diagram of the rule bare-na"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/na-connective.svg" alt="Railroad diagram of the rule na-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/soi-term.svg" alt="Railroad diagram of the rule soi-term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tagged-term.svg" alt="Railroad diagram of the rule tagged-term"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term.svg" alt="Railroad diagram of the rule listed-term"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-group.svg" alt="Railroad diagram of the rule listed-term-bo-group"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-bo-link.svg" alt="Railroad diagram of the rule listed-term-bo-link"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-link.svg" alt="Railroad diagram of the rule listed-term-link"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-term-3.svg" alt="Railroad diagram of the rule listed-term-3"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-tagged-term.svg" alt="Railroad diagram of the rule listed-tagged-term"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-after-tag.svg" alt="Railroad diagram of the rule selbri-after-tag"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-bare-na.svg" alt="Railroad diagram of the rule listed-bare-na"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/listed-na-follower.svg" alt="Railroad diagram of the rule listed-na-follower"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset.svg" alt="Railroad diagram of the rule termset"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-termset-body.svg" alt="Railroad diagram of the rule gek-termset-body"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset-branch.svg" alt="Railroad diagram of the rule termset-branch"></p>
@@ -494,7 +411,7 @@ Sumti connectives are ek, joik, jek or VUhU (`connective`). This change and the 
 - `lo'oi` and `ku'au` surround a subsentence as a description.
 - The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
 
-A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar also accepts `mi na'e pu .e ca lu'u klama`, with both inner KUs omitted.
+A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar accepts `mi na'e pu ku .e ca lu'u klama`. The first tag requires KU before `.e`. The second can omit KU before `lu'u`.
 
 The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot start with a quantifier. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
@@ -830,12 +747,16 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 %redefine-rule number
   number-part [{number-part | lerfu-word}]
+%conditions
+  ¬$.followed-by(number-part | lerfu-word)
 
 %rule number-part
   PA | NIhE # selbri [+TEhU] # | MOhE # sumti [+TEhU] #
 
 %redefine-rule lerfu-string
   lerfu-word [{PA | lerfu-word}]
+%conditions
+  ¬$.followed-by(PA | lerfu-word)
 ```
 
 <details><summary>Railroad diagrams of the 15 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
@@ -862,7 +783,7 @@ The connective rules below have no NAI slot. The indicator stage attaches every 
 
 An ek connects sumti with A, and a jek connects predicates with JA. Both permit negation with NA and conversion with SE. An interval connective uses BIhI, with optional conversion. A gik separates forethought branches with GI and permits free modifiers after it.
 
-A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The `bare-na` and `listed-bare-na` conditions exclude a bare NA term where NA begins a connective. The words can connect sumti or terms, and the term conditions keep the sumti reading.
+A joik permits `na` before a word of JOI. So `mi na joi do klama` has one term, `mi na joi do`. The `bare-na` conditions exclude a bare NA term where NA begins a connective. The words can connect sumti or terms, and the term conditions keep the sumti reading.
 
 A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU, as in `ga je lo mlatu gi lo gerku`. With `ga`, it is a gek. With `gu`, it is a guhek, as in `mi gu je melbi gi kargydu'e`. The connective before `gi` in a gek can also be a jek or an ek (`je gi mi broda gi mi brode`). A gihek can be `gi` followed by a word of JOI, JA or A (`mi klama gi je tavla`).
 
@@ -982,7 +903,7 @@ A vocative starts with a run of COI words, DOI, or both. A COI run returns no ta
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. A written BOI permits a separate number or lerfu string after it.
 
-With BOI omitted, the first-token test starts at the selected free slot and sees the remaining input, even when the slot reads nothing. PA, NIhE and MOhE start number parts. BY, LAU and TEI start letter words. Numbers continue with number parts or letter words. Lerfu strings continue with PA or letter words. The constants `$NUMBER-CONTINUATION` and `$LERFU-CONTINUATION` hold these classes.
+The number and letter-string rules refuse an actual following run part. With written BOI, that terminal follows the run, so the condition holds. With BOI omitted, a number part or letter word continues the number. PA or a letter word continues a letter string. Both free-slot wrappers are named nodes in the tree.
 
 So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. With written BOI, `li pa boi by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
 
@@ -1022,21 +943,11 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
 
-%const $NUMBER-CONTINUATION PA ∪ NIhE ∪ MOhE ∪ BY ∪ LAU ∪ TEI
-
-%const $LERFU-CONTINUATION PA ∪ BY ∪ LAU ∪ TEI
-
 %rule free-after-number
-  (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
-  [+BOI] $f:#
-%conditions
-  BOI ⊆ $.first-token.tags ∨ $NUMBER-CONTINUATION ∩ $f.onward.first-token.tags ⊆ ∅
+  [+BOI] #
 
 %rule free-after-lerfu-string
-  (* After an elided BOI, the string has read every continuing letter or PA. *)
-  [+BOI] $f:#
-%conditions
-  BOI ⊆ $.first-token.tags ∨ $LERFU-CONTINUATION ∩ $f.onward.first-token.tags ⊆ ∅
+  [+BOI] #
 
 %rule lohai-word
   Word<¬LOhAI ¬LEhAI>
@@ -1089,27 +1000,25 @@ This layer permits all four initial connective families, as in `je mi klama`, `e
 
 Where both complete, the ek fragment takes priority over the initial connective. Thus `e ni'o` and `e .i mi klama` keep their fragment readings. This preference also applies after the initial name run with `cbm` off.
 
+An initial connective cannot immediately follow a leading free modifier in this layer. Thus `doi djan klama je do cadzu` gives the vocative only `djan`, then reads one connected sentence. In `doi zed jinvi jena morji`, it likewise reads `doi zed` before the connected sentence. camxes-exp rejects both texts. `ui je mi klama` keeps its initial connective because UI is an indicator. `doi djan .i mi klama` keeps its separate statement marker.
+
 The statement connectives follow camxes-exp, including `mi klama joi .i do klama` and `mi klama .e pu bo .i do klama`. Plain connections after `.i` and plain bridi-tail connections retain CLL's left grouping.[^cll-s14-7][^cll-s14-10] Connections after `.i` with `bo` group from the right. Bare `na` instead forms a term, which removes CLL's duplicate fragment alternative.
 
 camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer uses the listed-term queries and the `-not-starting-with-ke` rules.
+camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and the `-not-starting-with-ke` rules.
 
 ### Terms and descriptions
 
 The two levels of term connection correspond to camxes-exp's `term_1` and `term_2`. Its `joik_ek` and `joik_jek` include JOI, JA, A and VUhU. This layer uses those classes for term, sumti and selbri connectives too. This layer's tagged and bare-`na` terms in a list correspond to `abs_tag_term`. Tagged and bare-`na` single terms, including those in bare forethought branches, correspond to `tag_term`. `tag_term` has no `!selbri` or `!gek_sentence` lookahead.
 
-The listed NA and tag rules retain camxes-exp's `!selbri !gek_sentence` restriction in every list position. In `le nu do klama na brode`, NA belongs to the outer predicate. In `le nu do klama pu brode`, PU belongs there too. The abstraction and description close before those words.
+The KU rule keeps NA on the outer predicate in `le nu do klama na brode`. It also keeps PU there in `le nu do klama pu brode`. The abstraction and description close before those words.
 
-The queries reject `nu'i na broda` and `nu'i pu broda`, as camxes-exp does. A written NUhU permits each termset to end before `broda`.
+The same rule rejects `nu'i na broda` and `nu'i pu broda`, as camxes-exp does. A written NUhU permits both termsets to end before `broda`.
 
-A query can shorten an unterminated free modifier to invent a following predicate. Thus `mi klama na to broda` rejects, while camxes-exp keeps BRODA inside the parenthesis. In `na to broda`, `na na to broda` and `na na na to broda`, the layer instead reads predicate negations and an empty parenthesis. These selected-context limits wait for [issue #197](https://github.com/int19h/gencmu/issues/197). Written TOI keeps the parenthesis and bare terms in `na to broda toi` and `na na to broda toi`. The tail form `mi klama na to broda toi` also retains that parenthesis.
+The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a term's own free modifiers from a later constituent. In `mi klama na to broda`, the NA term owns the complete parenthesis. In `mi klama na sei mi broda brode`, it owns the complete SEI clause. `na to broda` permits the same fragment reading. In `na na to broda toi`, the first NA term precedes a second NA term with its own parenthesis.
 
-camxes-exp applies two lookaheads after its plain term connective. This layer carries the corresponding connection facts from the selected tag. These queries preserve the selected tag's own omitted terminators and free modifiers.
-
-The connection-start queries do not preserve the surrounding KU, BEhO, LIhU, NUhU or TOI boundaries. They can exclude a term link even when no competing outer connection completes. These selected-context limits wait for [issue #197](https://github.com/int19h/gencmu/issues/197). Thus `broda be mi .e pu ke brode ke'e bo brodi` rejects despite its complete term-link reading.
-
-camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions because the competing readings elide the same terminators. Both therefore prefer the sumti when both readings complete.
+camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
 
 Bare forethought termsets can have unequal branch lengths here, as CLL's bracketed termsets can. camxes-exp pairs the branches term by term. Where a forethought sumti also completes, its earlier choice agrees with this layer's elision ranking. The termset omits NUhU before GI, while the sumti omits nothing there.
 
@@ -1120,6 +1029,34 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
 The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
+
+### Deliberate KU omission limits
+
+This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
+
+Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
+
+A gihek can start with NA or SE. These prefixes close the term's place only when they belong to the actual gihek. An ordinary connective without `.i` does not close that place.
+
+Writing `ku` makes each rejected text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
+
+Outside the positions above, a bare tag or NA term requires a written KU. CLL also permits a tag to omit KU where no ambiguity results.[^cll-s21-1] This layer rejects some such texts, including `broda be pu brode`.
+
+JA, A, JOI, and VUhU do not count as closing words because they also connect tenses or terms. Thus `mi klama pu je tavla` fails, while `mi klama pu ku je tavla` parses. Counting these connectives as closing words gives `mi klama pu je ca klama` two readings.
+
+The corpus records these examples that camxes-exp accepts and this layer rejects:
+
+- `mi pe na klama` places a bare NA before a selbri.
+- `broda be pu brode` places a bare tag before a selbri.
+- `not canada` places a bare tag before NA.
+- `ze'u na do tavla` places a bare tag before NA.
+- `na to mi toi .e do` places a bare NA before a connective.
+- `.i lei za'u da ba na ku curmi le nu mi'ai klama lo nenri be le purdi` places a bare tag before NA.
+- `mi klama pu je tavla` places a bare tag before an ordinary connective. Write `mi klama pu ku je tavla`.
+
+The rule also changes accepted readings. In `ge mi ti gi do na klama`, this layer puts NA on the following selbri. camxes-exp puts it in the termset's second branch. The same difference applies to `ge mi ti gi do pu klama`. An omitted NUhU permits no KU omission before `klama`.
+
+In `na pa to joi re moi mi`, this layer puts `joi re moi` inside the parenthesis. camxes-exp puts only `joi` there. The final `mi` follows the parenthesis in both readings.
 
 ### Tanru and linked arguments
 

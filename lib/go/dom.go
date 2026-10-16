@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 28
+const domFormat = 29
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -155,6 +155,7 @@ const (
 	tmCapture      = "capture"
 	tmRule         = "rule"
 	tmClassifier   = "classifier"
+	tmTerminal     = "terminal"
 	tmIf           = "if"
 	tmConst        = "const"
 	tmPattern      = "pattern"
@@ -190,6 +191,8 @@ const (
 	cdMatches  = "matches"
 	cdBegins   = "begins"
 	cdInitial  = "initial"
+	cdEnd      = "ends-input"
+	cdBoundary = "boundary"
 	cdNot      = "not"
 	cdAny      = "any"
 	cdAll      = "all"
@@ -198,6 +201,8 @@ const (
 )
 
 type domCond struct {
+	Targets     []*domTerm
+	At          [2]int
 	Kind        string
 	Op          string
 	Left, Right *domTerm
@@ -501,7 +506,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw(`{"pattern":`)
 		w.pattern(t.Pattern)
 		w.raw("}")
-	case tmString, tmTag, tmCapture, tmRule, tmClassifier:
+	case tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":")
@@ -558,13 +563,16 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 		w.raw(`,"right":`)
 		c.Right.writeJSON(w)
 		w.raw("}")
-	case cdMatches, cdBegins, cdInitial:
+	case cdMatches, cdBegins, cdInitial, cdEnd, cdBoundary:
 		name := c.Kind
 		if name == cdInitial {
 			name = "starts-input"
 		}
 		t := &domTerm{Kind: tmCall, Str: name, Items: []*domTerm{c.Span}}
-		if c.Kind != cdInitial {
+		if c.Kind == cdBoundary {
+			t.Str = c.Op
+			t.Items = append(t.Items, c.Targets...)
+		} else if c.Kind != cdInitial && c.Kind != cdEnd {
 			t.Items = append(t.Items, &domTerm{Kind: tmRule, Str: c.Rule})
 		}
 		t.writeJSON(w)
@@ -1139,7 +1147,7 @@ var exprForms = [][]string{
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
-	{tmString}, {tmTag}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
+	{tmString}, {tmTag}, {tmTerminal}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
 var condForms = [][]string{
@@ -1183,7 +1191,7 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
 	}
-	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier} {
+	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal} {
 		if v, ok := o[k]; ok {
 			s, err := decodeString(v)
 			return &domTerm{Kind: k, Str: s}, err
@@ -1265,6 +1273,12 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 		}
 		if len(t.Items) == 0 {
 			return nil, fmt.Errorf("a malformed predicate method")
+		}
+		if t.Str == "ends-input" && len(t.Items) == 1 {
+			return &domCond{Kind: cdEnd, Span: t.Items[0]}, nil
+		}
+		if boundaryMethod(t.Str) && len(t.Items) >= 2 {
+			return &domCond{Kind: cdBoundary, Op: t.Str, Span: t.Items[0], Targets: t.Items[1:]}, nil
 		}
 		if t.Str == "starts-input" && len(t.Items) == 1 {
 			return &domCond{Kind: cdInitial, Span: t.Items[0]}, nil
