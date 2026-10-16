@@ -951,8 +951,7 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    leftmost_longest: bool = False
-    fewest: bool = False
+    rule_flag: str | None = None
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -992,6 +991,14 @@ class Production:
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
+
+    @property
+    def leftmost_longest(self) -> bool:
+        return self.rule_flag == "leftmost-longest"
+
+    @property
+    def fewest(self) -> bool:
+        return self.rule_flag == "fewest"
 
     @property
     def real_id(self):
@@ -1354,8 +1361,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            fewest=alt is not None and "fewest" in self.grammar.rules[self.rule_names[lhs]].flags,
-            leftmost_longest=alt is not None and "leftmost-longest" in self.grammar.rules[self.rule_names[lhs]].flags,
+            rule_flag=next(iter(self.grammar.rules[self.rule_names[lhs]].flags), None) if alt is not None else None,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,

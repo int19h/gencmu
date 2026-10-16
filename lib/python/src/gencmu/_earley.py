@@ -460,9 +460,8 @@ class StageContext:
         read. A walk, which runs the nested parse where its answer is not
         yet known."""
         self.require_inactive(rule, start, end)
+        # Ordinary answers depend on their input, not the caller query stack.
         key = self.nested_key(rule, start, end)
-        if self.closes is not None:
-            key = key, frozenset(self.running)
         found = self.memo.get(key)
         if found is None:
             yield self.answer(rule, start, end, key, False)
@@ -475,9 +474,8 @@ class StageContext:
         eligible proof tree begins at the span's start, in any set (engine
         §4). A walk, as for :meth:`nested`."""
         self.require_inactive(rule, start, end)
+        # Ordinary answers depend on their input, not the caller query stack.
         key = self.nested_key(rule, start, end)
-        if self.closes is not None:
-            key = key, frozenset(self.running)
         found = self.begins_memo.get(key)
         if found is None:
             yield self.answer(rule, start, end, key, True)

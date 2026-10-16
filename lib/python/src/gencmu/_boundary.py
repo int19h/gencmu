@@ -242,22 +242,29 @@ class Located(dict):
 
 def validate_targets(rules, stage):
     from ._errors import GencmuError
-    queries, found, seen = [], [], set()
+    found, seen = [], set()
     for rule in rules.values():
         for alternative in rule.alternatives:
             if id(alternative.conditions) not in seen:
                 seen.add(id(alternative.conditions))
                 found.extend((alternative, atom) for atom in atoms([alternative.conditions, alternative.emit]))
+    if not found:
+        return
+    queries, visited = [], set()
+    for rule in rules.values():
+        for alternative in rule.alternatives:
             pending = [alternative.conditions, alternative.tags, alternative.rule_tags, alternative.emit]
             while pending:
                 part = pending.pop()
-                if isinstance(part, list): pending.extend(part)
-                elif isinstance(part, dict):
+                if not isinstance(part, (list, dict)) or id(part) in visited:
+                    continue
+                visited.add(id(part))
+                if isinstance(part, list):
+                    pending.extend(part)
+                else:
                     if part.get('method') in ('matches', 'begins', 'tags') and part.get('args') and 'rule' in part['args'][0]:
                         queries.append(part['args'][0]['rule'])
                     pending.extend(part.values())
-    if not found:
-        return
     reached, terminals, pending = set(), set(), ['text', *queries]
     while pending:
         name = pending.pop()
