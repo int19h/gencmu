@@ -4415,3 +4415,16 @@ adhoc.words.orthography.experimental.quote-mark.before-mark-2.zantufa
 adhoc.words.orthography.experimental.quote-mark.doubled-2.zantufa
 adhoc.words.orthography.experimental.quote-mark.after-lone-mark-2.zantufa
 adhoc.words.split.zohoi.attached-foreign-sharp-s.experimental
+i211.experimental.indicator
+i211.experimental.description
+i211.experimental.quotation
+i211.experimental.sei-written-close
+i211.experimental.suai-quantifier
+i211.experimental.xee-quantifier
+i211.experimental.coi-written-close
+i211.experimental.xeie-tag
+i211.experimental.unsupported-gohoi
+i211.experimental.unsupported-noiha
+i211.experimental.unsupported-cahei
+i211.experimental.unsupported-la
+i211.experimental.iohe-attitudinal
