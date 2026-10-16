@@ -849,6 +849,8 @@ class DomBuilder:
                     arg = {"classifier": arg["rule"]}
                 if name in ("followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
+                from ._boundary import Located
+                arg = Located(arg, self.position(part))
                 args.append(arg)
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
@@ -864,7 +866,8 @@ class DomBuilder:
                 raise self.fail(node, problem)
             if name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
-            receiver = {"method": name, "receiver": receiver, "args": args}
+            from ._boundary import Located
+            receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
             self.boundary_nodes[id(receiver)] = node
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]

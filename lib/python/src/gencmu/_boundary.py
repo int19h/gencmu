@@ -65,8 +65,13 @@ class Records:
         self.forward = self.backward = 0
         self.literals = []
         self.empty = self.intern(True, 0, 0, 0, 0)
+        seen = set()
         for p in productions:
-            for condition in [*p.conds_predict, *(c for cs in p.conds_at.values() for c in cs), *(p.source.conditions if p.source is not None else [])]:
+            conditions = p.source.conditions if p.source is not None else p.conds_predict + [c for cs in p.conds_at.values() for c in cs]
+            if id(conditions) in seen:
+                continue
+            seen.add(id(conditions))
+            for condition in conditions:
                 for atom in atoms(condition):
                     mask = self.targets(atom)
                     if atom['method'] == 'followed-by':
@@ -226,3 +231,55 @@ class Annotations:
             return Annotations(select(result.start, self.start), select(result.end, self.end, select(pending, sources.end)))
         return (Annotations(select(result.start, self.end, sources.start), select(result.end, sources.end)) if prefix.empty
                 else Annotations(select(result.start, self.start), select(result.end, sources.end)))
+
+
+class Located(dict):
+    """Reader positions stay outside the serializable DOM."""
+    def __init__(self, value, at):
+        super().__init__(value)
+        self.at = at
+
+
+def validate_targets(rules, stage):
+    from ._errors import GencmuError
+    queries, found, seen = [], [], set()
+    for rule in rules.values():
+        for alternative in rule.alternatives:
+            if id(alternative.conditions) not in seen:
+                seen.add(id(alternative.conditions))
+                found.extend((alternative, atom) for atom in atoms([alternative.conditions, alternative.emit]))
+            pending = [alternative.conditions, alternative.tags, alternative.rule_tags, alternative.emit]
+            while pending:
+                part = pending.pop()
+                if isinstance(part, list): pending.extend(part)
+                elif isinstance(part, dict):
+                    if part.get('method') in ('matches', 'begins', 'tags') and part.get('args') and 'rule' in part['args'][0]:
+                        queries.append(part['args'][0]['rule'])
+                    pending.extend(part.values())
+    if not found:
+        return
+    reached, terminals, pending = set(), set(), ['text', *queries]
+    while pending:
+        name = pending.pop()
+        if name in reached:
+            continue
+        reached.add(name)
+        for alternative in rules[name].alternatives if name in rules else ():
+            stack = [alternative.expr]
+            while stack:
+                part = stack.pop()
+                if isinstance(part, list): stack.extend(part)
+                elif isinstance(part, dict):
+                    ref = part.get('ref')
+                    if ref:
+                        if ref[:1].isupper() or ref.startswith('_'): terminals.add(ref)
+                        else: pending.append(ref)
+                    stack.extend(part.values())
+    for alternative, atom in found:
+        for target in atom['args']:
+            name = target.get('rule', target.get('terminal'))
+            if name not in (reached if 'rule' in target else terminals):
+                at = getattr(target, 'at', (None, None))
+                error = GencmuError(f'boundary target {name} is unreachable', document=alternative.document, line=at[0], column=at[1], stage=stage)
+                error._boundary_document = alternative.document
+                raise error

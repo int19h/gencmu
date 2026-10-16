@@ -745,6 +745,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    from ._boundary import validate_targets
+    validate_targets(rules, stage)
     classifier_items = [
         (path, {**classifier, "entries": [
             {**entry, "keys": [constants.string(path, key, entry["at"]) for key in entry["keys"]]}

@@ -915,6 +915,7 @@ class Parser:
         if not boundaries.forward and not boundaries.backward:
             boundaries = None
         records, annotations, failures, prediction_obligations = [], [], [], {}
+        boundary_seen = set()
         has_slots = bool(ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
@@ -1049,7 +1050,7 @@ class Parser:
             return prefix
 
         sites = {}
-        for order, rule in enumerate(lowered.grammar.rules.values()):
+        for order, rule in enumerate(lowered.grammar.rules.values() if boundaries is not None else ()):
             seen, index = set(), 0
             for alternative in rule.alternatives:
                 key = id(alternative.conditions)
@@ -1061,6 +1062,8 @@ class Parser:
                     index += 1
 
         def boundary_condition(condition, bound, obligations):
+            if boundaries is None:
+                return (yield evaluator.walk_condition(condition, bound))
             found = atoms(condition)
             if not found:
                 return (yield evaluator.walk_condition(condition, bound))
@@ -1154,6 +1157,9 @@ class Parser:
                 found = len(prod)
                 sets[at][key] = found
                 if bounded is not None:
+                    if bounded[0].id not in boundary_seen:
+                        boundary_seen.add(bounded[0].id)
+                        _testing.count("boundary_records")
                     records.append(bounded[0])
                     annotations.append(bounded[1])
                 prod.append(production)
