@@ -105,7 +105,7 @@ Following `span` from stage to stage explains any token of a stage's output. The
 
 ## Values and images
 
-The engine decomposes every text before stage zero. So a precomposed letter and its decomposed form read alike.
+Stage zero decomposes every text. So a precomposed letter and its decomposed form read alike.
 
 A value is the token string that comparisons read. An image is the token string that people see. Tags classify tokens independently of these strings. A constituent is one occurrence of a matched rule. It stores tags but neither string.
 

@@ -86,7 +86,7 @@ The sections below explain these forms.
 
 ## Names and terminals
 
-Names use ASCII letters, digits, hyphens, and underscores. A rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
+Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
 
 A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`. A selma'o is a class of Lojban particles.
 
@@ -114,7 +114,7 @@ An engine tag can stand in a tag test, a pattern, a condition, and a body termin
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string is text in straight double quotes, such as `"la"`. Strings use engine-constant interpolation for special characters. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes. `$(NAME)` interpolates a string constant and `$$` writes a dollar sign. `$(_0022)` writes a quote. The section "Constants" gives errors and resolution.
+A string uses straight double quotes, such as `"la"`, and engine-constant interpolation for special characters. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes. `$(NAME)` interpolates a string constant and `$$` writes a dollar sign. `$(_0022)` writes a quote. The section "Constants" gives errors and resolution.
 
 ## Tests
 
@@ -136,7 +136,7 @@ The emitted letter word `broda bu` has value `broda bu` when its gap recipe supp
 
 `s` is a string literal or string constant. Case and commas have no special comparison rule, so `LE="La"` and `LE="l,a"` are legal exact tests. Tag requirements contain tag names or tag-set constants, with optional negation. They hold no capture or input method. Groups and general set expressions do not stand inside a tag test.
 
-A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. A capture can wrap a tested symbol, as in `$l:LA="la"`. The test belongs to `LA`, the binder's target. A written test follows only a reference other than `#`, or a terminal. A test after a group, optional, braces, `ε`, or `#` is an error, such as `(LE NU)="lonu"`. Only a supplied notation tree can place a test on a capture node itself. Spaces and comments can stand between a symbol and its test, and inside the test. The grammars write a test without them.
+A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `ui`. In `$l:LA="la"`, the capture wraps `LA`, and the test belongs to that target. A written test follows only a reference other than `#`, or a terminal. A test after a group, optional, braces, `ε`, or `#` is an error, such as `(LE NU)="lonu"`. Only a supplied notation tree can place a test on a capture node itself. Spaces and comments can stand between a symbol and its test, or inside the test, although the grammars omit them.
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
@@ -461,9 +461,9 @@ Any union operand that is itself a union flattens into its enclosing union. Thus
 
 Plain parentheses preserve sibling grouping without a subtree boundary. `@(A (B C))` therefore has three children. `@(A @(B C))` has two children. At a path or set boundary, a sequence becomes one child-sequence predicate. A set expression within a sequence consumes one child.
 
-One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Likewise, `@A<B>=""` means `@(A<B>="")`. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
+One tag test followed by one value test can follow a terminal atom. Its value or tags must belong to the same matched leaf. Written leaves use their original token's value and tags. Omitted T leaves use empty value and `{T}`, including during reconstruction. A written token with empty value also satisfies `T=""`.
 
-A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `@A<B>` keeps the test inside and means `@(A<B>)`.
+A terminal atom accepts one signed tag test and one exact value test, in that order. Rule predicates accept none. Pattern set operators combine complete predicates and cannot mix them with tag sets. `∅` obtains pattern type from context. An untyped `%const $EMPTY ∅` remains an error. `@A<B>` means `@(A<B>)`, and `@A<B>=""` means `@(A<B>="")`.
 
 Patterns reject `&`, `|`, captures, emissions, alternative tags, feature guards, elision markers, chain repetitions and direct chained path prefixes. Braces keep one-or-more sequence behavior and their separator syntax. A repeat body that only matches empty sequences is an error. A sibling ellipsis cannot be a repeat item or separator. Patterns cannot contain recursive constants.
 

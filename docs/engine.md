@@ -2,8 +2,6 @@
 
 This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification. An implementation that disagrees with one of them is wrong.
 
-A case that disagrees with this text is a bug in one or the other, and the same change fixes it.
-
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
 ## 1. Tokens
