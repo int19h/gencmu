@@ -1,0 +1,173 @@
+{
+  "description": "Contextual apostrophes retain main’s phoneme reading. One complete quote keeps the written marks and whole-quote attachments.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la`oi l`amour",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                2,
+                3
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                7,
+                8
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                8,
+                9
+              ],
+              "tags": []
+            },
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                10,
+                11
+              ],
+              "tags": []
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                11,
+                12
+              ],
+              "tags": []
+            },
+            {
+              "image": "r",
+              "value": "r",
+              "source": [
+                12,
+                13
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "la`oi l`amour",
+              "value": "la'oi l`amour",
+              "source": [
+                0,
+                13
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "la`oi l`amour"
+  }
+}

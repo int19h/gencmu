@@ -1,0 +1,449 @@
+{
+  "description": "Paragraph and mekso rules inspect actual syntax terminals. Quoted topic, number, and operator words stay inside one quote token.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi pe'o na'e su'i pa moi zo coi",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "p",
+              "value": "p",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": "e",
+              "value": "e",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                7,
+                8
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "n",
+              "value": "n",
+              "source": [
+                8,
+                9
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                10,
+                11
+              ],
+              "tags": []
+            },
+            {
+              "image": "e",
+              "value": "e",
+              "source": [
+                11,
+                12
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                12,
+                13
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "s",
+              "value": "s",
+              "source": [
+                13,
+                14
+              ],
+              "tags": []
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                14,
+                15
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                15,
+                16
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                16,
+                17
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                17,
+                18
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "p",
+              "value": "p",
+              "source": [
+                18,
+                19
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                19,
+                20
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                20,
+                21
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                21,
+                22
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                22,
+                23
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                23,
+                24
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                24,
+                25
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                25,
+                26
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                26,
+                27
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                27,
+                28
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "c",
+              "value": "c",
+              "source": [
+                28,
+                29
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                29,
+                30
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                30,
+                31
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "mi",
+              "value": "mi",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "KOhA",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "pe'o",
+              "value": "pe'o",
+              "source": [
+                3,
+                7
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PEhO",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "na'e",
+              "value": "na'e",
+              "source": [
+                8,
+                12
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "NAhE",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "su'i",
+              "value": "su'i",
+              "source": [
+                13,
+                17
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "VUhU",
+                "Word"
+              ]
+            },
+            {
+              "image": "pa",
+              "value": "pa",
+              "source": [
+                18,
+                20
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "moi",
+              "value": "moi",
+              "source": [
+                21,
+                24
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "MOI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "zo coi",
+              "value": "zo coi",
+              "source": [
+                25,
+                31
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "(mi [{(pe'o [na'e su'i] pa) moi} zo coi])"
+  }
+}

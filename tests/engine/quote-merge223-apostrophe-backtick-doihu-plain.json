@@ -1,0 +1,146 @@
+{
+  "description": "Contextual apostrophes retain main’s phoneme reading. One complete quote keeps the written marks and whole-quote attachments.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "doi`u la`o",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "d",
+              "value": "d",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                2,
+                3
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                7,
+                8
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                8,
+                9
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "doi`u la`o",
+              "value": "doi'u la'o",
+              "source": [
+                0,
+                10
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "doi`u la`o"
+  }
+}

@@ -1,0 +1,414 @@
+{
+  "description": "Contextual apostrophes retain main’s phoneme reading. One complete quote keeps the written marks and whole-quote attachments.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi, zoi la`o. l`amour .la`o ui cmavo",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                7,
+                8
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                8,
+                9
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                10,
+                11
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                11,
+                12
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                12,
+                14
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                14,
+                15
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                15,
+                16
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                16,
+                17
+              ],
+              "tags": []
+            },
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                17,
+                18
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                18,
+                19
+              ],
+              "tags": []
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                19,
+                20
+              ],
+              "tags": []
+            },
+            {
+              "image": "r",
+              "value": "r",
+              "source": [
+                20,
+                21
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                21,
+                23
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                23,
+                24
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                24,
+                25
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                25,
+                26
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                26,
+                27
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                27,
+                28
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                28,
+                29
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                29,
+                30
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                30,
+                31
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "c",
+              "value": "c",
+              "source": [
+                31,
+                32
+              ],
+              "tags": []
+            },
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                32,
+                33
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                33,
+                34
+              ],
+              "tags": []
+            },
+            {
+              "image": "v",
+              "value": "v",
+              "source": [
+                34,
+                35
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                35,
+                36
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "mi",
+              "value": "mi",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "KOhA",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "zoi la`o. l`amour .la`o",
+              "value": "zoi la'o l`amour la'o",
+              "source": [
+                4,
+                27
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            },
+            {
+              "image": "ui",
+              "value": "ui",
+              "source": [
+                28,
+                30
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "UI",
+                "Word"
+              ]
+            },
+            {
+              "image": "cmavo",
+              "value": "cmavo",
+              "source": [
+                31,
+                36
+              ],
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "([mi {zoi la`o. l`amour .la`o ui}] cmavo)"
+  }
+}

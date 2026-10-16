@@ -51,7 +51,7 @@
       hint: "A ranked choice prefers the first qualifying option over the same text. MOI makes the expression describe something. Replace ≻ with | in the open MOI group to see a tie." },
     { label: "A whole MOI expression wins (experimental)", text: "mi se ga pa gi re moi", dialect: "experimental",
       document: "syntax/experimental.md", rule: "tanru-unit-2",
-      hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace ≻ with | in the open MOI group to see a tie." },
+      hint: "SE exchanges argument places. The whole mathematical expression with MOI wins over this conversion. Replace each ≻ with | in the open MOI group to see a tie." },
     { label: "ME prefers an argument (experimental)", text: "mi me by", dialect: "experimental", tab: "tree",
       document: "syntax/experimental.md", rule: "me-unit",
       hint: "A sumti is an argument. A mex is a mathematical expression. The condition excludes mex only when sumti reads the same words with the same boundaries. Remove the %conditions clause to see a tie." },

@@ -1,0 +1,156 @@
+{
+  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi ´zo coi´",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "c",
+              "value": "c",
+              "source": [
+                7,
+                8
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                8,
+                9
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "mi",
+              "value": "mi",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "KOhA",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "zo coi´",
+              "value": "zo coi",
+              "source": [
+                4,
+                10
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "(mi zo coi´)"
+  }
+}

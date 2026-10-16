@@ -1,0 +1,193 @@
+{
+  "description": "Paragraph and mekso rules inspect actual syntax terminals. Quoted topic, number, and operator words stay inside one quote token.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "li by zo pa",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "b",
+              "value": "b",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": "y",
+              "value": "y",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                7,
+                8
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                8,
+                9
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "p",
+              "value": "p",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                10,
+                11
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "li",
+              "value": "li",
+              "source": [
+                0,
+                2
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "LI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "by",
+              "value": "by",
+              "source": [
+                3,
+                5
+              ],
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "zo pa",
+              "value": "zo pa",
+              "source": [
+                6,
+                11
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "([li by] zo pa)"
+  }
+}

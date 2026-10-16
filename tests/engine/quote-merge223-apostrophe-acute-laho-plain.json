@@ -1,0 +1,222 @@
+{
+  "description": "Contextual apostrophes retain main’s phoneme reading. One complete quote keeps the written marks and whole-quote attachments.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la´o gy. l´amour .gy",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                2,
+                3
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                4,
+                5
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "g",
+              "value": "g",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "image": "y",
+              "value": "y",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                7,
+                9
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                9,
+                10
+              ],
+              "tags": []
+            },
+            {
+              "image": "'",
+              "value": "'",
+              "source": [
+                10,
+                11
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                11,
+                12
+              ],
+              "tags": []
+            },
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                12,
+                13
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                13,
+                14
+              ],
+              "tags": []
+            },
+            {
+              "image": "u",
+              "value": "u",
+              "source": [
+                14,
+                15
+              ],
+              "tags": []
+            },
+            {
+              "image": "r",
+              "value": "r",
+              "source": [
+                15,
+                16
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                16,
+                18
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "g",
+              "value": "g",
+              "source": [
+                18,
+                19
+              ],
+              "tags": []
+            },
+            {
+              "image": "y",
+              "value": "y",
+              "source": [
+                19,
+                20
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "la´o gy. l´amour .gy",
+              "value": "la'o gy l´amour gy",
+              "source": [
+                0,
+                20
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "la´o gy. l´amour .gy"
+  }
+}
