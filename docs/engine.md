@@ -198,7 +198,9 @@ Identify each ranked expression after final stitching and constant binding. Its 
 
 Visit groups in stitched rule, alternative, and expression traversal order. The first offending group determines the error, across capture and tag checks. Source locations remain separate from the document DOM. The group location is its first `≻` token when source exists.
 
-A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when that group completes.
+A capture inside an option belongs to its innermost ranked group. Simplify each condition for capture presence in every virtual option expansion. A virtual expansion records written capture positions without copying the parent. Every remaining condition that reads a private capture must be ready when its binding group completes.
+
+Each selected option binds captures declared within its group, whether present or absent. An active nested group binds its own captures. When a selection skips that group, the enclosing group binds its absent captures. Loading and runtime use the same bindings. Determine these bindings before capture-presence simplification.
 
 `$` becomes ready only at completion of the enclosing named alternative. A final ranked group can reach completion. Any suffix element, even one that can read no tokens, delays it. An unready private condition reports `ranked-choice-continuation`.
 
@@ -688,7 +690,7 @@ Each step applies these rules after the order of §4, which they extend. A token
 5. A nonempty item of rule R completes. If R is a forward target, it joins the first offers. If R is a backward target, it joins the last offers. The forward start literals meet the first offers, and the backward end literals meet the last offers. Then the obligations on `$` join: backward ones the start literals, and forward ones the end literals.
 6. An empty item completes. The obligations on `$` join its pending literals.
 
-A ranked helper can evaluate a condition owned by an enclosing group. It keeps the ordinary evaluations and their error order. It introduces a whole-rule literal only when the written condition reads a private capture that its own group owns. Determine that ownership before capture-presence simplification. A nested helper never moves an enclosing group's literal to its own start. A common whole-rule condition introduces its literal at the named completion.
+A ranked helper can evaluate a condition owned by an enclosing group. It keeps the ordinary evaluations and their error order. It introduces a whole-rule literal only when the written condition reads a private capture that its group binds, including an absent descendant capture. Determine that ownership before capture-presence simplification. A nested helper never moves an enclosing group's literal to its own start. A common whole-rule condition introduces its literal at the named completion.
 
 A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles the literals of each witness item in the same way before it counts the witness. Its witness's span stands in for the input. In an aligned query, the witness reads restored terminators as synthetic tokens (§7). Its atoms read projected spans, as §7.5 says for the check. A synthetic read has an empty projected span, so it gives no offer and makes no node count.
 

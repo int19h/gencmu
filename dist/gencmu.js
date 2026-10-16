@@ -5660,8 +5660,8 @@
 
 
   /** @typedef {{document?:string, at?:[number,number], rule:string, alternative:number, path:string}} GroupSite */
-  /** @typedef {{id:number, site:GroupSite, expr:any, source:any, final:boolean, parent:string, helper:string}} RankedGroup */
-  /** @typedef {{steps:any[], captures:Map<string,{node:any,at:number}>, ends:Map<RankedGroup,{start:number,at:number,option:number}>}} VirtualPath */
+  /** @typedef {{id:number, site:GroupSite, expr:any, source:any, final:boolean, parent:string, helper:string, captures:Set<string>}} RankedGroup */
+  /** @typedef {{steps:any[], captures:Map<string,{node:any,at:number}>, ends:Map<RankedGroup,{start:number,at:number,option:number}>, bindings:Map<string,RankedGroup>}} VirtualPath */
 
   // Source locations stay outside the document DOM.
   /** @type {WeakMap<object,[number,number]>} */
@@ -5739,7 +5739,7 @@
           this.paths.set(expr, path);
           if (expr.ranked) {
             const site = { document: source.document, ...(rankedLocations.has(expr) ? {at:rankedLocations.get(expr)} : {}), rule:rule.name, alternative, path };
-            const group = {id:this.groups.length, site, expr, source, final, parent:rule.name, helper:`${rule.name}·ranked${this.groups.length}`};
+            const group = {id:this.groups.length, site, expr, source, final, parent:rule.name, captures:rankedDeclaredCaptures(expr), helper:`${rule.name}·ranked${this.groups.length}`};
             this.groups.push(group);
             this.byExpression.set(expr, group);
             expr.ranked.forEach((/** @type {any} */ child, /** @type {number} */ index) => visit(child, `${path}/ranked/${index}`, final, group));
@@ -5784,9 +5784,11 @@
             const capture = path.captures.get(name);
             return capture && this.owners.get(capture.node) === group;
           });
+          /** @param {any} value */
+          const bindingRead = value => [...rankedCaptureReads(value)].some(name => path.bindings.get(name) === group);
           for (const [index,condition] of source.clauses.conditions.entries()) {
             const effective = simplifyFor(prepareClause(condition), has, names);
-            if (effective === DOM_TRUE || !privateRead(condition)) continue;
+            if (effective === DOM_TRUE || !bindingRead(condition)) continue;
             const variables = [...rankedCaptureReads(effective)];
             // Missing captures remove ordinary conditions under §3.6.
             if (variables.some(name => !has(name))) continue;
@@ -5910,15 +5912,35 @@
     return found;
   }
 
+  /** The selection binds absent descendants unless an active nested group does.
+   * @param {RankedGroup} group @param {Iterable<RankedGroup>} nested */
+  function rankedBoundCaptures(group,nested) {
+    const names = new Set(group.captures);
+    for (const child of nested) for (const name of child.captures) names.delete(name);
+    return names;
+  }
+
+  /** @param {any} expr */
+  function rankedDeclaredCaptures(expr) {
+    const names = new Set(), pending = [expr];
+    while (pending.length) {
+      const node = pending.pop();
+      if (typeof node.capture === "string") names.add(node.capture);
+      for (const [child] of rankedExpressionChildren(node)) pending.push(child);
+    }
+    return names;
+  }
+
   /** @returns {VirtualPath} */
-  function rankedEmptyPath() {return {steps:[],captures:new Map(),ends:new Map()};}
+  function rankedEmptyPath() {return {steps:[],captures:new Map(),ends:new Map(),bindings:new Map()};}
 
   /** @param {VirtualPath} a @param {VirtualPath} b @returns {VirtualPath} */
   function rankedJoinPaths(a,b) {
-    const offset = a.steps.length, captures = new Map(a.captures), ends = new Map(a.ends);
+    const offset = a.steps.length, captures = new Map(a.captures), ends = new Map(a.ends), bindings = new Map(a.bindings);
     for (const [name,capture] of b.captures) captures.set(name,{node:capture.node,at:capture.at+offset});
     for (const [group,end] of b.ends) ends.set(group,{option:end.option,start:end.start+offset,at:end.at+offset});
-    return {steps:a.steps.concat(b.steps),captures,ends};
+    for (const [name,group] of b.bindings) bindings.set(name,group);
+    return {steps:a.steps.concat(b.steps),captures,ends,bindings};
   }
 
   /** @param {VirtualPath[]} left @param {VirtualPath[]} right */
@@ -5940,6 +5962,7 @@
     if (expr.ranked) {
       const group = /** @type {RankedGroup} */ (groups.get(expr));
       return expr.ranked.flatMap((/** @type {any} */ child, /** @type {number} */ option) => rankedVirtualPaths(child,groups).map(path => {
+        for (const name of rankedBoundCaptures(group,path.ends.keys())) path.bindings.set(name,group);
         path.ends.set(group,{start:0,at:path.steps.length,option});return path;
       }));
     }
@@ -6010,20 +6033,7 @@
     if (!ranked.groups.length) return;
     const helpers = new Map(lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs, p]));
     const groups = new Map(ranked.groups.map((/** @type {any} */ g) => [g.helper, g]));
-    const privateNames = new Map();
-    for (const group of ranked.groups) {
-      const names = new Set();
-      const pending = [group.expr];
-      while (pending.length) {
-        const expr = pending.pop();
-        if (expr.capture) names.add(expr.capture);
-        for (const [key, value] of Object.entries(expr)) {
-          if (key === 'ranked' || key === 'seq' || key === 'choice' || key === 'and') for (const child of value) pending.push(child);
-          else if (['node','optional','repeat','separator','group'].includes(key)) pending.push(value);
-        }
-      }
-      privateNames.set(group, names);
-    }
+    const privateNames = new Map(ranked.groups.map((/** @type {any} */ group) => [group,group.captures]));
     const descendants = (/** @type {any} */ name) => {
       const found = new Set(), visited = new Set(), pending = [name];
       while (pending.length) {
@@ -6057,7 +6067,7 @@
       if (p.helper && ranked.groups.some((/** @type {any} */ g) => g.source === p.source)) {
         p.contextual = true;
       }
-      p.rankedPrivate = own ? new Set([...privateNames.get(own)].filter(n => ![...relevant].some(g => privateNames.get(g).has(n)))) : new Set();
+      p.rankedPrivate = own ? rankedBoundCaptures(own,relevant) : new Set();
       p.sourcePrivate = new Set(ranked.groups.filter((/** @type {any} */ g) => g.source === p.source).flatMap((/** @type {any} */ g) => [...privateNames.get(g)]));
       // Cache identity includes declarations and selected absence, not helper IDs.
       p.rankedBindings = [

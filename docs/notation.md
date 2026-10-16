@@ -289,6 +289,8 @@ Captures inside a ranked choice belong to that choice. They can serve only condi
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
+A selected option also determines which private captures are absent. A nested group that runs determines absence within that group. If the selection skips the nested group, the enclosing group determines that absence. The loading restrictions use this same group.
+
 Private conditions read captures inside ranked options. A private condition cannot hold `$.preceded-by(S)` when its option can start after the rule starts. This restriction applies to positive and negated atoms. A prefix that can read only an empty sequence keeps the option at the rule's start. The loader examines structural expansions, including disabled alternatives, without evaluating conditions or symbol tests.
 
 The loading error `ranked-choice-boundary` names the condition, the backward atom, and the ranked option. Move the condition into a rule that starts with the ranked group. Alternatively, test the private capture itself, as in `$a.preceded-by(S)`. Forward atoms on `$` and backward atoms without private ranked captures remain legal.
