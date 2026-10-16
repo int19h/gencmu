@@ -2767,10 +2767,10 @@
 {"id":"adhoc.words.split.zohoi.only-hesitation.cll-ebnf","text":"zo'oi yy","dialect":"cll-ebnf","expect":"reject","stage":"syntax","at":0,"words":["zo'oi"]}
 {"id":"adhoc.words.split.zohoi.foreign.experimental","text":"zo'oi ffff","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi ffff"],"brackets":"zo'oi ffff"}
 {"id":"adhoc.words.split.zohoi.foreign-q.experimental","text":"zo'oi qqq","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi qqq"],"brackets":"zo'oi qqq"}
-{"id":"adhoc.words.split.zohoi.foreign-apostrophe.experimental","text":"zo'oi a'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi a"],"brackets":"zo'oi a"}
+{"id":"adhoc.words.split.zohoi.foreign-apostrophe.experimental","text":"zo'oi a'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi a'"],"brackets":"zo'oi a'"}
 {"id":"adhoc.words.split.zohoi.attached.experimental","text":"zo'oimibroda","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oimibroda"],"brackets":"zo'oimibroda"}
-{"id":"adhoc.words.split.zohoi.attached-foreign.experimental","text":"zo'oibroda'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oibroda"],"brackets":"zo'oibroda"}
-{"id":"adhoc.words.split.zohoi.paused-foreign.experimental","text":"zo'oi broda'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi broda"],"brackets":"zo'oi broda"}
+{"id":"adhoc.words.split.zohoi.attached-foreign.experimental","text":"zo'oibroda'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oibroda'"],"brackets":"zo'oibroda'"}
+{"id":"adhoc.words.split.zohoi.paused-foreign.experimental","text":"zo'oi broda'","dialect":"experimental","expect":"accept","verdict":"unique","words":["zo'oi broda'"],"brackets":"zo'oi broda'"}
 {"id":"adhoc.words.split.zoi.letter-word-delimiter","text":"zoi .ibu. x .ibu.","dialect":"cll-ebnf","expect":"reject","stage":"words","at":6}
 {"id":"adhoc.words.split.zoi.letter-word-delimiter.bpfk","text":"zoi .ibu. x .ibu.","dialect":"bpfk","expect":"reject","stage":"words","at":6}
 {"id":"adhoc.words.split.zoi.delimiter-before-bu","text":"zoi mi bu. x .mi bu.","dialect":"cll-ebnf","expect":"accept","verdict":"unique","words":["zoi mi bu. x .mi bu"],"brackets":"zoi mi bu. x .mi bu"}
@@ -5231,7 +5231,7 @@
 {"id":"adhoc.words.orthography.experimental.length.only.experimental","text":"~~~","dialect":"experimental","expect":"accept","verdict":"unique","words":[],"brackets":""}
 {"id":"adhoc.words.orthography.experimental.length.zoi-body.experimental","text":"zoi gy. ta~~~~vla .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy. ta~~~~vla .gy"],"brackets":"zoi gy. ta~~~~vla .gy"}
 {"id":"adhoc.words.orthography.experimental.length.foreign-run-end.experimental","text":"zoi gy. クリボー .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy. クリボー .gy"],"brackets":"zoi gy. クリボー .gy"}
-{"id":"adhoc.words.orthography.experimental.length.foreign-run-end-laoi.experimental","text":"la'oi クリボー","dialect":"experimental","expect":"accept","verdict":"unique","words":["la'oi クリボ"],"brackets":"la'oi クリボ"}
+{"id":"adhoc.words.orthography.experimental.length.foreign-run-end-laoi.experimental","text":"la'oi クリボー","dialect":"experimental","expect":"accept","verdict":"unique","words":["la'oi クリボー"],"brackets":"la'oi クリボー"}
 {"id":"adhoc.words.orthography.experimental.length.letters-with-mark.experimental","text":"klạmaー","dialect":"experimental","expect":"accept","verdict":"unique","words":["klama"],"brackets":"klama"}
 {"id":"adhoc.words.orthography.experimental.length.foreign-run-start.experimental","text":"zoi gy. ーß .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy. ーß .gy"],"brackets":"zoi gy. ーß .gy"}
 {"id":"adhoc.words.orthography.experimental.length.foreign-run-start-format.experimental","text":"zoi gy. ~­ß .gy.","dialect":"experimental","expect":"accept","verdict":"unique","words":["zoi gy. ~­ß .gy"],"brackets":"zoi gy. ~­ß .gy"}
