@@ -251,11 +251,9 @@ type ranker struct {
 	marked   map[*item]bool
 	// leaves holds the one vector of a single elision at each position.
 	leaves map[int32]*elSeq
-	// marks, where a test watches the check, are the witness hook's marks
-	// of W(D): for each item of W(D), the links that W(D) uses
-	// (tests/README.md). With them, each count also says whether it includes
-	// a derivation of marked links only. A parse that no test watches has
-	// none.
+	// marks holds W(D)'s links for each item of W(D) (tests/README.md).
+	// Each count also says whether it includes a derivation of marked links only.
+	// Every elision-only check supplies these marks, including without a test hook.
 	marks map[*item]map[link]bool
 	// check selects canonical competitors during reconstruction.
 	check bool
@@ -508,7 +506,7 @@ type entry struct {
 	// cands then holds only derivations that attain vec.
 	vec   *elSeq
 	least int
-	// w, with the witness hook's marks, says whether count includes a
+	// w, with the runtime witness marks, says whether count includes a
 	// derivation of marked links only (tests/README.md). The same loop
 	// decides both, so any choice that drops W(D) from the count drops it
 	// here.
@@ -1174,7 +1172,7 @@ type rankResult struct {
 	first   *dn
 	second  *dn // nil unless the verdict is a tie
 	witness [2]action
-	// witnessCounted, with the witness hook's marks, says whether the count
+	// witnessCounted, with the runtime witness marks, says whether the count
 	// counted W(D): a root has the bit (tests/README.md).
 	witnessCounted bool
 }

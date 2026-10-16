@@ -373,7 +373,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
         with_bare_alternative(set_emit({"items": [{"insert": True, "tags": {"tag": "Y"}}, {"capture": "x"}]})),
     ),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
-    ("opaque with ε", lambda dom: (rule(dom).update(opaque=True), set_emit({"items": []})(dom))),
+    ("opaque with an empty emission list", lambda dom: (rule(dom).update(opaque=True), set_emit({"items": []})(dom))),
     # Tests in a body (engine §2, §9).
     ("a test with an unknown comparator", set_expr({"capture": "x", "expr": {"test": "==", "value": {"string": "a"}, "expr": A}})),
     ("a test whose comparator is no string", set_expr({"capture": "x", "expr": {"test": 7, "value": {"string": "a"}, "expr": A}})),
@@ -627,12 +627,12 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
-        """$ in conditions, in emission and as a span of $.tags(rule), ε,
+        """$ in conditions, in emission and as a span of $.tags(rule), emission lists,
         ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
         gate and a warning (engine §9)."""
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": TAG}, WHOLE]})),
-            ("ε", set_emit({"items": []})),
+            ("empty emission list", set_emit({"items": []})),
             ("opaque", lambda dom: rule(dom).update(opaque=True)),
             (
                 "$.tags in an emitted term",
@@ -735,7 +735,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 change(dom)
                 # These forms cannot assign strings through tags or treat
                 # an empty list as erasure.
-                if name in ("ε", "opaque", "tag of a string", "tag of text", "a character tag"):
+                if name in ("empty emission list", "opaque", "tag of a string", "tag of text", "a character tag"):
                     self.assertIsNotNone(dom_problem(dom))
                 else:
                     self.assertIsNone(dom_problem(dom))

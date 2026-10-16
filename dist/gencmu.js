@@ -11409,7 +11409,7 @@
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string,
    *   flagChange?: {from: string[], to: string[]}}[]} changes
-   * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
+   * @property {{rule: string, document: string}[]} idleErasures rules marked `%erased` although nothing
    *   under them could emit and no token could cover them
    * @property {Membership[]} memberships every membership of a key in a class
    *   that an entry of a classifier adds or removes, in the order of the
@@ -12275,7 +12275,7 @@
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    * @property {RuleProfile} profile
-   * @property {boolean | null} witnessCounted with the witness hook's marks,
+   * @property {boolean | null} witnessCounted with the runtime witness marks,
    *   whether the count counted W(D); null without marks
    */
 
@@ -12625,11 +12625,10 @@
       // faults read.
       this.check = false;
       /**
-       * The witness hook's marks (tests/README.md): for each item of W(D),
+       * The runtime witness marks (tests/README.md): for each item of W(D),
        * the indices of its edges that W(D) uses. With marks, the count also
-       * says whether it counted a derivation made of marked edges only. A
-       * parse that no test watches has none, and does the same work as
-       * without them.
+       * says whether it counted a derivation made of marked edges only.
+       * Every elision-only check supplies these marks, including without a test hook.
        * @type {Map<Item, Set<number>> | null}
        */
       this.marks = null;
@@ -12927,7 +12926,7 @@
     }
 
     /**
-     * The number of an item's derivations, capped at two. With the witness hook's marks, `w`
+     * The number of an item's derivations, capped at two. With the runtime witness marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
@@ -14438,8 +14437,8 @@
       }
       let roots = rootItems(chart, "text");
       if (fault("lost:roots")) roots = [];
-      // A test that watches the check marks W(D)'s edges before the check
-      // ranks (tests/README.md).
+      // Runtime tracking marks W(D)'s edges before the check ranks.
+      // An optional test hook observes the witness (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
       const protectWitness = true;
       const walk = protectWitness ? walkWitness(run) : null;
@@ -16987,7 +16986,7 @@
       if (surrogate !== null) {
         throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
       }
-      // A token that the caller supplies has its text as its image (engine §5).
+      // A caller token defaults its image to its text only when `image` is absent (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
       // each token, its tags and its positions, so the caller's objects stay

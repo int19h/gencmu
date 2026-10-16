@@ -112,9 +112,9 @@ type privateOptions struct {
 	slotAdmission func(slotStatistics)
 	// elisionCheck, when set, receives each check of elision-only that
 	// recognized R and met no error of the grammar, before it ranks, for
-	// the witness test of tests/README.md. It gives back the marks of
-	// W(D)'s links, which the check's own ranker takes, and a callback
-	// that receives the ranking and the ranker.
+	// the witness test of tests/README.md. It returns independent witness
+	// marks and a callback that receives the ranking and the ranker.
+	// Runtime tracking supplies the ranker's marks independently.
 	elisionCheck func(*elisionCheckRun) elisionWatch
 	// loseWitness loses the witness of a check after recognition (§7.9):
 	// "roots" drops the completed items of text over R, and "count" drops
@@ -224,8 +224,8 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	if private.loseWitness == "roots" {
 		top = nil
 	}
-	// A test that watches the check marks W(D)'s links before the check
-	// ranks (tests/README.md).
+	// Runtime tracking marks W(D)'s links before the check ranks.
+	// An optional test hook observes the witness (tests/README.md).
 	var watch elisionWatch
 	if private.elisionCheck != nil {
 		watch = private.elisionCheck(&elisionCheckRun{chosen: d, rec: r, top: top, recon: rc, originalAt: originalAt, recordAt: recordAt})

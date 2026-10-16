@@ -710,7 +710,7 @@ fn every_malformed_dom_is_a_cache_miss() {
         ("captures listed out of order", with_emission(r#"{"items":[{"capture":"y"},{"capture":"x"}]}"#)),
         ("opaque false", with_emission(r#"{"items":[{"capture":"x"}]},"erased":false"#)),
         ("opaque that is not a boolean", with_emission(r#"{"items":[{"capture":"x"}]},"erased":1"#)),
-        ("opaque with %emits ε", with_emission(r#"{"items":[]},"erased":true"#)),
+        ("erasure with an empty emission list", with_emission(r#"{"items":[]},"erased":true"#)),
         (
             "an emission naming a capture no alternative has",
             with_emission(r#"{"items":[{"capture":"x"},{"capture":"z","tags":{"tag":"T"}}]}"#),

@@ -380,7 +380,7 @@ fn span_of(tree: &ITree, index: u32) -> (u32, u32) {
     }
 }
 
-/// Whether a production's constituent emits ε and so does not count (§11).
+/// Whether `%erased` excludes a production's constituent from counted parts (§11).
 fn counts_for_nothing(g: &Lowered, prod: u32) -> bool {
     g.prods[prod as usize].erased
 }
@@ -428,10 +428,8 @@ fn cover(
 }
 
 /// The one input token whose attachments a token over node `root` inherits,
-/// or `None` (§11). The parts are those of the join (§5): a read input
-/// token, or an erased part as one piece, and nothing inside a constituent
-/// that emits ε. A token with attachments among other parts, or an erased
-/// part that holds one, is an error of the grammar.
+/// or `None` (§11). The parts are read input tokens outside `%erased` constituents (§5).
+/// A token with attachments among other counted parts is an error of the grammar.
 fn forwarded(g: &Lowered, tree: &ITree, tokens: &[Tok], root: u32) -> Result<Option<u32>, EngineError> {
     let mut parts = 0usize;
     let mut found = None;

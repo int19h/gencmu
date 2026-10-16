@@ -85,7 +85,7 @@ func TestDOMRules(t *testing.T) {
 		{"captures are emitted in text order", emit(`{"items":[{"capture":"y"},{"capture":"x"}]}`)},
 		{"an inserted tag's anchor is in every alternative", two(`"emit":{"items":[{"insert":"T"},{"capture":"x"}]},"conditions":[]`)},
 		{"every alternative emits something", two(`"emit":{"items":[{"capture":"x"}]},"conditions":[]`)},
-		{"an opaque rule does not emit ε", emit(`{"items":[]},"opaque":true`)},
+		{"an opaque member beside an empty emission list", emit(`{"items":[]},"opaque":true`)},
 		{"opaque is true or absent", strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"opaque":false`, 1)},
 		{"a guard does not read the constituent's tags", tagged(`{"if":{"op":"⊆","left":{"tag":"a"},"right":{"method":"tags","receiver":{"capture":""},"args":[]}},"then":{"tag":"T"}}`)},
 		{"a guarded term has a term", tagged(`{"if":{"captured":"x"}}`)},
@@ -413,7 +413,7 @@ func TestDOMRules(t *testing.T) {
 		// from the top.
 		emit(`{"items":[{"capture":"","tags":` + unions(256) + `}]}`),
 		cond(strings.Repeat(`{"not":`, 255) + `{"method":"matches","receiver":{"capture":"x"},"args":[{"rule":"text"}]}` + strings.Repeat(`}`, 255)), emit(`{"items":[{"capture":""},{"capture":""}]}`), emit(`{"items":[{"insert":true,"value":{"concat":[{"string":"y"}]}},{"capture":"x"}]}`),
-		// ε, no items, for one alternative and for several.
+		// %erased, for one alternative and for several.
 		strings.Replace(alt(good), `"conditions":[]`, `"conditions":[],"erased":true`, 1), two(`"erased":true,"conditions":[]`),
 		emit(`{"items":[{"capture":"x"},{"insert":true,"value":{"concat":[{"string":"y"}]}},{"capture":"y","tags":{"method":"tags","receiver":{"capture":""},"args":[]}}]}`),
 		tagged(`{"method":"tags","receiver":{"capture":""},"args":[{"rule":"text"}]}`), tagged(`{"method":"tags","receiver":{"method":"first-token","receiver":{"capture":""},"args":[]},"args":[]}`),

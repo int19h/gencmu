@@ -212,7 +212,7 @@ type domCond struct {
 	Items       []*domCond
 }
 
-// domEmit is an emission; no items is %emits ε.
+// domEmit holds the items of a %emits clause. Erasure uses a separate rule flag.
 type domEmit struct {
 	Items []*domEmitItem
 }
@@ -249,8 +249,7 @@ func (e *domEmit) whole() bool {
 	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
 }
 
-// nothing says the emission is ε: the constituent emits nothing and does
-// not count (engine §11).
+// nothing reports whether the emission has no items (engine §11).
 func (e *domEmit) nothing() bool {
 	return len(e.Items) == 0
 }

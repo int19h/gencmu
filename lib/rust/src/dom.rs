@@ -240,9 +240,9 @@ pub(crate) enum Cond {
 }
 
 /// An item of an emission clause. A capture named `""` is `$`, the whole
-/// constituent. An emission of no items is `%emits ε` (§11). A named
-/// capture, the item's carrier, can name attachment captures before it and
-/// after it (§11).
+/// constituent. `%emits ε` inserts a token, and `%erased` erases (§11).
+/// A named capture, the item's carrier, can name attachment captures
+/// before it and after it (§11).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum EmitItem {
     Capture(String, Option<Term>, Attachments),

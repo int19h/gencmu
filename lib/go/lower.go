@@ -55,7 +55,7 @@ type production struct {
 	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
 	emit              *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing           bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	nothing           bool       // %erased: the constituent emits nothing and does not count (§11)
 	value, image      *domTerm
 	transparent       bool
 	helper            bool

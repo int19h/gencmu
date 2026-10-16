@@ -695,8 +695,8 @@ class StageRunner:
         # The recognition of R is not a query (engine §4, §7.6).
         forest = _reconstruct(context)
         lowered = forest.lowered
-        # A test that watches the check marks W(D)'s edges before the check
-        # ranks (tests/README.md).
+        # Runtime tracking marks W(D)'s edges before the check ranks.
+        # An optional test hook observes the witness (tests/README.md).
         hook = _testing.elision_check
         watch = hook(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at)) if hook is not None else None
         # The reconstruction ranks with no stage policy, and

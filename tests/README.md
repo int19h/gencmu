@@ -118,7 +118,7 @@ The answer records raw W(D), which engine §7.8 reconstructs from the chosen der
   A cut that closes a cycle has no bit. The loop can stop once the count is two, but at a marked item only once the bit is known. A root of W(D) must have the bit.
 - The selection channel: An elision-only error reports raw W(D) first, including when admission excludes it. The second reading is the T-first best admitted competitor distinct from W(D). The walk builds the witness actions in post-order for comparison.
 
-A parse that no test watches passes no marks to its ranker.
+Every check tracks W(D) and passes its marks to the ranker, whether or not a test watches it. The optional test hook observes the reconstruction and ranking. It does not enable runtime witness tracking.
 
 The hook asks about the check's own ranking because any other question is a stand-in. A chart that holds W(D) is not enough, because a faulty ranker can still lose it. A positive count is not enough, because another reading can survive without W(D). Ranking W(D) alone is insufficient because edge handling can depend on siblings.
 

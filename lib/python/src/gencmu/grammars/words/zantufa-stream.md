@@ -55,7 +55,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. Every dialect compares their normalized values ([the word stream](stream.md)). So the dialect needs only the marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
 %redefine-rule zoi-marker
