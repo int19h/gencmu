@@ -391,12 +391,13 @@ impl Chart {
             .cloned()
             .unwrap_or_else(|| format!("parent{:?}", p.slot.as_ref().expect("a written source").source));
         let key = format!(
-            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}",
+            "{:?}/{written:?}/{symbols:?}/{}/{}/{own:?}/{}/{:?}/{observing}/{}",
             outer.map(|f| &f.key),
             before.dot,
             before.origin,
             before.prefix,
-            g.ranked.bindings.get(&before.prod)
+            g.ranked.bindings.get(&before.prod),
+            before.boundary
         );
         if let Some(&id) = self.lexical_index.get(&key) {
             self.helper_entries.insert((at, before), id);
@@ -2083,7 +2084,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut back = crate::boundary::Bits::new();
             let mut forward = crate::boundary::Bits::new();
             for (atom, positive) in state.obligations {
-                let LCond::Boundary(f, receiver, targets) = atom else {unreachable!()};
+                let LCond::Boundary(f, receiver, targets, _) = atom else {unreachable!()};
                 let literal = m.literal(*f, targets, positive);
                 if matches!(receiver, Span::Whole) {
                     if *f {forward.insert(literal);} else {back.insert(literal);}
@@ -2943,7 +2944,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         // parse's own span included, so that is 0.
                         LCond::Initial(span) => Out::Bool(self.checked_bounds(span, frame, tokens.len())?.0 == 0),
                         LCond::Final(span) => Out::Bool(self.checked_bounds(span, frame, tokens.len())?.1 == tokens.len()),
-                        LCond::Boundary(forward, span, targets) => {
+                        LCond::Boundary(forward, span, targets, _) => {
                             let value = if let Some(value) = eval.boundary_value {value} else {
                                 let (start,end,_) = self.checked_bounds(span,frame,tokens.len())?;
                                 let at = if *forward {end} else {start};
@@ -3045,7 +3046,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Task::BoundaryNo(cond, yes) => {
                     let no = took(&mut last).holds();
                     eval.boundary_value = None;
-                    if yes != no { eval.obligations.push((crate::boundary::atom(cond).unwrap(), yes)); }
+                    if yes != no {
+                        let atom=crate::boundary::atom(cond).unwrap();
+                        if !matches!(atom,LCond::Boundary(_,Span::Whole,_,false)) {eval.obligations.push((atom,yes));}
+                    }
                     Out::Bool(yes || no)
                 }
                 Task::Conds(conds, next) => {

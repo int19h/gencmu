@@ -50,7 +50,7 @@ impl Records {
     pub fn new(g: &Lowered) -> Option<Self> {
         let mut out = Self { records: vec![], index: FxMap::default(), literals: vec![], literal_index: FxMap::default(), forward: FxSet::default(), backward: FxSet::default() };
         for (c,_) in g.prods.iter().flat_map(|p| &p.conds).chain(g.ranked.plans.values().flat_map(|p| p.conditions.iter().flatten())) {
-            if let Some(LCond::Boundary(forward,_,targets)) = atom(c) {
+            if let Some(LCond::Boundary(forward,_,targets,_)) = atom(c) {
                 let names = if *forward { &mut out.forward } else { &mut out.backward };
                 names.extend(targets.iter().cloned());
             }
@@ -131,5 +131,30 @@ impl Records {
             let end=if p.nonempty {self.meet(&c.end,&p.last,false,false,&mut vec![])} else {c.end.clone()};
             Record {end,..Record::default()}
         } else if !p.nonempty {c.clone()} else {Record {nonempty:true,end:c.end.clone(),last:c.last.clone(),..Record::default()}}
+    }
+}
+
+/// Boundary atoms in written order, before presence simplification.
+pub(crate) fn dom_atoms(condition: &crate::dom::Cond) -> Vec<&crate::dom::Cond> {
+    use crate::dom::Cond;
+    let mut found=vec![];let mut stack=vec![condition];
+    while let Some(c)=stack.pop() {
+        match c {
+            Cond::Boundary(..) => found.push(c),
+            Cond::Not(c) => stack.push(c),
+            Cond::All(cs)|Cond::Any(cs) => stack.extend(cs.iter().rev()),
+            Cond::If(a,b) => stack.extend([&**b,&**a]),
+            _ => {}
+        }
+    }
+    found
+}
+pub(crate) fn ownership(condition: &mut LCond, own: bool) {
+    match condition {
+        LCond::Boundary(_,crate::lower::Span::Whole,_,active) => *active=own,
+        LCond::Not(c) => ownership(c,own),
+        LCond::All(cs)|LCond::Any(cs) => for c in cs {ownership(c,own)},
+        LCond::If(a,b) => {ownership(a,own);ownership(b,own);}
+        _ => {}
     }
 }

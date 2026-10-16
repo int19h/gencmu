@@ -145,6 +145,8 @@ struct SlotCandidate {
     node: Node,
     edge: usize,
     image: String,
+    option: usize,
+    open: Option<crate::boundary::Record>,
     group: usize,
 }
 #[derive(Default)]
@@ -218,11 +220,12 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(
-        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}",
+        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}/{}",
         p.slot.as_ref().unwrap().source,
         item.dot,
         item.origin,
         item.prefix,
+        item.boundary,
         chart.sets[at as usize].is_strict(index as usize)
     )
 }
@@ -257,7 +260,9 @@ impl Admission {
                     groups.push(vec![]);
                     groups.len() - 1
                 });
-                let candidate = SlotCandidate { node, edge, image: format!("{option:020}"), group };
+                let open = chart.boundaries.as_ref().map(|m|m.borrow().open(previous.boundary,cap.boundary));
+                let image = format!("{option:020}/{open:?}");
+                let candidate = SlotCandidate { node, edge, image, option, open, group };
                 groups[group].push(candidate.clone());
                 at.entry(node).or_default().push(candidate);
                 stats.candidate_edges += 1;
@@ -305,7 +310,7 @@ impl Ranker<'_> {
         for choice in choices {
             let context = self.availability_key(key, choice.group);
             if !self.admission.as_ref().unwrap().maxima.contains_key(&context) {
-                let mut all = std::collections::BTreeSet::new();
+                let mut viable = Vec::new();
                 let candidates = self.admission.as_ref().unwrap().groups[choice.group].clone();
                 for candidate in candidates {
                     let Deps::Links(found) = self.deps((candidate.node, key.1)) else { unreachable!() };
@@ -315,12 +320,25 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
-                        all.insert(candidate.image.clone());
+                        viable.push(candidate);
                     }
                 }
-                let greatest =
-                    |labels: &std::collections::BTreeSet<String>| labels.iter().next().cloned().into_iter().collect();
-                let maxima = greatest(&all);
+                let retained: Vec<_> = viable.iter().filter(|proof| !viable.iter().any(|higher| {
+                    higher.option < proof.option && match (&higher.open, &proof.open) {
+                        (Some(h),Some(l)) => h.dominates(l),
+                        (None,None) => true,
+                        _ => false,
+                    }
+                })).collect();
+                if retained.iter().any(|proof|viable.iter().any(|higher|higher.option < proof.option)) {
+                    let a=self.admission.as_mut().unwrap();
+                    if !a.stats.boundary_splits.iter().any(|s|s.group == choice.group) {
+                        let Node::Item {set,index} = self.views.as_ref().map_or(choice.node,|v|v.unpack(choice.node).0) else {unreachable!()};
+                        let item=self.dag.chart.sets[set as usize].items[index as usize];
+                        a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {group:choice.group,start:item.origin,end:set});
+                    }
+                }
+                let maxima = retained.iter().map(|c|c.image.clone()).collect();
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let all = &self.admission.as_ref().unwrap().maxima[&context];

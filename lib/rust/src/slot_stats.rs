@@ -1,8 +1,17 @@
 //! Scoped instrumentation for tests and measurements.
 use std::cell::RefCell;
+/// An admission group that retains a lower proof beside a qualified higher one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundarySplit {
+    pub group: usize,
+    pub start: u32,
+    pub end: u32,
+}
 /// The work of one ranked-choice forest ranking.
 #[derive(Debug, Clone, Default)]
 pub struct SlotStatistics {
+    /// Groups with surviving lower options after boundary dominance.
+    pub boundary_splits: Vec<BoundarySplit>,
     /// The raw chart facts.
     pub chart_facts: usize,
     /// The normalized slot groups.

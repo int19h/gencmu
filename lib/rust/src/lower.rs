@@ -93,7 +93,7 @@ pub(crate) enum LCond {
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
-    Boundary(bool, Span, Vec<String>),
+    Boundary(bool, Span, Vec<String>, bool),
     Not(Box<LCond>),
     Any(Vec<LCond>),
     All(Vec<LCond>),
@@ -932,7 +932,7 @@ impl<'a> Scope<'a> {
             Cond::Begins(span, rule) => LCond::Begins(self.span(span)?, self.rule(rule)?),
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Final(span) => LCond::Final(self.span(span)?),
-            Cond::Boundary(forward, span, targets) => LCond::Boundary(*forward, self.span(span)?, targets.clone()),
+            Cond::Boundary(forward, span, targets) => LCond::Boundary(*forward, self.span(span)?, targets.clone(), true),
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
             Cond::All(items) => LCond::All(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
@@ -1810,6 +1810,9 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
             let nested = nested(p);
             if let Some((group, _)) = slot.ranked {
                 for raw in &source.clauses.conditions {
+                    if let Some(Cond::Boundary(_, Term::Capture(receiver), _)) = crate::boundary::dom_atoms(raw).first().copied() {
+                        if !receiver.is_empty() && available.contains(receiver) {continue;}
+                    }
                     let mut reads = BTreeSet::new();
                     crate::ranked::cond_reads(raw, &mut reads);
                     let own = &grammar.ranked.groups[group].names;
@@ -1824,7 +1827,8 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                     }
                     scope.last = None;
                     scope.whole = false;
-                    let condition = match simplify_cond(raw, &has) {
+                    let whole_boundary = reads.iter().any(|name| runtime.private_names.get(&id).is_some_and(|own|own.contains(name)));
+                    let mut condition = match simplify_cond(raw, &has) {
                         Simple::True => continue,
                         Simple::False => LCond::Any(Vec::new()),
                         Simple::Cond(c) => {
@@ -1841,6 +1845,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                         }
                     };
                     let dot = if scope.whole { p.syms.len() } else { scope.last.map_or(0, |p| p + 1) };
+                    crate::boundary::ownership(&mut condition, whole_boundary);
                     conditions[dot].push((condition, dot));
                 }
             }
