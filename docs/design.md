@@ -208,7 +208,7 @@ A single-run payload is one raw run after a quote marker. Its constituent image 
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms gives an unsegmentable run its decomposed source text as value and concatenated phoneme images as image. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join normalized, decomposed parts and omit ordinary hesitation. Syntax reads one terminal, and the word-stage tree retains its internal structure.
+Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join input parts through the word grammar's spacing recipes and omit ordinary hesitation. Syntax reads one terminal, and the word-stage tree retains its internal structure.
 
 An ordinary word can have a normalized image, such as `sIndarin` for `SINdarin`. Its quoted spelling remains `zo SINdarin`.
 
