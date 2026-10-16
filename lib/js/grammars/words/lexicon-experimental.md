@@ -359,6 +359,51 @@ The threshold does not remove existing camxes-exp words. Thirteen of those words
 
 Corpus evidence qualifies 95 words whose highest English scores are below three. A review of 140 words finds uses that match 94 words' top English definitions in meaning and selma'o. The maintainers separately correct the class of `ni'au` from its meaning and attested use. One of these words, `ku'au`, already belongs to the baseline. The other 94 add spellings to the lexicon. These additions use the same September 13, 2026 dictionary snapshot.
 
+The [judgments' summary](../../docs/experimental-cmavo-evidence.md) records each reviewed word, its definition, the evidence count and the verdict. These are the 95 corpus-evidence words, grouped by their classes here:
+
+| Class | Words |
+|---|---|
+| BAI | `te'i`, `xau` |
+| BY | `au'y`, `iy'y` |
+| CAI | `ne'e` |
+| CAhA | `bi'ai` |
+| COI | `bu'oi`, `de'a'ai`, `di'a'ai`, `ke'o'a`, `ku'au'i`, `ni'au`, `sau'ei`, `sei'u` |
+| DOhOI | `do'oi` |
+| FA | `fai'i` |
+| FAhO | `fa'u'u'u'u'u'u'u'u` |
+| GOhA | `gai'o`, `ku'ai'i` |
+| IhAU | `iau` |
+| JAI | `jo'ai` |
+| KOhA | `bo'a`, `bo'e`, `bo'i`, `ca'au`, `da'ai`, `da'au`, `dei'ei`, `do'ei` |
+| KUhAU | `ku'au` |
+| LA | `lai'u` |
+| LAhE | `du'au`, `lu'au` |
+| LE | `dau'u`, `kai'i`, `lo'o'o`, `loi'e`, `ti'oi`, `xai'i` |
+| LI | `bo'ai` |
+| LIhAU | `li'au` |
+| LOhOI | `ko'ai`, `koi'i`, `xu'u` |
+| LUhEI | `lu'ei` |
+| ME | `du'ai` |
+| NAhE | `cai'e`, `rei'e`, `sai'e` |
+| NOIhA | `poi'o'a` |
+| NU | `kai'ei`, `te'oi` |
+| PA | `ru'oi`, `su'o'o` |
+| ROI | `ba'oi`, `va'ei` |
+| SE | `se'ai`, `se'o'e` |
+| SEI | `sei'e` |
+| SIhIhEI | `si'i'ei` |
+| SIhOI | `si'oi` |
+| SOhOI | `so'oi` |
+| SUhUhUhUhUhUhUhU | `su'u'u'u'u'u'u'u` |
+| TAhE | `dei'a`, `ze'ai` |
+| TAhOI | `ta'oi` |
+| TOIhO | `toi'o` |
+| UI | `au'o`, `bi'au`, `bo'oi`, `ca'e'ei`, `ci'ai`, `cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u`, `jei'u`, `kai'e`, `ki'au`, `mau'u`, `ne'au`, `oi'o`, `pau'ai`, `pe'ai`, `ra'ei`, `ta'ei`, `toi'u`, `uau'o`, `ue'e`, `va'u'ai`, `xa'oi`, `xe'e'e`, `xy'y`, `za'oi` |
+| VUhU | `di'ei'o'au` |
+| Y | `ie'o` |
+| ZI | `za'ai` |
+| ZOhU | `fi'ai` |
+
 Four of these words have competing English definitions with different base classes. Their highest-scored definitions determine their classes here.
 
 | Word | Selected definition | Score | Base class | Other definitions and scores |
@@ -378,7 +423,7 @@ The two English definitions of `so'oi`, 71817 and 72780, tie with a score of one
 
 Definition 60530 gives `bi'ai` class CAhA for a bridi that must be true. Its text also describes a tagged sumti, which a CAhA word cannot take. Corpus evidence supports its bare modal use, so it keeps CAhA.
 
-The review excludes the following twelve words because their uses conflict with their top English definitions. The table gives the reviewer's reason for each exclusion.
+The review excludes the following twelve words. Eleven have uses that conflict with their top English definitions. `pu'ei` has no English definition, and its use also differs from its Lojban definition. The table gives the reviewer's reason for each exclusion.
 
 | Word | Reason for exclusion |
 |---|---|
