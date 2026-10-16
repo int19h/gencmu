@@ -1,0 +1,42 @@
+{
+  "description": "A group at the rule start retains its fallback when the higher option fails (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "bb"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -43,6 +43,7 @@ extern crate self as gencmu;
 #[path = "../tests/common/mod.rs"]
 mod test_common;
 
+mod boundary;
 mod clauses;
 mod dialect;
 mod dom;
@@ -81,8 +82,8 @@ pub use json::Json as GrammarValue;
 pub use loader::{load_dialect, load_dialect_file, load_dialect_sources};
 pub use output::{node_to_json, to_brackets, to_json};
 pub use result::{
-    Action, AmbiguityReason, Attachment, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult,
-    Restoration, Stage, Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, Attachment, BoundaryFailure, ErrorCode, Expected, Node, NodeKind, ParseError,
+    ParseErrorKind, ParseResult, Restoration, Stage, Tags, Token, Verdict, Warning,
 };
 
 /// Helpers for tests and tools: reading one grammar document to its DOM,
@@ -94,7 +95,7 @@ pub mod tools {
     pub use crate::loader::{bootstrap_hash, check_dom, read_grammar_document, splice_bundled_pipeline};
     #[doc(hidden)]
     pub use crate::restoration::family::with_family_conformance;
-    pub use crate::slot_stats::{with_slot_statistics, SlotStatistics};
+    pub use crate::slot_stats::{with_slot_statistics, BoundarySplit, SlotStatistics};
 
     /// The test hook of the check of `elision-only` (tests/README.md): the
     /// checks that ran in a parse, each with whether its forest kept the

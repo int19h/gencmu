@@ -1,0 +1,22 @@
+{
+  "description": "An unconstrained higher empty proof dominates a constrained lower proof. (engine §6.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (p ≻ q) :: ∅ | B\n%rule p ε\n%rule q ε\n%conditions ¬$.preceded-by(B)",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

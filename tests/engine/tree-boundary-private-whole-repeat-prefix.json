@@ -1,0 +1,28 @@
+{
+  "description": "A repetition can read its first item without its unproductive separator (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r\n  {C / dead} ($a:aa ≻ $b:bb) :: ∅\n%conditions\n  $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A\n%rule dead dead",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

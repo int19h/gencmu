@@ -4,18 +4,34 @@ import (
 	"fmt"
 )
 
-type slotStatistics struct{ chartFacts, groups, candidateEdges, retainedEdges int }
+type boundarySplit struct {
+	Rule        string
+	Alternative int
+	Path, Entry string
+	Start, End  int32
+}
+type slotStatistics struct {
+	chartFacts, groups, candidateEdges, retainedEdges int
+	boundarySplits                                    []boundarySplit
+}
 type slotCandidate struct {
+	open  *boundaryRecord
 	item  *item
 	index int
 	label string
 	group *slotGroup
 }
 type slotGroup struct {
+	split      boundarySplit
+	reported   bool
 	candidates []slotCandidate
 	maxima     map[string]slotLabels
 }
-type slotLabels map[string]bool
+type slotChoice struct {
+	item  *item
+	index int
+}
+type slotLabels map[slotChoice]bool
 type slotMask map[int]bool
 type slotCount struct {
 	all int
@@ -82,6 +98,9 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			if before == nil {
 				copy := *it
 				copy.dot = 0
+				if rk.rec.boundaries != nil {
+					copy.boundary = rk.rec.boundaries.empty
+				}
 				copy.prefix = rk.rec.machine.empty
 				copy.cap0 = capVal{}
 				copy.more = 0
@@ -94,11 +113,15 @@ func newSlotAdmission(rk *ranker) *slotAdmission {
 			key := fmt.Sprintf("%d/%s/%t/%s/%d/%d", groupInfo.id, rk.rec.rankedPrefix(before), before.strict, ancestry, edge.sym.start, edge.sym.end)
 			group := a.groups[key]
 			if group == nil {
-				group = &slotGroup{maxima: map[string]slotLabels{}}
+				group = &slotGroup{maxima: map[string]slotLabels{}, split: boundarySplit{groupInfo.parent, groupInfo.alternative, groupInfo.path, key, edge.sym.start, edge.sym.end}}
 				a.groups[key] = group
 			}
 			label := fmt.Sprintf("%020d", edge.sym.option)
-			group.candidates = append(group.candidates, slotCandidate{it, index, label, group})
+			var open *boundaryRecord
+			if rk.rec.boundaries != nil {
+				open = rk.rec.boundaries.open(before.boundary, edge.sym.boundary)
+			}
+			group.candidates = append(group.candidates, slotCandidate{open: open, item: it, index: index, label: label, group: group})
 			if a.at[it] == nil {
 				a.at[it] = map[int]*slotGroup{}
 			}
@@ -233,34 +256,38 @@ func (a *slotAdmission) admit(key slotCountKey) {
 	for index, group := range choices {
 		kept, ok := group.maxima[context]
 		if !ok {
-			present := map[string]bool{}
+			var viable []slotCandidate
 			for _, candidate := range group.candidates {
-				l, r := a.edgeCount(candidate.item, candidate.item.links[candidate.index], f)
-				if l.all > 0 && r.all > 0 {
-					present[candidate.label] = true
+				left, right := a.edgeCount(candidate.item, candidate.item.links[candidate.index], f)
+				if left.all > 0 && right.all > 0 {
+					viable = append(viable, candidate)
 				}
 			}
-			greatest := func(labels map[string]bool) map[string]bool {
-				out := map[string]bool{}
-				first := ""
-				for label := range labels {
-					if first == "" || label < first {
-						first = label
+			kept = slotLabels{}
+			split := false
+			for _, proof := range viable {
+				excluded, hasHigher := false, false
+				for _, higher := range viable {
+					if higher.label < proof.label {
+						hasHigher = true
+						if boundaryDominates(higher.open, proof.open) {
+							excluded = true
+							break
+						}
 					}
 				}
-				if first != "" {
-					out[first] = true
+				if !excluded {
+					kept[slotChoice{proof.item, proof.index}] = true
+					split = split || hasHigher
 				}
-				return out
 			}
-			kept = greatest(present)
+			if split && !group.reported {
+				group.reported = true
+				a.stats.boundarySplits = append(a.stats.boundarySplits, group.split)
+			}
 			group.maxima[context] = kept
 		}
-		label := a.rk.rec.g.rules[key.it.prod.rhs[int(key.it.dot)-1].id].name
-		if len(a.rk.rec.g.rankedHelpers) > 0 {
-			label = fmt.Sprintf("%020d", key.it.links[index].sym.option)
-		}
-		if kept[label] {
+		if kept[slotChoice{key.it, index}] {
 			mask[index] = true
 		}
 	}

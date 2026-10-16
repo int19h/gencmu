@@ -1,0 +1,29 @@
+{
+  "description": "A backward atom on a private capture at the option start remains legal (engine §4.2 and §6.1, case 70).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text [f] ($c:C ≻ D) :: ∅\n%conditions ¬$c.preceded-by(f)\n%rule f F",
+  "tokens": [
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "terminal": "C"
+          }
+        ]
+      }
+    }
+  }
+}

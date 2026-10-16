@@ -1,0 +1,13 @@
+{
+  "description": "Grouped earlier targets preserve the location of an unreachable followed-by target in a condition.",
+  "grammar": "%rule text a\n%rule a A\n%conditions $.followed-by(((a)) | (A) | z)\n%rule z B",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 41
+    }
+  }
+}

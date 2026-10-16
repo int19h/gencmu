@@ -1,0 +1,55 @@
+{
+  "description": "A new rule that starts with the ranked group owns the private whole-rule condition (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r C selected\n%conditions $.starts-input ∨ ¬$.starts-input\n%rule aa A\n%rule bb A\n%rule selected ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$.preceded-by(C)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "terminal": "C"
+              },
+              {
+                "rule": "selected",
+                "children": [
+                  {
+                    "rule": "bb"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

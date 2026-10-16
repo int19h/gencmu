@@ -1,0 +1,31 @@
+{
+  "description": "A late source join reaches an existing dependent item and its saved failure (engine §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text w B\n%rule w s\n%rule s a | b\n%rule b b1\n%conditions ¬$.followed-by(B)\n%rule a A\n%conditions ¬$.followed-by(B)\n%rule b1 b2\n%rule b2 b3\n%rule b3 b4\n%rule b4 A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "b",
+          "condition": 0,
+          "at": 1
+        }
+      }
+    }
+  }
+}

@@ -34,5 +34,32 @@
     "small": 10,
     "large": 40,
     "most": 5
+  },
+  {
+    "description": "A long run of NA terms keeps its final parenthesis. Boundary records add bounded work to each term.",
+    "dialect": "experimental",
+    "text": "{links} to broda",
+    "link": "na",
+    "small": 4,
+    "large": 16,
+    "most": 5
+  },
+  {
+    "description": "Nested NA terms keep their own parentheses. Boundary records remain separate from observations of the nested trees.",
+    "dialect": "experimental",
+    "text": "{links} broda",
+    "link": "na to",
+    "small": 4,
+    "large": 16,
+    "most": 5
+  },
+  {
+    "description": "A long run of vocatives keeps the Zantufa free-modifier restriction. Backward boundary records replace the special post-clause wrappers.",
+    "dialect": "zantufa",
+    "text": "{links} broda",
+    "link": "coi ui",
+    "small": 4,
+    "large": 16,
+    "most": 5
   }
 ]

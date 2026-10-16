@@ -1,0 +1,21 @@
+{
+  "description": "A superset of open literals does not dominate (engine §4.2 and §6.1, case 76).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (q ≻ p) :: ∅ | B\n%rule p A\n%rule q A\n%conditions ¬$.preceded-by(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    }
+  }
+}

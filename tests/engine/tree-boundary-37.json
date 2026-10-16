@@ -1,0 +1,30 @@
+{
+  "description": "The document loads, and the fewest count ranks (engine §4.2 and §6, case 37).",
+  "grammar": "%rule text p | q\n%rule(fewest) p A\n%rule q A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "q"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 28 and writes result format 12. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 29 and writes result format 13. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -41,6 +41,8 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 - `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
+
+A rejected error can carry `boundary`. It names the rule, the condition index from zero, and the input boundary where a tree condition fails. The index counts conditions through the rule definitions in source order.
 
 The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ. Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10).
 

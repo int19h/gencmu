@@ -897,6 +897,28 @@ fn a_document_nested_too_deeply_is_an_error_at_its_rule() {
     assert_eq!((error.line, error.column), (Some(3), Some(1)), "{error}");
 }
 
+/// Comparisons and guarded terms cross both pre-limit boundary scans.
+#[test]
+fn deeply_guarded_boundary_conditions_report_the_nesting_limit() {
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            for depth in [4_000, 20_000] {
+                for receiver in ["$", "$x"] {
+                    let condition =
+                        format!("{}{receiver}.followed-by(B){}", "((".repeat(depth), " ⟹ T) ≠ ∅)".repeat(depth));
+                    let document = format!("```jbogenbau\n%rule text $x:A B\n%conditions {condition}\n```\n");
+                    let error = gencmu::tools::read_grammar_document(&document).expect_err("the nesting limit");
+                    assert_eq!(error.message, "an expression, term or condition is nested more than 256 deep");
+                    assert_eq!((error.line, error.column), (Some(2), Some(1)), "{error}");
+                }
+            }
+        })
+        .expect("a normal-stack thread")
+        .join()
+        .expect("the reader returns an error without an abort");
+}
+
 /// A DOM like the document's, accepting "b", with the constants given and
 /// a condition on the text rule, which captures its token as `x`.
 fn with_constants(constants: &str, condition: &str) -> String {

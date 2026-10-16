@@ -80,7 +80,9 @@ pub(crate) fn simplify_cond(cond: &Cond, has: &dyn Fn(&str) -> bool) -> Simple {
         Cond::Compare(op, left, right) => {
             Simple::Cond(Cond::Compare(op.clone(), simplify_value(left, has), simplify_value(right, has)))
         }
-        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => Simple::Cond(cond.clone()),
+        Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _, _) => {
+            Simple::Cond(cond.clone())
+        }
     }
 }
 
@@ -171,7 +173,11 @@ fn walk_captures<'a>(start: Part<'a>, values: bool, presences: bool, out: &mut V
                     }
                 }
                 Cond::Compare(_, left, right) => stack.extend([Part::Term(right), Part::Term(left)]),
-                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+                Cond::Matches(span, _)
+                | Cond::Begins(span, _)
+                | Cond::Initial(span)
+                | Cond::Final(span)
+                | Cond::Boundary(_, span, _, _) => {
                     if values {
                         stack.push(Part::Term(span));
                     }
@@ -363,7 +369,11 @@ impl<'a> Shaped<'a> {
                         done.truncate(done.len() - 2);
                         used
                     }
-                    Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) => {
+                    Cond::Matches(..)
+                    | Cond::Begins(..)
+                    | Cond::Initial(_)
+                    | Cond::Final(_)
+                    | Cond::Boundary(_, _, _, _) => {
                         walk_captures(part, true, false, &mut uses);
                         used
                     }
@@ -717,7 +727,7 @@ impl<'a> CondListSplit<'a> {
     /// The conditions that remain for a production, simplified in the
     /// order written, or `None` where one is false, which removes the
     /// production. A condition true for it is left out.
-    pub(crate) fn simplify(&self, own: &[&str], has: &dyn Fn(&str) -> bool) -> Option<Vec<Cond>> {
+    pub(crate) fn simplify_indexed(&self, own: &[&str], has: &dyn Fn(&str) -> bool) -> Option<Vec<(Cond, usize)>> {
         if self.split.absorbed {
             return None;
         }
@@ -731,7 +741,7 @@ impl<'a> CondListSplit<'a> {
             match simple {
                 Simple::True => {}
                 Simple::False => return None,
-                Simple::Cond(cond) => left.push(cond),
+                Simple::Cond(cond) => left.push((cond, index)),
             }
         }
         Some(left)

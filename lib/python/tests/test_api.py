@@ -396,7 +396,7 @@ class Output(unittest.TestCase):
         self.assertEqual(json.loads(text), gencmu.result_json(result))
         self.assertTrue(
             text.startswith(
-                '{"format":12,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":["_L","_Ll"],"span":[0,1],"source":[0,1]}'
+                '{"format":13,"ok":true,"stages":[{"name":"sounds","verdict":"unique","output":[{"text":"m","value":"m","image":"m","tags":["_L","_Ll"],"span":[0,1],"source":[0,1]}'
             ),
             text,
         )

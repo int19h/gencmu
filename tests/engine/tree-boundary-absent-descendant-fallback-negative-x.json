@@ -1,0 +1,31 @@
+{
+  "description": "An empty prefix preserves fallback absence bindings with negative sign before X (engine §2.1 and §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r (($a:aa ≻ $b:cc) ≻ bb) :: ∅\n%conditions $a ∨ $b ∨ ¬$.preceded-by(X)\n%rule aa A\n%rule cc D\n%rule bb C",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "r",
+          "condition": 0,
+          "at": 1
+        }
+      }
+    }
+  }
+}

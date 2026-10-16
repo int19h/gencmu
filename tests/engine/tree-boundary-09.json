@@ -1,0 +1,27 @@
+{
+  "description": "An empty node never counts (engine §4.2 and §6, case 9).",
+  "grammar": "%rule text a e b\n%rule e ε\n%rule a A\n%conditions $.followed-by(e)\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

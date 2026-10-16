@@ -1,0 +1,33 @@
+{
+  "description": "Atoms inside a query's witness hold away from its edges too (engine §4.2 and §6, case 57).",
+  "grammar": "%rule text $s:s C | v\n%conditions $s.matches(w)\n%rule s A B\n%rule w u v\n%rule u A\n%conditions ¬$.followed-by(v)\n%rule v B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

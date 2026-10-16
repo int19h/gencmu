@@ -63,7 +63,11 @@ func (r *recognizer) before(it *item, l link) *item {
 	if l.prev != nil {
 		return l.prev
 	}
-	return r.sets[it.origin].index[itemKey{prod: it.prod, origin: it.origin}]
+	key := itemKey{prod: it.prod, origin: it.origin}
+	if r.boundaries != nil {
+		key.boundary = r.boundaries.empty
+	}
+	return r.sets[it.origin].index[key]
 }
 
 // omission says whether a link advances over the empty helper of an

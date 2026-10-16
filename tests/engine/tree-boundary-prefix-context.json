@@ -1,0 +1,28 @@
+{
+  "description": "Ranked options compete only within the complete prefix state, including its pending boundary literals (engine §4.2 and §6.1).",
+  "grammar": "%rule text s (p ≻ q)\n%rule s r | t\n%rule r A\n%conditions ¬$.followed-by(p)\n%rule t A\n%conditions ¬$.followed-by(q)\n%rule p B\n%rule q B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    }
+  }
+}

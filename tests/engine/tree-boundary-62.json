@@ -1,0 +1,13 @@
+{
+  "description": "A name that no derivation of `text` can build (engine §4.2 and §6, case 62).",
+  "grammar": "%rule text a\n%rule a A\n%conditions $.followed-by(z)\n%rule z B",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 27
+    }
+  }
+}

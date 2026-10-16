@@ -1,0 +1,21 @@
+{
+  "description": "A pending literal counts as holding for the later items of its step (engine §4.2 and §6, case 51).",
+  "grammar": "%rule text a [B]\n%rule a A\n%conditions $.followed-by(B), $.split($.following-tokens.value) = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

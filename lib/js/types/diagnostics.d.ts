@@ -89,6 +89,7 @@ export declare function formatItem(production: Production, dot: number): string;
 export type StageAudit = {
     name: string;
     resolution: string;
+    boundaryNotes: any[];
     /**
      * close families in first-call order
      */

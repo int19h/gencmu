@@ -443,6 +443,16 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 	if len(f.args) < len(f.arguments) {
 		return ask(&termFrame{n: b.only(f.arguments[len(f.args)], "term"), argument: true})
 	}
+	if arguments := one(selector, "arguments"); arguments != nil {
+		for _, p := range parts(arguments) {
+			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name)] {
+				b.fail(arguments, "invalid method argument separator")
+			}
+		}
+		for i, a := range f.args {
+			a.At = b.at(f.arguments[i])
+		}
+	}
 	f.receiver = b.finishMethod(f.n, name, f.receiver, f.args, f.inCondition && f.index == len(f.selectors)-1)
 	f.index++
 	if f.index == len(f.selectors) {
@@ -457,7 +467,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	span := isSpanTerm(receiver)
 	valid := false
 	switch name {
-	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input":
+	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
 		valid = len(args) == 0 && span
 		if b.inRecipe && receiver.Kind == tmCall && receiver.Str == "emitted" {
 			valid = len(args) == 0 && (name == "value" || name == "image")
@@ -474,6 +484,14 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		valid = b.inRecipe && len(args) == 0 && receiver.Kind == tmCapture
 	case "tags":
 		valid = span && (len(args) == 0 || len(args) == 1 && args[0].Kind == tmRule)
+	case "followed-by", "preceded-by":
+		valid = receiver.Kind == tmCapture && len(args) > 0
+		for _, a := range args {
+			if a.Kind == tmTag && isCapital(a.Str) {
+				a.Kind = tmTerminal
+			}
+			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal) && !engineTag(a.Str)
+		}
 	case "matches", "begins":
 		valid = span && len(args) == 1 && args[0].Kind == tmRule
 	case "split":
@@ -492,7 +510,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	if b.closedFor != "" && name != "split" {
 		b.fail(n, "%s requires a closed term", b.closedFor)
 	}
-	isPredicate := name == "starts-input" || name == "matches" || name == "begins"
+	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins"
 	if isPredicate != predicate {
 		b.fail(n, ".%s has the wrong result type here", name)
 	}

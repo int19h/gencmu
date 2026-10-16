@@ -1,0 +1,36 @@
+{
+  "description": "`fewest` ranks before `late-elision` (engine §4.2 and §6, case 18).",
+  "grammar": "%ambiguity-resolution late-elision\n%rule text p | q\n%rule(fewest) p A (B | C)\n%rule q A [+T] B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "q"
+          }
+        ]
+      }
+    }
+  }
+}

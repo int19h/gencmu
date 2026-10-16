@@ -1,0 +1,8 @@
+{
+  "description": "Absent descendant bindings reject a fallback group after a nonempty prefix with negative sign (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r P (($a:aa ≻ $b:cc) ≻ bb) :: ∅\n%conditions $a ∨ $b ∨ ¬$.preceded-by(X)\n%rule aa A\n%rule cc D\n%rule bb C",
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

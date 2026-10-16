@@ -22,7 +22,7 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 28 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 12 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 29 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 13 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
 The compatibility boundary is the format number and the notation contract. Callers supply format-28 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
@@ -62,7 +62,7 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 
 ### The result
 
-Parse-result format 12 reports the restored chosen derivation first in an elision-only error.
+Parse-result format 13 reports the restored chosen derivation first in an elision-only error.
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 

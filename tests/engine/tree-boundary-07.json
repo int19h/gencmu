@@ -1,0 +1,35 @@
+{
+  "description": "A sibling of the receiver, with its own children, counts (engine §4.2 and §6, case 7).",
+  "grammar": "%rule text p q\n%rule p A B\n%rule q C\n%conditions $.preceded-by(p)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

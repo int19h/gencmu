@@ -309,8 +309,11 @@ export declare const internals: {
     leaf: typeof leaf;
     concatElisions: typeof concatElisions;
 };
-export type RuleProfile = [number, number, Count][];
-/** @typedef {[number, number, Count][]} RuleProfile */
+export type SpanVector = [number, number, Count][];
+export type RuleProfile = {
+    spans: SpanVector;
+    fewest: Count;
+};
 /**
  * Compares sparse span counts in start order and reverse end order.
  * A negative result means that the left profile wins.

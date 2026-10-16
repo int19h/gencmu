@@ -1,0 +1,33 @@
+{
+  "description": "Control for case 39 (engine §4.2 and §6, case 40).",
+  "grammar": "%rule text a e B\n%rule a A\n%conditions $.followed-by(B)\n%rule e E\n%erased",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "e",
+      "tags": [
+        "E"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

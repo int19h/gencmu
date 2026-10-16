@@ -1033,5 +1033,317 @@
       }
     },
     "malformed": false
+  },
+  {
+    "description": "A fewest rule has one flag (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [
+        "fewest"
+      ],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Two different rule flags are invalid (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [
+        "leftmost-longest",
+        "fewest"
+      ],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A boundary target choice is one atom (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "_L"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "_"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "string": "x"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A boundary target must be a rule or a user tag terminal (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "A",
+              "test": "x"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Two boundary atoms in one item are invalid (engine §9).",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "ref": "A"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "all": [
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "rule": "r"
+                },
+                {
+                  "terminal": "A"
+                }
+              ]
+            },
+            {
+              "method": "followed-by",
+              "receiver": {
+                "capture": ""
+              },
+              "args": [
+                {
+                  "rule": "r"
+                },
+                {
+                  "terminal": "A"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

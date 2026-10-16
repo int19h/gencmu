@@ -1,0 +1,29 @@
+{
+  "description": "The admission key holds only what the qualification advance leaves open (engine §4.2 and §6, case 53).",
+  "grammar": "%rule text X (p ≻ q) B\n%rule p ε\n%conditions $.preceded-by(X)\n%rule q ε",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

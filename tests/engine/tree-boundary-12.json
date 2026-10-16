@@ -1,0 +1,33 @@
+{
+  "description": "One atom combined with a pattern (engine §4.2 and §6, case 12).",
+  "grammar": "%rule text t (B | C)\n%rule t A [B]\n%conditions $ ≇ @(A B) ∨ ¬$.followed-by(C)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

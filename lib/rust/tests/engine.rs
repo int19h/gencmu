@@ -671,3 +671,57 @@ fn inserted_patterns_test_names_without_parsing_them() {
         run_engine_case(&parse_json(&case).unwrap()).unwrap();
     }
 }
+
+/// The measurement reports lower proofs that survive dominance, including
+/// unequal offers, and stays empty when the higher proof dominates.
+#[test]
+fn boundary_splits_report_surviving_lower_proofs() {
+    for (name, split) in [
+        ("tree-boundary-75.json", false),
+        ("tree-boundary-76.json", true),
+        ("tree-boundary-77.json", true),
+        ("tree-boundary-78.json", true),
+    ] {
+        let case = parse_json(&std::fs::read_to_string(common::repository().join("tests/engine").join(name)).unwrap())
+            .unwrap();
+        let (result, statistics) = gencmu::tools::with_slot_statistics(|| run_engine_case(&case));
+        result.unwrap();
+        assert_eq!(statistics.iter().any(|s| !s.boundary_splits.is_empty()), split, "{name}");
+        for s in statistics {
+            for report in s.boundary_splits {
+                assert!(report.start <= report.end && !report.entry.is_empty(), "{name}");
+            }
+        }
+    }
+}
+
+/// A boundary atom can stand inside a guarded term of a condition. Its
+/// literal still filters recognition before ranking.
+#[test]
+fn guarded_condition_terms_keep_their_boundary_atom() {
+    for (last, ok) in [("B", true), ("C", false)] {
+        let case = format!(
+            r#"{{"grammar":"%rule text a B | a C\n%rule a A\n%conditions ($.followed-by(B) ⟹ Seen) = Seen","tokens":[{{"text":"a","tags":["A"]}},{{"text":"b","tags":["{last}"]}}],"expect":{}}}"#,
+            if ok { r#"{"result":{"ok":true}}"# } else { r#"{"error":"rejected"}"# }
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
+}
+
+/// Each assignment has its own reached-restoration validity. A cyclic
+/// observation in one assignment cannot discard the other assignment.
+#[test]
+fn invalid_restorations_are_local_to_the_boundary_assignment() {
+    for (condition, expected) in [
+        ("¬($y.without-elision.matches(rival)) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
+        ("$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"result":{"ok":true}}"#),
+        ("¬$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"error":"rejected"}"#),
+    ] {
+        let grammar=format!("%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.tags(q) = ∅\n%rule q $y:r\n%conditions {condition}\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X");
+        let case = format!(
+            r#"{{"grammar":{},"tokens":[{{"text":"x","tags":["X"]}},{{"text":"b","tags":["B"]}}],"expect":{expected}}}"#,
+            common::Value::String(grammar).to_text()
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
+}

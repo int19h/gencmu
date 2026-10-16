@@ -1,0 +1,26 @@
+{
+  "description": "An empty receiver tests the token at its position, and a terminal target (engine §4.2 and §6, case 3).",
+  "grammar": "%rule text m X | m Y\n%rule m ε\n%conditions $.followed-by(Y)",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "m",
+          "condition": 0,
+          "at": 0
+        }
+      }
+    },
+    "error": "rejected"
+  }
+}

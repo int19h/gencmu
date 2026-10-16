@@ -1,0 +1,36 @@
+{
+  "description": "`fewest` breaks a tie (engine §4.2 and §6, case 17).",
+  "grammar": "%rule text p | q\n%rule(fewest) p A B\n%rule q A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "q"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "description": "A recursive matches witness settles its remaining literals only at its root. An ancestor can supply an inner completion's boundary offer (engine §4.2).",
+  "grammar": "%rule text A\n%conditions $.matches(r)\n%rule r :: Seen\n | a\n | q\n%rule q r\n%rule a $e:empty A\n%conditions $e.followed-by(q)\n%rule empty ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

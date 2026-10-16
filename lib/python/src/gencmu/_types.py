@@ -63,7 +63,7 @@ def _unknown_constants(name: str) -> TermType:
 
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
-_PREDICATES = {"matches", "begins", "starts-input"}
+_PREDICATES = {"matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"}
 
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
@@ -88,8 +88,11 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
         valid, result, arity = receiver in spans, "tags", None if name == "tags" else 0
         if name == "tags" and (len(args) > 1 or args and set(args[0]) != {"rule"}):
             valid = False
+    elif name in ("followed-by", "preceded-by"):
+        valid = bare and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
+        result, arity = "predicate", None
     elif name in _PREDICATES:
-        valid, result, arity = receiver in spans, "predicate", 0 if name == "starts-input" else 1
+        valid, result, arity = receiver in spans, "predicate", 0 if name in ("starts-input", "ends-input") else 1
         if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
             valid = False
     elif name in ("split", "classify"):

@@ -98,7 +98,7 @@ impl<'a> Proofs<'a> {
     /// constituent `cap`, if the chart holds it: the advance that the
     /// recognizer made, with its test and its conditions passed.
     fn advanced(&self, item: Item, cap: Cap) -> Option<Place> {
-        if self.chart.machine.is_some() {
+        if self.chart.machine.is_some() || self.chart.boundaries.is_some() {
             let next = self.chart.advances.get(&(item, cap))?;
             return self.chart.sets.get(cap.end as usize)?.find(next).map(|index| (cap.end, index));
         }
@@ -112,6 +112,7 @@ impl<'a> Proofs<'a> {
         }
         let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
         let next = Item {
+            boundary: 0,
             close_requested: item.close_requested,
             lexical: item.lexical,
             prod: item.prod,
@@ -161,6 +162,7 @@ impl<'a> Proofs<'a> {
     fn cap(&self, place: Place) -> Cap {
         let item = self.item(place);
         Cap {
+            boundary: item.boundary,
             close_requested: item.close_requested,
             start: item.origin,
             end: place.0,
@@ -240,7 +242,7 @@ impl<'a> Proofs<'a> {
                 }
                 a.test(at) == b.test(at) && name(a, at) == name(b, at)
             })
-            && Item { prod: other.prod, ..item } == other
+            && Item { boundary: 0, prod: other.prod, ..item } == other
     }
 
     /// The furthest optional route that reaches a written terminator,
@@ -359,7 +361,7 @@ impl<'a> Proofs<'a> {
         if item.dot == 0 {
             return vec![(None, None)];
         }
-        if self.chart.machine.is_some() {
+        if self.chart.machine.is_some() || self.chart.boundaries.is_some() {
             let mut edges = Vec::new();
             let production = &self.g.prods[item.prod as usize];
             for &(pred, cap) in self.chart.links.get(&(set, item)).into_iter().flatten() {
@@ -397,6 +399,7 @@ impl<'a> Proofs<'a> {
             item.caps
         };
         let before = Item {
+            boundary: 0,
             close_requested: item.close_requested,
             lexical: item.lexical,
             prod: item.prod,
