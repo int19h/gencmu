@@ -176,7 +176,9 @@ func restoreBoundaryLocations(to, from *domDoc) {
 	for i, a := range atoms {
 		a.At = originals[i].At
 		for j, t := range a.Targets {
-			t.At = originals[i].Targets[j].At
+			if j < len(originals[i].Targets) {
+				t.At = originals[i].Targets[j].At
+			}
 		}
 	}
 }

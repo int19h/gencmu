@@ -133,3 +133,21 @@ func TestBoundaryDeepCaptureValidation(t *testing.T) {
 		t.Fatal("mixed capture was accepted")
 	}
 }
+
+func TestBoundaryCachedTargetLocationWidth(t *testing.T) {
+	// A valid cached DOM can differ from the source that supplies locations.
+	makeDoc := func(targets ...string) *domDoc {
+		atom := &domCond{Kind: cdBoundary}
+		for _, name := range targets {
+			atom.Targets = append(atom.Targets, &domTerm{Kind: tmRule, Str: name})
+		}
+		return &domDoc{Rules: []*domRule{{Conditions: []*domCond{atom}}}}
+	}
+	cached, source := makeDoc("a", "z"), makeDoc("a")
+	source.Rules[0].Conditions[0].Targets[0].At = [2]int{5, 17}
+	restoreBoundaryLocations(cached, source)
+	targets := cached.Rules[0].Conditions[0].Targets
+	if targets[0].At != [2]int{5, 17} || targets[1].At != [2]int{} {
+		t.Fatal("unmatched cached targets acquired invented locations")
+	}
+}
