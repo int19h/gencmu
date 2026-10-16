@@ -4440,3 +4440,15 @@ i211.experimental.xeihu-attaches-to-word
 i211.experimental.saihei-ordinal-reading
 i211.experimental.pehei-keeps-connective-scope
 i211.experimental.xohei-needs-operand
+i211.experimental.corpus-xuhu
+i211.experimental.corpus-koai
+i211.experimental.corpus-biai-bare
+i211.experimental.corpus-definition-variables
+i211.experimental.corpus-ieho-awaits-hesitation
+i211.experimental.corpus-iau-awaits-reset
+i211.experimental.corpus-sohoi-tied-class
+i211.experimental.corpus-luhei-liahau
+i211.experimental.corpus-niau-excluded
+i211.experimental.corpus-poau-excluded
+i211.experimental.corpus-xeee-indicator
+i211.experimental.corpus-zeai-selected-class

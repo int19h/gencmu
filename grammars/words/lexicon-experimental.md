@@ -8,6 +8,8 @@ The maintainers edit this lexicon by hand. Its baseline is the word lists of cam
 
 The dictionary additions follow the [policy for issue #211](https://github.com/int19h/gencmu/issues/211#issuecomment-6204819697). The dictionary is the Lensisku export of September 13, 2026, in [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict). An experimental cmavo qualifies when its highest-voted English definition has a score of at least three. The highest-voted definition supplies its class. Numeric subcategories do not affect classification, so UI7a becomes UI and KOhA3 becomes KOhA. Every camxes-exp word remains, regardless of its score.
 
+An experimental cmavo below that score also qualifies when real text uses it consistently with its highest-voted English definition. Both its meaning and its selma'o must match that definition. The closing section identifies the words that qualify through corpus evidence and the words excluded for inconsistent use.
+
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
 The implication after the entries marks some words `Indicator`, which the indicator stage reads. They are the words of UI, CAI, DAhO, FUhE and FUhO. camxes-exp also reads a bare NAI as an indicator, and [the experimental word forms](experimental.md) mark the NAI words so.
@@ -24,6 +26,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ni'i" "pa'a" "pa'u" "pi'o" "po'i" "pu'a" "pu'e" "ra'a" "ra'i" "rai" "ri'a" "ri'i" "sau" ∈ BAI
   "si'u" "ta'i" "tai" "ti'i" "ti'u" "tu'i" "va'o" "va'u" "zau" "zu'e" ∈ BAI
   "dei'i'u" "fi'ei" "ja'u" "kai'ai" "nai'i" "pau'u" "po'a" ∈ BAI
+  "te'i" "xau" ∈ BAI
   (* #212: pe'ei marks a connective without changing its syntactic scope. *)
   "ba'e" "ci'a" "pe'ei" "za'e" "zai'e" ∈ BAhE
   (* #212: BAhEI has no experimental construction. *)
@@ -41,8 +44,11 @@ The implication after the entries marks some words `Indicator`, which the indica
   "by" "cy" "dy" "fy" "ga'e" "ge'o" "gy" "iy" "je'o" "jo'o" "jy" "ky" "lo'a" "ly" "my" "na'a" ∈ BY
   "ny" "py" "ru'o" "ry" "se'e" "sy" "to'a" "ty" "uy" "vy" "xy" "y'y" "zy" ∈ BY
   "a'y" "e'y" "i'y" "o'y" "u'y" ∈ BY
+  "au'y" "iy'y" ∈ BY
   "cai" "cau'i" "cu'i" "dai'i" "mau'i" "me'ai" "na'oi" "pei" "ru'e" "sai" ∈ CAI
+  "ne'e" ∈ CAI
   "ca'a" "ka'e" "nu'o" "pu'i" ∈ CAhA
+  "bi'ai" ∈ CAhA
   (* #212: CAhEI has no experimental construction. *)
   "ca'ei" ∈ CAhEI
   "cei" ∈ CEI
@@ -54,6 +60,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "mu'o" "nu'e" "pe'u" "re'i" "sa'ei" "ta'a" "vi'o" ∈ COI
   (* #212: jo'au forms a vocative without changing the parser dialect. *)
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
+  "bu'oi" "de'a'ai" "di'a'ai" "ke'o'a" "ku'au'i" "sau'ei" "sei'u" ∈ COI
   (* #212: COhAI has no experimental construction. *)
   "co'ai" ∈ COhAI
   (* #212: COhEhOhE has no experimental construction. *)
@@ -65,13 +72,17 @@ The implication after the entries marks some words `Indicator`, which the indica
   (* #212: xei'u attaches after a word without moving attitudes to the sentence. *)
   "da'o" "xei'u" ∈ DAhO
   "da'ei" "da'oi" "doi" ∈ DOI
+  (* #212: DOhOI has no experimental construction. *)
+  "do'oi" ∈ DOhOI
   "do'u" ∈ DOhU
   "fa" "fai" "fe" "fi" "fi'a" "fo" "fu" "zoi'u" ∈ FA
+  "fai'i" ∈ FA
   "be'a" "bu'u" "ca'u" "du'a" "fa'a" "ga'u" "ne'a" "ne'i" "ne'u" "ni'a" "pa'o" "re'o" "ri'u" ∈ FAhA
   "ru'u" "te'e" "ti'a" "to'o" "vu'a" "ze'o" "zo'a" "zo'i" "zu'a" ∈ FAhA
   "bau'u" "xei'e" ∈ FAhA
   (* #212: xo'a erases the suffix without switching to Loglan. *)
   "fa'o" "xo'a" ∈ FAhO
+  "fa'u'u'u'u'u'u'u'u" ∈ FAhO
   (* #212: FAhOhO has no experimental construction. *)
   "fa'o'o" ∈ FAhOhO
   "fe'e" ∈ FEhE
@@ -92,14 +103,16 @@ The implication after the entries marks some words `Indicator`, which the indica
   "goi" "ne" "no'u" "pe" "po" "po'e" "po'u" ∈ GOI
   "bu'a" "bu'e" "bu'i" "co'e" "du" "go'a" "go'e" "go'i" "go'o" "go'u" "mo" "nei" "no'a" ∈ GOhA
   "xe'u" ∈ GOhA
+  "gai'o" "ku'ai'i" ∈ GOhA
   (* #212: GOhOI has no experimental construction. *)
   "go'oi" "ta'ai" "ze'oi" ∈ GOhOI
   "gu'a" "gu'e" "gu'i" "gu'o" "gu'u" ∈ GUhA
   "fa'oi" "i" "oi'i" ∈ I
   (* #212: IhAU has no experimental construction. *)
-  "i'au" ∈ IhAU
+  "i'au" "iau" ∈ IhAU
   "ja" "je" "je'i" "ji'a'a" "jo" "ju" ∈ JA
   "ja'ei" "jai" ∈ JAI
+  "jo'ai" ∈ JAI
   (* #212: JAIhA has no experimental construction. *)
   "jai'a" ∈ JAIhA
   (* #212: JAIhI has no experimental construction. *)
@@ -120,6 +133,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ma'a" "mi" "mi'a" "mi'ai" "mi'o" "nau'o" "ra" "ri" "ru" "ta" "ti" "tu" "vo'a" "vo'e" ∈ KOhA
   "vo'i" "vo'o" "vo'u" "xai" "zi'o" "zo'e" "zu'ai" "zu'i" ∈ KOhA
   "do'au" "gi'au" "lau'u" "mi'oi" "nau'u" "ra'au" "sau'o" "voi'a" "xa'u" "xe'i" "xi'o" "zoi'i" ∈ KOhA
+  "bo'a" "bo'e" "bo'i" "ca'au" "da'ai" "da'au" "dei'ei" "do'ei" ∈ KOhA
   "ku" ∈ KU
   "ku'au" ∈ KUhAU
   "ku'e" ∈ KUhE
@@ -129,28 +143,37 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ku'oi" ∈ KUhOI
   "ce'a" "lau" "tau" "zai" ∈ LAU
   (* #212: experimental syntax replaces the inherited LA constructions with LE. *)
-  "la'ei" ∈ LA
+  "la'ei" "lai'u" ∈ LA
   "la'e" "lu'a" "lu'e" "lu'i" "lu'o" "tu'a" "vu'i" "zo'ei" ∈ LAhE
   "lai'e" "moi'a" ∈ LAhE
+  "du'au" "lu'au" ∈ LAhE
   "la" "la'i" "lai" "le" "le'e" "le'i" "lei" "lo" "lo'e" "lo'i" "loi" "me'ei" ∈ LE
   "ji'ai" "lo'au" "mo'oi" "ri'oi" ∈ LE
+  "dau'u" "kai'i" "lo'o'o" "loi'e" "ti'oi" "xai'i" ∈ LE
   "le'ai" ∈ LEhAI
   "le'u" ∈ LEhU
   "li" "mai'o" "me'o" ∈ LI
+  "bo'ai" ∈ LI
+  (* #212: LIhAU has no experimental construction. *)
+  "li'au" ∈ LIhAU
   (* #212: LIhEI has no experimental construction. *)
   "li'ei" ∈ LIhEI
   "li'u" ∈ LIhU
   "lo'ai" "sa'ai" ∈ LOhAI
   "lo'o" ∈ LOhO
   "lo'oi" "mau'a" "xau'a" ∈ LOhOI
+  "ko'ai" "koi'i" "xu'u" ∈ LOhOI
   (* #212: la'ai requires le'u instead of ending its name quote at a pause. *)
   "la'ai" "lo'u" ∈ LOhU
   "la'au" "lu" "tu'ai" ∈ LU
+  (* #212: LUhEI has no experimental construction. *)
+  "lu'ei" ∈ LUhEI
   "lu'u" ∈ LUhU
   (* #212: sai'ei forms an ordinal modifier instead of an attitude intensity. *)
   "mai" "mo'o" "sai'ei" ∈ MAI
   "ma'o" ∈ MAhO
   "me" "me'au" ∈ ME
+  "du'ai" ∈ ME
   "me'oi" ∈ MEhOI
   "me'u" ∈ MEhU
   "cei'a" "cu'o" "mei" "moi" "si'e" "va'e" ∈ MOI
@@ -163,16 +186,19 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ja'ai" "nai" ∈ NAI
   "je'a" "na'e" "na'ei" "no'e" "to'e" ∈ NAhE
   "cau'e" "gu'y" "noi'e" ∈ NAhE
+  "cai'e" "rei'e" "sai'e" ∈ NAhE
   "na'u" ∈ NAhU
   "ni'e" ∈ NIhE
   "ni'o" "no'i" ∈ NIhO
   "noi" "poi" "voi" ∈ NOI
   (* #212: NOIhA has no experimental construction. *)
   "noi'a" "poi'a" "soi'a" ∈ NOIhA
+  "poi'o'a" ∈ NOIhA
   "no'oi" "po'oi" ∈ NOhOI
   "du'u" "jei" "ka" "kai'u" "li'i" "mu'e" "ni" "nu" "poi'i" "pu'u" "si'o" "su'u" "xe'ei" "za'i" ∈ NU
   "zu'o" ∈ NU
   "bu'ai" "ka'ei" "ni'ai" ∈ NU
+  "kai'ei" "te'oi" ∈ NU
   "nu'a" ∈ NUhA
   "nu'i" ∈ NUhI
   "nu'u" ∈ NUhU
@@ -182,28 +208,45 @@ The implication after the entries marks some words `Indicator`, which the indica
   "vai" "vo" "xa" "xo" "xo'e" "za'u" "ze" ∈ PA
   "fai'u" "ja'au" "ka'ei'a" "no'ai" "se'i'i" "sei'a" "su'ai" "su'au" "tai'e" "tau'u" ∈ PA
   "va'ei'a" "xe'a" "xe'e" "xei" "ze'au" ∈ PA
+  "ru'oi" "su'o'o" ∈ PA
   "pe'e" ∈ PEhE
   "pe'o" ∈ PEhO
   "ba" "ca" "pu" ∈ PU
   "ra'o" ∈ RAhO
   "de'ei" "mu'ei" "re'u" "roi" ∈ ROI
+  "ba'oi" "va'ei" ∈ ROI
   "sa" ∈ SA
   "ko'ei" "lu'oi" "se" "so'o'o'oi" "su'ei" "te" "to'ai" "ve" "vo'ai" "xe" "xo'ai" ∈ SE
+  "se'ai" "se'o'e" ∈ SE
   "sei" "ti'o" "xoi" ∈ SEI
+  "sei'e" ∈ SEI
   "se'u" ∈ SEhU
   (* #212: SEhEhI has no experimental construction. *)
   "se'e'i" "ve'e'i" ∈ SEhEhI
   (* #212: ze'ei has class SI, but its word-joining semantics need separate support. *)
   "si" "si'au'i" "ze'ei" ∈ SI
+  (* #212: SIhIhEI has no experimental construction. *)
+  "si'i'ei" ∈ SIhIhEI
+  (* #212: SIhOI has no experimental construction. *)
+  "si'oi" ∈ SIhOI
   "fi'oi" "soi" ∈ SOI
+  (* #212: SOhOI has no experimental construction. *)
+  "so'oi" ∈ SOhOI
   "su" ∈ SU
+  (* #212: SUhUhUhUhUhUhUhU has no experimental construction. *)
+  "su'u'u'u'u'u'u'u" ∈ SUhUhUhUhUhUhUhU
   "di'i" "na'o" "ru'i" "ta'e" ∈ TAhE
+  "dei'a" "ze'ai" ∈ TAhE
+  (* #212: TAhOI has no experimental construction. *)
+  "ta'oi" ∈ TAhOI
   "tei" ∈ TEI
   "te'u" ∈ TEhU
   "to" "to'i" ∈ TO
   "toi" ∈ TOI
   (* #212: TOIhE has no experimental construction. *)
   "koi'e" "toi'e" ∈ TOIhE
+  (* #212: TOIhO has no experimental construction. *)
+  "toi'o" ∈ TOIhO
   "tu'e" ∈ TUhE
   "tu'u" ∈ TUhU
   "a'a" "a'e" "a'i" "a'o" "a'u" "ai" "ai'i" "au" "ba'a" "ba'u" "be'u" "bi'u" "bu'o" "ca'e" ∈ UI
@@ -219,6 +262,9 @@ The implication after the entries marks some words `Indicator`, which the indica
   "io'e" "io'u" "jai'ai" "jau'i" "je'au" "kai'a" "ki'a'au'u'au'i" "ky'u" "li'oi" "mi'au" "moi'i" ∈ UI
   "oi'u" "pei'o" "ra'i'au" "ri'ai" "roi'i" "sei'i" "si'ai" "so'ei" "te'y" "uai" "uei'e" "ui'i" ∈ UI
   "uo'o" "uu'i" "va'oi" "vei'i" "xa'a" "xa'i" "xe'o" "xu'a" "xu'o" "zai'a" "zi'a" ∈ UI
+  "au'o" "bi'au" "bo'oi" "ca'e'ei" "ci'ai" "jei'u" "kai'e" "ki'au" "mau'u" "ne'au" "oi'o" ∈ UI
+  "pau'ai" "pe'ai" "ra'ei" "ta'ei" "toi'u" "uau'o" "ue'e" "va'u'ai" "xa'oi" "xe'e'e" "xy'y" "za'oi" ∈ UI
+  "cu'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u'u" ∈ UI
   "va" "vi" "vu" ∈ VA
   "vau" ∈ VAU
   "vei" ∈ VEI
@@ -232,15 +278,19 @@ The implication after the entries marks some words `Indicator`, which the indica
   "pi'i" "re'a" "ri'o" "sa'i" "sa'o" "si'i" "su'i" "te'a" "va'a" "vu'u" ∈ VUhU
   (* #212: xo'ei needs an operator construction instead of defaulting to zero arguments. *)
   "je'e'e" "nei'au" "xo'ei" ∈ VUhU
+  "di'ei'o'au" ∈ VUhU
   "te'ai" "xi" "xi'e" ∈ XI
   (* #212: XOhI has no experimental construction. *)
   "xo'i" ∈ XOhI
+  (* #212: Y cmavo do not use the hesitation rule for runs of y. *)
+  "ie'o" ∈ Y
   "ba'o" "ca'o" "co'a" "co'a'a" "co'au'a" "co'i" "co'u" "co'u'a" "de'a" "di'a" "mo'u" "pu'o" ∈ ZAhO
   "sau'a" "xa'o" "xo'u" "za'o" ∈ ZAhO
   "ca'o'a" ∈ ZAhO
   "zei" ∈ ZEI
   "ze'a" "ze'e" "ze'i" "ze'u" ∈ ZEhA
   "za" "zi" "zu" ∈ ZI
+  "za'ai" ∈ ZI
   "zi'e" ∈ ZIhE
   "doi'u" "ma'oi" "zo" ∈ ZO
   "la'o" "zoi" ∈ ZOI
@@ -248,6 +298,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "zo'au" ∈ ZOhAU
   "ci'e'u" "la'oi" "ra'oi" "zo'oi" ∈ ZOhOI
   "ce'ai" "zo'u" ∈ ZOhU
+  "fi'ai" ∈ ZOhU
 ```
 
 ```jbogenbau
@@ -258,9 +309,9 @@ The implication after the entries marks some words `Indicator`, which the indica
 
 ### Dictionary additions
 
-All 255 experimental cmavo with a qualifying English definition appear here. The dictionary gives `io'e` no selma'o. Its English definition 71929 scores three and calls it an attitudinal. The maintainers therefore assign it UI from that definition.
+All 255 experimental cmavo whose highest English score is at least three appear here. The dictionary gives `io'e` no selma'o. Its English definition 71929 scores three and calls it an attitudinal. The maintainers therefore assign it UI from that definition.
 
-English definitions determine the classes, rather than the combined classes in `word.toml`. None of the highest-voted definitions ties or lists several classes. The following table records every disagreement about base classes between English definitions of qualifying words. Definition numbers identify the English files in the dictionary snapshot.
+English definitions determine the classes, rather than the combined classes in `word.toml`. Among the 255 words that meet the score threshold, no highest-voted definition ties or lists several classes. The following table records their disagreements about base classes between English definitions. Definition numbers identify the English files in the dictionary snapshot.
 
 | Word | Selected definition | Score | Base class | Other definitions and scores |
 |---|---|---:|---|---|
@@ -283,7 +334,7 @@ English definitions determine the classes, rather than the combined classes in `
 | `zai'e` | 66440 | 3 | BAhE | 66411: XOhEhOhE, -1 |
 | `zo'au` | 67203 | 6 | ZOhAU | 36725: LA, 1 |
 
-Seven qualifying words have several English definitions with the same base class. The following table records their meanings, including the incompatible uses of `lo'au`, `noi'a` and `poi'a`. The highest-voted definition determines the selected meaning even when the class stays the same.
+Seven words from that set have several English definitions with the same base class. The following table records their meanings, including the incompatible uses of `lo'au`, `noi'a` and `poi'a`. The highest-voted definition determines the selected meaning even when the class stays the same.
 
 | Word | Base class | Selected definition and meaning | Other definition and meaning |
 |---|---|---|---|
@@ -301,11 +352,57 @@ The threshold does not remove existing camxes-exp words. Thirteen of those words
 
 `fi'oi` retains camxes-exp's SOI class. Its highest-voted English definition, 53170, gives FIhOI with a score of two. That score falls below the threshold, so the baseline class remains.
 
+### Additions from real text
+
+Corpus evidence qualifies 94 words whose highest English scores are below three. A review of 140 words finds uses that match those 94 words' top English definitions in meaning and selma'o. One of them, `ku'au`, already belongs to the baseline. The other 93 add spellings to the lexicon. These additions use the same September 13, 2026 dictionary snapshot.
+
+Four of these words have competing English definitions with different base classes. Their highest-scored definitions determine their classes here.
+
+| Word | Selected definition | Score | Base class | Other definitions and scores |
+|---|---|---:|---|---|
+| `bo'ai` | 67093 | 1 | LI | 44168: BAI, -1 |
+| `bo'e` | 67081 | 2 | KOhA | 66408: BY, -1 |
+| `ko'ai` | 68964 | 2 | LOhOI | 67092: LI, -1 / 68965: NU, 1 / 72014: LOhOI, 1 |
+| `ze'ai` | 66154 | 2 | TAhE | 18407: ZEhA, 1 |
+
+The LOhOI definitions of `ko'ai` also differ within that class. Definition 68964 permits an optional variable count. Definition 72014 requires that count when the abstraction binds several variables. The higher score selects the optional count.
+
+The FA definitions of `fai'i` also differ. Definition 73176 scores two and introduces a dangling argument that binds `zoi'i`. Definition 71747 scores one and removes its argument from the place structure. Definition 66764 scores minus two and marks the word abandoned. The highest score selects the dangling-argument use.
+
+The TAhE definition 66121 of `dei'a` scores two and means decreasingly. Definition 66308 scores zero and asks readers to ignore that definition.
+
+The two English definitions of `so'oi`, 71817 and 72780, tie with a score of one and both give SOhOI. Both introduce an adverbial relative clause closed by `se'u`. They differ on whether the outer clause is claimed. Corpus evidence supports their shared construction, so the word keeps SOhOI without choosing between those meanings. Its construction waits for #212.
+
+Definition 60530 gives `bi'ai` class CAhA for a bridi that must be true. Its text also describes a tagged sumti, which a CAhA word cannot take. Corpus evidence supports its bare modal use, so it keeps CAhA.
+
+The review excludes the following twelve words because their uses conflict with their top English definitions. The table gives the reviewer's reason for each exclusion.
+
+| Word | Reason for exclusion |
+|---|---|
+| `po'au` | Used as LOhOI, defined as restrictive GOI |
+| `zei'a` | Used to join words, defined as a TAhE tense |
+| `zei'i` | Used to open compound brackets, defined as a UI contour |
+| `le'ei` | Used as a narrow-scope intensional article, defined as Loglan's article |
+| `tei'u` | Used as a quotation opener, defined as a JAhOI terminator |
+| `pu'ei` | Used as a before conjunction, with no English definition |
+| `ja'oi` | Used as an age predicate, defined as a permutation opener |
+| `iu'e` | Used for stronger love, defined for sexual consent |
+| `zai'u` | Used to mean again, defined to mark a following quotation |
+| `soi'i` | Used as an article for subkinds, defined as a relativizer |
+| `li'ai` | Used for a character string, defined as LI for unevaluated mekso |
+| `zi'u` | Used to attach a relative clause, defined as LAhE before a sumti |
+
+The maintainers also exclude `ni'au`. Its use as a greeting does not fit its CAI class. The other reviewed words lack clear evidence or appear as different words, so this policy does not add them.
+
 ### Classes and words without their defined constructions
 
 Classification does not add a construction to the grammar. Comments beside each unsupported class name [issue #212](https://github.com/int19h/gencmu/issues/212). Those words retain their dictionary class even where the syntax rejects them.
 
-The unsupported classes are BAhEI, BEIhE, CAhEI, CIhAU, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, GOhOI, IhAU, JAIhA and JAIhI. They also include JIhOI, KAUhU, KUhEI, LA, LIhEI, MUhOI, NOIhA, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so the dictionary's `la'ei` has no construction here.
+The unsupported classes are BAhEI, BEIhE, CAhEI, CIhAU, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, GOhOI, IhAU, JAIhA and JAIhI. They also include JIhOI, KAUhU, KUhEI, LA, LIhEI, MUhOI, NOIhA, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
+
+Corpus evidence also supplies words in DOhOI, LIhAU, LUhEI, SIhIhEI, SIhOI, SOhOI, SUhUhUhUhUhUhUhU, TAhOI, TOIhO and Y. Their constructions also wait for #212. The Y word `ie'o` retains its dictionary class. The word stage does not treat it as hesitation, which uses runs of `y`.
+
+The ZOI delimiter rule excludes class Y. It therefore refuses `ie'o` as a delimiter, including before `bu`.
 
 Some words belong to supported classes but need different constructions. Their comments also name #212. The following notes distinguish their current readings from their defined uses.
 
@@ -331,6 +428,6 @@ The dictionary gives `xo'ei` class VUhU for a digit-string operator with an opti
 
 `ro'oi` belongs to PA here, beside `su'oi`. camxes-exp includes only `su'oi`, while camxes-beta includes both. The dialect accepts `ro'oi broda` as a quantified description.
 
-The lexicon omits camxes-exp's Y because the forms stage reads a run of `y` as hesitation instead of a cmavo.
+The lexicon omits camxes-exp's entry for `y`. The forms stage reads a run of `y` as hesitation instead of a cmavo.
 
 camxes-exp gives each word one selma'o. It reassigns the CLL words `la`, `lai` and `la'i` to LE because it reads names as selbri. This classifier retains those classes.
