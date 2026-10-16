@@ -34,9 +34,9 @@ latin.md reads a format character as nothing, as a comma, with two exceptions. T
 
 ## Quotation marks
 
-A backtick is U+0060 GRAVE ACCENT. It follows the same rule as straight and curly quotation marks. The combining grave accent U+0300 remains a stress mark on its letter.
+A backtick is U+0060 GRAVE ACCENT. It follows the same rule as straight and curly quotation marks. The combining grave accent U+0300 is a stress mark on its letter.
 
-The straight `'`, the curly `‘` and `’`, and the backtick serve both as apostrophes and as quotation marks. Some keyboards type a curly mark for `'`, and texts put either kind around words. An apostrophe stands only between vowels, so such a mark at the edge of a word is never one. There it is punctuation. Between two letters it stays an apostrophe, and the word forms judge it, as they judge `k'a`. So `‘klama’` and `'klama'` are `klama`, `mi 'klama' do` is three words, and `la’o` and `la'o` keep their apostrophe.
+The straight `'`, the curly `‘` and `’`, and the backtick serve both as apostrophes and as quotation marks. Some keyboards type a curly mark for `'`, and texts put either kind around words. At a word edge, the mark is punctuation because one side has no letter. Between two letters, the mark is an apostrophe. The word forms judge it as they judge `k'a`. So `‘klama’` and `'klama'` are `klama`, `mi 'klama' do` is three words, and `la’o` and `la'o` keep their apostrophe.
 
 latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick also defaults to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
