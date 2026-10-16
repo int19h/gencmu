@@ -203,7 +203,7 @@ A body's constituent image recipe can request `$.verbatim-text`. It preserves or
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-The word stage supplies verbatim image recipes on raw-tokens and zohoi-payload for zoi, zo'oi, and related quotation bodies. These payloads and Zantufa's quoted rafsi forms carry Quoted-Text. A rafsi is a word part used in compounds. A quoted rafsi retains its ordinary value and image. An empty zoi body uses empty concatenation.
+The word stage supplies verbatim image recipes on raw-tokens and zohoi-payload for zoi, zo'oi, and related quotation bodies. Each finished quote emits one token of its opening class. The token has a verbatim image and a value that joins normalized, decomposed parts. Syntax reads one terminal for the quote. Its internal structure remains in the word-stage tree. An empty zoi body uses empty concatenation.
 
 A clause can refer to a capture that some production lacks. A production is one expansion of an alternative, with one branch of each choice and each optional read or not. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that production.
 

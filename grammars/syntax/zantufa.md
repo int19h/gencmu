@@ -39,9 +39,9 @@ Zantufa lets free modifiers follow every word (`post_clause`), with a few except
 
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
 
-[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
+[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier.
 
-The word stage marks individually quoted words and delimiters with `Word`. It marks a quote body emitted as one token with `Quoted-Text`.
+The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
 
 A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 

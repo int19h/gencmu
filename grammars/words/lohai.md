@@ -12,7 +12,7 @@ The quote uses `quiet-gap`, `pause-gap` and `word-gap` from the shared word stre
 
 A free modifier adds information outside predicate arguments. The syntax reads the quote as a free modifier.
 
-The quote carries the tags of its first marker, as every quote carries its marker's. A tag marks a token by an identifier. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
+The quote token carries its opening class and the tag `Quote`. A bare `le'ai` carries LEhAI. Syntax requires `Quote` on LOhAI, so an incomplete replacement quote cannot act as a finished quote. A tag marks a token by an identifier. So in the experimental dialect, `sa` finds it by its class, and `mi lo'ai do le'ai sa lo'ai ti le'ai klama` keeps `mi`. The words inside carry no class, so none of them is a boundary for `su`.
 
 In the experimental dialect, a marker that opens no quote is an ordinary word. [The word stream](stream.md) reads no word where a quote begins, and only there. So `mi lo'ai si klama` is `mi klama`, and `mi lo'ai bu klama` has a letteral. The Zantufa word stream has its own rules for such a marker.
 

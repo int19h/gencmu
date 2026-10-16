@@ -26,7 +26,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 [The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, before syntax reads them.
 
-Outside a quote, the earlier stages hand on some cmavo as tokens of their own. Each carries its class from [the CLL lexicon](../words/lexicon-cll.md). The material of a quote arrives tagged `Word` or `Quoted-Text`, which is what `any-word` and `anything` read.
+The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished word-stage quote arrives as one token of its opening class.
 
 [The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
@@ -308,7 +308,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 - `lo'u ... le'u` quotes a run of Lojban words that need not be grammatical, possibly none.
 - `zoi` quotes any text between two copies of a delimiter word.
 
-This grammar states the quote rules over `any-word` and `anything`. The word stage decides where a `zo`, `lo'u` or `zoi` quote ends, and hands on its parts as tokens. It tags each quoted word `Word`. It tags a quoted unit, such as a `zoi` body, `Quoted-Text`. This grammar delimits only `lu ... li'u`. The free-modifier slot of that quote follows it whether or not `li'u` is written.
+The word stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one token of its opening class. This grammar reads one terminal for each such quote. The word-stage tree retains its internal structure. This grammar delimits `lu ... li'u` through syntax. Its free-modifier slot follows the quote whether or not `li'u` is written.
 
 `sumti-tail` is what follows a descriptor.[^cll-s6-2] It begins with an optional inner sumti that possesses or restricts, `le mi zdani`.[^cll-s8-7] Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti.[^cll-s8-7] They can also replace it.[^cll-s8-6]
 
@@ -840,18 +840,6 @@ The indicator stage attaches later indicator runs to their preceding words. This
 <p><img src="../../docs/diagrams/syntax/cll/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 </details>
 
-## Quote payloads
-
-The word stage delimits every quote except `lu ... li'u` and emits its parts for syntax to assemble. A quoted word carries `Word`, and a quoted unit carries `Quoted-Text`. These two rules read those parts:
-
-```jbogenbau
-```
-
-<details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>
-<p><img src="../../docs/diagrams/syntax/cll/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
-<p><img src="../../docs/diagrams/syntax/cll/anything.svg" alt="Railroad diagram of the rule anything"></p>
-</details>
-
 ## Choosing among parses
 
 Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`. The experimental layer declares only `late-elision`.
@@ -921,11 +909,11 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
     This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser reads the tag and termset as separate terms. camxes-std, the standard grammar of the camxes parser, does too.
 
-11. This grammar omits printed `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`. The word stage already builds `zei` compounds and `bu` letter words and drops hesitation.
+11. The word stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
 ### Earlier stages
 
-Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists six departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, and ZOI. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
+Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists seven departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, and whole-quote attachment. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 

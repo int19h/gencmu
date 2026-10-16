@@ -12,6 +12,10 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 
 The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers.
 
+Each finished word-stage quote emits one token. BAhE before it marks the whole quote. Following attitudinals occupy the quote's free-modifier slot in syntax.
+
+The reference is [guskant/gerna_cipra at d5a5065](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg). Its `ZO_pre`, `LOhU_pre`, `ZOI_pre`, `GOhOI_pre`, `RAhOI_pre`, `MUhOI_pre`, and `LOhAI_pre` begin with `pre_clause`. Their `_post` rules read `post_clause`. Thus whole-quote emphasis and following attitudinals agree with the reference. The reference's greedy LOhU body reads BAhE before LEhU as quoted content. This dialect does too.
+
 Every leading free modifier after a word of TO occupies the opener's slot. TO includes `to`, `to'i`, `mau'e`, and `noi'i`. Every leading free modifier after a word of LU or LUhEI instead begins quoted content. LU includes `lu`, `la'au`, and `tu'ai`, and LUhEI contains `lu'ei`.
 
 The syntax is [`../syntax/zantufa.md`](../syntax/zantufa.md), a grammar of its own that translates Zantufa's rules one by one. It says where the dialect reads a text differently from Zantufa 1.9999.
