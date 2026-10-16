@@ -249,7 +249,7 @@ async function main() {
         edit: ["(mex MOI #\n     ≻ SE # $w:tanru-unit-1\n     ≻ NAhE # $v:tanru-unit-1)", "(mex MOI #\n     | SE # $w:tanru-unit-1\n     | NAhE # $v:tanru-unit-1)"], tie: true },
       { label: "A whole MOI expression wins (experimental)", output: /^\(mi \[\{\(se ga\) pa gi re\} moi\]\)$/,
         document: "syntax/experimental.md", rule: "%redefine-rule tanru-unit-2", summary: /syntax unique/,
-        edit: ["(mex MOI # ≻ SE # tanru-unit-2)", "(mex MOI # | SE # tanru-unit-2)"], tie: true },
+        edit: ["(NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)", "(NAhE # tanru-unit-2 | mex MOI # | SE # tanru-unit-2)"], tie: true },
       { label: "ME prefers an argument (experimental)", output: /me-unit\n\s+ME "me"\n\s+sumti/,
         document: "syntax/experimental.md", rule: "%rule me-unit",
         edit: ["%conditions\n  ¬$m.without-elision.matches(sumti)", ""], tie: true },
