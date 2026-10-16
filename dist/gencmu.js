@@ -282,17 +282,10 @@
       this.records = new Map();
       this.empty = this.intern(true,0n,0n,0n,0n);
       const seen = new Set();
-      for (const production of productions) for (const clause of productionClauses(production)) {
-        // Emission atoms demand no offers.
-        const pending = [clause];
-        while (pending.length) {
-          const part = /** @type {any} */ (pending.pop());
-          if (!part || typeof part !== "object" || seen.has(part)) continue;
-          seen.add(part);
-          if (part.condition) for (const atom of boundaryAtoms(part.condition)) this.demand(atom);
-          else if (Array.isArray(part.conditions)) for (const atom of boundaryAtoms(part.conditions)) this.demand(atom);
-          for (const child of clauseChildren(part)) if (child !== part.emit) pending.push(child);
-        }
+      for (const production of productions) for (const {condition} of [...production.conditions, ...production.rankedConditions ?? []]) {
+        if (seen.has(condition)) continue;
+        seen.add(condition);
+        for (const atom of boundaryAtoms(condition)) this.demand(atom);
       }
     }
     /** @param {string} name */
@@ -6077,6 +6070,42 @@
       for (const s of p.rhs) if (groups.has(s.name)) s.slot = groups.get(s.name);
     }
     lowered.ranked = ranked;
+    prepareRankedConditions(lowered);
+  }
+
+  // Follow capture presence through active helpers, without constructing values.
+  // Runtime frames and target discovery use the same condition reduction.
+  /** @param {any} lowered */
+  function prepareRankedConditions(lowered) {
+    const contextual = new Set(lowered.productions.filter((/** @type {any} */ p) => p.contextual).map((/** @type {any} */ p) => p.lhs));
+    /** @type {any[]} */
+    const pending = [];
+    const enter = (/** @type {any} */ p, /** @type {any} */ frame) => {
+      const present = new Set([...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
+      const knownPrivate = new Set([...frame.knownPrivate, ...p.rankedPrivate]);
+      p.rhs.forEach((/** @type {any} */ symbol, /** @type {number} */ index) => {
+        if (symbol.terminal || !contextual.has(symbol.name)) return;
+        const captures = new Map(frame.captures);
+        for (const capture of p.captures) if (capture.index < index) captures.set(capture.name, null);
+        pending.push({name:symbol.name, present, captures, knownPrivate});
+      });
+    };
+    for (const p of lowered.productions) if (!p.helper) enter(p, {present:new Set(), captures:new Map(), knownPrivate:new Set()});
+    const seen = new Set();
+    for (let at = 0; at < pending.length; at++) {
+      const frame = pending[at];
+      const key = JSON.stringify([frame.name, [...frame.present].sort(), [...frame.captures.keys()].sort(), [...frame.knownPrivate].sort()]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      for (const p of lowered.byLhs.get(frame.name) ?? []) {
+        const present = new Set(['', ...frame.present, ...p.captures.map((/** @type {any} */ c) => c.name)]);
+        const clauses = p.rankedGroup ? p.source.clauses.conditions : [];
+        const conditions = frameConditions(clauses, present, {...p,lexicalFrame:frame}, frame.captures, p.rankedGroup?.final ?? false);
+        p.rankedConditions ??= [];
+        for (const condition of conditions) p.rankedConditions.push(condition);
+        enter(p, frame);
+      }
+    }
   }
 
   /** @param {any[]} clauses @param {Set<string>} present @param {any} production @param {Map<string,any>} [prefix] */
@@ -17853,6 +17882,7 @@
    * @property {Set<string>} [sourcePrivate]
    * @property {boolean} [contextual]
    * @property {Condition[]} [rankedDeferred]
+   * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
    * @property {Term} [parentTags]
    * @property {any} [lexicalFrame]
    * @property {boolean} [closeRequested]

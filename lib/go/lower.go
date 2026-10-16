@@ -53,6 +53,7 @@ type production struct {
 	conds             []lcond
 	condFrom          []int32    // conds[condFrom[d]:condFrom[d+1]] are those triggered at dot d, or nil for none
 	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
+	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
 	emit              *domEmit   // as dropped and simplified for the production (§3.6)
 	nothing           bool       // %emits ε: the constituent emits nothing and does not count (§11)
 	value, image      *domTerm

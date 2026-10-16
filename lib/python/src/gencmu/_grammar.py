@@ -939,6 +939,7 @@ class SlotMetadata:
     path: int | None = None
     tags: list[Dom] = field(default_factory=list)
     tag_clauses: tuple[Dom | None, Dom | None] = (None, None)
+    ranked_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
 
 
 @dataclass

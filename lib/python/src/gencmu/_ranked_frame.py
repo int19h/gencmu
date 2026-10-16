@@ -54,6 +54,70 @@ def prepare_ranked(lowered):
         p.private_names = own - nested
     for p in lowered.productions:
         p.ranked_bindings = (tuple(sorted(n for n in p.captures if not n.startswith('\u0000'))),tuple(sorted(p.private_names)))
+    prepare_ranked_conditions(lowered)
+
+
+def frame_conditions(p, frame, private):
+    """Reduce conditions for both runtime frames and static target discovery."""
+    from ._boundary import atoms
+    present = {''} | frame.present | p.captures.keys()
+    for raw in p.slot.source.conditions if p.ranked is not None else []:
+        boundary = atoms(raw)
+        if boundary and boundary[0]["receiver"]["capture"] and boundary[0]["receiver"]["capture"] in frame.captures:
+            continue
+        if any(n in private and n not in p.private_names and n not in frame.known_private and n not in p.captures and n not in frame.captures for n in reads(raw)):
+            continue
+        condition = simplify_condition(raw, present)
+        if condition is True:
+            continue
+        if condition is False:
+            condition = {'any': []}
+        names = captures_in(condition)
+        if not names <= present:
+            continue
+        if any(n and n not in p.captures and n not in frame.captures for n in names):
+            continue
+        if '' in names:
+            if not p.ranked.final:
+                continue
+            at = len(p.rhs) - 1
+        else:
+            at = max((p.captures[n] for n in names if n in p.captures), default=-1)
+        yield condition, at, '' in names
+
+
+def prepare_ranked_conditions(lowered):
+    """Follow finite capture contexts through active lowered helpers."""
+    from types import SimpleNamespace
+    private = {}
+    for group in lowered.grammar.ranked.groups:
+        private.setdefault(id(group.source), set()).update(reads(group.expr))
+    pending = []
+
+    def enter(p, frame):
+        present = frame.present | p.captures.keys()
+        known = frame.known_private | p.private_names
+        for index, (terminal, symbol) in enumerate(zip(p.terminal, p.rhs)):
+            if terminal or not any(lowered.productions[i].contextual for i in lowered.rule_productions[symbol]):
+                continue
+            captures = frame.captures | {name: None for name, at in p.captures.items() if at < index}
+            pending.append((symbol, SimpleNamespace(present=present, captures=captures, known_private=known)))
+
+    for p in lowered.productions:
+        if not p.helper:
+            enter(p, SimpleNamespace(present=set(), captures={}, known_private=set()))
+    seen, at = set(), 0
+    while at < len(pending):
+        rule, frame = pending[at]
+        at += 1
+        key = rule, frozenset(frame.present), frozenset(frame.captures), frozenset(frame.known_private)
+        if key in seen:
+            continue
+        seen.add(key)
+        for index in lowered.rule_productions[rule]:
+            p = lowered.productions[index]
+            p.slot.ranked_conditions.extend(c for c, _, _ in frame_conditions(p, frame, private[id(p.slot.source)]))
+            enter(p, frame)
 
 
 def written_prefix(lowered, p, dot, origin, prefix, caps, restores=False, closes=None, close_prefix=0):
@@ -135,33 +199,10 @@ class Frames:
         if key in self.productions:
             return self.productions[key]
         q = replace(p,id=len(self.lowered.productions),base_id=p.id,lexical=frame,conds_predict=[],conds_at={},whole_ready=False)
-        present = {''} | frame.present | p.captures.keys()
         source = p.slot.source
         private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
-        for raw in source.conditions if p.ranked is not None else []:
-            from ._boundary import atoms
-            boundary = atoms(raw)
-            if boundary and boundary[0]["receiver"]["capture"] and boundary[0]["receiver"]["capture"] in frame.captures:
-                continue
-            if any(n in private and n not in p.private_names and n not in frame.known_private and n not in p.captures and n not in frame.captures for n in reads(raw)):
-                continue
-            condition = simplify_condition(raw,present)
-            if condition is True:
-                continue
-            if condition is False:
-                condition = {'any':[]}
-            names = captures_in(condition)
-            if not names<=present:
-                continue
-            if any(n and n not in p.captures and n not in frame.captures for n in names):
-                continue
-            if '' in names:
-                if not p.ranked.final:
-                    continue
-                at = len(p.rhs)-1
-                q.whole_ready = True
-            else:
-                at = max((p.captures[n] for n in names if n in p.captures),default=-1)
+        for condition, at, whole in frame_conditions(p, frame, private):
+            q.whole_ready |= whole
             if at<0:
                 q.conds_predict.append(condition)
             else:

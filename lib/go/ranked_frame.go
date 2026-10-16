@@ -192,6 +192,86 @@ func (g *lowered) prepareRanked() {
 		sort.Strings(known)
 		p.rankedBindings = fmt.Sprintf("%q/%q", declared, known)
 	}
+	g.prepareRankedConditions()
+}
+
+// Follow finite capture contexts through active lowered helpers.
+func (g *lowered) prepareRankedConditions() {
+	type entry struct {
+		rule  int32
+		frame *rankedFrame
+	}
+	var pending []entry
+	enter := func(p *production, f *rankedFrame) {
+		present, known := map[string]bool{}, map[string]bool{}
+		for n := range f.present {
+			present[n] = true
+		}
+		for n := range p.slotOf {
+			present[n] = true
+		}
+		for n := range f.knownPrivate {
+			known[n] = true
+		}
+		for n := range p.privateNames {
+			known[n] = true
+		}
+		for index, symbol := range p.rhs {
+			if symbol.term {
+				continue
+			}
+			prods := g.rules[symbol.id].prods
+			if len(prods) == 0 || !prods[0].contextual {
+				continue
+			}
+			captures := map[string]capVal{}
+			for n := range f.captures {
+				captures[n] = capVal{}
+			}
+			for n, at := range p.posOf {
+				if at < index {
+					captures[n] = capVal{}
+				}
+			}
+			pending = append(pending, entry{symbol.id, &rankedFrame{present: present, captures: captures, knownPrivate: known}})
+		}
+	}
+	for _, p := range g.prods {
+		if !p.helper {
+			enter(p, &rankedFrame{})
+		}
+	}
+	seen := map[string]bool{}
+	for at := 0; at < len(pending); at++ {
+		e := pending[at]
+		declared, ready, known := []string{}, []string{}, []string{}
+		for n := range e.frame.present {
+			declared = append(declared, n)
+		}
+		for n := range e.frame.captures {
+			ready = append(ready, n)
+		}
+		for n := range e.frame.knownPrivate {
+			known = append(known, n)
+		}
+		sort.Strings(declared)
+		sort.Strings(ready)
+		sort.Strings(known)
+		key := fmt.Sprintf("%d/%q/%q/%q", e.rule, declared, ready, known)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		for _, p := range g.rules[e.rule].prods {
+			q := *p
+			g.bindRankedConditions(&q, p, e.frame, firstBoundaryAtom)
+			p.rankedConditions = append(p.rankedConditions, q.predictConds...)
+			for _, c := range q.conds {
+				p.rankedConditions = append(p.rankedConditions, c.cond)
+			}
+			enter(p, e.frame)
+		}
+	}
 }
 func (r *recognizer) rankedPrefix(it *item) string {
 	p := it.prod
@@ -319,27 +399,16 @@ func (r *recognizer) rankedEntry(it *item, rule int32) *rankedFrame {
 	r.rankedFrames[key] = f
 	return f
 }
-func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production {
-	if f == nil {
-		return p
-	}
-	if r.rankedProductions == nil {
-		r.rankedProductions = map[rankedProductionKey]*production{}
-	}
-	key := rankedProductionKey{p, f}
-	if old := r.rankedProductions[key]; old != nil {
-		return old
-	}
-	q := *p
-	q.base = p
-	q.lexical = f
+
+// Both target discovery and runtime frames reduce the same conditions.
+func (g *lowered) bindRankedConditions(q, p *production, f *rankedFrame, atomOf func(*domCond) *domCond) map[string]bool {
 	q.conds = nil
 	q.condFrom = nil
 	q.predictConds = nil
 	q.boundaryOriginal = map[*domCond]*domCond{}
 	has := func(n string) bool { _, local := p.slotOf[n]; return n == "" || local || f.present[n] }
 	private := map[string]bool{}
-	for _, group := range r.g.stage.ranked.groups {
+	for _, group := range g.stage.ranked.groups {
 		if group.source == p.slot.source {
 			for n := range rankedPrivateNames(group.expr) {
 				private[n] = true
@@ -348,11 +417,9 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	}
 	if p.ranked != nil {
 		for _, raw := range p.slot.source.conds {
-			if r.boundaries != nil {
-				if atom := r.boundaries.first(raw); atom != nil && atom.Span.Str != "" {
-					if _, prefix := f.captures[atom.Span.Str]; prefix {
-						continue
-					}
+			if atom := atomOf(raw); atom != nil && atom.Span.Str != "" {
+				if _, prefix := f.captures[atom.Span.Str]; prefix {
+					continue
 				}
 			}
 			reads := map[string]bool{}
@@ -420,6 +487,28 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 			q.condFrom[i] += q.condFrom[i-1]
 		}
 	}
+	return private
+}
+
+func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production {
+	if f == nil {
+		return p
+	}
+	if r.rankedProductions == nil {
+		r.rankedProductions = map[rankedProductionKey]*production{}
+	}
+	key := rankedProductionKey{p, f}
+	if old := r.rankedProductions[key]; old != nil {
+		return old
+	}
+	q := *p
+	q.base = p
+	q.lexical = f
+	atomOf := firstBoundaryAtom
+	if r.boundaries != nil {
+		atomOf = r.boundaries.first
+	}
+	private := r.g.bindRankedConditions(&q, p, f, atomOf)
 	source := p.slot.source
 	public := func(n string) bool { return n == "" || f.present[n] && !private[n] }
 	tags := []*domTerm{}

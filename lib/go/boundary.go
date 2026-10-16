@@ -120,9 +120,7 @@ func newBoundaryMachine(g *lowered) *boundaryMachine {
 			for _, c := range p.conds {
 				conds = append(conds, c.cond)
 			}
-			if p.slot != nil {
-				conds = append(conds, p.slot.source.conds...)
-			}
+			conds = append(conds, p.rankedConditions...)
 		}
 		for _, c := range conds {
 			if _, known := m.conditions[c]; known {

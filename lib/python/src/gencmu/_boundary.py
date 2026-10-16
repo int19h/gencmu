@@ -67,11 +67,13 @@ class Records:
         self.empty = self.intern(True, 0, 0, 0, 0)
         seen = set()
         for p in productions:
-            conditions = p.source.conditions if p.source is not None else p.conds_predict + [c for cs in p.conds_at.values() for c in cs]
-            if id(conditions) in seen:
-                continue
-            seen.add(id(conditions))
+            conditions = p.conds_predict + [c for cs in p.conds_at.values() for c in cs]
+            if p.slot is not None:
+                conditions += p.slot.ranked_conditions
             for condition in conditions:
+                if id(condition) in seen:
+                    continue
+                seen.add(id(condition))
                 for atom in atoms(condition):
                     mask = self.targets(atom)
                     if atom['method'] == 'followed-by':

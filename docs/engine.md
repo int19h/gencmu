@@ -650,7 +650,7 @@ Measure chart items, proof edges, observation states, cycle contexts, elapsed ti
 
 `$x.followed-by(S)` and `$x.preceded-by(S)` are boundary atoms (§10). Their target `S` is one name or a choice of names, each a rule or a tag terminal. `#` is a rule name (§2), so it can be a target, and its node is its constituent. A forward target is a name in the target of a `followed-by` atom in a `%conditions` list of the stage. A backward target is a name in the target of a `preceded-by` atom there. An atom in an emission item's tag clause makes no target of either kind, because it reads the chosen derivation after the parse.
 
-Only conditions in active lowered productions supply these targets. Disabled alternatives supply none. An active production supplies targets even when recognition never reaches it on the current input.
+Only conditions in active lowered productions supply these targets. Feature selection, capture applicability and presence simplification determine which conditions remain (§3.6). A dropped condition supplies no target, including one that simplifies to true. Applicable conditions deferred to active ranked options also supply targets. Disabled alternatives supply none. An active production supplies targets even when recognition never reaches it on the current input.
 
 A node of a derivation is a node of its tree (§12), other than an `elided` node. A rule node's name is its rule. A token node's name is the terminal that read it, without its test. A node counts for an atom only when its span is nonempty. Its first token and its last token are the first and last stage-input tokens of that span.
 
