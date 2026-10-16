@@ -343,7 +343,12 @@ func (run *stageRun) rejection(rec *recognizer) *ParseError {
 		expected = append(expected, e)
 	}
 	sort.Slice(expected, func(i, j int) bool { return expected[i].Terminal < expected[j].Terminal })
-	return run.rejectedAt(k, expected)
+	err := run.rejectedAt(k, expected)
+	err.Boundary = rec.boundaryDiagnostic(k)
+	if b := err.Boundary; b != nil {
+		err.Message += fmt.Sprintf("; boundary condition %d of %s failed at token %d", b.Condition, b.Rule, b.At)
+	}
+	return err
 }
 
 // rejectedAt is the error of a text rejected at token k, where the expected

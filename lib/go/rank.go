@@ -280,7 +280,7 @@ func newRanker(rec *recognizer, rule string) *ranker {
 		rk.leaves = map[int32]*elSeq{}
 	}
 	for _, r := range rec.g.rules {
-		rk.profiles = rk.profiles || r.leftmostLongest
+		rk.profiles = rk.profiles || r.leftmostLongest || r.fewest
 	}
 	if len(rec.g.rankedHelpers) > 0 {
 		rk.views = newSlotViews(rk)
@@ -1062,13 +1062,17 @@ func (fr *symFrame) resume(rk *ranker, in *entry) (rankFrame, *entry) {
 			continue
 		}
 		profile := e.profile
-		if rk.rec.g.rules[s.rule].leftmostLongest {
+		if rule := rk.rec.g.rules[s.rule]; rule.leftmostLongest || rule.fewest {
 			a, b := s.start, s.end
 			if rc := rk.rec.recon; rc != nil {
 				a, b = int32(rc.project[a]), int32(rc.project[b])
 			}
 			if a < b {
-				profile = sumProfiles(profile, ruleProfile{{a, b, countOne}})
+				if rule.fewest {
+					profile.fewest = profile.fewest.add(countOne)
+				} else {
+					profile = sumProfiles(profile, ruleProfile{spans: []profileSpan{{a, b, countOne}}})
+				}
 			}
 		}
 		vec := e.vec
@@ -1421,7 +1425,10 @@ type profileSpan struct {
 	start, end int32
 	count      count
 }
-type ruleProfile []profileSpan
+type ruleProfile struct {
+	spans  []profileSpan
+	fewest count
+}
 
 func spanOrder(a, b profileSpan) int {
 	if a.start < b.start || (a.start == b.start && a.end > b.end) {
@@ -1434,48 +1441,51 @@ func spanOrder(a, b profileSpan) int {
 }
 
 func compareProfiles(a, b ruleProfile) int {
-	for i := 0; i < len(a) && i < len(b); i++ {
-		if c := spanOrder(a[i], b[i]); c != 0 {
+	x, y := a.spans, b.spans
+	for i := 0; i < len(x) && i < len(y); i++ {
+		if c := spanOrder(x[i], y[i]); c != 0 {
 			return c
 		}
-		if c := a[i].count.cmp(b[i].count); c != 0 {
+		if c := x[i].count.cmp(y[i].count); c != 0 {
 			return -c
 		}
 	}
-	if len(a) > len(b) {
+	if len(x) > len(y) {
 		return -1
 	}
-	if len(a) < len(b) {
+	if len(x) < len(y) {
 		return 1
 	}
-	return 0
+	return a.fewest.cmp(b.fewest)
 }
-
 func sumProfiles(a, b ruleProfile) ruleProfile {
-	if len(a) == 0 {
-		return b
+	count := a.fewest.add(b.fewest)
+	x, y := a.spans, b.spans
+	if len(x) == 0 {
+		return ruleProfile{y, count}
 	}
-	if len(b) == 0 {
-		return a
+	if len(y) == 0 {
+		return ruleProfile{x, count}
 	}
-	out := make(ruleProfile, 0, len(a)+len(b))
+	out := make([]profileSpan, 0, len(x)+len(y))
 	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		switch c := spanOrder(a[i], b[j]); {
+	for i < len(x) && j < len(y) {
+		switch c := spanOrder(x[i], y[j]); {
 		case c < 0:
-			out = append(out, a[i])
+			out = append(out, x[i])
 			i++
 		case c > 0:
-			out = append(out, b[j])
+			out = append(out, y[j])
 			j++
 		default:
-			out = append(out, profileSpan{a[i].start, a[i].end, a[i].count.add(b[j].count)})
+			out = append(out, profileSpan{x[i].start, x[i].end, x[i].count.add(y[j].count)})
 			i++
 			j++
 		}
 	}
-	out = append(out, a[i:]...)
-	return append(out, b[j:]...)
+	out = append(out, x[i:]...)
+	out = append(out, y[j:]...)
+	return ruleProfile{out, count}
 }
 
 func compareScore(a ruleProfile, av *elSeq, b ruleProfile, bv *elSeq) int {
@@ -1494,8 +1504,11 @@ func derivationProfile(g *lowered, d *dn) ruleProfile {
 		if n == nil {
 			continue
 		}
+		if n.kind == dClose && g.rules[n.prod.lhs].fewest && n.start < n.end {
+			out.fewest = out.fewest.add(countOne)
+		}
 		if n.kind == dClose && g.rules[n.prod.lhs].leftmostLongest && n.start < n.end {
-			out = sumProfiles(out, ruleProfile{{n.start, n.end, countOne}})
+			out = sumProfiles(out, ruleProfile{spans: []profileSpan{{n.start, n.end, countOne}}})
 		}
 		stack = append(stack, n.a, n.b)
 	}

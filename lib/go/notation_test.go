@@ -286,7 +286,7 @@ func sameValue(a, b reflect.Value) bool {
 	case reflect.Struct:
 		// Source terms keep diagnostic locations that DOM 27 does not serialize.
 		// Constants retain their serialized reference positions.
-		if a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
+		if a.Type() == reflect.TypeOf(domCond{}) || a.Type() == reflect.TypeOf(domTerm{}) && a.FieldByName("Kind").String() != tmConst {
 			for i := range a.NumField() {
 				if a.Type().Field(i).Name == "At" {
 					continue

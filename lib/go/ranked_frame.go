@@ -229,7 +229,11 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	if r.closes != nil {
 		sequence = r.closes.semantic(it.closes)
 	}
-	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
+	boundary := ""
+	if r.boundaries != nil && it.boundary != nil {
+		boundary = fmt.Sprintf("/b%d", it.boundary.id)
+	}
+	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
 
 func (r *recognizer) closeEntryRoute(it *item) string {
@@ -332,6 +336,7 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	q.conds = nil
 	q.condFrom = nil
 	q.predictConds = nil
+	q.boundaryOriginal = map[*domCond]*domCond{}
 	has := func(n string) bool { _, local := p.slotOf[n]; return n == "" || local || f.present[n] }
 	private := map[string]bool{}
 	for _, group := range r.g.stage.ranked.groups {
@@ -343,6 +348,13 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	}
 	if p.ranked != nil {
 		for _, raw := range p.slot.source.conds {
+			if r.boundaries != nil {
+				if atom := r.boundaries.first(raw); atom != nil && atom.Span.Str != "" {
+					if _, prefix := f.captures[atom.Span.Str]; prefix {
+						continue
+					}
+				}
+			}
 			reads := map[string]bool{}
 			rankedCondReads(raw, reads)
 			unknown := false
@@ -390,6 +402,7 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 			if missing {
 				continue
 			}
+			q.boundaryOriginal[c] = raw
 			if trigger == 0 {
 				q.predictConds = append(q.predictConds, c)
 			} else {
@@ -433,6 +446,9 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 		if before == nil {
 			copy := *frame.parent
 			copy.dot = 0
+			if r.boundaries != nil {
+				copy.boundary = r.boundaries.empty
+			}
 			copy.prefix = r.machine.empty
 			copy.more = 0
 			copy.cap0 = capVal{}

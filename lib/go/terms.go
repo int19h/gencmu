@@ -44,9 +44,11 @@ type value struct {
 // evaluator is what an evaluation reads: the stage run, the grammar, and
 // the captures of the item or the constituent that it evaluates.
 type evaluator struct {
-	run     *stageRun
-	g       *lowered
-	capture func(name string) (spanVal, bool)
+	hasBoundaryValue, boundaryValue bool
+	boundary                        func(*domCond) bool
+	run                             *stageRun
+	g                               *lowered
+	capture                         func(name string) (spanVal, bool)
 }
 
 func (run *stageRun) evaluator(g *lowered, capture func(string) (spanVal, bool)) *evaluator {
@@ -545,6 +547,18 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		}
 		w.endCond(ok)
 		return nil
+	case cdBoundary:
+		if ev.hasBoundaryValue {
+			w.endCond(ev.boundaryValue)
+		} else if ev.boundary != nil {
+			w.endCond(ev.boundary(c))
+		} else {
+			panic("boundary atom without context")
+		}
+		return nil
+	case cdEnd:
+		w.endCond(w.span(ev, c.Span).b == ev.run.inputEnd)
+		return nil
 	case cdInitial:
 		// Where the input of the parse that reads the condition begins (§10).
 		w.endCond(w.span(ev, c.Span).a == ev.run.inputStart)
@@ -642,7 +656,8 @@ func (run *stageRun) spanText(s spanVal) string {
 // span is remembered by position, since a key of content costs as much as
 // the span is long, and the span of onward or following-tokens runs to the end of
 // the input (engine §4).
-const contentKeyLimit = 64
+// Keep word-sized reuse without rebuilding long suffix keys at each boundary.
+const contentKeyLimit = 16
 
 // nested is the answer of a nested parse of tokens [s.a, s.b) alone as
 // rule (engine §4, nested parses), for a query of one kind: cdMatches,
@@ -670,7 +685,8 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	if ps.inProgress[at] {
 		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
 	}
-	if run.closeArena(g) != nil {
+	// Only aligned proof summaries depend on the active cycle context.
+	if s.aligned != nil {
 		k.queryContext = ps.queryContext
 	}
 	if r, ok := ps.nested[k]; ok {
@@ -729,7 +745,7 @@ func (run *stageRun) qualifiedProofs(rec *recognizer) []qualifiedProof {
 	tags := map[*item]*tagset{}
 	for _, set := range rec.sets {
 		for key, c := range set.syms {
-			if key.rule == rec.query.start && key.origin == 0 && key.requested {
+			if key.rule == rec.query.start && key.origin == 0 && key.requested && (rec.boundaries == nil || rec.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
 				for _, it := range c.items {
 					tags[it] = c.tags

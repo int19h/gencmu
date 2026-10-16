@@ -59,6 +59,8 @@ type sRule struct {
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
+	boundaryOwner        *sAlt
+	boundarySites        map[*domCond]*boundarySite
 	written              jobj
 	writtenAlternative   int
 	textOrder            int // order of alternatives across the stage documents
@@ -133,6 +135,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			for i, a := range r.Alternatives {
 				alts[i] = &sAlt{written: written, writtenAlternative: i, textOrder: textOrder, alt: a, ruleTags: r.Tags, emit: r.Emit, conds: r.Conditions, erased: r.Erased, ruleValue: r.Value, ruleImage: r.Image, doc: d.path, at: r.At}
 				textOrder++
+			}
+			for _, a := range alts {
+				a.boundaryOwner = alts[0]
 			}
 			existing := g.byName[r.Name]
 			// Each way of stating a rule says what it expects to be there
@@ -242,6 +247,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 		}
 	}
+	if err := g.validateBoundaryTargets(); err != nil {
+		return nil, err
+	}
 	g.resolveFamilies()
 	if err := g.makeTests(); err != nil {
 		return nil, err
@@ -287,6 +295,7 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 	if len(g.deferredEmissions) > 0 {
 		return nil, g.deferredEmissions[0]
 	}
+	g.prepareBoundarySites()
 	return g, nil
 }
 
@@ -439,7 +448,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 				return fail("%s is not a rule of stage %s", c.Rule, g.name)
 			}
 			return nil
-		case cdInitial:
+		case cdInitial, cdEnd:
 			return checkTerm(c.Span)
 		case cdNot:
 			return checkCond(c.Inner)
