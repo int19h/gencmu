@@ -182,7 +182,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word) ∪ Run-Initial,
-  $y :: $.tags(source-word) ∪ Spacing ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -191,7 +191,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom

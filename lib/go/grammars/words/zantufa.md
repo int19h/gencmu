@@ -90,7 +90,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
       :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
   | $s:run-words $y:joined-hesitation :: $y.tags
   | $t:run-words $u:space-hesitation :: $u.tags ∪ Spacing
-  | $q:run-words $x:space-piece :: $x.tags ∪ Spacing ∪ After-Hesitation
+  | $q:run-words $x:space-piece :: $x.tags ∪ Spacing
   | $o:run-words $n:opener-space :: $n.tags ∪ Opener-Space
 %conditions
   Y-Letters ⊆ $s.tags,
@@ -155,7 +155,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ Spacing ∪ After-Hesitation ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule only-hesitation
   (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
@@ -195,7 +195,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder.
 
-The stage tags `After-Hesitation` a run of `y` that directly follows another run of `y`. The word stage derives space behavior from `Spacing` and its `Y-Letters` test.
+The word stage derives space behavior from `Spacing` and its `Y-Letters` test.
 
 Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
 
@@ -213,7 +213,7 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 %conditions
   ¬$w.onward.begins(split-later-y)
 %emits
-  $ :: $w.tags ∪ After-Hesitation ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $ :: $w.tags ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
 
 <details><summary>Railroad diagrams of <code>joined-hesitation</code> and <code>ordinary-joined-hesitation</code></summary>
@@ -227,6 +227,6 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 
 The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-Zantufa's `Y` reads a whole run of `y` as one token (`y+`), so its `spaces` treats the whole run as space. This translation inherits divided y-runs. The word stage uses `Spacing` and `Y-Letters` to preserve that space behavior. The forms stage records `After-Hesitation`, but no condition reads that tag.
+Zantufa's `Y` reads a whole run of `y` as one token (`y+`), so its `spaces` treats the whole run as space. This translation inherits divided y-runs. The word stage uses `Spacing` and `Y-Letters` to preserve that space behavior.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
