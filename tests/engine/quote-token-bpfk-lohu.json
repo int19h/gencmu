@@ -1,0 +1,45 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "A complete quote emits one token with its opening class, verbatim image, and decomposed value.",
+  "options": {
+    "until": "words"
+  },
+  "input": "lo'u coi le'u",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "tree": {
+            "kind": "rule",
+            "rule": "text"
+          },
+          "output": [
+            {
+              "image": "lo'u coi le'u",
+              "value": "lo'u coi le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -21,10 +21,12 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   (* LOhAI_pre <- pre_clause (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? (LOhAI spaces? (!LOhAI !LEhAI any_word)* )? LEhAI spaces? *)
   lohai-quote
 
-%rule lohai-quote
+%rule lohai-quote :- $.verbatim-text
   | $e:lehai-marker :: $e.tags
   | $r:lohai-run word-gap lehai-marker :: $r.tags
   | $r:lohai-run word-gap lohai-run word-gap lehai-marker :: $r.tags
+%emits
+  $
 
 %rule lohai-run
   | $m:lohai-marker :: $m.tags

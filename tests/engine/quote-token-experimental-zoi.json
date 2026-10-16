@@ -1,0 +1,45 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "A complete quote emits one token with its opening class, verbatim image, and decomposed value.",
+  "options": {
+    "until": "words"
+  },
+  "input": "zoi gy. 你好é .gy",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "tree": {
+            "kind": "rule",
+            "rule": "text"
+          },
+          "output": [
+            {
+              "image": "zoi gy. 你好é .gy",
+              "value": "zoi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

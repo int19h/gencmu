@@ -38,9 +38,9 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker word-gap $f:Rafsi-Form :: $m.tags
+  $m:rahoi-marker word-gap $f:Rafsi-Form :: $m.tags :- $.verbatim-text
 %emits
-  $m, $f :: Quoted-Text
+  $
 
 %rule rahoi-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo

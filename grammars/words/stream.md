@@ -267,9 +267,9 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
 
 ```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker word-gap $w:read-word :: $m.tags
+  $m:word-quote-marker word-gap $w:read-word :: $m.tags :- $.verbatim-text
 %emits
-  $m, $w :: Word
+  $
 
 %rule word-quote-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -291,7 +291,7 @@ ZOhOI and MEhOI quote one raw run in the experimental dialect. The quote must fi
 The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
 
 ```jbogenbau
-%rule single-word-quote
+%rule single-word-quote :- $.verbatim-text
   | $m:single-marker $r:zohoi-payload :: $m.tags
   | $m:single-marker zohoi-gap $s:zohoi-payload :: $m.tags
 %conditions
@@ -299,7 +299,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   Run-Final ⊆ $s.last-token.tags,
   Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
-  $m, $r :: Quoted-Text, $s :: Quoted-Text
+  $
 
 %rule single-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -349,7 +349,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 %const $Y-PROPERTIES
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
-%rule zoi-y-quote :: $m.tags
+%rule zoi-y-quote :: $m.tags :- $.verbatim-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -358,9 +358,9 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
   $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
-  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
+  $
 
-%rule zoi-quote :: $m.tags
+%rule zoi-quote :: $m.tags :- $.verbatim-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -369,7 +369,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $open.value = $close.value,
   $open.value ∉ $content.value.split($PAUSE)
 %emits
-  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
+  $
 
 %rule zoi-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -508,9 +508,11 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 `lohu-stream` separates paused, quiet, and absent gaps, so each gap has one reading. The shared gap rules execute no eraser inside the quote.
 
 ```jbogenbau
-%rule lohu-quote :: $m.tags
+%rule lohu-quote :: $m.tags :- $.verbatim-text
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
+%emits
+  $
 
 %rule lohu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
