@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:A\n%conditions $x.followed-by(b | C | #)\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 30,
       "rules": [
         {
           "conditions": [

@@ -110,7 +110,7 @@ func TestDOMRules(t *testing.T) {
 		{"a choice has two items or more", alt(`{"choice":[{"literal":{"string":"a"}}]}`)},
 		{"an & has two items or more", alt(`{"and":[{"literal":{"string":"a"}}]}`)},
 		{"an & has at most 16 items", alt(`{"and":[` + strings.TrimSuffix(strings.Repeat(`{"literal":{"string":"a"}},`, 17), ",") + `]}`)},
-		{"a repeat has no min, which format 17 had", alt(`{"repeat":{"literal":{"string":"a"}},"min":1}`)},
+		{"a repeat has no min member", alt(`{"repeat":{"literal":{"string":"a"}},"min":1}`)},
 		{"a separated list has no min", alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"literal":{"string":"b"}},"min":0}`)},
 		{"a separator is an expression", alt(`{"repeat":{"literal":{"string":"a"}},"separator":{"ref":"x y"}}`)},
 		{"a chain is the whole expression (sequence)", alt(`{"seq":[{"literal":{"string":"a"}},{"repeat":{"literal":{"string":"b"}},"chain":"left"}]}`)},

@@ -993,8 +993,7 @@ fn exponentially_long_derivations_keep_exact_counts() {
 }
 
 /// The members of the error elision-witness-lost, in the order of
-/// docs/output.md, and an error with no code, which has none of them
-/// (format 10).
+/// docs/output.md, and an error with no code, which has none of them.
 #[test]
 fn the_witness_lost_error_writes_its_members_in_order() {
     use gencmu::{ErrorCode, ParseError, ParseResult, Restoration};

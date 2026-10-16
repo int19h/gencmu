@@ -219,7 +219,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 29. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 30. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 

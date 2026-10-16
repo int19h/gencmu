@@ -323,7 +323,7 @@
     "malformed": true
   },
   {
-    "description": "A tag test requires a tag set (engine §9.3 and output.md format 28).",
+    "description": "A tag test requires a tag set (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [
@@ -345,7 +345,7 @@
     "malformed": true
   },
   {
-    "description": "A test operand cannot hold a capture (engine §9.3 and output.md format 28).",
+    "description": "A test operand cannot hold a capture (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [
@@ -371,7 +371,7 @@
     "malformed": true
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ⊇ (engine §9.3 and output.md format 28).",
+    "description": "A terminal pattern accepts the tag comparator ⊇ (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -386,7 +386,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ⊉ (engine §9.3 and output.md format 28).",
+    "description": "A terminal pattern accepts the tag comparator ⊉ (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -401,7 +401,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ∩=∅ (engine §9.3 and output.md format 28).",
+    "description": "A terminal pattern accepts the tag comparator ∩=∅ (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -416,7 +416,7 @@
     "malformed": false
   },
   {
-    "description": "A terminal pattern accepts the tag comparator ∩≠∅ (engine §9.3 and output.md format 28).",
+    "description": "A terminal pattern accepts the tag comparator ∩≠∅ (engine §9.3 and output.md).",
     "pattern": {
       "test": "tags",
       "requirements": [],
@@ -450,7 +450,7 @@
     "malformed": false
   },
   {
-    "description": "A tree comparison requires one bare capture (engine §9.3 and output.md format 28).",
+    "description": "A tree comparison requires one bare capture (engine §9.3 and output.md).",
     "condition": {
       "op": "≅",
       "left": {
@@ -557,7 +557,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -571,7 +571,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -592,7 +592,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -613,7 +613,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊇ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -640,7 +640,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -654,7 +654,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -675,7 +675,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -696,7 +696,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ⊉ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -723,7 +723,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -737,7 +737,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -758,7 +758,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -779,7 +779,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩=∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -806,7 +806,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -820,7 +820,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -841,7 +841,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",
@@ -862,7 +862,7 @@
     "malformed": false
   },
   {
-    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md format 28).",
+    "description": "An elidable terminator accepts the comparator ∩≠∅ (engine §9.3 and output.md).",
     "expr": {
       "optional": {
         "test": "tags",

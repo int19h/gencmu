@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%features Cbm\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 30,
       "rules": [],
       "directives": [
         {

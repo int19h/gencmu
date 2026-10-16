@@ -416,7 +416,7 @@ Ranking summaries retain their cycle context. Ranked admission keeps eligibility
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern value and image remain empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its exact restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing values or tags.
 
-Grammar DOM format 29 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 13 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 30 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 13 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 

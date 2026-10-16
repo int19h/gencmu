@@ -98,7 +98,7 @@ fn a_well_formed_dom_is_used() {
     // Attachments before and after a named capture (§11).
     assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"y","before":["x"]}]}"#)));
     assert!(!document_was_read(&with_emission(r#"{"items":[{"capture":"x","after":["y"]}]}"#)));
-    // `%emits ε` inserts a token in format 28 (§9).
+    // `%emits ε` inserts a token (§9).
     assert!(!document_was_read(&with_emission(r#"{"items":[{"insert":true}]}"#)));
     // `%erased` removes the constituent from emission and counted parts (§11).
     assert!(!document_was_read(&dom(B, r#","erased":true"#, "", DOM_FORMAT, r#""greedy""#)));
@@ -465,7 +465,7 @@ fn every_malformed_dom_is_a_cache_miss() {
             )),
         ),
         (
-            "a repeat with the min of format 17",
+            "a repeat with a min member",
             with_alternative(r#"{"guards":[],"expr":{"repeat":{"literal":{"string":"b"}},"min":1}}"#),
         ),
         (
@@ -777,7 +777,7 @@ fn every_malformed_dom_is_a_cache_miss() {
     ];
     let mut used = Vec::new();
     for (rule, dom) in &cases {
-        // Format 26 allows exact strings, inserted items, empty tags, and span conversion.
+        // The DOM allows exact strings, inserted items, empty tags, and span conversion.
         let now_valid = matches!(
             *rule,
             "a string in upper case"

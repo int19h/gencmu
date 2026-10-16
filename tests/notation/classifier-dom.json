@@ -1,9 +1,9 @@
 {
-  "description": "A classifier item keeps its entries' gates, decoded string keys, membership operators and written class tags. Line breaks separate no entries, and an empty classifier is legal (engine §9.3, docs/output.md format 28).",
+  "description": "A classifier item keeps its entries' gates, decoded string keys, membership operators and written class tags. Line breaks separate no entries, and an empty classifier is legal (engine §9.3, docs/output.md).",
   "document": "```jbogenbau\n%classifier lexicon  \"mi\" \"do\" ∈ KOhA f? ¬g? \"u'i\" ∉ UI\n\n\n\n%classifier empty \n%rule text $w:W :: $w.value.classify(lexicon)\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 30,
       "rules": [
         {
           "name": "text",
