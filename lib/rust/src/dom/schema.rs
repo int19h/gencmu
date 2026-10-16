@@ -1,4 +1,4 @@
-//! Schema validation for format 28. The work list bounds the complete DOM
+//! Schema validation for format 29. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 
@@ -202,7 +202,8 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let flags = item.get("flags").and_then(Json::as_array);
                     if !flags.is_some_and(|flags| {
                         flags.is_empty()
-                            || flags == [Json::Str("leftmost-longest".into())]
+                            || flags.len() == 1
+                                && matches!(flags[0].as_str(), Some("leftmost-longest" | "fewest"))
                                 && item.get("op").and_then(Json::as_str) != Some("extend")
                     }) {
                         return Some("a malformed rule flag");
@@ -588,7 +589,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     let args = value.get("args").and_then(Json::as_array);
                     if !span(receiver)
                         || !match (value.get("method").and_then(Json::as_str), args) {
-                            (Some("starts-input"), Some([])) => true,
+                            (Some("starts-input" | "ends-input"), Some([])) => true,
                             (Some("matches" | "begins"), Some([arg])) => {
                                 exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                             }
