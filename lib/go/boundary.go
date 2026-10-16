@@ -467,3 +467,43 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 	r.nextBoundaryAnnotations = annotations
 	return true
 }
+
+func (g *stageGrammar) prepareBoundarySites() {
+	for order, rule := range g.rules {
+		seen := map[*sAlt]bool{}
+		index := 0
+		for _, source := range rule.alts {
+			owner := source.boundaryOwner
+			if seen[owner] {
+				source.boundarySites = owner.boundarySites
+				continue
+			}
+			seen[owner] = true
+			owner.boundarySites = map[*domCond]*boundarySite{}
+			for _, c := range source.conds {
+				for _, atom := range boundaryAtoms(clausePart{c: c}) {
+					owner.boundarySites[atom] = &boundarySite{rule.name, index, order}
+				}
+				index++
+			}
+			source.boundarySites = owner.boundarySites
+		}
+	}
+}
+func (r *recognizer) boundaryDiagnostic(position int) *BoundaryCondition {
+	var best *BoundaryCondition
+	var bestSite *boundarySite
+	for _, failure := range r.boundaryFailures {
+		if failure.end < position || failure.source == nil {
+			continue
+		}
+		at, _ := r.observed(failure.at, failure.at)
+		for site := range failure.source.sites {
+			if best == nil || at < best.At || at == best.At && (site.order < bestSite.order || site.order == bestSite.order && site.condition < bestSite.condition) {
+				best = &BoundaryCondition{site.rule, site.condition, at}
+				bestSite = site
+			}
+		}
+	}
+	return best
+}

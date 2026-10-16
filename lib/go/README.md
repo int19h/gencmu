@@ -36,11 +36,13 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 28 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
+Grammar document object model (DOM) format 29 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
-`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 12. Go exposes no audit API.
+`.onward` extends either restored query through the original following input and retains its family. Other span methods return ordinary spans. Parse results use format 13. Go exposes no audit API.
+
+Tree conditions `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors in the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
 For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string. The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 
