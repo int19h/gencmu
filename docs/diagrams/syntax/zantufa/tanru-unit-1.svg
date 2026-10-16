@@ -71,21 +71,13 @@
 <path d="M20 46a10 10 0 0 1 10 10V318a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="316" width="58" height="24" rx="12"/><text x="69" y="333" textLength="42" lengthAdjust="spacingAndGlyphs">MUhOI</text></g>
 <path d="M98 328h10"/>
-<g class="rule"><rect x="108" y="316" width="84" height="24" rx="0"/><text x="150" y="333" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-word</text></g>
-<path d="M192 328h10"/>
-<g class="rule"><rect x="202" y="316" width="84" height="24" rx="0"/><text x="244" y="333" textLength="67.2" lengthAdjust="spacingAndGlyphs">anything</text></g>
-<path d="M286 328h10"/>
-<g class="rule"><rect x="296" y="316" width="84" height="24" rx="0"/><text x="338" y="333" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-word</text></g>
-<path d="M380 328h10"/>
-<g class="rule"><rect x="390" y="316" width="25" height="24" rx="0"/><text x="402.5" y="333" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M415 328H525a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="108" y="316" width="25" height="24" rx="0"/><text x="120.5" y="333" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M133 328H525a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V352a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="350" width="58" height="24" rx="12"/><text x="69" y="367" textLength="42" lengthAdjust="spacingAndGlyphs">GOhOI</text></g>
 <path d="M98 362h10"/>
-<g class="rule"><rect x="108" y="350" width="84" height="24" rx="0"/><text x="150" y="367" textLength="67.2" lengthAdjust="spacingAndGlyphs">any-word</text></g>
-<path d="M192 362h10"/>
-<g class="rule"><rect x="202" y="350" width="25" height="24" rx="0"/><text x="214.5" y="367" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M227 362H525a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="108" y="350" width="25" height="24" rx="0"/><text x="120.5" y="367" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M133 362H525a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V412a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="410" width="58" height="24" rx="12"/><text x="69" y="427" textLength="42" lengthAdjust="spacingAndGlyphs">LUhEI</text></g>
 <path d="M98 422h10"/>

@@ -84,10 +84,8 @@ A following-input condition reserves words after a candidate for another constru
 
 ```
 
-<details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
+<details><summary>Railroad diagram of <code>#</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/_hash.svg" alt="Railroad diagram of the rule #"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/anything.svg" alt="Railroad diagram of the rule anything"></p>
 </details>
 
 ## The text and its paragraphs
@@ -1021,7 +1019,6 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   (* number_post_clause <- spaces? !BU_clause (!number free)* *)
   [{free-not-number}]
 
-
 %rule free-not-number
   $f:free
 %conditions
@@ -1046,12 +1043,11 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   $f ≇ @(vocative ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>free</code> to <code>free-not-vocative</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>

@@ -1012,13 +1012,12 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>free</code> to <code>free-after-lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 </details>
 
 ## Choosing among parses

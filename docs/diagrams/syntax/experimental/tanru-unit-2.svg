@@ -120,10 +120,8 @@
 <path d="M20 72a10 10 0 0 1 10 10V548a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="546" width="58" height="24" rx="12"/><text x="69" y="563" textLength="42" lengthAdjust="spacingAndGlyphs">MEhOI</text></g>
 <path d="M98 558h10"/>
-<g class="rule"><rect x="108" y="546" width="84" height="24" rx="0"/><text x="150" y="563" textLength="67.2" lengthAdjust="spacingAndGlyphs">anything</text></g>
-<path d="M192 558h10"/>
-<g class="rule"><rect x="202" y="546" width="25" height="24" rx="0"/><text x="214.5" y="563" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M227 558H447a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="108" y="546" width="25" height="24" rx="0"/><text x="120.5" y="563" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M133 558H447a10 10 0 0 0 10 -10V82a10 10 0 0 1 10 -10"/>
 <path d="M467 72h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="592" textLength="468" lengthAdjust="spacingAndGlyphs">Only a qualified option over the same span removes lower options.</text>
 </svg>

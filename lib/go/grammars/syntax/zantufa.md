@@ -39,9 +39,9 @@ Zantufa lets free modifiers follow every word (`post_clause`), with a few except
 
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
 
-[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
+[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier.
 
-The word stage marks individually quoted words and delimiters with `Word`. It marks a quote body emitted as one token with `Quoted-Text`.
+The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
 
 A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
@@ -82,17 +82,10 @@ A following-input condition reserves words after a candidate for another constru
 %rule #
   [{free}]
 
-%rule any-word
-  Word
-
-%rule anything
-  Quoted-Text
 ```
 
-<details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
+<details><summary>Railroad diagram of <code>#</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/_hash.svg" alt="Railroad diagram of the rule #"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/anything.svg" alt="Railroad diagram of the rule anything"></p>
 </details>
 
 ## The text and its paragraphs
@@ -525,10 +518,10 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
               / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
               / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
               / li_clause / NAhE_clause sumti_3 *)
-  | RAhOI anything #
-  | ZO any-word #
-  | ZOI any-word anything any-word #
-  | LOhU [{any-word}] LEhU #
+  | RAhOI #
+  | ZO #
+  | ZOI #
+  | LOhU #
   | $l:lerfu-boi
   | LU text [+LIhU #]
   | (LAhE # | NAhE # BO #) [relative-clauses] sumti [+LUhU #]
@@ -706,8 +699,8 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | KE # selbri-2 [+KEhE #]
   | NAhE # gek selbri-2 $g:gik-selbris [+GIhI #]
   | $k:gek selbri-2 $g:gik-selbris [+GIhI #]
-  | MUhOI any-word anything any-word #
-  | GOhOI any-word #
+  | MUhOI #
+  | GOhOI #
   | LUhEI text [+LIhAU #]
   | ME # (sumti | $m:mex | $t:tag) [+MEhU #] [MOI #]
   | ME # {operator} [+MEhU #] [MOI #]
@@ -1008,7 +1001,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | mex-2 MAI #
   | TO # parenthesis-text [+TOI #]
   | XI # mex-2
-  | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
+  | (LOhAI<Quote> | LEhAI) #
   | UI #
 %conditions
   ¬$.following-tokens.begins(free)
@@ -1025,9 +1018,6 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
 %rule number-post
   (* number_post_clause <- spaces? !BU_clause (!number free)* *)
   [{free-not-number}]
-
-%rule lohai-word
-  Word<¬LOhAI ¬LEhAI>
 
 %rule free-not-number
   $f:free
@@ -1053,12 +1043,11 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   $f ≇ @(vocative ⋰)
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>free</code> to <code>free-not-vocative</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>free</code> to <code>free-not-vocative</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/number-post.svg" alt="Railroad diagram of the rule number-post"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-number.svg" alt="Railroad diagram of the rule free-not-number"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/lerfu-post.svg" alt="Railroad diagram of the rule lerfu-post"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/free-not-lerfu.svg" alt="Railroad diagram of the rule free-not-lerfu"></p>
