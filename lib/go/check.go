@@ -236,7 +236,7 @@ func (run *stageRun) checkElision(rec *recognizer, d *dn, tree *Node) *ParseErro
 	var chosenProfile ruleProfile
 	flagged := false
 	for _, rule := range g.rules {
-		flagged = flagged || rule.leftmostLongest
+		flagged = flagged || rule.leftmostLongest || rule.fewest
 	}
 	protect := true
 	if flagged {
