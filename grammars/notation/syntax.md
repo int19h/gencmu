@@ -312,7 +312,7 @@ Attachments are named captures in parentheses around a named carrier. The reader
 
 `::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe concatenates its atoms in written order.
 
-Recognition reads each recipe atom as a term. The reader permits only strings, string constants, and the six capture string methods of engine §11.3.
+Recognition reads each recipe atom as a term. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
 
 This wider recognition lets the reader reject a written operator or forbidden method at its atom. It does not make those atoms valid recipes.
 

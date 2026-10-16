@@ -295,7 +295,7 @@ For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
 
 The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
-A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the six recipe string methods on a bare capture. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
+A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
 ```json
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}

@@ -199,7 +199,7 @@ A captured item can also carry attachments, captures in parentheses before or af
 
 The syntax reads leading indicators itself. They stand at the start of a text or after a quotation opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
-A body's constituent image recipe can request `$.verbatim-text`. The single-run payload uses this recipe to preserve original spelling and adjacent uncovered characters. Its quote reads the payload's `.emitted.image`. Recognition still observes input values and tags. A covering compound also receives the quote's image recipe. The engine supplies no foreign placeholder value.
+A body's constituent image recipe can request `$.verbatim-text`. A single-run payload is the content of an undelimited quote. It uses this recipe to preserve original spelling and adjacent uncovered characters. Its quote reads the payload's `.emitted.image`. Recognition still observes input values and tags. A covering compound also receives the quote's image recipe. The engine supplies no foreign placeholder value.
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
@@ -275,7 +275,7 @@ The explicit image recipe beats the implied image of each alternative value reci
 
 The phoneme stage puts `Stressed` on the mapping that writes the stressed value. A split diphthong marks only its stressed first token. An extension that merely forwards another rule relies on inheritance. An explicit tag clause replaces that inheritance and can lose `Syllabic`.
 
-All bundled Lojban dialects map syllable commas to empty values. The forms stage reads their surviving `Syllable-Break` tag. It expresses dialect-specific restrictions on vowel boundaries through that tag. Zoi delimiter comparisons therefore ignore syllable commas while images preserve them.
+In `cll-ebnf` and `kihei`, normalization maps syllable commas to empty values and preserves `Syllable-Break`. The forms stage uses that tag to restrict vowel boundaries. The other Lojban dialects drop commas in the phoneme stage. Zoi delimiters therefore compare without commas in every Lojban dialect. Quote images retain their source spelling.
 
 A foreign token retains its exact value unless the grammar explicitly maps it. Unicode lowercase mappings play no role in the engine. A value containing the fullwidth `Ｋ` does not become `K`. The Kelvin sign does, because its decomposition is canonical.
 
@@ -318,9 +318,9 @@ The following grammar gives `x` for input `a`, and `xb` for input `ab`:
 %emits
 ```
 
-The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The author guide uses this rule for quote bodies and gaps.
+The child definition recipe serves both walks. A recipe that must apply inside a parent belongs on the child alternative or definition. The [dialect author guide](dialects.md) uses this rule for quote bodies and gaps.
 
-Recipes use a closed string language. They concatenate literals, string constants, and six captured string methods. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
+Recipes use a closed string language. They concatenate literals, string constants, and seven captured string methods. They cannot branch, inspect tags, split strings, classify words, or start queries. This keeps emission independent of recognition and makes channel dependencies explicit.
 
 Only requested selected recipes run. `.emitted` reads a constituent before the current item's override. Cross-channel reads can terminate through an explicit recipe. An effective constituent channel that depends on itself causes a document cycle error, even when an item overrides its runtime string. Engine §11 states occurrence identity and suppressed dependencies.
 
@@ -542,7 +542,7 @@ The flag ranks first so an author can state grouping independently of terminator
 
 `elision-only` retains rule flags because they express structural preferences. If another reading has an equal or greater rule profile, the check reports ambiguity without replacing the chosen parse. Restored terminators add no width, so writing them back cannot lengthen a flagged occurrence.
 
-With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
+With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. The flag ranks complete parses. The official lexer instead groups tokens before syntax parsing. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
 The notation writes `leftmost-longest` in parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. `fewest` favors absence. It counts occurrences and ignores their spans, because a disfavored construct has no natural position to prefer. So it composes by addition, as an elision count does, and it cannot form a comparison cycle.
 

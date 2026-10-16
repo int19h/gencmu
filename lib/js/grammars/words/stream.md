@@ -30,7 +30,7 @@ An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'
 
 BAhE marks the next word in the indicator stage. It remains a separate unit during word operations. The dialects keep `mi ba'e fa'o` rejected because the surviving BAhE has no target.
 
-The rule `empty` reads a prefix that leaves no units. Its first three alternatives read the text start, stray SI, and an erased stretch. The next three read SU after an empty prefix, whole-prefix SU, and boundary-aware SU without a boundary. The last three read unmatched SA and trailing SA after an empty or nonempty prefix. The rule `su-cleared` keeps its boundary test beside the stream that it tests.
+The rule `empty` reads a prefix that leaves no units. Its alternatives use `text-start`, `si-word`, `erasure`, `su-word`, `su-cleared`, `sa-wiped`, and `sa-tail`. The `su-word` routes clear an empty prefix or the whole prefix. The `su-cleared` route clears a prefix without an SU boundary. The `sa-wiped` route reads unmatched SA. The `sa-tail` routes read trailing SA after an empty or nonempty prefix. The rule `su-cleared` keeps its boundary test beside the stream that it tests.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -824,7 +824,7 @@ The dialects use seven departures from CLL.[^cll-c19] Items 2 and 4 differ in Za
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
-The proposal's ZEI paragraph writes "ZEI+BU grabs back to the last ZEI". The maintainer reads "ZEI+BU" as a typo for "SA+ZEI". The page's discussion records the unclear wording. This grammar permits no such search inside a compound.
+The [Tiki copy of Magic Words](https://www.lojban.org/tiki/Magic+Words) strikes out "ZEI+BU grabs back to the last ZEI". Its ZEI paragraph instead lets SA before a brivla consume a whole ZEI clause. This grammar permits no search inside a compound.
 
 The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A constructor keeps the unopened-quote fault. `le'u bu` still fails, and `le'u bu si` is empty.
 

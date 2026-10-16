@@ -150,8 +150,6 @@ The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. 
 
 Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
 
-The official parser settles both connective ambiguities in the same way.
-
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).

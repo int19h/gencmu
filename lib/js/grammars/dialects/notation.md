@@ -23,7 +23,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token per character. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
+Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receives one token per decomposed scalar, with that scalar as its value and image. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens covers a run of decomposed scalars from the document. The stage drops spaces and comments.
 
 ## Stage 2: the document
 

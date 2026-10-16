@@ -2,8 +2,6 @@
 
 This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification. An implementation that disagrees with one of them is wrong.
 
-The test cases follow this notation and engine contract. Their migration belongs to the grammar and implementation phases.
-
 A case that disagrees with this text is a bug in one or the other, and the same change fixes it.
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
@@ -33,7 +31,7 @@ A tag is a named identifier mark. User tags start with an uppercase ASCII letter
 - A user mark is a tag such as `Stressed`, `Syllable-Break`, or `Word`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
 
-A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks and private-use scalars. It also uses interpolation for Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. Engine §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
+A string terminal's identity is its resolved string. A literal, engine constant, and equal user constant therefore identify one terminal. Canonical string spelling doubles dollar signs and uses engine interpolation for quotes, backslashes, controls, nonspacing marks and private-use scalars. It also uses interpolation for Hangul syllables, scalars with a `decompose` record, and scalars of nonzero combining class. §9 specifies one diagnostic spelling. Tags retain their identifier spelling without string escaping.
 
 A control scalar lies in two fixed ranges. These are U+0000 to U+001F and U+007F to U+009F.
 
@@ -61,12 +59,9 @@ A library reads a grammar document from disk as strict UTF-8. Bytes that are not
 - `category Lu 0041 005A` gives a range of code points whose General_Category is `Lu`. The category is in its short form.
 - `white-space 0009 000D` gives a range of code points that have the White_Space property.
 - `decompose 00E1 0061 0301` gives the full canonical decomposition of one scalar, in canonical order. Every scalar whose decomposition differs from itself has one record, except the Hangul syllables.
-
 - `combining 230 0300 0314` gives a range of code points whose Canonical_Combining_Class is the number, from 1 to 254. A code point in no range has class 0.
 
 The Hangul syllables U+AC00 to U+D7A3 decompose by the arithmetic of the Unicode Standard, section 3.12, and the table lists none of them. The table has no compatibility decompositions, no composition data and no case data.
-
-The table has no `lower` records or lowercase mapping. Its decompositions are canonical only.
 
 In the bundled file, each `category` range is a longest run of one category. Together these ranges hold every Unicode scalar value once. `Cn`, the unassigned code points, has its ranges too. The records can stand in any order in a file. Each library sorts them when it loads the file, so their order never changes an answer.
 
@@ -347,6 +342,10 @@ So a chain beside another alternative is reported before an empty item, whicheve
 
    Lowering records whether each helper represents an elidable optional. For an elidable helper, it also records the terminal `T`, its test and the optional's owner (§2.2). The rest of this document says "elidable optional" of these helpers.
 
+   Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(s,{T})` for equality `=s`, and `("",{T})` otherwise. Without a test, it is true. This condition applies in main recognition, nested queries and reconstruction.
+
+   A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
+
 Lowering numbers the productions from 0. The canonical order *T* of §6 uses this numbering. *T* orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
 A production that a condition false for it removes (§3.6) takes no number, though the helpers of its alternative still do. Lowering takes the rules in the order in which they were first defined after stitching. A rule replaced with `%redefine-rule` keeps the place of the rule that it replaces, and alternatives added with `%extend-rule` follow the rule's own alternatives.
@@ -363,9 +362,7 @@ Every expansion of the alternative that goes through a helper's place shares tha
 
 Recipe capture validation follows §11 after absent-item pruning. A rule-level recipe is checked only on channels where its production uses it. An alternative override can suppress one or both channels. An unknown or private capture remains an error before that pruning.
 
-Before predicting an empty elidable production, the recognizer requires its omission predicate to hold. The predicate tests `(s,{T})` for equality `=s`, and `("",{T})` otherwise. Without a test, it is true. This condition applies in main recognition, nested queries and reconstruction.
 
-A false predicate creates no omitted node, elision count or restoration record. It causes no declaration error or warning. Written productions remain available.
 
 ## 4. Recognition
 
@@ -910,6 +907,8 @@ For k independent Boolean observations, a product can contain up to `2^k` states
 
 ### 6.1 Ranked admission before ranking
 
+Ranked admission filters derivations at each ranked group before the stage ranks complete parses.
+
 Retain the raw chart and eligibility information. Admission removes forest choices without removing chart items or changing input queries. A later completion can provide an earlier qualifying option. Nested availability requires admitted finite child proofs.
 
 A prefix context records state before a ranked group. An admission instance is one written ranked group in one prefix context. Each physical span in that instance has a separate admission group. Its key contains these components:
@@ -1262,7 +1261,7 @@ In a string outside an include path, a dollar sign starting neither interpolatio
 
 An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use ordinary string decoding. A backslash is still a lexical error. Paths use `/` separators.
 
-A feature name matches `[A-Za-z][A-Za-z0-9-]*`, as on main. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
+A feature name matches `[A-Za-z][A-Za-z0-9-]*`. A guard token is a feature name followed by `?` or `!`, or `¬` immediately followed by a feature name and `?`. No whitespace or comment stands inside a guard token. A capital-initial feature such as `Cbm` is legal.
 
 The lexer reads `¬` separately only when no guard starts immediately after it. It has no negated-warning token. Thus `%rule r ¬cbm! A` fails lexically at `!`, column 13. `%rule r ¬ cbm? A` fails syntax recognition at `¬`, column 9. A supplied guard with an invalid feature or a negated warning fails at that guard.
 
@@ -1723,7 +1722,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   A method's receiver and arguments must meet §10's signature after method selection. The reader reports a wrong receiver or arity at the method. A classifier or rule name is legal only in its corresponding argument position. A string constant can resolve a string argument after stitching.
 - A `split` whose delimiter is the string literal `""` is an error, reported at the call.
-- A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the six string methods and string atoms of §11.
+- A `.verbatim-text` or `.emitted` read outside a recipe is a document error. A recipe accepts only the seven string methods and string atoms of §11.
 - A constant declaration whose name is an engine constant is an error at that name. Thus `%const $_0041 "x"` fails at `$_0041`, column 8.
 - A constant's value that is not a closed term (§10) is an error, reported at the first part that is not closed. Captures, `$`, guarded terms, and input methods such as `.value`, `.source-text`, `.tags`, `.classes`, or `.classify` are errors there.
 - An engine-tag literal in a constant's value, outside a pattern literal, is an error at that literal.
@@ -1839,11 +1838,13 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 
 The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text. Interpolated constants keep their exact scalar values.
 
-String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. Engine §9.1 defines scalar constants and canonical diagnostic spelling.
+String decoding produces unresolved interpolation parts for stage binding. `$$` is a literal dollar sign and `$(NAME)` names a string constant. Outside include paths, other dollar signs are document errors. Include paths keep every dollar sign literally. §9.1 defines scalar constants and canonical diagnostic spelling.
 
 A scalar range endpoint decodes as a string term and must resolve to exactly one scalar. The DOM retains the string term. An equal literal and constant resolve to one terminal identity. A reversed scalar range is a document error.
 
 Pattern constructors use the authoritative table above. Readers retain the grouping boundaries specified in `docs/output.md`.
+
+For `$x ≅ NAME`, report at NAME: `tree comparison requires a pattern; write @(NAME), not NAME`. Substitute the actual name, including capital-initial terminals. The same diagnostic applies to `≇`, before a generic parse or type error.
 
 Source captures, guards, elision markers, and chain repetitions inside patterns fail syntax recognition. A tree comparison with a non-capture left operand also fails syntax recognition. Supplied trees and DOMs still undergo the stated reader restrictions.
 
@@ -1894,7 +1895,7 @@ In the check of §7, ordinary span methods read their receivers' projected spans
 
 An empty delimiter is an error. It is an error of the document when the delimiter is the literal `""` or a constant whose value is `""` (§2, §9). Otherwise it is an error of the grammar when a parse evaluates the `split`, and the whole parse fails with it (§13). So `$x.value.split($y.source-text)` is such an error where `$y` is empty.
 
-Every tag name is written in the grammar. No method constructs a tag from a string. Y delimiter keys use fixed Y-Key and Ieho tags. Values remain available for input-dependent comparisons.
+Every tag name is written in the grammar. No method constructs a tag from a string. Values remain available for input-dependent comparisons.
 
 A closed term reads no capture, span, query, classifier, or guarded term. It can contain strings, tags, constants, patterns, contextual `∅`, set operators, and `.split` on closed strings. Ranges are terminals only. `.classify` is not closed because its classifier depends on features.
 
@@ -2243,13 +2244,13 @@ Experimental `term-link` and `term-bo-link` have no rule flag. Zantufa marks its
 
 Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.
 
-The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. It maps stressed `A E I O U Y` to lowercase and the syllable comma to empty. Every mapping requires its corresponding tag.
+The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. It maps stressed `A E I O U Y` to lowercase. In `cll-ebnf` and `kihei`, it also maps the syllable comma to empty. The other Lojban dialects drop commas in the phoneme stage. Every mapping requires its corresponding tag.
 
-A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. A syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token.
+A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. In `cll-ebnf` and `kihei`, a syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token in those dialects.
 
 A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy` in the phoneme-stage output. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
 
-A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. This is now normalization instead of forms. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
+A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. The normalization stage is that first covering stage. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
 
 The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. A FOREIGN token of the phoneme stage holds the decomposed characters of its run as its value, and the original spelling as its image. The forms stage passes such a token on unchanged. The forms stage makes a FOREIGN token of a run of phonemes that it cannot divide into words.
 
@@ -2308,4 +2309,4 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy MI   DO gy bu`, also after indicators |
 
-These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. The proof compares spans within each stage's input coordinates and maps them where input token counts differ from main.
+These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule. The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.

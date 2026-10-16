@@ -31,7 +31,7 @@ A run is a sequence of words or a foreign run. A foreign run is a stretch that t
 
 A foreign run is not an error here. The word stage decides whether a foreign run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
-The comma has an empty value, so `nonpause-phoneme` reads it by its `Syllable-Break` tag.
+In `cll-ebnf` and `kihei`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -146,7 +146,7 @@ A join permits two words without a pause. This document states the joins so that
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
-The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
+The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
 The y rules read syllable commas by `Syllable-Break`, because those tokens have empty values.
 
