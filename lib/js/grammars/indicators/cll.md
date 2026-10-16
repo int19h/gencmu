@@ -14,7 +14,7 @@ The indicators are the attitudinals and discursives of UI and CAI with an option
 
 A run of indicators attaches to the word before it, and a `ba'e` attaches to the word after it. The stage hands on the word as one token, which carries them as its attachments ([the engine](../../docs/engine.md), §11). The syntax does not read an attachment, but the renderings show it with its word. So `mi ui klama` is `([mi ui] klama)` in brackets, and the syntax reads `mi klama`.
 
-The lexicon of the forms stage decides what a word is, which words are indicators and which are `ba'e`. The `Indicator` tag, a name that an implication of the lexicon gives a word, marks both indicators and `fu'e`. The word stage passes these tags on, but a word that it emitted as the material of a quote or a compound carries no class. So this stage never attaches an attitudinal inside `zo`, `lo'u ... le'u` or before `bu`.
+The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The word stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole unit.
 
 A run of indicators at the start of the text, before any word, stays in the stream. This is because the `text` rule of the syntax grammar reads it there. A `ba'e` with no word after it stays in the stream too. In a run that stays in the stream, the stage attaches only `ba'e`, as the section "Leading runs" says. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -28,13 +28,17 @@ The closing section compares this stage with other indicator rules.
 
 ## Quotation boundaries
 
+The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every dialect. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
+
+The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The word-stage tree retains its internal structure.
+
 `$QUOTE-OPENERS` identifies LU as a boundary where indicators remain syntax tokens. Indicators after `to`, `to'i` and `tu'e` instead attach to those openers. An indicator after `to` marks the whole parenthetical remark, so it attaches to the opener.[^cll-e19-67]
 
 A quotation must hold any text, including one that begins with an indicator. Attaching that indicator to `lu` prevents the speaker from quoting such a text. An attachment to `lu` also duplicates an indicator on `li'u`.
 
 The stage preserves the initial indicators of the quoted text. So `lu ui mi klama li'u` quotes `ui mi klama`, and `lu ui li'u` quotes `ui`.
 
-The word stage already protects the material inside `zo`, `lo'u ... le'u`, and delimiter quotes such as `zoi`. That material carries no indicator class here. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
+The word stage supplies one token for each finished quote, including `zo`, `lo'u ... le'u`, and `zoi`. This stage cannot read inside that token. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
 
 A leading indicator run also stays in the stream at the start of the whole text. Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
 
@@ -75,7 +79,7 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
   ($b) $w ($a)
 
 %rule unit
-  | Word<¬Indicator ¬BAhE> | Quoted-Text | LEhU
+  Word<¬Indicator ¬BAhE>
 
 %rule bahe-run
   bahe | bahe-run bahe
@@ -92,8 +96,6 @@ An item hands on a word with its preceding `ba'e` run and following indicator ru
 <p><img src="../../docs/diagrams/indicators/cll/bahe-run.svg" alt="Railroad diagram of the rule bahe-run"></p>
 <p><img src="../../docs/diagrams/indicators/cll/bahe.svg" alt="Railroad diagram of the rule bahe"></p>
 </details>
-
-The word stage emits a closing `le'u` with the LEhU class alone. This stage reads it through the explicit LEhU alternative.
 
 A `bahe-run` is one or more `ba'e`, so `mi ba'e ba'e klama` is a text.
 

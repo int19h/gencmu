@@ -1,0 +1,74 @@
+{
+  "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "na lo'ai ku le'ai klama",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "na",
+              "value": "na",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "NA",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "lo'ai ku le'ai",
+              "value": "lo'ai ku le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ]
+            },
+            {
+              "image": "klama",
+              "value": "klama",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "(na lo'ai ku le'ai klama)"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. l`amour .gy",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                2,
+                3
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "g",
+              "value": "g",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": "y",
+              "value": "y",
+              "source": [
+                5,
+                6
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                6,
+                8
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l`amour",
+              "value": "l`amour",
+              "source": [
+                8,
+                15
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                15,
+                17
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "g",
+              "value": "g",
+              "source": [
+                17,
+                18
+              ],
+              "tags": []
+            },
+            {
+              "image": "y",
+              "value": "y",
+              "source": [
+                18,
+                19
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zoi gy. l`amour .gy",
+              "value": "zoi gy l`amour gy",
+              "source": [
+                0,
+                19
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "zoi gy. l`amour .gy"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,zo ,coi,, do mi,zo ⁠­coi⁠­, do mi,zo ~·ーｰcoi~·ーｰ, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "zo ,coi",
+              "value": "zo coi",
+              "image": "zo ,coi,,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "source": [
+                3,
+                10
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "zo ⁠­coi",
+              "value": "zo coi",
+              "image": "zo ⁠­coi⁠­,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "source": [
+                19,
+                27
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "zo ~·ーｰcoi",
+              "value": "zo coi",
+              "image": "zo ~·ーｰcoi~·ーｰ,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "source": [
+                37,
+                47
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

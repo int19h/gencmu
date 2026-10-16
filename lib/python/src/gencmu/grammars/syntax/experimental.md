@@ -31,9 +31,9 @@ The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
 
 [The experimental lexicon](../words/lexicon-experimental.md) gives each cmavo one selma'o. For example, `mi'ai` is KOhA, `la` is LE, `fi'oi` is SOI, `ma'oi` is ZO and `la'oi` is ZOhOI. `no'oi` and `po'oi` are NOhOI, with the terminator `ku'oi`. The added classes include `LOhOI`, `NOhOI`, `KUhOI`, `KUhAU`, `LOhAI`, `LEhAI`, `ZOhOI` and `MEhOI`.
 
-[The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
+[The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
 
-A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage, an earlier stage, puts these two tags on the material of a quote.
+A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
 
 The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental dialect turns both on. A caller, the program that requests parsing, can turn either off.
 
@@ -451,11 +451,11 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | LE # sumti-tail [+KU] #
   | LOhOI # subsentence [+KUhAU] #
   | LI # mex [+LOhO] #
-  | ZO any-word #
+  | ZO #
   | LU text [+LIhU] #
-  | LOhU [{any-word}] LEhU #
-  | ZOI any-word anything any-word #
-  | ZOhOI anything #
+  | LOhU #
+  | ZOI #
+  | ZOhOI #
 %conditions
   $t ≇ @(sumti),
   $u ≇ @(sumti),
@@ -586,7 +586,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | JAI # [tag] tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
-  | MEhOI anything #
+  | MEhOI #
 
 %rule me-unit
   ME # (sumti | $m:mex) [+MEhU] # [MOI #]
@@ -612,7 +612,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | JAI # [tag] tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
-  | MEhOI anything #
+  | MEhOI #
 
 %redefine-rule abstractor-chain
   {... NU # / connective}
@@ -895,7 +895,7 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
 
 ## Free modifiers, vocatives and indicators
 
-A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads the words inside as raw words ([`../words/lohai.md`](../words/lohai.md)).
+A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads its contents as raw words and emits one quote token ([`../words/lohai.md`](../words/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
 
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
@@ -929,7 +929,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
   | mex-2 MAI
   | TO text [+TOI]
   | XI # $m:mex-2
-  | LOhAI [{lohai-word}] [LOhAI [{lohai-word}]] LEhAI
+  | LOhAI<Quote>
   | LEhAI
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
@@ -949,17 +949,14 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 %rule free-after-lerfu-string
   [+BOI] #
 
-%rule lohai-word
-  Word<¬LOhAI ¬LEhAI>
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>free</code> to <code>free-after-lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/name-marker.svg" alt="Railroad diagram of the rule name-marker"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-number.svg" alt="Railroad diagram of the rule free-after-number"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/free-after-lerfu-string.svg" alt="Railroad diagram of the rule free-after-lerfu-string"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 </details>
 
 ## Choosing among parses

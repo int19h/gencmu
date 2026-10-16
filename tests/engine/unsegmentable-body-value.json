@@ -1,5 +1,5 @@
 {
-  "description": "A quote body keeps original images and decomposed values.",
+  "description": "A whole quote token keeps original spelling and decomposed values.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
@@ -17,13 +17,10 @@
         {},
         {
           "output": [
-            {},
-            {},
             {
-              "value": "klamá",
-              "image": "klamá"
-            },
-            {}
+              "value": "zoi klama klamá klama",
+              "image": "zoi klama. klamá .klama"
+            }
           ]
         }
       ]

@@ -1,0 +1,103 @@
+{
+  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi ´zo coi´",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "m",
+              "value": "m",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "i",
+              "value": "i",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "´zo",
+              "value": "´zo",
+              "source": [
+                3,
+                6
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "coi´",
+              "value": "coi´",
+              "source": [
+                7,
+                11
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words"
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "source": [
+          3,
+          6
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

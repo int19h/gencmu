@@ -1,0 +1,42 @@
+{
+  "description": "An unfinished replacement quote reports its missing LEhAI at the end of the input.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "sa'ai",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "source": [
+          5,
+          5
+        ],
+        "expected": [
+          {
+            "terminal": "BRIVLA"
+          },
+          {
+            "terminal": "CMEVLA"
+          },
+          {
+            "terminal": "Cmavo"
+          },
+          {
+            "terminal": "Hesitation"
+          },
+          {
+            "terminal": "LEhAI"
+          },
+          {
+            "terminal": "PAUSE"
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lo'ai su",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": []
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    }
+  },
+  "options": {
+    "features": [
+      "sa-su"
+    ]
+  }
+}

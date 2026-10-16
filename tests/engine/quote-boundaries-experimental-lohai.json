@@ -1,0 +1,87 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,lo'ai mi le'ai, do mi⁠lo'ai mi le'ai⁠ do mi­lo'ai mi le'ai­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "lo'ai mi le'ai",
+              "value": "lo'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "lo'ai mi le'ai",
+              "source": [
+                3,
+                17
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "lo'ai mi le'ai",
+              "value": "lo'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "lo'ai mi le'ai",
+              "source": [
+                25,
+                39
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "lo'ai mi le'ai",
+              "value": "lo'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "lo'ai mi le'ai",
+              "source": [
+                47,
+                61
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

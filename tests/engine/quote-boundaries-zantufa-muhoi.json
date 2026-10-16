@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,mu'oi gy. 你好é .gy, do mi⁠mu'oi gy. 你好é .gy⁠ do mi­mu'oi gy. 你好é .gy­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "mu'oi gy. 你好é .gy",
+              "value": "mu'oi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "text": "mu'oi gy. 你好é .gy",
+              "source": [
+                3,
+                20
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "mu'oi gy. 你好é .gy",
+              "value": "mu'oi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "text": "mu'oi gy. 你好é .gy",
+              "source": [
+                28,
+                45
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "mu'oi gy. 你好é .gy",
+              "value": "mu'oi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "text": "mu'oi gy. 你好é .gy",
+              "source": [
+                53,
+                70
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "A complete quote emits one token with its opening class, original image, and decomposed value.",
+  "options": {
+    "until": "words"
+  },
+  "input": "zo coi",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zo coi",
+              "value": "zo coi",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text",
+        "children": [
+          {
+            "kind": "rule",
+            "rule": "stream",
+            "children": [
+              {
+                "kind": "rule",
+                "rule": "empty",
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "text-start",
+                    "children": []
+                  },
+                  {
+                    "kind": "rule",
+                    "rule": "spacing",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "kind": "rule",
+                "rule": "unit",
+                "children": [
+                  {
+                    "kind": "rule",
+                    "rule": "quote",
+                    "children": [
+                      {
+                        "kind": "rule",
+                        "rule": "quoted-word",
+                        "children": [
+                          {
+                            "kind": "rule",
+                            "rule": "word-quote-marker",
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "read-word",
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "cmavo-token",
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "Cmavo",
+                                        "token": 0
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "word-gap",
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "pause-gap",
+                                "children": [
+                                  {
+                                    "kind": "rule",
+                                    "rule": "pause-run",
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "PAUSE",
+                                        "token": 1
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "rule",
+                            "rule": "read-word",
+                            "children": [
+                              {
+                                "kind": "rule",
+                                "rule": "cmavo-token",
+                                "children": [
+                                  {
+                                    "kind": "token",
+                                    "terminal": "Cmavo",
+                                    "token": 2
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rule",
+            "rule": "spacing",
+            "children": []
+          }
+        ]
+      }
+    }
+  }
+}

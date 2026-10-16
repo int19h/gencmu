@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,ze'oi coi, do mi⁠ze'oi coi⁠ do mi­ze'oi coi­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "ze'oi coi,",
+              "value": "ze'oi coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "ze'oi coi",
+              "source": [
+                3,
+                12
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "ze'oi coi⁠",
+              "value": "ze'oi coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "ze'oi coi",
+              "source": [
+                20,
+                29
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "ze'oi coi­",
+              "value": "ze'oi coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "ze'oi coi",
+              "source": [
+                37,
+                46
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

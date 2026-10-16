@@ -1,0 +1,73 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,zoi gy. ,你好é, .gy, do mi,zoi gy. ⁠­你好é⁠­ .gy, do mi,zoi gy. ~·ーｰ你好é~·ーｰ .gy, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "zoi gy. ,你好é, .gy",
+              "value": "zoi gy 你好é gy",
+              "image": "zoi gy. ,你好é, .gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                3,
+                20
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "zoi gy. ⁠­你好é⁠­ .gy",
+              "value": "zoi gy 你好é gy",
+              "image": "zoi gy. ⁠­你好é⁠­ .gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                28,
+                47
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "zoi gy. ~·ーｰ你好é~·ーｰ .gy",
+              "value": "zoi gy 你好é gy",
+              "image": "zoi gy. ~·ーｰ你好é~·ーｰ .gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                55,
+                78
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

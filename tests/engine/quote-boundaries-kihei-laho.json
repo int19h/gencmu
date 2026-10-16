@@ -1,0 +1,68 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,la'o gy. 你好é .gy, do mi,,la'o gy. 你好é .gy,, do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "la'o gy. 你好é .gy",
+              "value": "la'o gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "la'o gy. 你好é .gy",
+              "source": [
+                3,
+                19
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "la'o gy. 你好é .gy",
+              "value": "la'o gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "la'o gy. 你好é .gy",
+              "source": [
+                28,
+                44
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

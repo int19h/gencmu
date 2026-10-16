@@ -1,0 +1,33 @@
+{
+  "description": "Quote images preserve written case and hesitation while ordinary hesitation contributes no word or normalized value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lo'ai y le'ai bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "image": "lo'ai y le'ai bu",
+              "value": "lo'ai le'ai bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

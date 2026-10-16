@@ -161,7 +161,7 @@ func TestFamilyDeletionOracle(t *testing.T) {
 					t.Fatalf("qualified family item has no finite proof: %s origin=%d end=%d dot=%d links=%d summary=%d", it.prod.ruleName, it.origin, it.set, it.dot, len(it.links), it.familySummary)
 				}
 			}
-			if err := checkCase(c, true); err != nil {
+			if err := checkCase(c, false); err != nil {
 				t.Fatal(err)
 			}
 		})

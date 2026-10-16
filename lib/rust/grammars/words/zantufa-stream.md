@@ -38,9 +38,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker word-gap $f:Rafsi-Form :: $m.tags
+  $m:rahoi-marker $g:word-gap $f:Rafsi-Form
+    :: $m.tags :- $m.source-text $g.source-text $f.verbatim-text
 %emits
-  $m, $f :: Quoted-Text
+  $
 
 %rule rahoi-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -238,4 +239,4 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ## Differences from the shared word stream
 
-The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`.
+The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.

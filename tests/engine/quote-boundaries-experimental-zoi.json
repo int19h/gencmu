@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,zoi gy. 你好é .gy, do mi⁠zoi gy. 你好é .gy⁠ do mi­zoi gy. 你好é .gy­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "zoi gy. 你好é .gy",
+              "value": "zoi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "zoi gy. 你好é .gy",
+              "source": [
+                3,
+                18
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "zoi gy. 你好é .gy",
+              "value": "zoi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "zoi gy. 你好é .gy",
+              "source": [
+                26,
+                41
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "zoi gy. 你好é .gy",
+              "value": "zoi gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "zoi gy. 你好é .gy",
+              "source": [
+                49,
+                64
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

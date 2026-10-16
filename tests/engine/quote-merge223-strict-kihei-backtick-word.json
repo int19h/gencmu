@@ -1,0 +1,81 @@
+{
+  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo la`o",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "la`o",
+              "value": "la`o",
+              "source": [
+                3,
+                7
+              ],
+              "tags": [
+                "FOREIGN"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words"
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "source": [
+          3,
+          7
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

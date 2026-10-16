@@ -196,6 +196,8 @@ A replacement quote is one unit of raw words in the word stage (`../words/lohai.
 
 `ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
+Every finished word-stage quote emits one token. Indicators after it and BAhE before it mark the whole quote. This includes `ma'oi`, ZOhOI, MEhOI, and replacement quotes.
+
 Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` after `to'i` scope over the whole bracketed remark.
 
 Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.

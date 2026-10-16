@@ -1,0 +1,57 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,mu'oi gy. ,你好é, .gy, do mi,mu'oi gy. ⁠­你好é⁠­ .gy, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "mu'oi gy. ,你好é, .gy",
+              "value": "mu'oi gy 你好é gy",
+              "image": "mu'oi gy. ,你好é, .gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "source": [
+                3,
+                22
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "mu'oi gy. ⁠­你好é⁠­ .gy",
+              "value": "mu'oi gy 你好é gy",
+              "image": "mu'oi gy. ⁠­你好é⁠­ .gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "source": [
+                30,
+                51
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

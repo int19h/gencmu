@@ -95,7 +95,7 @@ Every span and every source range in a result is half-open: the range holds its 
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
-A verbatim image recipe can include adjacent text that no input token covers. It never changes source or text metadata. A quote body and a larger token containing it keep their input source envelopes. Their stored images can extend beyond those envelopes.
+A verbatim image recipe can include adjacent text that no input token covers. It never changes source or text metadata. A constituent's image can extend beyond its source interval. An enclosing source-text recipe limits the token's image to its own source interval.
 
 Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
@@ -199,11 +199,17 @@ A captured item can also carry attachments, captures in parentheses before or af
 
 The syntax reads leading indicators itself. They stand at the start of a text or after a quotation opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
-A body's constituent image recipe can request `$.verbatim-text`. It preserves original spelling and adjacent uncovered punctuation inside zoi quotes. Recognition still observes input values and tags. The recipe also applies inside a covering compound, because it belongs to the constituent rather than its emission item. The engine supplies no foreign placeholder value.
+A body's constituent image recipe can request `$.verbatim-text`. The single-run payload uses this recipe to preserve original spelling and adjacent uncovered characters. Its quote reads the payload's `.emitted.image`. Recognition still observes input values and tags. A covering compound also receives the quote's image recipe. The engine supplies no foreign placeholder value.
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-The word stage supplies verbatim image recipes on raw-tokens and zohoi-payload for zoi, zo'oi, and related quotation bodies. These payloads and Zantufa's quoted rafsi forms carry Quoted-Text. A rafsi is a word part used in compounds. A quoted rafsi retains its ordinary value and image. An empty zoi body uses empty concatenation.
+Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join normalized, decomposed parts and omit ordinary hesitation. Syntax reads one terminal, and the word-stage tree retains its internal structure.
+
+An ordinary word can have a normalized image, such as `sIndarin` for `SINdarin`. Its quoted spelling remains `zo SINdarin`.
+
+The Magic Words model treats ordinary hesitation as whitespace. It contributes no word or normalized value. A quote image preserves that whitespace's written spelling, such as `.y.`.
+
+An empty zoi body uses empty concatenation.
 
 A clause can refer to a capture that some production lacks. A production is one expansion of an alternative, with one branch of each choice and each optional read or not. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that production.
 
@@ -337,14 +343,14 @@ This classification preserves recognition alternatives instead of replacing them
 Verbatim text is original spelling with adjacent uncovered punctuation. `.verbatim-text` supplies it only in recipes. `.source-text` reads the covered source interval without that extension.
 
 ```jbogenbau
-%rule raw-tokens :- $.verbatim-text
-  | any-token
-  | raw-tokens any-token
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
 ```
 
-The outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. The recipe applies inside compounds because it belongs to the body constituent. Forwarding stores the result and never reconstructs it from later neighbors.
+The payload's outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. A quote composes its image from the opener, original gap, and payload's `.emitted.image`. A covering compound receives that quote image. Forwarding stores the result and never reconstructs it from later neighbors.
 
-An empty quote body uses plain empty concatenation and takes no neighboring punctuation. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
+An empty delimited body contributes empty concatenation to the quote value. The complete delimited quote uses its source text as its image. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 

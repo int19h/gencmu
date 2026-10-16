@@ -1,0 +1,145 @@
+{
+  "description": "The new contextual apostrophe rule belongs only to experimental. This dialect retains its existing phoneme reading and complete quote tokens.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo la´o",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "phonemes",
+          "output": [
+            {
+              "image": "z",
+              "value": "z",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                1,
+                2
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "l",
+              "value": "l",
+              "source": [
+                3,
+                4
+              ],
+              "tags": []
+            },
+            {
+              "image": "a",
+              "value": "a",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "image": " ",
+              "value": " ",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "PAUSE"
+              ]
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                6,
+                7
+              ],
+              "tags": []
+            }
+          ]
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zo la",
+              "value": "zo la",
+              "source": [
+                0,
+                5
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "image": "o",
+              "value": "o",
+              "source": [
+                6,
+                7
+              ],
+              "tags": [
+                "A",
+                "Cmavo",
+                "Continued",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "syntax",
+        "source": [
+          7,
+          7
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

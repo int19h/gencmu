@@ -1,0 +1,76 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,lo'ai ,mi, le'ai, do mi,lo'ai ⁠­mi⁠­ le'ai, do mi,lo'ai ~·ーｰmi~·ーｰ le'ai, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "lo'ai ,mi, le'ai",
+              "value": "lo'ai mi le'ai",
+              "image": "lo'ai ,mi, le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                3,
+                19
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "lo'ai ⁠­mi⁠­ le'ai",
+              "value": "lo'ai mi le'ai",
+              "image": "lo'ai ⁠­mi⁠­ le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                27,
+                45
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "lo'ai ~·ーｰmi~·ーｰ le'ai",
+              "value": "lo'ai mi le'ai",
+              "image": "lo'ai ~·ーｰmi~·ーｰ le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                53,
+                75
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

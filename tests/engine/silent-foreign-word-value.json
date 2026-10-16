@@ -1,5 +1,5 @@
 {
-  "description": "A quote keeps its original image and its independent comparison value.",
+  "description": "A quote keeps its original payload image and its independent comparison value.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
@@ -18,11 +18,8 @@
         {
           "output": [
             {
-              "value": "la'oi"
-            },
-            {
-              "value": "クリボ",
-              "image": "クリボー"
+              "value": "la'oi クリボ",
+              "image": "la'oi クリボー"
             }
           ]
         }

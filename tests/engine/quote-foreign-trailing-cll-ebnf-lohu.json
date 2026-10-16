@@ -1,0 +1,21 @@
+{
+  "description": "A quote of Lojban words rejects foreign characters at either edge of its material.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,lo'u coi你好 le'u, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

@@ -502,26 +502,36 @@ Put the recipe on the child definition when the parent must also receive it:
 
 This parent emits `xb`. An alternative recipe serves only that alternative. An item override remains strongest for its own token. Use `.emitted.value` or `.emitted.image` to read a reconstructed child. Name the channel explicitly in every recipe.
 
-## Preserve verbatim quote images
+## Quote images
 
-Verbatim text preserves original spelling with adjacent uncovered punctuation. Put its image recipe on the rule that reads the quote body. Do not place it only on the parent's emission item.
+Each finished quote emits one token with its opening class. Indicators after it and BAhE before it mark the whole quote. The word-stage tree keeps its internal structure.
+
+A delimited quote uses `:- $.source-text` on its whole rule and `%emits $`. Its source interval contains the body and both delimiters. This image keeps original case, spacing, and hesitation.
+
+An undelimited payload can end with characters that no stage-input token covers. Its verbatim image includes those characters. The opener uses source text alone, so it takes no punctuation from the preceding word.
+
+The single-run quote reads its payload's image recipe through `.emitted.image`:
 
 ```jbogenbau
-%rule raw-tokens :- $.verbatim-text
-  | any-token
-  | raw-tokens any-token
+%rule single-word-quote
+  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text $r.emitted.image
+  | $m:single-marker $g:zohoi-gap $s:zohoi-payload
+      :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
+%conditions
+  Run-Final ⊆ $r.last-token.tags,
+  Run-Final ⊆ $s.last-token.tags,
+  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
+%emits
+  $
 
 %rule zohoi-payload :- $.verbatim-text
   | payload-token
   | zohoi-payload payload-token
-
-%rule empty-zoi-body
-  ε
 ```
 
-The body recipe also serves a larger compound. Its outer image recipe stops recursive descendant image evaluation. Its value still concatenates normalized parts. An empty body takes no neighboring punctuation.
+The image can extend beyond the token's source interval. The value still concatenates normalized, decomposed parts. A covering compound receives the quote's image recipe.
 
-The method changes neither source nor text. An image can include text outside its token's source interval. Two evaluated different spans cannot claim the same uncovered text. Delimiter tokens keep ordinary quote bodies apart.
+An empty delimited body contributes no value. Its quote still shows its full source spelling. Different evaluated spans cannot claim the same uncovered text.
 
 ## Carry decisions through tags
 
@@ -533,7 +543,7 @@ Do not replace a disjunctive condition with overlapping alternatives. A token ca
 
 ## Group quote gaps
 
-Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer without erasures. A hesitation still follows its grammar condition and erasure.
+Inside lo'u and lo'ai, erasure words are quoted words. The quote recognizer executes no erasers. Ordinary hesitation contributes no word or normalized value, as the Magic Words model requires. The quote image keeps that whitespace's written spelling.
 
 ```jbogenbau
 %rule quiet-gap
@@ -550,9 +560,11 @@ Inside lo'u and lo'ai, erasure words are quoted words. Use a quote recognizer wi
   | quiet-gap
   | pause-gap
 
-%rule lohu-quote :: $m.tags
+%rule lohu-quote :: $m.tags :- $.source-text
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
+%emits
+  $
 
 %rule lohu-stream
   | lohu-word
@@ -627,7 +639,7 @@ The survivor has no `%emits`. When it stands alone, the emission walk forwards o
 
 ## Read foreign runs
 
-`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quoted body keeps its own value policy and verbatim image.
+`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quote keeps its own value policy, and its image is the source text of the whole quote.
 
 Use names that state each recognizer's role:
 

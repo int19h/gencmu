@@ -1,0 +1,41 @@
+{
+  "description": "A raw quote preserves foreign characters at either edge of its material.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,me'oi 你好你好é, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "me'oi 你好你好é",
+              "value": "me'oi 你好你好é",
+              "image": "me'oi 你好你好é,",
+              "tags": [
+                "Cmavo",
+                "MEhOI",
+                "Word"
+              ],
+              "source": [
+                3,
+                14
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

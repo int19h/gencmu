@@ -39,11 +39,13 @@ Zantufa lets free modifiers follow every word (`post_clause`), with a few except
 
 The `free` rule tests the actual terminal before the slot. Its conditions exclude a number after PA, a letter string after BY, and a vocative after COI. These words use ordinary `#` slots.
 
+A complete quote supplies its opening terminal at this boundary. Quoted words and closing delimiters supply no syntax terminal. Their classes cannot trigger these backward conditions.
+
 The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
 
-[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier. The rules `any-word` and `anything` match tokens tagged `Word` and `Quoted-Text`, respectively.
+[The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier.
 
-The word stage marks individually quoted words and delimiters with `Word`. It marks a quote body emitted as one token with `Quoted-Text`.
+The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
 
 A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs.
 
@@ -86,17 +88,10 @@ A following-input condition reserves words after a candidate for another constru
 %rule #
   [{free}]
 
-%rule any-word
-  Word
-
-%rule anything
-  Quoted-Text
 ```
 
-<details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
+<details><summary>Railroad diagram of <code>#</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/_hash.svg" alt="Railroad diagram of the rule #"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/any-word.svg" alt="Railroad diagram of the rule any-word"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/anything.svg" alt="Railroad diagram of the rule anything"></p>
 </details>
 
 ## The text and its paragraphs
@@ -515,10 +510,10 @@ The plain `term-link` rule carries `fewest`, so a sumti connection wins over a t
               / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
               / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
               / li_clause / NAhE_clause sumti_3 *)
-  | RAhOI anything #
-  | ZO any-word #
-  | ZOI any-word anything any-word #
-  | LOhU [{any-word}] LEhU #
+  | RAhOI #
+  | ZO #
+  | ZOI #
+  | LOhU #
   | $l:lerfu-boi
   | LU text [+LIhU #]
   | (LAhE # | NAhE # BO #) [relative-clauses] sumti [+LUhU #]
@@ -695,8 +690,8 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | KE # selbri-2 [+KEhE #]
   | NAhE # gek selbri-2 $g:gik-selbris [+GIhI #]
   | $k:gek selbri-2 $g:gik-selbris [+GIhI #]
-  | MUhOI any-word anything any-word #
-  | GOhOI any-word #
+  | MUhOI #
+  | GOhOI #
   | LUhEI text [+LIhAU #]
   | ME # (sumti | $m:mex | $t:tag) [+MEhU #] [MOI #]
   | ME # {operator} [+MEhU #] [MOI #]
@@ -997,7 +992,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | mex-2 MAI #
   | TO # parenthesis-text [+TOI #]
   | XI # mex-2
-  | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
+  | (LOhAI<Quote> | LEhAI) #
   | UI #
 %conditions
   ¬$.following-tokens.begins(free),
@@ -1014,16 +1009,12 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   (* vocative <- COI_clause+;  COI_post <- vocative_post_clause *)
   {COI #}
 
-%rule lohai-word
-  Word<¬LOhAI ¬LEhAI>
-
 ```
 
-<details><summary>Railroad diagrams of <code>free</code>, <code>parenthesis-text</code>, <code>vocative</code> and <code>lohai-word</code></summary>
+<details><summary>Railroad diagrams of <code>free</code>, <code>parenthesis-text</code> and <code>vocative</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/free.svg" alt="Railroad diagram of the rule free"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/parenthesis-text.svg" alt="Railroad diagram of the rule parenthesis-text"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/vocative.svg" alt="Railroad diagram of the rule vocative"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/lohai-word.svg" alt="Railroad diagram of the rule lohai-word"></p>
 </details>
 
 ## Differences from Zantufa 1.9999

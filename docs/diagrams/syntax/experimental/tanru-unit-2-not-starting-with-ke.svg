@@ -108,10 +108,8 @@
 <path d="M20 46a10 10 0 0 1 10 10V492a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="490" width="58" height="24" rx="12"/><text x="69" y="507" textLength="42" lengthAdjust="spacingAndGlyphs">MEhOI</text></g>
 <path d="M98 502h10"/>
-<g class="rule"><rect x="108" y="490" width="84" height="24" rx="0"/><text x="150" y="507" textLength="67.2" lengthAdjust="spacingAndGlyphs">anything</text></g>
-<path d="M192 502h10"/>
-<g class="rule"><rect x="202" y="490" width="25" height="24" rx="0"/><text x="214.5" y="507" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M227 502H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="rule"><rect x="108" y="490" width="25" height="24" rx="0"/><text x="120.5" y="507" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M133 502H447a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M467 46h6m0 -8v16m4 -16v16"/>
 <text class="label" x="10" y="536" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

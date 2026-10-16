@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,ra'oi brod, do mi⁠ra'oi brod⁠ do mi­ra'oi brod­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "ra'oi brod,",
+              "value": "ra'oi brod",
+              "tags": [
+                "Cmavo",
+                "RAhOI",
+                "Word"
+              ],
+              "text": "ra'oi brod",
+              "source": [
+                3,
+                13
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "ra'oi brod⁠",
+              "value": "ra'oi brod",
+              "tags": [
+                "Cmavo",
+                "RAhOI",
+                "Word"
+              ],
+              "text": "ra'oi brod",
+              "source": [
+                21,
+                31
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "ra'oi brod­",
+              "value": "ra'oi brod",
+              "tags": [
+                "Cmavo",
+                "RAhOI",
+                "Word"
+              ],
+              "text": "ra'oi brod",
+              "source": [
+                39,
+                49
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

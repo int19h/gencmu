@@ -461,7 +461,7 @@ A hollow rule node, such as an empty slot for a free modifier, has no token and 
 
 Tree patterns do not change bracket grouping. The renderer applies the rules below after it decides whether to show elided terminators. Brackets write the tree of the final stage as nested groups:
 
-1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, as for a `zoi` quote of nothing, and the renderer keeps it. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in lower case between `⟨` and `⟩`.
+1. The image of a token node is the image of its token (engine §5). Grammar image recipes supply pause spaces and verbatim quote spelling. An image can itself be empty, and the renderer keeps it. The image of an elided node is empty, unless elided terminators are shown. In that case, the image is the terminal in lower case between `⟨` and `⟩`.
 2. A token node whose token has attachments renders as a group. Its members are the token's before-attachments, the token's image, and its after-attachments, in that order. Each attachment renders in the same way: as its image, or as a group if it has attachments of its own.
 3. The renderer renders the children of a rule node and drops the empty ones. An empty child is an elided node that is not shown, or a rule node that renders nothing. A token node is never empty.
 

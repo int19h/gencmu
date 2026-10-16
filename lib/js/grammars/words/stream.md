@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) explains the notation of the rules below.
 
-A unit is one item on which an operation acts. A token is one emitted item for the next stage. An opaque unit hides its internal words from later operations. Every quote and compound is one opaque unit, even when its emission contains several tokens.
+A unit is one item on which an operation acts. A token is one emitted item for the next stage. An opaque unit hides its internal words from later operations. Every finished quote and compound emits one token.
 
 A letteral is a letter word of class BY. The y letteral sounds like ybu.
 
@@ -220,9 +220,13 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 ## Quotes
 
-Every complete quote is one opaque unit. Later operations see its opening marker class and no class from its contents or closing marker. The indicator and syntax stages receive the quote's emitted tokens.
+Every complete quote is one opaque unit and emits one token. Later operations see its opening class and no class from its contents or closing marker. Indicators after it and BAhE before it mark the whole quote.
 
-A quote marker keeps its word kind and classes but drops the `Indicator` mark. Otherwise the indicator stage can detach a marker from its quoted contents.
+The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
+
+Quoted Lojban keeps its written case instead of each word's normalized image. For example, `SINdarin` has image `sIndarin` alone, but `zo SINdarin` keeps its capitals.
+
+The Magic Words model treats ordinary hesitation as whitespace. It contributes no word or normalized value. The quote image keeps its written form, including `.y.` in `zo .y. coi` and `lo'u .y. coi le'u`.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -267,9 +271,10 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
 
 ```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker word-gap $w:read-word :: $m.tags
+  $m:word-quote-marker $g:word-gap $w:read-word
+    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
 %emits
-  $m, $w :: Word
+  $
 
 %rule word-quote-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -292,14 +297,15 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 
 ```jbogenbau
 %rule single-word-quote
-  | $m:single-marker $r:zohoi-payload :: $m.tags
-  | $m:single-marker zohoi-gap $s:zohoi-payload :: $m.tags
+  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text $r.emitted.image
+  | $m:single-marker $g:zohoi-gap $s:zohoi-payload
+      :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
 %conditions
   Run-Final ⊆ $r.last-token.tags,
   Run-Final ⊆ $s.last-token.tags,
   Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
-  $m, $r :: Quoted-Text, $s :: Quoted-Text
+  $
 
 %rule single-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -343,13 +349,13 @@ The quotes close at the first matching whole run by exact value. ZOI compares fo
 
 The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
 
-Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. Empty quotes emit a body token with empty value and image. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
+Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
 
 ```jbogenbau
 %const $Y-PROPERTIES
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
-%rule zoi-y-quote :: $m.tags
+%rule zoi-y-quote :: $m.tags :- $.source-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -358,9 +364,9 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
   $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
-  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
+  $
 
-%rule zoi-quote :: $m.tags
+%rule zoi-quote :: $m.tags :- $.source-text
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
   | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
@@ -369,7 +375,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $open.value = $close.value,
   $open.value ∉ $content.value.split($PAUSE)
 %emits
-  $m, $open :: Word, $content :: Quoted-Text, $close :: Word
+  $
 
 %rule zoi-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -400,7 +406,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 %rule empty-zoi-body
   ε
 
-%rule zoi-body :- $.verbatim-text
+%rule zoi-body
   | [silent-before] raw-tokens [silent-after]
 
 %rule silent-before
@@ -411,12 +417,12 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   | quiet-pause Silent
   | silent-after quiet-pause Silent
 
-%rule silent-body := "" :- $.verbatim-text
+%rule silent-body := ""
   | Silent
   | silent-body PAUSE Silent
 
 %rule quiet-pause
-  PAUSE := "" :- " "
+  PAUSE := ""
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
@@ -508,9 +514,11 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 `lohu-stream` separates paused, quiet, and absent gaps, so each gap has one reading. The shared gap rules execute no eraser inside the quote.
 
 ```jbogenbau
-%rule lohu-quote :: $m.tags
+%rule lohu-quote :: $m.tags :- $.source-text
   | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
   | $m:lohu-marker word-gap lehu-marker
+%emits
+  $
 
 %rule lohu-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -550,12 +558,12 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 ### Raw payloads
 
-`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts.
+`raw-tokens` and `zohoi-payload` concatenate ordinary normalized values. Delimited quotes take their images from their whole source intervals.
 
-An outer body recipe stops descendant image evaluation. Recursive bodies therefore claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
+Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
 ```jbogenbau
-%rule raw-tokens :- $.verbatim-text
+%rule raw-tokens
   | any-token
   | raw-tokens any-token
 
@@ -800,11 +808,11 @@ The forms stage fixes ordinary word boundaries before this stage. The shared rea
 
 ### CLL and Magic Words
 
-The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The maintainer chooses opaque units where that proposal exposes internal markers.
+The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) with the departures below. The dialects keep units opaque where that proposal exposes internal markers.
 
 CLL describes erasure,[^cll-s19-13] hesitation,[^cll-s19-14] FAhO,[^cll-s19-15] and their interactions.[^cll-s19-16] These sections do not specify one complete processing order.
 
-The dialects keep six established departures from CLL.[^cll-c19] Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
+The dialects use seven departures from CLL.[^cll-c19] Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 
 1. SI, BU, and ZEI each take a whole quote or compound as one unit. The CLL examples[^cll-e19-77][^cll-e19-79] count quotation markers and contents separately. CLL[^cll-s19-16] defines BU and ZEI by the preceding word, and CLL[^cll-s17-4] limits BU to one word.
 2. ZEI takes any next word as its right operand. CLL[^cll-s19-16] excludes several magic words from that interaction.
@@ -812,6 +820,7 @@ The dialects keep six established departures from CLL.[^cll-c19] Items 2 and 4 d
 4. Ordinary hesitation counts as space, not a word. CLL[^cll-s19-14] gives y the class Y. Only the shared reader forms the y letteral.
 5. LOhU closes at the first LEhU. CLL[^cll-s19-16] excludes a LEhU after ZO, and CLL permits a ZOI quote inside LOhU.[^cll-s19-10]
 6. ZOI compares whole raw runs by normalized value. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
+7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 

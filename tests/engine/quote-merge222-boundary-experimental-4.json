@@ -1,0 +1,61 @@
+{
+  "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "na me'oi 你好",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "na",
+              "value": "na",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "NA",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "me'oi 你好",
+              "value": "me'oi 你好",
+              "tags": [
+                "Cmavo",
+                "MEhOI",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "(na me'oi 你好)"
+  }
+}

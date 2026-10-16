@@ -1,0 +1,76 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,le'ai, do mi,le'ai, do mi,le'ai, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "le'ai",
+              "value": "le'ai",
+              "image": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                3,
+                8
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "le'ai",
+              "value": "le'ai",
+              "image": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                16,
+                21
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "le'ai",
+              "value": "le'ai",
+              "image": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "source": [
+                29,
+                34
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

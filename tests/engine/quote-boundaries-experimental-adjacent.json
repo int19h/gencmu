@@ -1,0 +1,67 @@
+{
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'oi foo ,zo'oi bar,⁠ la'oi .y. baz­",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "text": "zo'oi foo",
+              "image": "zo'oi foo",
+              "value": "zo'oi foo",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                0,
+                9
+              ]
+            },
+            {
+              "text": "zo'oi bar",
+              "image": "zo'oi bar,⁠",
+              "value": "zo'oi bar",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                11,
+                20
+              ]
+            },
+            {
+              "text": "la'oi .y. baz",
+              "image": "la'oi .y. baz­",
+              "value": "la'oi baz",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                23,
+                36
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
