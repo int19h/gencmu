@@ -4448,7 +4448,9 @@ i211.experimental.corpus-ieho-awaits-hesitation
 i211.experimental.corpus-iau-awaits-reset
 i211.experimental.corpus-sohoi-tied-class
 i211.experimental.corpus-luhei-liahau
-i211.experimental.corpus-niau-excluded
+i211.experimental.corpus-niau-greeting
 i211.experimental.corpus-poau-excluded
 i211.experimental.corpus-xeee-indicator
 i211.experimental.corpus-zeai-selected-class
+i211.experimental.niau-named-vocative
+i211.experimental.niau-question-vocative

@@ -10,6 +10,8 @@ The dictionary additions follow the [policy for issue #211](https://github.com/i
 
 An experimental cmavo below that score also qualifies when real text uses it consistently with its highest-voted English definition. Both its meaning and its selma'o must match that definition. The closing section identifies the words that qualify through corpus evidence and the words excluded for inconsistent use.
 
+The closing section also records class corrections based on a definition's meaning and attested use.
+
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
 The implication after the entries marks some words `Indicator`, which the indicator stage reads. They are the words of UI, CAI, DAhO, FUhE and FUhO. camxes-exp also reads a bare NAI as an indicator, and [the experimental word forms](experimental.md) mark the NAI words so.
@@ -61,6 +63,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   (* #212: jo'au forms a vocative without changing the parser dialect. *)
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
   "bu'oi" "de'a'ai" "di'a'ai" "ke'o'a" "ku'au'i" "sau'ei" "sei'u" ∈ COI
+  "ni'au" ∈ COI
   (* #212: COhAI has no experimental construction. *)
   "co'ai" ∈ COhAI
   (* #212: COhEhOhE has no experimental construction. *)
@@ -354,7 +357,7 @@ The threshold does not remove existing camxes-exp words. Thirteen of those words
 
 ### Additions from real text
 
-Corpus evidence qualifies 94 words whose highest English scores are below three. A review of 140 words finds uses that match those 94 words' top English definitions in meaning and selma'o. One of them, `ku'au`, already belongs to the baseline. The other 93 add spellings to the lexicon. These additions use the same September 13, 2026 dictionary snapshot.
+Corpus evidence qualifies 95 words whose highest English scores are below three. A review of 140 words finds uses that match 94 words' top English definitions in meaning and selma'o. The maintainers separately correct the class of `ni'au` from its meaning and attested use. One of these words, `ku'au`, already belongs to the baseline. The other 94 add spellings to the lexicon. These additions use the same September 13, 2026 dictionary snapshot.
 
 Four of these words have competing English definitions with different base classes. Their highest-scored definitions determine their classes here.
 
@@ -392,7 +395,9 @@ The review excludes the following twelve words because their uses conflict with 
 | `li'ai` | Used for a character string, defined as LI for unevaluated mekso |
 | `zi'u` | Used to attach a relative clause, defined as LAhE before a sumti |
 
-The maintainers also exclude `ni'au`. Its use as a greeting does not fit its CAI class. The other reviewed words lack clear evidence or appear as different words, so this policy does not add them.
+The other reviewed words lack clear evidence or appear as different words, so this policy does not add them.
+
+`ni'au` has one English definition, 57080 by gleki, with a score of one. It describes a Chinese-style greeting and points to `coi`, but files the word in CAI. The maintainers assign COI from that meaning and its attested vocative use. The evidence includes about 59 IRC lines by at least six speakers. Examples include `ni'au .cntr.`, `ni'au ma`, `ni'au nai` and `doi ksion ni'au`. This class correction follows meaning and use rather than the dictionary's CAI filing.
 
 ### Classes and words without their defined constructions
 
