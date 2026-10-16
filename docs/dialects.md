@@ -76,7 +76,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    `%extend-stage forms` selects the grammar that assigns word classes. The words stage applies the magic words. `%classifier lexicon` adds KIhEI to the normalized value `ki'ei`.
 
-   CLL already accepts this word form. The later word stages carry its class to syntax.
+   CLL already accepts this word form. The later stages carry its class to syntax.
 
    A token is one unit that a stage reads.
 
@@ -91,19 +91,19 @@ Use example filenames that do not clash with your own files. The commands below 
    ````text
    phonemes: 5 tokens, unique
    #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1     ∅
-   1  "i"   "i"    "i"    1-2   1-2     ∅
-   2  "'"   "'"    "'"    2-3   2-3     ∅
-   3  "e"   "e"    "e"    3-4   3-4     ∅
-   4  "i"   "i"    "i"    4-5   4-5     ∅
+   0  "k"   "k"    "k"    0-1   0-1
+   1  "i"   "i"    "i"    1-2   1-2
+   2  "'"   "'"    "'"    2-3   2-3
+   3  "e"   "e"    "e"    3-4   3-4
+   4  "i"   "i"    "i"    4-5   4-5
 
    normalize: 5 tokens, unique
    #  text  value  image  span  source  tags
-   0  "k"   "k"    "k"    0-1   0-1     ∅
-   1  "i"   "i"    "i"    1-2   1-2     ∅
-   2  "'"   "'"    "'"    2-3   2-3     ∅
-   3  "e"   "e"    "e"    3-4   3-4     ∅
-   4  "i"   "i"    "i"    4-5   4-5     ∅
+   0  "k"   "k"    "k"    0-1   0-1
+   1  "i"   "i"    "i"    1-2   1-2
+   2  "'"   "'"    "'"    2-3   2-3
+   3  "e"   "e"    "e"    3-4   3-4
+   4  "i"   "i"    "i"    4-5   4-5
 
    forms: 1 tokens, unique
    #  text     value    image    span  source  tags
@@ -168,7 +168,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    Until you complete step 8, use `--pipeline` for changed grammar files.
 
-   After each later grammar edit, run `node tools/sync.js`.
+   After you complete step 8, run `node tools/sync.js` after each grammar edit.
 
    A feature is a named switch for a parse. List the features that the local dialect exposes:
 
@@ -444,7 +444,7 @@ A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its inp
 
 The inherited pipeline defines `normalize` after phonemes and before forms. Use `%redefine-stage normalize` to replace it, or `%stage normalize` in an independent pipeline.
 
-[The normalization grammar](../grammars/phonemes/normalize.md) defines the mappings and token preservation. [Engine §1](engine.md#1-tokens) defines stage-zero decomposition and token fields.
+Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings. [Engine §1](engine.md#1-tokens) defines stage-zero decomposition and token fields.
 
 ## Place recipes for parents
 
@@ -495,7 +495,7 @@ The gap-tag invariant governs facts that recipes cannot inspect. If a recipe nee
 
 Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
 
-## Word-stage rules
+## Rules of the words stage
 
 [Shared word gaps](../grammars/words/stream.md#shared-word-gaps) distinguish hesitation, pauses, and empty gaps inside quotes. [Compounds](../grammars/words/stream.md#compounds) define gap classification for BU and ZEI.
 

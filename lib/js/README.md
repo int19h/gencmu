@@ -15,11 +15,11 @@ console.log(result.ok, toBrackets(result));
 
 ## Results
 
-A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). No other error has a `code`.
+A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). Other parse-result errors have no `code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 ## The command line
 
-Run `node cli.js` in `lib/js`. It parses texts, audits grammars and runs test files. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
+Run `node cli.js` in `lib/js`. The commands are `parse`, `audit`, `stitch`, `test`, `dialects`, `features`, and `help`. `stitch` prints a dialect's pipeline as one jbogenbau text. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
 
 A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
 

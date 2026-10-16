@@ -59,7 +59,7 @@ Lowering can find grammar defects for a parse's features (engine §3). Examples 
 
 An error of kind `grammar` with the `Code` `elision-witness-lost` (`CodeElisionWitnessLost`) marks a defect of the library in the check of `elision-only`. It also has `Chosen`, the stage's chosen tree, and `Completion`, the terminators that the check wrote back (engine §7.9). The canonical JSON writes `Chosen` and `Completion` as `chosen` and `completion` (`docs/output.md`). Each of those is a `Restoration` with `Terminal`, `At`, `Source` and, for a terminator with an `=` test, `Value`. `Tested` says whether it has such a test, since `Value` is empty both without one and for `T=""`. An ambiguous error of `elision-only` also has `Witness`, the pair of actions where its readings first differ.
 
-Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). No other error has a `Code`.
+Such an action can have `Elided`, a read of a terminator that the check wrote back (engine §7.10). Other parse-result errors have no `Code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 
 `MarshalResult(result)` writes the canonical JSON.

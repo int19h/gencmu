@@ -4,7 +4,7 @@ gencmu is a Lojban parser whose grammar is data. Every layer of the language is 
 
 A stage is one step of a parse, with its own grammar. A pipeline runs stages in sequence. A pipeline document defines each dialect. It lists the stages and the grammar documents of each stage.
 
-A phoneme is a unit of sound. A Lojban dialect has six stages: phonemes, normalize, forms, words, indicators and syntax. Normalization sets comparison values while keeping the spelling that images show. The other stages read characters into phonemes, phonemes into words, and words into a parse tree. A feature is a named switch that the grammars test.
+A phoneme is a unit of sound. A Lojban dialect has six stages: phonemes, normalize, forms, words, indicators and syntax. Normalization sets comparison values while keeping the spelling that images show. The other stages read characters into phonemes and phonemes into classified words. They apply magic words, attach indicators, and build a parse tree. A feature is a named switch that the grammars test.
 
 ## Try it
 
@@ -25,7 +25,7 @@ Open `index.html` in a browser, from the clone or from GitHub Pages. This page i
 - It shows the brackets, the tree, the JSON and the tokens of every stage.
 - It explains a rejection or a tie (two readings that rank the same).
 - It traces a stage at a position.
-- It audits the dialect: it lists the undefined, unreachable, replaced and extended rules.
+- It audits the dialect: it lists the unreachable, replaced and extended rules.
 - It has an editor for the grammar documents. When you change a document, the playground parses the text again at once. You can download what you changed.
 
 ## The dialects

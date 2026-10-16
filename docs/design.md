@@ -6,7 +6,7 @@ gencmu is a standalone Lojban parser whose grammar is data. Every language layer
 
 A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence. A pipeline document defines the dialect.
 
-That document is literate Markdown too. A stage reads its input with one grammar, and hands its result to the next stage. The first stage reads the characters of the text. The pipeline document lists the stages and the grammar documents stitched into each stage. It also explains what each stage receives and hands on.
+That document is literate Markdown too. A stage reads its input with one grammar, and hands its result to the next stage. The first stage reads stage-zero characters or caller-supplied tokens. The pipeline document lists the stages and the grammar documents stitched into each stage. It also explains what each stage receives and hands on.
 
 The users of gencmu want to read a grammar, change it, and see at once what the change does to a text. So the notation, the diagnostics and the interactive tools matter as much as the parser.
 
@@ -25,7 +25,7 @@ playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
   phonemes/                characters to phonemes: latin-experimental, cyrillic-experimental, latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna, normalize
   words/                   word forms, shapes, lexicons, stream, quotes, erasure, and dialect extensions
-  indicators/              the non-formal indicator and ba'e rule
+  indicators/              CLL indicator and ba'e rules, and the experimental layer
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
   dialects/                pipeline documents: cll-ebnf, kihei, bpfk, experimental, zantufa, notation
@@ -114,7 +114,7 @@ These separate channels let a grammar preserve spelling while comparing normaliz
 
 The engine only concatenates strings. It assigns no meaning to pauses, stress, commas, phonemes, or quoted text. A grammar owns every mapping and spacing decision. This keeps a dialect's language policy visible in its documents.
 
-Stage zero, named `input`, supplies one token per scalar value. A scalar value is a Unicode code point outside surrogates. Both token strings start as that character. The configured Unicode table supplies stored category and whitespace tags. Later stages only forward or filter those engine tags.
+Stage zero, named `input`, supplies one token per decomposed scalar. A scalar value is a Unicode code point outside surrogates. Both token strings start as that decomposed scalar. The configured Unicode table supplies stored category and whitespace tags. Later stages only forward or filter those engine tags.
 
 A class is a tag with capital letters at both ends. It never starts with `_`. This identifies `KOhA`, `BRIVLA`, and `FOREIGN` as classes while leaving `Word` and `Run-Final` as marks. Renderings use this same definition for attachments.
 
@@ -182,7 +182,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 - `{x}` is one or more, and `[{x}]` is zero or more. `{x / s}` is a separated list.
 - `{... x / s}` is a left chain, and `{x ... / s}` a right chain. A chain, like a list, can leave out `/ s`, as in `{... x}`. A chain is the whole of its rule.
 - `[+T x]` is an elidable optional, which begins with the terminator `T`.
-- `A & B` reads `A`, `B`, or both, in order.
+- `A & B` reads `A`, `B`, or both, in order. An `&` expression has at most 16 items.
 - `( )` is grouping.
 - `ε` is empty.
 - `f?` and `¬f?` are gates, and `f!` is a warning. These are the feature guards on an alternative (see "Gates and warnings").
@@ -208,7 +208,7 @@ A single-run payload is one raw run after a quote marker. Its constituent image 
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms gives an unsegmentable run its decomposed source text as value and concatenated phoneme images as image. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join input parts through the word grammar's spacing recipes and omit ordinary hesitation. Syntax reads one terminal, and the word-stage tree retains its internal structure.
+Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join input parts through the word grammar's spacing recipes and omit ordinary hesitation. Syntax reads one terminal, and the tree of the words stage retains its internal structure.
 
 An ordinary word can have a normalized image, such as `sIndarin` for `SINdarin`. Its quoted spelling remains `zo SINdarin`.
 
@@ -255,7 +255,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Normalization is a stage
 
-A visible grammar stage defines the comparison policy. A token with a mapped tag but no matching value mapping fails instead of receiving an invented value. A script extension that forwards another rule relies on tag inheritance. An explicit tag clause replaces that inheritance and can lose `Syllabic`. [The normalization grammar](../grammars/phonemes/normalize.md) defines the bundled Lojban mappings and token preservation.
+A visible grammar stage defines the comparison policy. A token with a mapped tag but no matching value mapping fails instead of receiving an invented value. A script extension that forwards another rule relies on tag inheritance. An explicit tag clause replaces that inheritance and can lose `Syllabic`. Read the [normalization grammar](../grammars/phonemes/normalize.md) for its rules.
 
 ## Two walks and recipe placement
 
@@ -472,7 +472,7 @@ A dialect that extends another makes two kinds of change. Most are additions, wh
 
 An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
 
-A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the word stages of cll-ebnf and kihei.
+A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf and kihei.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
@@ -486,9 +486,9 @@ The erasers `sa` and `su` reach back over any number of words. So the parser kee
 
 The cost then grows in proportion to the text, but each word costs more. In JavaScript, a text of 13,700 characters takes about 22 seconds with the feature and 6.5 without it. These erasers are rare, so they are behind a feature, `sa-su`.
 
-Without the feature, the words of SA and SU are ordinary words. The syntax rejects a token of SA or SU that is still there after the word stage. But another magic word can act on such a token first. So `mi su si do` reads as `mi do` without the feature, because `si` erases the `su`. With the feature, it reads as `do`.
+Without the feature, the words of SA and SU are ordinary words. The syntax rejects a token of SA or SU that is still there after the words stage. But another magic word can act on such a token first. So `mi su si do` reads as `mi do` without the feature, because `si` erases the `su`. With the feature, it reads as `do`.
 
-The libraries' `auto_features` parse a text's word stage once without the feature. They enable the feature if the run does not reach an accepting word stage. They also enable it if the chosen tree of that stage has a `word` constituent tagged SA or SU. That word can be anywhere in the tree, erased by a `si` or not. A text with no such word parses the same either way. The CLI and the playground use `auto_features` by default.
+The libraries' `auto_features` parse a text's words stage once without the feature. They enable the feature if the run does not reach an accepting words stage. They also enable it if the chosen tree of that stage has a `word` constituent tagged SA or SU. That word can be anywhere in the tree, erased by a `si` or not. A text with no such word parses the same either way. The CLI and the playground use `auto_features` by default.
 
 ## Ambiguity
 
@@ -615,7 +615,7 @@ The cll-ebnf, kihei, and bpfk dialects take the printed grammar as normative and
 
 The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. The kihei dialect inherits the reading of cll-ebnf. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
-The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble, the steps that prepare the words for its grammar, joins runs of words into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. A word-level rule therefore does not express the same policy.
+The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble prepares the words for its grammar and joins runs of them into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. A word-level rule therefore does not express the same policy.
 
 A dialect that reads as the official parser does needs that preparser as a separate stage ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. The CLL conditions on plain joik and gihek settle these overlaps ("Syntax conventions" below).
 
@@ -765,7 +765,7 @@ The product provides these diagnostics and debugging tools:
 - A tie shows the two derivations side by side from the first difference.
 - Stage inspection shows the tokens that every stage emitted, with their tags.
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
-- The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
+- The audit reports unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
@@ -791,9 +791,9 @@ The CLI is `node lib/js/cli.js`. A published package exposes it as `npx gencmu`.
 - `parse`, to parse a text, with configuration arguments that include `--dialect`, `--feature` and `--no-feature`, `--until`, `--format brackets|tree|json|canonical|tokens` and `--trace`
 - `dialects`, to list the bundled dialects
 - `features`, to list a dialect's features
-- `audit`, to report the undefined, unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags. It also reports the close families that the dialect's stages name.
+- `audit`, to report the unreachable, replaced and extended rules of a dialect, including replacements that add or remove rule flags. It also reports the close families that the dialect's stages name.
 - `stitch`, to print a dialect's pipeline as one jbogenbau text, with each classifier's entries as written
-- `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a dialect. It compares each case as the library's corpus runner does, with the same code. It compares corpus cases. It runs no engine self-tests, such as the witness hook of `elision-only`
+- `test`, to compare a grammar author's own file of corpus-format cases with the expected results under a dialect. It compares each case as the library's corpus runner does, with the same code. It runs no engine self-tests, such as the witness hook of `elision-only`
 - `help`, to list the commands and every option
 
 `parse` prints any warning on standard error, as it prints an error, a tie included. The CLI needs Node and nothing else.
@@ -884,7 +884,7 @@ There are three kinds of shared test. Every library runs each case that its API 
    "brackets": "(pu zu)"}
   ```
 
-  `expect` is whether gencmu is meant to accept the text, `words` the tokens of the word stage, and `brackets` the tree. A full result for each case needs hundreds of megabytes. The engine cases pin down the full result, and the corpus pins what a Lojban reader cares about.
+  `expect` is whether gencmu is meant to accept the text, `words` the tokens of the words stage, and `brackets` the tree. A full result for each case needs hundreds of megabytes. The engine cases pin down the full result, and the corpus pins what a Lojban reader cares about.
 
 A corpus case can include provenance fields, `seeded` and `reason`. The reason states the case's expectation in terms of gencmu's grammars. `tests/README.md` defines these fields.
 

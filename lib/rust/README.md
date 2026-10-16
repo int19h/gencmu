@@ -36,7 +36,7 @@ println!("{}", gencmu::to_json(&result));
 
   An error whose `kind` is `ParseErrorKind::Grammar` and whose `code` is `Some(ErrorCode::ElisionWitnessLost)` marks a library defect. The check loses the stage's chosen derivation (engine §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-  A terminator with an `=` test also has its `value`. The JSON writes them after the message, as `docs/output.md` says. Every other error has no `code`, no `chosen` and an empty `completion`.
+  A terminator with an `=` test also has its `value`. The JSON writes them after the message, as `docs/output.md` says. Other parse-result errors have no `code`, no `chosen` and an empty `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
   A token has its `text`, `value`, `image`, tags, span, and source range. Its `value` controls string terminals and value tests. Its `image` controls renderings for people. Both are exact strings, including an explicit empty string. Constituent and item recipes assign these channels. A missing image recipe follows the selected value recipe.
 

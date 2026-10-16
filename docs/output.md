@@ -43,7 +43,7 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `image` always exists and can be empty or contain line breaks. It can include adjacent text outside the token's source interval. `text` remains the original source interval and never expands through an image recipe.
 
-In the first stage, a token over one precomposed character has that character's source and text, though its value is decomposed.
+For a precomposed character, each stage-zero token keeps the original source and text. Its value is one decomposed scalar.
 
 `insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
 
@@ -65,7 +65,7 @@ A node has one of these forms:
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
-A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling. Elided nodes expose no ended-constituent assignment.
+A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
 An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
 

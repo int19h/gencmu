@@ -412,7 +412,7 @@ A tested symbol (§2) matches what its symbol matches, where its test holds. The
 
 `X="s"` compares the symbol's value exactly. `X≠"s"` negates that equality. `X<A ¬B>` requires A and forbids B on the symbol's own tags. Constant requirements expand with the same sign.
 
-A test is a predicate even over an empty span. `X=""` holds for an empty constituent. A tag test with an empty constant always holds. Stage-zero character tokens have that character as both value and image.
+A test is a predicate even over an empty span. `X=""` holds for an empty constituent. A tag test with an empty constant always holds. Each stage-zero token has its decomposed scalar as both value and image.
 
 When an item reads a tested symbol, the recognizer produces the advanced item only if every test holds. This holds over a token, for a terminal, and over a completed item, for a reference. It includes an advance over a constituent that completed empty at the item's position. Two completed items over one span can have different tag sets. So a tag test can let an item advance over one of them and not over the other.
 
@@ -607,7 +607,7 @@ The query blocker relation uses the logical preceding symbol described above. Br
 
 A counted derivation is an eligible noncyclic derivation of a completed `text` item that spans the input. With a counted derivation, a stage accepts its input. Ranked admission preserves this recognition for the sealed grammar. Section 6.1 defines admission before ranking, with raw charts and query answers unchanged.
 
-The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (§11). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
+The stage rejects an input whose every completed text derivation is cyclic, as it rejects one with no such item. A stage that accepts its input can still end with a tie, which is an error (§6). A rejected input reports the furthest position that any item reached. It also reports the terminals that the items there can read next, together with the rules that those items belong to (`docs/output.md`). The stage writes a tested terminal with its test, such as `LE="la"` (`docs/output.md`).
 
 A rejection at the end of a stage's input has an empty source at the source end of its last input token. If the stage has no input tokens, that source is `[0,0]`. The original text's length does not determine this position. This follows the empty-node source rule of §12.
 
@@ -994,7 +994,7 @@ Aligned queries reuse this section's synthetic-token representation and projecti
 
 ### 7.2 The two inputs
 
-Let O be the stage's input, N tokens long. Here the input is what this stage reads: the output of the stage before it, or, for the first stage, the character tokens. Let G be the grammar lowered for the main parse, and D the chosen derivation.
+Let O be the stage's input, N tokens long. Here the input is what this stage reads: the output of the stage before it, or, for the first stage, stage-zero or caller-supplied tokens. Let G be the grammar lowered for the main parse, and D the chosen derivation.
 
 Take D's elided terminators (§4, §12) in leaf order, from left to right. Keep this order for terminators at one position. Each one gives a restoration record. The record holds the terminal, its position `p` in O and the empty source of its elided node (§12). For a terminator with an `=` test, it also holds that test's string, its saved value.
 
@@ -2052,7 +2052,7 @@ An empty span gives empty verbatim text and claims no uncovered gap. It retains 
 
 A nonempty verbatim span begins with its source envelope `[l,r)`. Its image can include adjacent uncovered original text. The following bounds use the stage-input neighbors, independent of emitted token order.
 
-At a later stage, erased or attached text can lack coverage by ordinary stage-input tokens. A verbatim extension can then include that text. Bundled grammars call `.verbatim-text` only in the word stage.
+At a later stage, erased or attached text can lack coverage by ordinary stage-input tokens. A verbatim extension can then include that text. Bundled grammars call `.verbatim-text` only in the words stage.
 
 Let the span be `[a,b)`. Its left bound P is the preceding token's source end, or 0 at input start. Its right bound Q is the following token's source start, or original text length at input end. Each bound limits only its own side.
 
@@ -2205,7 +2205,7 @@ A stage whose verdict is `tie` emits nothing (§6), at whichever stage it is. Th
 
 ## 12. The tree
 
-Warnings in this section are parse warnings. Loading diagnostics belong to §2.1 and the loaded dialect API.
+Warnings in this section are parse warnings. Loading diagnostics belong to §13 and the loaded dialect API.
 
 The result's tree comes from the chosen derivation, and each reading of an `ambiguous` error comes from its own derivation (§6, §7). The engine builds a tree from a derivation as follows:
 
@@ -2251,7 +2251,9 @@ The names of every `%features` of the stream are the features the pipeline turns
 
 A document can be included more than once, in one stage or in several. The loader reads its items again each time.
 
-The first stage reads the character tokens of §1, and each later stage reads the tokens that the stage before it emitted. The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is on or off. A stage that rejects its input ends the run with that rejection. An `ambiguous` error, of a tie (§6) or of the check of §7, ends it likewise.
+The first stage reads stage-zero tokens, or caller tokens that bypass stage zero (§1). Each later stage reads the preceding stage's emitted tokens. The caller's `until` names the last stage to run, inclusive. If the caller omits `until`, every stage runs.
+
+The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is on or off. A stage that rejects its input ends the run with that rejection. An `ambiguous` error, of a tie (§6) or of the check of §7, ends it likewise.
 
 The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
 
@@ -2283,9 +2285,9 @@ In experimental syntax, a bare NA or tag term can omit KU before a written closi
 
 Experimental `term-link` and `term-bo-link` have no rule flag. Zantufa marks its plain `term-link` rule with `fewest`.
 
-Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.
+Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and two in `grammars/notation/lexical.md`. No stored universal engine tag is required.
 
-The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. [The normalization grammar](../grammars/phonemes/normalize.md) defines token preservation through the ordinary stage rules (§1). It maps stressed `A E I O U Y` to lowercase. In `cll-ebnf` and `kihei`, it also maps the syllable comma to empty. The other Lojban dialects drop commas in the phoneme stage. Every mapping requires its corresponding tag.
+The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings and §1 for the token contract.
 
 A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. In `cll-ebnf` and `kihei`, a syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token in those dialects.
 
@@ -2307,9 +2309,9 @@ Quote spacing groups each surviving pause run into one gap. Compound spacing cla
 
 Parse-result format 13 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-The following texts pin value, image, and recognition boundaries. `Five` names `bpfk`, `cll-ebnf`, `experimental`, `kihei`, and `zantufa`. The verdict column describes the word stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+The following texts pin value, image, and recognition boundaries. `Five` names `bpfk`, `cll-ebnf`, `experimental`, `kihei`, and `zantufa`. The verdict column describes the words stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
-| Text | Dialects | Word-stage verdict | Required observation |
+| Text | Dialects | Verdict of the words stage | Required observation |
 | --- | --- | --- | --- |
 | `zoi nu,iork. foo .nuiork.` | Five | `unique` | The comma-insensitive delimiter comparison succeeds |
 | `zoi mai. x .ma,i.` | Five | `unique` | The comma-insensitive closing delimiter succeeds |
@@ -2341,13 +2343,13 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `mi lo'ai si klama` | `experimental`, `zantufa` | `unique` | The images are `mi` and `klama` |
 | `ni'o su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o su bu` | `cll-ebnf`, `kihei` | `rejected` | No word-stage output |
+| `ni'o su bu` | `cll-ebnf`, `kihei` | `rejected` | No output from the words stage |
 | `ni'o mi si su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o mi si su bu` | `cll-ebnf`, `kihei` | `rejected` | No word-stage output |
+| `ni'o mi si su bu` | `cll-ebnf`, `kihei` | `rejected` | No output from the words stage |
 | `ni'o subu` | `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
 | `ni'o .su mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy. MI   DO .gy bu`, also after indicators |
 
-These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. [The normalization grammar](../grammars/phonemes/normalize.md) defines token preservation through the ordinary stage rules (§1). The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.
+These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.

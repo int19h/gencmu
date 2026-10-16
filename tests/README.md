@@ -23,7 +23,7 @@ Tests must not depend on execution order. Go tests with process-wide controls or
 
 ## Engine cases: `engine/*.json`
 
-The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`.
+The bundled grammars use the current notation. The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
 
 Each file is one case:
 
@@ -163,7 +163,7 @@ Every library also runs a notation case with `cacheMisses: true` through its doc
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
-The reference library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
+The JavaScript library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
 
 Open names are names that grammar authors choose.
 
@@ -377,7 +377,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the word stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
+- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 
