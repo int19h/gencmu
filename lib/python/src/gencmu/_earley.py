@@ -517,7 +517,7 @@ class StageContext:
                 if span.family is not None:
                     family = FamilyMatcher(closes, span.observation, span.start, span.captured_end,
                                            self.lowered.grammar.families[span.family])
-                forest = yield Parser(self, span.start, span.context_end, observe=True, family=family).walk(number)
+                forest = yield Parser(self, span.start, span.context_end, observe=True, family=family, query=True).walk(number)
                 candidates = [item for item in range(len(forest.prod))
                               if item in forest.tag and forest.origin[item] == 0
                               and forest.lowered.productions[forest.prod[item]].lhs == number
@@ -569,7 +569,7 @@ class StageContext:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
         self.running.add(running)
         try:
-            forest: Forest = yield Parser(self, start, end).walk(number)
+            forest: Forest = yield Parser(self, start, end, query=True).walk(number)
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
@@ -841,7 +841,8 @@ class Evaluator:
 class Parser:
     """One Earley parse of tokens start..end of a stage's input."""
 
-    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None) -> None:
+    def __init__(self, context: StageContext, start: int = 0, end: int | None = None, *, observe: bool = False, family: FamilyMatcher | None = None, query: bool = False) -> None:
+        self.query = query
         self.observe = observe
         self.family = family
         self.context = context
@@ -1121,7 +1122,7 @@ class Parser:
                 record, notes = completed, notes.retain(completed)
                 for atom, literal, site in obligations:
                     if atom["receiver"]["capture"] == "": notes.add("start" if not record.empty and literal.direction == "p" else "end", literal.bit, site)
-                if p.lhs == start_rule and not p.helper and start == 0 and at == n:
+                if not self.query and p.lhs == start_rule and not p.helper and start == 0 and at == n:
                     if not boundaries.accepts(record, lambda literal: fail(literal, start if record.start & literal.bit else at, getattr(notes, "start" if record.start & literal.bit else "end").get(literal.bit))):
                         return None
             return record, notes

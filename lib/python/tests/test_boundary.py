@@ -91,3 +91,15 @@ class BoundaryTests(unittest.TestCase):
         splits = [split for result in stats for split in result['boundary_splits']]
         self.assertEqual(len(splits), 1)
         self.assertEqual((splits[0]['start'], splits[0]['end']), (0, 1))
+
+    def test_query_settles_a_witness_after_its_ancestors_complete(self):
+        from .shared import load_case_dialect, parse_case
+        for query in ('$.matches(r)', '$.begins(r)', 'Seen ⊆ $.tags(r)'):
+            grammar = ('%rule text A\n%conditions ' + query +
+                       '\n%rule r :: Seen\n | a\n | q\n%rule q r\n%rule a $e:empty A'
+                       '\n%conditions $e.followed-by(q)\n%rule empty ε')
+            dialect, error = load_case_dialect({'grammar': grammar})
+            self.assertIsNone(error)
+            with self.subTest(query=query):
+                value, _, _ = parse_case(dialect, {'tokens': [{'text': 'a', 'tags': ['A']}]})
+                self.assertTrue(value['ok'], value)
