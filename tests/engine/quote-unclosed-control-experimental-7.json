@@ -40,5 +40,10 @@
         }
       ]
     }
+  },
+  "options": {
+    "features": [
+      "sa-su"
+    ]
   }
 }
