@@ -1,6 +1,6 @@
 {
-  "description": "Equal literals join their source annotations without splitting records (engine §4.2 and §6.1, case 74).",
-  "grammar": "%ambiguity-resolution greedy\n%rule text w B\n%rule w a\n%conditions ¬$.followed-by(B)\n%rule a A\n%conditions ¬$.followed-by(B)",
+  "description": "Equal literals on merged packed items retain the earlier source condition (engine §4.2, case 74).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text w B\n%rule w s\n%rule s a | b\n%rule b A\n%conditions ¬$.followed-by(B)\n%rule a A\n%conditions ¬$.followed-by(B)",
   "tokens": [
     {
       "text": "a",
@@ -21,7 +21,7 @@
       "error": {
         "kind": "rejected",
         "boundary": {
-          "rule": "w",
+          "rule": "b",
           "condition": 0,
           "at": 1
         }

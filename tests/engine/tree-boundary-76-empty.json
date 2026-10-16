@@ -1,0 +1,14 @@
+{
+  "description": "A higher empty proof with an extra open literal does not dominate. (engine §6.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (q ≻ p) :: ∅ | B\n%rule p ε\n%rule q ε\n%conditions ¬$.preceded-by(B)",
+  "tokens": [],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    }
+  }
+}
