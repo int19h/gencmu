@@ -39,7 +39,7 @@ The layer uses two feature guards, which make a part of a rule depend on a featu
 
 A free modifier is a phrase that stands in many positions. An elidable terminator is a closing word that can be omitted. The free-modifier slot follows it outside its brackets: `[+X] #`. So free modifiers can follow an elided terminator.
 
-`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. The number rule excludes a following number part. The letter rule excludes a following letter word or PA. An empty free slot still shows the next word. A written BOI permits the boundary.
+`free-after-number` and `free-after-lerfu-string` prevent a number or lerfu string from ending before words that can continue it. After an elided `boi`, they test the remaining input from the start of the selected free slot. The number rule excludes a following number part or letter word. The letter rule excludes a following letter word or PA. An empty free slot still shows the next word. A written BOI permits the boundary.
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
 
@@ -78,9 +78,9 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps DO inside the vocative. Empty paragraphs can separate runs, as in `ni'o coi ni'o coi`. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
+The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps `do` inside the vocative. Empty paragraphs can separate runs, as in `ni'o coi ni'o coi`. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
 
-`paragraph-break` collects the topic runs between nonempty paragraphs. `topic-run` keeps adjacent NIhO words together, so empty paragraphs do not create duplicate divisions of one run. The ordinary text-leading `.i` forms can follow the last run. Both the initial break and later breaks use these rules.
+`paragraph-break` collects the topic runs between nonempty paragraphs. Nonempty free modifiers separate its adjacent NIhO runs, so one run cannot split at an empty free slot. A final free slot can follow the last run. `leading-separators` collects the ordinary text-leading `.i` forms, both before an initial break and after any break.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
@@ -109,19 +109,16 @@ The ranked choice compares complete candidates and prefers the form without an i
   UI | CAI | NAI | DAhO | FUhO
 
 %redefine-rule text-1
-  [{(I joik-jek-ek | lone-i) [[tag] BO] #}] [paragraph-break] [paragraphs]
+  [leading-separators] [paragraph-break] [paragraphs]
 
 %redefine-rule paragraphs
   paragraph [paragraph-break [paragraphs]]
 
 %rule paragraph-break
-  {topic-run #} [I # {topic-run #}]
-  [{(I joik-jek-ek | lone-i) [[tag] BO] #}]
+  {{NIhO} / {free}} # [I # {{NIhO} / {free}} #] [leading-separators]
 
-%rule topic-run
-  {NIhO}
-%conditions
-  NIhO ⊈ $.following-tokens.first-token.tags
+%rule leading-separators
+  {(I joik-jek-ek | lone-i) [[tag] BO] #}
 
 %redefine-rule paragraph
   (statement | fragment) [{lone-i # [statement | fragment]}]
@@ -141,7 +138,7 @@ The ranked choice compares complete candidates and prefers the form without an i
 <p><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph-break.svg" alt="Railroad diagram of the rule paragraph-break"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/topic-run.svg" alt="Railroad diagram of the rule topic-run"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/leading-separators.svg" alt="Railroad diagram of the rule leading-separators"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/lone-i.svg" alt="Railroad diagram of the rule lone-i"></p>
 </details>
@@ -1066,7 +1063,9 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits `.i` after a topic run and its free modifiers, because separators can stand on either side of topic markers. Thus `ni'o coi do .i mi klama` keeps DO in the vocative. Neither printed CLL nor camxes-exp provides that separator position. Printed CLL instead shortens the vocative and reads DO as a fragment before `.i`. camxes-exp rejects that text at `klama`.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. Real texts write `.i` after `ni'o`, as in 13 audit lines. The break accepts every text-leading form, such as `ni'o .ije`.
+
+Thus `ni'o coi do .i mi klama` keeps `do` in the vocative. Neither printed CLL nor camxes-exp provides that separator position. Printed CLL instead shortens the vocative and reads `do` as a fragment before `.i`. camxes-exp rejects that text at `klama`.
 
 Empty paragraphs between topic runs also follow camxes-exp's optional `paragraph`. CLL requires a nonempty paragraph there. So this layer accepts `ni'o coi ni'o coi` to preserve free modifiers between topic markers.
 
