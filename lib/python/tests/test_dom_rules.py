@@ -191,10 +191,10 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("optional elidable 'true'", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": "true"}]})),
     ("optional elidable null", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": None}]})),
     ("optional elidable 1", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": 1}]})),
-    ("optional maximal true is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": True}]})),
-    ("optional maximal null is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": None}]})),
-    ("optional maximal without elidable", set_expr({"seq": [CAP_X, {"optional": KU, "maximal": True}]})),
-    ("optional maximal false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": False}]})),
+    ("unknown optional member (true)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": True}]})),
+    ("unknown optional member (null)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": None}]})),
+    ("unknown member on a plain optional", set_expr({"seq": [CAP_X, {"optional": KU, "extra": True}]})),
+    ("unknown optional member (false)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": False}]})),
     ("elidable choice", set_expr({"seq": [CAP_X, marked({"choice": [KU, {"ref": "VAU"}]})]})),
     ("elidable and", set_expr({"seq": [CAP_X, marked({"and": [KU, {"ref": "A"}]})]})),
     ("elidable rule", set_expr({"seq": [CAP_X, marked({"ref": "ku"})]})),
@@ -305,13 +305,8 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a terminal that is no tag", set_expr({"capture": "x", "expr": {"terminal": "é"}})),
     ("a terminal of two characters", set_expr({"capture": "x", "expr": {"literal": {"string": "ab"}}})),
     ("a capture name with a capital", set_expr({"capture": "X", "expr": A})),
-    # %elidable is no directive, and no directive has a maximal member
-    # (engine §9).
-    ("an elidable directive", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU"], "at": [9, 1]})),
-    (
-        "a maximal member on a directive",
-        lambda dom: dom["directives"].append({"name": "features", "args": ["f"], "maximal": True, "at": [9, 1]}),
-    ),
+    # Unknown directive names fail (engine §9).
+    ("an unknown directive", lambda dom: dom["directives"].append({"name": "unknown", "args": ["KU"], "at": [9, 1]})),
     ("phonemes of two spans", set_tags({"method": "value", "args": [X], "receiver": X})),
     ("phonemes of a tag", set_tags({"method": "value", "args": [], "receiver": TAG})),
     ("tags with a term for a rule", set_tags({"method": "tags", "args": [TAG], "receiver": X})),

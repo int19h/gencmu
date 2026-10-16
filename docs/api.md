@@ -26,8 +26,6 @@ Grammar DOM format 29 supports token strings, recipes, stored engine tags, and m
 
 The compatibility boundary is the format number and the notation contract. Callers supply format-29 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
-An `optional` with a `maximal` member is malformed, as `docs/output.md` says.
-
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
 ### The dialect's features

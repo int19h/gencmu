@@ -1072,35 +1072,35 @@
     "malformed": true
   },
   {
-    "description": "An optional with any maximal member is malformed.",
+    "description": "An optional rejects an unknown member, regardless of its value.",
     "expr": {
       "optional": {
         "ref": "T"
       },
       "elidable": true,
-      "maximal": true
+      "extra": true
     },
     "malformed": true
   },
   {
-    "description": "An optional with any maximal member is malformed.",
+    "description": "An optional rejects an unknown member, regardless of its value.",
     "expr": {
       "optional": {
         "ref": "T"
       },
       "elidable": true,
-      "maximal": false
+      "extra": false
     },
     "malformed": true
   },
   {
-    "description": "An optional with any maximal member is malformed.",
+    "description": "An optional rejects an unknown member, regardless of its value.",
     "expr": {
       "optional": {
         "ref": "T"
       },
       "elidable": true,
-      "maximal": null
+      "extra": null
     },
     "malformed": true
   },

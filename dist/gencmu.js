@@ -3927,7 +3927,7 @@
     }
     for (const directive of dom.directives) {
       const { name, args } = directive;
-      if (!DIRECTIVE_NAMES.has(name) || "maximal" in directive || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
+      if (!DIRECTIVE_NAMES.has(name) || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
       if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
       if (name === "include" && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
       if (name === "ambiguity-resolution" && !(args.length >= 1 && args.length <= 2 && ["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) return "a malformed directive";
@@ -15294,9 +15294,6 @@
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
-        if (name === "ambiguity-resolution" && operands.some((child) => valueOf(token(child)) === "maximal")) {
-          fail("the maximal operand is retired", item);
-        }
         const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return valueOf(token(child));
             if (ruleOf(child) === "argument-string") return sourceText(token(child)).slice(1, -1);

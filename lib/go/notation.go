@@ -541,13 +541,6 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			if problem := operandProblem(dir.Name, kinds); problem != "" {
 				b.fail(keyword, "%s", problem)
 			}
-			if dir.Name == "ambiguity-resolution" {
-				for _, arg := range dir.Args {
-					if arg == "maximal" {
-						b.fail(keyword, "the maximal operand is retired")
-					}
-				}
-			}
 			if !directiveOperandsOK(dir) {
 				b.fail(keyword, "invalid directive operands")
 			}

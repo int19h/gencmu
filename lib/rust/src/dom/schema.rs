@@ -185,7 +185,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         ),
                         _ => false,
                     };
-                    if !valid || item.get("maximal").is_some() {
+                    if !valid {
                         return Some("a malformed directive");
                     }
                 }

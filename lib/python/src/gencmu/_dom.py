@@ -293,8 +293,6 @@ class DomBuilder:
             raise self.fail(node, "invalid feature name")
         if name == "ambiguity-resolution" and args not in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"]):
             raise self.fail(node, "invalid ambiguity resolution operands")
-        if name == "ambiguity-resolution" and "maximal" in args:
-            raise self.fail(node, "the maximal operand is retired")
         return {"name": name, "args": args, "at": list(self.position(node))}
 
     def operand_kind(self, node: Node) -> str:

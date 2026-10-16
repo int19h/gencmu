@@ -648,11 +648,7 @@ fn every_malformed_dom_is_a_cache_miss() {
             "a capture name with a capital",
             with_alternative(r#"{"guards":[],"expr":{"capture":"X","expr":{"literal":{"string":"b"}}}}"#),
         ),
-        ("a directive named elidable", with_directive(r#"{"name":"elidable","args":["KU"],"at":[4,1]}"#)),
-        (
-            "a maximal member on a directive",
-            with_directive(r#"{"name":"features","args":["f"],"maximal":true,"at":[4,1]}"#),
-        ),
+        ("an unknown directive name", with_directive(r#"{"name":"unknown","args":["KU"],"at":[4,1]}"#)),
         // Terms and conditions whose types do not agree (engine §10).
         ("a string as a constituent's tags", with_tags(r#"{"string":"T"}"#)),
         ("a span in a union", with_tags(r#"{"union":[{"capture":"x"},{"tag":"T"}]}"#)),
@@ -1544,10 +1540,10 @@ fn an_elidable_optional_and_captures_are_checked_where_they_stand() {
         format!(r#"{{"optional":{ku},"elidable":false}}"#),
         format!(r#"{{"optional":{ku},"elidable":"true"}}"#),
         format!(r#"{{"optional":{ku},"elidable":null}}"#),
-        format!(r#"{{"optional":{ku},"maximal":true}}"#),
-        marked(ku, r#","maximal":true"#),
-        marked(ku, r#","maximal":false"#),
-        marked(ku, r#","maximal":null"#),
+        format!(r#"{{"optional":{ku},"extra":true}}"#),
+        marked(ku, r#","extra":true"#),
+        marked(ku, r#","extra":false"#),
+        marked(ku, r#","extra":null"#),
     ];
     for expr in &malformed {
         assert_eq!(expression_problem(expr).as_deref(), Some("a malformed optional"), "{expr}");

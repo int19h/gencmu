@@ -166,7 +166,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     pending = []
     for d in dom["directives"]:
         name, args = d.get("name"), d.get("args")
-        if name not in _DIRECTIVES or "maximal" in d or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
+        if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             return "a malformed directive"
         if name in ("stage", "extend-stage", "redefine-stage"):
             valid = len(args) == 1 and CLASSIFIER_NAME.fullmatch(args[0]) is not None

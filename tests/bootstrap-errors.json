@@ -47,17 +47,17 @@
       "stage": null
     },
     {
-      "description": "Retired greedy maximal operand",
+      "description": "Unknown ranking operand",
       "find": "\"args\":[\"greedy\"]",
-      "replace": "\"args\":[\"greedy\",\"maximal\"]",
+      "replace": "\"args\":[\"greedy\",\"extra\"]",
       "line": null,
       "column": null,
       "stage": null
     },
     {
-      "description": "Retired late-elision maximal operand",
+      "description": "Extra ranking operand",
       "find": "\"args\":[\"greedy\"]",
-      "replace": "\"args\":[\"late-elision\",\"elision-only\",\"maximal\"]",
+      "replace": "\"args\":[\"late-elision\",\"elision-only\",\"extra\"]",
       "line": null,
       "column": null,
       "stage": null
