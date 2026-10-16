@@ -1,6 +1,11 @@
 package gencmu
 
-import "testing"
+import (
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+)
 
 func TestBoundaryRecordEmptyTransfer(t *testing.T) {
 	m := &boundaryMachine{names: map[string]boundaryBits{}, records: map[boundaryShape]*boundaryRecord{}}
@@ -50,5 +55,62 @@ func TestBoundaryMeetFollowsTagErrors(t *testing.T) {
 	result, err := runCase(d, c, &caseOptions{})
 	if err != nil || result.Error == nil || result.Error.Kind != ErrorGrammar {
 		t.Fatalf("tag error was hidden: %+v %v", result, err)
+	}
+}
+
+func TestBoundaryRecordGrowth(t *testing.T) {
+	grammar := "%rule text r [B]\n%rule r A [tail]\n%conditions ¬$.followed-by(B) ∨ $.starts-input\n%rule s A [tail]\n%rule tail r | s"
+	d, err := caseDialect(&engineCase{Grammar: &grammar}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for n := 1; n <= 16; n++ {
+		c := &engineCase{Tokens: make([]caseToken, n)}
+		for i := range c.Tokens {
+			c.Tokens[i] = caseToken{Text: "a", Tags: []string{"A"}}
+		}
+		w := &workCounts{}
+		var result *ParseResult
+		countWorkIn(w, func() { result, err = runCase(d, c, &caseOptions{}) })
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := VerdictTie
+		if n == 1 {
+			want = VerdictUnique
+		}
+		if len(result.Stages) != 1 || result.Stages[0].Verdict != want {
+			t.Fatalf("n=%d: %+v", n, result)
+		}
+		// The recognizer uses two records at n=1 and three thereafter.
+		wantRecords := int64(3)
+		if n == 1 {
+			wantRecords = 2
+		}
+		if got := w.boundaryRecords.Load(); got != wantRecords {
+			t.Fatalf("n=%d: %d records, want %d", n, got, wantRecords)
+		}
+		t.Logf("n=%d records=%d items=%d edges=%d contexts=%d", n, w.boundaryRecords.Load(), w.items.Load(), w.packedEdges.Load(), w.summaryContexts.Load())
+	}
+}
+
+func TestBoundaryLoadCacheDiagnostics(t *testing.T) {
+	sources := oneStage("%ambiguity-resolution greedy\n%const $K A\n%rule text X r | Y r\n%rule r C (aa ≻ $a:bb) :: ∅\n%conditions $.ends-input, $a.tags = $K ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A")
+	_, plain := LoadDialectSources(sources, "p.md")
+	if plain == nil {
+		t.Fatal("missing private boundary load error")
+	}
+	dom, e := bundled.reader.readMode(sources["g.md"], "g.md", true)
+	if e != nil {
+		t.Fatal(e)
+	}
+	sources["compiled.json"] = `{"format":` + strconv.Itoa(domFormat) + `,"bootstrap":"` + bundled.reader.hash + `","unicode":"` + bundled.uni.hash + `","documents":{"g.md":{"hash":"` + fnv1a64(sources["g.md"]) + `","dom":` + string(dom.json()) + `}}}`
+	_, cached := LoadDialectSources(sources, "p.md")
+	if !reflect.DeepEqual(plain, cached) {
+		t.Fatalf("plain=%+v cached=%+v", plain, cached)
+	}
+	error := plain.(*Error)
+	if error.Code != "ranked-choice-boundary" || error.Option == nil || *error.Option != 1 || !strings.Contains(string(error.Expression), `"const":"K"`) || !strings.Contains(error.Message, "Condition 2") || !strings.Contains(error.Message, "$.preceded-by(X)") {
+		t.Fatalf("%+v", error)
 	}
 }

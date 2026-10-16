@@ -224,6 +224,7 @@ const (
 )
 
 type recognizer struct {
+	boundarySeen                          map[*boundaryRecord]bool
 	boundaryTagActive, boundaryTagInvalid bool
 	nextBoundaryTags                      *tagset
 	boundaries                            *boundaryMachine
@@ -694,6 +695,17 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	}
 	r.finishStructure(&key)
 	s := r.set(k)
+	if r.boundaries != nil {
+		if w := work.Load(); w != nil {
+			if r.boundarySeen == nil {
+				r.boundarySeen = map[*boundaryRecord]bool{}
+			}
+			if !r.boundarySeen[key.boundary] {
+				r.boundarySeen[key.boundary] = true
+				w.boundaryRecords.add("boundary records")
+			}
+		}
+	}
 	it := s.index[key]
 	if it == nil {
 		it = &item{boundaryTags: r.nextBoundaryTags, boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}

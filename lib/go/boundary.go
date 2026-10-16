@@ -302,7 +302,10 @@ type boundarySite struct {
 
 // Dual evaluation preserves the walk across nested query suspension.
 func (r *recognizer) startCondition(ev *evaluator, c *domCond, p *production) {
-	r.conditionAtom = firstBoundaryAtom(c)
+	r.conditionAtom = nil
+	if r.boundaries != nil {
+		r.conditionAtom = firstBoundaryAtom(c)
+	}
 	r.condition = c
 	r.conditionEv = ev
 	r.conditionProd = p
@@ -395,7 +398,7 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 		record = m.append(record, before)
 		for _, o := range r.obligations {
 			if o.atom.Span.Str != "" && !o.literal.forward {
-				annotations.add(false, o.literal.id, o.site)
+				annotations = annotations.add(false, o.literal.id, o.site)
 			}
 		}
 		var child *boundaryRecord
@@ -423,7 +426,7 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 		record = m.append(result, after)
 		for _, o := range r.obligations {
 			if o.atom.Span.Str != "" && o.literal.forward {
-				annotations.add(false, o.literal.id, o.site)
+				annotations = annotations.add(false, o.literal.id, o.site)
 			}
 		}
 	}
@@ -447,7 +450,7 @@ func (r *recognizer) bounded(k int, key *itemKey, l link) bool {
 		annotations = annotations.retain(record)
 		for _, o := range r.obligations {
 			if o.atom.Span.Str == "" {
-				annotations.add(!record.empty && !o.literal.forward, o.literal.id, o.site)
+				annotations = annotations.add(!record.empty && !o.literal.forward, o.literal.id, o.site)
 			}
 		}
 		if r.query == nil && key.prod.lhs == r.startRule && key.origin == 0 && k == r.n {

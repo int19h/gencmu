@@ -44,15 +44,21 @@ func (s *boundarySource) inherit(p *boundarySource) {
 type boundarySources map[int]*boundarySource
 type boundaryAnnotations struct{ start, end boundarySources }
 
-func newBoundaryAnnotations() *boundaryAnnotations {
-	return &boundaryAnnotations{boundarySources{}, boundarySources{}}
-}
+var emptyBoundaryAnnotations = &boundaryAnnotations{}
+
+func newBoundaryAnnotations() *boundaryAnnotations { return emptyBoundaryAnnotations }
 func selectBoundary(bits boundaryBits, inputs ...boundarySources) boundarySources {
-	out := boundarySources{}
+	if bits == "" {
+		return nil
+	}
+	var out boundarySources
 	for _, input := range inputs {
 		for id, source := range input {
 			if !bits.has(id) {
 				continue
+			}
+			if out == nil {
+				out = boundarySources{}
 			}
 			if out[id] == nil {
 				out[id] = &boundarySource{}
@@ -63,7 +69,7 @@ func selectBoundary(bits boundaryBits, inputs ...boundarySources) boundarySource
 	return out
 }
 func (a *boundaryAnnotations) retain(r *boundaryRecord) *boundaryAnnotations {
-	if a == nil {
+	if a == nil || r.start == "" && r.end == "" {
 		return newBoundaryAnnotations()
 	}
 	return &boundaryAnnotations{selectBoundary(r.start, a.start), selectBoundary(r.end, a.end)}
@@ -74,7 +80,16 @@ func (a *boundaryAnnotations) get(start bool, id int) *boundarySource {
 	}
 	return a.end[id]
 }
-func (a *boundaryAnnotations) add(start bool, id int, site *boundarySite) {
+func (a *boundaryAnnotations) add(start bool, id int, site *boundarySite) *boundaryAnnotations {
+	if a == emptyBoundaryAnnotations {
+		a = &boundaryAnnotations{}
+	}
+	if start && a.start == nil {
+		a.start = boundarySources{}
+	}
+	if !start && a.end == nil {
+		a.end = boundarySources{}
+	}
 	sources := a.end
 	if start {
 		sources = a.start
@@ -83,12 +98,22 @@ func (a *boundaryAnnotations) add(start bool, id int, site *boundarySite) {
 		sources[id] = &boundarySource{}
 	}
 	sources[id].add(site)
+	return a
 }
 func (a *boundaryAnnotations) merge(b *boundaryAnnotations) {
 	if b == nil {
 		return
 	}
 	for i, src := range []boundarySources{b.start, b.end} {
+		if len(src) == 0 {
+			continue
+		}
+		if i == 0 && a.start == nil {
+			a.start = boundarySources{}
+		}
+		if i == 1 && a.end == nil {
+			a.end = boundarySources{}
+		}
 		dst := a.end
 		if i == 0 {
 			dst = a.start
@@ -112,6 +137,9 @@ func (a *boundaryAnnotations) meeting(c *boundaryAnnotations, empty bool, id int
 	return s
 }
 func (a *boundaryAnnotations) advance(m *boundaryMachine, p, c, result *boundaryRecord, b *boundaryAnnotations) *boundaryAnnotations {
+	if result.start == "" && result.end == "" {
+		return newBoundaryAnnotations()
+	}
 	if c.empty {
 		pending := c.end
 		if !p.empty {

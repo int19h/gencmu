@@ -130,8 +130,12 @@ func (g *genGrammar) grammar() *domDoc {
 	d.Directives = []*domDirective{{Name: "ambiguity-resolution", Args: args}}
 	for _, name := range g.rules {
 		r := &domRule{Name: name, Op: "define"}
-		if g.r.Intn(100) < 35 {
-			r.Flags = []string{"leftmost-longest"}
+		if flag := g.r.Intn(100); flag < 35 {
+			if flag < 20 {
+				r.Flags = []string{"leftmost-longest"}
+			} else {
+				r.Flags = []string{"fewest"}
+			}
 		}
 		// Now and then a rule is a chain, whose levels are its own nodes
 		// (engine §3.3).
@@ -242,7 +246,7 @@ func domText(d *domDoc) string {
 		}
 		flag := ""
 		if len(r.Flags) > 0 {
-			flag = "(leftmost-longest)"
+			flag = "(" + r.Flags[0] + ")"
 		}
 		fmt.Fprintf(&b, "%%rule%s %s\n  %s\n", flag, r.Name, strings.Join(alts, " | "))
 	}
@@ -467,13 +471,13 @@ type bruteResult struct {
 
 // The oracle counts named closes in a dense span matrix.
 // It reads flag assignments from the generated source definitions.
-func bruteProfile(whole []action, n int, flags map[string]bool) []int {
+func bruteProfile(whole []action, n int, flags map[string]string) []int {
 	counts := make([][]int, n+1)
 	for i := range counts {
 		counts[i] = make([]int, n+1)
 	}
 	for _, a := range whole {
-		if !a.read && !a.prod.helper && flags[a.prod.ruleName] && a.start < a.end {
+		if !a.read && !a.prod.helper && flags[a.prod.ruleName] == "leftmost-longest" && a.start < a.end {
 			counts[a.start][a.end]++
 		}
 	}
@@ -483,7 +487,13 @@ func bruteProfile(whole []action, n int, flags map[string]bool) []int {
 			profile = append(profile, counts[start][end])
 		}
 	}
-	return profile
+	fewest := 0
+	for _, a := range whole {
+		if !a.read && !a.prod.helper && flags[a.prod.ruleName] == "fewest" && a.start < a.end {
+			fewest++
+		}
+	}
+	return append(profile, -fewest)
 }
 
 func compareBruteProfiles(left, right []int) int {
@@ -701,9 +711,11 @@ func TestRankingProperty(t *testing.T) {
 		if top := rec.accepted(lg.byName["text"]); len(top) > 0 {
 			got = rk.rank(top)
 		}
-		flags := map[string]bool{}
+		flags := map[string]string{}
 		for _, definition := range dom.Rules {
-			flags[definition.Name] = len(definition.Flags) > 0
+			if len(definition.Flags) > 0 {
+				flags[definition.Name] = definition.Flags[0]
+			}
 		}
 		var ds []bderiv
 		for _, tr := range trees {
