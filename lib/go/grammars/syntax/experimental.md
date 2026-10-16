@@ -281,7 +281,9 @@ Tags carry what the condition needs, so that it never parses the part before aga
 
 A termset closed by a written `nu'u` is never a sumti for this rule, and a link that begins with one has no `Sumti-Start`. So `mi .e ge do gi ti nu'u klama` joins two terms, the second a termset. Without `nu'u`, `mi .e ge do gi ti klama` joins two sumti, since the termset reading elides `nu'u`.
 
-`pe'e` takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. The added terms are bare `na` and a `soi` clause enabled by `soi-clause`. That clause contains a subsentence and ends with `se'u`. `fi'oi` and `xoi` are members of SOI.
+`pe'e` takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. The added terms are bare `na` and a `soi` clause enabled by `soi-clause`. That clause contains a subsentence and ends with `se'u`. `fi'oi` belongs to SOI.
+
+The dictionary gives `xoi` class SEI. It opens a free modifier, independent of `soi-clause`.
 
 A forethought termset needs no `nu'i`, and its two branches can hold different numbers of terms. The same words can often form a gek sumti or a termset.
 
@@ -1033,7 +1035,7 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 camxes-exp tries alternatives in order. This layer considers complete readings and uses conditions or ranked choices to select among them. Both this layer and CLL read `le sutra tavla` as a fragment.
 
-The experimental lexicon follows camxes-exp's classes, including the classes absent from CLL. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental dialect enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
+The [experimental lexicon](../words/lexicon-experimental.md) keeps camxes-exp's words and adds dictionary entries. Its closing section lists class differences and unsupported classes. This layer never reads a CLL class that camxes-exp lacks, such as LA. The experimental dialect enables `cbm` and `soi-clause` because camxes-exp cannot disable them. A caller can disable either here. With `soi-clause` off, `soi` retains CLL's reciprocity form.
 
 The layer writes `[+X] #` where CLL writes `[+X #]`. This permits free modifiers after omitted terminators and explains many restated rules. The number and lerfu conditions keep each run together despite that extra slot. camxes-exp also reads those runs as far as possible. This layer and camxes-exp give the sentence reading to `to mi klama` and `lu mi klama`.
 
