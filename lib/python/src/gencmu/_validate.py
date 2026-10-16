@@ -303,7 +303,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
                 return "a capture name used twice in one production"
-        problem = definition_problem(r) or rule_type_problem(r)
+        from ._boundary import problem as boundary_problem
+        boundary = boundary_problem(r)
+        problem = (boundary[0] if boundary else None) or definition_problem(r) or rule_type_problem(r)
         if problem and not (defer_emission and deferred_emission_problem(problem) and rule_has_ranked(r)):
             return problem
     for c in dom["constants"]:

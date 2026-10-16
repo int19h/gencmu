@@ -248,6 +248,20 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0, len(context.tokens))
+        self.boundary_first, self.boundary_last = {}, {}
+        pending = [root]
+        while pending:
+            child = pending.pop()
+            if child.start == child.end:
+                continue
+            if isinstance(child, DRead):
+                name = child.terminal
+            else:
+                name = None if child.production.helper else child.production.rule_name
+                pending.extend(child.children)
+            if name is not None:
+                self.boundary_first.setdefault(child.start, set()).add(name)
+                self.boundary_last.setdefault(child.end, set()).add(name)
         self.channels = {}
         self.recipes = {}
         self.active = set()
@@ -408,6 +422,12 @@ class Emitter:
             self.forest.structure[node.item] if self.forest.structure else 0,
             self.forest.close_structure[node.item] if self.forest.close_structure else 0,
         )
+        def boundary_test(atom):
+            part = self.capture(node, atom["receiver"]["capture"])
+            names = (self.boundary_first.get(part.end, ()) if atom["method"] == "followed-by"
+                     else self.boundary_last.get(part.start, ()))
+            return any(arg.get("rule", arg.get("terminal")) in names for arg in atom["args"])
+        bound.boundary_test = boundary_test
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:

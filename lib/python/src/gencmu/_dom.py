@@ -92,6 +92,7 @@ class DomBuilder:
         self.types: TypeMemo = {}
         self.recipe_context = False
         self.engine_nodes = {}
+        self.boundary_nodes = {}
 
     # -- positions and errors
 
@@ -395,6 +396,10 @@ class DomBuilder:
             dom["erased"] = True
         dom["at"] = list(self.position(node))
         flatten_groups(dom)
+        from ._boundary import problem as boundary_problem
+        boundary = boundary_problem(dom)
+        if boundary is not None:
+            raise self.fail(self.boundary_nodes.get(id(boundary[1]), node), boundary[0])
         problem = definition_problem(dom)
         if problem is not None:
             if self.defer_emission and deferred_emission_problem(problem) and rule_has_ranked(dom):
@@ -860,6 +865,7 @@ class DomBuilder:
             if name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
             receiver = {"method": name, "receiver": receiver, "args": args}
+            self.boundary_nodes[id(receiver)] = node
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
                 if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):

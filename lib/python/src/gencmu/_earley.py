@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 from . import _testing
+from ._boundary import METHODS, Records, Annotations, atoms
 from ._clauses import WHOLE
 from ._eligible import eligible
 from ._errors import _GrammarFault
@@ -100,7 +101,7 @@ class Bound:
     part comes from one walk, so a term that reads them all walks them
     about twice at most. ``$`` is the whole constituent where it is known."""
 
-    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure")
+    __slots__ = ("production", "caps", "base", "project", "whole", "found", "all", "searched", "machine", "structure", "close_structure", "boundary_value", "boundary_test")
 
     def __init__(
         self,
@@ -113,6 +114,8 @@ class Bound:
         structure: int = 0,
         close_structure: int = 0,
     ) -> None:
+        self.boundary_value = None
+        self.boundary_test = None
         self.production = production
         self.caps = caps
         self.base = base
@@ -253,6 +256,10 @@ class Forest:
     family: FamilyMatcher | None = None
     family_prefix: list[Summary] = field(default_factory=list)
     family_structure: list[Summary] = field(default_factory=list)
+    boundaries: list = field(default_factory=list)
+    boundary_machine: Any = None
+    boundary_annotations: list = field(default_factory=list)
+    boundary_failures: list = field(default_factory=list)
 
 
 @dataclass
@@ -518,7 +525,7 @@ class StageContext:
                               and forest.lowered.productions[forest.prod[item]].lhs == number
                               and forest.dot[item] == len(forest.lowered.productions[forest.prod[item]].rhs)
                               and forest.lowered.productions[forest.prod[item]].close_requested]
-                qualified = forest, eligible(forest, candidates)
+                qualified = forest, eligible(forest, boundary_witnesses(forest, candidates))
                 self.qualified_memo[raw_key] = qualified
             forest, candidates = qualified
             tags = Gathered()
@@ -572,7 +579,7 @@ class StageContext:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
             # priority (engine §4).
-            found_items = eligible(forest, forest.roots)
+            found_items = eligible(forest, boundary_witnesses(forest, forest.roots))
             gathered = Gathered()
             for root in found_items:
                 gathered.add(self.tagtab.get(forest.tag[root]))
@@ -586,7 +593,7 @@ class StageContext:
             if item in forest.tag and origin == 0 and productions[prod].lhs == number and dot == len(productions[prod].rhs) and not productions[prod].close_requested
         ]
         # Only an item with an eligible proof tree counts (engine §4).
-        self.begins_memo[key] = bool(eligible(forest, witnesses))
+        self.begins_memo[key] = bool(eligible(forest, boundary_witnesses(forest, witnesses)))
 
 
 def _as_set(value: Any) -> Tags:
@@ -797,7 +804,11 @@ class Evaluator:
             raise _GrammarFault(f"an unknown comparison {op}")
         if "method" in dom:
             name = dom["method"]
+            if name in METHODS:
+                return bound.boundary_value if bound.boundary_value is not None else bound.boundary_test(dom)
             span = yield self._span(dom["receiver"], bound)
+            if name == "ends-input":
+                return span[1] == self.end
             if name == "starts-input":
                 return span[0] == self.base
             rule = dom["args"][0]["rule"]
@@ -900,6 +911,10 @@ class Parser:
         last_reading = reading_last(lowered) if recon else []
         elidable_helpers = lowered.elidable_helpers
 
+        boundaries = Records(productions)
+        if not boundaries.forward and not boundaries.backward:
+            boundaries = None
+        records, annotations, failures, prediction_obligations = [], [], [], {}
         has_slots = bool(ranked_groups)
         prod: list[int] = []
         dot: list[int] = []
@@ -1033,7 +1048,91 @@ class Parser:
                 return family.close(production.elided, original(start), production.elided_owner)
             return prefix
 
-        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY) -> None:
+        sites = {}
+        for order, rule in enumerate(lowered.grammar.rules.values()):
+            seen, index = set(), 0
+            for alternative in rule.alternatives:
+                key = (alternative.document, alternative.at)
+                if key in seen:
+                    continue
+                seen.add(key)
+                for condition in alternative.conditions:
+                    sites.setdefault(key, []).append((condition, (order, index, rule.name)))
+                    index += 1
+
+        def boundary_condition(condition, bound, obligations):
+            found = atoms(condition)
+            if not found:
+                return (yield evaluator.walk_condition(condition, bound))
+            atom = found[0]
+            values = []
+            try:
+                for value in (True, False):
+                    bound.boundary_value = value
+                    try:
+                        values.append(bool((yield evaluator.walk_condition(condition, bound))))
+                    except InvalidObservation:
+                        values.append(False)
+            finally:
+                bound.boundary_value = None
+            yes, no = values
+            if yes != no:
+                p = bound.production
+                source = p.lexical.root.source if p.lexical else p.source
+                whole = atom["receiver"]["capture"] == ""
+                # A lexical ancestor can evaluate the clause, but its own
+                # final group alone owns a whole-rule literal.
+                private = p.private_names | (p.lexical.known_private if p.lexical else set())
+                from ._ranked import reads
+                if not whole or not p.helper or bool(reads(condition) & private):
+                    site = next((site for raw, site in sites.get((source.document, source.at), ()) if atom in atoms(raw)), None)
+                    obligations.append((atom, boundaries.literal(atom, yes), site))
+            return yes or no
+
+        def boundary_step(p, position, start, at, edge, obligations):
+            previous = edge[0]
+            record = records[previous] if previous >= 0 else boundaries.empty
+            notes = annotations[previous].retain(record) if previous >= 0 else Annotations()
+            backward = forward = before = after = 0
+            for atom, literal, site in obligations:
+                if atom["receiver"]["capture"] == "":
+                    if literal.direction == "f": forward |= literal.bit
+                    else: backward |= literal.bit
+                elif literal.direction == "f": after |= literal.bit
+                else: before |= literal.bit
+            def fail(literal, where, source):
+                failures.append((literal, where, at, source))
+            if previous >= 0:
+                record = boundaries.append(record, before)
+                for atom, literal, site in obligations:
+                    if atom["receiver"]["capture"] and literal.direction == "p": notes.add("end", literal.bit, site)
+                child = edge[2] if edge[1] == 2 else None
+                leaf = records[child] if child is not None else boundaries.leaf(p.rhs[position-1], original(end[previous]) == original(at))
+                sources = annotations[child] if child is not None else Annotations()
+                advanced = boundaries.advance(record, leaf, lambda literal: fail(literal, end[previous], notes.meeting(sources, leaf.empty, literal.bit)))
+                if advanced is None: return None
+                notes = notes.advance(boundaries, record, leaf, advanced, sources)
+                record = boundaries.append(advanced, after)
+                for atom, literal, site in obligations:
+                    if atom["receiver"]["capture"] and literal.direction == "f": notes.add("end", literal.bit, site)
+            if position == len(p.rhs):
+                completed = boundaries.complete(record, None if p.helper else p.rule_name, backward, forward, lambda literal: fail(literal, start if literal.direction == "f" else at, getattr(notes, "start" if literal.direction == "f" else "end").get(literal.bit)))
+                if completed is None: return None
+                record, notes = completed, notes.retain(completed)
+                for atom, literal, site in obligations:
+                    if atom["receiver"]["capture"] == "": notes.add("start" if not record.empty and literal.direction == "p" else "end", literal.bit, site)
+                if p.lhs == start_rule and not p.helper and start == 0 and at == n:
+                    if not boundaries.accepts(record, lambda literal: fail(literal, start if record.start & literal.bit else at, getattr(notes, "start" if record.start & literal.bit else "end").get(literal.bit))):
+                        return None
+            return record, notes
+
+        def add(production: int, position: int, start: int, captured: Caps, at: int, edge: tuple[Any, ...], strict_step: bool = False, prefix: int = 0, close_prefix: int = 0, family_prefix: Summary = IDENTITY, obligations=None) -> None:
+            bounded = None
+            if boundaries is not None:
+                obligations = prediction_obligations.pop((production, at), []) if obligations is None else obligations
+                bounded = boundary_step(productions[production], position, start, at, edge, obligations)
+                if bounded is None:
+                    return
             structure = completed_structure(productions[production], position, prefix)
             key = (production, position, start, captured) + ((prefix, structure) if machine is not None else ())
             if closes is not None:
@@ -1045,11 +1144,18 @@ class Parser:
                     family_prefix = DEAD
                 family_structure = completed_family(productions[production], position, start, close_structure, family_prefix)
                 key += family_prefix, family_structure
+            if bounded is not None:
+                key += (bounded[0].id,)
             found = sets[at].get(key)
+            if found is not None and bounded is not None:
+                annotations[found].merge(bounded[1])
             if found is None:
                 _testing.count("items")
                 found = len(prod)
                 sets[at][key] = found
+                if bounded is not None:
+                    records.append(bounded[0])
+                    annotations.append(bounded[1])
                 prod.append(production)
                 dot.append(position)
                 origin.append(start)
@@ -1241,7 +1347,7 @@ class Parser:
                     found = extended[step] = Caps(captured, part)
                 captured = found
             conditions = production.conds_at.get(position)
-            if conditions:
+            if conditions or boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
                 return checked(production, position, origin[item], captured, at, edge, strict_step, conditions, prefix, close_prefix, family_prefix)
             add(production.id, position + 1, origin[item], captured, at, edge, strict_step, prefix, close_prefix, family_prefix)
             return None
@@ -1269,13 +1375,16 @@ class Parser:
                 bound = bound_for(production, captured, (start, at, lazy_tag(production, captured, start, at, structure, close_structure)), structure, close_structure)
             else:
                 bound = bound_for(production, captured)
+            obligations = []
             try:
-                for condition in conditions:
-                    if not (yield evaluator.walk_condition(condition, bound)):
+                for condition in conditions or ():
+                    if not (yield boundary_condition(condition, bound, obligations)):
                         return
             except InvalidObservation:
                 return
-            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix)
+            if boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
+                yield term_tag(production, captured, start, at, completed_structure(production, position + 1, prefix), completed_closes(production, position + 1, start, at, close_prefix))
+            add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations)
 
         # A production whose first symbol is a terminal the next token lacks
         # is not predicted, since its item could never advance; a rejection
@@ -1296,12 +1405,17 @@ class Parser:
             close_structure = completed_closes(production, 0, j, j, 0)
             whole = (j, j, lazy_tag(production, NO_CAPS, j, j, structure, close_structure)) if not production.rhs else None
             bound = bound_for(production, NO_CAPS, whole, structure, close_structure)
+            obligations = []
             try:
                 for condition in production.conds_predict:
-                    if not (yield evaluator.walk_condition(condition, bound)):
+                    if not (yield boundary_condition(condition, bound, obligations)):
                         return False
             except InvalidObservation:
                 return False
+            if boundaries is not None:
+                prediction_obligations[production.id, j] = obligations
+                if not production.rhs and production.tags_term is not None:
+                    yield term_tag(production, NO_CAPS, j, j, structure, close_structure)
             return True
 
         def restore(number: int, j: int) -> None:
@@ -1543,7 +1657,7 @@ class Parser:
                 expected.setdefault(written_symbol(terminal, test), set()).add(production.rule_name)
         # The forest's tokens are those the parse read, before its furthest
         # set.
-        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures)
+        return Forest(tokens[base : base + furthest], lowered, prod, dot, origin, end, caps, edges, tag, roots, furthest, expected, context.project, structures, machine, prefixes if has_slots else [], strict if has_slots else [], close_structures, close_prefixes, closes, self.observe, family, family_prefixes, family_structures, records, boundaries, annotations, failures)
 
 
 def reading_last(lowered: Lowered) -> list[int]:
@@ -1588,3 +1702,8 @@ def reading_last(lowered: Lowered) -> list[int]:
         found.append(at)
     lowered.reading_last = found
     return found
+
+
+def boundary_witnesses(forest, witnesses):
+    machine = forest.boundary_machine
+    return [item for item in witnesses if machine.accepts(forest.boundaries[item])] if machine is not None else witnesses
