@@ -1,5 +1,5 @@
 {
-  "description": "A quote keeps its original image and its independent comparison value.",
+  "description": "A quote image excludes ignored text outside its source and keeps its independent comparison value.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
@@ -19,7 +19,7 @@
           "output": [
             {
               "value": "la'oi クリボ",
-              "image": "la'oi クリボー"
+              "image": "la'oi クリボ"
             }
           ]
         }

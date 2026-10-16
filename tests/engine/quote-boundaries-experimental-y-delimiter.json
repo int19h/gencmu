@@ -1,0 +1,41 @@
+{
+  "description": "A delimited quote image contains exactly its source text despite ignored characters on both sides.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,⁠­zoi .y. bu. 你好é .y. bu,⁠­ do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "zoi .y. bu. 你好é .y. bu",
+              "image": "zoi .y. bu. 你好é .y. bu",
+              "value": "zoi y bu 你好é y bu",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                5,
+                27
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

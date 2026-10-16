@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,la'o gy. 你好é .gy, do mi⁠la'o gy. 你好é .gy⁠ do mi­la'o gy. 你好é .gy­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "la'o gy. 你好é .gy",
+              "value": "la'o gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "la'o gy. 你好é .gy",
+              "source": [
+                3,
+                19
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "la'o gy. 你好é .gy",
+              "value": "la'o gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "la'o gy. 你好é .gy",
+              "source": [
+                27,
+                43
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "la'o gy. 你好é .gy",
+              "value": "la'o gy 你好é gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "text": "la'o gy. 你好é .gy",
+              "source": [
+                51,
+                67
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

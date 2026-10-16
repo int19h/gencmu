@@ -1,0 +1,87 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,le'ai, do mi⁠le'ai⁠ do mi­le'ai­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "le'ai",
+              "value": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "le'ai",
+              "source": [
+                3,
+                8
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "le'ai",
+              "value": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "le'ai",
+              "source": [
+                16,
+                21
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "le'ai",
+              "value": "le'ai",
+              "tags": [
+                "Cmavo",
+                "LEhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "le'ai",
+              "source": [
+                29,
+                34
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

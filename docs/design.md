@@ -95,7 +95,7 @@ Every span and every source range in a result is half-open: the range holds its 
 
 A token's `span` is a range of the previous stage's tokens. Its `source` is the smallest range of the original text that holds the sources of those tokens. So the source is contiguous even when some of those tokens emitted nothing, as an erased word inside a compound does. A token inserted by an emission clause has an empty span, and an empty source range at the position where it was inserted. Its provenance is that emission: its `insertedBy` records the rule whose clause inserted it.
 
-A verbatim image recipe can include adjacent text that no input token covers. It never changes source or text metadata. A quote body and a larger token containing it keep their input source envelopes. Their stored images can extend beyond those envelopes.
+A verbatim image recipe can include adjacent text that no input token covers. It never changes source or text metadata. A constituent's image can extend beyond its source interval. An enclosing source-text recipe limits the token's image to its own source interval.
 
 Following `span` from stage to stage explains any token of a stage's output. The chain ends at the characters, or at a token with an empty span. An inserted token ends it at the rule in its `insertedBy`. A token over a part that read nothing has an empty span and no `insertedBy`. An attached token has no `span`, so its chain ends at the stage that attached it. Its `source` still gives its place in the original text.
 
@@ -203,7 +203,9 @@ A body's constituent image recipe can request `$.verbatim-text`. It preserves or
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-The word stage supplies verbatim image recipes on raw-tokens and zohoi-payload for zoi, zo'oi, and related quotation bodies. Each finished quote emits one token of its opening class. The token has a verbatim image and a value that joins normalized, decomposed parts. Syntax reads one terminal for the quote. Its internal structure remains in the word-stage tree. An empty zoi body uses empty concatenation.
+Each finished quote emits one token of its opening class. Every quote token takes its image from `$.source-text`, the original text within its source interval. This image excludes ignored characters outside that interval. Its value joins normalized, decomposed parts. Syntax reads one terminal for the quote. Its internal structure remains in the word-stage tree.
+
+An empty zoi body uses empty concatenation.
 
 A clause can refer to a capture that some production lacks. A production is one expansion of an alternative, with one branch of each choice and each optional read or not. Lowering decides such a clause before the recognizer reads any text. A condition or an emitted item then does not apply to that production.
 

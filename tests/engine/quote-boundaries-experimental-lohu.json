@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,lo'u coi le'u, do mi⁠lo'u coi le'u⁠ do mi­lo'u coi le'u­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "lo'u coi le'u",
+              "value": "lo'u coi le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "text": "lo'u coi le'u",
+              "source": [
+                3,
+                16
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "lo'u coi le'u",
+              "value": "lo'u coi le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "text": "lo'u coi le'u",
+              "source": [
+                24,
+                37
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "lo'u coi le'u",
+              "value": "lo'u coi le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "text": "lo'u coi le'u",
+              "source": [
+                45,
+                58
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

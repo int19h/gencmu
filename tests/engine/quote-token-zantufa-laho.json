@@ -3,7 +3,7 @@
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "description": "A complete quote emits one token with its opening class, verbatim image, and decomposed value.",
+  "description": "A complete quote emits one token with its opening class, source image, and decomposed value.",
   "options": {
     "until": "words"
   },

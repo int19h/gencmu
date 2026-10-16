@@ -1,0 +1,87 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,sa'ai mi le'ai, do mi⁠sa'ai mi le'ai⁠ do mi­sa'ai mi le'ai­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "sa'ai mi le'ai",
+              "value": "sa'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "sa'ai mi le'ai",
+              "source": [
+                3,
+                17
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "sa'ai mi le'ai",
+              "value": "sa'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "sa'ai mi le'ai",
+              "source": [
+                25,
+                39
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "sa'ai mi le'ai",
+              "value": "sa'ai mi le'ai",
+              "tags": [
+                "Cmavo",
+                "LOhAI",
+                "Quote",
+                "Word"
+              ],
+              "text": "sa'ai mi le'ai",
+              "source": [
+                47,
+                61
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "options": {
+    "until": "words"
+  },
+  "input": "mi,bo'ei coi, do mi⁠bo'ei coi⁠ do mi­bo'ei coi­ do",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {},
+            {
+              "image": "bo'ei coi",
+              "value": "bo'ei coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "bo'ei coi",
+              "source": [
+                3,
+                12
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "bo'ei coi",
+              "value": "bo'ei coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "bo'ei coi",
+              "source": [
+                20,
+                29
+              ]
+            },
+            {},
+            {},
+            {
+              "image": "bo'ei coi",
+              "value": "bo'ei coi",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ],
+              "text": "bo'ei coi",
+              "source": [
+                37,
+                46
+              ]
+            },
+            {}
+          ]
+        }
+      ],
+      "tree": {
+        "kind": "rule",
+        "rule": "text"
+      }
+    }
+  }
+}
