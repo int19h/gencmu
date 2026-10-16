@@ -920,7 +920,7 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         }
     }
     // The error kind of the result, which for a grammar error found
-    // while parsing, such as at lowering (engine §3.3), is the whole of
+    // while parsing, such as at lowering (engine §3), is the whole of
     // what the case expects.
     let found = result.error.as_ref().map(|error| error_kind(error.kind));
     match expect.get("error").and_then(Value::str) {

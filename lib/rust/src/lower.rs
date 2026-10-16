@@ -1371,7 +1371,7 @@ fn lower_mode(
                 _ => Some(Term::Union(written)),
             };
             // The reader has made sure a tag term uses only captures its
-            // alternative has, and so every production of it has (§3.3).
+            // alternative has, and so every production of it has (§3.6).
             // Validation reads the symbolic slot clauses. Private names
             // are diagnosed in group order before runtime binding (§2.1).
             production.tags = if validation {

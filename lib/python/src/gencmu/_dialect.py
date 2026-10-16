@@ -567,7 +567,7 @@ class Dialect:
                 self.lowered(number, self.declared)
             except GencmuError:
                 # An error lowering finds is a result of the parses that
-                # meet it (engine §3.3, §13), not an error of the load.
+                # meet it (engine §3, §13), not an error of the load.
                 pass
 
     @property

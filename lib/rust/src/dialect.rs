@@ -290,7 +290,7 @@ impl Dialect {
     }
 
     /// The stage's grammar lowered for a set of features, or the error of
-    /// the grammar that lowering found (engine §3.3), which a parse reports
+    /// the grammar that lowering found (engine §3), which a parse reports
     /// as it reports any found while parsing.
     ///
     /// Only the gates that are on change the productions. So two sets of

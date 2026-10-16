@@ -472,7 +472,7 @@ func checkResult(res *ParseResult, got any, data []byte, expect *caseExpect) err
 		}
 	}
 	// An error the case expects is a load error or the result's error, as
-	// where the grammar's error is found while lowering it (engine §3.3).
+	// where the grammar's error is found while lowering it (engine §3).
 	if expect.Brackets != nil {
 		if b := Brackets(res, BracketOptions{}); b != *expect.Brackets {
 			return fmt.Errorf("brackets: expected %q, got %q", *expect.Brackets, b)
