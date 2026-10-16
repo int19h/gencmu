@@ -989,7 +989,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Normalization as a stage
 
-A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipelines place it after phonemes and before forms. It tests a value and tag together. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
+A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipelines place it after phonemes and before forms. It tests a value and tag together. [The normalization grammar](../grammars/phonemes/normalize.md) defines token preservation through the ordinary [stage rules](engine.md#1-tokens).
 
 ```jbogenbau
 %stage normalize

@@ -8,7 +8,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. Both CLL dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. The `cll-ebnf`, `kihei`, and `bpfk` dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -152,9 +152,8 @@ A tag is a tense or modal phrase. The BPFK recorded one decision on syntax, and 
 
 ### Indicator boundaries and NAI
 
-CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The [BPFK section "Digressives", revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+The [indicator document](../indicators/cll.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../indicators/cll.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
 This dialect departs from [camxes-std](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L343-L1100) on NAI attachment. camxes-std lets UI and CAI clauses recursively take more indicators before their following optional NAI. Repeated NAI can therefore close successive indicator levels. The difference changes both acceptance and negation scope, in attached and leading runs.
 
@@ -180,15 +179,7 @@ A tanru unit is a component of a selbri. camxes-std tries the plain connective b
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
-[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
-
-[^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
-
-[^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
-
 [^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
-
-[^cll-e19-67]: [CLL 1.1, section 19.12, example 19.67](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html#c19e12d2).
 
 [^cll-e8-48]: [CLL 1.1, section 8.6, example 8.48](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-descriptors.html#c8e6d2).
 

@@ -140,9 +140,8 @@ In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails af
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
-CLL[^cll-s21-1] writes `LU text`, whose initial indicators modify what follows under the text-initial exception of CLL[^cll-s13-9]. Indicators after `lu` therefore begin quoted content. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` scope over the whole bracketed remark. The ["Digressives" section, revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) of the BPFK, the Lojban language planning committee, defines `to'i` as "Equivalent to {to sa'a}". These sources support attachment after `to` and `to'i` to the opener.
+The [indicator document](../indicators/cll.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../indicators/cll.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
-The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation. A quoted text takes the same start as a whole text. CLL[^cll-s21-1] permits initial names or indicators, but not both.
 
 `late-elision` and `elision-only` together interpret note 10 of CLL[^cll-s21-1]. That note permits an omitted terminator when no grammatical ambiguity results.
 
@@ -154,17 +153,11 @@ Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
-[^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
-
-[^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
-
 [^cll-s14-14]: [CLL 1.1, section 14.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-non-logical-connectives.html).
 
 [^cll-s14-10]: [CLL 1.1, section 14.10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-multiple-compound-bridi.html).
 
 [^cll-s14-18]: [CLL 1.1, section 14.18](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-sumtcita.html).
-
-[^cll-e19-67]: [CLL 1.1, section 19.12, example 19.67](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html#c19e12d2).
 
 [^cll-e8-48]: [CLL 1.1, section 8.6, example 8.48](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-descriptors.html#c8e6d2).
 

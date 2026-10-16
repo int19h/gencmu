@@ -1,6 +1,6 @@
 # The word stream
 
-This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
+This document defines the word stage of cll-ebnf, kihei, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

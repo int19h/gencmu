@@ -440,30 +440,9 @@ The extension also supplies its own `%emits`. Without `:: Stressed`, the extensi
 
 ## Normalize through grammar
 
-Keep normalization after phonemes and before forms. This inherited pipeline already defines `normalize`. The example uses `%redefine-stage` to replace that stage. An independent pipeline creates it with `%stage`. Write `Stressed` on the mapping that creates each stressed value. Keep inherited tags on forwarding-only extensions.
+The inherited pipeline defines `normalize` after phonemes and before forms. Use `%redefine-stage normalize` to replace it, or `%stage normalize` in an independent pipeline.
 
-```jbogenbau
-%redefine-stage normalize
-%ambiguity-resolution lazy
-
-%rule text
-  [{unit}]
-
-%rule unit :- $.image
-  | "A"<Stressed> := "a"
-  | "E"<Stressed> := "e"
-  | "I"<Stressed> := "i"
-  | "O"<Stressed> := "o"
-  | "U"<Stressed> := "u"
-  | "Y"<Stressed> := "y"
-  | ","<Syllable-Break> := ""
-  | _<¬Stressed ¬Syllable-Break>
-%emits
-```
-
-The rule-level image recipe preserves written images. Every mapping retains its input tags through single-symbol inheritance. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
-
-Make sure that every token with a mapped tag has a supported value. An unmapped stressed value fails normalization. Group a comma run into one comma token before this stage. Forms reads syllable boundaries through `Syllable-Break` even when the comma value is empty.
+[The normalization grammar](../grammars/phonemes/normalize.md) defines the mappings and token preservation. [Engine §1](engine.md#1-tokens) defines stage-zero decomposition and token fields.
 
 ## Place recipes for parents
 
@@ -504,158 +483,23 @@ This parent emits `xb`. An alternative recipe serves only that alternative. An i
 
 ## Quote images
 
-Each finished quote emits one token with its opening class. Indicators after it and BAhE before it mark the whole quote. The word-stage tree keeps its internal structure.
-
-A delimited quote uses `:- $.source-text` on its whole rule and `%emits $`. Its source interval contains the body and both delimiters. This image keeps original case, spacing, and hesitation.
-
-An undelimited payload can end with characters that no stage-input token covers. Its verbatim image includes those characters. The opener uses source text alone, so it takes no punctuation from the preceding word.
-
-The single-run quote reads its payload's image recipe through `.emitted.image`:
-
-```jbogenbau
-%rule single-word-quote
-  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text $r.emitted.image
-  | $m:single-marker $g:zohoi-gap $s:zohoi-payload
-      :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
-%conditions
-  Run-Final ⊆ $r.last-token.tags,
-  Run-Final ⊆ $s.last-token.tags,
-  Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
-%emits
-  $
-
-%rule zohoi-payload :- $.verbatim-text
-  | payload-token
-  | zohoi-payload payload-token
-```
-
-The image can extend beyond the token's source interval. The value still concatenates normalized, decomposed parts. A covering compound receives the quote's image recipe.
-
-An empty delimited body contributes no value. Its quote still shows its full source spelling. Different evaluated spans cannot claim the same uncovered text.
+[The word stream](../grammars/words/stream.md#quotes) defines quote values, images, and boundaries. Its [raw payload rules](../grammars/words/stream.md#raw-payloads) explain verbatim images and `.emitted.image`.
 
 ## Carry decisions through tags
 
 The gap-tag invariant governs facts that recipes cannot inspect. If a recipe needs a branching decision, compute that fact during recognition and carry it upward as a tag. State the tag's origin, forwarding rules, readers, and end in grammar prose.
 
-A gap is a run between lexical parts. `Gap-Pause` means that a run contains a surviving pause. Erased children never introduce it. `Trailing-Pause` means that a survivor's compound contribution already ends with one space. These tags are internal grammar marks, not engine tags.
+[The spacing rules](../grammars/words/stream.md#spacing-and-hesitation) define `Gap-Pause` and its surviving pauses. [The compound rules](../grammars/words/stream.md#compounds) define the origin, forwarding, readers, and end of `Trailing-Pause`.
 
 Do not replace a disjunctive condition with overlapping alternatives. A token can carry both tested classes and then acquire two derivations. Use a condition such as `$b.classes ∩ $SU-STOPS ≠ ∅` for any-of membership.
 
-## Group quote gaps
+## Word-stage rules
 
-Inside lo'u and lo'ai, erasure words are quoted words. The quote recognizer executes no erasers. Ordinary hesitation contributes no word or normalized value, as the Magic Words model requires. The quote image keeps that whitespace's written spelling.
+[Shared word gaps](../grammars/words/stream.md#shared-word-gaps) distinguish hesitation, pauses, and empty gaps inside quotes. [Compounds](../grammars/words/stream.md#compounds) define gap classification for BU and ZEI.
 
-```jbogenbau
-%rule quiet-gap
-  | hesitation
-  | quiet-gap hesitation
+[SA and SU erasure](../grammars/words/stream.md#erasure-by-sa-and-su) defines surviving boundary units. The compound rules describe their trailing-space state and its end.
 
-%const $PAUSE " "
-
-%rule pause-gap
-  [quiet-gap] PAUSE [hesitations [PAUSE]] := $PAUSE
-
-%rule word-gap
-  | ε
-  | quiet-gap
-  | pause-gap
-
-%rule lohu-quote :: $m.tags :- $.source-text
-  | $m:lohu-marker word-gap lohu-stream word-gap lehu-marker
-  | $m:lohu-marker word-gap lehu-marker
-%emits
-  $
-
-%rule lohu-stream
-  | lohu-word
-  | lohu-stream pause-gap lohu-word
-  | lohu-stream quiet-gap lohu-word
-  | lohu-stream lohu-word
-```
-
-`PAUSE` marks the first surviving pause of a nonempty pause run. `quiet-gap` contains no surviving pause and contributes empty concatenation. `pause-gap` contributes `$PAUSE`, the value of a pause token. Only `word-gap` permits an empty run. `lohu-stream` has a separate no-gap route.
-
-Use the same partition for lohai streams and quote edges. Preserve their marker-only alternative without adding another empty-body route. Delimiter and single-word quote gaps keep their own hesitation conditions. An erasure-aware gap inside lo'u incorrectly removes quoted `si`.
-
-## Classify compound gaps
-
-Compound recognition retains spacing, skipped text, and erasures before BU and ZEI. The following tag clauses classify surviving pauses without changing those recognition routes:
-
-```jbogenbau
-%rule hesitations
-  | hesitation :: ∅
-  | $h:hesitations PAUSE hesitation :: Gap-Pause
-  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
-
-%rule spacing
-  [$p:PAUSE] [$h:hesitations [$q:PAUSE]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
-
-%rule erasures
-  | erasure :: ∅
-  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
-
-%rule skipped
-  $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
-
-%rule compound-gap
-  | skipped<¬Gap-Pause>
-  | skipped<Gap-Pause> := $PAUSE
-
-```
-
-`hesitations` and `spacing` introduce `Gap-Pause` only for surviving pauses. `erasures` and `skipped` forward it while ignoring erased children. `compound-gap` and `su-survivor` read it. Their complementary tests admit each skipped derivation once.
-
-Put `compound-gap` before BU and before ZEI. Put `word-gap` after ZEI. It reads the same ordinary spacing as quote gaps and executes no erasure. Do not insert a space unconditionally. The form `abu` has no pause and keeps no space.
-
-## Preserve SU survivors
-
-In BPFK and experimental, SU can stop at a boundary such as ni'o. A survivor groups that boundary with its erased tail. Its pause can lie before the erased SU while another pause follows it. Carry that spacing state through `Trailing-Pause`.
-
-```jbogenbau
-%rule su-survivor := $b.emitted.value :- $b.emitted.image
-  | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
-  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value $PAUSE :- $b.emitted.image $PAUSE
-  | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
-%conditions
-  $b.classes ∩ $SU-STOPS ≠ ∅
-
-%rule suppressed-gap
-  skipped := ""
-
-%rule lerfu-word :: Word BY ∪ (Fault ∩ $u.tags)
-  | $u:unit<¬Trailing-Pause> compound-gap bu-word
-  | su-boundary? $u:unit<Trailing-Pause> suppressed-gap bu-word
-%emits
-```
-
-`su-survivor` introduces `Trailing-Pause` when it adds a surviving space. `unit` forwards that tag. BU and ZEI compounds read it and suppress their next gap's string. They retain the gap's tree parts for ownership. Their output does not forward the state.
-
-Use the same two-way left-unit division in `zei-compound`. The final word after ZEI ends the trailing state. Preserve feature gates and the boundary-class condition. Zantufa's SU-letter rule has no survivor behavior.
-
-The survivor has no `%emits`. When it stands alone, the emission walk forwards only its base's token. Its trailing recipe applies only inside a covering compound. `ni'o su bu` therefore has one space, while `ni'o subu` retains the earlier surviving space.
-
-## Read foreign runs
-
-`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quote keeps its own value policy, and its image is the source text of the whole quote.
-
-Use names that state each recognizer's role:
-
-| Stage | Rule | Recognizes |
-| --- | --- | --- |
-| Phonemes | `non-lojban-char-run` | A whole run with a character outside the orthography |
-| Phonemes | `non-lojban-char` | One such character |
-| Phonemes | `chars-with-non-lojban-char` | Characters containing at least one such character |
-| Forms | `foreign-token` | One forwarded FOREIGN token |
-| Forms | `unsegmentable-run` | A run with no valid word division |
-| Forms | `word-run` | A whole run divided into valid words |
-| Forms | `phoneme-sequence` | Phonemes without the whole-run boundary test |
-
-A run extends between pauses. A helper that can match only part of one uses `sequence` or `chars`. A foreign run is legal only in the quote and post-fa'o positions specified by the word grammar.
-
-Y delimiter keys use fixed tags `Y-Key` and `Ieho`. A grammar never constructs a tag name from input text. Longer raw y runs receive neither key tag. Values remain available for exact string comparisons.
+[The Latin phoneme grammar](../grammars/phonemes/latin.md#punctuation) defines non-Lojban character runs. [The forms grammar](../grammars/words/forms.md#runs) defines foreign tokens and unsegmentable runs. [Closing delimiter runs](../grammars/words/stream.md#closing-delimiter-runs) define the fixed Y keys.
 
 ## Other changes
 
@@ -697,7 +541,7 @@ A warning guard, `name!`, reports an addition when enabled. It does not change w
 
 ## Common mistakes
 
-These reproductions create temporary files at the repository root. The recorded errors use `/build/gencmu/worktrees/howto` as that root. Your errors will name your own path.
+These reproductions create temporary files at the repository root. The recorded errors use `/path/to/gencmu` as that root. Your errors will name your own path.
 
 ### A missing include
 
@@ -720,7 +564,7 @@ node lib/js/cli.js parse --pipeline missing-include.md "broda"
 The command exits with `2`:
 
 ````text
-gencmu: /build/gencmu/worktrees/howto/missing-include.md:2:1: /build/gencmu/worktrees/howto/grammars/dialects/missing.md was not found (/build/gencmu/worktrees/howto/missing-include.md → /build/gencmu/worktrees/howto/grammars/dialects/missing.md)
+gencmu: /path/to/gencmu/missing-include.md:2:1: /path/to/gencmu/grammars/dialects/missing.md was not found (/path/to/gencmu/missing-include.md → /path/to/gencmu/grammars/dialects/missing.md)
 ````
 
 If you see `was not found`, correct `%include` relative to its containing document. Before you select its stages, include the base dialect.
@@ -749,7 +593,7 @@ node lib/js/cli.js parse --pipeline wrong-stage.md "broda"
 The command exits with `2`:
 
 ````text
-gencmu: /build/gencmu/worktrees/howto/wrong-stage.md:4: %extend-rule paragraph extends a rule that is not defined before it
+gencmu: /path/to/gencmu/wrong-stage.md:4: %extend-rule paragraph extends a rule that is not defined before it
 ````
 
 If you see this error, replace `%extend-stage forms` with `%extend-stage syntax`. A stage can only extend its own existing rules.

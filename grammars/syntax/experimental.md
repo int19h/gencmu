@@ -1045,7 +1045,7 @@ The corpus records these examples that camxes-exp accepts and this layer rejects
 
 - `mi pe na klama` places a bare NA before a selbri.
 - `broda be pu brode` places a bare tag before a selbri.
-- `not canada` places a bare tag before NA.
+- `not canada` divides into `not ca na da` and places the bare tag `ca` before NA.
 - `ze'u na do tavla` places a bare tag before NA.
 - `na to mi toi .e do` places a bare NA before a connective.
 - `.i lei za'u da ba na ku curmi le nu mi'ai klama lo nenri be le purdi` places a bare tag before NA.

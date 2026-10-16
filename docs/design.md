@@ -24,12 +24,16 @@ index.html                 web playground, which GitHub Pages can serve from the
 playground/                playground scripts and styles, relative paths only
 grammars/                  the grammar documents, the single source of truth
   phonemes/                characters to phonemes: latin-experimental, cyrillic-experimental, latin-strict, latin, cyrillic, cyrillic-cll, zbalermorna
-  words/                   phonemes to words: forms, shapes, families, lexicons, stream
+  words/                   word forms, shapes, lexicons, stream, quotes, erasure, and dialect extensions
+  phonemes/normalize.md    normalized comparison values, with written images preserved
   indicators/              the non-formal indicator and ba'e rule
   syntax/                  the syntax grammars
   notation/                the grammar of the notation itself, and its bootstrap
   dialects/                pipeline documents: cll-ebnf, kihei, bpfk, experimental, zantufa, notation
 docs/
+  design.md                design choices and their reasons
+  dialects.md              the dialect author guide
+  experimental-cmavo-evidence.md  evidence for the experimental lexicon
   notation.md              the grammar notation, for grammar authors
   engine.md                the engine specification, for implementers
   api.md                   the library API, per language
@@ -235,7 +239,7 @@ A maintainer changes the notation in its documents, and `tools/sync.js` regenera
 
 `docs/engine.md` specifies the search (§8), the walk rule by rule (§9) and the restrictions (§9).
 
-Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The grammar text of the bundled documents is about 160 KB. A character-level stage reads it quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
+Grammar authors get the same diagnostics for a malformed grammar as for a malformed Lojban text. The playground can also show how a grammar document parses. The cost is load time. The bundled Markdown grammar documents total about 750 KiB, including prose and diagram links. A character-level stage reads it quickly in Rust and JavaScript but slowly in pure Python. So every package ships, beside its grammar copy, the DOM of each bundled document as JSON.
 
 The key of a DOM has four parts:
 
@@ -250,7 +254,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Normalization is a stage
 
-The Lojban normalization stage stands after phonemes and before forms. Each mapping tests both a value and its tag. The normalization stage keeps each token's order, count, text, image, tags, source and attachments, and changes only values that it maps. Spans follow the ordinary stage rule: they use the stage's own input coordinates. A covering emission loses `insertedBy` under the ordinary covering rule.
+The Lojban normalization stage stands after phonemes and before forms. Each mapping tests both a value and its tag. [The normalization grammar](../grammars/phonemes/normalize.md) defines token preservation through the ordinary [stage rules](engine.md#1-tokens).
 
 ```jbogenbau
 %stage normalize
@@ -682,11 +686,11 @@ Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked.
 
 ## Indivisible numbers and letter strings
 
-Both CLL dialects use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
+The `cll-ebnf`, `kihei`, and `bpfk` dialects use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
 The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation.
 
-Both CLL dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. This policy interprets CLL 1.1 section 21.2 note 10. Number and letter boundaries follow CLL 17.9 and 18.6.
+The `cll-ebnf`, `kihei`, and `bpfk` dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. This policy interprets CLL 1.1 section 21.2 note 10. Number and letter boundaries follow CLL 17.9 and 18.6.
 
 ## Lexicons
 
@@ -789,9 +793,6 @@ The product provides these diagnostics and debugging tools:
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
 - The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
-- Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
-- Each boundary-atom target that only a nested query can build. Outside queries, the atom always gets its default answer there. This entry is a note too.
-
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
   Four kinds of note can follow. `empty` marks a family that permits nothing. `never-omitted` marks a permitted optional whose omission predicate can never hold. `inert-member` marks a member other than the family rule that owns no elidable optional and has no member edge. `unnamed-member` marks a member other than the family rule that no rule outside the family names in its body. A name in a condition, a tag clause or an emission does not count.
@@ -803,6 +804,11 @@ The product provides these diagnostics and debugging tools:
   Each note has `kind`. `never-omitted` also carries the permitted optional's fields. `inert-member` and `unnamed-member` also carry `rule`. `empty` comes first. Each member then supplies its `never-omitted` notes in optional order, followed by its `inert-member` note. The `unnamed-member` notes come last, in closure order.
 
   The printed report shows the gated memberships and those that more than one entry changes. A condition that applies to no alternative is a grammar error, not an audit finding.
+
+The audit also reports these boundary notes:
+
+- Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
+- Each boundary-atom target that only a nested query can build. Outside queries, the atom always gets its default answer there. This entry is a note too.
 
 ## CLI and playground
 
@@ -910,7 +916,7 @@ A corpus case can include provenance fields, `seeded` and `reason`. The reason s
 
 Update a case's expectations in the same commit as the grammar change that affects them. Explain the expectation in the commit message. Changes to `words` or `brackets` need no additional field.
 
-Every library runs the whole corpus. On a pull request, a core of about 3,520 cases (`tests/core.txt`) runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
+Every library runs the whole corpus. On a pull request, the core cases in `tests/core.txt` runs in every language. It is a sample, together with the cases that pin the texts that the grammar documents quote. Rust and JavaScript also run the whole corpus there. All four languages run the whole corpus nightly and before a release, sharded if Python needs it. No language is permanently exempt.
 
 ## CI
 
