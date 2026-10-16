@@ -80,7 +80,7 @@ A free modifier can stand between `.i` and an ek. Then the ek can still be a fra
 
 The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps `do` inside the vocative. Empty paragraphs can separate runs, as in `ni'o coi ni'o coi`. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
 
-`paragraph-break` collects the topic runs between nonempty paragraphs. Nonempty free modifiers separate its adjacent NIhO runs, so one run cannot split at an empty free slot. A final free slot can follow the last run. `leading-separators` collects the ordinary text-leading `.i` forms, both before an initial break and after any break.
+`paragraph-break` collects the topic runs at one paragraph boundary. It can precede the first paragraph, separate two paragraphs, or follow the last paragraph. Nonempty free modifiers separate adjacent NIhO runs, so one run cannot split at an empty free slot. A free slot follows each run group, including the group before the I transition. `leading-separators` collects the ordinary text-leading `.i` forms, both before an initial break and after any break.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
@@ -742,7 +742,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 The layer reads mekso with the rules below. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
 - A number starts with PA, `ni'e` selbri or `mo'e` sumti. It continues with those parts or lerfu words. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one lerfu string, and `li pa by` is one number.
-- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression or a reverse Polish expression. A bare joik, jek or ek needs PEhO as a forethought operator. Other operator forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
+- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
 - Plain operator connections use `plain-connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
@@ -754,7 +754,7 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 
 `mekso-fragment` admits a standalone mathematical expression after the sumti and predicate tests. `quantifier` uses that expression to quantify a sumti. In that position, an initial forethought operator needs PEhO, or the expression needs VEI brackets. Thus `su'i re prenu cu klama` starts with a connective, while `lo su'i re prenu` fails. Both `pe'o su'i re prenu cu klama` and `vei su'i re ve'o prenu` retain their quantified readings. The fragment in `mi klama .i su'i pa` needs neither marker because it quantifies no sumti.
 
-The quantifier condition tests the selected tree's first-child path. A reference prefix stops that path before its operand. Thus LAhE and NAhE references remain possible, even without written LUhU.
+The quantifier condition tests the selected tree's first-child path. A reference prefix stops that path before its operand. Thus LAhE and NAhE references can quantify a sumti, even without written LUhU.
 
 `mex` is the chain of operators itself, a left chain. So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
 
@@ -1073,7 +1073,7 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. Real texts write `.i` after `ni'o`, as in 13 audit lines. The break accepts every text-leading form, such as `ni'o .ije`.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. Real texts write `.i` after `ni'o` and its free modifiers, as in 16 audit lines. The break accepts every text-leading form, such as `ni'o .ije`.
 
 Thus `ni'o coi do .i mi klama` keeps `do` in the vocative. Neither printed CLL nor camxes-exp provides that separator position. Printed CLL instead shortens the vocative and reads `do` as a fragment before `.i`. camxes-exp rejects that text at `klama`.
 
@@ -1143,7 +1143,9 @@ CLL permits PA words inside a letter string and lerfu words inside a number.[^cl
 
 A written BOI permits a number or letter string to end before another continuing word. Without it, the sequence consumes every continuation. CLL example 17.27 writes `xy. boi ro prenu cu prami` to separate the letter argument from the quantifier.[^cll-e17-27]
 
-CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text. A bare joik, jek or ek instead needs PEhO, because CLL has no such operator form. The first-child pattern excludes exactly that bare form, while converted, grouped and connected operators retain omitted PEhO.
+CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text.
+
+CLL has no bare joik, jek or ek operator unit. Here an operator that begins with such an unconverted, ungrouped unit needs PEhO, including a connection with that leftmost unit. Converted or grouped initial units permit omitted PEhO. The first-child pattern states that boundary.
 
 An initial forethought operator in a sumti quantifier needs written PEhO or VEI brackets, so `lo su'i re prenu` fails. Neither CLL nor camxes-exp admits that unmarked quantifier. This restriction keeps `su'i re prenu cu klama` as an initial connective followed by a quantified description and its predicate. A standalone fragment quantifies no sumti, so this layer accepts `mi klama .i su'i pa`. camxes-exp requires PEhO there, while CLL permits only a number or VEI group as a mathematical fragment.
 
