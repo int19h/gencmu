@@ -585,6 +585,10 @@ export type Production = {
     sourcePrivate?: Set<string>;
     contextual?: boolean;
     rankedDeferred?: Condition[];
+    /**
+     * effective conditions across static ranked entry contexts
+     */
+    rankedConditions?: ReadyCondition[];
     parentTags?: Term;
     lexicalFrame?: any;
     closeRequested?: boolean;
@@ -1240,6 +1244,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Set<string>} [sourcePrivate]
  * @property {boolean} [contextual]
  * @property {Condition[]} [rankedDeferred]
+ * @property {ReadyCondition[]} [rankedConditions] effective conditions across static ranked entry contexts
  * @property {Term} [parentTags]
  * @property {any} [lexicalFrame]
  * @property {boolean} [closeRequested]

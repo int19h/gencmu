@@ -1269,8 +1269,7 @@ struct Run<'t, 'g> {
 
 impl<'t, 'g> Run<'t, 'g> {
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>) -> Run<'t, 'g> {
-        let mut chart = Chart::default();
-        chart.boundary_root = Some(start);
+        let mut chart = Chart { boundary_root: Some(start), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
             jump: 0,

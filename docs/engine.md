@@ -2261,7 +2261,7 @@ Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the 
 
 Quote spacing groups each surviving pause run into one gap. Compound spacing classifies existing erasure-aware derivations with Gap-Pause. SU survivor recipes use Trailing-Pause to avoid duplicating a gap across constituent boundaries. These structural rules preserve attachment ownership independently of their images. The dialect guide states each tag's origin and end.
 
-Parse-result format 12 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
+Parse-result format 13 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
 The following texts pin value, image, and recognition boundaries. `Five` names `bpfk`, `cll-ebnf`, `experimental`, `kihei`, and `zantufa`. The verdict column describes the word stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
