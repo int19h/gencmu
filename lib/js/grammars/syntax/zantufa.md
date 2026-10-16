@@ -45,7 +45,7 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 The word stage marks individually quoted words and delimiters with `Word`. It marks a quote body emitted as one token with `Quoted-Text`.
 
-A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified higher proof excludes a lower proof over the same span when its open boundary facts dominate. It must carry no extra pending literal and the same neighbor names at each edge.
+A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs.
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag.
 
@@ -148,7 +148,7 @@ The opener's slot takes every leading free modifier after TO. These modifiers re
 
 A statement can take terms after it, which `i'au` can introduce (`statement-terms`). A forethought connection of statements has any number of `gi` branches and an optional `gi'i`. `.i` with a connective, or with a connective or a tense or modal and `bo`, joins a statement to the one before it. So a text cannot begin that way.
 
-The NA and mekso fragment conditions test actual following nodes in the complete tree. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
+The fragment conditions parse the following words to reserve possible terms, sumti, or selbri. A `na` fragment cannot have terms or `ku` after it. A terms fragment cannot have a following mekso.
 
 Terms and mekso fragments use ordinary alternatives. The aligned whole query excludes a mekso when the same words and closes form an eligible terms fragment. `fragment-terms` applies the terms restrictions without adding the fragment's own VAU. This preserves connected, grouped, and recursively wrapped letters, including `my jo'u gy` and `la'e my jo'u gy`.
 
@@ -213,10 +213,12 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   | links
   | linkargs
 %conditions
-  ¬$n.followed-by(terms | KU),
+  ¬$n.following-tokens.begins(terms),
+  KU ⊈ $n.following-tokens.first-token.tags,
   ¬$t.following-tokens.begins(mex),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬$m.followed-by(sumti-5 | selbri),
+  ¬$m.following-tokens.begins(sumti-5),
+  ¬$m.following-tokens.begins(selbri),
   ¬$m.without-elision.matches(fragment-terms)
 
 %rule fragment-terms
@@ -366,7 +368,7 @@ A tag with a sumti argument has its own alternative. GI cannot follow that actua
 
 A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` and `mi klama pu ke my .e gy roi` keep one tag run.
 
-After a bare tag, a boundary condition tests actual tag units, selbri, or forethought bridi-tails. Other boundary conditions test following predicate nodes after `fa-jai` and the NA clause of `brigahi`. The GI, BO, free-modifier and connective queries keep their separate parsing rules.
+The following-input queries reserve possible tag units and predicates, including readings outside the chosen tree. GI, BO, and KU tests inspect the next token's selma'o. Free-modifier and connective tests use queries.
 
 The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
@@ -418,7 +420,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | POIhA # selbri [+KU #]
   | $n:na-clause [+KU #]
 %conditions
-  ¬$n.followed-by(bridi-tail),
+  ¬$n.following-tokens.begins(bridi-tail),
   ¬$n.following-tokens.begins(joik-gihek)
 
 %rule tag-term
@@ -429,29 +431,25 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | $t:tag [+KU #]
   | $f:fa-jai [+KU #]
 %conditions
-  ¬$a.following-tokens.begins(gi-word),
+  GI ⊈ $a.following-tokens.first-token.tags,
   ¬$s.without-elision-except(math).onward.begins(tcita-selci),
-  ¬$t.following-tokens.begins(gi-word),
+  GI ⊈ $t.following-tokens.first-token.tags,
   ¬$t.following-tokens.begins(free),
-  ¬$t.followed-by(tcita-selci | selbri | gek-bridi-tail),
-  ¬$t.following-tokens.begins(bo-word),
-  ¬$f.followed-by(tanru-unit-1)
-
-%rule gi-word
-  GI
+  ¬$t.following-tokens.begins(tcita-selci),
+  ¬$t.following-tokens.begins(selbri),
+  ¬$t.following-tokens.begins(gek-bridi-tail),
+  BO ⊈ $t.following-tokens.first-token.tags,
+  ¬$f.following-tokens.begins(tanru-unit-1)
 
 %rule fa-jai
   {FA # / joik} | JAI # [tag]
-
-%rule bo-word
-  BO
 
 %rule gek-term
   (* gek_term <- gek term+ (gik term+)+ GIhI_elidible *)
   gek {term} {gik {term}} [+GIhI #]
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>terms</code> to <code>gek-term</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>terms</code> to <code>gek-term</code></summary>
 <p><img src="../../docs/diagrams/syntax/zantufa/terms.svg" alt="Railroad diagram of the rule terms"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/term-link.svg" alt="Railroad diagram of the rule term-link"></p>
@@ -460,9 +458,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
 <p><img src="../../docs/diagrams/syntax/zantufa/term-2.svg" alt="Railroad diagram of the rule term-2"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/brigahi.svg" alt="Railroad diagram of the rule brigahi"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/tag-term.svg" alt="Railroad diagram of the rule tag-term"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/gi-word.svg" alt="Railroad diagram of the rule gi-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/fa-jai.svg" alt="Railroad diagram of the rule fa-jai"></p>
-<p><img src="../../docs/diagrams/syntax/zantufa/bo-word.svg" alt="Railroad diagram of the rule bo-word"></p>
 <p><img src="../../docs/diagrams/syntax/zantufa/gek-term.svg" alt="Railroad diagram of the rule gek-term"></p>
 </details>
 
@@ -756,7 +752,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 
 ## Mekso
 
-The MAhO choice ranks mekso, selbri, then sumti. The MOhE choice ranks selbri before sumti. A qualified higher operand excludes a lower proof over the same span when its open boundary facts dominate. A failed higher operand removes nothing.
+The MAhO choice ranks mekso, selbri, then sumti. The MOhE choice ranks selbri before sumti. An earlier operand can exclude a later operand over the same span, as the notation document defines. A failed higher operand removes nothing.
 
 Zantufa's mekso alternates operands and operator runs. BO and KE group them, and BIhE raises operator precedence. Reverse Polish places operators after operands and uses FUhA. Forethought places an operator before operands, with optional PEhO.
 

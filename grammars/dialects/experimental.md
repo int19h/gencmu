@@ -136,7 +136,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../syntax/experimental.md"
   ```
 
-A ranked choice orders alternatives at one written position. An earlier qualified proof excludes a later proof over the same span when its open boundary facts dominate. The [notation document](../../docs/notation.md#ranked-choices) defines that comparison. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
 

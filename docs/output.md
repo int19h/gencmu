@@ -96,7 +96,7 @@ A rejection can also name a failed boundary condition:
 
 ```json
 {"kind":"rejected","stage":"syntax","token":4,"source":[12,15],"line":1,"column":13,
- "expected":[...],"boundary":{"rule":"listed-bare-na","condition":1,"at":3},"message":"..."}
+ "expected":[...],"boundary":{"rule":"bare-na","condition":1,"at":3},"message":"..."}
 ```
 
 `boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends. `at` is the boundary where the obligation failed. Equal literals retain every source condition as an annotation, without changing record identity.

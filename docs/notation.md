@@ -763,7 +763,7 @@ The test reads the actual neighbor, which a lookahead cannot do. In the experime
   $n:NA #
 %conditions
   ¬$n.onward.begins(na-connective),
-  $.ends-input ∨ ¬($PLACE-CLOSE ∩ $.following-tokens.first-token.tags ⊆ ∅) ∨ $.followed-by(gihek | sumti)
+  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | sumti)
 ```
 
 `$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a sumti can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
