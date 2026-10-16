@@ -2133,7 +2133,9 @@ The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojb
 
 Its value is the decomposed source text, and its image concatenates the phoneme images.
 
-Quoted bodies compare by their ordinary values and display their body image recipes. `raw-tokens` and `zohoi-payload` use `.verbatim-text` for images. `empty-zoi-body` uses empty concatenation and claims no gaps. The foreign character run takes its image from its original source text. Queries and erased post-fa'o bodies run no body recipes.
+Quoted bodies compare by their ordinary values. Each finished quote emits one token. Delimited quotes use their whole source text as their images. Undelimited quotes join the opener's source text, original gap, and verbatim payload. `zohoi-payload` supplies its verbatim recipe through `.emitted.image`. Queries and erased post-fa'o bodies run no body recipes.
+
+`empty-zoi-body` uses empty concatenation for its value. The foreign character run takes its image from its original source text.
 
 Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the last y separated from preceding hesitation. A raw closing run retains every y value. A longer raw key carries neither fixed tag. No input string constructs a tag name.
 

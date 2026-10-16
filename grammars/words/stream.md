@@ -402,7 +402,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 %rule empty-zoi-body
   ε
 
-%rule zoi-body :- $.verbatim-text
+%rule zoi-body
   | [silent-before] raw-tokens [silent-after]
 
 %rule silent-before
@@ -413,12 +413,12 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   | quiet-pause Silent
   | silent-after quiet-pause Silent
 
-%rule silent-body := "" :- $.verbatim-text
+%rule silent-body := ""
   | Silent
   | silent-body PAUSE Silent
 
 %rule quiet-pause
-  PAUSE := "" :- " "
+  PAUSE := ""
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
@@ -554,12 +554,12 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 ### Raw payloads
 
-`raw-tokens` and `zohoi-payload` preserve their body images with `.verbatim-text`. Their values concatenate ordinary normalized parts.
+`raw-tokens` and `zohoi-payload` concatenate ordinary normalized values. Delimited quotes take their images from their whole source intervals.
 
-An outer body recipe stops descendant image evaluation. Recursive bodies therefore claim adjacent uncovered punctuation once. Queries and erased post-FAhO bodies run no body recipes.
+Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
 ```jbogenbau
-%rule raw-tokens :- $.verbatim-text
+%rule raw-tokens
   | any-token
   | raw-tokens any-token
 

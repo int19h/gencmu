@@ -199,7 +199,7 @@ A captured item can also carry attachments, captures in parentheses before or af
 
 The syntax reads leading indicators itself. They stand at the start of a text or after a quotation opener such as `lu`. In such a run, the indicator stage attaches only `ba'e`, to the indicator after it. A `nai` after an attitudinal stays a separate token there. The syntax reads `UI NAI`. In a run after a word, the `nai` attaches to its attitudinal instead.
 
-A body's constituent image recipe can request `$.verbatim-text`. It preserves original spelling and adjacent uncovered punctuation inside zoi quotes. Recognition still observes input values and tags. The recipe also applies inside a covering compound, because it belongs to the constituent rather than its emission item. The engine supplies no foreign placeholder value.
+A body's constituent image recipe can request `$.verbatim-text`. The single-run payload uses this recipe to preserve original spelling and adjacent uncovered characters. Its quote reads the payload's `.emitted.image`. Recognition still observes input values and tags. A covering compound also receives the quote's image recipe. The engine supplies no foreign placeholder value.
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
@@ -343,14 +343,14 @@ This classification preserves recognition alternatives instead of replacing them
 Verbatim text is original spelling with adjacent uncovered punctuation. `.verbatim-text` supplies it only in recipes. `.source-text` reads the covered source interval without that extension.
 
 ```jbogenbau
-%rule raw-tokens :- $.verbatim-text
-  | any-token
-  | raw-tokens any-token
+%rule zohoi-payload :- $.verbatim-text
+  | payload-token
+  | zohoi-payload payload-token
 ```
 
-The outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. The recipe applies inside compounds because it belongs to the body constituent. Forwarding stores the result and never reconstructs it from later neighbors.
+The payload's outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. A quote composes its image from the opener, original gap, and payload's `.emitted.image`. A covering compound receives that quote image. Forwarding stores the result and never reconstructs it from later neighbors.
 
-An empty quote body uses plain empty concatenation and takes no neighboring punctuation. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
+An empty delimited body contributes empty concatenation to the quote value. The complete delimited quote uses its source text as its image. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
 
 The image extension does not enlarge `source` or `text`. This lets quote punctuation appear without changing source provenance. Different evaluated spans cannot claim the same uncovered text. The conflict rule avoids any hidden priority between touching quoted parts.
 
