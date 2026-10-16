@@ -10,12 +10,19 @@ func boundaryRuleProblem(r *domRule) (*domCond, string) {
 			return atoms[1], "a condition item accepts only one boundary atom"
 		}
 		if len(atoms) == 1 && atoms[0].Span.Str != "" {
-			reads := map[string]bool{}
-			rankedCondReads(c, reads)
-			for name := range reads {
-				if name != atoms[0].Span.Str {
-					return atoms[0], "a boundary condition with a captured receiver reads only that capture"
+			receiver := atoms[0].Span.Str
+			mixed := false
+			walkClause(clausePart{c: c}, func(p clausePart) bool {
+				if p.t != nil && p.t.Kind == tmCapture && p.t.Str != receiver {
+					mixed = true
 				}
+				if p.c != nil && p.c.Kind == cdCaptured && p.c.Rule != receiver {
+					mixed = true
+				}
+				return !mixed
+			})
+			if mixed {
+				return atoms[0], "a boundary condition with a captured receiver reads only that capture"
 			}
 		}
 	}

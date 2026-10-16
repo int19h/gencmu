@@ -2,6 +2,7 @@ package gencmu
 
 import (
 	"reflect"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"testing"
@@ -112,5 +113,23 @@ func TestBoundaryLoadCacheDiagnostics(t *testing.T) {
 	error := plain.(*Error)
 	if error.Code != "ranked-choice-boundary" || error.Option == nil || *error.Option != 1 || !strings.Contains(string(error.Expression), `"const":"K"`) || !strings.Contains(error.Message, "Condition 2") || !strings.Contains(error.Message, "$.preceded-by(X)") {
 		t.Fatalf("%+v", error)
+	}
+}
+
+// Reading checks boundary surfaces before the DOM depth limit.
+func TestBoundaryDeepCaptureValidation(t *testing.T) {
+	defer debug.SetMaxStack(debug.SetMaxStack(1 << 20))
+	atom := &domCond{Kind: cdBoundary, Op: "followed-by", Span: &domTerm{Kind: tmCapture, Str: "x"}, Targets: []*domTerm{{Kind: tmTerminal, Str: "B"}}}
+	c := atom
+	for i := 0; i < 20000; i++ {
+		c = &domCond{Kind: cdNot, Inner: c}
+	}
+	rule := &domRule{Conditions: []*domCond{c}}
+	if _, problem := boundaryRuleProblem(rule); problem != "" {
+		t.Fatal(problem)
+	}
+	rule.Conditions = []*domCond{{Kind: cdAll, Items: []*domCond{c, {Kind: cdCaptured, Rule: "y"}}}}
+	if _, problem := boundaryRuleProblem(rule); problem == "" {
+		t.Fatal("mixed capture was accepted")
 	}
 }
