@@ -164,6 +164,9 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
+		if _, msg := boundaryRuleProblem(r); msg != "" {
+			return &domProblem{message: msg, rule: r}
+		}
 		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
 			return &domProblem{message: msg, rule: r}
 		}
@@ -1088,7 +1091,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !domName.MatchString(t.Str) && t.Str != "#") || (t.Kind == tmTerminal && (!isCapital(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && ((!domName.MatchString(t.Str) || isCapital(t.Str)) && t.Str != "#")) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed boundary target")
 				return
 			}

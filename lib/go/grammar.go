@@ -247,6 +247,9 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 			}
 		}
 	}
+	if err := g.validateBoundaryTargets(); err != nil {
+		return nil, err
+	}
 	g.resolveFamilies()
 	if err := g.makeTests(); err != nil {
 		return nil, err

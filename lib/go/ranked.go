@@ -16,30 +16,40 @@ type rankedGroup struct {
 	final           bool
 }
 type rankedGroups struct {
-	groups       []*rankedGroup
-	expressions  map[*domExpr]*rankedGroup
-	owners       map[*domExpr]*rankedGroup
-	paths        map[*domExpr]string
-	clauseErrors map[*rankedGroup]*Error
-	sourceSites  map[*sAlt]GroupSite
+	prefixCanRead func([]*domExpr) bool
+	groups        []*rankedGroup
+	expressions   map[*domExpr]*rankedGroup
+	owners        map[*domExpr]*rankedGroup
+	paths         map[*domExpr]string
+	clauseErrors  map[*rankedGroup]*Error
+	sourceSites   map[*sAlt]GroupSite
 }
 type rankedCapture struct {
 	node *domExpr
 	at   int
 }
-type rankedEnd struct{ at, option int }
+type rankedEnd struct{ at, option, start int }
 type rankedRoute struct {
+	steps    []*domExpr
+	bindings map[string]*rankedGroup
 	length   int
 	captures map[string]rankedCapture
 	ends     map[*rankedGroup]rankedEnd
 }
 
 func rankedEmptyRoute() rankedRoute {
-	return rankedRoute{captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
+	return rankedRoute{bindings: map[string]*rankedGroup{}, captures: map[string]rankedCapture{}, ends: map[*rankedGroup]rankedEnd{}}
 }
 func rankedJoin(left, right rankedRoute) rankedRoute {
 	out := rankedEmptyRoute()
 	out.length = left.length + right.length
+	out.steps = append(append([]*domExpr{}, left.steps...), right.steps...)
+	for name, group := range left.bindings {
+		out.bindings[name] = group
+	}
+	for name, group := range right.bindings {
+		out.bindings[name] = group
+	}
 	for name, capture := range left.captures {
 		out.captures[name] = capture
 	}
@@ -52,6 +62,7 @@ func rankedJoin(left, right rankedRoute) rankedRoute {
 	}
 	for group, end := range right.ends {
 		end.at += left.length
+		end.start += left.length
 		out.ends[group] = end
 	}
 	return out
@@ -85,7 +96,17 @@ func (r *rankedGroups) routes(expr *domExpr) []rankedRoute {
 		out := []rankedRoute{}
 		for option, child := range expr.Items {
 			for _, route := range r.routes(child) {
-				route.ends[r.expressions[expr]] = rankedEnd{route.length, option}
+				group := r.expressions[expr]
+				names := rankedPrivateNames(expr)
+				for nested := range route.ends {
+					for name := range rankedPrivateNames(nested.expr) {
+						delete(names, name)
+					}
+				}
+				for name := range names {
+					route.bindings[name] = group
+				}
+				route.ends[group] = rankedEnd{route.length, option, 0}
 				out = append(out, route)
 			}
 		}
@@ -107,12 +128,13 @@ func (r *rankedGroups) routes(expr *domExpr) []rankedRoute {
 	case exRepeat:
 		out := r.routes(expr.Inner)
 		if expr.Sep != nil {
-			out = rankedProduct(out, r.routes(expr.Sep))
+			out = append(out, rankedProduct(out, r.routes(expr.Sep))...)
 		}
 		return out
 	default:
 		route := rankedEmptyRoute()
 		route.length = 1
+		route.steps = []*domExpr{expr}
 		if expr.Kind == exCapture {
 			route.captures[expr.Name] = rankedCapture{expr, 1}
 		}
@@ -211,7 +233,11 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Err
 		for conditionIndex, condition := range group.source.conds {
 			original := map[string]bool{}
 			rankedCondReads(condition, original)
-			if !private(original) {
+			bindingRead := false
+			for name := range original {
+				bindingRead = bindingRead || route.bindings[name] == group
+			}
+			if !bindingRead {
 				continue
 			}
 			effective, state := simplifyCond(condition, has)
@@ -233,6 +259,11 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Err
 				if name == "" && !group.final || name != "" && route.captures[name].at > end.at {
 					return r.fail(g, group, "ranked-choice-continuation", "A private capture requires a condition ready when its ranked choice closes.").rankedDetail(end.option, rankedWrittenClause(group.source, "conditions", conditionIndex))
 				}
+			}
+			atom := firstBoundaryAtom(effective)
+			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && r.prefixCanRead != nil && r.prefixCanRead(route.steps[:end.start]) {
+				message := fmt.Sprintf("Condition %d of %s combines %s with a private capture in option %d. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.", conditionIndex+1, group.parent, boundaryAtomText(atom), end.option+1)
+				return r.fail(g, group, "ranked-choice-boundary", message).rankedDetail(end.option, rankedWrittenClause(group.source, "conditions", conditionIndex))
 			}
 		}
 		for termIndex, term := range []*domTerm{group.source.alt.Tags, group.source.ruleTags} {
@@ -342,6 +373,37 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 	return err
 }
 func (r *rankedGroups) validateTags(g *lowered) *Error {
+	var productive, nonempty []bool
+	r.prefixCanRead = func(steps []*domExpr) bool {
+		if len(steps) == 0 {
+			return false
+		}
+		if productive == nil {
+			productive, nonempty = structuralSpans(g)
+		}
+		reads := false
+		for _, step := range steps {
+			for step.Kind == exCapture || step.Kind == exTest {
+				step = step.Inner
+			}
+			if step.Kind == exRef && !isTerminalName(step.Name) {
+				id, ok := g.byName[step.Name]
+				if !ok || !productive[id] {
+					return false
+				}
+				reads = reads || nonempty[id]
+			} else {
+				reads = true
+			}
+		}
+		return reads
+	}
+	for _, group := range r.groups {
+		if err := r.validateClauses(g.stage, group); err != nil {
+			r.clauseErrors[group] = err
+		}
+	}
+
 	if g.fault != "" {
 		if g.faultLocation != nil {
 			return g.faultLocation

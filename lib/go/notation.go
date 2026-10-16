@@ -702,6 +702,9 @@ func (b *domBuilder) rule(n *Node) *domRule {
 	}
 	r.Erased = one(n, "erased-clause") != nil
 	flattenGroups(r)
+	if atom, msg := boundaryRuleProblem(r); msg != "" {
+		panic(grammarError(b.doc, atom.At, "%s", msg))
+	}
 	// The definition as a whole (§9), reported at the rule.
 	if msg := definitionProblem(r); msg != "" {
 		if b.deferEmission && deferredEmissionProblem(msg) && ruleHasRanked(r) {
