@@ -348,8 +348,6 @@ So the four runners hold the same invariants, and no library keeps a list of its
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
-[`quote-token-changes.jsonl`](quote-token-changes.jsonl) lists every changed existing corpus outcome for whole-quote tokens. Each entry names the case, changed fields, and reason.
-
 Corpus identifiers stay stable when grammar rules change.
 
 `corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
