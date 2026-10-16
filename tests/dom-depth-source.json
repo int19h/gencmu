@@ -1,0 +1,74 @@
+[
+  {
+    "description": "Reference under optionals",
+    "head": "%rule text ",
+    "prefix": "[",
+    "leaf": "A",
+    "suffix": "]",
+    "tail": "",
+    "atLimit": 256
+  },
+  {
+    "description": "Literal under optionals",
+    "head": "%rule text ",
+    "prefix": "[",
+    "leaf": "\"a\"",
+    "suffix": "]",
+    "tail": "",
+    "atLimit": 256
+  },
+  {
+    "description": "Tag test under optionals",
+    "head": "%rule text ",
+    "prefix": "[",
+    "leaf": "A<¬B>",
+    "suffix": "]",
+    "tail": "",
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern path",
+    "head": "%const $C @(",
+    "prefix": "⋮ (",
+    "leaf": "A",
+    "suffix": ")",
+    "tail": ")",
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern literal path",
+    "head": "%const $C @(",
+    "prefix": "⋮ (",
+    "leaf": "\"a\"",
+    "suffix": ")",
+    "tail": ")",
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern range path",
+    "head": "%const $C @(",
+    "prefix": "⋮ (",
+    "leaf": "\"a\"..\"z\"",
+    "suffix": ")",
+    "tail": ")",
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern interpolation path",
+    "head": "%const $C @(",
+    "prefix": "⋮ (",
+    "leaf": "\"a$(_0061)\"",
+    "suffix": ")",
+    "tail": ")",
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern tag test path",
+    "head": "%const $C @(",
+    "prefix": "⋮ (",
+    "leaf": "A<¬B>",
+    "suffix": ")",
+    "tail": ")",
+    "atLimit": 254
+  }
+]

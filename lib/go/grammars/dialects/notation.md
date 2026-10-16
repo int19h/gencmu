@@ -36,4 +36,4 @@ Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receive
   %include "../notation/syntax.md"
   ```
 
-The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 30.
+The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 31.

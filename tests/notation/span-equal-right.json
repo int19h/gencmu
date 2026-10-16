@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B%conditions $x.value= $x.first-token\n```\n",
   "expect": {
     "dom": {
-      "format": 30,
+      "format": 31,
       "rules": [
         {
           "name": "a",

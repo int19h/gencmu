@@ -952,6 +952,18 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 	case tmPattern:
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
+			switch p.Kind {
+			case "literal":
+				c.term(p.Value, d, false)
+				return ""
+			case "range":
+				for _, end := range p.Ends {
+					c.term(end, d, false)
+				}
+				return ""
+			case "wildcard":
+				return ""
+			}
 			c.term(p.Value, d+1, false)
 			if p.Op == "tags" {
 				for _, r := range p.Requirements {

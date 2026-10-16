@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 30;
+pub const DOM_FORMAT: i64 = 31;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -1450,28 +1450,28 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 | Cond::Boundary(_, span, _, _) => stack.push(Nested::Term(span)),
                 Cond::Captured(_) => {}
             },
-            Nested::Expr(_) => {}
+            // Pattern references are handled through Term::Pattern above.
+            Nested::Expr(_) | Nested::Pattern(_) | Nested::Children(_) => {}
         }
     }
 }
 
 /// The most compound nodes that may stand above a node of an expression,
 /// a term or a condition (engine §9).
-const MAX_NESTING: usize = 256;
+const MAX_NESTING: usize = DOM_MAX_DEPTH;
 
 /// A node of a DOM that the check of nesting walks.
 enum Nested<'d> {
     Expr(&'d Expr),
     Term(&'d Term),
     Cond(&'d Cond),
+    Pattern(&'d crate::patterns::Pattern),
+    Children(&'d crate::patterns::Children),
 }
 
-/// Whether a node of these parts stands below more than 256 compound nodes
-/// (engine §9), walked with an explicit stack. A compound node is an
-/// `optional`, a `repeat`, an `and`, a `choice`, a `seq`, a `capture` or a
-/// `test` in an expression; a `union`, an `intersection`, a `difference`,
-/// an `if` or a `call` in a term; and an `any`, an `all`, a `not`, an `if`,
-/// a `matches`, a `begins`, an `initial` or a comparison in a condition.
+/// Whether any DOM node exceeds the depth bound of engine §9.
+/// Literal and range wrappers keep their string terms at the same depth.
+/// All compound constructors, including pattern constructors, add one.
 fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
     let mut stack: Vec<(Nested<'d>, usize)> = roots.into_iter().map(|root| (root, 0)).collect();
     while let Some((node, depth)) = stack.pop() {
@@ -1514,17 +1514,54 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Term(then), below));
                 }
                 // A rule or a classifier that a call names is no node of it.
-                Term::Call(_, args) => stack.extend(args.iter().filter_map(|arg| match arg {
-                    Arg::Term(term) => Some((Nested::Term(term), below)),
-                    Arg::Rule(_) | Arg::Classifier(_) => None,
-                })),
-                Term::Pattern(_)
-                | Term::Str(_)
-                | Term::Tag(_)
-                | Term::EmptySet
-                | Term::Capture(_)
-                | Term::Const(..) => {}
+                Term::Call(name, args) => {
+                    // Signed requirement records are metadata, not DOM constructors.
+                    let child_depth = if matches!(name.as_str(), "requirements" | "forbid") { depth } else { below };
+                    stack.extend(args.iter().filter_map(|arg| match arg {
+                        Arg::Term(term) => Some((Nested::Term(term), child_depth)),
+                        Arg::Rule(_) | Arg::Classifier(_) => None,
+                    }));
+                }
+                Term::Pattern(pattern) => stack.push((Nested::Pattern(pattern), below)),
+                Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
             },
+            Nested::Pattern(pattern) => {
+                use crate::patterns::Pattern;
+                match pattern {
+                    Pattern::Literal(term, _) => stack.push((Nested::Term(term), depth)),
+                    Pattern::Range(a, b, _) => {
+                        stack.push((Nested::Term(a), depth));
+                        stack.push((Nested::Term(b), depth));
+                    }
+                    Pattern::Test(_, value, inner) => {
+                        stack.push((Nested::Term(value), below));
+                        stack.push((Nested::Pattern(inner), below));
+                    }
+                    Pattern::Children(children) => stack.push((Nested::Children(children), below)),
+                    Pattern::Path(_, inner) => stack.push((Nested::Pattern(inner), below)),
+                    Pattern::Union(items) | Pattern::Intersection(items) => {
+                        stack.extend(items.iter().map(|item| (Nested::Pattern(item), below)));
+                    }
+                    Pattern::Difference(a, b) => {
+                        stack.push((Nested::Pattern(a), below));
+                        stack.push((Nested::Pattern(b), below));
+                    }
+                    Pattern::Name(..) | Pattern::Terminal(..) | Pattern::Wildcard(..) | Pattern::Constant(..) => {}
+                }
+            }
+            Nested::Children(children) => {
+                use crate::patterns::Children;
+                match children {
+                    Children::Node(pattern) => stack.push((Nested::Pattern(pattern), below)),
+                    Children::Sequence(items) => stack.extend(items.iter().map(|item| (Nested::Children(item), below))),
+                    Children::Optional(inner) => stack.push((Nested::Children(inner), below)),
+                    Children::Repeat(inner, separator) => {
+                        stack.push((Nested::Children(inner), below));
+                        stack.extend(separator.as_deref().map(|separator| (Nested::Children(separator), below)));
+                    }
+                    Children::Siblings => {}
+                }
+            }
             Nested::Cond(cond) => match cond {
                 Cond::Any(items) | Cond::All(items) => {
                     stack.extend(items.iter().map(|item| (Nested::Cond(item), below)))

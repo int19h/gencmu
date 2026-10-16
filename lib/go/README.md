@@ -36,7 +36,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
-Grammar document object model (DOM) format 30 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
+Grammar document object model (DOM) format 31 supports `$x.without-elision` and `$x.without-elision-except(F)`. Both methods restore captured omitted terminators for an aligned query.
 
 A close family is a set of rules. `F` names that family through its written rule references, as [engine §2.2](../../docs/engine.md#22-close-families) defines. The family method permits extra witness closes that family members own. Each extra close needs a kept token or candidate record on each side. The query preserves every candidate close and ranked block.
 
@@ -74,7 +74,7 @@ A `Token` has `Value`, the string that recognition reads, and `Image`, the strin
 
 Stage zero applies Unicode Normalization Form D (NFD). NFD splits precomposed characters and orders their combining marks. The shared Unicode table supplies all mappings and combining classes. The engine keeps the original text and source positions. `ParseTokens` bypasses decomposition.
 
-Grammar documents use the same decomposition. Written strings decompose, but interpolated constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 30. The fingerprint is the FNV-1a hash of the table text.
+Grammar documents use the same decomposition. Written strings decompose, but interpolated constants keep their exact scalars. Include paths keep their original spelling. The `.decomposed-source-text` method decomposes the original source text of a span. The cache identity includes the document hash, bootstrap hash, Unicode table fingerprint, and DOM format 31. The fingerprint is the FNV-1a hash of the table text.
 
 A `Token` also has its attachments, `Before` and `After` (engine §11). These are tokens that belong to it and that no later stage reads, such as the indicators after a word. They are nil when there are none. An attached token has no span: its `Span` is zero, and the canonical JSON leaves it out.
 

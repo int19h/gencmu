@@ -219,9 +219,17 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 30. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 31. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
+
+## DOM depth cases: `dom-depth.json` and `dom-depth-source.json`
+
+The shared depth cases pin the compound-ancestor count of [engine §9](../docs/engine.md#9-reading-a-grammar-document). They cover recursive DOM forms, leaves, cross-form transitions, and independent declaration and emission roots.
+
+Each DOM case supplies an envelope without `format`, a `leaf`, a `wrapper`, and `atLimit`. The envelope and wrapper each contain one string placeholder, `$inner`. A runner wraps the leaf `atLimit` times and substitutes the result into the envelope. It supplies the current DOM format. The resulting DOM must pass, and one additional wrapper must fail because of depth.
+
+The source cases give `head`, `prefix`, `leaf`, `suffix`, and `tail`. A runner repeats each prefix and suffix `atLimit` times around the leaf, then adds the head and tail. It surrounds that text with a jbogenbau fence. That document must read, and one additional repetition must fail because of depth. Source cases also cover signed tag tests and pattern terms under their enclosing constructors.
 
 ## Growth cases: `growth.json`
 

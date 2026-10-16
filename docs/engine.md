@@ -1771,20 +1771,25 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - A bare name that does not begin with a capital is an error where a value is needed. Such a name is a rule or a classifier. A rule name is legal in `.tags`, `.matches`, `.begins`, `.without-elision-except`, `.followed-by`, and `.preceded-by` arguments. A classifier name is legal only in `.classify`.
 - `.matches`, `.begins`, `.starts-input`, `.ends-input`, `.followed-by` or `.preceded-by` as a value term is an error.
 - An `&` of more than 16 items is an error.
-- An expression, a term or a condition nested more than 256 deep is an error. That is, in the DOM (docs/output.md), a node of one lies below more than 256 compound nodes of it. In an expression, the compound nodes are `optional`, `repeat`, `and`, `choice`, `seq`, `capture` and `test`. The `separator` of a `repeat` counts on from the depth of the `repeat`, as its `repeat` member does. In a term, they are `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, and `method`. In a condition, they are `any`, `all`, `not`, `if`, `method`, and a comparison.
+- A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
-  The condition of a guarded term counts on from the term's depth, as a comparison's terms count on from the condition's. A test's value counts on from the test's depth in the same way. `( )` makes no node, so it adds nothing. So 256 nested `[ ]` or `{ }` around a symbol are allowed, and 257 are not. The reader reports this error at the first item, in the order of the document, that holds such a node. That item is a rule, a constant definition or an implication.
-- A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
-- An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
-- A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
-- A bare range or property is not an emission item. Capture its matched symbol or insert with `ε` and explicit clauses.
-- `:: ∅` is a legal item tag clause. Strings and `_` can read the resulting ordinary token.
-- An attachment (§11) that holds `$` is an error, reported at the attachment. An attachment holds a named capture.
-- An attachment on a `$` item or on an inserted item is an error, reported at the item. Only a named capture carries attachments. So a constituent never attaches to itself.
-- A capture other than `$` named twice in one emission, as an item or as an attachment, is an error. So an attachment capture is never an item of its own.
-- A rule's or an alternative's tag term that reads the tags that it defines is an error: `$.tags` or `$.classes` in it. `$.first-token.tags` and the like read the tokens' tags, not the constituent's, and are allowed, as is `$.tags(R)`.
-- An unknown directive or keyword is an error. The syntax grammar already refuses it.
-- A directive with the wrong operands is an error, reported at the directive. `%stage`, `%extend-stage`, and `%redefine-stage` take one name. `%include` takes one include path, and `%features` takes one or more feature names as §9.1 defines them. `%ambiguity-resolution` takes a ranking name and optionally `elision-only`.
+  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. `concat` occurs only at a recipe root.
+
+  | Form | Depth of its children |
+  | --- | --- |
+  | Expression `seq`, `choice`, `ranked`, `and`, `optional`, `repeat`, `capture`, or `test` | Parent depth plus one |
+  | Expression `literal` or `range` | Parent depth for the string term or each endpoint |
+  | Term `union`, `intersection`, `difference`, `if`, `interpolate`, `concat`, `method`, or `pattern` | Parent depth plus one |
+  | Condition `any`, `all`, `not`, `if`, `method`, or comparison | Parent depth plus one |
+  | Pattern `union`, `intersection`, `difference`, `children`, path, or `test` | Parent depth plus one |
+  | Pattern `literal` or `range` | Parent depth for the string term or each endpoint |
+  | Pattern children `sequence`, `optional`, `repeat`, or `node` | Parent depth plus one |
+
+  A repeat's item and separator have the same depth. A test's target and operands count from the test's depth. A guarded term's condition and result count from the term's depth. A method's receiver and term arguments count from the method's depth. Rule, terminal, and classifier name arguments add no node. A `pattern` term adds one before its pattern's root, and each subsequent pattern constructor continues that count.
+
+  Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. Condition `captured` is a leaf. Pattern `name`, `terminal`, `constant`, and `wildcard`, and children `siblings`, are leaves. A literal's string term can still contain an `interpolate` constructor, which adds depth under the term rule.
+
+  Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, or implication.
 
 Once the reader reads a definition (§2), it makes sure that the whole definition meets its requirements. These checks are about the productions of the definition's alternatives, the expansions of §3.2 with the captures of §3.5. Gates do not matter here, so every alternative counts. Two expansions of one alternative that read the same captures in the same order are one case for these checks. So the reader can decide them over the distinct sequences of captures that the expansions read, without listing the expansions.
 

@@ -117,6 +117,11 @@ func patternProblem(root *domPattern, depth int, check func(*domPattern, int) st
 					return "a malformed pattern terminal or constant"
 				}
 			case "literal", "range", "wildcard":
+				if check != nil {
+					if msg := check(p, e.depth); msg != "" {
+						return msg
+					}
+				}
 			case "test":
 				if len(p.Items) != 1 || !patternTestTarget(p) || !(testOps[p.Op] || p.Op == "tags") || p.Op != "tags" && p.Value == nil {
 					return "a pattern test requires one terminal atom"
@@ -176,9 +181,9 @@ func decodePattern(raw json.RawMessage, children bool, depth int) (*domPattern, 
 			}
 			switch kind {
 			case "literal":
-				p.Value, err = decodeTermAt(raw, depth+1)
+				p.Value, err = decodeTermAt(raw, depth)
 			case "range":
-				p.Ends, err = decodeStringRange(raw, depth+1)
+				p.Ends, err = decodeStringRange(raw, depth)
 			case "wildcard":
 				if !isTrue(raw) {
 					err = fmt.Errorf("wildcard must be true")

@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 30
+FORMAT = 31
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -369,6 +369,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                         pending.append(("tags", value, below, False, False))
                 else:
                     pending.append(("string", node["value"], below, False, False))
+            # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
                 if keys != {"range"} or range_problem(node["range"], unicode):
                     return "a malformed range"
@@ -498,6 +499,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 return problem
             for atom, offset in walk_pattern(node["pattern"]):
                 atom_depth = below + offset
+                # Pattern literals and ranges use the same transparent transition.
                 if "literal" in atom:
                     pending.append(("string", atom["literal"], atom_depth, False, False))
                 elif "range" in atom:
