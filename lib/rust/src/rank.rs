@@ -93,6 +93,7 @@ enum Node {
         tags: u32,
         test: u32,
         structure: u32,
+        boundary: u32,
         lexical: u32,
         option: usize,
     },
@@ -177,7 +178,7 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 let child = chart.sets[set as usize].items[index as usize];
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
-                    && child.structure == cap.structure
+                    && child.structure == cap.structure && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
                     options.insert(g.ranked.options[&child.prod]);
@@ -1246,7 +1247,7 @@ impl<'c> Ranker<'c> {
                 if item.dot == 0 {
                     return Deps::Leaf;
                 }
-                if self.dag.chart.machine.is_some() {
+                if self.dag.chart.machine.is_some() || self.dag.chart.boundaries.is_some() {
                     let g = self.dag.g;
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
@@ -1268,6 +1269,7 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
                                     structure: cap.structure,
+                                    boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option,
                                 },
@@ -1289,7 +1291,7 @@ impl<'c> Ranker<'c> {
                 } else {
                     item.caps
                 };
-                let pred = Item {
+                let pred = Item { boundary: 0,
                     close_requested: item.close_requested,
                     lexical: item.lexical,
                     prod: item.prod,
@@ -1353,6 +1355,7 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: NO_TEST,
                                     structure: cap.structure,
+                                    boundary: cap.boundary,
                                     lexical: 0,
                                     option: usize::MAX,
                                 };
@@ -1379,6 +1382,7 @@ impl<'c> Ranker<'c> {
                                         tags: ANY,
                                         test: test_id,
                                         structure: ANY,
+                boundary: ANY,
                                         lexical: 0,
                                         option: usize::MAX,
                                     };
@@ -1400,7 +1404,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { requested, rule, origin, set, tags, test, structure, lexical, option } => {
+            Node::Group { requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1421,6 +1425,7 @@ impl<'c> Ranker<'c> {
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
                                     && (structure == ANY || eset.items[index as usize].structure == structure)
+                                    && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
                                 test.map_or(true, |test| {
@@ -1757,6 +1762,7 @@ impl<'c> Ranker<'c> {
                 tags: ANY,
                 test: NO_TEST,
                 structure: ANY,
+                boundary: ANY,
                 lexical: 0,
                 option: usize::MAX,
             },

@@ -331,12 +331,13 @@ impl<'a> Reader<'a> {
             }
             for flag in self.some(list, "rule-flag", 1)? {
                 let name = self.value(self.token(flag)?);
-                if name != "leftmost-longest" {
+                if !matches!(name, "leftmost-longest" | "fewest") {
                     return Err(self.error(flag, format!("unknown rule flag {name}")));
                 }
                 if flags.iter().any(|known| known == name) {
                     return Err(self.error(flag, format!("duplicate rule flag {name}")));
                 }
+                if !flags.is_empty() { return Err(self.error(flag, "a rule accepts only one flag")); }
                 flags.push(name.to_string());
             }
         }
@@ -1517,6 +1518,12 @@ impl<'a> Reader<'a> {
         if let Some(&argument) = frame.arguments.as_ref().unwrap().get(frame.args.len()) {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
+        if let Some(arguments) = Self::rules(selector, "arguments").next() {
+            let expected = if matches!(name, "followed-by" | "preceded-by") { "|" } else { "," };
+            if Self::parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
+                return Err(self.error(arguments, "invalid method argument separator"));
+            }
+        }
         let (receiver, ty) = frame.receiver.take().unwrap();
         let span = ty == Type::Span;
         let string = matches!(ty, Type::Span | Type::String | Type::Any);
@@ -1539,12 +1546,14 @@ impl<'a> Reader<'a> {
                     | "following-tokens"
                     | "classes"
                     | "starts-input"
+                    | "ends-input"
                     | "tags",
                     [],
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
                 ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
                 ("without-elision-except", [Arg::Rule(_)]) => bare,
+                ("followed-by" | "preceded-by", args) => bare && !args.is_empty() && args.iter().all(|arg| matches!(arg, Arg::Rule(_)) || matches!(arg, Arg::Term(Term::Tag(name)) if is_capital(name))),
                 ("split", [Arg::Term(_)]) => {
                     string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
                 }
@@ -1580,7 +1589,7 @@ impl<'a> Reader<'a> {
             return Err(self.error(frame.node, problem));
         }
         let last = frame.index + 1 == selectors.len();
-        let value = if matches!(name, "starts-input" | "matches" | "begins") {
+        let value = if matches!(name, "starts-input" | "ends-input" | "followed-by" | "preceded-by" | "matches" | "begins") {
             if !frame.condition || !last {
                 return Err(self.error(frame.node, "a predicate method cannot supply a value"));
             }
@@ -1588,6 +1597,8 @@ impl<'a> Reader<'a> {
             let Some(Arg::Term(receiver)) = args.next() else { unreachable!() };
             Val::Cond(match name {
                 "starts-input" => Cond::Initial(receiver),
+                "ends-input" => Cond::Final(receiver),
+                "followed-by" | "preceded-by" => Cond::Boundary(name == "followed-by", receiver, args.map(|arg| match &arg { Arg::Rule(name) | Arg::Term(Term::Tag(name)) => name.clone(), _ => unreachable!() }).collect()),
                 _ => {
                     let Some(Arg::Rule(rule)) = args.next() else { unreachable!() };
                     if name == "matches" {
@@ -2467,7 +2478,7 @@ pub(crate) fn reads_own_tags(term: &Term) -> bool {
                 Cond::Not(inner) => stack.push(Part::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().map(Part::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Part::Cond(antecedent), Part::Cond(consequent)]),
-                Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+                Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Final(_) | Cond::Boundary(_, _, _) | Cond::Captured(_) => {}
             },
         }
     }
@@ -2556,7 +2567,7 @@ fn flatten_groups(rule: &mut RuleDef) {
                 Cond::If(antecedent, consequent) => {
                     stack.extend([PartMut::Cond(antecedent), PartMut::Cond(consequent)])
                 }
-                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => stack.push(PartMut::Term(span)),
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _) => stack.push(PartMut::Term(span)),
                 Cond::Captured(_) => {}
             },
         }

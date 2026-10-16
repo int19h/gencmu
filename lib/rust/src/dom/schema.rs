@@ -590,6 +590,12 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     if !span(receiver)
                         || !match (value.get("method").and_then(Json::as_str), args) {
                             (Some("starts-input" | "ends-input"), Some([])) => true,
+                            (Some("followed-by" | "preceded-by"), Some(args)) => {
+                                bare_capture(receiver) && !args.is_empty() && args.iter().all(|arg| {
+                                    exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                                    || exact(arg, &["terminal"], &[]) && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s))
+                                })
+                            }
                             (Some("matches" | "begins"), Some([arg])) => {
                                 exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                             }

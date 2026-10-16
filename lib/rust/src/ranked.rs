@@ -132,7 +132,7 @@ pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
             term_reads(left, out);
             term_reads(right, out);
         }
-        Cond::Matches(term, _) | Cond::Begins(term, _) | Cond::Initial(term) => term_reads(term, out),
+        Cond::Matches(term, _) | Cond::Begins(term, _) | Cond::Initial(term) | Cond::Final(term) | Cond::Boundary(_, term, _) => term_reads(term, out),
         Cond::Not(cond) => cond_reads(cond, out),
         Cond::All(items) | Cond::Any(items) => {
             for item in items {

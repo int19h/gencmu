@@ -221,6 +221,9 @@ pub(crate) enum Cond {
     Begins(Term, String),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
+    Final(Term),
+    /// A complete-tree neighbor, with its direction and target choice.
+    Boundary(bool, Term, Vec<String>),
     Not(Box<Cond>),
     Any(Vec<Cond>),
     All(Vec<Cond>),
@@ -692,6 +695,8 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     let name = string(value, "method")?;
                     match (name.as_str(), array(value, "args")?) {
                         ("starts-input", []) => Cond::Initial(receiver),
+                        ("ends-input", []) => Cond::Final(receiver),
+                        ("followed-by" | "preceded-by", args) => Cond::Boundary(name == "followed-by", receiver, args.iter().map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" })).collect::<R<Vec<_>>>()?),
                         ("matches", [arg]) => Cond::Matches(receiver, string(arg, "rule")?),
                         ("begins", [arg]) => Cond::Begins(receiver, string(arg, "rule")?),
                         _ => return Err("a malformed predicate method".into()),
@@ -1285,6 +1290,21 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
             write_term(out, &Term::Call(name.into(), vec![Arg::Term(span.clone()), Arg::Rule(rule.clone())]));
         }
         Cond::Initial(span) => write_term(out, &Term::Call("initial".into(), vec![Arg::Term(span.clone())])),
+        Cond::Final(span) => write_term(out, &Term::Call("ends-input".into(), vec![Arg::Term(span.clone())])),
+        Cond::Boundary(forward, receiver, targets) => {
+            out.push_str("{\"method\":");
+            write_str(out, if *forward { "followed-by" } else { "preceded-by" });
+            out.push_str(",\"receiver\":");
+            write_term(out, receiver);
+            out.push_str(",\"args\":[");
+            for (index, target) in targets.iter().enumerate() {
+                if index > 0 { out.push(','); }
+                out.push_str(if target.starts_with(|c: char| c.is_ascii_uppercase()) { "{\"terminal\":" } else { "{\"rule\":" });
+                write_str(out, target);
+                out.push('}');
+            }
+            out.push_str("]}");
+        },
         Cond::Not(inner) => {
             out.push_str("{\"not\":");
             write_cond(out, inner);
@@ -1401,7 +1421,7 @@ fn constants_in<'t>(start: Nested<'t>, out: &mut Vec<(&'t str, (usize, usize))>,
                 Cond::Not(inner) => stack.push(Nested::Cond(inner)),
                 Cond::Any(items) | Cond::All(items) => stack.extend(items.iter().rev().map(Nested::Cond)),
                 Cond::If(antecedent, consequent) => stack.extend([Nested::Cond(consequent), Nested::Cond(antecedent)]),
-                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => stack.push(Nested::Term(span)),
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _) => stack.push(Nested::Term(span)),
                 Cond::Captured(_) => {}
             },
             Nested::Expr(_) => {}
@@ -1488,7 +1508,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     stack.push((Nested::Cond(antecedent), below));
                     stack.push((Nested::Cond(consequent), below));
                 }
-                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+                Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _) => {
                     stack.push((Nested::Term(span), below))
                 }
                 Cond::Compare(_, left, right) => {
@@ -1818,7 +1838,7 @@ pub(crate) fn cond_type_fault(cond: &Cond, constants: ConstantTypes) -> Option<F
             };
             comparison_problem(op, left, right).map(|problem| Fault::in_cond(problem, cond))
         }
-        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => match term_type_in(span, constants) {
+        Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _) => match term_type_in(span, constants) {
             Err(fault) => Some(fault),
             Ok(ty) => expected_problem(ty, Type::Span).map(|problem| Fault::in_cond(problem, cond)),
         },
@@ -2038,7 +2058,7 @@ impl Cond {
                 stack.push(Dropping::Term(std::mem::replace(left, Term::EmptySet)));
                 stack.push(Dropping::Term(std::mem::replace(right, Term::EmptySet)));
             }
-            Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) => {
+            Cond::Matches(span, _) | Cond::Begins(span, _) | Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _) => {
                 stack.push(Dropping::Term(std::mem::replace(span, Term::EmptySet)))
             }
             Cond::Not(inner) => {

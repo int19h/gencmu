@@ -92,6 +92,8 @@ pub(crate) enum LCond {
     Begins(Span, u32),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
+    Final(Span),
+    Boundary(bool, Span, Vec<String>),
     Not(Box<LCond>),
     Any(Vec<LCond>),
     All(Vec<LCond>),
@@ -929,6 +931,8 @@ impl<'a> Scope<'a> {
             Cond::Matches(span, rule) => LCond::Matches(self.span(span)?, self.rule(rule)?),
             Cond::Begins(span, rule) => LCond::Begins(self.span(span)?, self.rule(rule)?),
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
+            Cond::Final(span) => LCond::Final(self.span(span)?),
+            Cond::Boundary(forward, span, targets) => LCond::Boundary(*forward, self.span(span)?, targets.clone()),
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
             Cond::All(items) => LCond::All(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),

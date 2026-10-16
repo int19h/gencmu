@@ -43,6 +43,7 @@ extern crate self as gencmu;
 #[path = "../tests/common/mod.rs"]
 mod test_common;
 
+mod boundary;
 mod clauses;
 mod dialect;
 mod dom;

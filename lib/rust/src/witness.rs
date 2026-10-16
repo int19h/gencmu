@@ -325,7 +325,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         if elided(&node.kind) {
             // The restoration: the empty production's item from `start`,
             // in the set after it.
-            found[index as usize] = if forest.chart.machine.is_some() {
+            found[index as usize] = if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
                 forest.chart.sets[end as usize]
                     .items
                     .iter()
@@ -336,7 +336,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             } else {
                 at(
                     end,
-                    Item {
+                    Item { boundary: 0,
                         close_requested: false,
                         lexical: 0,
                         prod,
@@ -354,7 +354,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
             continue;
         }
         let production = &g.prods[prod as usize];
-        if forest.chart.machine.is_some() {
+        if forest.chart.machine.is_some() || forest.chart.boundaries.is_some() {
             let mut current: Vec<Item> = forest.chart.sets[start as usize]
                 .items
                 .iter()
@@ -378,10 +378,11 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                 && position == 0
                                 && rule.helper
                                 && rule.elided.is_some();
-                            if let Some(&structure) = forest.chart.terminal_states.get(&(from, symbol, omitted)) {
+                            if let Some(structure) = forest.chart.terminal_states.get(&(from, symbol, omitted)).copied().or_else(|| forest.chart.boundaries.as_ref().map(|_| u32::MAX)) {
                                 let token = &forest.tokens[forest.original_at[*tok as usize] as usize];
                                 let tags = if forest.synthetic[from as usize] { forest.empty } else { token.tags };
-                                caps.push(Cap { close_requested: false, start: from, end: to, tags, structure });
+                                let boundary = forest.chart.boundaries.as_ref().map_or(0, |m| m.borrow_mut().leaf(&g.terminals[symbol as usize], forest.synthetic[from as usize]));
+                                caps.push(Cap { boundary, close_requested: false, start: from, end: to, tags, structure });
                             }
                         }
                         (IKind::Close { .. }, Sym::N(_)) => {
@@ -390,7 +391,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                                 if set.items[i as usize].lexical != forest.chart.expected_lexical(item, from) {
                                     continue;
                                 }
-                                caps.push(Cap {
+                                caps.push(Cap { boundary: set.items[i as usize].boundary,
                                     close_requested: set.items[i as usize].close_requested,
                                     start: from,
                                     end: to,
@@ -420,7 +421,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         }
         let mut current: Vec<Item> = at(
             start,
-            Item {
+            Item { boundary: 0,
                 close_requested: false,
                 lexical: 0,
                 prod,
@@ -431,7 +432,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                 structure: u32::MAX,
             },
         )
-        .map(|_| Item {
+        .map(|_| Item { boundary: 0,
             close_requested: false,
             lexical: 0,
             prod,
@@ -446,7 +447,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
         marks.items.extend(
             at(
                 start,
-                Item {
+                Item { boundary: 0,
                     close_requested: false,
                     lexical: 0,
                     prod,
@@ -504,11 +505,11 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                         };
                         let Some(caps) = forest.chart.lookup_caps(
                             item.caps,
-                            Cap { close_requested: false, start: from, end: to, tags, structure: u32::MAX },
+                            Cap { boundary: 0, close_requested: false, start: from, end: to, tags, structure: u32::MAX },
                         ) else {
                             continue;
                         };
-                        let advanced = Item {
+                        let advanced = Item { boundary: 0,
                             close_requested: item.close_requested,
                             lexical: 0,
                             prod,
@@ -523,7 +524,7 @@ pub(crate) fn walk(forest: &CheckForest, chosen: &ITree) -> Option<Walk> {
                         }
                     }
                 } else if !own.is_empty() {
-                    let advanced = Item {
+                    let advanced = Item { boundary: 0,
                         close_requested: item.close_requested,
                         lexical: item.lexical,
                         prod,
