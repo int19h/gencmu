@@ -860,9 +860,10 @@ fn stage_output(dialect: &gencmu::Dialect, text: &str, name: &str) -> Vec<gencmu
 fn an_empty_zoi_body_contributes_empty_strings_to_a_letter_word() {
     let dialect = gencmu::load_dialect("cll-ebnf").expect("the CLL dialect");
     let words = stage_output(&dialect, "zoi gy gy", "words");
-    let body = words.iter().find(|token| token.tags.iter().any(|tag| tag == "Quoted-Text")).expect("a body");
-    assert_eq!(body.value.as_str(), "");
-    assert_eq!(body.inserted_by, None);
+    assert_eq!(words.len(), 1);
+    assert_eq!(words[0].value.as_str(), "zoi gy gy");
+    assert_eq!(words[0].image.as_str(), "zoi gy gy");
+    assert_eq!(words[0].inserted_by, None);
     let letter = &stage_output(&dialect, "zoi gy gy bu", "words")[0];
     assert_eq!(letter.value.as_str(), "zoi gy gy bu");
 }

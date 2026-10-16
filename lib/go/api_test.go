@@ -1224,23 +1224,16 @@ func hasTag(token Token, tag string) bool {
 	return false
 }
 
-// The empty zoi body has empty value. The stream grammar supplies spaces
-// through gap recipes instead of the removed pause join (words/stream.md).
+// An empty ZOI body adds no token or placeholder. Gap recipes keep the spacing.
 func TestEmptyZoiBodyValuesOpaque(t *testing.T) {
 	t.Parallel()
 	d, err := LoadDialect("cll-ebnf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var body *Token
-	for _, token := range stageOutput(t, d, "zoi gy gy", "words") {
-		if hasTag(token, "Quoted-Text") {
-			body = &token
-			break
-		}
-	}
-	if body == nil || body.Value != "" || body.InsertedBy != "" {
-		t.Fatalf("the body of zoi gy gy: %+v", body)
+	words := stageOutput(t, d, "zoi gy gy", "words")
+	if len(words) != 1 || words[0].Value != "zoi gy gy" || words[0].Image != "zoi gy gy" || words[0].InsertedBy != "" {
+		t.Fatalf("the quote of zoi gy gy: %+v", words)
 	}
 	if letter := stageOutput(t, d, "zoi gy gy bu", "words")[0]; letter.Value != "zoi gy gy bu" {
 		t.Fatalf("zoi gy gy bu sounds %q", letter.Value)

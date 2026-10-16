@@ -18,11 +18,8 @@
         {
           "output": [
             {
-              "value": "la'oi"
-            },
-            {
-              "value": "クリボ",
-              "image": "クリボー"
+              "value": "la'oi クリボ",
+              "image": "la'oi クリボー"
             }
           ]
         }

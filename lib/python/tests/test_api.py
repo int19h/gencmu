@@ -839,12 +839,13 @@ class BundledGrammars(unittest.TestCase):
     phonemes and the sources of the tokens of a stage."""
 
     def test_empty_zoi_body(self) -> None:
-        """An empty zoi body has empty strings and no inserting rule.
-        The letter constructor uses the compound gap recipe (engine §11)."""
+        """An empty ZOI body adds no token or placeholder.
+        The letter constructor keeps the quote spacing (engine §11)."""
         dialect = gencmu.load_dialect("cll-ebnf")
-        body = next(token for token in stage_output(dialect, "zoi gy gy", "words") if "Quoted-Text" in token.tags)
-        self.assertEqual(body.value, "")
-        self.assertIsNone(body.inserted_by)
+        words = stage_output(dialect, "zoi gy gy", "words")
+        self.assertEqual(len(words), 1)
+        self.assertEqual((words[0].value, words[0].image), ("zoi gy gy", "zoi gy gy"))
+        self.assertIsNone(words[0].inserted_by)
         letter = stage_output(dialect, "zoi gy gy bu", "words")[0]
         self.assertEqual(letter.value, "zoi gy gy bu")
 
