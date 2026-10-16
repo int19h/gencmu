@@ -261,7 +261,7 @@ The September 13, 2026 dictionary export supplies the additional entries under t
 | `ji'ai` | 70394 | 4 | LE | 66153: no class, -1 |
 | `li'ei` | 66452 | 4 | LIhEI | 57227: LOhU, 1 / 70395: LI, 1 |
 | `me'ei` | 20482 | 5 | LE | 20559: ME, -1 |
-| `ra'oi` | 19089 | 4 | ZOhOI | 66619 and 66620: RAhOI, 1 each |
+| `ra'oi` | 19089 | 4 | ZOhOI | 66619: RAhOI, 1 |
 | `soi'a` | 68608 | 3 | NOIhA | 64242: PA, 0 |
 | `su'ai` | 66822 | 3 | PA | 63923: SE, 2 |
 | `xa'o` | 14481 | 10 | ZAhO | 14196: no class, -4 |
