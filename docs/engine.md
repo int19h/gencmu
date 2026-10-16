@@ -650,6 +650,8 @@ Measure chart items, proof edges, observation states, cycle contexts, elapsed ti
 
 `$x.followed-by(S)` and `$x.preceded-by(S)` are boundary atoms (§10). Their target `S` is one name or a choice of names, each a rule or a tag terminal. `#` is a rule name (§2), so it can be a target, and its node is its constituent. A forward target is a name in the target of a `followed-by` atom in a `%conditions` list of the stage. A backward target is a name in the target of a `preceded-by` atom there. An atom in an emission item's tag clause makes no target of either kind, because it reads the chosen derivation after the parse.
 
+Only conditions in active lowered productions supply these targets. Disabled alternatives supply none. An active production supplies targets even when recognition never reaches it on the current input.
+
 A node of a derivation is a node of its tree (§12), other than an `elided` node. A rule node's name is its rule. A token node's name is the terminal that read it, without its test. A node counts for an atom only when its span is nonempty. Its first token and its last token are the first and last stage-input tokens of that span.
 
 Let the receiver span `[a,b)` in derivation D. `$x.followed-by(S)` is true when `b < N` and D has a counting node of a name in `S` whose first token is `b`. `$x.preceded-by(S)` is true when `a > 0` and D has a counting node of a name in `S` whose last token is `a−1`. Otherwise each is false.
@@ -661,6 +663,8 @@ The recognizer cannot know the atom's value at the step that makes the item read
 - If both evaluations give true, the item holds, and no literal remains.
 - If both give false, the item fails.
 - Otherwise a literal remains. A literal is the atom's direction, its target and a sign. It is positive if the item holds where the atom is true, and negative if the item holds where the atom is false. The literal becomes an obligation of the step's resulting item.
+
+An evaluation that reaches an invalid restored observation is false for that assignment alone. It does not discard the other assignment.
 
 A pending literal counts as holding for the rest of its step. So the step evaluates its later condition items and its tag term in the order of §4. A failure there drops the resulting item with its obligations. A grammar error there is raised at the step. A later step over the resulting item runs as usual, and its grammar errors are raised too. Errors therefore follow the steps that run, not the order of D.
 
@@ -692,7 +696,9 @@ Each step applies these rules after the order of §4, which they extend. A token
 
 A ranked helper can evaluate a condition owned by an enclosing group. It keeps the ordinary evaluations and their error order. It introduces a whole-rule literal only when the written condition reads a private capture that its group binds, including an absent descendant capture. Determine that ownership before capture-presence simplification. A nested helper never moves an enclosing group's literal to its own start. A common whole-rule condition introduces its literal at the named completion.
 
-A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles the literals of each witness item in the same way before it counts the witness. Its witness's span stands in for the input. In an aligned query, the witness reads restored terminators as synthetic tokens (§7). Its atoms read projected spans, as §7.5 says for the check. A synthetic read has an empty projected span, so it gives no offer and makes no node count.
+A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles its witness root's remaining literals in the same way before it counts the witness. An inner completion can receive boundary offers from its ancestors. The witness's span stands in for the input. In an aligned query, the witness reads restored terminators as synthetic tokens (§7). Its atoms read projected spans, as §7.5 says for the check.
+
+A synthetic read has an empty projected span, so it gives no offer and makes no node count.
 
 The chart of §4 holds exactly the items that these rules keep. Written-terminator priority, eligibility, the rejection position and ranked admission read that chart. So the meetings of rules 2, 3 and 5 are part of the result, not an optimization. An item that a meeting drops never blocks an omission, for example. An item whose obligations are still pending is in the chart, and it blocks as any item does.
 
@@ -2232,6 +2238,8 @@ A grammar error found while parsing is a result. Examples are a nested parse ask
 In experimental syntax, an initial connective never immediately follows a leading free modifier in the same derivation.
 
 In experimental syntax, a bare NA or tag term can omit KU before a written closing word or the input's end. The term includes its own free modifiers before this test. Closing words are I, NIhO, CU, GI, BEI, ZOhU, CEhE, PEhE, a gihek, and a written terminator of a surrounding construction. A bare NA term can also omit KU before any term in the same derivation. JA, A, JOI, and VUhU alone permit no KU omission. Plain and BO term links use the sumti checks of `grammars/syntax/experimental.md`.
+
+Experimental `term-link` and `term-bo-link` have no rule flag. Zantufa marks its plain `term-link` rule with `fewest`.
 
 Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and one in `grammars/notation/lexical.md`. No stored universal engine tag is required.
 

@@ -1,0 +1,84 @@
+{
+  "description": "Disabled alternatives supply no followed-by targets. An active unused rule supplies targets, so unequal offers retain both ranked options (engine §4.2 and §6.1).",
+  "grammar": "%rule text (p ≻ q) :: ∅ | Z hidden\n%rule p x\n%rule x A\n%rule q A\n%rule hidden enabled? B\n%conditions $.followed-by(x)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "children": [
+              {
+                "rule": "p",
+                "children": [
+                  {
+                    "rule": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "enabled"
+        ]
+      },
+      "expect": {
+        "error": "ambiguous",
+        "result": {
+          "error": {
+            "kind": "ambiguous",
+            "reason": "tie"
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "children": [
+              {
+                "rule": "p",
+                "children": [
+                  {
+                    "rule": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
