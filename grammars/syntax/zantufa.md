@@ -82,11 +82,6 @@ A following-input condition reserves words after a candidate for another constru
 %rule #
   [{free}]
 
-%rule any-word
-  Word
-
-%rule anything
-  Quoted-Text
 ```
 
 <details><summary>Railroad diagrams of <code>#</code>, <code>any-word</code> and <code>anything</code></summary>
@@ -525,10 +520,10 @@ The conditions on `sumti-1` and `sumti-2` prevent a sumti run from stopping befo
               / LU_clause text LIhU_elidible / (LAhE_clause / NAhE_clause BO_clause) relative_clauses? sumti LUhU_elidible
               / KOhA_clause / LOhOI_clause (joik LOhOI_clause)* statement KUhAU_elidible / LE_clause sumti_tail KU_elidible
               / li_clause / NAhE_clause sumti_3 *)
-  | RAhOI anything #
-  | ZO any-word #
-  | ZOI any-word anything any-word #
-  | LOhU [{any-word}] LEhU #
+  | RAhOI #
+  | ZO #
+  | ZOI #
+  | LOhU #
   | $l:lerfu-boi
   | LU text [+LIhU #]
   | (LAhE # | NAhE # BO #) [relative-clauses] sumti [+LUhU #]
@@ -706,8 +701,8 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | KE # selbri-2 [+KEhE #]
   | NAhE # gek selbri-2 $g:gik-selbris [+GIhI #]
   | $k:gek selbri-2 $g:gik-selbris [+GIhI #]
-  | MUhOI any-word anything any-word #
-  | GOhOI any-word #
+  | MUhOI #
+  | GOhOI #
   | LUhEI text [+LIhAU #]
   | ME # (sumti | $m:mex | $t:tag) [+MEhU #] [MOI #]
   | ME # {operator} [+MEhU #] [MOI #]
@@ -1008,7 +1003,7 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   | mex-2 MAI #
   | TO # parenthesis-text [+TOI #]
   | XI # mex-2
-  | [LOhAI [{lohai-word}] [LOhAI [{lohai-word}]]] LEhAI #
+  | (LOhAI<Quote> | LEhAI) #
   | UI #
 %conditions
   ¬$.following-tokens.begins(free)
@@ -1026,8 +1021,6 @@ Nested vocatives can take separate addresses. In `pe'usai doi xod ko jmina`, the
   (* number_post_clause <- spaces? !BU_clause (!number free)* *)
   [{free-not-number}]
 
-%rule lohai-word
-  Word<¬LOhAI ¬LEhAI>
 
 %rule free-not-number
   $f:free

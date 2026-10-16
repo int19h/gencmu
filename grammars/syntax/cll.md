@@ -338,10 +338,10 @@ This grammar states the quote rules over `any-word` and `anything`. The word sta
   | LA # [relative-clauses] {CMEVLA} #
   | (LA | LE) # sumti-tail [+KU #]
   | LI # mex [+LOhO #]
-  | ZO any-word #
+  | ZO #
   | LU text [+LIhU] #
-  | LOhU [{any-word}] LEhU #
-  | ZOI any-word anything any-word #
+  | LOhU #
+  | ZOI #
 
 %rule sumti-tail
   [sumti-6 [relative-clauses]] sumti-tail-1 | relative-clauses sumti-tail-1
@@ -845,11 +845,6 @@ The indicator stage attaches later indicator runs to their preceding words. This
 The word stage delimits every quote except `lu ... li'u` and emits its parts for syntax to assemble. A quoted word carries `Word`, and a quoted unit carries `Quoted-Text`. These two rules read those parts:
 
 ```jbogenbau
-%rule any-word
-  Word
-
-%rule anything
-  Quoted-Text
 ```
 
 <details><summary>Railroad diagrams of <code>any-word</code> and <code>anything</code></summary>

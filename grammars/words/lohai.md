@@ -26,7 +26,7 @@ In the experimental dialect, a marker that opens no quote is an ordinary word. [
   | $r:lohai-run word-gap lehai-marker :: $r.tags
   | $r:lohai-run word-gap lohai-run word-gap lehai-marker :: $r.tags
 %emits
-  $
+  $ :: $.tags ∪ Quote
 
 %rule lohai-run
   | $m:lohai-marker :: $m.tags

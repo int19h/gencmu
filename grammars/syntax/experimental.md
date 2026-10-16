@@ -520,11 +520,11 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | LE # sumti-tail [+KU] #
   | LOhOI # subsentence [+KUhAU] #
   | LI # mex [+LOhO] #
-  | ZO any-word #
+  | ZO #
   | LU text [+LIhU] #
-  | LOhU [{any-word}] LEhU #
-  | ZOI any-word anything any-word #
-  | ZOhOI anything #
+  | LOhU #
+  | ZOI #
+  | ZOhOI #
 %conditions
   $t ≇ @(sumti),
   $u ≇ @(sumti),
@@ -656,7 +656,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
-  | MEhOI anything #
+  | MEhOI #
 
 %rule me-unit
   ME # (sumti | $m:mex) [+MEhU] # [MOI #]
@@ -683,7 +683,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
-  | MEhOI anything #
+  | MEhOI #
 
 %redefine-rule abstractor-chain
   {... NU # / connective}
@@ -980,7 +980,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
   | mex-2 MAI
   | TO text [+TOI]
   | XI # $m:mex-2
-  | LOhAI [{lohai-word}] [LOhAI [{lohai-word}]] LEhAI
+  | LOhAI<Quote>
   | LEhAI
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
@@ -1010,8 +1010,6 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 %conditions
   BOI ⊆ $.first-token.tags ∨ $LERFU-START ∩ $f.onward.first-token.tags ⊆ ∅
 
-%rule lohai-word
-  Word<¬LOhAI ¬LEhAI>
 ```
 
 <details><summary>Railroad diagrams of the 6 rules from <code>free</code> to <code>lohai-word</code></summary>
