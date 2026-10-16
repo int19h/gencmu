@@ -348,9 +348,11 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	}
 	if p.ranked != nil {
 		for _, raw := range p.slot.source.conds {
-			if atom := firstBoundaryAtom(raw); atom != nil && atom.Span.Str != "" {
-				if _, prefix := f.captures[atom.Span.Str]; prefix {
-					continue
+			if r.boundaries != nil {
+				if atom := r.boundaries.first(raw); atom != nil && atom.Span.Str != "" {
+					if _, prefix := f.captures[atom.Span.Str]; prefix {
+						continue
+					}
 				}
 			}
 			reads := map[string]bool{}

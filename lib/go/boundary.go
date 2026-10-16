@@ -63,12 +63,13 @@ type boundaryRecord struct {
 	id int
 }
 type boundaryMachine struct {
-	names             map[string]boundaryBits
-	forward, backward boundaryBits
-	literals          []*boundaryLiteral
-	atoms             map[*domCond][2]*boundaryLiteral
-	records           map[boundaryShape]*boundaryRecord
-	empty             *boundaryRecord
+	conditions, localConditions map[*domCond]*domCond
+	names                       map[string]boundaryBits
+	forward, backward           boundaryBits
+	literals                    []*boundaryLiteral
+	atoms                       map[*domCond][2]*boundaryLiteral
+	records                     map[boundaryShape]*boundaryRecord
+	empty                       *boundaryRecord
 }
 
 func boundaryAtoms(p clausePart) []*domCond {
@@ -107,7 +108,7 @@ func (m *boundaryMachine) intern(s boundaryShape) *boundaryRecord {
 }
 func newBoundaryMachine(g *lowered) *boundaryMachine {
 	g.boundaryOnce.Do(func() {
-		m := &boundaryMachine{names: map[string]boundaryBits{}, atoms: map[*domCond][2]*boundaryLiteral{}}
+		m := &boundaryMachine{conditions: map[*domCond]*domCond{}, names: map[string]boundaryBits{}, atoms: map[*domCond][2]*boundaryLiteral{}}
 		type key struct {
 			target            boundaryBits
 			forward, positive bool
@@ -124,7 +125,15 @@ func newBoundaryMachine(g *lowered) *boundaryMachine {
 			}
 		}
 		for _, c := range conds {
-			for _, a := range boundaryAtoms(clausePart{c: c}) {
+			if _, known := m.conditions[c]; known {
+				continue
+			}
+			atoms := boundaryAtoms(clausePart{c: c})
+			m.conditions[c] = nil
+			if len(atoms) > 0 {
+				m.conditions[c] = atoms[0]
+			}
+			for _, a := range atoms {
 				if _, ok := m.atoms[a]; ok {
 					continue
 				}
@@ -304,7 +313,7 @@ type boundarySite struct {
 func (r *recognizer) startCondition(ev *evaluator, c *domCond, p *production) {
 	r.conditionAtom = nil
 	if r.boundaries != nil {
-		r.conditionAtom = firstBoundaryAtom(c)
+		r.conditionAtom = r.boundaries.first(c)
 	}
 	r.condition = c
 	r.conditionEv = ev
@@ -492,6 +501,11 @@ func (g *stageGrammar) prepareBoundarySites() {
 			source.boundarySites = owner.boundarySites
 		}
 	}
+	for _, rule := range g.rules {
+		for _, source := range rule.alts {
+			source.boundaryOwner = nil
+		}
+	}
 }
 func (r *recognizer) boundaryDiagnostic(position int) *BoundaryCondition {
 	var best *BoundaryCondition
@@ -531,4 +545,20 @@ func (r *recognizer) finishBoundaryTags(p *production, key *itemKey, end int32) 
 	}
 	r.nextBoundaryTags = toSet(r.w.v)
 	return nil
+}
+
+// The template caches static clauses. Runtime simplifications stay local.
+func (m *boundaryMachine) first(c *domCond) *domCond {
+	if atom, known := m.conditions[c]; known {
+		return atom
+	}
+	if atom, known := m.localConditions[c]; known {
+		return atom
+	}
+	atom := firstBoundaryAtom(c)
+	if m.localConditions == nil {
+		m.localConditions = map[*domCond]*domCond{}
+	}
+	m.localConditions[c] = atom
+	return atom
 }

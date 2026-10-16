@@ -16,13 +16,12 @@ type rankedGroup struct {
 	final           bool
 }
 type rankedGroups struct {
-	prefixCanRead func([]*domExpr) bool
-	groups        []*rankedGroup
-	expressions   map[*domExpr]*rankedGroup
-	owners        map[*domExpr]*rankedGroup
-	paths         map[*domExpr]string
-	clauseErrors  map[*rankedGroup]*Error
-	sourceSites   map[*sAlt]GroupSite
+	groups       []*rankedGroup
+	expressions  map[*domExpr]*rankedGroup
+	owners       map[*domExpr]*rankedGroup
+	paths        map[*domExpr]string
+	clauseErrors map[*rankedGroup]*Error
+	sourceSites  map[*sAlt]GroupSite
 }
 type rankedCapture struct {
 	node *domExpr
@@ -209,13 +208,13 @@ func newRankedGroups(g *stageGrammar) (*rankedGroups, *Error) {
 		}
 	}
 	for _, group := range r.groups {
-		if err := r.validateClauses(g, group); err != nil {
+		if err := r.validateClauses(g, group, nil); err != nil {
 			r.clauseErrors[group] = err
 		}
 	}
 	return r, nil
 }
-func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Error {
+func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup, prefixCanRead func([]*domExpr) bool) *Error {
 	for _, route := range r.routes(group.source.alt.Expr) {
 		end, present := route.ends[group]
 		if !present {
@@ -261,7 +260,7 @@ func (r *rankedGroups) validateClauses(g *stageGrammar, group *rankedGroup) *Err
 				}
 			}
 			atom := firstBoundaryAtom(effective)
-			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && r.prefixCanRead != nil && r.prefixCanRead(route.steps[:end.start]) {
+			if atom != nil && atom.Op == "preceded-by" && atom.Span.Str == "" && prefixCanRead != nil && prefixCanRead(route.steps[:end.start]) {
 				message := fmt.Sprintf("Condition %d of %s combines %s with a private capture in option %d. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.", conditionIndex+1, group.parent, boundaryAtomText(atom), end.option+1)
 				return r.fail(g, group, "ranked-choice-boundary", message).rankedDetail(end.option, rankedWrittenClause(group.source, "conditions", conditionIndex))
 			}
@@ -374,7 +373,7 @@ func (r *rankedGroups) fail(g *stageGrammar, group *rankedGroup, code, message s
 }
 func (r *rankedGroups) validateTags(g *lowered) *Error {
 	var productive, nonempty []bool
-	r.prefixCanRead = func(steps []*domExpr) bool {
+	prefixCanRead := func(steps []*domExpr) bool {
 		if len(steps) == 0 {
 			return false
 		}
@@ -399,7 +398,7 @@ func (r *rankedGroups) validateTags(g *lowered) *Error {
 		return reads
 	}
 	for _, group := range r.groups {
-		if err := r.validateClauses(g.stage, group); err != nil {
+		if err := r.validateClauses(g.stage, group, prefixCanRead); err != nil {
 			r.clauseErrors[group] = err
 		}
 	}

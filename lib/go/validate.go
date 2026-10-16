@@ -164,8 +164,10 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
-		if _, msg := boundaryRuleProblem(r); msg != "" {
-			return &domProblem{message: msg, rule: r}
+		if c.hasBoundary {
+			if _, msg := boundaryRuleProblem(r); msg != "" {
+				return &domProblem{message: msg, rule: r}
+			}
 		}
 		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
 			return &domProblem{message: msg, rule: r}
@@ -311,6 +313,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	hasBoundary bool
 	rule        *domRule        // the rule checked, or nil
 	constant    *domConst       // the constant checked, or nil
 	implication *domImplication // the implication checked, or nil
@@ -1085,6 +1088,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 	case cdBoundary:
+		c.hasBoundary = true
 		if d.Span == nil || d.Span.Kind != tmCapture || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
 			c.fail("a malformed boundary atom")
 			return
