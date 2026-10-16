@@ -85,9 +85,13 @@ export declare class BoundaryRecords {
     complete(record: BoundaryRecord, name: string | null, backward: bigint, forward: bigint, fail: (literal: any) => void): BoundaryRecord | null;
     /** @param {BoundaryRecord} record @param {(literal:any)=>void} fail */
     accepts(record: BoundaryRecord, fail?: (literal: any) => void): boolean;
-    /** The option's facts after qualification, without the prefix's facts. @param {BoundaryRecord} prefix @param {BoundaryRecord} child */
-    open(prefix: BoundaryRecord, child: BoundaryRecord): string | number | null;
+    /** The option's facts after qualification, without the prefix's facts.
+     * @param {BoundaryRecord} prefix @param {BoundaryRecord} child @returns {BoundaryRecord|null} */
+    open(prefix: BoundaryRecord, child: BoundaryRecord): BoundaryRecord | null;
 }
+/** A higher proof must preserve every continuation of the lower proof.
+ * @param {BoundaryRecord|null} higher @param {BoundaryRecord|null} lower */
+export declare function boundaryDominates(higher: BoundaryRecord | null, lower: BoundaryRecord | null): boolean;
 /** @param {any} condition */
 export declare function firstBoundaryAtom(condition: any): any;
 /** @param {any[]} productions */

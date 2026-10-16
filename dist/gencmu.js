@@ -4,6 +4,99 @@
 (function (root) {
   "use strict";
   function gencmuFactory() {
+  // ---- boundary-annotations.js
+  // Diagnostic sources flow beside records. They never distinguish items.
+
+  /** @typedef {{rule:string,condition:number,order:number}} BoundarySite */
+  class BoundarySource {
+    constructor() {
+      /** @type {Set<BoundarySite>} */
+      this.sites = new Set();
+      /** @type {Set<BoundarySource>} */
+      this.users = new Set();
+    }
+    /** @param {BoundarySite} site */
+    add(site) {
+      /** @type {BoundarySource[]} */
+      const pending = [this];
+      for (let index = 0; index < pending.length; index++) {
+        const source = pending[index];
+        if (source.sites.has(site)) continue;
+        source.sites.add(site);
+        for (const user of source.users) pending.push(user);
+      }
+    }
+    /** Later joins must also reach items that already advanced.
+     * @param {BoundarySource|undefined} source */
+    inherit(source) {
+      if (!source || source === this || source.users.has(this)) return;
+      source.users.add(this);
+      for (const site of source.sites) this.add(site);
+    }
+  }
+
+  /** @typedef {Map<bigint,BoundarySource>} Sources */
+  /** @param {bigint} mask @param {Sources[]} inputs @returns {Sources} */
+  function select(mask,...inputs) {
+    const result = new Map();
+    for (const input of inputs) for (const [bit,source] of input) {
+      if (!(mask & bit)) continue;
+      let target = result.get(bit);
+      if (!target) result.set(bit,target=new BoundarySource());
+      target.inherit(source);
+    }
+    return result;
+  }
+
+  class BoundaryAnnotations {
+    /** @param {Sources} [start] @param {Sources} [end] */
+    constructor(start = new Map(),end = new Map()) {
+      this.start = start;
+      this.end = end;
+    }
+    /** @param {import("./boundary.js").BoundaryRecord} record */
+    retain(record) {
+      return new BoundaryAnnotations(select(record.start,this.start),select(record.end,this.end));
+    }
+    /** @param {"start"|"end"} edge @param {bigint} bit @param {BoundarySite|undefined} site */
+    add(edge,bit,site) {
+      let source = this[edge].get(bit);
+      if (!source) this[edge].set(bit,source=new BoundarySource());
+      if (site) source.add(site);
+    }
+    /** Equal records keep one item and join its annotations.
+     * @param {BoundaryAnnotations} other */
+    merge(other) {
+      for (const edge of /** @type {const} */ (["start","end"])) for (const [bit,source] of other[edge]) {
+        let target = this[edge].get(bit);
+        if (!target) this[edge].set(bit,target=new BoundarySource());
+        target.inherit(source);
+      }
+    }
+    /** @param {BoundaryAnnotations} child @param {boolean} empty @param {bigint} bit */
+    meeting(child,empty,bit) {
+      const source = new BoundarySource();
+      if (empty) source.inherit(child.end.get(bit));
+      else {source.inherit(this.end.get(bit));source.inherit(child.start.get(bit));}
+      return source;
+    }
+    /** Follow the same boundary transfers as the record's advance.
+     * @param {import("./boundary.js").BoundaryRecords} machine
+     * @param {import("./boundary.js").BoundaryRecord} prefix
+     * @param {import("./boundary.js").BoundaryRecord} child
+     * @param {import("./boundary.js").BoundaryRecord} result
+     * @param {BoundaryAnnotations} sources */
+    advance(machine,prefix,child,result,sources) {
+      if (child.empty) {
+        const pending = prefix.empty ? child.end : machine.meet(child.end,prefix.last,"p",false,() => {}) ?? 0n;
+        return new BoundaryAnnotations(select(result.start,this.start),select(result.end,this.end,select(pending,sources.end)));
+      }
+      return prefix.empty
+        ? new BoundaryAnnotations(select(result.start,this.end,sources.start),select(result.end,sources.end))
+        : new BoundaryAnnotations(select(result.start,this.start),select(result.end,sources.end));
+    }
+  }
+
   // ---- clause-walk.js
   // The term-bearing fields of clauses. Source locations, patterns and
   // lowered grammar links contain no open term or nested condition.
@@ -288,14 +381,23 @@
       for (const literal of this.literals) if (pending & literal.bit && literal.positive) { fail(literal); accepted = false; }
       return accepted;
     }
-    /** The option's facts after qualification, without the prefix's facts. @param {BoundaryRecord} prefix @param {BoundaryRecord} child */
+    /** The option's facts after qualification, without the prefix's facts.
+     * @param {BoundaryRecord} prefix @param {BoundaryRecord} child @returns {BoundaryRecord|null} */
     open(prefix,child) {
       if (child.empty) {
         const end = prefix.empty ? child.end : this.meet(child.end,prefix.last,"p",false,() => {});
-        return end === null ? null : `E/${end}`;
+        return end === null ? null : this.intern(true,0n,0n,end,0n);
       }
-      return prefix.empty ? child.id : `N/${child.end}/${child.last}`;
+      return prefix.empty ? child : this.intern(false,0n,0n,child.end,child.last);
     }
+  }
+
+  /** A higher proof must preserve every continuation of the lower proof.
+   * @param {BoundaryRecord|null} higher @param {BoundaryRecord|null} lower */
+  function boundaryDominates(higher,lower) {
+    if (higher === null || lower === null) return higher === lower;
+    return higher.empty === lower.empty && higher.first === lower.first && higher.last === lower.last &&
+      (higher.start & ~lower.start) === 0n && (higher.end & ~lower.end) === 0n;
   }
 
   /** @type {WeakMap<object,any[]>} */
@@ -7633,6 +7735,7 @@
 
   // ---- earley.js
 
+
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
 
@@ -8168,8 +8271,8 @@
       this.slots = slots;
       /** @type {any} */
       this.boundary = null;
-      /** @type {any[]} */
-      this.boundaryIntroduced = [];
+      /** @type {BoundaryAnnotations|null} */
+      this.boundaryAnnotations = null;
       this.prefix = -1;
       this.structure = -1;
       /** @type {CloseObservation|null} */
@@ -8640,11 +8743,15 @@
     const add = (set, production, dot, origin, slots, previous, child, tagId, strict = false, obligations = []) => {
       // A strict item never completes (engine §7.4).
       if (strict && dot === production.rhs.length) return;
-      const fail = (/** @type {any} */ literal, /** @type {number} */ at) => boundaryFailures.push({literal,at,production,origin,end:set.position,previous,child,obligations,slots});
-      const boundary = boundaryStep(context,production,dot,origin,set.position,previous,child,obligations,fail);
-      if (context.boundaries && !boundary) return;
+      const fail = (/** @type {any} */ literal, /** @type {number} */ at, /** @type {import("./boundary-annotations.js").BoundarySource|undefined} */ annotation) => boundaryFailures.push({literal,at,end:set.position,annotation});
+      const bounded = boundaryStep(context,production,dot,origin,set.position,previous,child,obligations,fail);
+      const boundary = bounded?.record ?? null;
+      if (context.boundaries && !bounded) return;
       if (context.boundaries && !query && dot === production.rhs.length && production.lhs === rule && origin === start && set.position === end &&
-          !context.boundaries.accepts(boundary,literal => fail(literal,boundary.start & literal.bit ? origin : set.position))) return;
+          !context.boundaries.accepts(boundary,literal => {
+            const edge = boundary.start & literal.bit ? "start" : "end";
+            fail(literal,edge === "start" ? origin : set.position,bounded?.annotations[edge].get(literal.bit));
+          })) return;
       const projected = structuralStep(context, production, dot, previous, child, set.position);
       const close = closeStep(context,production,dot,origin,previous,child,set.position);
       const summary = familyStep(context, family, members, production, dot, origin, previous, child, set.position, close);
@@ -8658,6 +8765,7 @@
       if (twoItems && strict) key = "strict" + key;
       let item = set.index.get(key);
       if (item) {
+        if (bounded) item.boundaryAnnotations?.merge(bounded.annotations);
         // One ordinary step makes an item ordinary. It is then processed
         // again, for what strictness held back (engine §7.4), unless a fault
         // leaves it as it was processed (F32:queue).
@@ -8709,7 +8817,7 @@
         if (hooks.work) countWork(hooks.work,"boundaryRecords");
       }
       item.boundary = boundary;
-      item.boundaryIntroduced = obligations;
+      if (bounded) item.boundaryAnnotations = bounded.annotations;
       item.prefix = projected.prefix;
       item.structure = projected.structure;
       item.observationPrefix = close?.prefix ?? null;
@@ -10711,11 +10819,9 @@
           if (production.helper && atom.receiver.capture === "" &&
               ![...rankedCaptureReads(condition)].some(name => production.sourcePrivate?.has(name))) return true;
           const machine = context.boundaries ?? scope.context.boundaries;
-          const receiver = scope.capture(atom.receiver.capture);
           const source = production.lexicalFrame?.root.logicalSource ?? production.logicalSource;
           (step.obligations ??= []).push({atom,condition,literal:machine.literal(atom,!!value),
-            site:scope.context.lowered.boundarySites.get(source?.clauses)?.get(atom),
-            at:atom.method === "followed-by" ? receiver.end : receiver.start});
+            site:scope.context.lowered.boundarySites.get(source?.clauses)?.get(atom)});
         }
         return true;
       };
@@ -10723,11 +10829,12 @@
     };
     return yes === HALT ? pause(withYes) : withYes(yes);
   }
-  /** @param {any} context @param {any} production @param {number} dot @param {number} origin @param {number} end @param {any} previous @param {any} child @param {any[]} obligations @param {(literal:any,at:number)=>void} fail */
+  /** @param {any} context @param {any} production @param {number} dot @param {number} origin @param {number} end @param {any} previous @param {any} child @param {any[]} obligations @param {(literal:any,at:number,annotation:import("./boundary-annotations.js").BoundarySource|undefined)=>void} fail */
   function boundaryStep(context,production,dot,origin,end,previous,child,obligations,fail) {
     const machine = context.boundaries;
     if (!machine) return null;
     let record = previous?.boundary ?? machine.empty;
+    let annotations = previous?.boundaryAnnotations?.retain(record) ?? new BoundaryAnnotations();
     let ownBack = 0n, ownForward = 0n, before = 0n, after = 0n;
     for (const {atom,literal} of obligations) {
       if (atom.receiver.capture === "") {
@@ -10736,39 +10843,39 @@
     }
     if (previous) {
       record = machine.append(record,before);
-      const leaf = child?.boundary ?? machine.leaf(production.rhs[dot-1].name,originalPosition(context,end-1) === originalPosition(context,end));
-      record = machine.advance(record,leaf,(/** @type {any} */ literal) => fail(literal,previous.end));
-      if (!record) return null;
+      for (const {atom,literal,site} of obligations) if (atom.receiver.capture !== "" && literal.direction === "p") annotations.add("end",literal.bit,site);
+      const leaf = child?.boundary ?? machine.leaf(production.rhs[dot-1].name,originalPosition(context,previous.end) === originalPosition(context,end));
+      const sources = child?.boundaryAnnotations ?? new BoundaryAnnotations();
+      const advanced = machine.advance(record,leaf,(/** @type {any} */ literal) => fail(literal,previous.end,annotations.meeting(sources,leaf.empty,literal.bit)));
+      if (!advanced) return null;
+      annotations = annotations.advance(machine,record,leaf,advanced,sources);
+      record = advanced;
       record = machine.append(record,after);
+      for (const {atom,literal,site} of obligations) if (atom.receiver.capture !== "" && literal.direction === "f") annotations.add("end",literal.bit,site);
     }
-    if (dot === production.rhs.length) record = machine.complete(record,production.helper ? null : production.lhs,ownBack,ownForward,(/** @type {any} */ literal) => fail(literal,literal.direction === "f" ? origin : end));
-    return record;
+    if (dot === production.rhs.length) {
+      const completed = machine.complete(record,production.helper ? null : production.lhs,ownBack,ownForward,(/** @type {any} */ literal) => {
+        const edge = literal.direction === "f" ? "start" : "end";
+        fail(literal,edge === "start" ? origin : end,annotations[edge].get(literal.bit));
+      });
+      if (!completed) return null;
+      annotations = annotations.retain(completed);
+      record = completed;
+      for (const {atom,literal,site} of obligations) if (atom.receiver.capture === "") {
+        annotations.add(!record.empty && literal.direction === "p" ? "start" : "end",literal.bit,site);
+      }
+    }
+    return {record,annotations};
   }
   /** @param {any} chart @param {any[]} witnesses */
   function boundaryWitnesses(chart,witnesses) {
     const machine = chart.context.boundaries;
     return machine ? witnesses.filter(item => machine.accepts(item.boundary)) : witnesses;
   }
-  /** Recover diagnostic provenance from proof edges, never from record identity.
+  /** Read the joined annotation, without walking proof edges.
    * @param {any} context @param {any} failure */
   function boundarySources(context,failure) {
-    const found = [], pending = [failure], seen = new Set();
-    while (pending.length) {
-      const item = pending.pop();
-      if (!item || seen.has(item)) continue;
-      seen.add(item);
-      const production = item.production;
-      for (const obligation of item.boundaryIntroduced ?? item.obligations ?? []) {
-        if (obligation.literal !== failure.literal) continue;
-        if (obligation.at !== failure.at || !obligation.site) continue;
-        found.push({...obligation.site,at:originalPosition(context,obligation.at)});
-      }
-      for (const edge of item.edges ?? [{kind:"complete",previous:item.previous,child:item.child}]) {
-        if (edge.kind === "scan") pending.push(edge.previous);
-        if (edge.kind === "complete") pending.push(edge.previous,edge.child);
-      }
-    }
-    return found;
+    return [...failure.annotation?.sites ?? []].map(site => ({...site,at:originalPosition(context,failure.at)}));
   }
 
   // ---- diagnostics.js
@@ -13579,6 +13686,7 @@
 
 
 
+
   // Admission uses finite eligible facts, before the ordinary ranker.
   class RankedAdmission {
     /** @param {any} chart @param {any} ranked */
@@ -13587,10 +13695,18 @@
       this.forest = helperSlotForest(chart,names);
       this.groups = new Map();
       this.at = new Map();
-      this.maxima = new Map();
+      this.qualified = new Map();
       this.masks = new Map();
       this.stats = {chartFacts:0,groups:0,candidateEdges:0,retainedEdges:0,boundarySplits:/** @type {any[]} */ ([])};
-      const boundaryGroups = new Map();
+      const reported = new Set();
+      this.reportSplit = (/** @type {any[]} */ candidates) => {
+        const {site,entry,edge} = candidates[0];
+        if (reported.has(entry)) return;
+        reported.add(entry);
+        const split = {group:site,entry,start:edge.child.origin,end:edge.child.end};
+        this.stats.boundarySplits.push(split);
+        hooks.boundaryAdmission?.([split],chart);
+      };
       const helpers = new Map(chart.context.lowered.productions.filter((/** @type {any} */ p) => p.helper).map((/** @type {any} */ p) => [p.lhs,p]));
       const written = (/** @type {any} */ p) => [p.owner ?? p.lhs,p.source?.at,ranked.paths.get(p.writtenExpression) ?? ''];
       const prefix = (/** @type {any} */ item) => {
@@ -13614,25 +13730,17 @@
           const ancestry = scope ? [scope.frames.map(prefix),scope.bounds.map((/** @type {any} */ b) => [written(b.carrier.production),b.carrier.origin,b.carrier.end])] : null;
           const baseKey = JSON.stringify([group.id,prefix(edge.previous),ancestry,edge.child.origin,edge.child.end]);
           const open = chart.context.boundaries?.open(edge.previous.boundary,edge.child.boundary) ?? null;
-          const key = JSON.stringify([baseKey,open]);
-          if (chart.context.boundaries) {
-            let parts = boundaryGroups.get(baseKey);
-            if (!parts) boundaryGroups.set(baseKey,parts=new Set());
-            const priorSize = parts.size;
-            parts.add(open);
-            if (priorSize === 1 && parts.size === 2) this.stats.boundarySplits.push({group:group.site,entry:baseKey,start:edge.child.origin,end:edge.child.end});
-          }
-          let candidates = this.groups.get(key);
-          if (!candidates) this.groups.set(key,candidates=[]);
-          candidates.push({item,index,edge,option:edge.child.production.rankedOption});
+          let candidates = this.groups.get(baseKey);
+          if (!candidates) this.groups.set(baseKey,candidates=[]);
+          const candidate = {item,index,edge,option:edge.child.production.rankedOption,open,site:group.site,entry:baseKey};
+          candidates.push(candidate);
           let choices = this.at.get(item);
           if (!choices) this.at.set(item,choices=new Map());
-          choices.set(index,candidates);
+          choices.set(index,{group:candidates,candidate});
           this.stats.candidateEdges++;
         }
       }
       this.stats.groups = this.groups.size;
-      if (this.stats.boundarySplits.length) hooks.boundaryAdmission?.(this.stats.boundarySplits,chart);
     }
 
     /** @param {any} item @param {string} context */
@@ -13643,7 +13751,7 @@
     /** @param {any} item @param {string} context */
     dependencies(item,context) {
       const choices = this.at.get(item), key = this.availabilityKey(item,context);
-      return choices ? [...new Set(choices.values())].filter(group => !this.maxima.get(group)?.has(key))
+      return choices ? [...new Set([...choices.values()].map(choice => choice.group))].filter(group => !this.qualified.get(group)?.has(key))
         .flatMap(group => group.map((/** @type {any} */ candidate) => candidate.edge)) : [];
     }
 
@@ -13652,22 +13760,18 @@
       const choices = this.at.get(item);
       if (!choices) return null;
       const key = this.availabilityKey(item,context), mask = new Set();
-      for (const [index,group] of choices) {
-        let contexts = this.maxima.get(group);
-        if (!contexts) this.maxima.set(group,contexts=new Map());
+      for (const [index,{group,candidate}] of choices) {
+        let contexts = this.qualified.get(group);
+        if (!contexts) this.qualified.set(group,contexts=new Map());
         let kept = contexts.get(key);
         if (kept === undefined) {
-          kept = Infinity;
-          for (const candidate of group) {
-            const {edge} = candidate;
-            if (!dependency(edge.previous).all || !dependency(edge.child).all) continue;
-            kept = Math.min(kept,candidate.option);
-
-          }
+          const viable = group.filter((/** @type {any} */ proof) => dependency(proof.edge.previous).all && dependency(proof.edge.child).all);
+          kept = new Set(viable.filter((/** @type {any} */ proof) => !viable.some((/** @type {any} */ higher) =>
+            higher.option < proof.option && boundaryDominates(higher.open,proof.open))));
+          if ([...kept].some(proof => viable.some((/** @type {any} */ higher) => higher.option < proof.option))) this.reportSplit(group);
           contexts.set(key,kept);
         }
-        const option = item.edges[index].child.production.rankedOption;
-        if (option === kept) mask.add(index);
+        if (kept.has(candidate)) mask.add(index);
       }
       let contexts = this.masks.get(item);
       if (!contexts) this.masks.set(item,contexts=new Map());

@@ -1,3 +1,4 @@
+import { BoundaryAnnotations } from "./boundary-annotations.js";
 import { PatternMachine } from "./patterns.js";
 import { CloseObservations } from "./close-observations.js";
 import { FamilySummaries } from "./family-summaries.js";
@@ -234,8 +235,8 @@ export declare class Item {
     slots: Captured;
     /** @type {any} */
     boundary: any;
-    /** @type {any[]} */
-    boundaryIntroduced: any[];
+    /** @type {BoundaryAnnotations|null} */
+    boundaryAnnotations: BoundaryAnnotations | null;
     prefix: number;
     structure: number;
     /** @type {CloseObservation|null} */

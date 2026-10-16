@@ -31,7 +31,7 @@ export declare class RankedAdmission {
     } | null;
     groups: Map<any, any>;
     at: Map<any, any>;
-    maxima: Map<any, any>;
+    qualified: Map<any, any>;
     masks: Map<any, any>;
     stats: {
         chartFacts: number;
@@ -40,6 +40,7 @@ export declare class RankedAdmission {
         retainedEdges: number;
         boundarySplits: any[];
     };
+    reportSplit: (candidates: any[]) => void;
     /** @param {any} chart @param {any} ranked */
     constructor(chart: any, ranked: any);
     /** @param {any} item @param {string} context */
