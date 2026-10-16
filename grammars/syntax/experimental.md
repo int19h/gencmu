@@ -33,7 +33,7 @@ The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
 
 [The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
 
-A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
+A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
 The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental dialect turns both on. A caller, the program that requests parsing, can turn either off.
 
@@ -409,7 +409,7 @@ Sumti connectives are ek, joik, jek or VUhU (`connective`). This change and the 
 - `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
 - `na'e` around a term that is neither a sumti nor a tense or modal with its sumti or `ku`, such as `na ku`
 - `lo'oi` and `ku'au` surround a subsentence as a description.
-- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
+- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the words stage delimits
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar accepts `mi na'e pu ku .e ca lu'u klama`. The first tag requires KU before `.e`. The second can omit KU before `lu'u`.
 
@@ -895,7 +895,7 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
 
 ## Free modifiers, vocatives and indicators
 
-A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads its contents as raw words and emits one quote token ([`../words/lohai.md`](../words/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
+A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The words stage reads its contents as raw words and emits one quote token ([`../words/lohai.md`](../words/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
 
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 

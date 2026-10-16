@@ -450,19 +450,19 @@ Classification does not add a construction to the grammar. Comments beside each 
 
 The unsupported classes are BAhEI, BEIhE, CAhEI, CIhAU, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, GOhOI, IhAU, JAIhA and JAIhI. They also include JIhOI, KAUhU, KUhEI, LA, LIhEI, MUhOI, NOIhA, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so `la'ei` and `lai'u` have no construction here.
 
-Corpus evidence also supplies words in DOhOI, LIhAU, LUhEI, SIhIhEI, SIhOI, SOhOI, SUhUhUhUhUhUhUhU, TAhOI, TOIhO and Y. Their constructions also wait for #212. The Y word `ie'o` retains its dictionary class. The word stage does not treat it as hesitation, which uses runs of `y`.
+Corpus evidence also supplies words in DOhOI, LIhAU, LUhEI, SIhIhEI, SIhOI, SOhOI, SUhUhUhUhUhUhUhU, TAhOI, TOIhO and Y. Their constructions also wait for #212. The Y word `ie'o` retains its dictionary class. The words stage does not treat it as hesitation, which uses runs of `y`.
 
 The ZOI delimiter rule excludes class Y. It therefore refuses `ie'o` as a delimiter, including before `bu`.
 
 Some words belong to supported classes but need different constructions. Their comments also name #212. The following notes distinguish their current readings from their defined uses.
 
-The dictionary gives `la'ai` class LOhU for names delimited by pauses. The word stage instead reads through the next `le'u`. Thus `la'ai .alis. cu klama` rejects at the end. A later `le'u` can instead close a quotation that swallows the intervening sentence. Its pause-delimited use waits for #212.
+The dictionary gives `la'ai` class LOhU for names delimited by pauses. The words stage instead reads through the next `le'u`. Thus `la'ai .alis. cu klama` rejects at the end. A later `le'u` can instead close a quotation that swallows the intervening sentence. Its pause-delimited use waits for #212.
 
 The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The indicator stage instead requires an indicator immediately after it. Thus `mi fu'ei klama fu'o` rejects at `klama`. With an indicator, `fu'ei ui mi klama fu'o` parses as an indicator group and a sentence, without a quotation. Its quotation use waits for #212.
 
-The dictionary gives `ze'ei` class SI. The word stage therefore erases the preceding word without a warning. In `lo broda ze'ei gerku cu klama`, `broda` disappears and the syntax reads `lo gerku cu klama`. In `mi klama ze'ei`, the syntax reads only `mi`. Its proposed word-joining behavior waits for #212.
+The dictionary gives `ze'ei` class SI. The words stage therefore erases the preceding word without a warning. In `lo broda ze'ei gerku cu klama`, `broda` disappears and the syntax reads `lo gerku cu klama`. In `mi klama ze'ei`, the syntax reads only `mi`. Its proposed word-joining behavior waits for #212.
 
-The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The word stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
+The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The words stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
 
 The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected dialect. Its dialect switch waits for #212.
 

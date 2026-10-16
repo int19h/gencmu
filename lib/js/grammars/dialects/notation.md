@@ -12,7 +12,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
 
 `../../docs/engine.md` specifies these steps in §8 and §9.
 
-## Stage 1: tokens
+## Stage 1: lexical
 
 ```jbogenbau
 %stage lexical
@@ -25,7 +25,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
 
 Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receives one token per decomposed scalar, with that scalar as its value and image. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens covers a run of decomposed scalars from the document. The stage drops spaces and comments.
 
-## Stage 2: the document
+## Stage 2: syntax
 
 ```jbogenbau
 %stage syntax

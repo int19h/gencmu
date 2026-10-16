@@ -4,7 +4,7 @@ This document is the family part of the forms stage in the [CLL](../dialects/cll
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A tag marks a token by an identifier. The family of the definition effort is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
+This document defines the three shapes that the forms stage reads, `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each such word with what the pause rules of CLL[^cll-s4-9] need to know about the word. A tag marks a token by an identifier. The BPFK family is [bpfk.md](bpfk.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -38,7 +38,7 @@ The ten rising diphthongs, such as `ia` and `ui`, are cmavo as whole words. A co
 
 A consonant followed by `y` is a letter cmavo.[^cll-s4-2] So is `y'y`, the letter for the apostrophe.[^cll-s17-2] The ten pairs `a'y e'y i'y o'y u'y y'a y'e y'i y'o y'u` are cmavo too.
 
-A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the word stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the word stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
+A cmavo can also use `y` as one more unit, as `ka'y`, `ky'a`, `cy'y` and `y'y'y` do. They are always words. The grammar tags each one `Cmavo-Warning`, and the words stage reads it under the warning `y-cmavo` ([cll-stream.md](cll-stream.md)). A caller who turns the feature on gets a warning for each one that the words stage reads as a Lojban word. Such a word has at least two units. A `y` alone, or a run of `y`, is hesitation, which [forms.md](forms.md) reads.
 
 A cmavo's stress is free (CLL[^cll-s3-9]), so any of its vowels can be a capital. Its first or last syllable is stressed if its first or last unit has a capital vowel.
 
@@ -535,7 +535,7 @@ A comma between two vowels marks a syllable break (CLL[^cll-s3-3][^cll-s3-5]). P
 
 Only a borrowing, a name or hesitation can hold a comma between two vowels. A cmavo, a gismu or a lujvo cannot. A word with such a comma must also be a word of the same class when its commas are removed and its capitals lowered. So `ma,i` and `ba,irgau` are no words, because `mai` is a cmavo and `bairgau` is a lujvo. `zda,i` is no word either, because `zdai` is none.
 
-A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([forms.md](forms.md)). The word stage rejects that run unless it is inside a foreign quote or after `fa'o`.
+A run with such a word divides into no words, and the forms stage hands it on as one foreign token ([forms.md](forms.md)). The words stage rejects that run unless it is inside a foreign quote or after `fa'o`.
 
 The comma rules read `Syllable-Break`, because the normalized comma value is empty. `vowel-group`, `counted-letter` and `name-vowels` retain the written boundary. `la-or-doi`, `falling-vowels`, `rising-vowels` and `falling-i` read optional syllable boundaries. `has-comma` finds a comma through its tag.
 
@@ -543,7 +543,7 @@ The rules that test whether letters form a cmavo or a lujvo read a comma inside 
 
 The tests of "Borrowings" for a lujvo or a `combination` use these rules and treat such a comma as absent too. So `ba,iklama` is no borrowing, because `bai klama` is two words. `akru,a` is one borrowing, as `akrua` is, and not `a kru,a`. A borrowing needs two syllables without its commas, which `one-syllable` tests.
 
-The stress marks and the pause rules read the syllables as written, with the breaks that the commas mark. `brivla-scan` and `name-scan` of [shapes.md](shapes.md) do not read a comma through. So `tcE,ila` is no word, because its capital is on the first of the three syllables `tce-i-la`. The check without commas also lowers the capitals, so the borrowing `zba,A,u` passes it as `zbaau`, although `zbaAu` is none. A comma can change the division of a text with capitals, while each word keeps its class. `zba,A,uklama` is `zba,A,u klama`, and `zbaAuklama` is `zbaAukla ma`.
+The stress marks and the pause rules read the syllables as written, with the breaks that the commas mark. `brivla-scan` and `name-scan` of [shapes.md](shapes.md) form no diphthong across a comma. So `tcE,ila` is no word, because its capital is on the first of the three syllables `tce-i-la`. The check without commas also lowers the capitals, so the borrowing `zba,A,u` passes it as `zbaau`, although `zbaAu` is none. A comma can change the division of a text with capitals, while each word keeps its class. `zba,A,uklama` is `zba,A,u klama`, and `zbaAuklama` is `zbaAukla ma`.
 
 A name needs one more test. Its `doi` test applies at its start or after a vowel or `y`. A comma removes no letter. So `la-or-doi` finds `doi` across a comma, and `.do,is.` is no name. `.ndo,is.` is still a name, because a consonant comes before its `do,i`. Hesitation keeps its commas, as [forms.md](forms.md) says, so `y,y` is hesitation, as `yy` is.
 
@@ -603,14 +603,14 @@ In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads 
 ### Names and vowels
 
 - Names: CLL forbids embedded `la`, `lai` or `doi` "unless the sequence is immediately preceded by a consonant".[^cll-s4-8] This grammar rejects them only at the start or after a vowel or `y`. Its `name-vowel` test excludes the apostrophe.
-- Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`. Usage before the PEG (parsing expression grammar) grammars had them.
+- Vowels: CLL never says whether two vowels that form no diphthong can stand side by side. In a name or a borrowing they can, each its own syllable, as in `.aab.` and `paarku`.
 - Vowels in a cmavo: A cmavo's vowels are single vowels and falling diphthongs joined by apostrophes (CLL[^cll-s4-1][^cll-s4-2]). A rising diphthong is a cmavo only as a whole word. So `seia`, `miui` and `kie` are no cmavo, and `sei'a` is one. An apostrophe or a comma can stand before a rising diphthong in a name, as in `.a'uas.`.
 
 ### Commas and written boundaries
 
 - Commas: A comma between two vowels only marks a syllable break, as CLL uses it in `.me,iin.` and `bang,r,kore,a`.[^cll-s3-5][^cll-s4-7] It can stand only in a borrowing, a name or hesitation, and a word keeps its class with its commas removed and its capitals lowered. CLL[^cll-s3-3] says that "no two Lojban words differ solely because of the presence or placement of a comma". CLL also writes `kulnrsu,omi`.[^cll-e7-78] The stress marks read the syllables as written, so stress-marked text can divide differently, as in `zba,A,uklama`. Anywhere else a comma is not a letter.
 - Written boundaries: CLL[^cll-s3-3] lets a missing period be inferred, but not a missing word boundary. So a space or a period ends a word and counts as a pause, and no boundary is inferred where none is written. `miui` is no text, and `mi .ui` and `mi ui` are two words.
-- `y` in a cmavo: The ten pairs `a'y`, `e'y`, `i'y`, `o'y`, `u'y`, `y'a`, `y'e`, `y'i`, `y'o` and `y'u` are cmavo. The word stage reads a longer cmavo with a `y` unit, such as `ka'y`, under the warning `y-cmavo`.
+- `y` in a cmavo: The ten pairs `a'y`, `e'y`, `i'y`, `o'y`, `u'y`, `y'a`, `y'e`, `y'i`, `y'o` and `y'u` are cmavo. The words stage reads a longer cmavo with a `y` unit, such as `ka'y`, under the warning `y-cmavo`.
 
 [^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
 

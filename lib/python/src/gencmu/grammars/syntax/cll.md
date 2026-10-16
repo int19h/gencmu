@@ -4,7 +4,7 @@ This document gives the grammar of *The Complete Lojban Language* (CLL), edition
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). The closing section lists differences from the printed grammar.
+The grammar follows the printed rules of CLL.[^cll-s21-1] The printed rules use EBNF (Extended Backus-Naur Form). This document uses jbogenbau. The closing section lists differences from the printed grammar.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by an identifier. A free modifier is a phrase permitted in designated syntax slots.
 
@@ -16,17 +16,20 @@ The prose uses these Lojban terms before the sections that explain them:
 - A sumti is an argument of a selbri.
 - A tanru is a compound selbri.
 - A jek is a logical connective between tanru units, such as `je`.
+- An ek is a logical connective between sumti, such as `.e`.
+- A gek is a forethought connective, such as `ga ... gi`.
+- A guhek is a forethought connective between tanru units, such as `gu'e ... gi`.
 - A joik is a non-logical connective, such as `joi`.
 - A stag is a tense or modal inside a connective.
 - A mekso is a mathematical expression.
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds. The word stage also processes the erasers `si`, `sa` and `su`.
+The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../words/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
 [The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, before syntax reads them.
 
-The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished word-stage quote arrives as one token of its opening class.
+The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished quote from the words stage arrives as one token of its opening class.
 
 [The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
@@ -308,7 +311,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 - `lo'u ... le'u` quotes a run of Lojban words that need not be grammatical, possibly none.
 - `zoi` quotes any text between two copies of a delimiter word.
 
-The word stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one token of its opening class. This grammar reads one terminal for each such quote. The word-stage tree retains its internal structure. This grammar delimits `lu ... li'u` through syntax. Its free-modifier slot follows the quote whether or not `li'u` is written.
+The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one token of its opening class. This grammar reads one terminal for each such quote. The tree of the words stage retains its internal structure. This grammar delimits `lu ... li'u` through syntax. Its free-modifier slot follows the quote whether or not `li'u` is written.
 
 `sumti-tail` is what follows a descriptor.[^cll-s6-2] It begins with an optional inner sumti that possesses or restricts, `le mi zdani`.[^cll-s8-7] Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti.[^cll-s8-7] They can also replace it.[^cll-s8-6]
 
@@ -410,7 +413,7 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
 
 Each level of the chain holds its first abstractor. So a single abstractor with `nai` or free modifiers is a node of its own, `[nu nai]`.
 
-The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2` reads.
+The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2` reads.
 
 ```jbogenbau
 %rule selbri
@@ -485,7 +488,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
 
 A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
 
-A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
+A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The words stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 
 A number or letter string cannot end before another unit of the same run. A written `boi` ends the run. At the syntax stage, the run ends where no complete continuation unit begins.
 
@@ -809,7 +812,7 @@ A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both
 - The cancel `da'o`
 - `fu'o`, which closes a scope opened by `fu'e`
 
-The forms stage reads `y` as hesitation, and the word stage drops it before syntax.
+The forms stage reads `y` as hesitation, and the words stage drops it before syntax.
 
 The indicator stage attaches later indicator runs to their preceding words. This syntax reads separate indicators only at the start of a text. Each indicator can carry its own `fu'e`, which opens an attitude scope.
 
@@ -860,7 +863,7 @@ This grammar departs from the EBNF printed in CLL in eleven places. The first se
 
 The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
 
 ### Printed rules and translations
 
@@ -909,7 +912,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
     This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser reads the tag and termset as separate terms. camxes-std, the standard grammar of the camxes parser, does too.
 
-11. The word stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
+11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
 ### Earlier stages
 
@@ -917,7 +920,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
-The word stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
+The words stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
 ### Free modifiers after terminators
 

@@ -206,7 +206,7 @@ A silent mark beside a quotation mark is skipped by the neighbor test of "Quotat
 
 The conditions on the run's edges are those of latin-strict.md, so each edge has one reading. `ア〜` is the foreign run `ア`, with the mark in no token. `ーß` is the foreign run `ß`, with the mark in no token. A run of Latin letters with a silent mark at its edge has no foreign reading either. So `klạmaー` is `klama`. The redefinition only adds `misplaced-quote` to the conditions of latin-strict.md.
 
-bpfk and Zantufa keep `~`, `～`, `〜` and `·` as pauses. So `bro~da` and `gen·cmu` are two runs each there, and the word stage rejects them. Their `ー` and `ｰ` are letters of another script, so they make a run foreign.
+bpfk and Zantufa keep `~`, `～`, `〜` and `·` as pauses. So `bro~da` and `gen·cmu` are two runs each there, and the words stage rejects them. Their `ー` and `ｰ` are letters of another script, so they make a run foreign.
 
 ## Marks
 

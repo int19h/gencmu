@@ -13,7 +13,7 @@ The dialect includes CLL, with its phoneme normalization stage, and then extends
 
 A payload is the material after a marker. A sumti is an argument of a predicate. The frame accepts terms, so tenses and modals can set it as well as sumti. The payload after `ki'ei` accepts any number of CLL terms, including zero. For example, `ki'ei ko'a .i broda` supplies an argument, and `ki'ei pu zu ku .i broda` supplies a tense. The empty form `ki'ei .i broda` supplies no terms.
 
-The CLL word stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
+The inherited CLL stages already accept the word form of `ki'ei`. The classifier declaration adds this particle to the inherited CLL lexicon. The forms stage assigns its class before the later stages read it.
 
 ```jbogenbau
 %extend-stage forms

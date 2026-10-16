@@ -5698,3 +5698,11 @@ adhoc.w2.kihei.8
 adhoc.w2.kihei.9
 adhoc.w2.kihei.10
 adhoc.w2.kihei.11
+adhoc.words.kihei.shared-erasure.1
+adhoc.words.kihei.shared-erasure.2
+adhoc.words.kihei.shared-erasure.3
+adhoc.words.kihei.shared-erasure.4
+adhoc.words.kihei.shared-erasure.5
+adhoc.words.kihei.shared-erasure.6
+adhoc.words.kihei.shared-erasure.7
+adhoc.words.kihei.shared-erasure.8

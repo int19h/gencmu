@@ -4,7 +4,7 @@ A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+This document is part of the words stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The dialect includes this document after [the word stream](stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../docs/notation.md) explains the notation.
 
