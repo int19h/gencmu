@@ -7,7 +7,7 @@ The document belongs to the phoneme stage. It stands after latin.md and before t
 Stage zero decomposes every text, so an accented letter arrives as its base letter and its combining marks. The conventions are these:
 
 - Genuine punctuation is a word break. Other numbers, controls, private-use and unassigned characters make their run foreign. Format characters follow latin.md: U+200B and the visible number signs are word breaks, and the others are nothing.
-- A straight or curly quotation mark, or a backtick, is an apostrophe between letters and punctuation at a word edge.
+- A straight or curly quotation mark, a backtick or a spacing acute accent is an apostrophe between letters and punctuation at a word edge.
 - A length mark, such as `~`, and the middle dot `·` are ignored wherever they stand.
 - An acute or grave accent marks stress. A dieresis on a vowel means an apostrophe before it.
 - `ɩ` and `q` write the i-glide, and `w` writes the u-glide. A breve on `i` or `u` writes a glide too. These glide letters are glides wherever they stand.
@@ -34,11 +34,13 @@ latin.md reads a format character as nothing, as a comma, with two exceptions. T
 
 ## Quotation marks
 
-A backtick is U+0060 GRAVE ACCENT. It follows the same rule as straight and curly quotation marks. The combining grave accent U+0300 is a stress mark on its letter.
+Some keyboards type a curly mark, a backtick or a spacing acute accent for `'`. Texts also put these marks around words.
 
-The straight `'`, the curly `‘` and `’`, and the backtick serve both as apostrophes and as quotation marks. Some keyboards type a curly mark for `'`, and texts put either kind around words. At a word edge, the mark is punctuation because one side has no letter. Between two letters, the mark is an apostrophe. The word forms judge it as they judge `k'a`. So `‘klama’` and `'klama'` are `klama`, `mi 'klama' do` is three words, and `la’o` and `la'o` keep their apostrophe.
+The straight `'`, curly `‘` and `’`, backtick and spacing acute accent serve as apostrophes between letters. At a word edge, a mark is punctuation because one side has no letter. The word forms judge an interior apostrophe as they judge `k'a`. So `‘klama’` and `'klama'` are `klama`, `mi 'klama' do` is three words, and `la’o` and `la'o` keep their apostrophe.
 
-latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick also defaults to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
+The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE ACCENT. The combining grave accent U+0300 is a stress mark on its letter. The combining acute accent U+0301 also marks stress.
+
+latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
 The left neighbor needs a test of the whole run, because a condition can look ahead but not back. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
 
@@ -58,7 +60,7 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
   $ :: ∅ := "'"
 
 %rule quote-mark
-  "'" | "’" | "‘" | "`"
+  "'" | "’" | "‘" | "`" | "´"
 
 %rule inner-quote-mark
   $q:quote-mark
@@ -504,6 +506,6 @@ An accented capital keeps its stress in an all-capital run, as latin.md says, an
 
 CLL describes none of these conventions. camxes-exp, the baseline of the experimental syntax, reads none of these letters and marks. It also treats only some punctuation as a pause. The dialect does not follow camxes-exp on punctuation or diacritics. It reads what written Lojban means.
 
-Neither CLL nor camxes-exp defines the contextual apostrophe use of U+0060. The experimental dialect keeps this common keyboard spelling between letters and treats the mark as punctuation at a word edge. The same tests cover its neighbors, ignored characters, foreign runs and capital runs as for straight and curly quotation marks.
+Neither CLL nor camxes-exp defines the contextual apostrophe use of U+0060 or U+00B4. The experimental dialect accepts these keyboard spellings between letters and treats either mark as punctuation at a word edge. The neighbor rules treat them like straight and curly quotation marks. They apply across ignored characters and in foreign and capital runs.
 
 krulermorna marks syllables with its letters. This stage reads the phonemes that the letters stand for, and the word forms divide them by their own rules.
