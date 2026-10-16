@@ -210,7 +210,7 @@ impl Context {
         } else {
             read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))?
         };
-        if diagnostic && text.contains("followed-by") || diagnostic && text.contains("preceded-by") {
+        if diagnostic && (text.contains("followed-by") || text.contains("preceded-by")) {
             return read_document_mode(&self.notation, text, true).map_err(|e| e.in_document(path));
         }
         if diagnostic {
