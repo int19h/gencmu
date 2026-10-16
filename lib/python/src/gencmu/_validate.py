@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 28
+FORMAT = 29
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -232,7 +232,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
             or not isinstance(r.get("name"), str)
             or not (r["name"] == "#" or CLASSIFIER_NAME.fullmatch(r["name"]))
             or r.get("op") not in ("define", "redefine", "extend")
-            or r.get("flags") not in ([], ["leftmost-longest"])
+            or r.get("flags") not in ([], ["leftmost-longest"], ["fewest"])
             or r["op"] == "extend"
             and r["flags"]
             or not _items(r.get("alternatives"))
@@ -303,7 +303,9 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
                 return "a capture name used twice in one production"
-        problem = definition_problem(r) or rule_type_problem(r)
+        from ._boundary import problem as boundary_problem
+        boundary = boundary_problem(r)
+        problem = (boundary[0] if boundary else None) or definition_problem(r) or rule_type_problem(r)
         if problem and not (defer_emission and deferred_emission_problem(problem) and rule_has_ranked(r)):
             return problem
     for c in dom["constants"]:
@@ -433,7 +435,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 keys == {"captured"}
                 and _capture(node["captured"])
                 or keys == {"method", "receiver", "args"}
-                and node["method"] in ("matches", "begins", "starts-input")
+                and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
             problem = condition_type_problem(node, memo=types)
@@ -464,9 +466,9 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 return "split has an empty delimiter"
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
-                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}):
+                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}):
                     key = next(iter(arg))
-                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or CLASSIFIER_NAME.fullmatch(arg[key])):
+                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and node["method"] in ("followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))

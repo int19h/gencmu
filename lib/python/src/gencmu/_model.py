@@ -219,6 +219,7 @@ class ParseError:
     line: int | None = None
     column: int | None = None
     expected: list[Expected] | None = None
+    boundary: dict[str, Any] | None = None
     readings: list[Node] | None = None
     chosen: Node | None = None
     completion: list[Restoration] | None = None
