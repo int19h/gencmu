@@ -4,6 +4,6 @@
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">quantifier</text>
 <text class="label" x="114" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="42" height="24" rx="0"/><text x="41" y="51" textLength="25.2" lengthAdjust="spacingAndGlyphs">mex</text></g>
-<path d="M62 46h6m0 -8v16m4 -16v16"/>
+<g class="rule"><rect x="20" y="34" width="134" height="24" rx="0"/><text x="87" y="51" textLength="117.6" lengthAdjust="spacingAndGlyphs">mekso-fragment</text></g>
+<path d="M154 46h6m0 -8v16m4 -16v16"/>
 </svg>
