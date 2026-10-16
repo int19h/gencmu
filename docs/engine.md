@@ -663,7 +663,7 @@ Every emitted token stores a value and image, including empty strings. Stage-zer
 
 The input value keeps every character that its tokens store. A stressed `lA` can have normalized value `la` and image `lA`. `ma,i` can have value `mai` and image `ma,i`. Tags retain stress and syllable-break information. These are grammar mappings, not comparison behavior.
 
-Every comparison is exact. A zoi compound compares by the concatenation or value recipes of its ordinary parts. Its quote body uses its normalized parts as the default value and a verbatim image. Foreign text has no placeholder value. Different foreign strings need not compare equally.
+Every comparison is exact. A zoi compound compares by the concatenation or value recipes of its ordinary parts. Its quote body uses its normalized parts as the default value. Foreign text has no placeholder value. Different foreign strings need not compare equally.
 
 `span.source-text` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 

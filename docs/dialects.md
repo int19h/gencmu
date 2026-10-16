@@ -639,7 +639,7 @@ The survivor has no `%emits`. When it stands alone, the emission walk forwards o
 
 ## Read foreign runs
 
-`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quoted body keeps its own value policy and verbatim image.
+`FOREIGN` marks input that the dialect cannot read as words. A non-Lojban character run retains its exact character values and images. A forms-stage unsegmentable run retains its normalized phoneme values. A quote keeps its own value policy, and its image is the source text of the whole quote.
 
 Use names that state each recognizer's role:
 
