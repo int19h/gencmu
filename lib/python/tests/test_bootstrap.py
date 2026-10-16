@@ -141,7 +141,7 @@ class Compiled(unittest.TestCase):
     def test_an_entry_of_format_17_is_never_used(self) -> None:
         """A library never uses a cached DOM of another version
         (docs/output.md): neither a file of format 17 nor an entry whose
-        DOM is of format 17, such as one whose repeat has a min."""
+        DOM uses an unsupported format or has an unknown expression member."""
         document = "```jbogenbau\n%ambiguity-resolution greedy\n%rule text {A}\n```\n"
         sources = {"p.md": '```jbogenbau\n%stage main\n%include "g.md"\n```\n', "g.md": document}
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
@@ -159,11 +159,10 @@ class Compiled(unittest.TestCase):
         self.assertTrue(
             load(DOM_FORMAT, {"format": 17, **empty}).parse_tokens([gencmu.Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a").ok
         )
-        # The same document in the shape of format 17, a repeat with min,
-        # whose condition no text meets: it is a miss, and the document is
-        # read afresh.
+        # An unknown expression member makes this DOM a miss.
+        # Its condition matches no text, so the result shows source fallback.
         old = read_document(document, "g.md")
-        old["rules"][0]["alternatives"][0]["expr"] = {"repeat": {"ref": "A"}, "min": 1}
+        old["rules"][0]["alternatives"][0]["expr"] = {"repeat": {"ref": "A"}, "extra": True}
         old["rules"][0]["conditions"] = [{"op": "=", "left": {"string": "a"}, "right": {"string": "b"}}]
         for file_format in (17, DOM_FORMAT):
             with self.subTest(file_format=file_format):

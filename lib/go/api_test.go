@@ -677,7 +677,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 	gText := sources["g.md"]
 	bad := []string{
 		`{"seq":[]}`, `{"choice":[]}`, `{"and":[]}`, `{"seq":[null]}`, `{"optional":null}`,
-		`{"repeat":{"ref":"A"},"min":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
+		`{"repeat":{"ref":"A"},"extra":5}`, `{"capture":"x","expr":{"seq":[{"ref":"A"},{"ref":"B"}]}}`,
 		`{"ref":""}`, `{"what":1}`, `null`, `[]`,
 		// Tests the reader never writes: an unpaired surrogate, a value of
 		// the wrong type, and a tested node or symbol with a second kind of
@@ -699,7 +699,7 @@ func TestMalformedPrecompiled(t *testing.T) {
 		`{"seq":[{"literal":{"string":"a"}},{"test":"=","value":{"string":null},"expr":{"literal":{"string":"b"}}}]}`,
 		`{"seq":[{"literal":{"string":null}},{"literal":{"string":"b"}}]}`,
 		`{"seq":[{"capture":null,"expr":{"literal":{"string":"a"}}},{"literal":{"string":"b"}}]}`,
-		`{"seq":[{"literal":{"string":"a"}},{"repeat":{"literal":{"string":"b"}},"min":null}]}`,
+		`{"seq":[{"literal":{"string":"a"}},{"repeat":{"literal":{"string":"b"}},"extra":null}]}`,
 		`{"seq":[{"literal":{"string":"a"}},{"literal":{"string":"b"}}]},"tags":{"tag":null}`,
 	}
 	// Terms the reader never builds, in an otherwise good alternative.

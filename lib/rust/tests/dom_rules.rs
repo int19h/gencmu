@@ -465,8 +465,8 @@ fn every_malformed_dom_is_a_cache_miss() {
             )),
         ),
         (
-            "a repeat with a min member",
-            with_alternative(r#"{"guards":[],"expr":{"repeat":{"literal":{"string":"b"}},"min":1}}"#),
+            "a repeat with an unknown member",
+            with_alternative(r#"{"guards":[],"expr":{"repeat":{"literal":{"string":"b"}},"extra":true}}"#),
         ),
         (
             "a chain in a sequence",
@@ -1429,8 +1429,8 @@ fn a_node_of_two_forms_is_refused() {
         second(&format!(r#"{{"repeat":{b},"optional":{c}}}"#)),
         second(&format!(r#"{{"optional":{c},"repeat":{b}}}"#)),
         second(&format!(r#"{{"repeat":{b},"optional":{{"ref":["x"]}}}}"#)),
-        second(&format!(r#"{{"repeat":{b},"min":1}}"#)),
-        second(&format!(r#"{{"repeat":{b},"separator":{c},"min":0}}"#)),
+        second(&format!(r#"{{"repeat":{b},"extra":true}}"#)),
+        second(&format!(r#"{{"repeat":{b},"separator":{c},"extra":false}}"#)),
         second(&format!(r#"{{"repeat":{b},"separator":{{"ref":"x y"}}}}"#)),
         second(&format!(r#"{{"repeat":{b},"chain":"left"}}"#)),
         second(&format!(r#"{{"optional":{{"repeat":{b},"separator":{c},"chain":"right"}}}}"#)),
@@ -1490,7 +1490,7 @@ fn a_repeat_has_a_separator_and_a_chain_only_where_allowed() {
         assert_eq!(expression_problem(expr), None, "{expr}");
     }
     for expr in [
-        r#"{"repeat":{"ref":"A"},"min":1}"#,
+        r#"{"repeat":{"ref":"A"},"extra":true}"#,
         r#"{"repeat":{"ref":"A"},"chain":"both"}"#,
         r#"{"repeat":{"ref":"A"},"chain":true}"#,
         r#"{"seq":[{"ref":"A"},{"repeat":{"ref":"B"},"chain":"left"}]}"#,

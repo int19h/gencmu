@@ -173,9 +173,9 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
-    # Repeats have no min member (docs/output.md).
-    ("repetition with a min", set_expr({"seq": [CAP_X, {"repeat": A, "min": 1}]})),
-    ("separated list with a min", set_expr({"seq": [CAP_X, {"repeat": A, "separator": A, "min": 0}]})),
+    # Expression forms reject unknown members (docs/output.md).
+    ("repetition with an unknown member", set_expr({"seq": [CAP_X, {"repeat": A, "extra": True}]})),
+    ("separated list with an unknown member", set_expr({"seq": [CAP_X, {"repeat": A, "separator": A, "extra": False}]})),
     ("separator of a bad reference", set_expr({"seq": [CAP_X, {"repeat": A, "separator": {"ref": "x y"}}]})),
     # A chain is the whole expression of its alternative, to the left or
     # to the right (engine §9).
@@ -1199,8 +1199,8 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a repetition with an optional", second({"repeat": b, "optional": c})),
         ("an optional with a repetition", second({"optional": c, "repeat": b})),
         ("a repetition with an optional of a bad reference", second({"repeat": b, "optional": {"ref": ["x"]}})),
-        ("a repetition with a min member", second({"repeat": b, "min": 1})),
-        ("a separated list with a min member", second({"repeat": b, "separator": c, "min": 0})),
+        ("a repetition with an unknown member", second({"repeat": b, "extra": True})),
+        ("a separated list with an unknown member", second({"repeat": b, "separator": c, "extra": False})),
         ("a reference that is not a name", second({"ref": "x y"})),
         ("a top-level sequence with a choice", beside("choice", [b, c])),
         ("a captured terminal not in its canonical spelling", captured({"literal": {"string": "ab"}})),
