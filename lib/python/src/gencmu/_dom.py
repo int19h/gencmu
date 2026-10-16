@@ -373,10 +373,12 @@ class DomBuilder:
                 raise self.fail(flag_list, "%extend-rule accepts no flags")
             for flag in self.some(flag_list, "rule-flag"):
                 value = self.token_value(self.token(flag))
-                if value != "leftmost-longest":
+                if value not in ("leftmost-longest", "fewest"):
                     raise self.fail(flag, f"unknown rule flag {value}")
                 if value in flags:
                     raise self.fail(flag, f"duplicate rule flag {value}")
+                if flags:
+                    raise self.fail(flag, "two different rule flags are not allowed")
                 flags.append(value)
         header = self.clauses(node, "tags-clause", True)
         body = self.one(node, "body") or self.only(node, "headed-body")
@@ -840,7 +842,13 @@ class DomBuilder:
                     if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
                         raise self.fail(node, "a classifier name must start with a lowercase letter")
                     arg = {"classifier": arg["rule"]}
+                if name in ("followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
+                    arg = {"terminal": arg["tag"]}
                 args.append(arg)
+            if arguments is not None:
+                separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
+                if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
+                    raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
@@ -852,6 +860,10 @@ class DomBuilder:
             if name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
             receiver = {"method": name, "receiver": receiver, "args": args}
+            if arguments is not None:
+                separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
+                if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
+                    raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
             if problem:
                 raise self.fail(node, problem)
