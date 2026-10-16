@@ -1,0 +1,31 @@
+{
+  "description": "Equal literals join their source annotations without splitting records (engine §4.2 and §6.1, case 74).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text w B\n%rule w a\n%conditions ¬$.followed-by(B)\n%rule a A\n%conditions ¬$.followed-by(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "w",
+          "condition": 0,
+          "at": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "A helper settles a private receiver against earlier nodes inside its option (engine §4.2 and §6.1, case 71).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (X $c:b ≻ p)\n%conditions ¬$c.preceded-by(X)\n%rule p X B\n%rule b B",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

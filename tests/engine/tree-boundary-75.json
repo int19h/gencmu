@@ -1,0 +1,29 @@
+{
+  "description": "A higher proof with fewer open literals and equal offers dominates (engine §4.2 and §6.1, case 75).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (p ≻ q) :: ∅ | B\n%rule p A\n%rule q A\n%conditions ¬$.preceded-by(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "p"
+          }
+        ]
+      }
+    }
+  }
+}

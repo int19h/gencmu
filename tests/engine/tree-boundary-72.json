@@ -1,0 +1,26 @@
+{
+  "description": "A synthetic token in an aligned witness makes no boundary offer (engine §4.2 and §6.1, case 72).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text $x:r C\n%conditions $x.without-elision.matches(w)\n%rule r A [+T]\n%rule w a [+T]\n%rule a A\n%conditions $.followed-by(T)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected"
+      }
+    }
+  }
+}

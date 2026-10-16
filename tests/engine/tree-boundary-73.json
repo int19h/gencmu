@@ -1,0 +1,33 @@
+{
+  "description": "An emission tag clause can hold several atoms (engine §4.2 and §6.1, case 73).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text a B\n%rule a A\n%emits $ :: (($.followed-by(B) ∧ $.preceded-by(B)) ⟹ X)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
