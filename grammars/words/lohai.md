@@ -74,7 +74,9 @@ In the experimental dialect, an unfinished marker carries `Fault` unless BU or Z
   $
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>quote</code> to <code>lehai-marker</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>word</code> to <code>lehai-marker</code></summary>
+<p><img src="../../docs/diagrams/words/lohai/word.svg" alt="Railroad diagram of the rule word"></p>
+<p><img src="../../docs/diagrams/words/lohai/lohai-constructor-tail.svg" alt="Railroad diagram of the rule lohai-constructor-tail"></p>
 <p><img src="../../docs/diagrams/words/lohai/quote.svg" alt="Railroad diagram of the rule quote"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-quote.svg" alt="Railroad diagram of the rule lohai-quote"></p>
 <p><img src="../../docs/diagrams/words/lohai/lohai-run.svg" alt="Railroad diagram of the rule lohai-run"></p>
