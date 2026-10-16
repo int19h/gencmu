@@ -148,6 +148,9 @@ struct SlotCandidate {
     option: usize,
     open: Option<crate::boundary::Record>,
     group: usize,
+    start: u32,
+    end: u32,
+    entry: String,
 }
 #[derive(Default)]
 struct Counts {
@@ -180,7 +183,8 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 let child = chart.sets[set as usize].items[index as usize];
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
-                    && child.structure == cap.structure && child.boundary == cap.boundary
+                    && child.structure == cap.structure
+                    && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
                     options.insert(g.ranked.options[&child.prod]);
@@ -256,13 +260,23 @@ impl Admission {
                 let prefix = written_frame(g, chart, previous, cap.start);
                 let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
                 let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
-                let group = *ids.entry(key).or_insert_with(|| {
+                let group = *ids.entry(key.clone()).or_insert_with(|| {
                     groups.push(vec![]);
                     groups.len() - 1
                 });
-                let open = chart.boundaries.as_ref().map(|m|m.borrow().open(previous.boundary,cap.boundary));
+                let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
                 let image = format!("{option:020}/{open:?}");
-                let candidate = SlotCandidate { node, edge, image, option, open, group };
+                let candidate = SlotCandidate {
+                    node,
+                    edge,
+                    image,
+                    option,
+                    open,
+                    group,
+                    start: cap.start,
+                    end: cap.end,
+                    entry: key,
+                };
                 groups[group].push(candidate.clone());
                 at.entry(node).or_default().push(candidate);
                 stats.candidate_edges += 1;
@@ -323,22 +337,31 @@ impl Ranker<'_> {
                         viable.push(candidate);
                     }
                 }
-                let retained: Vec<_> = viable.iter().filter(|proof| !viable.iter().any(|higher| {
-                    higher.option < proof.option && match (&higher.open, &proof.open) {
-                        (Some(h),Some(l)) => h.dominates(l),
-                        (None,None) => true,
-                        _ => false,
-                    }
-                })).collect();
-                if retained.iter().any(|proof|viable.iter().any(|higher|higher.option < proof.option)) {
-                    let a=self.admission.as_mut().unwrap();
-                    if !a.stats.boundary_splits.iter().any(|s|s.group == choice.group) {
-                        let Node::Item {set,index} = self.views.as_ref().map_or(choice.node,|v|v.unpack(choice.node).0) else {unreachable!()};
-                        let item=self.dag.chart.sets[set as usize].items[index as usize];
-                        a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {group:choice.group,start:item.origin,end:set});
+                let retained: Vec<_> = viable
+                    .iter()
+                    .filter(|proof| {
+                        !viable.iter().any(|higher| {
+                            higher.option < proof.option
+                                && match (&higher.open, &proof.open) {
+                                    (Some(h), Some(l)) => h.dominates(l),
+                                    (None, None) => true,
+                                    _ => false,
+                                }
+                        })
+                    })
+                    .collect();
+                if retained.iter().any(|proof| viable.iter().any(|higher| higher.option < proof.option)) {
+                    let a = self.admission.as_mut().unwrap();
+                    if !a.stats.boundary_splits.iter().any(|s| s.group == choice.group) {
+                        a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {
+                            group: choice.group,
+                            start: choice.start,
+                            end: choice.end,
+                            entry: choice.entry.clone(),
+                        });
                     }
                 }
-                let maxima = retained.iter().map(|c|c.image.clone()).collect();
+                let maxima = retained.iter().map(|c| c.image.clone()).collect();
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let all = &self.admission.as_ref().unwrap().maxima[&context];
@@ -1309,7 +1332,8 @@ impl<'c> Ranker<'c> {
                 } else {
                     item.caps
                 };
-                let pred = Item { boundary: 0,
+                let pred = Item {
+                    boundary: 0,
                     close_requested: item.close_requested,
                     lexical: item.lexical,
                     prod: item.prod,
@@ -1400,7 +1424,7 @@ impl<'c> Ranker<'c> {
                                         tags: ANY,
                                         test: test_id,
                                         structure: ANY,
-                boundary: ANY,
+                                        boundary: ANY,
                                         lexical: 0,
                                         option: usize::MAX,
                                     };
@@ -1590,7 +1614,7 @@ impl<'c> Ranker<'c> {
                         .projection
                         .map_or((origin, set), |(_, project)| (project[origin as usize], project[set as usize]));
                     if p < q {
-                        profile = sum_profiles(&profile, &Profile::one(p,q,g.rules[production.rule as usize].fewest));
+                        profile = sum_profiles(&profile, &Profile::one(p, q, g.rules[production.rule as usize].fewest));
                     }
                 }
                 plain(Least { vector, profile, least, total, kept: vec![0] })
@@ -1890,8 +1914,10 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        let profile =
-            self.elisions.as_ref().map_or_else(||Profile::ZERO, |summaries| summaries.summaries[&root].all.profile.clone());
+        let profile = self
+            .elisions
+            .as_ref()
+            .map_or_else(|| Profile::ZERO, |summaries| summaries.summaries[&root].all.profile.clone());
         Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
     }
 }
@@ -1916,9 +1942,13 @@ pub(crate) struct Profile {
     fewest: Nat,
 }
 impl Profile {
-    pub const ZERO: Self = Self {spans: Vec::new(), fewest: Nat::ZERO};
-    fn one(start:u32,end:u32,fewest:bool) -> Self {
-        if fewest {Self {spans:vec![],fewest:Nat::ONE}} else {Self {spans:vec![(start,end,Nat::ONE)],fewest:Nat::ZERO}}
+    pub const ZERO: Self = Self { spans: Vec::new(), fewest: Nat::ZERO };
+    fn one(start: u32, end: u32, fewest: bool) -> Self {
+        if fewest {
+            Self { spans: vec![], fewest: Nat::ONE }
+        } else {
+            Self { spans: vec![(start, end, Nat::ONE)], fewest: Nat::ZERO }
+        }
     }
 }
 
@@ -1933,13 +1963,13 @@ pub(crate) fn compare_profiles(left: &Profile, right: &Profile) -> Ordering {
             return order;
         }
     }
-    right.spans.len().cmp(&left.spans.len()).then_with(||left.fewest.cmp(&right.fewest))
+    right.spans.len().cmp(&left.spans.len()).then_with(|| left.fewest.cmp(&right.fewest))
 }
 
 fn sum_profiles(a: &Profile, b: &Profile) -> Profile {
-    Profile {spans:sum_spans(&a.spans,&b.spans),fewest:a.fewest.add(&b.fewest)}
+    Profile { spans: sum_spans(&a.spans, &b.spans), fewest: a.fewest.add(&b.fewest) }
 }
-fn sum_spans(left: &[(u32,u32,Nat)],right: &[(u32,u32,Nat)]) -> Vec<(u32,u32,Nat)> {
+fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u32, Nat)> {
     let mut result = Vec::with_capacity(left.len() + right.len());
     let (mut i, mut j) = (0, 0);
     while i < left.len() || j < right.len() {
@@ -1971,9 +2001,9 @@ pub(crate) fn tree_profile(g: &Lowered, tree: &crate::tree::ITree) -> Profile {
     let mut profile = Profile::ZERO;
     for node in &tree.nodes {
         if let crate::tree::IKind::Close { prod, start, end, .. } = node.kind {
-            let rule=&g.rules[g.prods[prod as usize].rule as usize];
+            let rule = &g.rules[g.prods[prod as usize].rule as usize];
             if start < end && (rule.leftmost_longest || rule.fewest) {
-                profile = sum_profiles(&profile, &Profile::one(start,end,rule.fewest));
+                profile = sum_profiles(&profile, &Profile::one(start, end, rule.fewest));
             }
         }
     }

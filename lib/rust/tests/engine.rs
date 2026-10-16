@@ -671,3 +671,39 @@ fn inserted_patterns_test_names_without_parsing_them() {
         run_engine_case(&parse_json(&case).unwrap()).unwrap();
     }
 }
+
+/// The measurement reports lower proofs that survive dominance, including
+/// unequal offers, and stays empty when the higher proof dominates.
+#[test]
+fn boundary_splits_report_surviving_lower_proofs() {
+    for (name, split) in [
+        ("tree-boundary-75.json", false),
+        ("tree-boundary-76.json", true),
+        ("tree-boundary-77.json", true),
+        ("tree-boundary-78.json", true),
+    ] {
+        let case = parse_json(&std::fs::read_to_string(common::repository().join("tests/engine").join(name)).unwrap())
+            .unwrap();
+        let (result, statistics) = gencmu::tools::with_slot_statistics(|| run_engine_case(&case));
+        result.unwrap();
+        assert_eq!(statistics.iter().any(|s| !s.boundary_splits.is_empty()), split, "{name}");
+        for s in statistics {
+            for report in s.boundary_splits {
+                assert!(report.start <= report.end && !report.entry.is_empty(), "{name}");
+            }
+        }
+    }
+}
+
+/// A boundary atom can stand inside a guarded term of a condition. Its
+/// literal still filters recognition before ranking.
+#[test]
+fn guarded_condition_terms_keep_their_boundary_atom() {
+    for (last, ok) in [("B", true), ("C", false)] {
+        let case = format!(
+            r#"{{"grammar":"%rule text a B | a C\n%rule a A\n%conditions ($.followed-by(B) ⟹ Seen) = Seen","tokens":[{{"text":"a","tags":["A"]}},{{"text":"b","tags":["{last}"]}}],"expect":{}}}"#,
+            if ok { r#"{"result":{"ok":true}}"# } else { r#"{"error":"rejected"}"# }
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
+}

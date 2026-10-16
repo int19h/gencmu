@@ -327,11 +327,14 @@ fn write_error(out: &mut String, error: &ParseError) {
                 out.push_str("]}");
             }
             out.push(']');
-            if let Some(boundary)=&error.boundary {
+            if let Some(boundary) = &error.boundary {
                 out.push_str(",\"boundary\":{\"rule\":");
-                write_str(out,&boundary.rule);
-                out.push_str(",\"condition\":");out.push_str(&boundary.condition.to_string());
-                out.push_str(",\"at\":");out.push_str(&boundary.at.to_string());out.push('}');
+                write_str(out, &boundary.rule);
+                out.push_str(",\"condition\":");
+                out.push_str(&boundary.condition.to_string());
+                out.push_str(",\"at\":");
+                out.push_str(&boundary.at.to_string());
+                out.push('}');
             }
         }
         ParseErrorKind::Ambiguous => {

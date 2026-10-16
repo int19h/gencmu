@@ -1010,7 +1010,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     };
     let error = ParseError {
         boundary: None,
-            kind: ParseErrorKind::Grammar,
+        kind: ParseErrorKind::Grammar,
         stage: Some("syntax".to_string()),
         code: Some(ErrorCode::ElisionWitnessLost),
         reason: None,

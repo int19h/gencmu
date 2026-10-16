@@ -111,7 +111,8 @@ impl<'a> Proofs<'a> {
             }
         }
         let caps = if production.cap_at[dot].is_some() { self.chart.lookup_caps(item.caps, cap)? } else { item.caps };
-        let next = Item { boundary: 0,
+        let next = Item {
+            boundary: 0,
             close_requested: item.close_requested,
             lexical: item.lexical,
             prod: item.prod,
@@ -160,7 +161,8 @@ impl<'a> Proofs<'a> {
     /// The constituent of a completed item at `place`.
     fn cap(&self, place: Place) -> Cap {
         let item = self.item(place);
-        Cap { boundary: item.boundary,
+        Cap {
+            boundary: item.boundary,
             close_requested: item.close_requested,
             start: item.origin,
             end: place.0,
@@ -396,7 +398,8 @@ impl<'a> Proofs<'a> {
         } else {
             item.caps
         };
-        let before = Item { boundary: 0,
+        let before = Item {
+            boundary: 0,
             close_requested: item.close_requested,
             lexical: item.lexical,
             prod: item.prod,

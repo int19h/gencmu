@@ -210,6 +210,9 @@ impl Context {
         } else {
             read_document_mode(&self.notation, text, true).map_err(|error| error.in_document(path))?
         };
+        if diagnostic && text.contains("followed-by") || diagnostic && text.contains("preceded-by") {
+            return read_document_mode(&self.notation, text, true).map_err(|e| e.in_document(path));
+        }
         if diagnostic {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
@@ -488,6 +491,11 @@ fn load(context: &Context, sources: &dyn Sources, pipeline_path: &str) -> Result
             // Retry only a failed load, with locations for its diagnostic document.
             let document = error.group.as_ref().and_then(|group| group.document.as_deref());
             load_mode(context, sources, pipeline_path, document)
+        }
+        Err(error)
+            if error.message.starts_with("boundary target ") && error.line.is_none() && error.document.is_some() =>
+        {
+            load_mode(context, sources, pipeline_path, error.document.as_deref())
         }
         Err(error) if error.message.starts_with("a constituent recipe cycles:") && error.document.is_some() => {
             load_mode(context, sources, pipeline_path, error.document.as_deref())

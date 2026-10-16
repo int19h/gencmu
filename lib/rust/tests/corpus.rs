@@ -54,7 +54,22 @@ fn outcome(dialect: &gencmu::Dialect, case: &Value) -> Result<BTreeMap<&'static 
         without_features: feature_names(case.get("withoutFeatures")),
         ..gencmu::ParseOptions::default()
     };
-    let (result, checks) = gencmu::tools::with_elision_checks(|| dialect.parse(text, &options).expect("a parse"));
+    let run = || gencmu::tools::with_elision_checks(|| dialect.parse(text, &options).expect("a parse"));
+    let (result, checks) = if let Some(path) = std::env::var_os("GENCMU_BOUNDARY_SPLITS") {
+        use std::io::Write;
+        static LOG: std::sync::OnceLock<Mutex<std::fs::File>> = std::sync::OnceLock::new();
+        let log = LOG.get_or_init(|| Mutex::new(std::fs::File::create(path).expect("the boundary split log")));
+        let (result, statistics) = gencmu::tools::with_slot_statistics(run);
+        let id = case.get("id").and_then(Value::str).unwrap_or("?");
+        for (recognition, stats) in statistics.iter().enumerate() {
+            for split in &stats.boundary_splits {
+                writeln!(log.lock().unwrap(), "{id}\t{recognition}\t{split:?}").expect("write a boundary split");
+            }
+        }
+        result
+    } else {
+        run()
+    };
     // No corpus case gives elision-witness-lost, and every check of
     // elision-only that ran keeps its witness, whatever the case expects
     // (tests/README.md).
