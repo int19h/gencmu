@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The maintainers edit this lexicon by hand. Its baseline is the word lists of camxes-exp, the experimental grammar of the camxes parser. The source is `camxes-exp.peg` in ilmentufa, at commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg). The lexicon contains CLL (*The Complete Lojban Language*) cmavo and experimental cmavo. The closing section lists its additions and class differences.
 
-The dictionary additions follow the [policy for issue #211](https://github.com/int19h/gencmu/issues/211#issuecomment-6204819697). The dictionary is the Lensisku export of September 13, 2026, in [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict). An experimental cmavo qualifies when its highest-voted English definition scores at least three. The highest-voted definition supplies its class. Numeric subcategories do not affect classification, so UI7a becomes UI and KOhA3 becomes KOhA. Every camxes-exp word remains, regardless of its score.
+The dictionary additions follow the [policy for issue #211](https://github.com/int19h/gencmu/issues/211#issuecomment-6204819697). The dictionary is the Lensisku export of September 13, 2026, in [jbocirvei](https://github.com/int19h/jbocirvei/tree/8c1579254e73c72d20d202557e42d4d92346f6bc/dict). An experimental cmavo qualifies when its highest-voted English definition has a score of at least three. The highest-voted definition supplies its class. Numeric subcategories do not affect classification, so UI7a becomes UI and KOhA3 becomes KOhA. Every camxes-exp word remains, regardless of its score.
 
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
@@ -24,6 +24,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "ni'i" "pa'a" "pa'u" "pi'o" "po'i" "pu'a" "pu'e" "ra'a" "ra'i" "rai" "ri'a" "ri'i" "sau" ∈ BAI
   "si'u" "ta'i" "tai" "ti'i" "ti'u" "tu'i" "va'o" "va'u" "zau" "zu'e" ∈ BAI
   "dei'i'u" "fi'ei" "ja'u" "kai'ai" "nai'i" "pau'u" "po'a" ∈ BAI
+  (* #212: pe'ei marks a connective without changing its syntactic scope. *)
   "ba'e" "ci'a" "pe'ei" "za'e" "zai'e" ∈ BAhE
   (* #212: BAhEI has no experimental construction. *)
   "ba'ei" ∈ BAhEI
@@ -51,6 +52,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
   "mu'o" "nu'e" "pe'u" "re'i" "sa'ei" "ta'a" "vi'o" ∈ COI
+  (* #212: jo'au forms a vocative without changing the parser dialect. *)
   "a'oi" "ci'oi" "fau'u" "jo'au" "o'ai" "tai'i" "xu'e" ∈ COI
   (* #212: COhAI has no experimental construction. *)
   "co'ai" ∈ COhAI
@@ -60,6 +62,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   (* #212: CUhAU has no experimental construction. *)
   "cu'au" ∈ CUhAU
   "ba'au" "cu'e" "nau" "pu'au" ∈ CUhE
+  (* #212: xei'u attaches after a word without moving attitudes to the sentence. *)
   "da'o" "xei'u" ∈ DAhO
   "da'ei" "da'oi" "doi" ∈ DOI
   "do'u" ∈ DOhU
@@ -67,6 +70,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "be'a" "bu'u" "ca'u" "du'a" "fa'a" "ga'u" "ne'a" "ne'i" "ne'u" "ni'a" "pa'o" "re'o" "ri'u" ∈ FAhA
   "ru'u" "te'e" "ti'a" "to'o" "vu'a" "ze'o" "zo'a" "zo'i" "zu'a" ∈ FAhA
   "bau'u" "xei'e" ∈ FAhA
+  (* #212: xo'a erases the suffix without switching to Loglan. *)
   "fa'o" "xo'a" ∈ FAhO
   (* #212: FAhOhO has no experimental construction. *)
   "fa'o'o" ∈ FAhOhO
@@ -75,6 +79,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "fi'o" ∈ FIhO
   "foi" ∈ FOI
   "fu'a" ∈ FUhA
+  (* #212: fu'ei requires an indicator instead of opening a quotation closed by fu'o. *)
   "fu'e" "fu'ei" ∈ FUhE
   "fu'o" ∈ FUhO
   "ga" "ge" "ge'i" "go" "gu" ∈ GA
@@ -138,9 +143,11 @@ The implication after the entries marks some words `Indicator`, which the indica
   "lo'ai" "sa'ai" ∈ LOhAI
   "lo'o" ∈ LOhO
   "lo'oi" "mau'a" "xau'a" ∈ LOhOI
+  (* #212: la'ai requires le'u instead of ending its name quote at a pause. *)
   "la'ai" "lo'u" ∈ LOhU
   "la'au" "lu" "tu'ai" ∈ LU
   "lu'u" ∈ LUhU
+  (* #212: sai'ei forms an ordinal modifier instead of an attitude intensity. *)
   "mai" "mo'o" "sai'ei" ∈ MAI
   "ma'o" ∈ MAhO
   "me" "me'au" ∈ ME
@@ -223,6 +230,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "vu'oi" ∈ VUhOI
   "cu'a" "de'o" "fa'i" "fe'a" "fe'i" "fu'u" "ge'a" "gei" "joi'i" "ju'u" "ne'o" "pa'i" "pi'a" ∈ VUhU
   "pi'i" "re'a" "ri'o" "sa'i" "sa'o" "si'i" "su'i" "te'a" "va'a" "vu'u" ∈ VUhU
+  (* #212: xo'ei needs an operator construction instead of defaulting to zero arguments. *)
   "je'e'e" "nei'au" "xo'ei" ∈ VUhU
   "te'ai" "xi" "xi'e" ∈ XI
   (* #212: XOhI has no experimental construction. *)
@@ -252,7 +260,7 @@ The implication after the entries marks some words `Indicator`, which the indica
 
 All 255 experimental cmavo with a qualifying English definition appear here. The dictionary gives `io'e` no selma'o. Its English definition 71929 scores three and calls it an attitudinal. The maintainers therefore assign it UI from that definition.
 
-The September 13, 2026 dictionary export supplies the additional entries under the three-vote policy. Its English definitions determine the classes, rather than the combined classes in `word.toml`. None of the highest-voted definitions ties or lists several classes. The following table records every disagreement between English definitions. Definition numbers identify the English files in the dictionary snapshot.
+English definitions determine the classes, rather than the combined classes in `word.toml`. None of the highest-voted definitions ties or lists several classes. The following table records every disagreement about base classes between English definitions of qualifying words. Definition numbers identify the English files in the dictionary snapshot.
 
 | Word | Selected definition | Score | Base class | Other definitions and scores |
 |---|---|---:|---|---|
@@ -275,17 +283,49 @@ The September 13, 2026 dictionary export supplies the additional entries under t
 | `zai'e` | 66440 | 3 | BAhE | 66411: XOhEhOhE, -1 |
 | `zo'au` | 67203 | 6 | ZOhAU | 36725: LA, 1 |
 
+Seven qualifying words have several English definitions with the same base class. The following table records their meanings, including the incompatible uses of `lo'au`, `noi'a` and `poi'a`. The highest-voted definition determines the selected meaning even when the class stays the same.
+
+| Word | Base class | Selected definition and meaning | Other definition and meaning |
+|---|---|---|---|
+| `dei'i'u` | BAI | 73209, score 3: date and time | 75319, score 1: date and time, with different unit abbreviations |
+| `ei'i` | UI | 67725, score 3: constraint, independence or resistance | 68582, score 1: the same attitude scale |
+| `lau'u` | KOhA | 68663, score 4: referent of the preceding utterance | 66814, score 2: the same referent |
+| `lo'au` | LE | 71814, score 3: presuppositional definite article | 71812, score 0: generic article for typical traits |
+| `moi'o` | MOI | 63721, score 5: indexed date or time | 63719, score 0: a similar date or time, with different interval examples |
+| `noi'a` | NOIhA | 68607, score 4: incidental adverbial | 57076, score 0: incidental relative clause on a number or digit |
+| `poi'a` | NOIhA | 68606, score 4: restrictive adverbial | 57075, score 0: restrictive relative clause on a number or digit |
+
 Six camxes-exp entries take dictionary classes here. They are `li'oi` in UI, `o'ai` in COI, `su'ai` and `xe'e` in PA, `xei'e` in FAhA, and `xoi` in SEI. Their highest-voted definitions override SU, UI, SE, UI, KOhA and SOI, respectively. All other camxes-exp entries retain their classes.
 
-The threshold does not remove existing camxes-exp words. Thirteen of those words have fewer than three votes in this snapshot. They are `ai'i`, `cei'a`, `co'au'a`, `co'u'a`, `de'i'a`, `de'i'i`, `de'i'o`, `de'i'u`, `fi'oi`, `ku'au`, `ku'oi`, `sau'a` and `su'ei`.
+The threshold does not remove existing camxes-exp words. Thirteen of those words have a highest English score below three in this snapshot. They are `ai'i`, `cei'a`, `co'au'a`, `co'u'a`, `de'i'a`, `de'i'i`, `de'i'o`, `de'i'u`, `fi'oi`, `ku'au`, `ku'oi`, `sau'a` and `su'ei`.
 
-### Classes without constructions
+`fi'oi` retains camxes-exp's SOI class. Its highest-voted English definition, 53170, gives FIhOI with a score of two. That score falls below the threshold, so the baseline class remains.
+
+### Classes and words without their defined constructions
 
 Classification does not add a construction to the grammar. Comments beside each unsupported class name [issue #212](https://github.com/int19h/gencmu/issues/212). Those words retain their dictionary class even where the syntax rejects them.
 
 The unsupported classes are BAhEI, BEIhE, CAhEI, CIhAU, COhAI, COhEhOhE, CUhAU, FAhOhO, GIhEI, GOhOI, IhAU, JAIhA and JAIhI. They also include JIhOI, KAUhU, KUhEI, LA, LIhEI, MUhOI, NOIhA, SEhEhI, TOIhE, VUhOI, XOhI and ZOhAU. Experimental syntax replaces CLL's LA constructions with LE, so the dictionary's `la'ei` has no construction here.
 
-The dictionary gives `ze'ei` class SI. The word stage therefore applies SI erasure to it. Its proposed word-joining behavior waits for #212.
+Some words belong to supported classes but need different constructions. Their comments also name #212. The following notes distinguish their current readings from their defined uses.
+
+The dictionary gives `la'ai` class LOhU for names delimited by pauses. The word stage instead reads through the next `le'u`. Thus `la'ai .alis. cu klama` rejects at the end. A later `le'u` can instead close a quotation that swallows the intervening sentence. Its pause-delimited use waits for #212.
+
+The dictionary gives `fu'ei` class FUhE for a quotation closed by `fu'o`. The indicator stage instead requires an indicator immediately after it. Thus `mi fu'ei klama fu'o` rejects at `klama`. With an indicator, `fu'ei ui mi klama fu'o` parses as an indicator group and a sentence, without a quotation. Its quotation use waits for #212.
+
+The dictionary gives `ze'ei` class SI. The word stage therefore erases the preceding word without a warning. In `lo broda ze'ei gerku cu klama`, `broda` disappears and the syntax reads `lo gerku cu klama`. In `mi klama ze'ei`, the syntax reads only `mi`. Its proposed word-joining behavior waits for #212.
+
+The dictionary gives `xo'a` class FAhO for a switch to TLI Loglan. The word stage instead erases it and the remaining text. It does not parse that suffix as Loglan or allow a switch back. Its language switch waits for #212.
+
+The dictionary gives `jo'au` class COI for a parser version or dialect declaration. It forms an ordinary vocative here and does not change the selected dialect. Its dialect switch waits for #212.
+
+The dictionary gives `xei'u` class DAhO to attach following attitudes to the containing sentence. The indicator stage instead attaches both `xei'u` and the attitudes to the preceding word. Its special attachment rule waits for #212.
+
+The dictionary gives `sai'ei` class MAI to express attitude intensity with a number. The syntax instead reads the number and MAI as an ordinal free modifier. It does not attach that number to the preceding attitude. Its intensity construction waits for #212.
+
+The dictionary gives `pe'ei` class BAhE for a connective with maximal scope. The indicator stage marks the connective, but the syntax keeps its ordinary scope. Its special scope rule waits for #212.
+
+The dictionary gives `xo'ei` class VUhU for a digit-string operator with an optional argument. Without that argument, its length is unspecified. The syntax instead requires an ordinary operator construction with operands. It does not accept `li xo'ei lo'o` as a number. Its implicit-argument construction waits for #212.
 
 ### Other baseline differences
 

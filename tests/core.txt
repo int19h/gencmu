@@ -4428,3 +4428,15 @@ i211.experimental.unsupported-noiha
 i211.experimental.unsupported-cahei
 i211.experimental.unsupported-la
 i211.experimental.iohe-attitudinal
+i211.experimental.laai-missing-lehu
+i211.experimental.laai-later-lehu
+i211.experimental.fuhei-needs-indicator
+i211.experimental.fuhei-indicator-reading
+i211.experimental.zeei-erases-meaning-word
+i211.experimental.zeei-final-erasure
+i211.experimental.xoha-erases-suffix
+i211.experimental.johau-keeps-dialect
+i211.experimental.xeihu-attaches-to-word
+i211.experimental.saihei-ordinal-reading
+i211.experimental.pehei-keeps-connective-scope
+i211.experimental.xohei-needs-operand
