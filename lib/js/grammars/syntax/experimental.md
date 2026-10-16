@@ -744,7 +744,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 
 The layer reads mekso with the rules below. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
-- A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one date expression, while `li pa by` is two terms.
+- A number starts with PA, `ni'e` selbri or `mo'e` sumti. It continues with those parts or lerfu words. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one lerfu string, and `li pa by` is one number.
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression or a reverse Polish expression. A bare joik, jek or ek needs PEhO as a forethought operator. Other operator forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
@@ -821,7 +821,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   SE ⊈ $c.first-token.tags
 
 %redefine-rule number
-  {number-part}
+  number-part [{number-part | lerfu-word}]
 
 %rule number-part
   PA | NIhE # selbri [+TEhU] # | MOhE # sumti [+TEhU] #
@@ -973,9 +973,9 @@ A vocative starts with a run of COI words, DOI, or both. A COI run returns no ta
 
 `free-after-number` and `free-after-lerfu-string` follow a number or a lerfu string. Each is an optional `boi` and the free-modifier slot. A written BOI permits a separate number or lerfu string after it.
 
-With BOI omitted, the first-token test starts at the selected free slot and sees the remaining input, even when the slot reads nothing. PA, NIhE and MOhE start number parts. BY, LAU and TEI start letter words, and PA also continues a letter string. A word of `$NUMBER-START` continues a number, and a word of `$LERFU-CONTINUATION` continues a letter string. The constants `$NUMBER-START` and `$LERFU-CONTINUATION` hold these classes.
+With BOI omitted, the first-token test starts at the selected free slot and sees the remaining input, even when the slot reads nothing. PA, NIhE and MOhE start number parts. BY, LAU and TEI start letter words. Numbers continue with number parts or letter words. Lerfu strings continue with PA or letter words. The constants `$NUMBER-CONTINUATION` and `$LERFU-CONTINUATION` hold these classes.
 
-So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. But `li pa by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
+So `pa so mo'o` is the number `pa so`, and not `pa` followed by the ordinal `so mo'o`. With written BOI, `li pa boi by mai lo'o` has the free modifier `by mai`. The elided `boi` is an elided node of the tree.
 
 A subscript after a subscript nests. The second subscript belongs to the first.[^cll-s18-13] So in `xa xi xa xi xa`, the first `xa` has one subscript, and that subscript has its own.
 
@@ -1013,7 +1013,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 %rule name-marker
   LE="la" | LE="lai" | LE="la'i"
 
-%const $NUMBER-START PA ∪ NIhE ∪ MOhE
+%const $NUMBER-CONTINUATION PA ∪ NIhE ∪ MOhE ∪ BY ∪ LAU ∪ TEI
 
 %const $LERFU-CONTINUATION PA ∪ BY ∪ LAU ∪ TEI
 
@@ -1021,7 +1021,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
   (* number BOI_elidible free*: after an elided boi, the number has read every number part *)
   [+BOI] $f:#
 %conditions
-  BOI ⊆ $.first-token.tags ∨ $NUMBER-START ∩ $f.onward.first-token.tags ⊆ ∅
+  BOI ⊆ $.first-token.tags ∨ $NUMBER-CONTINUATION ∩ $f.onward.first-token.tags ⊆ ∅
 
 %rule free-after-lerfu-string
   (* After an elided BOI, the string has read every continuing letter or PA. *)
@@ -1128,9 +1128,11 @@ Preposed linked arguments follow camxes-exp. This layer and camxes-exp give a `b
 
 ### Mekso and connectives
 
-The mekso rules follow camxes-exp.peg except for digits in letter strings and forethought operators without PEhO. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists. NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
+The mekso rules follow camxes-exp.peg except for mixed numbers and letter strings, and forethought operators without PEhO. They leave CLL's operand rules and `rp-operand` unreachable. The new `mex` replaces `mex-chain` and retains CLL's left grouping.[^cll-s18-5] Reverse Polish expressions remain flat lists. NIhE and MOhE appear inside numbers. camxes-exp lists `jo'i` only in unreachable operand rules, so this layer and camxes-exp reject `li jo'i pa re te'u`.
 
-CLL permits PA words inside a letter string.[^cll-s17-8] This layer keeps that form because real dates use letters and digits together, as in `li cy mu my ci no`. camxes-exp excludes PA from its letter strings and rejects this text. A written BOI permits a string to end before another letter or PA. Without it, the string consumes every continuation.
+CLL permits PA words inside a letter string and lerfu words inside a number.[^cll-s21-1] This layer keeps both forms because real dates mix letters and digits, as in `dy pa my pa`. camxes-exp excludes these mixtures and rejects `li cy mu my ci no`. It reads `li re no pa ze ny pa ly mu dy` as separate sumti, while this layer reads one number.
+
+A written BOI permits a number or letter string to end before another continuing word. Without it, the sequence consumes every continuation. CLL example 17.27 writes `xy. boi ro prenu cu prami` to separate the letter argument from the quantifier.[^cll-e17-27]
 
 CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text. A bare joik, jek or ek instead needs PEhO, because CLL has no such operator form. The first-child pattern excludes exactly that bare form, while converted, grouped and connected operators retain omitted PEhO.
 
@@ -1188,4 +1190,4 @@ CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. Th
 
 [^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
 
-[^cll-s17-8]: [CLL 1.1, section 17.8](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-chinese-characters.html).
+[^cll-e17-27]: [CLL 1.1, section 17.9, example 17.27](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lerfu-pro-sumti.html#c17e9d7).
