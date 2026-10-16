@@ -41,7 +41,7 @@ A free modifier is a phrase that stands in many positions. An elidable terminato
 
 The number and letter-string rules prevent a run from ending before a part that can continue it. Each rule tests its actual following node. A written BOI separates the run from the next part. The free-slot wrappers hold BOI and the following free modifiers.
 
-A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
+A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified higher proof excludes a lower proof over the same span when its open boundary facts dominate. It must carry no extra pending literal and the same neighbor names at each edge.
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
@@ -84,7 +84,7 @@ All four connective families can stand before the first `.i` of a text, as in `e
 
 A first-child path follows each node's first child. The `$NEEDS-TEXT` pattern finds an initial ek or VUhU along this path, even with conversion or free modifiers. The `text-token` wildcard tests that the following `text-1` starts with a token.
 
-The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete.
+The ranked choice compares complete candidates and prefers the form without an initial connective when both forms complete. So `e .i mi klama` reads an ek fragment and a following sentence. The initial-connective candidate remains available when the fragment reading cannot complete. Its pending boundary test does not create a tie when the fragment reading has no extra open fact.
 
 An initial connective cannot immediately follow a leading free modifier in the same reading. Thus `doi zed jinvi jena morji` reads the vocative `doi zed` before one sentence with connected bridi-tails.
 

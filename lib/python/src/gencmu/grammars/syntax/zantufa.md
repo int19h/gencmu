@@ -45,7 +45,7 @@ The word stage reads the magic words, the words such as `si` that act on other w
 
 The word stage marks individually quoted words and delimiters with `Word`. It marks a quote body emitted as one token with `Quoted-Text`.
 
-A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified earlier option excludes later options over the same span.
+A ranked choice filters alternatives at one written position. An option qualifies when its completed reading passes its recognition rules. A qualified higher proof excludes a lower proof over the same span when its open boundary facts dominate. It must carry no extra pending literal and the same neighbor names at each edge.
 
 A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. No rule carries a `leftmost-longest` flag.
 
@@ -756,7 +756,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
 
 ## Mekso
 
-The MAhO choice ranks mekso, selbri, then sumti. The MOhE choice ranks selbri before sumti. A qualified earlier operand excludes later operands over the same span. A failed higher operand removes nothing.
+The MAhO choice ranks mekso, selbri, then sumti. The MOhE choice ranks selbri before sumti. A qualified higher operand excludes a lower proof over the same span when its open boundary facts dominate. A failed higher operand removes nothing.
 
 Zantufa's mekso alternates operands and operator runs. BO and KE group them, and BIhE raises operator precedence. Reverse Polish places operators after operands and uses FUhA. Forethought places an operator before operands, with optional PEhO.
 
