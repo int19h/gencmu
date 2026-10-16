@@ -76,7 +76,9 @@ A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` al
 
 A free modifier can stand between `.i` and an ek. Then the ek can still be a fragment, as in `mi klama .i sei broda se'u e`. Neither `ge'i` nor `gu'i` can stand as a bare answer.[^cll-e14-105] A forethought connective can start with an ek, a jek or a joik, as in `je gi mi gi do`. The connective after `.i` consumes that initial ek, jek or joik. Therefore `.i e gi mi gi do` and `mi klama .i je gi mi gi do` fail.
 
-The fourth change permits one `.i ni'o` after a run of `ni'o`, in `text-1` and `paragraphs`. This allows a new topic inside a reply. Another `.i ni'o` needs a paragraph before it, so `ni'o .i ni'o .i ni'o` fails. A run of `ni'o` can also end the text, as in `mi klama ni'o`.
+The fourth change permits `.i` after a run of `ni'o` and its free modifiers. Thus `ni'o coi do .i mi klama` keeps DO inside the vocative. Empty paragraphs can separate runs, as in `ni'o coi ni'o coi`. One `.i ni'o` transition can also stand between paragraphs, so a reply can introduce another topic. A second transition needs an intervening paragraph, so `ni'o .i ni'o .i ni'o` fails. A run can end the text, as in `mi klama ni'o`.
+
+`paragraph-break` collects the topic runs between nonempty paragraphs. `topic-run` keeps adjacent NIhO words together, so empty paragraphs do not create duplicate divisions of one run. The ordinary text-leading `.i` forms can follow the last run. Both the initial break and later breaks use these rules.
 
 The fifth change permits a text-initial run of names only with `cbm` off. Under `cbm`, a cmevla is a selbri word, so the dialect rejects `.djan. mi klama`.
 
@@ -105,10 +107,19 @@ The ranked choice compares complete candidates and prefers the form without an i
   UI | CAI | NAI | DAhO | FUhO
 
 %redefine-rule text-1
-  [{(I joik-jek-ek | lone-i) [[tag] BO] #}] [{NIhO} # [I # {NIhO} #]] [paragraphs]
+  [{(I joik-jek-ek | lone-i) [[tag] BO] #}] [paragraph-break] [paragraphs]
 
 %redefine-rule paragraphs
-  paragraph [{NIhO} # [paragraphs | I # {NIhO} # [paragraphs]]]
+  paragraph [paragraph-break [paragraphs]]
+
+%rule paragraph-break
+  {topic-run #} [I # {topic-run #}]
+  [{(I joik-jek-ek | lone-i) [[tag] BO] #}]
+
+%rule topic-run
+  {NIhO}
+%conditions
+  NIhO ⊈ $.following-tokens.first-token.tags
 
 %redefine-rule paragraph
   (statement | fragment) [{lone-i # [statement | fragment]}]
@@ -120,13 +131,15 @@ The ranked choice compares complete candidates and prefers the form without an i
   ¬$i.following-tokens.begins(joik-jek-ek)
 ```
 
-<details><summary>Railroad diagrams of the 8 rules from <code>text</code> to <code>lone-i</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicator.svg" alt="Railroad diagram of the rule indicator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-1.svg" alt="Railroad diagram of the rule text-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraphs.svg" alt="Railroad diagram of the rule paragraphs"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/paragraph-break.svg" alt="Railroad diagram of the rule paragraph-break"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/topic-run.svg" alt="Railroad diagram of the rule topic-run"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/lone-i.svg" alt="Railroad diagram of the rule lone-i"></p>
 </details>
@@ -1047,7 +1060,11 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits one such transition after each later run of `ni'o`, because usage puts a new topic inside a reply. CLL and camxes-exp reject `mi klama ni'o .i ni'o`. Consecutive transitions without a paragraph remain invalid. A final `ni'o` also follows camxes-exp.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. This layer permits `.i` after a topic run and its free modifiers, because separators can stand on either side of topic markers. Thus `ni'o coi do .i mi klama` keeps DO in the vocative. Neither printed CLL nor camxes-exp provides that separator position. camxes-exp instead shortens the vocative and reads DO as a fragment before `.i`.
+
+Empty paragraphs between topic runs also follow camxes-exp's optional `paragraph`. CLL requires a nonempty paragraph there. So this layer accepts `ni'o coi ni'o coi` to preserve free modifiers between topic markers.
+
+One `.i ni'o` transition can stand anywhere within a paragraph break, because usage puts a new topic inside a reply. CLL and camxes-exp reject `mi klama ni'o .i ni'o`. Another such transition needs an intervening nonempty paragraph. A final `ni'o` also follows camxes-exp.
 
 camxes-exp has no text-leading run of names. This layer excludes that form with `cbm` on and retains CLL's form with it off.
 
