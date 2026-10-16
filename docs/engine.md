@@ -662,7 +662,7 @@ The recognizer cannot know the atom's value at the step that makes the item read
 
 A pending literal counts as holding for the rest of its step. So the step evaluates its later condition items and its tag term in the order of §4. A failure there drops the resulting item with its obligations. A grammar error there is raised at the step. A later step over the resulting item runs as usual, and its grammar errors are raised too. Errors therefore follow the steps that run, not the order of D.
 
-Two literals are equal when their directions, targets and signs are equal. A target is equal to another when it holds the same names.
+Two literals are equal when their directions, targets and signs are equal. Each literal also carries an annotation, the set of rule and condition index pairs whose items produced it. The annotation is not part of the record. When two items merge, or a literal joins an equal one, their annotations join. The annotation serves only the `boundary` member of a rejection. A target is equal to another when it holds the same names.
 
 An item carries a boundary record, which is part of its identity. Two items merge only when their records are equal. Proof edges stay within one record. Records hold literals, and offers of targets only.
 
@@ -681,14 +681,14 @@ To settle a set of literals, decide each literal that remains. A positive one fa
 
 Each step applies these rules after the order of §4, which they extend. A token read is an advance over a nonempty constituent whose record has no literals. Its first offers hold its terminal if the terminal is a forward target. Its last offers hold its terminal if the terminal is a backward target.
 
-1. Before an advance over a receiver `$x`, a backward obligation on `$x` joins the item's literals at its position. These are its pending literals if it has read no nonempty symbol, and its end literals otherwise. After the advance, a forward obligation on `$x` joins the item's literals at its new position in the same way.
+1. Before an advance over a receiver `$x`, a backward obligation on `$x` joins the item's literals at its position. The advancing item can be a named item or a helper item, such as the helper of a ranked option with a private receiver. These are its pending literals if it has read no nonempty symbol, and its end literals otherwise. After the advance, a forward obligation on `$x` joins the item's literals at its new position in the same way.
 2. An item advances over an empty constituent E. If the item has read no nonempty symbol, E's pending literals join the item's pending literals. Otherwise they join the item's end literals, and the backward literals among them meet the item's last offers. In both cases the item's own literals stay as they are, so they reach the next nonempty constituent.
 3. An item that has read no nonempty symbol advances over a nonempty constituent C. The forward literals among the item's pending literals and C's start literals meet C's first offers. All of these literals that remain become the item's start literals. C's first offers become the item's first offers. C's end literals and last offers become the item's own.
 4. Any other item advances over a nonempty constituent C. Let P be the item's end literals with C's start literals. The forward literals of P meet C's first offers, and the backward literals of P meet the item's last offers. Then P is settled. C's end literals and last offers become the item's own.
 5. A nonempty item of rule R completes. If R is a forward target, it joins the first offers. If R is a backward target, it joins the last offers. The forward start literals meet the first offers, and the backward end literals meet the last offers. Then the obligations on `$` join: backward ones the start literals, and forward ones the end literals.
 6. An empty item completes. The obligations on `$` join its pending literals.
 
-A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles the literals of each witness item in the same way before it counts the witness. Its witness's span stands in for the input.
+A completed `text` item that spans the input settles all its literals: its pending literals, or its start and end literals. A nested query settles the literals of each witness item in the same way before it counts the witness. Its witness's span stands in for the input. In an aligned query, the witness reads restored terminators as synthetic tokens (§7). Its atoms read projected spans, as §7.5 says for the check. A synthetic read has an empty projected span, so it gives no offer and makes no node count.
 
 The chart of §4 holds exactly the items that these rules keep. Written-terminator priority, eligibility, the rejection position and ranked admission read that chart. So the meetings of rules 2, 3 and 5 are part of the result, not an optimization. An item that a meeting drops never blocks an omission, for example. An item whose obligations are still pending is in the chart, and it blocks as any item does.
 
@@ -913,22 +913,23 @@ A prefix context records state before a ranked group. An admission instance is o
 | Span | Actual group start and end positions. |
 | Eligibility | Written-terminator priority. |
 | Cycles | Existing enclosing named-rule context for relevant spans. |
-| Boundary | The open part of the option's boundary record (§4.2). |
 | Reconstruction | Strictness, restoration, and projection state where recognition depends on them. |
 
-The prefix includes bound common captures, their values, and structural state. Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
+The prefix includes bound common captures, their values, structural state, and its boundary record (§4.2). Control positions refer to the common group entry. Generated helpers retain their written paths. Option indexes and generated option-production identities do not distinguish entry contexts.
 
-The key excludes private captures, returned option tags, private pattern states, and proof identities. It also excludes omission vectors, flagged profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
+The key excludes private captures, returned option tags, private pattern states, proof identities, and the option's open boundary facts. It also excludes omission vectors, flagged profiles, diagnostic ordering, and caller demand contexts. Equal-state prefix proofs remain distinct derivations for ordinary ranking.
 
 An invocation is a recognition state, rather than a call-stack identity. Different callers share admission when all key components agree. Different continuations remain separate. Equal spelling at another location does not establish equal spans. Empty spans participate.
 
-Compute the options with a qualified finite proof in each admission group. Keep every proof whose option index is the smallest present index. Keep no proof from a later index. With no qualifying option, the group supplies no completion.
+Compute the options with a qualified finite proof in each admission group. Keep a qualified proof unless a qualified proof from a higher option has dominating open facts, as defined below. With no qualifying option, the group supplies no completion.
 
-A qualified proof also passes the step at its group: the advance of the enclosing item over the option's record by the rules of §4.2. The open part of the record is what that advance leaves unsettled. For an option that reads no token, it is the option's pending literals that remain after that advance. For a nonempty option after a prefix that read a nonempty symbol, it is the option's end literals and last offers. For a nonempty option after an empty prefix, it is the option's whole record.
+A qualified proof also passes the step at its group: the advance of the enclosing item over the option's record by the rules of §4.2. Its open facts are what that advance leaves unsettled. For an option that reads no token, they are the option's pending literals that remain after that advance. For a nonempty option after a prefix that read a nonempty symbol, they are the option's end literals and last offers. For a nonempty option after an empty prefix, they are the option's whole record.
 
-Options with different open parts do not exclude each other. So an excluded proof still has a replacement with the same continuation.
+A higher option's proof excludes a lower option's proof in the same admission group only when its open facts dominate. They dominate when, at each edge, the higher proof's literals are a subset of the lower proof's, and their offers are equal. A literal is its edge, direction, target set and sign. The error annotation is not part of it. Wherever the lower proof survives, the higher proof survives too. An excluded proof therefore always has a replacement with the same continuation.
 
-For `a ≻ b ≻ c`, qualified `a` removes `c` even when `b` is absent. Ordinary branches within one option share its index. A nested group finishes admission before its option supplies an outer witness.
+The test compares literals by identity. It can miss a logical implication between different literals. Then both proofs stay, and ranking decides. It never excludes a proof that full ranking would need.
+
+For `a ≻ b ≻ c`, qualified `a` removes `c` when its open facts dominate, even when `b` is absent. Ordinary branches within one option share its index. A nested group finishes admission before its option supplies an outer witness.
 
 A candidate must pass its tests and ready conditions in the requested eligibility and cycle context. A disabled feature, failed gate, or unavailable cyclic proof supplies no witness.
 
@@ -940,7 +941,7 @@ Every proof that admission excludes has an eligible same-context replacement at 
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-Let F count stored prefix facts, completion facts, proof edges, eligibility contexts, and their values. Sorting admission groups costs `O(F log F)` key comparisons. Selecting the least present index costs linear work in candidate facts. Include stored-value comparison work. Admission composes over packed facts without complete derivation enumeration.
+Let F count stored prefix facts, completion facts, proof edges, eligibility contexts, and their values. Sorting admission groups costs `O(F log F)` key comparisons. A group with g qualified proofs needs at most g² dominance tests. Each test compares literal bit sets and offer sets. Records bound the number of distinct open facts per group by the grammar's K (§4.2). Include stored-value comparison work. Admission composes over packed facts without complete derivation enumeration.
 
 The tag closure uses linear work in productions and inheritance edges. Measure chart facts, groups, retained edges, elapsed time, and peak memory. Measure loader cost separately.
 
@@ -1755,7 +1756,8 @@ A condition item holds at most one boundary atom. If the receiver of its atom is
 
 Its target is one name or a choice of names, each a rule of the stage or a tag terminal. `#` counts as a rule name. A name must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal. Gates do not count.
 
-A receiver cannot be a list capture or a method of one. Each violation is a document error at the atom, at the name, or at the second atom.
+A receiver cannot be a list capture or a method of one. Each violation is a document error at the atom, at the name, or at the second atom. The limit of one atom per item and the receiver limit bind `%conditions` only. An emission tag clause can hold several atoms, because it reads the chosen derivation.
+
 - A tag term that uses (§3.6) a capture that a production it serves lacks is an error. An alternative's own tags serve the productions of that alternative, and the rule-level `::` clause serves every production of the definition. An emission item's tags serve every production in which the item is not dropped.
 - A selected recipe that uses a capture that a production it serves lacks is an error. An alternative recipe serves that alternative's productions. A rule-level recipe serves each production where no alternative recipe overrides it on that channel. An item recipe serves each production where its item remains.
 - A recipe beside `%erased` is a document error. A retained parent item over an erased capture can supply strings while its counted parts remain empty.

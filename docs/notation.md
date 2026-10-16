@@ -245,11 +245,11 @@ A ranked choice writes its preferred option first: `(a ≻ b ≻ c)`. Each optio
 
 A prefix context is recognition state before the group. Only options of the same group in the same prefix context compete ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
 
-A lower option disappears where an earlier option qualifies over the same span. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
+A lower proof disappears where an earlier option qualifies over the same span with dominating open facts, as defined below. Qualification requires its tests and ready conditions to pass. A condition is ready when every capture that it reads is bound. A failing higher option removes nothing.
 
 The parses that survive ranked filtering are admitted.
 
-Earlier options also outrank later options when intervening options are absent. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
+An earlier option can exclude a later option even when intervening options are absent. The same dominance rule applies. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
 
 ```jbogenbau
 %rule me-unit
@@ -285,13 +285,13 @@ Ranked options have no local guard, tag clause, or emission clause. Ordinary alt
 
 Captures inside a ranked choice belong to that choice. They can serve only conditions ready before that choice closes. They cannot feed later conditions, tag terms, emission items, or parent recipes. No capture can wrap a sequence or ranked choice. Losing options run no recipes, and a winning recipe error never triggers fallback.
 
-`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. An option whose boundary tests are still open at its edges competes only with options that leave the same open tests ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
+`followed-by` and `preceded-by` see nodes inside an option, because a seal hides structure only from patterns. A higher option excludes a lower option over the same span when its open literals are a subset and its offers are equal. This comparison applies at each edge ([engine §6.1](engine.md#61-ranked-admission-before-ranking)).
 
 The whole-parent `$` becomes ready only when its named alternative completes. A final ranked group can reach that point. Any remaining element, including an empty optional, delays that readiness.
 
-A condition cannot combine `$.preceded-by(S)` with a private ranked capture when that option can start after the rule starts. This restriction applies to positive and negated atoms. A prefix that can read only an empty sequence keeps the option at the rule's start. The loader examines structural expansions, including disabled alternatives, without evaluating conditions or symbol tests.
+Private conditions read captures inside ranked options. A private condition cannot hold `$.preceded-by(S)` when its option can start after the rule starts. This restriction applies to positive and negated atoms. A prefix that can read only an empty sequence keeps the option at the rule's start. The loader examines structural expansions, including disabled alternatives, without evaluating conditions or symbol tests.
 
-The loading error names the condition, the backward atom, and the ranked option. Move the condition into a rule that starts with the ranked group. Alternatively, test the private capture itself, as in `$a.preceded-by(S)`. Forward atoms on `$` and backward atoms without private ranked captures remain legal.
+The loading error `ranked-choice-boundary` names the condition, the backward atom, and the ranked option. Move the condition into a rule that starts with the ranked group. Alternatively, test the private capture itself, as in `$a.preceded-by(S)`. Forward atoms on `$` and backward atoms without private ranked captures remain legal.
 
 Outside patterns see one seal for the whole ranked choice, even when its completed option is empty. They cannot inspect its names, children, or option. Descendant, first-path, last-path, and sole-child walks stop there.
 
@@ -754,31 +754,33 @@ An empty receiver stands at one position. Then `followed-by` tests the node that
 
 A condition with such a test holds or fails as any condition does. So `¬$.followed-by(B)` holds where no `B` node follows, at the end of the input too. A parse in which a condition fails does not exist. The stage ranks the parses that remain. So the chosen tree satisfies every such condition. In an emission item, a test reads the chosen tree and changes nothing about parsing.
 
-The test reads the actual neighbor in the selected reading. In the experimental grammar, a bare NA term can omit KU before a closing word or a sumti:
+The test reads the actual neighbor, which a lookahead cannot do. In the experimental grammar, a bare `na` omits its `ku` only where its place closes, or before a sumti:
 
 ```jbogenbau
-%rule listed-bare-na
+%rule bare-na
   $n:NA #
 %conditions
   ¬$n.onward.begins(na-connective),
   $.ends-input ∨ ¬($PLACE-CLOSE ∩ $.following-tokens.first-token.tags ⊆ ∅) ∨ $.followed-by(gihek | sumti)
 ```
 
-`$PLACE-CLOSE` holds the closing-word tags listed in the experimental grammar. The receiver includes the term's own free modifiers. A written closing word and the input's end permit KU omission. The atom also permits a following gihek or sumti of the same reading.
+`$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a sumti can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
 
-In `na mi`, the NA term can omit KU because the following sumti belongs to that reading. A separate query can find a sumti with different free modifiers or elisions. The atom reads only the selected reading's nodes.
+In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a sumti node at `da`. A lookahead `$.following-tokens.begins(sumti)` can instead find a sumti in another reading.
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 
-These tests can stand in a `%conditions` list and in the tag clause of an emission item. In an emission item, they read the chosen tree. They cannot stand in a header or alternative tag term, a test, a recipe, a constant, an implication, a pattern or a query argument. A list capture and its methods, such as `$s.first`, cannot be receivers.
+These tests can stand in a `%conditions` list and in the tag clause of an emission item. In an emission item, they read the chosen tree. Its tag clause can hold several atoms and read several captures. The limits below bind `%conditions` only. They cannot stand in a header or alternative tag term, a test, a recipe, a constant, an implication, a pattern or a query argument. A list capture and its methods, such as `$s.first`, cannot be receivers.
 
 One condition of the list holds at most one such test. It can combine that test with other conditions through `¬`, `∧`, `∨` and `⟹`. If the receiver is a capture `$x`, the condition reads no other capture and no `$`. These rules keep each test on one boundary of one step ([engine §4.2](engine.md#42-boundary-obligations)).
 
+A private capture inside a ranked option uses the option's helper step. A backward atom on it meets earlier nodes inside that option. At the option's start, its literal meets the common prefix during qualification.
+
 The parser decides such a test only later. So it evaluates the rest of the condition both ways, and it evaluates the later conditions and the tag term as if the test held. A grammar error in any of these is an error of the parse, even if the test later fails.
 
-Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. So a rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
+Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A synthetic token has an empty projected span, so it never counts as a neighbor. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
 
 ## Juxtaposition
 
@@ -1084,7 +1086,7 @@ A parse with a greater rule profile beats one with a lesser rule profile (engine
 
 The comparison uses actual input tokens. A written terminator adds width, but an elided terminator adds none. A longer constituent that prevents a complete parse cannot win. With no flagged rule, every span vector is zero and every fewest count is zero, so the stage directive alone ranks the admitted parses. Flags do not rank `matches`, `begins` or `tags` queries.
 
-`fewest` states a preference between whole readings. In the experimental grammar, `term-link` carries it. A connection of sumti, selbri or bridi-tails then beats a connection of terms over the same words, whatever their omitted terminators. A connection of terms remains where nothing else completes.
+`fewest` states a preference between whole readings. In Zantufa, `term-link` carries it. A sumti connection then beats a term connection over the same words, whatever their omitted terminators. A term connection remains where no sumti connection completes.
 
 A tie is an error of kind `ambiguous`. The stage hands nothing on, and no later stage runs. A witness pairs differing actions from two readings. The error shows two tied parses and their witness (engine §6).
 

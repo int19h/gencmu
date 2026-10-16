@@ -99,7 +99,7 @@ A rejection can also name a failed boundary condition:
  "expected":[...],"boundary":{"rule":"listed-bare-na","condition":1,"at":3},"message":"..."}
 ```
 
-`boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends. `at` is the boundary where the obligation failed.
+`boundary` appears only when a failed boundary obligation dropped an item at the reported position or later (engine §4.2). `rule` is the rule of the condition. `condition` is the index of the condition item among the rule's condition items, from 0. The count runs through the rule's definitions in source order, so an extension's items follow those of the rule it extends. `at` is the boundary where the obligation failed. Equal literals retain every source condition as an annotation, without changing record identity.
 
 `kind` is one of these values:
 
@@ -167,7 +167,7 @@ Its envelope is `{"format":29,"rules":[RULE...],"directives":[DIRECTIVE...],"con
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 29 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants.
+DOM format 29 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 29 also supports boundary atoms, the `ends-input` method and the `fewest` flag.
 
 Format 29 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":29,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
@@ -311,11 +311,15 @@ Conditions have these forms:
 {"method":"begins","receiver":SPAN,"args":[{"rule":"r"}]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
 {"method":"ends-input","receiver":SPAN,"args":[]}
+{"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
+{"method":"preceded-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
 {"not":COND}             {"any":[COND,COND...]}       {"all":[COND,COND...]}
 {"captured":"x"}        {"if":COND,"then":COND}
 ```
 
 Comparators are `=`, `≠`, `∈`, `∉`, `⊆`, `⊈`, `≅`, and `≇`. Operand types follow engine §10. Tree comparison requires a bare capture on the left. A presence predicate uses `captured`, with an empty name for `$`.
+
+A TARGET is `{"rule":"r"}` or `{"terminal":"T"}`. A CAPTURE is `{"capture":"x"}`, with an empty name for `$`. A boundary atom is a condition, so `not`, `any`, `all` and `if` can hold it (engine §4.2).
 
 A condition has no member but those of its one form.
 
