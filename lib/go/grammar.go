@@ -59,6 +59,7 @@ type sRule struct {
 // sAlt is an alternative with the clauses of the rule statement that wrote
 // it: an extension's alternatives keep the extension's own clauses.
 type sAlt struct {
+	boundarySites        map[*domCond]*boundarySite
 	written              jobj
 	writtenAlternative   int
 	textOrder            int // order of alternatives across the stage documents

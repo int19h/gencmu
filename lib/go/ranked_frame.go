@@ -332,6 +332,7 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	q.conds = nil
 	q.condFrom = nil
 	q.predictConds = nil
+	q.boundaryOriginal = map[*domCond]*domCond{}
 	has := func(n string) bool { _, local := p.slotOf[n]; return n == "" || local || f.present[n] }
 	private := map[string]bool{}
 	for _, group := range r.g.stage.ranked.groups {
@@ -343,6 +344,11 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 	}
 	if p.ranked != nil {
 		for _, raw := range p.slot.source.conds {
+			if atom := firstBoundaryAtom(raw); atom != nil && atom.Span.Str != "" {
+				if _, prefix := f.captures[atom.Span.Str]; prefix {
+					continue
+				}
+			}
 			reads := map[string]bool{}
 			rankedCondReads(raw, reads)
 			unknown := false
@@ -390,6 +396,7 @@ func (r *recognizer) rankedProduction(p *production, f *rankedFrame) *production
 			if missing {
 				continue
 			}
+			q.boundaryOriginal[c] = raw
 			if trigger == 0 {
 				q.predictConds = append(q.predictConds, c)
 			} else {

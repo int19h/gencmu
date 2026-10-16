@@ -19,6 +19,7 @@ type capVal struct {
 // by the recognizer, 0 for none. The common case of one slot, the implicit
 // capture of a production with one symbol, needs no interning.
 type itemKey struct {
+	boundary          *boundaryRecord
 	prod              *production
 	dot               int32
 	origin            int32
@@ -151,6 +152,7 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 }
 
 type item struct {
+	boundaryAnnotations *boundaryAnnotations
 	itemKey
 	set   int32
 	links []link
@@ -175,19 +177,22 @@ type link struct {
 
 // symNode is every completed item of one rule over one span with one tag set.
 type symNode struct {
-	closeRequested bool
-	lexical        *rankedFrame
-	option         int
-	structure      int
-	closes         int
-	familySummary  int
-	rule           int32
-	start, end     int32
-	tags           *tagset
-	items          []*item
+	boundary            *boundaryRecord
+	boundaryAnnotations *boundaryAnnotations
+	closeRequested      bool
+	lexical             *rankedFrame
+	option              int
+	structure           int
+	closes              int
+	familySummary       int
+	rule                int32
+	start, end          int32
+	tags                *tagset
+	items               []*item
 }
 
 type symKey struct {
+	boundary           *boundaryRecord
 	requested          bool
 	lexical            *rankedFrame
 	option             int
@@ -218,18 +223,28 @@ const (
 )
 
 type recognizer struct {
-	family            *familyArena
-	closeRequested    bool
-	closeVariants     map[closeVariantKey]*production
-	closeDemands      map[*production]closeDemand
-	closes            *closeArena
-	rankedFrames      map[string]*rankedFrame
-	rankedProductions map[rankedProductionKey]*production
-	machine           *patternMachine
-	elidableHeads     map[int32]string
-	run               *stageRun
-	g                 *lowered
-	base, n           int
+	boundaries               *boundaryMachine
+	startRule                int32
+	obligations              []boundaryObligation
+	nextBoundaryAnnotations  *boundaryAnnotations
+	boundaryFailures         []boundaryFailure
+	conditionAtom, condition *domCond
+	conditionEv              *evaluator
+	conditionProd            *production
+	conditionPhase           int
+	conditionYes             bool
+	family                   *familyArena
+	closeRequested           bool
+	closeVariants            map[closeVariantKey]*production
+	closeDemands             map[*production]closeDemand
+	closes                   *closeArena
+	rankedFrames             map[string]*rankedFrame
+	rankedProductions        map[rankedProductionKey]*production
+	machine                  *patternMachine
+	elidableHeads            map[int32]string
+	run                      *stageRun
+	g                        *lowered
+	base, n                  int
 	// recon is how the recognition of the check of elision-only reads the
 	// reconstructed input and observes the stage's input (§7.2-§7.5); nil
 	// for every other recognition.
@@ -347,6 +362,8 @@ func (r *recognizer) loop(start int32) {
 
 // begin readies a recognition to predict its start rule in set 0.
 func (r *recognizer) begin(start int32) {
+	r.startRule = start
+	r.boundaries = newBoundaryMachine(r.g)
 	r.preparePatterns()
 	r.closes = r.run.closeArena(r.g)
 	if r.beginPredict(r.set(0), start, false, r.closeRequested) {
@@ -554,7 +571,10 @@ func (r *recognizer) restore(k int, p *production) {
 	if s.index[key] != nil {
 		return
 	}
-	it := &item{itemKey: key, set: int32(k + 1), restores: true, queued: true}
+	if r.boundaries != nil {
+		key.boundary = r.boundaries.empty
+	}
+	it := &item{boundaryAnnotations: newBoundaryAnnotations(), itemKey: key, set: int32(k + 1), restores: true, queued: true}
 	it.links = []link{{tok: int32(k), term: term}}
 	if w := work.Load(); w != nil {
 		w.packedEdges.add("packed edges")
@@ -603,6 +623,7 @@ func (r *recognizer) reads(k int, term int32) bool {
 // where they halted when it is called again.
 func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 	if !r.pending {
+		r.obligations = nil
 		if len(p.predictConds) == 0 {
 			return true, nil
 		}
@@ -618,10 +639,10 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 		r.ev = r.run.evaluator(r.g, r.captureFunc(p, caps, int32(k), int32(k), tags, key.structure, key.closes))
 		r.pending, r.condAt = true, 0
 		countCondition()
-		r.w.cond(r.ev, p.predictConds[0])
+		r.startCondition(r.ev, p.predictConds[0], p)
 	}
 	for {
-		if q := r.w.resume(); q != nil {
+		if q := r.resumeCondition(); q != nil {
 			return false, q
 		}
 		r.condAt++
@@ -630,7 +651,7 @@ func (r *recognizer) predictable(p *production, k int) (bool, *nestedQuery) {
 			return r.w.b && !r.w.invalidObservation, nil
 		}
 		countCondition()
-		r.w.cond(r.ev, p.predictConds[r.condAt])
+		r.startCondition(r.ev, p.predictConds[r.condAt], p)
 	}
 }
 
@@ -650,6 +671,9 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	if strict && int(key.dot) == len(key.prod.rhs) {
 		return
 	}
+	if !r.bounded(k, &key, l) {
+		return
+	}
 	if r.family != nil {
 		r.family.taking(key.familySummary)
 	}
@@ -657,19 +681,27 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	s := r.set(k)
 	it := s.index[key]
 	if it == nil {
-		it = &item{itemKey: key, set: int32(k), strict: strict, queued: true}
+		it = &item{boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}
 		if w := work.Load(); w != nil {
 			w.items.add("items")
 		}
 		s.index[key] = it
 		s.items = append(s.items, it)
 		s.queue = append(s.queue, it)
-	} else if it.strict && !strict {
-		it.strict = false
-		if !it.queued && !(r.recon != nil && r.run.ps.fault("reprocess")) {
-			it.queued = true
-			s.queue = append(s.queue, it)
+	} else {
+		if r.boundaries != nil {
+			it.boundaryAnnotations.merge(r.nextBoundaryAnnotations)
 		}
+		if it.strict && !strict {
+			it.strict = false
+			if !it.queued && !(r.recon != nil && r.run.ps.fault("reprocess")) {
+				it.queued = true
+				s.queue = append(s.queue, it)
+			}
+		}
+	}
+	if l.prev != nil && l.prev.dot == 0 {
+		l.prev = nil
 	}
 	if hasLink {
 		// Processing an item again can make a link that it made before.
@@ -833,14 +865,17 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	if p.ranked != nil {
 		option = p.option
 	}
-	key := symKey{requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
+	key := symKey{boundary: it.boundary, requested: p.closeRequested, lexical: p.lexical, option: option, rule: p.lhs, origin: it.origin, tags: ts.id, structure: it.structure, closes: it.closes, familySummary: it.familySummary}
 	c := s.syms[key]
 	if c != nil {
 		c.items = append(c.items, it)
+		if r.boundaries != nil {
+			c.boundaryAnnotations.merge(it.boundaryAnnotations)
+		}
 		r.step.kind = stepNext
 		return nil
 	}
-	c = &symNode{closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
+	c = &symNode{boundary: it.boundary, boundaryAnnotations: it.boundaryAnnotations, closeRequested: p.closeRequested, lexical: p.lexical, option: option, structure: it.structure, closes: it.closes, familySummary: it.familySummary, rule: p.lhs, start: it.origin, end: int32(k), tags: ts, items: []*item{it}}
 	if s.syms == nil {
 		s.syms = map[symKey]*symNode{}
 	}
@@ -874,6 +909,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		key, i, whole = r.adv.key, r.adv.i, r.adv.whole
 		r.adv = advancing{}
 	} else {
+		r.obligations = nil
 		key = it.itemKey
 		pos := int(key.dot)
 		// A strict step that completes, route 3's read of T with nothing
@@ -953,10 +989,10 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			if c.whole && whole == nil {
 				whole = r.lazyTags(p, caps, key.origin, int32(k), key.structure, key.closes)
 			}
-			r.w.cond(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)), c.cond)
+			r.startCondition(r.run.evaluator(r.g, r.captureFunc(p, caps, key.origin, int32(k), whole, key.structure, key.closes)), c.cond, p)
 		}
 		resuming = false
-		if q := r.w.resume(); q != nil {
+		if q := r.resumeCondition(); q != nil {
 			r.adv = advancing{active: true, key: key, i: i, whole: whole}
 			return q
 		}
@@ -964,9 +1000,7 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 			return nil
 		}
 	}
-	if l.prev != nil && l.prev.dot == 0 {
-		l.prev = nil // a predicted item has no derivation of its own
-	}
+
 	r.add(k, key, l, true, strict)
 	return nil
 }
@@ -1095,7 +1129,7 @@ func (r *recognizer) accepted(start int32) []*symNode {
 	}
 	var out []*symNode
 	for key, c := range r.sets[r.n].syms {
-		if key.rule == start && key.origin == 0 && key.requested == r.closeRequested {
+		if key.rule == start && key.origin == 0 && key.requested == r.closeRequested && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 			out = append(out, c)
 		}
 	}
@@ -1110,7 +1144,7 @@ func (r *recognizer) begun(start int32) bool {
 	var items []*item
 	for _, s := range r.sets {
 		for key, c := range s.syms {
-			if key.rule == start && key.origin == 0 && key.requested == r.closeRequested {
+			if key.rule == start && key.origin == 0 && key.requested == r.closeRequested && (r.boundaries == nil || r.boundaries.accepts(c.boundary, func(*boundaryLiteral) {})) {
 				items = append(items, c.items...)
 			}
 		}

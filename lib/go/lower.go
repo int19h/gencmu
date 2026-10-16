@@ -22,6 +22,7 @@ type slotMetadata struct {
 }
 
 type production struct {
+	boundaryOriginal  map[*domCond]*domCond
 	logicalGroups     []logicalGroup
 	helperExpression  *domExpr // the written helper site, shared by split routes
 	sourceAlternative *sAlt
@@ -97,6 +98,8 @@ type lrule struct {
 }
 
 type lowered struct {
+	boundaryOnce   sync.Once
+	boundary       *boundaryMachine
 	rankedHelpers  map[int32]*rankedGroup
 	writtenHelpers map[int32]string
 	stage          *stageGrammar
