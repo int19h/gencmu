@@ -1052,7 +1052,7 @@ class Parser:
         for order, rule in enumerate(lowered.grammar.rules.values()):
             seen, index = set(), 0
             for alternative in rule.alternatives:
-                key = (alternative.document, alternative.at)
+                key = id(alternative.conditions)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -1084,8 +1084,8 @@ class Parser:
                 # final group alone owns a whole-rule literal.
                 private = p.private_names | (p.lexical.known_private if p.lexical else set())
                 from ._ranked import reads
-                if not whole or not p.helper or bool(reads(condition) & p.private_names):
-                    site = next((site for raw, site in sites.get((source.document, source.at), ()) if atom in atoms(raw)), None)
+                if not whole or not p.helper or bool(reads(next((raw for raw in source.conditions if atom in atoms(raw)), condition)) & p.private_names):
+                    site = next((site for raw, site in sites.get(id(source.conditions), ()) if atom in atoms(raw)), None)
                     obligations.append((atom, boundaries.literal(atom, yes), site))
             return yes or no
 

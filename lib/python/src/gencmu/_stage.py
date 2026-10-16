@@ -580,7 +580,17 @@ class StageRunner:
         line, column = line_column(self.text, source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
-        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected)
+        candidates = []
+        for literal, at, end, annotation in forest.boundary_failures:
+            if end >= position and annotation is not None:
+                for order, condition, rule in annotation.sites:
+                    candidates.append((at, order, condition, rule))
+        boundary = None
+        if candidates:
+            at, order, condition, rule = min(candidates)
+            boundary = {"rule": rule, "condition": condition, "at": at}
+            message += f"; boundary condition {condition + 1} of {rule} failed at {at}"
+        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected, boundary=boundary)
 
     def run(self, elision_only: bool) -> StageOutcome:
         try:
