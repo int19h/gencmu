@@ -157,6 +157,13 @@ type Expected struct {
 	Rules    []string
 }
 
+// BoundaryCondition identifies a failed condition at a token boundary.
+type BoundaryCondition struct {
+	Rule      string
+	Condition int
+	At        int
+}
+
 // ParseError says why a text did not parse (docs/output.md, "Error").
 // Reason is set only for an ambiguous error: ReasonTie or ReasonElisionOnly.
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
@@ -167,12 +174,6 @@ type Expected struct {
 // Code is set only for the grammar error
 // CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
 // and Completion, the terminators that the check wrote back (engine §7.9).
-// BoundaryCondition identifies a failed condition at a token boundary.
-type BoundaryCondition struct {
-	Rule      string
-	Condition int
-	At        int
-}
 
 type ParseError struct {
 	Boundary   *BoundaryCondition

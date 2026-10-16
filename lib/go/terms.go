@@ -656,7 +656,8 @@ func (run *stageRun) spanText(s spanVal) string {
 // span is remembered by position, since a key of content costs as much as
 // the span is long, and the span of onward or following-tokens runs to the end of
 // the input (engine §4).
-const contentKeyLimit = 64
+// Keep word-sized reuse without rebuilding long suffix keys at each boundary.
+const contentKeyLimit = 16
 
 // nested is the answer of a nested parse of tokens [s.a, s.b) alone as
 // rule (engine §4, nested parses), for a query of one kind: cdMatches,
@@ -684,7 +685,8 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	if ps.inProgress[at] {
 		panic(&parseFailure{message: "a condition asks whether its own span parses as " + rule + ", which defines " + rule + " in terms of itself over the same text"})
 	}
-	if run.closeArena(g) != nil {
+	// Only aligned proof summaries depend on the active cycle context.
+	if s.aligned != nil {
 		k.queryContext = ps.queryContext
 	}
 	if r, ok := ps.nested[k]; ok {
