@@ -90,6 +90,15 @@ func corpusOutcome(d *Dialect, c *corpusCase) (map[string]any, error) {
 func corpusOutcomeLosing(d *Dialect, c *corpusCase, lose string) (map[string]any, error) {
 	opts := ParseOptions{Features: c.Features, WithoutFeatures: c.WithoutFeatures}
 	log := withChecks(&opts)
+	opts.private.slotAdmission = func(stats slotStatistics) {
+		if len(stats.boundarySplits) > 0 {
+			data, _ := json.Marshal(struct {
+				Case   string          `json:"case"`
+				Groups []boundarySplit `json:"boundaryAdmissionSplits"`
+			}{c.ID, stats.boundarySplits})
+			fmt.Println(string(data))
+		}
+	}
 	opts.private.loseWitness = lose
 	res, err := d.Parse(c.Text, opts)
 	if err != nil {

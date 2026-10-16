@@ -1,0 +1,27 @@
+{
+  "description": "The passed literal fails at the suffix (engine §4.2 and §6, case 36).",
+  "grammar": "%rule text s (p ≻ q) (B | C)\n%rule s A\n%conditions $.followed-by(B)\n%rule p ε\n%rule q ε",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

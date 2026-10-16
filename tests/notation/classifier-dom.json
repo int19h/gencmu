@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%classifier lexicon  \"mi\" \"do\" ∈ KOhA f? ¬g? \"u'i\" ∉ UI\n\n\n\n%classifier empty \n%rule text $w:W :: $w.value.classify(lexicon)\n```\n",
   "expect": {
     "dom": {
-      "format": 28,
+      "format": 29,
       "rules": [
         {
           "name": "text",

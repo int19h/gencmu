@@ -1,0 +1,74 @@
+{
+  "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo pa re mai",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zo pa",
+              "value": "zo pa",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "image": "re",
+              "value": "re",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "mai",
+              "value": "mai",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "MAI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "(zo pa [re mai])"
+  }
+}

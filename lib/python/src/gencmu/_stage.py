@@ -248,6 +248,7 @@ class Emitter:
         self.tree = tree
         self.root = root
         self.evaluator = Evaluator(context, 0, len(context.tokens))
+        self.boundary_first = self.boundary_last = None
         self.channels = {}
         self.recipes = {}
         self.active = set()
@@ -260,6 +261,22 @@ class Emitter:
                 self.coverage[-1] = (self.coverage[-1][0], max(end, self.coverage[-1][1]))
             else:
                 self.coverage.append((start, end))
+
+    def boundary_index(self):
+        self.boundary_first, self.boundary_last = {}, {}
+        pending = [self.root]
+        while pending:
+            child = pending.pop()
+            if child.start == child.end:
+                continue
+            if isinstance(child, DRead):
+                name = child.terminal
+            else:
+                name = None if child.production.helper else child.production.rule_name
+                pending.extend(child.children)
+            if name is not None:
+                self.boundary_first.setdefault(child.start, set()).add(name)
+                self.boundary_last.setdefault(child.end, set()).add(name)
 
     def part_source(self, part: DChild) -> Range:
         return self.tokens[part.token].source if isinstance(part, DRead) else self.tree.source_of(part)
@@ -408,6 +425,14 @@ class Emitter:
             self.forest.structure[node.item] if self.forest.structure else 0,
             self.forest.close_structure[node.item] if self.forest.close_structure else 0,
         )
+        def boundary_test(atom):
+            if self.boundary_first is None:
+                self.boundary_index()
+            part = self.capture(node, atom["receiver"]["capture"])
+            names = (self.boundary_first.get(part.end, ()) if atom["method"] == "followed-by"
+                     else self.boundary_last.get(part.start, ()))
+            return any(arg.get("rule", arg.get("terminal")) in names for arg in atom["args"])
+        bound.boundary_test = boundary_test
         return self.evaluator.tags(term, bound)
 
     def emit_item(self, node: DNode, item: tuple, out: list[Token]) -> None:
@@ -560,7 +585,17 @@ class StageRunner:
         line, column = line_column(self.text, source[0])
         listed = ", ".join(f"{entry.terminal} ({', '.join(entry.rules)})" for entry in expected) or "nothing"
         message = f"stage {self.name} cannot read {shown}; it expected {listed}"
-        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected)
+        candidates = []
+        for literal, at, end, annotation in forest.boundary_failures:
+            if end >= position and annotation is not None:
+                for order, condition, rule in annotation.sites:
+                    candidates.append((at, order, condition, rule))
+        boundary = None
+        if candidates:
+            at, order, condition, rule = min(candidates)
+            boundary = {"rule": rule, "condition": condition, "at": at}
+            message += f"; boundary condition {condition + 1} of {rule} failed at {at}"
+        return ParseError("rejected", message, stage=self.name, token=position, source=source, line=line, column=column, expected=expected, boundary=boundary)
 
     def run(self, elision_only: bool) -> StageOutcome:
         try:
@@ -679,6 +714,9 @@ class StageRunner:
                     continue
                 if node.production.leftmost_longest and node.start < node.end:
                     chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
+                if node.production.fewest and node.start < node.end:
+                    from ._rank import Profile
+                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None

@@ -652,7 +652,7 @@ const STYLE = [
 /** The note beside the name of a rule that has conditions. */
 export const CONDITIONS_NOTE = "conditions apply";
 /** The legend below a rule that contains a ranked choice. */
-export const RANKED_NOTE = "Only a qualified option over the same span removes lower options.";
+export const RANKED_NOTE = "A qualified higher proof removes a lower proof only over the same span and with dominating open facts.";
 
 /** @param {any} rule */
 function hasRankedChoice(rule) {

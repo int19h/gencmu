@@ -1,0 +1,28 @@
+{
+  "description": "A literal prefix can move the option after the rule start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r\n  \"c\" ($a:aa ≻ $b:bb) :: ∅\n%conditions\n  $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "description": "Literals carry no provenance, so K is set by the grammar (engine §4.2 and §6, case 52).",
+  "grammar": "%rule text r [B]\n%rule r A [tail]\n%conditions ¬$.followed-by(B) ∨ $.starts-input\n%rule s A [tail]\n%rule tail r | s",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    },
+    "error": "ambiguous"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "description": "A positive backward atom with a private capture remains legal at the rule start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ $.preceded-by(X)\n%rule aa A\n%rule bb A",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "bb"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

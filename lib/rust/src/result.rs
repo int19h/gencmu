@@ -403,9 +403,22 @@ pub struct Expected {
     pub rules: Vec<String>,
 }
 
+/// A failed condition on a complete-tree neighbor (engine §4.2).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundaryFailure {
+    /// The rule that owns the condition.
+    pub rule: String,
+    /// The condition index across the surviving definitions, from zero.
+    pub condition: usize,
+    /// The boundary in the stage input.
+    pub at: usize,
+}
+
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// The failed neighbor condition, when one explains this rejection.
+    pub boundary: Option<BoundaryFailure>,
     /// Why the text did not parse.
     pub kind: ParseErrorKind,
     /// The stage it concerns.

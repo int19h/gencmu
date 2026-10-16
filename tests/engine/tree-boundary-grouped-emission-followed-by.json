@@ -1,0 +1,13 @@
+{
+  "description": "Grouped earlier targets preserve the location of an unreachable followed-by target in a emission.",
+  "grammar": "%rule text a\n%rule a A\n%emits $ :: ($.followed-by(((a)) | (A) | Z) ⟹ X)\n%rule z B",
+  "tokens": [],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 42
+    }
+  }
+}

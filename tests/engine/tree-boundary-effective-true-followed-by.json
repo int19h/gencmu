@@ -1,0 +1,84 @@
+{
+  "description": "A condition that lowering drops supplies no targets. Capture applicability and presence simplification also apply inside ranked options (engine §3.6 and §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (p ≻ q) :: ∅ | Z hidden\n%rule p x\n%rule x A\n%rule q A\n%rule hidden $a:B | enabled? C\n%conditions $a ∨ $.followed-by(x)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "children": [
+              {
+                "rule": "p",
+                "children": [
+                  {
+                    "rule": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "enabled"
+        ]
+      },
+      "expect": {
+        "error": "ambiguous",
+        "result": {
+          "error": {
+            "kind": "ambiguous",
+            "reason": "tie"
+          }
+        }
+      }
+    },
+    {
+      "options": {
+        "features": []
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "verdict": "unique"
+            }
+          ],
+          "tree": {
+            "children": [
+              {
+                "rule": "p",
+                "children": [
+                  {
+                    "rule": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

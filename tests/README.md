@@ -62,7 +62,7 @@ Auto features (engine §13) are off for a case unless its configuration says `"a
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 12 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 13 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -219,7 +219,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 28. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 29. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 

@@ -1,0 +1,22 @@
+{
+  "description": "A nullable prefix with a nonempty derivation can move the option after the start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r\n  prefix ($a:aa ≻ $b:bb) :: ∅\n%conditions\n  $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A\n%rule prefix ε | C",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "diagnostic": "ranked-choice-boundary"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "description": "A prefix literal is part of qualification (engine §4.2 and §6, case 21).",
+  "grammar": "%rule text s (p ≻ q)\n%rule s A\n%conditions ¬$.followed-by(p)\n%rule p B\n%rule q B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

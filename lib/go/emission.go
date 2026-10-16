@@ -14,10 +14,11 @@ type occurrence struct {
 }
 
 type stringEmitter struct {
-	run       *stageRun
-	rec       *recognizer
-	claims    map[[2]int][][2]int
-	inherited map[int]bool
+	boundaryStarts, boundaryEnds map[string]map[int]bool
+	run                          *stageRun
+	rec                          *recognizer
+	claims                       map[[2]int][][2]int
+	inherited                    map[int]bool
 }
 
 func occurrenceTree(d *dn) *occurrence {
@@ -320,6 +321,46 @@ func (em *stringEmitter) ownership(o *occurrence) int {
 func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 	em := &stringEmitter{run: run, rec: rec, claims: map[[2]int][][2]int{}, inherited: map[int]bool{}}
 	root := occurrenceTree(d)
+	demands := map[string]bool{}
+	for _, p := range rec.g.prods {
+		if p.emit != nil {
+			for _, it := range p.emit.Items {
+				for _, a := range boundaryAtoms(clausePart{t: it.Tags}) {
+					for _, target := range a.Targets {
+						demands[target.Str] = true
+					}
+				}
+			}
+		}
+	}
+	if len(demands) > 0 {
+		em.boundaryStarts, em.boundaryEnds = map[string]map[int]bool{}, map[string]map[int]bool{}
+		pending := []*occurrence{root}
+		for len(pending) > 0 {
+			o := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			pending = append(pending, o.kids...)
+			name := ""
+			if o.d.kind == dRead {
+				name = rec.g.terminals[o.d.term]
+			} else if o.d.kind == dClose && !o.d.prod.helper {
+				name = rec.g.rules[o.d.prod.lhs].name
+			}
+			if !demands[name] {
+				continue
+			}
+			a, b, _ := em.span(o)
+			if a == b {
+				continue
+			}
+			if em.boundaryStarts[name] == nil {
+				em.boundaryStarts[name] = map[int]bool{}
+				em.boundaryEnds[name] = map[int]bool{}
+			}
+			em.boundaryStarts[name][a] = true
+			em.boundaryEnds[name][b] = true
+		}
+	}
 	type frame struct {
 		o             *occurrence
 		next          int
@@ -445,6 +486,18 @@ func (run *stageRun) emit(rec *recognizer, d *dn) []Token {
 					x, y, tags := em.span(o)
 					return spanVal{a: x, b: y, whole: true, tags: tags, machine: rec.machine, structure: rec.derivationStructure(o.d), arena: rec.closes, closes: rec.derivationCloses(o.d)}, true
 				})
+				ev.boundary = func(atom *domCond) bool {
+					span, _ := ev.capture(atom.Span.Str)
+					for _, target := range atom.Targets {
+						if atom.Op == "followed-by" && em.boundaryStarts[target.Str][span.b] {
+							return true
+						}
+						if atom.Op == "preceded-by" && em.boundaryEnds[target.Str][span.a] {
+							return true
+						}
+					}
+					return false
+				}
 				own = toSet(run.evaluate(ev, it.Tags))
 			}
 			token := Token{Text: string(run.ps.text[src[0]:src[1]]), Tags: run.implied(own).list(), Span: [2]int{a, b}, Source: src}

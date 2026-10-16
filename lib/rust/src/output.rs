@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 12;
+pub const RESULT_FORMAT: u32 = 13;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -327,6 +327,15 @@ fn write_error(out: &mut String, error: &ParseError) {
                 out.push_str("]}");
             }
             out.push(']');
+            if let Some(boundary) = &error.boundary {
+                out.push_str(",\"boundary\":{\"rule\":");
+                write_str(out, &boundary.rule);
+                out.push_str(",\"condition\":");
+                out.push_str(&boundary.condition.to_string());
+                out.push_str(",\"at\":");
+                out.push_str(&boundary.at.to_string());
+                out.push('}');
+            }
         }
         ParseErrorKind::Ambiguous => {
             out.push_str(",\"readings\":[");

@@ -1,0 +1,41 @@
+{
+  "description": "An optional empty rule cannot move the group after the rule start (engine §2.1).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r [empty] ($a:aa ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa A\n%rule bb A\n%rule empty ε",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "bb"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

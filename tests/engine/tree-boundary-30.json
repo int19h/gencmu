@@ -1,0 +1,39 @@
+{
+  "description": "An atom in an emission tag clause reads the chosen tree (engine §4.2 and §6, case 30).",
+  "grammar": "%rule text {unit}\n%rule unit P | A\n%emits $ :: ($.preceded-by(P) ⟹ X)",
+  "tokens": [
+    {
+      "text": "p",
+      "tags": [
+        "P"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "unique",
+          "output": [
+            {
+              "tags": []
+            },
+            {
+              "tags": [
+                "X"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

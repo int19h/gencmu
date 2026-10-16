@@ -78,7 +78,7 @@ The four libraries implement one specification, `docs/engine.md`. It defines the
 3. The recognizer is an Earley parser (a standard algorithm for any context-free grammar). Its items, the partial matches that it keeps, record the span and the identity of the tag set of each captured part. The parser evaluates each condition as soon as it reads the last capture of that condition. With `.onward` and `.following-tokens`, a condition can look past its constituent to the end of the input. A PEG (parsing expression grammar, which tries alternatives in order) has a lookahead that does the same.
 
    Nested parses for `span.matches(rule)`, `span.begins(rule)` and `span.tags(rule)` share their memo (a cache of answers) with the parse that started them. The memo key is the kind of query, the rule, and either the content of a short span or the position of a long span. A nested parse asked about its own span, as the same rule, is a grammar error. A nested parse never leaves out an elidable optional that the same construct can read whole as written (see "Nested queries and elided terminators" below).
-4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts flagged occurrences over each nonempty input span.
+4. A rule flag declares a preference for one rule. A flagged occurrence is a flagged rule's constituent. A rule profile counts `leftmost-longest` occurrences over each nonempty input span, and it counts `fewest` occurrences.
 
    Rule flags compare rule profiles first. The stage directive then ranks parses with the greatest rule profile. Its `greedy` and `lazy` comparisons use bottom-up actions, while `late-elision` compares elided terminators (see "Ambiguity" below).
 5. The stage emits the next stage's tokens. Each has text, value, image, tags, and source metadata. A value is the string that comparisons read. An image is the string that people see. Attachments are tokens owned by another token and unread by later stages.
@@ -147,7 +147,7 @@ Only `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in con
 
 A stage reads its input with one grammar. The loader assembles that grammar from one or more documents, read in order. `%rule` defines a rule, and is an error if a rule of that name exists. `%redefine-rule` replaces a rule defined before it in the stage, and is an error if none was. `%extend-rule` adds alternatives to a rule defined before it, and is an error if none was.
 
-`%rule(leftmost-longest)` and `%redefine-rule(leftmost-longest)` declare the `leftmost-longest` flag. Extensions inherit it, while a redefinition without parentheses removes it.
+`%rule(leftmost-longest)` and `%rule(fewest)`, and the same forms of `%redefine-rule`, declare a flag. Extensions inherit it, while a redefinition without parentheses removes it.
 
 So an accidental override never passes silently, and a replacement says so where it is made. A misspelled name in a replacement, an extension or a reference is an error. A misspelled `%rule` defines a rule that nothing reads, and the audit (see "Diagnostics and debugging") reports it. The loader also reports every replacement and extension: which document changed which rule. So a reader can see the effect of a dialect on its base in one place.
 
@@ -413,7 +413,7 @@ Ranking summaries retain their cycle context. Ranked admission keeps eligibility
 
 Reconstruction observes each candidate's structure projected onto original tokens. Restored helpers contribute omitted markers, while ordinary synthetic reads contribute no observable leaf. Pattern value and image remain empty on omitted markers. Body tests instead read synthetic recognition values. Every omission must pass its test on its exact restoration value before recognition admits it. This rule preserves the witness for inequality and tag tests without inventing values or tags.
 
-Grammar DOM format 28 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 12 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 29 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 13 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -429,7 +429,7 @@ Every option supplies its actual qualified constituent or sequence. A failed hig
 
 The local tag closure prevents hidden option tags from changing the common continuation. Private captures cannot escape into later conditions, tags, or emissions. Common prefix captures retain one written binding.
 
-Every proof that the filter excludes has an eligible replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change existing outside observations.
+A higher option excludes a lower proof when its open literals are a subset at each edge and its offers are equal. Error annotations do not affect this comparison. Every proof that the filter excludes has an eligible replacement in its admission group. Sealing and the tag rule preserve that replacement's continuation. Induction preserves eligible recognition with sealing fixed. Adding seals can change existing outside observations.
 
 The exact group key, tag closure, and algorithm belong to engine §2.1 and §6.1. [Ambiguity](notation.md#ambiguity) defines verdict changes and their effects on later stages. The ranker compares flagged profiles before the stage directive.
 
@@ -508,7 +508,7 @@ The libraries' `auto_features` parse a text's word stage once without the featur
 
 ## Ambiguity
 
-Ranked choices filter parses allowed by recognition before ranking. The parses that survive are admitted. The engine ranks admitted parses by `leftmost-longest`, then the stage directive. A parse is best if no other admitted parse beats it.
+Ranked choices filter parses allowed by recognition before ranking. The parses that survive are admitted. The engine ranks admitted parses by rule profile, first by `leftmost-longest` and then by `fewest`, and then by the stage directive. A parse is best if no other admitted parse beats it.
 
 One admitted derivation gives `unique`. Several admitted derivations with exactly one best give `resolved`. Several best derivations give a tie with two readings and an action witness.
 
@@ -544,7 +544,7 @@ The flag ranks first so an author can state grouping independently of terminator
 
 With only `simple-tense-modal` flagged, `pu va ca gi` groups as `pu va` then `ca gi`, as the official parser does. This motivating case does not equate the flag with the official lexer's procedure. The notation's "Ambiguity" section explains the differences from POSIX subexpression semantics.
 
-The notation writes `leftmost-longest` in parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. No `lazy` flag exists because reversing the comparison favors absence, which needs a separate design.
+The notation writes `leftmost-longest` in parentheses after the keyword. The name states the priorities of earlier starts and later ends at one start. `fewest` favors absence. It counts occurrences and ignores their spans, because a disfavored construct has no natural position to prefer. So it composes by addition, as an elision count does, and it cannot form a comparison cycle.
 
 ### Ties are errors
 
@@ -592,6 +592,8 @@ In the experimental dialect, `mi klama na to broda toi` illustrates this boundar
 The priority is a local commitment, not a proof that the shorter reading is impossible. Take `r → A c [+T] T` and `c → B`, on `A B T`. Without priority, `r` leaves out `[+T]` and reads the token as its last `T`. With priority, the token belongs to `[+T]`, so the query fails.
 
 The window of an ordinary query is its span. A `matches` over a captured span does not look at a terminator written after the span. A `begins` with `.onward` or `.following-tokens` already sees the rest of the input.
+
+A boundary atom reads the parse itself, so it has no window and no written-terminator priority. It cannot replace a lookahead whose rival starts at the same token, or whose target is no node of the real tree. It replaces a lookahead that only asks what the actual reading puts next.
 
 ### Queries with fixed closes
 
@@ -787,6 +789,9 @@ The product provides these diagnostics and debugging tools:
 - The trace shows, for one position, which items the recognizer predicted, advanced, completed and dropped, and which condition dropped them. This is the tool for "why does my grammar not accept this".
 - The audit reports undefined and unreachable rules, every rule that a later document replaced or extended, and `%erased` that changes nothing. Such an `%erased` is over text that can never emit a token or be covered by one. The audit names a replacement that adds or removes a rule flag, with the flags before and after. It also records stage extensions and replacements with their source locations. The audit data lists every membership change, with its key, class, gates and document. The audit also reports each close family that a stage names (engine §2.2).
 
+- Each rule with a boundary atom that a nested query can reach (engine §4.2). At the edges of a query's witness, such an atom gets its default answer, which an author can easily miss. The entry is a note, not an error.
+- Each boundary-atom target that only a nested query can build. Outside queries, the atom always gets its default answer there. This entry is a note too.
+
   Its data lists the family's members in closure order. That order starts with the family rule and reads the members breadth first. It reads each member's alternatives in written order, and each alternative's member edges in written order. The data also lists the optionals that the family permits, each with its terminal and owning definition. They follow the members in closure order, and each member's optionals come in written order.
 
   Four kinds of note can follow. `empty` marks a family that permits nothing. `never-omitted` marks a permitted optional whose omission predicate can never hold. `inert-member` marks a member other than the family rule that owns no elidable optional and has no member edge. `unnamed-member` marks a member other than the family rule that no rule outside the family names in its body. A name in a condition, a tag clause or an emission does not count.
@@ -867,7 +872,7 @@ A railroad diagram draws a grammar rule as a track. A reader follows the track f
 
 `node tools/sync.js` draws one diagram for each rule of each grammar document (`tools/railroad.js`). It reads the rules from the document's DOM, as the libraries read them. It writes each diagram as an SVG file under `docs/diagrams/`, in one directory for each document. So the diagram of `sumti` in `grammars/syntax/cll.md` is `docs/diagrams/syntax/cll/sumti.svg`. The packages do not ship these files.
 
-A ranked choice numbers its options in preferred order inside a dashed frame. Its shared label is `≻ same span`. Only a qualified option over the same span removes lower options. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
+A ranked choice numbers its options in preferred order inside a dashed frame. Its shared label is `≻ same span`. A qualified higher proof removes a lower proof over the same span only when its open facts dominate the lower proof. Ordinary alternatives within an option remain unnumbered. Nested ranked groups receive separate frames.
 
 The grammar document shows its diagrams itself. HTML cannot stand inside a fenced block, so the diagrams follow the block that states their rules. After the block come a blank line and one collapsed `<details>` element, so a reader opens the diagrams only when they want them.
 

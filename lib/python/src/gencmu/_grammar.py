@@ -745,6 +745,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    from ._boundary import validate_targets
+    validate_targets(rules, stage)
     classifier_items = [
         (path, {**classifier, "entries": [
             {**entry, "keys": [constants.string(path, key, entry["at"]) for key in entry["keys"]]}
@@ -937,6 +939,7 @@ class SlotMetadata:
     path: int | None = None
     tags: list[Dom] = field(default_factory=list)
     tag_clauses: tuple[Dom | None, Dom | None] = (None, None)
+    ranked_conditions: list[Dom] = field(default_factory=list, repr=False, compare=False)
 
 
 @dataclass
@@ -949,7 +952,7 @@ class Production:
     terminal: tuple[bool, ...]
     rule_name: str
     helper: bool
-    leftmost_longest: bool = False
+    rule_flag: str | None = None
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -989,6 +992,14 @@ class Production:
     private_names: set = field(default_factory=set,repr=False,compare=False)
     ranked_bindings: tuple = field(default=(),repr=False,compare=False)
     parent_tags: Any = field(default=None,repr=False,compare=False)
+
+    @property
+    def leftmost_longest(self) -> bool:
+        return self.rule_flag == "leftmost-longest"
+
+    @property
+    def fewest(self) -> bool:
+        return self.rule_flag == "fewest"
 
     @property
     def real_id(self):
@@ -1351,7 +1362,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
-            leftmost_longest=alt is not None and "leftmost-longest" in self.grammar.rules[self.rule_names[lhs]].flags,
+            rule_flag=next(iter(self.grammar.rules[self.rule_names[lhs]].flags), None) if alt is not None else None,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
             elided_owner=self.rule_display[lhs] if elided is not None else None,

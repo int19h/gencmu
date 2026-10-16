@@ -90,5 +90,5 @@
 </g>
 <path d="M731 162H739a10 10 0 0 0 10 -10V70a10 10 0 0 1 10 -10"/>
 <path d="M759 60h6m0 -8v16m4 -16v16"/>
-<text class="label" x="10" y="250" textLength="468" lengthAdjust="spacingAndGlyphs">Only a qualified option over the same span removes lower options.</text>
+<text class="label" x="10" y="250" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

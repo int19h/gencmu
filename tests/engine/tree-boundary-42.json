@@ -1,0 +1,31 @@
+{
+  "description": "Stage 2 sees only its own nodes, although stage 1 built a `q` over the first token (engine §4.2 and §6, case 42).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text q r\n%rule q A\n%emits $\n%rule r B\n%emits $\n%stage second\n%ambiguity-resolution greedy\n%rule text a b | q\n%rule q C\n%rule a A\n%rule b B\n%conditions $.preceded-by(q)\n```\n"
+  },
+  "pipeline": "p.md",
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "second"
+      }
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ]
+}

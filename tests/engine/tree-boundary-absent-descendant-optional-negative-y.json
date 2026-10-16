@@ -1,0 +1,22 @@
+{
+  "description": "An empty prefix preserves optional absence bindings with negative sign before Y (engine §2.1 and §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r ([($a:aa ≻ $b:cc)] ≻ bb) :: ∅\n%conditions $a ∨ $b ∨ ¬$.preceded-by(X)\n%rule aa A\n%rule cc D\n%rule bb C",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

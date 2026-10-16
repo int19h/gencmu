@@ -57,7 +57,7 @@ type Node struct {
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
 	// has one, which elision-only gives the restored token as its value
-	// (engine §7, §12). Value exposes it in result format 12. tested says that the
+	// (engine §7, §12). Value exposes it in result format 13. tested says that the
 	// terminator has an = test, so that sound holds, even where it is "".
 	sound  string
 	tested bool
@@ -157,6 +157,13 @@ type Expected struct {
 	Rules    []string
 }
 
+// BoundaryCondition identifies a failed condition at a token boundary.
+type BoundaryCondition struct {
+	Rule      string
+	Condition int
+	At        int
+}
+
 // ParseError says why a text did not parse (docs/output.md, "Error").
 // Reason is set only for an ambiguous error: ReasonTie or ReasonElisionOnly.
 // Token and Source are nil when unknown; Line and Column are 0 when unknown.
@@ -167,7 +174,9 @@ type Expected struct {
 // Code is set only for the grammar error
 // CodeElisionWitnessLost, which also has Chosen, the stage's chosen tree,
 // and Completion, the terminators that the check wrote back (engine §7.9).
+
 type ParseError struct {
+	Boundary   *BoundaryCondition
 	Kind       string
 	Stage      string
 	Code       string

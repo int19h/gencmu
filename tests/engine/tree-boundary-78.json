@@ -1,0 +1,21 @@
+{
+  "description": "Dominance compares literal identities instead of logical implication (engine §4.2 and §6.1, case 78).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text (p ≻ q) :: ∅ | B C\n%rule p A\n%conditions ¬$.followed-by(B)\n%rule q A\n%conditions ¬$.followed-by(B | C)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "ambiguous",
+    "result": {
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie"
+      }
+    }
+  }
+}

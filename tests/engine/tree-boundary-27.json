@@ -1,0 +1,8 @@
+{
+  "description": "No atom in a tag term (engine §4.2 and §6, case 27).",
+  "grammar": "%rule text A :: ($.followed-by(B) ⟹ X) | B",
+  "tokens": [],
+  "expect": {
+    "error": "grammar"
+  }
+}

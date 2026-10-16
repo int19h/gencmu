@@ -1,0 +1,15 @@
+{
+  "description": "Complete-tree boundary notation (engine §9 and §10).",
+  "document": "```jbogenbau\n%rule(fewest) a A\n```\n",
+  "expect": {
+    "dom": {
+      "rules": [
+        {
+          "flags": [
+            "fewest"
+          ]
+        }
+      ]
+    }
+  }
+}

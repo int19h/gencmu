@@ -513,6 +513,7 @@ impl Dialect {
             None => error.message,
         };
         ParseError {
+            boundary: None,
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
             code: None,
@@ -581,7 +582,18 @@ impl Dialect {
         };
         let Some((ranking, chosen, second)) = ranked else {
             let (position, expected) = rejection_of(&lowered, &chart);
-            let error = self.rejection(index, shared, &input, position, expected);
+            let mut error = self.rejection(index, shared, &input, position, expected);
+            error.boundary = chart
+                .boundary_failures
+                .iter()
+                .filter(|f| f.end as usize >= position)
+                .flat_map(|f| chart.sources.sites(f.source).into_iter().map(move |site| (f.at, site)))
+                .min()
+                .map(|(at, site)| crate::result::BoundaryFailure {
+                    rule: lowered.rules[site.rule as usize].name.clone(),
+                    condition: site.condition,
+                    at: at as usize,
+                });
             run.stages.push(stage);
             return Err(Box::new(error));
         };
@@ -664,6 +676,7 @@ impl Dialect {
                 Ok(Check::Lost(completion)) => {
                     let name = &grammar.name;
                     let error = ParseError {
+                        boundary: None,
                         kind: ParseErrorKind::Grammar,
                         stage: Some(name.clone()),
                         code: Some(ErrorCode::ElisionWitnessLost),
@@ -713,6 +726,7 @@ impl Dialect {
     fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
         let stage = &self.stages[index].name;
         ParseError {
+            boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
             code: None,
@@ -752,6 +766,7 @@ impl Dialect {
             format!("stage {stage} cannot read {found}; it expected {}", wanted.join(", "))
         };
         ParseError {
+            boundary: None,
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
             code: None,
@@ -867,8 +882,8 @@ impl Dialect {
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
         // A test that watches the check marks W(D)'s links before the check
         // ranks (tests/README.md).
-        let flagged = g.rules.iter().any(|rule| rule.leftmost_longest);
-        let chosen_profile = if flagged { tree_profile(g, chosen) } else { Vec::new() };
+        let flagged = g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest);
+        let chosen_profile = if flagged { tree_profile(g, chosen) } else { crate::rank::Profile::ZERO };
         let protect = true;
         let walk = if witness::watched() || protect {
             let empty = shared.tags.set(Vec::new());
@@ -1005,6 +1020,7 @@ impl Dialect {
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
+            boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
             code: None,

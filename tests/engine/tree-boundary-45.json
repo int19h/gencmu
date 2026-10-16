@@ -1,0 +1,27 @@
+{
+  "description": "The step evaluates the item with the atom false too (B.6) (engine §4.2 and §6, case 45).",
+  "grammar": "%rule text a b\n%rule a A\n%conditions $.followed-by(b) ∨ $.matches(a)\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

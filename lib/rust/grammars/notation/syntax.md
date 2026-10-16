@@ -353,6 +353,8 @@ The reader groups repeated guards to the right. Flat lists retain their written 
 
 A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments.
 
+A boundary method separates target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
+
 The reader folds selectors from left to right. It retains the receiver's actual type and applies the signature rules in engine §10.
 
 A name used as an argument can identify a rule or classifier where the method signature requires one. The reader rejects unknown methods, invalid receivers, and wrong arities.
@@ -394,7 +396,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   Identifier
 
 %rule arguments
-  {argument / ","}
+  {argument / ("," | "|")}
 
 %rule argument
   term

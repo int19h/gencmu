@@ -24,13 +24,15 @@ pub(crate) struct RankedGroups {
     pub expressions: FxMap<usize, usize>,
     pub owners: FxMap<usize, usize>,
     pub paths: FxMap<usize, String>,
-    clause_errors: FxMap<usize, Error>,
 }
 #[derive(Clone, Default)]
 struct Route {
     length: usize,
     captures: BTreeMap<String, (usize, usize)>,
     ends: BTreeMap<usize, (usize, usize)>,
+    starts: BTreeMap<usize, usize>,
+    bindings: BTreeMap<String, usize>,
+    steps: Vec<Expr>,
 }
 fn join(mut left: Route, right: &Route) -> Route {
     let offset = left.length;
@@ -40,6 +42,11 @@ fn join(mut left: Route, right: &Route) -> Route {
     for (&group, &(at, option)) in &right.ends {
         left.ends.insert(group, (at + offset, option));
     }
+    for (&group, &start) in &right.starts {
+        left.starts.insert(group, start + offset);
+    }
+    left.bindings.extend(right.bindings.clone());
+    left.steps.extend(right.steps.clone());
     left.length += right.length;
     left
 }
@@ -58,6 +65,16 @@ fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
                 .enumerate()
                 .flat_map(|(option, item)| {
                     routes(item, groups).into_iter().map(move |mut route| {
+                        let mut names = groups.groups[group].names.clone();
+                        for child in route.ends.keys() {
+                            for name in &groups.groups[*child].names {
+                                names.remove(name);
+                            }
+                        }
+                        for name in names {
+                            route.bindings.insert(name, group);
+                        }
+                        route.starts.insert(group, 0);
                         route.ends.insert(group, (route.length, option));
                         route
                     })
@@ -83,11 +100,16 @@ fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
             out
         }
         Expr::Repeat(inner, separator, _) => match separator {
-            Some(separator) => product(routes(inner, groups), routes(separator, groups)),
+            Some(separator) => {
+                let items = routes(inner, groups);
+                let mut out = items.clone();
+                out.extend(product(items, routes(separator, groups)));
+                out
+            }
             None => routes(inner, groups),
         },
         _ => {
-            let mut route = Route { length: 1, ..Route::default() };
+            let mut route = Route { length: 1, steps: vec![expr.clone()], ..Route::default() };
             if let Expr::Capture(name, _) = expr {
                 route.captures.insert(name.clone(), (expr as *const Expr as usize, 1));
             }
@@ -95,55 +117,52 @@ fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
         }
     }
 }
-fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
-    match term {
-        Term::Capture(name) => {
-            out.insert(name.clone());
-        }
-        Term::Union(items) | Term::Intersection(items) => {
-            for item in items {
-                term_reads(item, out);
-            }
-        }
-        Term::Difference(left, right) => {
-            term_reads(left, out);
-            term_reads(right, out);
-        }
-        Term::Call(_, args) => {
-            for arg in args {
-                if let Arg::Term(term) = arg {
-                    term_reads(term, out);
+enum ReadPart<'a> {
+    Term(&'a Term),
+    Condition(&'a Cond),
+}
+
+fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
+    let mut stack = vec![start];
+    while let Some(part) = stack.pop() {
+        match part {
+            ReadPart::Term(term) => match term {
+                Term::Capture(name) => {
+                    out.insert(name.clone());
                 }
-            }
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(ReadPart::Term)),
+                Term::Difference(a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Term::Call(_, args) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(t) => Some(ReadPart::Term(t)),
+                    _ => None,
+                })),
+                Term::If(c, t) => stack.extend([ReadPart::Condition(c), ReadPart::Term(t)]),
+                _ => {}
+            },
+            ReadPart::Condition(cond) => match cond {
+                Cond::Captured(name) => {
+                    out.insert(name.clone());
+                }
+                Cond::Compare(_, a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Cond::Matches(t, _)
+                | Cond::Begins(t, _)
+                | Cond::Initial(t)
+                | Cond::Final(t)
+                | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
+                Cond::Not(c) => stack.push(ReadPart::Condition(c)),
+                Cond::All(items) | Cond::Any(items) => stack.extend(items.iter().map(ReadPart::Condition)),
+                Cond::If(a, b) => stack.extend([ReadPart::Condition(a), ReadPart::Condition(b)]),
+            },
         }
-        Term::If(cond, term) => {
-            cond_reads(cond, out);
-            term_reads(term, out);
-        }
-        _ => {}
     }
 }
+
+fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
+    capture_reads(ReadPart::Term(term), out);
+}
+
 pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
-    match cond {
-        Cond::Captured(name) => {
-            out.insert(name.clone());
-        }
-        Cond::Compare(_, left, right) => {
-            term_reads(left, out);
-            term_reads(right, out);
-        }
-        Cond::Matches(term, _) | Cond::Begins(term, _) | Cond::Initial(term) => term_reads(term, out),
-        Cond::Not(cond) => cond_reads(cond, out),
-        Cond::All(items) | Cond::Any(items) => {
-            for item in items {
-                cond_reads(item, out);
-            }
-        }
-        Cond::If(left, right) => {
-            cond_reads(left, out);
-            cond_reads(right, out);
-        }
-    }
+    capture_reads(ReadPart::Condition(cond), out);
 }
 impl RankedGroups {
     pub fn new(grammar: &StageGrammar) -> Result<Self, Error> {
@@ -153,14 +172,15 @@ impl RankedGroups {
                 out.visit(&source.alternative.expr, "", true, None, (rule, alternative));
             }
         }
-        for group in out.groups.clone() {
-            if let Err(error) = out.validate_clauses(grammar, &group) {
-                out.clause_errors.insert(group.id, error);
-            }
-        }
         Ok(out)
     }
-    fn validate_clauses(&self, grammar: &StageGrammar, group: &Group) -> Result<(), Error> {
+    fn validate_clauses(
+        &self,
+        grammar: &StageGrammar,
+        group: &Group,
+        lowered: &Lowered,
+        spans: &mut Option<SymbolSpans>,
+    ) -> Result<(), Error> {
         let source = &grammar.rules[group.source.0].alternatives[group.source.1];
         for route in routes(&source.alternative.expr, self) {
             let Some(&(end, option)) = route.ends.get(&group.id) else {
@@ -175,7 +195,7 @@ impl RankedGroups {
             for (condition_index, condition) in source.clauses.conditions.iter().enumerate() {
                 let mut original = BTreeSet::new();
                 cond_reads(condition, &mut original);
-                if !private(&original) {
+                if !original.iter().any(|name| route.bindings.get(name) == Some(&group.id)) {
                     continue;
                 }
                 let effective = simplify_cond(condition, &has);
@@ -207,6 +227,24 @@ impl RankedGroups {
                             option,
                             self.written_clause(grammar, group, "conditions", Some(condition_index)),
                         ));
+                }
+                if let Some(Cond::Boundary(false, Term::Capture(receiver), targets, _)) =
+                    crate::boundary::dom_atoms(&effective)
+                        .into_iter()
+                        .find(|c| matches!(c,Cond::Boundary(false,Term::Capture(n),_,_) if n.is_empty()))
+                {
+                    let _ = receiver;
+                    let prefix = &route.steps[..route.starts[&group.id]];
+                    if !prefix.is_empty()
+                        && spans.get_or_insert_with(|| SymbolSpans::new(lowered)).prefix(prefix, grammar)
+                    {
+                        let test = format!("$.preceded-by({})", targets.join(" | "));
+                        let message=format!("Condition {} of {} combines {test} with a private capture in option {}. That option can start after the rule starts. Move the condition into a rule that starts with the ranked group, or test the private capture itself.",condition_index+1,grammar.rules[group.source.0].name,option+1);
+                        return Err(self.fail(grammar, group, "ranked-choice-boundary", &message).ranked_detail(
+                            option,
+                            self.written_clause(grammar, group, "conditions", Some(condition_index)),
+                        ));
+                    }
                 }
             }
             for (term, clause) in source
@@ -484,10 +522,9 @@ impl RankedGroups {
             }
             at += 1;
         }
+        let mut spans = None;
         for group in &self.groups {
-            if let Some(error) = self.clause_errors.get(&group.id) {
-                return Err(error.clone());
-            }
+            self.validate_clauses(grammar, group, lowered, &mut spans)?;
             let Some(&helper) = helpers.get(&group.id) else {
                 continue;
             };
@@ -649,4 +686,81 @@ pub(crate) fn syntax_failure(tokens: &[crate::result::Token], at: usize) -> bool
         }
     }
     levels.last().copied().unwrap_or(false)
+}
+
+/// Least structural productivity and nonempty facts, independent of tests and gates.
+struct SymbolSpans {
+    productive: Vec<bool>,
+    nonempty: Vec<bool>,
+}
+impl SymbolSpans {
+    fn new(g: &Lowered) -> Self {
+        let mut users = vec![vec![]; g.rules.len()];
+        let mut remaining = vec![0usize; g.prods.len()];
+        let mut productive = vec![false; g.rules.len()];
+        let mut nonempty = vec![false; g.rules.len()];
+        let mut pending = vec![];
+        for (index, p) in g.prods.iter().enumerate() {
+            for s in &p.syms {
+                if let Sym::N(rule) = s {
+                    remaining[index] += 1;
+                    users[*rule as usize].push(index);
+                }
+            }
+            if remaining[index] == 0 && !productive[p.rule as usize] {
+                productive[p.rule as usize] = true;
+                pending.push(p.rule);
+            }
+        }
+        let mut at = 0;
+        while at < pending.len() {
+            for &index in &users[pending[at] as usize] {
+                remaining[index] -= 1;
+                let rule = g.prods[index].rule;
+                if remaining[index] == 0 && !productive[rule as usize] {
+                    productive[rule as usize] = true;
+                    pending.push(rule);
+                }
+            }
+            at += 1;
+        }
+        pending.clear();
+        for (index, p) in g.prods.iter().enumerate() {
+            if remaining[index] == 0 && p.syms.iter().any(|s| matches!(s, Sym::T(_))) && !nonempty[p.rule as usize] {
+                nonempty[p.rule as usize] = true;
+                pending.push(p.rule);
+            }
+        }
+        at = 0;
+        while at < pending.len() {
+            for &index in &users[pending[at] as usize] {
+                let rule = g.prods[index].rule;
+                if remaining[index] == 0 && !nonempty[rule as usize] {
+                    nonempty[rule as usize] = true;
+                    pending.push(rule);
+                }
+            }
+            at += 1;
+        }
+        Self { productive, nonempty }
+    }
+    fn prefix(&self, steps: &[Expr], g: &StageGrammar) -> bool {
+        let mut any = false;
+        for mut step in steps {
+            while let Expr::Capture(_, e) | Expr::Tested(_, _, e) = step {
+                step = e;
+            }
+            if let Expr::Ref(name) = step {
+                if let Some(&id) = g.index.get(name) {
+                    if !self.productive[id] {
+                        return false;
+                    }
+                    any |= self.nonempty[id];
+                    continue;
+                }
+            }
+            any = true;
+        }
+        any
+    }
 }

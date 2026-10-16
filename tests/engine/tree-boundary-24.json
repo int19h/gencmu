@@ -1,0 +1,27 @@
+{
+  "description": "A query's witness end acts as the end of input (engine §4.2 and §6, case 24).",
+  "grammar": "%rule text $a:A B\n%conditions $a.matches(w)\n%rule w A\n%conditions $.followed-by(B)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

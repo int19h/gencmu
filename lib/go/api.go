@@ -95,6 +95,7 @@ type loader struct {
 	noCache            bool
 	diagnosticDocument string
 	recipeDocument     string
+	boundaryDocument   string
 	// fromDisk is set when read decodes files, not strings the caller
 	// supplies: bytes that are not valid UTF-8 are then a grammar error of
 	// the document, not a usage error (engine §1).
@@ -120,6 +121,11 @@ func (l *loader) document(p string) (*domDoc, *Error) {
 			if dom, err := decodeDOM(raw, l.uni); err == nil {
 				if p == l.diagnosticDocument {
 					l.reader.restoreLocations(text, dom)
+				}
+				if p == l.boundaryDocument {
+					if source, e := l.reader.readMode(text, p, true); e == nil {
+						restoreBoundaryLocations(dom, source)
+					}
 				}
 				if p == l.recipeDocument {
 					l.reader.restoreRecipeLocations(text, p, dom)
@@ -173,6 +179,8 @@ func (l *loader) load(pipelinePath string) (*Dialect, error) {
 		switch {
 		case strings.HasPrefix(failure.Code, "ranked-choice-") && failure.Group != nil && failure.Group.At == nil && failure.Group.Document != "":
 			diagnostic.diagnosticDocument = failure.Group.Document
+		case failure.boundaryLocation && failure.Line == 0 && failure.Document != "":
+			diagnostic.boundaryDocument = failure.Document
 		case failure.recipeCycle && failure.Line == 0 && failure.Document != "":
 			diagnostic.recipeDocument = failure.Document
 		default:

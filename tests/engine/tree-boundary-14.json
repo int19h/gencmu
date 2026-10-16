@@ -1,0 +1,27 @@
+{
+  "description": "A capture receiver (engine §4.2 and §6, case 14).",
+  "grammar": "%rule text t (B | C)\n%rule t $a:a2\n%conditions $a.followed-by(B)\n%rule a2 A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "c",
+      "tags": [
+        "C"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

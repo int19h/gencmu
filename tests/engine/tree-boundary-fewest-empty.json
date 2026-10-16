@@ -1,0 +1,47 @@
+{
+  "description": "An empty fewest occurrence adds zero, so the two empty readings tie.",
+  "grammar": "%ambiguity-resolution greedy\n%rule text p | q\n%rule(fewest) p ε\n%rule q ε",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "tie"
+        }
+      ],
+      "error": {
+        "kind": "ambiguous",
+        "reason": "tie",
+        "readings": [
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "p",
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          },
+          {
+            "rule": "text",
+            "children": [
+              {
+                "rule": "q",
+                "span": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "error": "ambiguous"
+  }
+}

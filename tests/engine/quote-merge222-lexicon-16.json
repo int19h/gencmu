@@ -1,0 +1,87 @@
+{
+  "description": "The new ZOhOI word forms one quote token and preserves its foreign payload.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ba'e ci'e'u 你好é~ ui cmavo",
+  "options": {
+    "autoFeatures": true
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "ba'e",
+              "value": "ba'e",
+              "tags": [
+                "BAhE",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "image": "ci'e'u 你好é~",
+              "value": "ci'e'u 你好é",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ]
+            },
+            {
+              "image": "ui",
+              "value": "ui",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "UI",
+                "Word"
+              ]
+            },
+            {
+              "image": "cmavo",
+              "value": "cmavo",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "([ba'e ci'e'u 你好é~ ui] cmavo)"
+  }
+}

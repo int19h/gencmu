@@ -228,6 +228,14 @@ class NotationReader:
 
     def located(self, dom, text, path):
         from ._ranked import has_ranked, restore_locations
+        from ._boundary import atoms, Located
+        found = atoms([rule for rule in dom['rules']])
+        if any(not hasattr(arg, 'at') for atom in found for arg in atom['args']):
+            fresh = self.read(text, path, True)
+            originals = atoms(fresh['rules'])
+            if len(found) == len(originals):
+                for atom, original in zip(found, originals):
+                    atom['args'] = [Located(arg, where.at) for arg, where in zip(atom['args'], original['args'])]
         if not has_ranked(dom) or all(hasattr(rule, 'ranked_locations') for rule in dom['rules']):
             return dom
         grammar_text = jbogenbau_text(text)
@@ -429,6 +437,10 @@ class _Loader:
         try:
             return self._load(pipeline_path)
         except GencmuError as error:
+            boundary_document = getattr(error, "_boundary_document", None)
+            if boundary_document is not None and error.line is None:
+                # Read the exact document again only for a failed cache load.
+                return self._load(pipeline_path, boundary_document)
             location = getattr(error, "_recipe_location", None)
             if location is not None:
                 # A cached recipe has no source position in the DOM. Read

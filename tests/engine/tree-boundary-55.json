@@ -1,0 +1,29 @@
+{
+  "description": "In the check, a restoration is an empty constituent for §4.2 (engine §4.2 and §6, case 55).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x [+T] b | c\n%rule x A\n%conditions $.followed-by(b)\n%rule b B\n%rule c [+U] A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ]
+    }
+  }
+}

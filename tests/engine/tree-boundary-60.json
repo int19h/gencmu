@@ -1,0 +1,30 @@
+{
+  "description": "In the check, `.ends-input` compares projected positions (engine §4.2 and §6, case 60).",
+  "grammar": "%ambiguity-resolution late-elision elision-only\n%rule text x | y\n%rule x a [+T]\n%rule a A\n%conditions $.ends-input\n%rule y A [+U] [+V]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "verdict": "resolved"
+        }
+      ],
+      "tree": {
+        "children": [
+          {
+            "rule": "x"
+          }
+        ]
+      }
+    }
+  }
+}

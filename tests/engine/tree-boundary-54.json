@@ -1,0 +1,27 @@
+{
+  "description": "Errors follow the steps that run, not the order of D (engine §4.2 and §6, case 54).",
+  "grammar": "%rule text a b\n%rule a A\n%conditions $.followed-by(b) ⟹ $.matches(a), ¬$.starts-input\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

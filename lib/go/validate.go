@@ -115,7 +115,7 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if r == nil || !(domName.MatchString(r.Name) || r.Name == "#") || (r.Op != "define" && r.Op != "redefine" && r.Op != "extend") || len(r.Alternatives) == 0 {
 			return &domProblem{message: "a malformed rule"}
 		}
-		if len(r.Flags) > 1 || (len(r.Flags) == 1 && (r.Flags[0] != "leftmost-longest" || r.Op == "extend")) {
+		if len(r.Flags) > 1 || (len(r.Flags) == 1 && ((r.Flags[0] != "leftmost-longest" && r.Flags[0] != "fewest") || r.Op == "extend")) {
 			return &domProblem{message: "a malformed rule flag list"}
 		}
 		c := &domChecker{rule: r, label: "rule " + r.Name, uni: uni}
@@ -164,6 +164,11 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		// The definition as a whole (engine §9, the end), and the types of
 		// its terms and conditions (engine §10).
+		if c.hasBoundary {
+			if _, msg := boundaryRuleProblem(r); msg != "" {
+				return &domProblem{message: msg, rule: r}
+			}
+		}
 		if msg := definitionProblem(r); msg != "" && msg != r.deferredEmission {
 			return &domProblem{message: msg, rule: r}
 		}
@@ -308,6 +313,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	hasBoundary bool
 	rule        *domRule        // the rule checked, or nil
 	constant    *domConst       // the constant checked, or nil
 	implication *domImplication // the implication checked, or nil
@@ -1081,7 +1087,21 @@ func (c *domChecker) condition(d *domCond, depth int) {
 			return
 		}
 		c.term(d.Span, depth+1, true)
-	case cdInitial:
+	case cdBoundary:
+		c.hasBoundary = true
+		if d.Span == nil || d.Span.Kind != tmCapture || !boundaryMethod(d.Op) || len(d.Targets) == 0 {
+			c.fail("a malformed boundary atom")
+			return
+		}
+		c.term(d.Span, depth+1, true)
+		for _, t := range d.Targets {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && ((!domName.MatchString(t.Str) || isCapital(t.Str)) && t.Str != "#")) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+				c.fail("a malformed boundary target")
+				return
+			}
+			c.deep(depth + 1)
+		}
+	case cdInitial, cdEnd:
 		if !isSpanShape(d.Span) {
 			c.fail("a malformed initial()")
 			return

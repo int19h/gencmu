@@ -1,0 +1,27 @@
+{
+  "description": "`.ends-input` holds only at the end (engine §4.2 and §6, case 31).",
+  "grammar": "%rule text {u}\n%rule u A\n%conditions $.ends-input",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}
