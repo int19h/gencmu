@@ -1,0 +1,50 @@
+{
+  "description": "A nested helper preserves the enclosing whole-rule boundary with negative sign and tag reads at depth 2 (engine §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r ($a:aa ((cc ≻ dd) ≻ ee) ≻ $b:bb) :: ∅\n%conditions $a.tags = A ∧ ¬$.preceded-by(X)\n%rule aa X :: A\n%rule bb C\n%rule cc B\n%rule dd B\n%rule ee B",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "x",
+      "tags": [
+        "X"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "verdict": "unique"
+        }
+      ],
+      "tree": {
+        "children": [
+          {},
+          {
+            "rule": "r",
+            "children": [
+              {
+                "rule": "aa"
+              },
+              {
+                "rule": "cc"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

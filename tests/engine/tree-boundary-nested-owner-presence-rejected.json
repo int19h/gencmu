@@ -1,0 +1,37 @@
+{
+  "description": "Presence simplification keeps the enclosing whole-rule obligation when that obligation rejects the input (engine §4.2).",
+  "grammar": "%ambiguity-resolution greedy\n%rule text X r | Y r\n%rule r ($a:aa (cc ≻ dd) ≻ $b:bb) :: ∅\n%conditions $a ∧ $.preceded-by(X)\n%rule aa A\n%rule bb C\n%rule cc B\n%rule dd B",
+  "tokens": [
+    {
+      "text": "y",
+      "tags": [
+        "Y"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "rejected",
+    "result": {
+      "error": {
+        "kind": "rejected",
+        "boundary": {
+          "rule": "r",
+          "condition": 0,
+          "at": 1
+        }
+      }
+    }
+  }
+}

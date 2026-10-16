@@ -3627,6 +3627,76 @@
     return null;
   }
 
+  // ---- recipes.js
+  // Recipe selection and loading checks (engine §11.3).
+
+
+  /** @import { Recipe, Position, GrammarDom } from "./types.js" */
+  /** @type {WeakMap<object,Position>} */
+  const recipeLocations = new WeakMap();
+  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
+  const recipeFailures = new WeakMap();
+
+  /** @param {object} source @param {object} target */
+  function copyRecipeLocation(source,target) {
+    const at = recipeLocations.get(source);
+    if (at) recipeLocations.set(target,at);
+  }
+
+  /** @param {GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>Position} positionOf */
+  function restoreRecipeLocations(dom,tokens,positionOf) {
+    const starts = tokens.flatMap((token,index) => [":=",":-"].includes(token.text) ? [tokens[index+1]] : []);
+    /** @type {Recipe[]} */
+    const recipes = [];
+    for (const rule of dom.rules) {
+      for (const recipe of [rule.value,rule.image]) if (recipe) recipes.push(recipe);
+      for (const alternative of rule.alternatives) for (const recipe of [alternative.value,alternative.image]) if (recipe) recipes.push(recipe);
+      for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
+    }
+    if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
+  }
+
+  /**
+   * @param {Recipe|undefined} value
+   * @param {Recipe|undefined} image
+   * @param {string} document
+   */
+  function validateRecipeCycles(value,image,document) {
+    const selected = {value, image:image ?? value};
+    const impliedImage = image === undefined && value !== undefined;
+    /** @type {("value"|"image")[]} */
+    const path = [];
+    const done = new Set();
+    /** @param {"value"|"image"} channel */
+    const visit = channel => {
+      if (channel === "image" && impliedImage) channel = "value";
+      if (done.has(channel)) return;
+      const recipe = selected[channel];
+      if (!recipe) { done.add(channel); return; }
+      path.push(channel);
+      for (const atom of recipe.concat) {
+        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
+        const receiver = atom.receiver;
+        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
+        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
+        if (path.includes(next)) {
+          const at = recipeLocations.get(recipe);
+          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
+          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
+            document, ...(at ? {line:at[0],column:at[1]} : {}),
+          });
+          recipeFailures.set(error,{document,recipe});
+          throw error;
+        }
+        visit(next);
+      }
+      path.pop();
+      done.add(channel);
+    };
+    visit("value");
+    visit("image");
+  }
+
   // ---- trampoline.js
   // Runs mutually recursive readers and walks without the call stack, so a
   // document's nesting cannot exhaust it (engine §9).
@@ -5929,76 +5999,6 @@
     return {productive,nonempty};
   }
 
-  // ---- recipes.js
-  // Recipe selection and loading checks (engine §11.3).
-
-
-  /** @import { Recipe, Position, GrammarDom } from "./types.js" */
-  /** @type {WeakMap<object,Position>} */
-  const recipeLocations = new WeakMap();
-  /** @type {WeakMap<GencmuError,{document:string, recipe:Recipe}>} */
-  const recipeFailures = new WeakMap();
-
-  /** @param {object} source @param {object} target */
-  function copyRecipeLocation(source,target) {
-    const at = recipeLocations.get(source);
-    if (at) recipeLocations.set(target,at);
-  }
-
-  /** @param {GrammarDom} dom @param {{text:string}[]} tokens @param {(token:any)=>Position} positionOf */
-  function restoreRecipeLocations(dom,tokens,positionOf) {
-    const starts = tokens.flatMap((token,index) => [":=",":-"].includes(token.text) ? [tokens[index+1]] : []);
-    /** @type {Recipe[]} */
-    const recipes = [];
-    for (const rule of dom.rules) {
-      for (const recipe of [rule.value,rule.image]) if (recipe) recipes.push(recipe);
-      for (const alternative of rule.alternatives) for (const recipe of [alternative.value,alternative.image]) if (recipe) recipes.push(recipe);
-      for (const item of rule.emit?.items ?? []) for (const recipe of [item.value,item.image]) if (recipe) recipes.push(recipe);
-    }
-    if (starts.length === recipes.length) recipes.forEach((recipe,index) => recipeLocations.set(recipe,positionOf(starts[index])));
-  }
-
-  /**
-   * @param {Recipe|undefined} value
-   * @param {Recipe|undefined} image
-   * @param {string} document
-   */
-  function validateRecipeCycles(value,image,document) {
-    const selected = {value, image:image ?? value};
-    const impliedImage = image === undefined && value !== undefined;
-    /** @type {("value"|"image")[]} */
-    const path = [];
-    const done = new Set();
-    /** @param {"value"|"image"} channel */
-    const visit = channel => {
-      if (channel === "image" && impliedImage) channel = "value";
-      if (done.has(channel)) return;
-      const recipe = selected[channel];
-      if (!recipe) { done.add(channel); return; }
-      path.push(channel);
-      for (const atom of recipe.concat) {
-        if (!("method" in atom) || !["value","image"].includes(atom.method)) continue;
-        const receiver = atom.receiver;
-        if (!("method" in receiver) || receiver.method !== "emitted" || !("capture" in receiver.receiver) || receiver.receiver.capture !== "") continue;
-        const next = /** @type {"value"|"image"} */ (atom.method === "image" && impliedImage ? "value" : atom.method);
-        if (path.includes(next)) {
-          const at = recipeLocations.get(recipe);
-          const location = at ? `${document}:${at[0]}:${at[1]}: ` : `${document}: `;
-          const error = new GencmuError("grammar", `${location}recipe dependency cycle: ${[...path,next].join(" → ")}`, {
-            document, ...(at ? {line:at[0],column:at[1]} : {}),
-          });
-          recipeFailures.set(error,{document,recipe});
-          throw error;
-        }
-        visit(next);
-      }
-      path.pop();
-      done.add(channel);
-    };
-    visit("value");
-    visit("image");
-  }
-
   // ---- ranked-frame.js
 
   // Lexical entry state for transparent helpers in a ranked alternative.
@@ -6088,7 +6088,12 @@
         if (!final && reads.includes('')) continue;
         if (reads.some(n => n !== '' && !positions.has(n) && !prefix.has(n))) continue;
         const readyAt = reads.reduce((last,n) => Math.max(last,n === '' ? production.rhs.length-1 : prefix.has(n) ? -1 : positions.get(n)), -1);
-        result.push({condition,readyAt});
+        // Ownership belongs to the written clause, before presence removes reads.
+        // A nested helper still evaluates it, but introduces no enclosing literal.
+        const wholeBoundary = atom?.receiver.capture === ""
+          ? !production.helper || [...rankedCaptureReads(raw)].some(name => production.rankedPrivate?.has(name))
+          : true;
+        result.push({condition,readyAt,wholeBoundary});
       }
     }
     return result;
@@ -7738,7 +7743,6 @@
 
   // Recognition (engine §4) and the terms and conditions it evaluates
   // (engine §10).
-
 
 
 
@@ -9726,7 +9730,7 @@
       if (at !== readyAt) continue;
       const scope = step.scope ??= new ChartScope(context, production, slots, origin, end, step.structure,step.observation);
       const atom = firstBoundaryAtom(condition);
-      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step) : holds(scope.observing, condition, scope);
+      const held = atom ? boundaryCondition(scope.observing,condition,scope,atom,step,conditions[index].wholeBoundary !== false) : holds(scope.observing, condition, scope);
       if (held === HALT) return pause((/** @type {boolean} */ value) => value && !scope.invalidRestoration ? failedFrom(context, production, conditions, index + 1, readyAt, slots, origin, end, step) : condition);
       if (!held || scope.invalidRestoration) return condition;
     }
@@ -10797,8 +10801,8 @@
   }
 
   /** Evaluate each Boolean assignment in the existing order, across query halts.
-   * @param {any} context @param {any} condition @param {any} scope @param {any} atom @param {any} step */
-  function boundaryCondition(context,condition,scope,atom,step) {
+   * @param {any} context @param {any} condition @param {any} scope @param {any} atom @param {any} step @param {boolean} wholeBoundary */
+  function boundaryCondition(context,condition,scope,atom,step,wholeBoundary) {
     scope.boundaryValue = true;
     const yes = holds(context,condition,scope);
     const withYes = (/** @type {boolean} */ value) => {
@@ -10812,12 +10816,10 @@
         scope.invalidRestoration = false;
         if (!value && !other) return false;
         if (value !== other) {
-          // Common whole-rule conditions also run at the lexical ranked step
-          // for their ordinary failures and error order. Their obligation is
-          // introduced at the actual named completion, never at a helper edge.
+          // Enclosing clauses keep ordinary evaluation at nested lexical steps.
+          // Only their owning group introduces a whole-rule boundary literal.
           const production = scope.production;
-          if (production.helper && atom.receiver.capture === "" &&
-              ![...rankedCaptureReads(condition)].some(name => production.sourcePrivate?.has(name))) return true;
+          if (atom.receiver.capture === "" && !wholeBoundary) return true;
           const machine = context.boundaries ?? scope.context.boundaries;
           const source = production.lexicalFrame?.root.logicalSource ?? production.logicalSource;
           (step.obligations ??= []).push({atom,condition,literal:machine.literal(atom,!!value),
@@ -17827,6 +17829,7 @@
    * @typedef {object} ReadyCondition
    * @property {Condition} condition
    * @property {number} readyAt
+   * @property {boolean} [wholeBoundary] whether this step introduces a whole-rule boundary literal
    */
 
   /**

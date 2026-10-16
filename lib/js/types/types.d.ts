@@ -571,6 +571,10 @@ export type Capture = {
 export type ReadyCondition = {
     condition: Condition;
     readyAt: number;
+    /**
+     * whether this step introduces a whole-rule boundary literal
+     */
+    wholeBoundary?: boolean;
 };
 export type Production = {
     source?: import("./grammar.js").StitchedAlternative;
@@ -1223,6 +1227,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} ReadyCondition
  * @property {Condition} condition
  * @property {number} readyAt
+ * @property {boolean} [wholeBoundary] whether this step introduces a whole-rule boundary literal
  */
 /**
  * A production of a lowered grammar (engine §3).

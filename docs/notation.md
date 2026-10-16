@@ -778,6 +778,8 @@ One condition of the list holds at most one such test. It can combine that test 
 
 A private capture inside a ranked option uses the option's helper step. A backward atom on it meets earlier nodes inside that option. At the option's start, its literal meets the common prefix during qualification.
 
+A nested ranked group can evaluate an enclosing condition. A whole-rule atom keeps its owning group's boundary. The nested group introduces no copy at its own boundary. Capture-presence simplification does not change that ownership.
+
 The parser decides such a test only later. So it evaluates the rest of the condition both ways, and it evaluates the later conditions and the tag term as if the test held. A grammar error in any of these is an error of the parse, even if the test later fails.
 
 Inside a nested query, the tests read the query's own reading. Its two ends act as the ends of the input. In an aligned query, atoms read projected spans. A synthetic token has an empty projected span, so it never counts as a neighbor. A rule that a query reaches gets a default answer at the query's edges. The audit lists every such rule as a note.
