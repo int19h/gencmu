@@ -756,19 +756,19 @@ An empty receiver stands at one position. Then `followed-by` tests the node that
 
 A condition with such a test holds or fails as any condition does. So `¬$.followed-by(B)` holds where no `B` node follows, at the end of the input too. A parse in which a condition fails does not exist. The stage ranks the parses that remain. So the chosen tree satisfies every such condition. In an emission item, a test reads the chosen tree and changes nothing about parsing.
 
-The test reads the actual neighbor, which a lookahead cannot do. In the experimental grammar, a bare `na` omits its `ku` only where its place closes, or before a sumti:
+The test reads the actual neighbor, which a lookahead cannot do. In the experimental grammar, a bare `na` omits its `ku` only where its place closes, or before a term in the same reading:
 
 ```jbogenbau
 %rule bare-na
   $n:NA #
 %conditions
   ¬$n.onward.begins(na-connective),
-  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | sumti)
+  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 ```
 
-`$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a sumti can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
+`$PLACE-CLOSE` holds the single words that close the place, such as `cu`, `.i` and the written terminators. A gihek and a term can start with many words, so the test names them as nodes of the parse. The receiver `$` ends after the term's own free modifiers, so they never count.
 
-In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a sumti node at `da`. A lookahead `$.following-tokens.begins(sumti)` can instead find a sumti in another reading.
+In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.begins(term)` can instead find a term in another reading.
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
 

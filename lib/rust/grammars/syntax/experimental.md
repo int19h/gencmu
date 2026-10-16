@@ -180,7 +180,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
 
-The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before an actual sumti. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
+The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -252,13 +252,15 @@ The layer joins terms at two levels. A connective, an optional stag, and `bo` jo
 
 A term stands in heads, tails, prenexes, fragments, and NUhI termsets. BE, BEI, GOI, LAhE, and NAhE each take one term. Branches of a bare forethought termset also take terms.
 
-A bare NA or tag term can omit KU only before a written closing word, a gihek, or the text's end. Closing words are `.i`, `ni'o`, `cu`, `gi`, `bei`, `zo'u`, `ce'e`, `pe'e`, and a written terminator of a surrounding construction. An omitted terminator never counts as a closing word.
+A bare tag term can omit KU only before a written closing word, a gihek, or the text's end. A bare NA term can omit KU in these positions too. Closing words are `.i`, `ni'o`, `cu`, `gi`, `bei`, `zo'u`, `ce'e`, `pe'e`, and a written terminator of a surrounding construction. An omitted terminator never counts as a closing word.
 
 A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
-A bare NA term can also omit KU before a sumti in the same reading. Thus `na mi` contains a NA term before the sumti `mi`. A tag term has no such exception. A tag with its own sumti uses the separate tagged-term alternative and needs no KU.
+JA, A, JOI, and VUhU alone do not close a term's place. These words can also connect tenses or terms.
 
-The KU test starts after the term's own free modifiers. The test of the next written word uses its selma'o. The gihek and sumti tests read the complete tree. They parse nothing again.
+A bare NA term can also omit KU before any term in the same reading. These terms include sumti, tagged terms, termsets, SOI terms, and other bare NA terms. Thus `ro da na ka'e` and `na fa mi klama` parse. A tag term keeps the closing-word rule. A tag with its own sumti uses the separate tagged-term alternative and needs no KU.
+
+The KU test starts after the term's own free modifiers. The test of the next written word uses its selma'o. The gihek and term tests read the complete tree. They parse nothing again.
 
 The same KU rule applies in lists and single-term positions. A written KU permits either term before any following constituent. A bare `na` cannot begin a term where its NA token starts a connective.
 
@@ -325,7 +327,7 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
   $n:NA #
 %conditions
   ¬$n.onward.begins(na-connective),
-  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | sumti)
+  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -981,7 +983,7 @@ The KU rule keeps NA on the outer predicate in `le nu do klama na brode`. It als
 
 The same rule rejects `nu'i na broda` and `nu'i pu broda`, as camxes-exp does. A written NUhU permits both termsets to end before `broda`.
 
-The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a term's own free modifiers from a later constituent. In `mi klama na to broda`, the NA term owns the complete parenthesis. In `mi klama na sei mi broda brode`, it owns the complete SEI clause. `na to broda` permits the same fragment reading. `na na to broda toi` fails because the first NA cannot omit KU before another NA.
+The [#130 examples](https://github.com/int19h/gencmu/issues/130) distinguish a term's own free modifiers from a later constituent. In `mi klama na to broda`, the NA term owns the complete parenthesis. In `mi klama na sei mi broda brode`, it owns the complete SEI clause. `na to broda` permits the same fragment reading. In `na na to broda toi`, the first NA term precedes a second NA term with its own parenthesis.
 
 camxes-exp requires a stag before `bo` in `abs_term_2`. This layer permits its omission, so `fa mi .e bo fe do klama` parses here and fails there. camxes-exp prefers sumti over term connections by trying sumti first. This layer uses conditions for both levels. Both therefore prefer the sumti when both readings complete.
 
@@ -997,29 +999,26 @@ The description's possessor can be any unquantified sumti. camxes-exp also reads
 
 ### Deliberate KU omission limits
 
-This layer deliberately limits KU omission more than camxes-exp. A bare `na` or tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before a sumti in the same reading. Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
+This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
+
+Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
 
 A gihek can start with NA or SE. These prefixes close the term's place only when they belong to the actual gihek. An ordinary connective without `.i` does not close that place.
 
-Writing `ku` makes each text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `na na` becomes `na ku na ku`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
+Writing `ku` makes each rejected text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
 
-Outside these exceptions, a bare term requires KU before a selbri, a tag, NA, a termset, or an ordinary connective. CLL also permits a tag to omit KU where no ambiguity results.[^cll-s21-1] This layer rejects some such texts, including `broda be pu brode`.
+A bare tag still requires KU before another tag, NA, a termset, or an ordinary connective. A bare NA requires KU before a selbri or an ordinary connective. CLL also permits a tag to omit KU where no ambiguity results.[^cll-s21-1] This layer rejects some such texts, including `broda be pu brode`.
 
-Other examples include `ro da na ka'e` and `na fa mi klama`.
+JA, A, JOI, and VUhU do not count as closing words because they also connect tenses or terms. Thus `mi klama pu je tavla` fails, while `mi klama pu ku je tavla` parses. Counting these connectives as closing words gives `mi klama pu je ca klama` two readings.
 
 The corpus records these examples that camxes-exp accepts and this layer rejects:
 
-- `na na` places a bare NA before another NA.
 - `mi pe na klama` places a bare NA before a selbri.
-- `i ba'a na ba to ke broda toi ku fasnu` places a bare NA before a tag.
 - `not canada` places a bare tag before NA.
 - `ze'u na do tavla` places a bare tag before NA.
-- `.i xu ja'anoroiku` places a bare NA before a tag.
-- `Or na pu` places a bare NA before a tag.
 - `na to mi toi .e do` places a bare NA before a connective.
-- `na na to broda toi` places a bare NA before another NA.
-- `.i ba'a na ba ku fasnu` places a bare NA before a tag.
 - `.i lei za'u da ba na ku curmi le nu mi'ai klama lo nenri be le purdi` places a bare tag before NA.
+- `mi klama pu je tavla` places a bare tag before an ordinary connective. Write `mi klama pu ku je tavla`.
 
 The rule also changes accepted readings. In `ge mi ti gi do na klama`, this layer puts NA on the following selbri. camxes-exp puts it in the termset's second branch. The same difference applies to `ge mi ti gi do pu klama`. An omitted NUhU permits no KU omission before `klama`.
 
