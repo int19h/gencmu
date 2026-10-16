@@ -15,6 +15,7 @@
         "kind": "rejected",
         "stage": "words"
       }
-    }
+    },
+    "error": "rejected"
   }
 }
