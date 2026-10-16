@@ -1085,10 +1085,9 @@ class Parser:
                 whole = atom["receiver"]["capture"] == ""
                 # A lexical ancestor can evaluate the clause, but its own
                 # final group alone owns a whole-rule literal.
-                private = p.private_names | (p.lexical.known_private if p.lexical else set())
                 from ._ranked import reads
-                if not whole or not p.helper or bool(reads(next((raw for raw in source.conditions if atom in atoms(raw)), condition)) & p.private_names):
-                    site = next((site for raw, site in sites.get(id(source.conditions), ()) if atom in atoms(raw)), None)
+                if not whole or not p.helper or bool(reads(next((raw for raw in source.conditions if any(original is atom for original in atoms(raw))), condition)) & p.private_names):
+                    site = next((site for raw, site in sites.get(id(source.conditions), ()) if any(original is atom for original in atoms(raw))), None)
                     obligations.append((atom, boundaries.literal(atom, yes), site))
             return yes or no
 
@@ -1386,10 +1385,10 @@ class Parser:
                 for condition in conditions or ():
                     if not (yield boundary_condition(condition, bound, obligations)):
                         return
+                if boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
+                    yield term_tag(production, captured, start, at, completed_structure(production, position + 1, prefix), completed_closes(production, position + 1, start, at, close_prefix))
             except InvalidObservation:
                 return
-            if boundaries is not None and position + 1 == len(production.rhs) and production.tags_term is not None:
-                yield term_tag(production, captured, start, at, completed_structure(production, position + 1, prefix), completed_closes(production, position + 1, start, at, close_prefix))
             add(production.id, position + 1, start, captured, at, edge, strict_step, prefix, close_prefix, family_prefix, obligations)
 
         # A production whose first symbol is a terminal the next token lacks

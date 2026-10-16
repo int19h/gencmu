@@ -61,3 +61,33 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(errors[0].code, 'ranked-choice-boundary')
         for field in ('code', 'group', 'option', 'expression', 'line', 'column'):
             self.assertEqual(getattr(errors[0], field), getattr(errors[1], field))
+
+    def test_equal_literals_keep_both_condition_sources(self):
+        from gencmu._earley import Parser, StageContext
+        from .shared import load_case_dialect, case_tokens
+        dialect, error = load_case_dialect({'grammar': '%rule text r B\n%rule r A\n%conditions ¬$.followed-by(B), ¬$.followed-by(B)'})
+        self.assertIsNone(error)
+        tokens, text = case_tokens({'tokens': [{'text': 'a', 'tags': ['A']}, {'text': 'b', 'tags': ['B']}]})
+        for token in tokens:
+            token.tags = frozenset(token.tags)
+        lowered = dialect.lowered(0, frozenset())
+        forest = Parser(StageContext(lowered, tokens, text, dialect.unicode)).parse(lowered.rule_ids['text'])
+        sites = {(condition, rule) for _, _, _, source in forest.boundary_failures if source is not None
+                 for order, condition, rule in source.sites}
+        self.assertEqual(sites, {(0, 'r'), (1, 'r')})
+
+    def test_admission_reports_a_split_once(self):
+        from gencmu import _testing
+        from .shared import load_case_dialect, parse_case
+        grammar = '%rule text (p ≻ q ≻ r) :: ∅ | B\n%rule p A\n%conditions ¬$.followed-by(B)\n%rule q A\n%rule r A'
+        dialect, error = load_case_dialect({'grammar': grammar})
+        self.assertIsNone(error)
+        stats = []
+        handle = _testing.slot_admission.set(stats.append)
+        try:
+            parse_case(dialect, {'tokens': [{'text': 'a', 'tags': ['A']}]})
+        finally:
+            _testing.slot_admission.reset(handle)
+        splits = [split for result in stats for split in result['boundary_splits']]
+        self.assertEqual(len(splits), 1)
+        self.assertEqual((splits[0]['start'], splits[0]['end']), (0, 1))

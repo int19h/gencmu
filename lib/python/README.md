@@ -42,6 +42,8 @@ result = dialect.parse(text, features=(), without_features=(), auto_features=Tru
 
 A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
 
+A rejected error can carry `boundary`. It names the rule, the condition index from zero, and the input boundary where a tree condition fails. The index counts conditions through the rule definitions in source order.
+
 The reason is `"tie"` where a stage has two or more best readings (`docs/engine.md`, §6). The stage then has the verdict `"tie"` and a `witness`, and it has no tree and no output. The reason is `"elision-only"` where the check of §7 fails. That error also has a `witness`, the pair of actions where its readings first differ. Such an `Action` can have the kind `"elided"`, a read of a terminator that the check wrote back, at the position `at` (§7.10).
 
 Here, `grammar` is for a defect of a grammar found only while parsing. Lowering finds such defects for the features of the parse (`docs/engine.md`, §3), so the dialect still loads. One example is a classifier's entry that adds a class that a key already has.

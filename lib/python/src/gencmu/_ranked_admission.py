@@ -26,7 +26,8 @@ class RankedAdmission(RankedFacts):
         self.check = check
         self.at,self.slot_groups,self.maxima,self.masks = {},{},{},{}
         self.open = {}
-        self.stats = {'chart_facts':len(forest.prod),'groups':0,'candidate_edges':0,'retained_edges':0}
+        self.reported = set()
+        self.stats = {'chart_facts':len(forest.prod),'groups':0,'candidate_edges':0,'retained_edges':0,'boundary_splits':[]}
         lowered = forest.lowered
         for item,edges in enumerate(forest.edges):
             p = self.productions[forest.prod[item]]
@@ -68,6 +69,19 @@ class RankedAdmission(RankedFacts):
                 kept = self.maxima[context] = frozenset((item, number) for item, number, option in present
                     if not any(higher < option and dominates(self.open[other, edge], self.open[item, number])
                                for other, edge, higher in present))
+                if group not in self.reported and any(
+                    (item, number) in kept and any(higher < option for _, _, higher in present)
+                    for item, number, option in present
+                ):
+                    self.reported.add(group)
+                    group_info = next(g for g in self.forest.lowered.grammar.ranked.groups if g.id == group[0])
+                    child = self.forest.edges[key[1]][index][2]
+                    self.stats['boundary_splits'].append({
+                        'group': self.forest.lowered.grammar.ranked.site(group_info.source, group_info.path, True),
+                        'entry': group,
+                        'start': self.forest.origin[child],
+                        'end': self.forest.end[child],
+                    })
             child = self.forest.edges[key[1]][index][2]
             option = self.productions[self.forest.prod[child]].option
             if (key[1], index) in kept:
