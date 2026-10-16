@@ -439,7 +439,7 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 				return fail("%s is not a rule of stage %s", c.Rule, g.name)
 			}
 			return nil
-		case cdInitial:
+		case cdInitial, cdEnd:
 			return checkTerm(c.Span)
 		case cdNot:
 			return checkCond(c.Inner)

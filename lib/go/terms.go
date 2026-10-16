@@ -545,6 +545,9 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		}
 		w.endCond(ok)
 		return nil
+	case cdEnd:
+		w.endCond(w.span(ev, c.Span).b == ev.run.inputEnd)
+		return nil
 	case cdInitial:
 		// Where the input of the parse that reads the condition begins (§10).
 		w.endCond(w.span(ev, c.Span).a == ev.run.inputStart)

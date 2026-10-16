@@ -699,6 +699,12 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		return give(&domCond{Kind: cdNot, Inner: in.(*domCond)})
 	}
 	t := in.(*domTerm)
+	if t.Str == "ends-input" {
+		return give(&domCond{Kind: cdEnd, Span: t.Items[0]})
+	}
+	if boundaryMethod(t.Str) {
+		return give(&domCond{Kind: cdBoundary, Op: t.Str, Span: t.Items[0], Targets: t.Items[1:], At: t.At})
+	}
 	if t.Str == "starts-input" {
 		return give(&domCond{Kind: cdInitial, Span: t.Items[0]})
 	}
