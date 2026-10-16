@@ -282,6 +282,7 @@ pub(crate) struct LRule {
     pub name: String,
     pub helper: bool,
     pub leftmost_longest: bool,
+    pub fewest: bool,
     pub prods: Vec<u32>,
     /// For the helper of an elidable optional, `[+T …]`: its
     /// terminator `T` (§3.8, §12).
@@ -1087,6 +1088,7 @@ fn lower_mode(
             name: rule.name.clone(),
             helper: false,
             leftmost_longest: rule.flags.iter().any(|flag| flag == "leftmost-longest"),
+            fewest: rule.flags.iter().any(|flag| flag == "fewest"),
             prods: Vec::new(),
             elided: None,
             elided_test: None,
@@ -1101,6 +1103,7 @@ fn lower_mode(
             name: grammar.rules[helper.owner as usize].name.clone(),
             helper: true,
             leftmost_longest: false,
+            fewest: false,
             prods: Vec::new(),
             elided: helper.elided.as_ref().map(|(name, _)| name.clone()),
             elided_test: helper.elided.as_ref().and_then(|(_, test)| *test),
