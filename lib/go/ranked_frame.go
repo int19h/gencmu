@@ -229,7 +229,11 @@ func (r *recognizer) rankedPrefix(it *item) string {
 	if r.closes != nil {
 		sequence = r.closes.semantic(it.closes)
 	}
-	return fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
+	boundary := ""
+	if r.boundaries != nil && it.boundary != nil {
+		boundary = fmt.Sprintf("/b%d", it.boundary.id)
+	}
+	return boundary + fmt.Sprintf("%s/%v/%q/%q/%d/%d/%d/%d/%q/%q/%t/%s", p.ruleName, p.at, path, symbols, it.dot, it.origin, it.prefix, sequence, captures, lexical, it.restores, p.rankedBindings)
 }
 
 func (r *recognizer) closeEntryRoute(it *item) string {
@@ -440,6 +444,9 @@ func (v *slotViews) rankedAncestry(scope *slotScope, r *recognizer) string {
 		if before == nil {
 			copy := *frame.parent
 			copy.dot = 0
+			if r.boundaries != nil {
+				copy.boundary = r.boundaries.empty
+			}
 			copy.prefix = r.machine.empty
 			copy.more = 0
 			copy.cap0 = capVal{}
