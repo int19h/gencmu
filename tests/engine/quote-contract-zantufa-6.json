@@ -1,0 +1,34 @@
+{
+  "description": "Quote images preserve written case and hesitation while ordinary hesitation contributes no word or normalized value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo SINdarin",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "image": "zo SINdarin",
+              "value": "zo sindarin",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

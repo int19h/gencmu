@@ -1,0 +1,33 @@
+{
+  "description": "Quote images preserve written case and hesitation while ordinary hesitation contributes no word or normalized value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lo'u y le'u bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "image": "lo'u y le'u bu",
+              "value": "lo'u le'u bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

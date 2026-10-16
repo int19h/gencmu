@@ -2153,22 +2153,28 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `zoi ybu foo ybu` | Five | `unique` | The unspaced fixed y keys match |
 | `zoi .yy. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
 | `zoi .y. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. "Hello!" .y. bu.` | Five | `unique` | The body image is `"Hello!"` |
-| `zo'oi "Hello!"` | `experimental` | `unique` | The payload image is `"Hello!"` |
+| `zoi .y. bu. "Hello!" .y. bu.` | Five | `unique` | The quote image is `zoi .y. bu. "Hello!" .y. bu` |
+| `zo'oi "Hello!"` | `experimental` | `unique` | The quote image is `zo'oi "Hello!"` |
+| `mi,zo'oi foo` | `experimental` | `unique` | The images are `mi` and `zo'oi foo`, without the comma before the opener |
+| `la'oi クリボー` | `experimental` | `unique` | The quote image is `la'oi クリボー`, including the uncovered final character |
+| `zo SINdarin` | Five | `unique` | The quote image keeps `zo SINdarin`, with its written capitals |
+| `zo .y. coi` | Five | `unique` | The quote image is `zo .y. coi`, and its value is `zo coi` |
 | `zoi klama. abc .Ｋlama.` | Five | `rejected` | A fullwidth-K closing value does not equal `klama` |
 | `zoi klama. abc .Klama.` | Five | `unique` | The Kelvin sign decomposes to `K`, so the closing delimiter matches |
 | `zoi klama. Ｋlama .klama.` | Five | `unique` | The fullwidth-K body value does not equal the delimiter |
 | `zoi klama. Klama .klama.` | Five | `unique` | The Kelvin-sign word equals the delimiter, so it closes an empty quote |
 | `abu` | Five | `unique` | The word image is `abu` |
 | `broda brode si bu` | Five | `unique` | The word image is `broda bu` |
-| `lo'u broda ybrode le'u bu` | Five | `unique` | The word image is `lo'u broda brode le'u bu` |
-| `lo'u broda .y. brode le'u bu` | Five | `unique` | The word image is `lo'u broda brode le'u bu` |
-| `lo'u .y. broda le'u bu` | Five | `unique` | Initial hesitation leaves image `lo'u broda le'u bu` |
-| `lo'u broda .y. le'u bu` | Five | `unique` | Final hesitation leaves image `lo'u broda le'u bu` |
-| `lo'u y le'u bu` | Five | `unique` | The word image is `lo'u le'u bu` |
-| `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The word image is `lo'ai broda brode le'ai bu` |
-| `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | Initial hesitation leaves image `lo'ai broda le'ai bu` |
-| `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | Final hesitation leaves image `lo'ai broda le'ai bu` |
+| `lo'u broda ybrode le'u bu` | Five | `unique` | The letteral image is `lo'u broda ybrode le'u bu` |
+| `lo'u broda .y. brode le'u bu` | Five | `unique` | The letteral image is `lo'u broda .y. brode le'u bu` |
+| `lo'u .y. broda le'u bu` | Five | `unique` | The letteral image is `lo'u .y. broda le'u bu` |
+| `lo'u broda .y. le'u bu` | Five | `unique` | The letteral image is `lo'u broda .y. le'u bu` |
+| `lo'u y le'u bu` | Five | `unique` | The letteral image is `lo'u y le'u bu`, and its value is `lo'u le'u bu` |
+| `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. brode le'ai bu` |
+| `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai .y. broda le'ai bu` |
+| `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. le'ai bu` |
+| `mi lo'ai do` | `experimental`, `zantufa` | `rejected` | The error points to the input end and names LEhAI |
+| `mi lo'ai si klama` | `experimental`, `zantufa` | `unique` | The images are `mi` and `klama` |
 | `ni'o su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
 | `ni'o su bu` | `cll-ebnf`, `kihei` | `rejected` | No word-stage output |
