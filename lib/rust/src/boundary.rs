@@ -220,26 +220,46 @@ impl Records {
     }
 }
 
-/// Boundary atoms in written order, before presence simplification.
-pub(crate) fn dom_atoms(condition: &crate::dom::Cond) -> Vec<&crate::dom::Cond> {
-    use crate::dom::Cond;
+enum DomPart<'a> {
+    Condition(&'a crate::dom::Cond),
+    Term(&'a crate::dom::Term),
+}
+
+/// One worklist crosses guarded terms and comparisons without recursion.
+fn atoms_in(start: DomPart<'_>) -> Vec<&crate::dom::Cond> {
+    use crate::dom::{Arg, Cond, Term};
     let mut found = vec![];
-    let mut stack = vec![condition];
-    while let Some(c) = stack.pop() {
-        match c {
-            Cond::Boundary(..) => found.push(c),
-            Cond::Not(c) => stack.push(c),
-            Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().rev()),
-            Cond::If(a, b) => stack.extend([&**b, &**a]),
-            Cond::Compare(_, a, b) => {
-                found.extend(term_atoms(a));
-                found.extend(term_atoms(b));
-            }
-            _ => {}
+    let mut stack = vec![start];
+    while let Some(part) = stack.pop() {
+        match part {
+            DomPart::Condition(c) => match c {
+                Cond::Boundary(..) => found.push(c),
+                Cond::Not(c) => stack.push(DomPart::Condition(c)),
+                Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().rev().map(DomPart::Condition)),
+                Cond::If(a, b) => stack.extend([DomPart::Condition(b), DomPart::Condition(a)]),
+                Cond::Compare(_, a, b) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
+                _ => {}
+            },
+            DomPart::Term(t) => match t {
+                Term::If(c, t) => stack.extend([DomPart::Term(t), DomPart::Condition(c)]),
+                Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().rev().map(DomPart::Term)),
+                Term::Difference(a, b) => stack.extend([DomPart::Term(b), DomPart::Term(a)]),
+                Term::Call(_, args) => stack.extend(args.iter().rev().filter_map(|a| match a {
+                    Arg::Term(t) => Some(DomPart::Term(t)),
+                    _ => None,
+                })),
+                _ => {}
+            },
         }
     }
     found
 }
+
+/// Boundary atoms in written order, before presence simplification.
+pub(crate) fn dom_atoms(condition: &crate::dom::Cond) -> Vec<&crate::dom::Cond> {
+    atoms_in(DomPart::Condition(condition))
+}
+
 pub(crate) fn ownership(condition: &mut LCond, own: bool) {
     match condition {
         LCond::Boundary(_, crate::lower::Span::Whole, _, active, _) => *active = own,
@@ -372,24 +392,7 @@ impl Sources {
 }
 
 fn term_atoms(term: &crate::dom::Term) -> Vec<&crate::dom::Cond> {
-    use crate::dom::{Arg, Term};
-    let mut out = vec![];
-    let mut stack = vec![term];
-    while let Some(t) = stack.pop() {
-        match t {
-            Term::If(c, t) => {
-                out.extend(dom_atoms(c));
-                stack.push(t);
-            }
-            Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().rev()),
-            Term::Difference(a, b) => stack.extend([&**b, &**a]),
-            Term::Call(_, args) => {
-                stack.extend(args.iter().rev().filter_map(|a| if let Arg::Term(t) = a { Some(t) } else { None }))
-            }
-            _ => {}
-        }
-    }
-    out
+    atoms_in(DomPart::Term(term))
 }
 pub(crate) fn definition_problem(rule: &crate::dom::RuleDef) -> Option<(String, Option<(usize, usize)>)> {
     use crate::dom::{Cond, EmitItem, Term};

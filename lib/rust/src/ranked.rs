@@ -117,59 +117,52 @@ fn routes(expr: &Expr, groups: &RankedGroups) -> Vec<Route> {
         }
     }
 }
-fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
-    match term {
-        Term::Capture(name) => {
-            out.insert(name.clone());
-        }
-        Term::Union(items) | Term::Intersection(items) => {
-            for item in items {
-                term_reads(item, out);
-            }
-        }
-        Term::Difference(left, right) => {
-            term_reads(left, out);
-            term_reads(right, out);
-        }
-        Term::Call(_, args) => {
-            for arg in args {
-                if let Arg::Term(term) = arg {
-                    term_reads(term, out);
+enum ReadPart<'a> {
+    Term(&'a Term),
+    Condition(&'a Cond),
+}
+
+fn capture_reads(start: ReadPart<'_>, out: &mut BTreeSet<String>) {
+    let mut stack = vec![start];
+    while let Some(part) = stack.pop() {
+        match part {
+            ReadPart::Term(term) => match term {
+                Term::Capture(name) => {
+                    out.insert(name.clone());
                 }
-            }
+                Term::Union(items) | Term::Intersection(items) => stack.extend(items.iter().map(ReadPart::Term)),
+                Term::Difference(a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Term::Call(_, args) => stack.extend(args.iter().filter_map(|arg| match arg {
+                    Arg::Term(t) => Some(ReadPart::Term(t)),
+                    _ => None,
+                })),
+                Term::If(c, t) => stack.extend([ReadPart::Condition(c), ReadPart::Term(t)]),
+                _ => {}
+            },
+            ReadPart::Condition(cond) => match cond {
+                Cond::Captured(name) => {
+                    out.insert(name.clone());
+                }
+                Cond::Compare(_, a, b) => stack.extend([ReadPart::Term(a), ReadPart::Term(b)]),
+                Cond::Matches(t, _)
+                | Cond::Begins(t, _)
+                | Cond::Initial(t)
+                | Cond::Final(t)
+                | Cond::Boundary(_, t, _, _) => stack.push(ReadPart::Term(t)),
+                Cond::Not(c) => stack.push(ReadPart::Condition(c)),
+                Cond::All(items) | Cond::Any(items) => stack.extend(items.iter().map(ReadPart::Condition)),
+                Cond::If(a, b) => stack.extend([ReadPart::Condition(a), ReadPart::Condition(b)]),
+            },
         }
-        Term::If(cond, term) => {
-            cond_reads(cond, out);
-            term_reads(term, out);
-        }
-        _ => {}
     }
 }
+
+fn term_reads(term: &Term, out: &mut BTreeSet<String>) {
+    capture_reads(ReadPart::Term(term), out);
+}
+
 pub(crate) fn cond_reads(cond: &Cond, out: &mut BTreeSet<String>) {
-    match cond {
-        Cond::Captured(name) => {
-            out.insert(name.clone());
-        }
-        Cond::Compare(_, left, right) => {
-            term_reads(left, out);
-            term_reads(right, out);
-        }
-        Cond::Matches(term, _)
-        | Cond::Begins(term, _)
-        | Cond::Initial(term)
-        | Cond::Final(term)
-        | Cond::Boundary(_, term, _, _) => term_reads(term, out),
-        Cond::Not(cond) => cond_reads(cond, out),
-        Cond::All(items) | Cond::Any(items) => {
-            for item in items {
-                cond_reads(item, out);
-            }
-        }
-        Cond::If(left, right) => {
-            cond_reads(left, out);
-            cond_reads(right, out);
-        }
-    }
+    capture_reads(ReadPart::Condition(cond), out);
 }
 impl RankedGroups {
     pub fn new(grammar: &StageGrammar) -> Result<Self, Error> {
