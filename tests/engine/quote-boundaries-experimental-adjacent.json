@@ -1,5 +1,5 @@
 {
-  "description": "Adjacent single-run quotes exclude ignored edge characters and preserve pauses and hesitation inside their source.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
@@ -33,7 +33,7 @@
             },
             {
               "text": "zo'oi bar",
-              "image": "zo'oi bar",
+              "image": "zo'oi bar,⁠",
               "value": "zo'oi bar",
               "tags": [
                 "Cmavo",
@@ -47,7 +47,7 @@
             },
             {
               "text": "la'oi .y. baz",
-              "image": "la'oi .y. baz",
+              "image": "la'oi .y. baz­",
               "value": "la'oi baz",
               "tags": [
                 "Cmavo",

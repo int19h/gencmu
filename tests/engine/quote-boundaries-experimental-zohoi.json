@@ -3,7 +3,7 @@
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "description": "Each quote image equals its source text, without adjacent commas, word joiners, or soft hyphens.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"
   },
@@ -26,7 +26,7 @@
           "output": [
             {},
             {
-              "image": "zo'oi 你好é",
+              "image": "zo'oi 你好é,",
               "value": "zo'oi 你好é",
               "tags": [
                 "Cmavo",
@@ -42,7 +42,7 @@
             {},
             {},
             {
-              "image": "zo'oi 你好é",
+              "image": "zo'oi 你好é⁠",
               "value": "zo'oi 你好é",
               "tags": [
                 "Cmavo",
@@ -58,7 +58,7 @@
             {},
             {},
             {
-              "image": "zo'oi 你好é",
+              "image": "zo'oi 你好é­",
               "value": "zo'oi 你好é",
               "tags": [
                 "Cmavo",

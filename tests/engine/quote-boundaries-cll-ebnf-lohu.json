@@ -3,7 +3,7 @@
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "description": "Each quote image equals its source text without adjacent commas.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"
   },

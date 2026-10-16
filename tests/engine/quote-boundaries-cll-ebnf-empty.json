@@ -1,5 +1,5 @@
 {
-  "description": "A delimited quote image contains exactly its source text despite ignored characters on both sides.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },

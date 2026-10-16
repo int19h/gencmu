@@ -222,7 +222,7 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 Every complete quote is one opaque unit and emits one token. Later operations see its opening class and no class from its contents or closing marker. Indicators after it and BAhE before it mark the whole quote.
 
-The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image is the original text within its source interval. Ignored characters outside that interval do not enter its image. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
+The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
 
 The completed LOhU unit exposes LOhU alone to SA. LEhU closes the quote but supplies no later search target inside it. Replacement quotes and dialect quote kinds follow the same opacity rule.
 
@@ -267,7 +267,8 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
 
 ```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker word-gap $w:read-word :: $m.tags :- $.source-text
+  $m:word-quote-marker $g:word-gap $w:read-word
+    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
 %emits
   $
 
@@ -291,9 +292,10 @@ ZOhOI and MEhOI quote one raw run in the experimental dialect. The quote must fi
 The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
 
 ```jbogenbau
-%rule single-word-quote :- $.source-text
-  | $m:single-marker $r:zohoi-payload :: $m.tags
-  | $m:single-marker zohoi-gap $s:zohoi-payload :: $m.tags
+%rule single-word-quote
+  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text $r.emitted.image
+  | $m:single-marker $g:zohoi-gap $s:zohoi-payload
+      :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
 %conditions
   Run-Final ⊆ $r.last-token.tags,
   Run-Final ⊆ $s.last-token.tags,

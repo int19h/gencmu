@@ -1,0 +1,73 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,lo'u ,coi, le'u, do mi,lo'u ⁠­coi⁠­ le'u, do mi,lo'u ~·ーｰcoi~·ーｰ le'u, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "lo'u ,coi, le'u",
+              "value": "lo'u coi le'u",
+              "image": "lo'u ,coi, le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "source": [
+                3,
+                18
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "lo'u ⁠­coi⁠­ le'u",
+              "value": "lo'u coi le'u",
+              "image": "lo'u ⁠­coi⁠­ le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "source": [
+                26,
+                43
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "lo'u ~·ーｰcoi~·ーｰ le'u",
+              "value": "lo'u coi le'u",
+              "image": "lo'u ~·ーｰcoi~·ーｰ le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "source": [
+                51,
+                72
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

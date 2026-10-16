@@ -1,0 +1,39 @@
+{
+  "description": "A raw quote keeps its original payload spelling and its independent normalized value.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "me'oi kawaii~",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {
+              "text": "me'oi kawaii",
+              "value": "me'oi kauaii",
+              "image": "me'oi kawaii~",
+              "tags": [
+                "Cmavo",
+                "MEhOI",
+                "Word"
+              ],
+              "source": [
+                0,
+                12
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

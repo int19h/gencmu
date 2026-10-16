@@ -3,7 +3,7 @@
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "description": "Each quote image equals its source text without adjacent commas.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"
   },
@@ -26,7 +26,7 @@
           "output": [
             {},
             {
-              "image": "zo coi",
+              "image": "zo coi,",
               "value": "zo coi",
               "tags": [
                 "Cmavo",
@@ -42,7 +42,7 @@
             {},
             {},
             {
-              "image": "zo coi",
+              "image": "zo coi,,",
               "value": "zo coi",
               "tags": [
                 "Cmavo",

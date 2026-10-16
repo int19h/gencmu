@@ -1,0 +1,41 @@
+{
+  "description": "A raw quote preserves foreign characters at either edge of its material.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,mu'oi gy. 你好é你好 .gy, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "mu'oi gy. 你好é你好 .gy",
+              "value": "mu'oi gy 你好é你好 gy",
+              "image": "mu'oi gy. 你好é你好 .gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "source": [
+                3,
+                22
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

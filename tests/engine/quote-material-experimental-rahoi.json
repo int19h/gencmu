@@ -1,0 +1,73 @@
+{
+  "description": "Quote images keep leading and trailing silent characters in their material without taking a comma before the opener.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi,ra'oi ,你好é,, do mi,ra'oi ⁠­你好é⁠­, do mi,ra'oi ~·ーｰ你好é~·ーｰ, do",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "output": [
+            {},
+            {
+              "text": "ra'oi ,你好é",
+              "value": "ra'oi 你好é",
+              "image": "ra'oi ,你好é,,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                3,
+                13
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "ra'oi ⁠­你好é",
+              "value": "ra'oi 你好é",
+              "image": "ra'oi ⁠­你好é⁠­,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                22,
+                33
+              ]
+            },
+            {},
+            {},
+            {
+              "text": "ra'oi ~·ーｰ你好é",
+              "value": "ra'oi 你好é",
+              "image": "ra'oi ~·ーｰ你好é~·ーｰ,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                43,
+                56
+              ]
+            },
+            {}
+          ]
+        }
+      ]
+    }
+  }
+}

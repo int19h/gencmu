@@ -3,7 +3,7 @@
     "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "description": "Adjacent quotes keep their source spelling without sharing an ignored comma.",
+  "description": "Quote images preserve payload edge characters without taking punctuation before their opening markers.",
   "options": {
     "until": "words"
   },
@@ -25,7 +25,7 @@
           "name": "words",
           "output": [
             {
-              "image": "zo coi",
+              "image": "zo coi,",
               "value": "zo coi"
             },
             {

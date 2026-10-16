@@ -203,7 +203,11 @@ A body's constituent image recipe can request `$.verbatim-text`. It preserves or
 
 The grammar chooses its own foreign-run class. FOREIGN marks a run that the pipeline cannot divide into words. Phonemes gives a non-Lojban character run its exact character values and images. Forms keeps its unsegmentable run's normalized values. Zoi delimiter conditions therefore compare ordinary exact values in both cases.
 
-Each finished quote emits one token of its opening class. Every quote token takes its image from `$.source-text`, the original text within its source interval. This image excludes ignored characters outside that interval. Its value joins normalized, decomposed parts. Syntax reads one terminal for the quote. Its internal structure remains in the word-stage tree.
+Each finished quote emits one token of its opening class. A delimited quote takes its image from the whole source interval. An undelimited quote joins the opener's source text, its original gap, and its verbatim payload. Images retain original case, spacing, and hesitation. Values join normalized, decomposed parts and omit ordinary hesitation. Syntax reads one terminal, and the word-stage tree retains its internal structure.
+
+An ordinary word can have a normalized image, such as `sIndarin` for `SINdarin`. Its quoted spelling remains `zo SINdarin`.
+
+The Magic Words model treats ordinary hesitation as whitespace. It contributes no word or normalized value. A quote image preserves that whitespace's written spelling, such as `.y.`.
 
 An empty zoi body uses empty concatenation.
 
