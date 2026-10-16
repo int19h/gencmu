@@ -288,7 +288,9 @@ pub(crate) struct Chart {
     pub boundary_failures: Vec<crate::boundary::Failure>,
     boundary_seen: FxSet<u32>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
-    pub root: u32,
+    /// The stage root settles its remaining boundary literals on completion.
+    /// Queries settle selected witnesses after recognition instead.
+    boundary_root: Option<u32>,
     family: Option<(u32, u32)>,
     pub close_requested: bool,
     pub lexical: Vec<LexicalFrame>,
@@ -1268,7 +1270,7 @@ struct Run<'t, 'g> {
 impl<'t, 'g> Run<'t, 'g> {
     fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>) -> Run<'t, 'g> {
         let mut chart = Chart::default();
-        chart.root = start;
+        chart.boundary_root = Some(start);
         chart.caps.push(CapEntry {
             parent: 0,
             jump: 0,
@@ -1297,6 +1299,7 @@ impl<'t, 'g> Run<'t, 'g> {
     fn answering(request: Request<'t>) -> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
         let mut run = Run::new(tokens, request.base + request.start, request.rule, None);
+        run.chart.boundary_root = None;
         run.chart.close_requested = request.aligned.is_some();
         run.chart.family = request.aligned.and_then(|a| a.family);
         if let Step::Predict { requested, .. } = &mut run.step {
@@ -2262,7 +2265,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     };
                     chart.sources.add(edge, literal, site);
                 }
-                if p.rule == chart.root && item.origin == 0 && set == tokens.len() && !m.accepts(record) {
+                if chart.boundary_root == Some(p.rule) && item.origin == 0 && set == tokens.len() && !m.accepts(record)
+                {
                     for (&literal, &source) in &annotations.start {
                         if m.literals[literal as usize].positive {
                             chart.boundary_failures.push(crate::boundary::Failure {
