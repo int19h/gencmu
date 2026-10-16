@@ -699,6 +699,9 @@ class StageRunner:
                     continue
                 if node.production.leftmost_longest and node.start < node.end:
                     chosen_profile = sum_profiles(chosen_profile, ((node.start, node.end, 1),))
+                if node.production.fewest and node.start < node.end:
+                    from ._rank import Profile
+                    chosen_profile = Profile(chosen_profile, getattr(chosen_profile, "fewest", 0) + 1)
                 pending.extend(node.children)
             walk = walk_witness(_testing.CheckRun(chosen, forest, synthetic, original_at, record_at))
         marks = walk.marks if walk is not None else watch.marks if watch is not None else None

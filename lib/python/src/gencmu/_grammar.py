@@ -950,6 +950,7 @@ class Production:
     rule_name: str
     helper: bool
     leftmost_longest: bool = False
+    fewest: bool = False
     elided: str | None = None
     # The test of that terminator, if it is tested; a restored token
     # stores the string of its = test (engine §7).
@@ -1351,6 +1352,7 @@ class _Lowerer:
             terminal=terminal,
             rule_name=self.rule_display[lhs],
             helper=alt is None,
+            fewest=alt is not None and "fewest" in self.grammar.rules[self.rule_names[lhs]].flags,
             leftmost_longest=alt is not None and "leftmost-longest" in self.grammar.rules[self.rule_names[lhs]].flags,
             elided=elided[0] if elided is not None else None,
             elided_test=elided[1] if elided is not None else None,
