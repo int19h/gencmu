@@ -165,7 +165,7 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   sentence | [tag] TUhE # text-1 [+TUhU] #
 
 %redefine-rule fragment
-  ek # | gihek # | quantifier | terms [+VAU] # | prenex | relative-clauses | links | linkargs
+  ek # | gihek # | mekso-fragment | terms [+VAU] # | prenex | relative-clauses | links | linkargs
 
 %redefine-rule prenex
   [terms] ZOhU #
@@ -752,6 +752,8 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - Where no sumti reading remains, `gek-barrier` rejects the text, as in `ge abu gi by broda cu klama`. In `lo ge by gi re mi broda`, `ge by gi re mi` is the possessor sumti, with `broda` inside the description.
 - `me` takes a mekso as well as a sumti, a whole mekso takes `moi`, and `nu'a` takes a whole operator.
 
+`mekso-fragment` admits a standalone mathematical expression after the sumti and predicate tests. `quantifier` uses that expression to quantify a sumti. In that position, an initial forethought operator needs PEhO, or the expression needs VEI brackets. Thus `su'i re prenu cu klama` starts with a connective, while `lo su'i re prenu` fails. Both `pe'o su'i re prenu cu klama` and `vei su'i re ve'o prenu` retain their quantified readings. The fragment in `mi klama .i su'i pa` needs neither marker because it quantifies no sumti.
+
 `mex` is the chain of operators itself, a left chain. So the CLL rule `mex-chain` is not reached here. A reverse Polish expression is not an infix chain, and stays a flat list. `operator` keeps the left recursion of the CLL rule.
 
 An initial SE in an operator is its mathematical conversion. The connective alternative excludes that initial SE to avoid a duplicate inner conversion.
@@ -760,6 +762,11 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
 
 ```jbogenbau
 %redefine-rule quantifier
+  $m:mekso-fragment
+%conditions
+  ¬$m.without-elision.onward.begins(forethought-operator)
+
+%rule mekso-fragment
   (* quantifier <- !selbri !sumti_6 mex *)
   $m:mex
 %conditions
@@ -827,8 +834,9 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   lerfu-word [{PA | lerfu-word}]
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/mekso-fragment.svg" alt="Railroad diagram of the rule mekso-fragment"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
@@ -1134,6 +1142,8 @@ CLL permits PA words inside a letter string and lerfu words inside a number.[^cl
 A written BOI permits a number or letter string to end before another continuing word. Without it, the sequence consumes every continuation. CLL example 17.27 writes `xy. boi ro prenu cu prami` to separate the letter argument from the quantifier.[^cll-e17-27]
 
 CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text. A bare joik, jek or ek instead needs PEhO, because CLL has no such operator form. The first-child pattern excludes exactly that bare form, while converted, grouped and connected operators retain omitted PEhO.
+
+A forethought expression that quantifies a sumti needs written PEhO or VEI brackets, so `lo su'i re prenu` fails. Neither CLL nor camxes-exp admits that unmarked quantifier. This restriction keeps `su'i re prenu cu klama` as an initial connective followed by a quantified description and its predicate. A standalone fragment quantifies no sumti, so this layer accepts `mi klama .i su'i pa`. camxes-exp requires PEhO there, while CLL permits only a number or VEI group as a mathematical fragment.
 
 An outer NAhE predicate modifier takes priority over an omitted-PEhO operator modifier when both readings complete over the same span. Both forms otherwise elide the same terminators, so elision ranking cannot choose between them. Explicit PEhO preserves the distinction: `mi na'e pe'o su'i pa moi` modifies the predicate, while `mi pe'o na'e su'i pa moi` modifies the operator.
 
