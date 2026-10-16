@@ -1,0 +1,44 @@
+{
+  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo lo'ai",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zo lo'ai",
+              "value": "zo lo'ai",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    }
+  }
+}
