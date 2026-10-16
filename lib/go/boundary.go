@@ -507,3 +507,25 @@ func (r *recognizer) boundaryDiagnostic(position int) *BoundaryCondition {
 	}
 	return best
 }
+
+// Boundary meetings follow ordinary tag evaluation, including its errors.
+func (r *recognizer) finishBoundaryTags(p *production, key *itemKey, end int32) *nestedQuery {
+	if r.boundaries == nil || p.tags == nil || int(key.dot) != len(p.rhs) {
+		r.nextBoundaryTags = nil
+		return nil
+	}
+	if !r.boundaryTagActive {
+		r.boundaryTagActive = true
+		r.w.term(r.run.evaluator(r.g, r.captureFunc(p, r.caps(key), key.origin, end, nil, key.structure, key.closes)), p.tags)
+	}
+	if q := r.w.resume(); q != nil {
+		return q
+	}
+	r.boundaryTagActive = false
+	if r.w.invalidObservation {
+		r.boundaryTagInvalid = true
+		return nil
+	}
+	r.nextBoundaryTags = toSet(r.w.v)
+	return nil
+}

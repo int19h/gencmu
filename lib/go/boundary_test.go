@@ -39,3 +39,16 @@ func TestBoundaryAnnotationLateJoin(t *testing.T) {
 		t.Fatal("late source did not reach a dependent item")
 	}
 }
+
+func TestBoundaryMeetFollowsTagErrors(t *testing.T) {
+	grammar := "%rule text A :: ($.matches(text) ⟹ X) | B\n%conditions $.followed-by(B)"
+	c := &engineCase{Grammar: &grammar, Tokens: []caseToken{{Text: "a", Tags: []string{"A"}}}}
+	d, err := caseDialect(c, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := runCase(d, c, &caseOptions{})
+	if err != nil || result.Error == nil || result.Error.Kind != ErrorGrammar {
+		t.Fatalf("tag error was hidden: %+v %v", result, err)
+	}
+}

@@ -152,6 +152,7 @@ func (r *recognizer) setCap(key *itemKey, slot int32, cv capVal) {
 }
 
 type item struct {
+	boundaryTags        *tagset
 	boundaryAnnotations *boundaryAnnotations
 	itemKey
 	set   int32
@@ -223,28 +224,30 @@ const (
 )
 
 type recognizer struct {
-	boundaries               *boundaryMachine
-	startRule                int32
-	obligations              []boundaryObligation
-	nextBoundaryAnnotations  *boundaryAnnotations
-	boundaryFailures         []boundaryFailure
-	conditionAtom, condition *domCond
-	conditionEv              *evaluator
-	conditionProd            *production
-	conditionPhase           int
-	conditionYes             bool
-	family                   *familyArena
-	closeRequested           bool
-	closeVariants            map[closeVariantKey]*production
-	closeDemands             map[*production]closeDemand
-	closes                   *closeArena
-	rankedFrames             map[string]*rankedFrame
-	rankedProductions        map[rankedProductionKey]*production
-	machine                  *patternMachine
-	elidableHeads            map[int32]string
-	run                      *stageRun
-	g                        *lowered
-	base, n                  int
+	boundaryTagActive, boundaryTagInvalid bool
+	nextBoundaryTags                      *tagset
+	boundaries                            *boundaryMachine
+	startRule                             int32
+	obligations                           []boundaryObligation
+	nextBoundaryAnnotations               *boundaryAnnotations
+	boundaryFailures                      []boundaryFailure
+	conditionAtom, condition              *domCond
+	conditionEv                           *evaluator
+	conditionProd                         *production
+	conditionPhase                        int
+	conditionYes                          bool
+	family                                *familyArena
+	closeRequested                        bool
+	closeVariants                         map[closeVariantKey]*production
+	closeDemands                          map[*production]closeDemand
+	closes                                *closeArena
+	rankedFrames                          map[string]*rankedFrame
+	rankedProductions                     map[rankedProductionKey]*production
+	machine                               *patternMachine
+	elidableHeads                         map[int32]string
+	run                                   *stageRun
+	g                                     *lowered
+	base, n                               int
 	// recon is how the recognition of the check of elision-only reads the
 	// reconstructed input and observes the stage's input (§7.2-§7.5); nil
 	// for every other recognition.
@@ -535,13 +538,25 @@ func (r *recognizer) predictFrom(st *step) *nestedQuery {
 				continue
 			}
 		}
-		ok, q := r.predictable(p, k)
+		ok := true
+		var q *nestedQuery
+		if !r.boundaryTagActive {
+			ok, q = r.predictable(p, k)
+		}
 		if q != nil {
 			return q
 		}
 		if ok {
 			key := itemKey{prod: p, origin: int32(k)}
 			r.finishCloses(&key, int32(k))
+			r.finishStructure(&key)
+			if q := r.finishBoundaryTags(p, &key, int32(k)); q != nil {
+				return q
+			}
+			if r.boundaryTagInvalid {
+				r.boundaryTagInvalid = false
+				continue
+			}
 			r.add(k, key, link{}, false, strict)
 		}
 	}
@@ -681,7 +696,7 @@ func (r *recognizer) add(k int, key itemKey, l link, hasLink, strict bool) {
 	s := r.set(k)
 	it := s.index[key]
 	if it == nil {
-		it = &item{boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}
+		it = &item{boundaryTags: r.nextBoundaryTags, boundaryAnnotations: r.nextBoundaryAnnotations, itemKey: key, set: int32(k), strict: strict, queued: true}
 		if w := work.Load(); w != nil {
 			w.items.add("items")
 		}
@@ -839,6 +854,8 @@ func (r *recognizer) complete(k int, it *item) *nestedQuery {
 	in := r.run.ps.in
 	var ts *tagset
 	switch {
+	case it.boundaryTags != nil:
+		ts = it.boundaryTags
 	case it.restores:
 		// A restoration has the tags of the empty production, none (§7.4).
 		ts = in.empty()
@@ -1001,6 +1018,14 @@ func (r *recognizer) advance(it *item, k int, cv capVal, l link, strict bool) *n
 		}
 	}
 
+	if q := r.finishBoundaryTags(p, &key, int32(k)); q != nil {
+		r.adv = advancing{active: true, key: key, i: hi, whole: whole}
+		return q
+	}
+	if r.boundaryTagInvalid {
+		r.boundaryTagInvalid = false
+		return nil
+	}
 	r.add(k, key, l, true, strict)
 	return nil
 }
