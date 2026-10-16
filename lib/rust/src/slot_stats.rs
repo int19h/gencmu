@@ -3,8 +3,11 @@ use std::cell::RefCell;
 /// An admission group that retains a lower proof beside a qualified higher one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundarySplit {
+    /// The admission group within this ranking.
     pub group: usize,
+    /// Its invocation origin in the recognition input.
     pub start: u32,
+    /// Its completion position in the recognition input.
     pub end: u32,
 }
 /// The work of one ranked-choice forest ranking.

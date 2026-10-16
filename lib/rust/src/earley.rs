@@ -282,6 +282,11 @@ impl ESet {
 
 #[derive(Debug, Default)]
 pub(crate) struct Chart {
+    pub annotations: FxMap<(u32,Item),crate::boundary::Annotations>,
+    pub completed_annotations: FxMap<(u32,Cap,u32),crate::boundary::Annotations>,
+    pub sources: crate::boundary::Sources,
+    pub boundary_failures: Vec<crate::boundary::Failure>,
+    boundary_seen: FxSet<u32>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub root: u32,
     family: Option<(u32, u32)>,
@@ -2083,31 +2088,74 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             let mut after = crate::boundary::Bits::new();
             let mut back = crate::boundary::Bits::new();
             let mut forward = crate::boundary::Bits::new();
+            let mut sites=vec![];
             for (atom, positive) in state.obligations {
-                let LCond::Boundary(f, receiver, targets, _) = atom else {unreachable!()};
+                let LCond::Boundary(f, receiver, targets, _, site) = atom else {unreachable!()};
                 let literal = m.literal(*f, targets, positive);
-                if matches!(receiver, Span::Whole) {
+                let whole=matches!(receiver,Span::Whole);
+                sites.push((whole,*f,literal,*site));
+                if whole {
                     if *f {forward.insert(literal);} else {back.insert(literal);}
                 } else if *f {after.insert(literal);} else {before.insert(literal);}
             }
             let mut failed = vec![];
+            let mut annotations=crate::boundary::Annotations::default();
             let mut record = match state.previous {
                 Some((previous, cap)) => {
+                    let a=chart.annotations.get(&(cap.start,previous)).cloned().unwrap_or_default();
+                    annotations=chart.sources.retain(&a,&m.records[previous.boundary as usize]);
+                    for &(_,_,literal,site) in sites.iter().filter(|&&(whole,f,_,_)|!whole && !f) {
+                        chart.sources.add(&mut annotations.end,literal,site);
+                    }
                     let record=m.append(previous.boundary,&before);
-                    let record=m.advance(record,cap.boundary,&mut failed);
-                    m.append(record,&after)
+                    let child=match p.syms[item.dot as usize-1] {
+                        Sym::N(rule) => chart.completed_annotations.get(&(rule,cap,chart.expected_lexical(previous,cap.start))).cloned().unwrap_or_default(),
+                        _ => crate::boundary::Annotations::default(),
+                    };
+                    let advanced=m.advance(record,cap.boundary,&mut failed);
+                    for &literal in &failed {
+                        let source=chart.sources.meeting(&annotations,&child,!m.records[cap.boundary as usize].nonempty,literal);
+                        chart.boundary_failures.push(crate::boundary::Failure {at:cap.start,end:set as u32,source});
+                    }
+                    if !failed.is_empty() {return Ok(());}
+                    let remaining_child=chart.sources.retain(&child,&m.open(record,cap.boundary));
+                    annotations=chart.sources.advance(&annotations,&m.records[record as usize],&remaining_child,&m.records[cap.boundary as usize],&m.records[advanced as usize]);
+                    let record=m.append(advanced,&after);
+                    for &(_,_,literal,site) in sites.iter().filter(|&&(whole,f,_,_)|!whole && f) {
+                        chart.sources.add(&mut annotations.end,literal,site);
+                    }
+                    record
                 }
                 None => 0,
             };
             if item.dot as usize == p.syms.len() {
                 let r = &self.g.rules[p.rule as usize];
                 record=m.complete(record,(!r.helper).then_some(r.name.as_str()),&back,&forward,&mut failed);
+                for &literal in &failed {
+                    let f=m.literals[literal as usize].forward;
+                    let source=chart.sources.join(if f {annotations.start.get(&literal).copied()} else {annotations.end.get(&literal).copied()});
+                    chart.boundary_failures.push(crate::boundary::Failure {at:if f {item.origin} else {set as u32},end:set as u32,source});
+                }
+                if !failed.is_empty() {return Ok(());}
+                annotations=chart.sources.retain(&annotations,&m.records[record as usize]);
+                for &(_,f,literal,site) in sites.iter().filter(|&&(whole,_,_,_)|whole) {
+                    let edge=if !f && m.records[record as usize].nonempty {&mut annotations.start} else {&mut annotations.end};
+                    chart.sources.add(edge,literal,site);
+                }
                 if p.rule == chart.root && item.origin == 0 && set == tokens.len() && !m.accepts(record) {
+                    for (&literal,&source) in &annotations.start {
+                        if m.literals[literal as usize].positive {chart.boundary_failures.push(crate::boundary::Failure {at:item.origin,end:set as u32,source});}
+                    }
+                    for (&literal,&source) in &annotations.end {
+                        if m.literals[literal as usize].positive {chart.boundary_failures.push(crate::boundary::Failure {at:set as u32,end:set as u32,source});}
+                    }
                     return Ok(());
                 }
             }
-            if !failed.is_empty() {return Ok(());}
             item.boundary=record;
+            if chart.boundary_seen.insert(record) {work::count(Work::BoundaryRecords,1);}
+            let target=chart.annotations.entry((set as u32,item)).or_default();
+            chart.sources.merge(target,&annotations);
         }
         if let Some((previous,cap)) = state.previous.filter(|_| chart.boundaries.is_some()) {
             let edges=chart.links.entry((set as u32,item)).or_default();
@@ -2559,6 +2607,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         } else {
             completed.push(k as u32);
         }
+        if chart.boundaries.is_some() {
+            let cap=Cap {boundary:item.boundary,close_requested:item.close_requested,start:item.origin,end:e as u32,tags,structure:item.structure};
+            let source=chart.annotations.get(&(e as u32,item)).cloned().unwrap_or_default();
+            chart.sources.merge(chart.completed_annotations.entry((rule,cap,item.lexical)).or_default(),&source);
+        }
         if !chart.sets[e].done.insert((rule, item.origin, tags, item.structure, item.lexical, item.close_requested, item.boundary)) {
             return Step::Next;
         }
@@ -2944,7 +2997,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         // parse's own span included, so that is 0.
                         LCond::Initial(span) => Out::Bool(self.checked_bounds(span, frame, tokens.len())?.0 == 0),
                         LCond::Final(span) => Out::Bool(self.checked_bounds(span, frame, tokens.len())?.1 == tokens.len()),
-                        LCond::Boundary(forward, span, targets, _) => {
+                        LCond::Boundary(forward, span, targets, _, _) => {
                             let value = if let Some(value) = eval.boundary_value {value} else {
                                 let (start,end,_) = self.checked_bounds(span,frame,tokens.len())?;
                                 let at = if *forward {end} else {start};
@@ -3048,7 +3101,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     eval.boundary_value = None;
                     if yes != no {
                         let atom=crate::boundary::atom(cond).unwrap();
-                        if !matches!(atom,LCond::Boundary(_,Span::Whole,_,false)) {eval.obligations.push((atom,yes));}
+                        if !matches!(atom,LCond::Boundary(_,Span::Whole,_,false,_)) {eval.obligations.push((atom,yes));}
                     }
                     Out::Bool(yes || no)
                 }

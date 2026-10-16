@@ -93,7 +93,7 @@ pub(crate) enum LCond {
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Span),
     Final(Span),
-    Boundary(bool, Span, Vec<String>, bool),
+    Boundary(bool, Span, Vec<String>, bool, Option<crate::boundary::Site>),
     Not(Box<LCond>),
     Any(Vec<LCond>),
     All(Vec<LCond>),
@@ -835,6 +835,7 @@ struct Scope<'a> {
     last: Option<usize>,
     /// Whether `$` has been mentioned so far.
     whole: bool,
+    site: Option<crate::boundary::Site>,
 }
 
 impl<'a> Scope<'a> {
@@ -933,7 +934,7 @@ impl<'a> Scope<'a> {
             Cond::Begins(span, rule) => LCond::Begins(self.span(span)?, self.rule(rule)?),
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Final(span) => LCond::Final(self.span(span)?),
-            Cond::Boundary(forward, span, targets) => LCond::Boundary(*forward, self.span(span)?, targets.clone(), true),
+            Cond::Boundary(forward, span, targets) => LCond::Boundary(*forward, self.span(span)?, targets.clone(), true, self.site),
             Cond::Not(inner) => LCond::Not(Box::new(self.cond(inner)?)),
             Cond::Any(items) => LCond::Any(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
             Cond::All(items) => LCond::All(items.iter().map(|item| self.cond(item)).collect::<Result<Vec<_>, _>>()?),
@@ -997,6 +998,7 @@ fn lower_mode(
     classifiers: Arc<ClassifierTables>,
     validation: bool,
 ) -> Result<Lowered, LowerError> {
+    let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut lowerer = Lowerer {
         grammar,
         terminals: Vec::new(),
@@ -1333,7 +1335,7 @@ fn lower_mode(
                 .map(|guard| guard.feature.clone())
                 .collect();
             let cap_pos = production.cap_pos.clone();
-            let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false };
+            let mut scope = Scope { names: &names, cap_pos: &cap_pos, rules: &grammar.index, last: None, whole: false, site: None };
             // Every clause is simplified for this production first (§3.6),
             // from its split, which is made once for each clause.
             let has = |name: &str| name.is_empty() || names.contains_key(name);
@@ -1377,19 +1379,24 @@ fn lower_mode(
             let private = private_for(&pending);
             let key = (pending.rule, number, private.iter().cloned().collect());
             let source_conditions = common_conditions.get(&key).unwrap_or(&alternative.clauses.conditions);
+            let mut next_source=0;
+            let source_indexes: Vec<usize> = source_conditions.iter().map(|c| {
+                let index=alternative.clauses.conditions[next_source..].iter().position(|raw|raw == c).unwrap()+next_source;
+                next_source=index+1;index
+            }).collect();
             let conditions = if each_part {
                 let mut left = Vec::new();
-                for cond in source_conditions {
+                for (index,cond) in source_conditions.iter().enumerate() {
                     match simplify_cond(cond, &has) {
                         Simple::True => {}
                         Simple::False => {
                             if validation {
-                                left.push(cond.clone());
+                                left.push((cond.clone(),index));
                             } else {
                                 continue 'productions;
                             }
                         }
-                        Simple::Cond(simple) => left.push(simple),
+                        Simple::Cond(simple) => left.push((simple,index)),
                     }
                 }
                 left
@@ -1398,13 +1405,14 @@ fn lower_mode(
                 let split =
                     cond_splits.entry(conditions as *const Vec<Cond>).or_insert_with(|| CondListSplit::new(conditions));
                 // A condition false for this production removes it.
-                match split.simplify(&own, &has) {
+                match split.simplify_indexed(&own, &has) {
                     Some(left) => left,
-                    None if validation => alternative.clauses.conditions.clone(),
+                    None if validation => source_conditions.iter().cloned().enumerate().map(|(i,c)|(c,i)).collect(),
                     None => continue 'productions,
                 }
             };
-            for simple in conditions {
+            for (simple,index) in conditions {
+                scope.site=Some(crate::boundary::Site {rule:production.owner,condition:condition_offsets[&(Arc::as_ptr(&alternative.clauses) as usize)]+source_indexes[index]});
                 scope.last = None;
                 scope.whole = false;
                 if let Ok(lowered) = scope.cond(&simple) {
@@ -1698,6 +1706,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
         return RankedRuntime::default();
     }
     let mut runtime = RankedRuntime::default();
+    let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut source_private: FxMap<(usize, usize), BTreeSet<String>> = FxMap::default();
     for group in &grammar.ranked.groups {
         source_private.entry(group.source).or_default().extend(group.names.iter().cloned());
@@ -1808,11 +1817,12 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
             names.extend(local.clone());
             let has = |name: &str| name.is_empty() || names.contains_key(name);
             let mut scope =
-                Scope { names: &names, cap_pos: &p.cap_pos, rules: &grammar.index, last: None, whole: false };
+                Scope { names: &names, cap_pos: &p.cap_pos, rules: &grammar.index, last: None, whole: false, site: None };
             let mut conditions = vec![Vec::new(); p.syms.len() + 1];
             let nested = nested(p);
             if let Some((group, _)) = slot.ranked {
-                for raw in &source.clauses.conditions {
+                for (condition_index,raw) in source.clauses.conditions.iter().enumerate() {
+                    scope.site=Some(crate::boundary::Site {rule:slot.source.0 as u32,condition:condition_offsets[&(Arc::as_ptr(&source.clauses) as usize)]+condition_index});
                     if let Some(Cond::Boundary(_, Term::Capture(receiver), _)) = crate::boundary::dom_atoms(raw).first().copied() {
                         if !receiver.is_empty() && available.contains(receiver) {continue;}
                     }
@@ -1857,7 +1867,7 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
                 .filter(|name| !source_private[&slot.source].contains(*name))
                 .map(|name| (name.clone(), u32::MAX))
                 .collect();
-            let mut tag_scope = Scope { names: &public, cap_pos: &[], rules: &grammar.index, last: None, whole: false };
+            let mut tag_scope = Scope { names: &public, cap_pos: &[], rules: &grammar.index, last: None, whole: false, site: None };
             let terms: Vec<LTerm> = source
                 .alternative
                 .tags

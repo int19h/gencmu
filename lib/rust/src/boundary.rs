@@ -50,7 +50,7 @@ impl Records {
     pub fn new(g: &Lowered) -> Option<Self> {
         let mut out = Self { records: vec![], index: FxMap::default(), literals: vec![], literal_index: FxMap::default(), forward: FxSet::default(), backward: FxSet::default() };
         for (c,_) in g.prods.iter().flat_map(|p| &p.conds).chain(g.ranked.plans.values().flat_map(|p| p.conditions.iter().flatten())) {
-            if let Some(LCond::Boundary(forward,_,targets,_)) = atom(c) {
+            if let Some(LCond::Boundary(forward,_,targets,_,_)) = atom(c) {
                 let names = if *forward { &mut out.forward } else { &mut out.backward };
                 names.extend(targets.iter().cloned());
             }
@@ -151,10 +151,77 @@ pub(crate) fn dom_atoms(condition: &crate::dom::Cond) -> Vec<&crate::dom::Cond> 
 }
 pub(crate) fn ownership(condition: &mut LCond, own: bool) {
     match condition {
-        LCond::Boundary(_,crate::lower::Span::Whole,_,active) => *active=own,
+        LCond::Boundary(_,crate::lower::Span::Whole,_,active,_) => *active=own,
         LCond::Not(c) => ownership(c,own),
         LCond::All(cs)|LCond::Any(cs) => for c in cs {ownership(c,own)},
         LCond::If(a,b) => {ownership(a,own);ownership(b,own);}
         _ => {}
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Site {pub rule:u32,pub condition:usize}
+pub(crate) fn condition_offsets(g:&crate::grammar::StageGrammar) -> FxMap<usize,usize> {
+    let mut offsets=FxMap::default();
+    for rule in &g.rules {
+        let mut count=0;
+        for alt in &rule.alternatives {
+            let key=std::sync::Arc::as_ptr(&alt.clauses) as usize;
+            if let std::collections::hash_map::Entry::Vacant(e)=offsets.entry(key) {
+                e.insert(count);count+=alt.clauses.conditions.len();
+            }
+        }
+    }
+    offsets
+}
+/// Source graphs carry late annotation joins without splitting chart facts.
+#[derive(Debug,Default)]
+pub(crate) struct Sources {nodes:Vec<Source>}
+#[derive(Debug,Default)]
+struct Source {sites:BTreeSet<Site>,parents:BTreeSet<u32>}
+#[derive(Debug,Clone,Default)]
+pub(crate) struct Annotations {pub start:FxMap<u32,u32>,pub end:FxMap<u32,u32>}
+#[derive(Debug)]
+pub(crate) struct Failure {pub at:u32,pub end:u32,pub source:u32}
+impl Sources {
+    fn node(&mut self) -> u32 {let id=self.nodes.len() as u32;self.nodes.push(Source::default());id}
+    pub fn join(&mut self,inputs:impl IntoIterator<Item=u32>) -> u32 {
+        let id=self.node();self.nodes[id as usize].parents.extend(inputs);id
+    }
+    pub fn add(&mut self,map:&mut FxMap<u32,u32>,literal:u32,site:Option<Site>) {
+        let id=*map.entry(literal).or_insert_with(||self.node());
+        if let Some(site)=site {self.nodes[id as usize].sites.insert(site);}
+    }
+    fn select(&mut self,bits:&Bits,inputs:&[&FxMap<u32,u32>]) -> FxMap<u32,u32> {
+        bits.iter().map(|&literal| {
+            let id=self.join(inputs.iter().filter_map(|m|m.get(&literal).copied()));(literal,id)
+        }).collect()
+    }
+    pub fn merge(&mut self,target:&mut Annotations,other:&Annotations) {
+        for (a,b) in [(&mut target.start,&other.start),(&mut target.end,&other.end)] {
+            for (&literal,&source) in b {
+                let id=*a.entry(literal).or_insert_with(||self.node());
+                if id!=source {self.nodes[id as usize].parents.insert(source);}
+            }
+        }
+    }
+    pub fn retain(&mut self,a:&Annotations,r:&Record) -> Annotations {
+        Annotations {start:self.select(&r.start,&[&a.start]),end:self.select(&r.end,&[&a.end])}
+    }
+    pub fn meeting(&mut self,a:&Annotations,b:&Annotations,empty:bool,literal:u32) -> u32 {
+        if empty {self.join(b.end.get(&literal).copied())} else {self.join(a.end.get(&literal).into_iter().chain(b.start.get(&literal)).copied())}
+    }
+    pub fn advance(&mut self,a:&Annotations,p:&Record,b:&Annotations,c:&Record,r:&Record) -> Annotations {
+        if !c.nonempty {Annotations {start:self.select(&r.start,&[&a.start]),end:self.select(&r.end,&[&a.end,&b.end])}}
+        else if !p.nonempty {Annotations {start:self.select(&r.start,&[&a.end,&b.start]),end:self.select(&r.end,&[&b.end])}}
+        else {Annotations {start:self.select(&r.start,&[&a.start]),end:self.select(&r.end,&[&b.end])}}
+    }
+    pub fn sites(&self,id:u32) -> BTreeSet<Site> {
+        let mut sites=BTreeSet::new();let mut seen=FxSet::default();let mut stack=vec![id];
+        while let Some(id)=stack.pop() {
+            if !seen.insert(id) {continue;}
+            let n=&self.nodes[id as usize];sites.extend(&n.sites);stack.extend(&n.parents);
+        }
+        sites
     }
 }
