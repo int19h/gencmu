@@ -368,7 +368,7 @@ A tag with a sumti argument has its own alternative. GI cannot follow that actua
 
 A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` and `mi klama pu ke my .e gy roi` keep one tag run.
 
-The following-input queries reserve possible tag units and predicates, including readings outside the chosen tree. GI, BO, and KU tests inspect the next token's selma'o. Free-modifier and connective tests use queries.
+The following-input queries reserve possible tag units and predicates, including readings outside the chosen tree. GI and BO tests inspect the next token's selma'o. Free-modifier and connective tests use queries.
 
 The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 

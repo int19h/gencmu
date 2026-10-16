@@ -142,7 +142,7 @@ The connective after `.i` can be an ek or a VUhU as well as a joik or jek. A sta
 
 A TUhE group is not a sentence, so `tu'e mi klama tu'u je .i do klama` fails, as in camxes-exp. Plain connections after `.i` stay in `statement-1` and group from the left. Connections with `bo` use `statement-2` and group from the right.
 
-A bare `na` forms a term. So `na` is a terms fragment. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
+A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
 
 ```jbogenbau
 %redefine-rule statement-1
@@ -1007,13 +1007,14 @@ A gihek can start with NA or SE. These prefixes close the term's place only when
 
 Writing `ku` makes each rejected text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
 
-A bare tag still requires KU before another tag, NA, a termset, or an ordinary connective. A bare NA requires KU before a selbri or an ordinary connective. CLL also permits a tag to omit KU where no ambiguity results.[^cll-s21-1] This layer rejects some such texts, including `broda be pu brode`.
+Outside the positions above, a bare tag or NA term requires a written KU. CLL also permits a tag to omit KU where no ambiguity results.[^cll-s21-1] This layer rejects some such texts, including `broda be pu brode`.
 
 JA, A, JOI, and VUhU do not count as closing words because they also connect tenses or terms. Thus `mi klama pu je tavla` fails, while `mi klama pu ku je tavla` parses. Counting these connectives as closing words gives `mi klama pu je ca klama` two readings.
 
 The corpus records these examples that camxes-exp accepts and this layer rejects:
 
 - `mi pe na klama` places a bare NA before a selbri.
+- `broda be pu brode` places a bare tag before a selbri.
 - `not canada` places a bare tag before NA.
 - `ze'u na do tavla` places a bare tag before NA.
 - `na to mi toi .e do` places a bare NA before a connective.
