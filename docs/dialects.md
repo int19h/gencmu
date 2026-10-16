@@ -74,7 +74,7 @@ Use example filenames that do not clash with your own files. The commands below 
    EOF
    ````
 
-   `%extend-stage forms` selects the grammar that recognizes words. `%classifier lexicon` adds KIhEI to the normalized value `ki'ei`.
+   `%extend-stage forms` selects the grammar that assigns word classes. The words stage applies the magic words. `%classifier lexicon` adds KIhEI to the normalized value `ki'ei`.
 
    CLL already accepts this word form. The later word stages carry its class to syntax.
 

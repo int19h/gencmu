@@ -24,7 +24,7 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 Grammar DOM format 29 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 13 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-28 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-29 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 An `optional` with a `maximal` member is malformed, as `docs/output.md` says.
 
@@ -62,15 +62,13 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 
 ### The result
 
-Parse-result format 13 reports the restored chosen derivation first in an elision-only error.
-
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because dialect pipelines define their order. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
+A stage exposes its name, input and output tokens, verdict, and any tie witness. Find stages by name because their order differs by dialect. A tied stage emits nothing and places both readings in the result error. A token stores text, value, image, tags, span, and source. Both strings always exist.
 
 An `ε` item records its inserting rule and has empty source text. A token can carry before- and after-attachments, which remain token lists. Attached tokens have no stage span. An image can include neighboring text outside its source without changing its text field.
 

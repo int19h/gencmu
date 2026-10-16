@@ -35,7 +35,7 @@ Open `index.html` in a browser, from the clone or from GitHub Pages. This page i
 | `cll-ebnf` | Lojban as *The Complete Lojban Language* (CLL) describes it, its printed grammar taken as normative |
 | `kihei` | CLL with `ki'ei` phrases that set a frame for subsequent utterances |
 | `bpfk` | CLL syntax with the working word forms of the BPFK (a Lojban committee), from a PEG (parsing expression grammar). It reads omitted closing words as the `cll-ebnf` dialect does. |
-| `experimental` | CLL with extensions. Its reference is camxes-exp, an experimental PEG parser of Lojban. |
+| `experimental` | CLL with extensions. Its baseline is camxes-exp, an experimental PEG parser of Lojban. |
 | `zantufa` | Guskant's Zantufa 1.9999, a PEG grammar of Lojban, translated rule by rule |
 | `notation` | jbogenbau, gencmu's grammar notation, in which gencmu reads its own grammar documents |
 
