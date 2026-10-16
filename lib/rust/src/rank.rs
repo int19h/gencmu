@@ -93,6 +93,7 @@ enum Node {
         tags: u32,
         test: u32,
         structure: u32,
+        boundary: u32,
         lexical: u32,
         option: usize,
     },
@@ -144,7 +145,12 @@ struct SlotCandidate {
     node: Node,
     edge: usize,
     image: String,
+    option: usize,
+    open: Option<crate::boundary::Record>,
     group: usize,
+    start: u32,
+    end: u32,
+    entry: String,
 }
 #[derive(Default)]
 struct Counts {
@@ -178,6 +184,7 @@ fn slot_links(g: &Lowered, chart: &Chart, set: u32, item: Item) -> Vec<(Item, Ca
                 if child.close_requested == cap.close_requested
                     && child.lexical == lexical
                     && child.structure == cap.structure
+                    && child.boundary == cap.boundary
                     && chart.sets[set as usize].tagset[index as usize] == cap.tags
                 {
                     options.insert(g.ranked.options[&child.prod]);
@@ -217,11 +224,12 @@ fn written_frame(g: &Lowered, chart: &Chart, item: Item, at: u32) -> String {
     let path = g.ranked.written.get(&p.rule);
     let index = chart.sets[at as usize].find(&item).expect("a written prefix");
     format!(
-        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}",
+        "{:?}/{path:?}/{control:?}/{}/{}/{captures:?}/{lexical:?}/{}/{}/{}",
         p.slot.as_ref().unwrap().source,
         item.dot,
         item.origin,
         item.prefix,
+        item.boundary,
         chart.sets[at as usize].is_strict(index as usize)
     )
 }
@@ -252,11 +260,23 @@ impl Admission {
                 let prefix = written_frame(g, chart, previous, cap.start);
                 let ancestry = views.map(|v| v.ranked_prefix_key(scope, g, chart));
                 let key = format!("{group_id}/{prefix}/{ancestry:?}/{}/{}", cap.start, cap.end);
-                let group = *ids.entry(key).or_insert_with(|| {
+                let group = *ids.entry(key.clone()).or_insert_with(|| {
                     groups.push(vec![]);
                     groups.len() - 1
                 });
-                let candidate = SlotCandidate { node, edge, image: format!("{option:020}"), group };
+                let open = chart.boundaries.as_ref().map(|m| m.borrow().open(previous.boundary, cap.boundary));
+                let image = format!("{option:020}/{open:?}");
+                let candidate = SlotCandidate {
+                    node,
+                    edge,
+                    image,
+                    option,
+                    open,
+                    group,
+                    start: cap.start,
+                    end: cap.end,
+                    entry: key,
+                };
                 groups[group].push(candidate.clone());
                 at.entry(node).or_default().push(candidate);
                 stats.candidate_edges += 1;
@@ -304,7 +324,7 @@ impl Ranker<'_> {
         for choice in choices {
             let context = self.availability_key(key, choice.group);
             if !self.admission.as_ref().unwrap().maxima.contains_key(&context) {
-                let mut all = std::collections::BTreeSet::new();
+                let mut viable = Vec::new();
                 let candidates = self.admission.as_ref().unwrap().groups[choice.group].clone();
                 for candidate in candidates {
                     let Deps::Links(found) = self.deps((candidate.node, key.1)) else { unreachable!() };
@@ -314,12 +334,34 @@ impl Ranker<'_> {
                     let right = &a.counts[&child];
                     let ways = left.all;
                     if ways > 0 && right.all > 0 {
-                        all.insert(candidate.image.clone());
+                        viable.push(candidate);
                     }
                 }
-                let greatest =
-                    |labels: &std::collections::BTreeSet<String>| labels.iter().next().cloned().into_iter().collect();
-                let maxima = greatest(&all);
+                let retained: Vec<_> = viable
+                    .iter()
+                    .filter(|proof| {
+                        !viable.iter().any(|higher| {
+                            higher.option < proof.option
+                                && match (&higher.open, &proof.open) {
+                                    (Some(h), Some(l)) => h.dominates(l),
+                                    (None, None) => true,
+                                    _ => false,
+                                }
+                        })
+                    })
+                    .collect();
+                if retained.iter().any(|proof| viable.iter().any(|higher| higher.option < proof.option)) {
+                    let a = self.admission.as_mut().unwrap();
+                    if !a.stats.boundary_splits.iter().any(|s| s.group == choice.group) {
+                        a.stats.boundary_splits.push(crate::slot_stats::BoundarySplit {
+                            group: choice.group,
+                            start: choice.start,
+                            end: choice.end,
+                            entry: choice.entry.clone(),
+                        });
+                    }
+                }
+                let maxima = retained.iter().map(|c| c.image.clone()).collect();
                 self.admission.as_mut().unwrap().maxima.insert(context, maxima);
             }
             let all = &self.admission.as_ref().unwrap().maxima[&context];
@@ -618,10 +660,10 @@ struct Least {
 }
 
 impl Least {
-    const NONE: Least = Least { vector: NO_ELISIONS, profile: Vec::new(), least: 0, total: 0, kept: Vec::new() };
+    const NONE: Least = Least { vector: NO_ELISIONS, profile: Profile::ZERO, least: 0, total: 0, kept: Vec::new() };
 
     fn one(vector: u32) -> Least {
-        Least { vector, profile: Vec::new(), least: 1, total: 1, kept: vec![0] }
+        Least { vector, profile: Profile::ZERO, least: 1, total: 1, kept: vec![0] }
     }
 
     /// Adds the derivations of the edge `index`. The total counts every
@@ -1100,7 +1142,7 @@ impl<'c> Ranker<'c> {
             results: Vec::new(),
             fsets: vec![Vec::new()],
             fset_index: FxMap::default(),
-            elisions: (late || g.rules.iter().any(|rule| rule.leftmost_longest)).then(|| Elisions {
+            elisions: (late || g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest)).then(|| Elisions {
                 count_elisions: late,
                 vectors: Vectors::new(),
                 summaries: FxMap::default(),
@@ -1246,7 +1288,7 @@ impl<'c> Ranker<'c> {
                 if item.dot == 0 {
                     return Deps::Leaf;
                 }
-                if self.dag.chart.machine.is_some() {
+                if self.dag.chart.machine.is_some() || self.dag.chart.boundaries.is_some() {
                     let g = self.dag.g;
                     let p = &g.prods[item.prod as usize];
                     let position = item.dot as usize - 1;
@@ -1268,6 +1310,7 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: p.test(position).unwrap_or(NO_TEST),
                                     structure: cap.structure,
+                                    boundary: cap.boundary,
                                     lexical: self.dag.chart.expected_lexical(before, m),
                                     option,
                                 },
@@ -1290,6 +1333,7 @@ impl<'c> Ranker<'c> {
                     item.caps
                 };
                 let pred = Item {
+                    boundary: 0,
                     close_requested: item.close_requested,
                     lexical: item.lexical,
                     prod: item.prod,
@@ -1353,6 +1397,7 @@ impl<'c> Ranker<'c> {
                                     tags: cap.tags,
                                     test: NO_TEST,
                                     structure: cap.structure,
+                                    boundary: cap.boundary,
                                     lexical: 0,
                                     option: usize::MAX,
                                 };
@@ -1379,6 +1424,7 @@ impl<'c> Ranker<'c> {
                                         tags: ANY,
                                         test: test_id,
                                         structure: ANY,
+                                        boundary: ANY,
                                         lexical: 0,
                                         option: usize::MAX,
                                     };
@@ -1400,7 +1446,7 @@ impl<'c> Ranker<'c> {
                 let inner = self.fset_with(fset, rule);
                 Deps::Close(Some((Node::Item { set, index }, inner)))
             }
-            Node::Group { requested, rule, origin, set, tags, test, structure, lexical, option } => {
+            Node::Group { requested, rule, origin, set, tags, test, structure, boundary, lexical, option } => {
                 let eset = &self.dag.chart.sets[set as usize];
                 // A fault applies no test in the check (tests/README.md).
                 let no_tests = self.dag.projection.is_some() && witness::fault_at(Fault::RankerTests, "group");
@@ -1421,6 +1467,7 @@ impl<'c> Ranker<'c> {
                                             == Some(&option))
                                     && (tags == ANY || eset.tagset[index as usize] == tags)
                                     && (structure == ANY || eset.items[index as usize].structure == structure)
+                                    && (boundary == ANY || eset.items[index as usize].boundary == boundary)
                             })
                             .filter(|&&index| {
                                 test.map_or(true, |test| {
@@ -1560,14 +1607,14 @@ impl<'c> Ranker<'c> {
                     vector
                 };
                 let mut profile = body.profile.clone();
-                if g.rules[production.rule as usize].leftmost_longest {
+                if g.rules[production.rule as usize].leftmost_longest || g.rules[production.rule as usize].fewest {
                     let origin = self.dag.chart.sets[set as usize].items[index as usize].origin;
                     let (p, q) = self
                         .dag
                         .projection
                         .map_or((origin, set), |(_, project)| (project[origin as usize], project[set as usize]));
                     if p < q {
-                        profile = sum_profiles(&profile, &[(p, q, Nat::ONE)]);
+                        profile = sum_profiles(&profile, &Profile::one(p, q, g.rules[production.rule as usize].fewest));
                     }
                 }
                 plain(Least { vector, profile, least, total, kept: vec![0] })
@@ -1757,6 +1804,7 @@ impl<'c> Ranker<'c> {
                 tags: ANY,
                 test: NO_TEST,
                 structure: ANY,
+                boundary: ANY,
                 lexical: 0,
                 option: usize::MAX,
             },
@@ -1866,8 +1914,10 @@ impl<'c> Ranker<'c> {
                 _ => unreachable!("two different derivations differ"),
             },
         });
-        let profile =
-            self.elisions.as_ref().map_or_else(Vec::new, |summaries| summaries.summaries[&root].all.profile.clone());
+        let profile = self
+            .elisions
+            .as_ref()
+            .map_or_else(|| Profile::ZERO, |summaries| summaries.summaries[&root].all.profile.clone());
         Some(Ranking { verdict, first: chosen, second, witness, witness_counted, profile })
     }
 }
@@ -1886,23 +1936,40 @@ pub(crate) fn restored_terminal(g: &Lowered, prod: u32) -> u32 {
 }
 
 /// Sparse span counts in increasing start and decreasing end order.
-pub(crate) type Profile = Vec<(u32, u32, Nat)>;
+#[derive(Debug, Clone)]
+pub(crate) struct Profile {
+    spans: Vec<(u32, u32, Nat)>,
+    fewest: Nat,
+}
+impl Profile {
+    pub const ZERO: Self = Self { spans: Vec::new(), fewest: Nat::ZERO };
+    fn one(start: u32, end: u32, fewest: bool) -> Self {
+        if fewest {
+            Self { spans: vec![], fewest: Nat::ONE }
+        } else {
+            Self { spans: vec![(start, end, Nat::ONE)], fewest: Nat::ZERO }
+        }
+    }
+}
 
 fn span_order(a: &(u32, u32, Nat), b: &(u32, u32, Nat)) -> Ordering {
     a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1))
 }
 
 pub(crate) fn compare_profiles(left: &Profile, right: &Profile) -> Ordering {
-    for (a, b) in left.iter().zip(right) {
+    for (a, b) in left.spans.iter().zip(&right.spans) {
         let order = span_order(a, b).then_with(|| b.2.cmp(&a.2));
         if order != Ordering::Equal {
             return order;
         }
     }
-    right.len().cmp(&left.len())
+    right.spans.len().cmp(&left.spans.len()).then_with(|| left.fewest.cmp(&right.fewest))
 }
 
-fn sum_profiles(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Profile {
+fn sum_profiles(a: &Profile, b: &Profile) -> Profile {
+    Profile { spans: sum_spans(&a.spans, &b.spans), fewest: a.fewest.add(&b.fewest) }
+}
+fn sum_spans(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Vec<(u32, u32, Nat)> {
     let mut result = Vec::with_capacity(left.len() + right.len());
     let (mut i, mut j) = (0, 0);
     while i < left.len() || j < right.len() {
@@ -1931,11 +1998,12 @@ fn sum_profiles(left: &[(u32, u32, Nat)], right: &[(u32, u32, Nat)]) -> Profile 
 }
 
 pub(crate) fn tree_profile(g: &Lowered, tree: &crate::tree::ITree) -> Profile {
-    let mut profile = Vec::new();
+    let mut profile = Profile::ZERO;
     for node in &tree.nodes {
         if let crate::tree::IKind::Close { prod, start, end, .. } = node.kind {
-            if start < end && g.rules[g.prods[prod as usize].rule as usize].leftmost_longest {
-                profile = sum_profiles(&profile, &[(start, end, Nat::ONE)]);
+            let rule = &g.rules[g.prods[prod as usize].rule as usize];
+            if start < end && (rule.leftmost_longest || rule.fewest) {
+                profile = sum_profiles(&profile, &Profile::one(start, end, rule.fewest));
             }
         }
     }

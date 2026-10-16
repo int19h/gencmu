@@ -402,6 +402,7 @@ pub(crate) fn stitch(
             })?;
         }
     }
+    crate::boundary::reachable(&grammar)?;
     grammar.ranked = Arc::new(crate::ranked::RankedGroups::new(&grammar)?);
     if !grammar.ranked.groups.is_empty() {
         let lowered =
@@ -1501,7 +1502,12 @@ impl Constants<'_> {
                 self.substitute_cond(antecedent);
                 self.substitute_cond(consequent);
             }
-            Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+            Cond::Matches(..)
+            | Cond::Begins(..)
+            | Cond::Initial(_)
+            | Cond::Final(_)
+            | Cond::Boundary(_, _, _, _)
+            | Cond::Captured(_) => {}
         }
     }
 }
@@ -1555,7 +1561,12 @@ fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
                 cond(antecedent, out);
                 cond(consequent, out);
             }
-            Cond::Matches(..) | Cond::Begins(..) | Cond::Initial(_) | Cond::Captured(_) => {}
+            Cond::Matches(..)
+            | Cond::Begins(..)
+            | Cond::Initial(_)
+            | Cond::Final(_)
+            | Cond::Boundary(_, _, _, _)
+            | Cond::Captured(_) => {}
         }
     }
     rule.tags.iter().for_each(|t| term(t, out));
@@ -1747,7 +1758,7 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
             check_span(grammar, span)?;
             check_rule(grammar, rule)
         }
-        Cond::Initial(span) => check_span(grammar, span),
+        Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span(grammar, span),
         Cond::Not(inner) => check_cond(grammar, inner),
         Cond::Captured(_) => Ok(()),
         Cond::If(antecedent, consequent) => {
