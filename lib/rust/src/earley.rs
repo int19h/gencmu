@@ -1028,6 +1028,7 @@ enum Wanted {
 /// waits for the value of its part, with what it has so far.
 enum Task<'n> {
     Cond(&'n LCond),
+    Bool(bool),
     BoundaryYes(&'n LCond),
     BoundaryNo(&'n LCond, bool),
     Term(&'n LTerm),
@@ -2094,10 +2095,26 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let search = CapSearch::resume(chart, state.item.caps, state.found.take(), state.searched);
         let mut frame = state.frame(&search, project);
         self.lexical_whole_structure(&mut frame, state.item.prefix, base);
-        let outcome = if state.eval.tasks.is_empty() {
-            Ok(Out::Bool(true))
-        } else {
-            self.evaluate(&mut state.eval, &frame, observed, base)
+        let outcome = loop {
+            let result = if state.eval.tasks.is_empty() {
+                Ok(Out::Bool(true))
+            } else {
+                self.evaluate(&mut state.eval, &frame, observed, base)
+            };
+            if matches!(result, Err(Halt::Invalid)) && state.eval.boundary_value.is_some() {
+                // An invalid observation defeats this assignment. The other
+                // assignment still follows its own short-circuit path.
+                let boundary = state
+                    .eval
+                    .tasks
+                    .iter()
+                    .rposition(|t| matches!(t, Task::BoundaryYes(_) | Task::BoundaryNo(..)))
+                    .expect("the boundary assignment frame");
+                state.eval.tasks.truncate(boundary + 1);
+                state.eval.tasks.push(Task::Bool(false));
+                continue;
+            }
+            break result;
         };
         let (item, set) = (state.item, state.end as usize);
         let holds = match outcome {
@@ -2271,8 +2288,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             if chart.boundary_seen.insert(record) {
                 work::count(Work::BoundaryRecords, 1);
             }
-            let target = chart.annotations.entry((set as u32, item)).or_default();
-            chart.sources.merge(target, &annotations);
+            if !annotations.start.is_empty() || !annotations.end.is_empty() {
+                let target = chart.annotations.entry((set as u32, item)).or_default();
+                chart.sources.merge(target, &annotations);
+            }
         }
         if let Some((previous, cap)) = state.previous.filter(|_| chart.boundaries.is_some()) {
             let edges = chart.links.entry((set as u32, item)).or_default();
@@ -2740,7 +2759,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 structure: item.structure,
             };
             let source = chart.annotations.get(&(e as u32, item)).cloned().unwrap_or_default();
-            chart.sources.merge(chart.completed_annotations.entry((rule, cap, item.lexical)).or_default(), &source);
+            if !source.start.is_empty() || !source.end.is_empty() {
+                chart.sources.merge(chart.completed_annotations.entry((rule, cap, item.lexical)).or_default(), &source);
+            }
         }
         if !chart.sets[e].done.insert((
             rule,
@@ -3086,6 +3107,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut last: Option<Out> = None;
         while let Some(task) = eval.tasks.pop() {
             let out = match task {
+                Task::Bool(value) => Out::Bool(value),
                 Task::Cond(cond) => {
                     work::count(Work::Visits, 1);
                     match cond {

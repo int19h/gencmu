@@ -707,3 +707,21 @@ fn guarded_condition_terms_keep_their_boundary_atom() {
         run_engine_case(&parse_json(&case).unwrap()).unwrap();
     }
 }
+
+/// Each assignment has its own reached-restoration validity. A cyclic
+/// observation in one assignment cannot discard the other assignment.
+#[test]
+fn invalid_restorations_are_local_to_the_boundary_assignment() {
+    for (condition, expected) in [
+        ("¬($y.without-elision.matches(rival)) ∨ $.followed-by(B)", r#"{"result":{"ok":true}}"#),
+        ("$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"result":{"ok":true}}"#),
+        ("¬$.followed-by(B) ∨ ¬($y.without-elision.matches(rival))", r#"{"error":"rejected"}"#),
+    ] {
+        let grammar=format!("%ambiguity-resolution greedy\n%rule text $x:X B\n%conditions $x.tags(q) = ∅\n%rule q $y:r\n%conditions {condition}\n%rule r (r [+U]) :: Recursive | X :: ∅\n%rule rival X");
+        let case = format!(
+            r#"{{"grammar":{},"tokens":[{{"text":"x","tags":["X"]}},{{"text":"b","tags":["B"]}}],"expect":{expected}}}"#,
+            common::Value::String(grammar).to_text()
+        );
+        run_engine_case(&parse_json(&case).unwrap()).unwrap();
+    }
+}
