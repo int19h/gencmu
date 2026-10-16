@@ -1,6 +1,6 @@
 # The Cyrillic orthography of CLL
 
-This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) dialect reads it as its Cyrillic.
+This document adds the Cyrillic orthography of *The Complete Lojban Language* (CLL)[^cll-s3-12] to the phoneme stage, the first stage of the pipeline. The [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects read it as their Cyrillic.
 
 The [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects read gencmu's own Cyrillic, [cyrillic.md](cyrillic.md). A caller can instead select CLL's Cyrillic with `cll-cyrillic`. A feature is a named switch that the grammars test.
 

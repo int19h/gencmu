@@ -1006,13 +1006,13 @@ CLL gives advice about boundaries that preserve an intended reading. A complete 
 
 CLL[^cll-s6-2] warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
-CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. Both dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
+CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. The cll-ebnf, kihei, and bpfk dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
 
-CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
+CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. The cll-ebnf, kihei, and bpfk dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
 In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-61]. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
 
-CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
+CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. The cll-ebnf, kihei, and bpfk dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
 Other warnings describe the official parser. CLL[^cll-s14-14] says that "Lojban's parsing rules would see le nanmu joi and assume that another tanru component is to follow". The complete grammar permits a sumti connection that this left-to-right reading misses. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
 
@@ -1020,17 +1020,17 @@ CLL[^cll-s18-11] says that the parser combines `pa` and `moi` in the example[^cl
 
 CLL[^cll-s18-17] says that the parser assumes another operand after `.onai` in the example[^cll-e18-116] without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
 
-The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for both dialects.
+The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for the cll-ebnf, kihei, and bpfk dialects.
 
 ### Number and letter boundaries
 
 CLL[^cll-s17-9] requires the indivisible-run boundary for letter strings. The example[^cll-e17-27] requires `boi` before the following `PA` word. CLL[^cll-s18-6] requires the boundary for numbers and function names. CLL[^cll-s17-8] allows digits inside a letter string. CLL[^cll-s17-11] repeats the function example with `boi`.
 
-The indivisible-number rule follows these CLL requirements in both dialects:
+The indivisible-number rule follows these CLL requirements in the cll-ebnf, kihei, and bpfk dialects:
 
-- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. Both dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
-- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
-- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
+- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. The cll-ebnf, kihei, and bpfk dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
+- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. The cll-ebnf, kihei, and bpfk dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
+- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. The cll-ebnf, kihei, and bpfk dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
 [^cll-s19-5]: [CLL 1.1, section 19.5](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-questions-and-answers.html).
 

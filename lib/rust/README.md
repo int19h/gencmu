@@ -42,7 +42,9 @@ println!("{}", gencmu::to_json(&result));
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gives the token attachments.
 
-  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
+  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+
+  Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
@@ -122,6 +124,6 @@ The shared engine runner enables `gencmu::tools::with_family_conformance` on eac
 
 `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a larger sweep. `GENCMU_CORPUS=full cargo test --release --test corpus` runs the whole corpus, on `GENCMU_CORPUS_WORKERS` threads. By default, the number of threads is one fewer than the number of cores.
 
-The crate uses the MIT License.
-
 Set `GENCMU_BOUNDARY_SPLITS` to a log path when you run the corpus to record admission groups that retain lower options. Each entry names the case, recognition, group span, and prefix context. An empty file means that no such group survives in the run. `gencmu::tools::with_slot_statistics` exposes the same reports for focused tests.
+
+The crate uses the MIT License.

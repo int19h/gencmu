@@ -151,7 +151,7 @@ kind, code, message, group, option, expression, inheritance
 
 `rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
 
-`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components retain their existing names.
+`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components keep their names.
 
 `expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
 
@@ -210,7 +210,7 @@ An expression has no member but those of its one form.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
-`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A list counts one or more items, and an optional list is an `optional`.
 
 A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
@@ -416,7 +416,7 @@ Intersection and difference retain their operands. Union and intersection requir
 
 Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
 
-A tree comparison uses the existing `op`, `left` and `right` members:
+A tree comparison uses the `op`, `left` and `right` members:
 
 ```json
 {"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
@@ -439,7 +439,7 @@ For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
+The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
 ### Precompiled DOMs
 

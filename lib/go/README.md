@@ -44,7 +44,9 @@ A close family is a set of rules. `F` names that family through its written rule
 
 Tree conditions `$x.followed-by(S)` and `$x.preceded-by(S)` read neighbors in the chosen tree. Their target accepts rule names and terminal names. `.ends-input` tests the end of the current input. The `fewest` flag prefers fewer nonempty occurrences after `leftmost-longest`. A rejected result can name its failed condition through `Error.Boundary`.
 
-For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string. The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
+For tests and tools, `(*Dialect).ParseTokens(text, tokens, options)` feeds `[]InputToken` to the first stage. `Value` and `Image` are optional `*string` fields. A nil pointer defaults to `Text`. A pointer to an empty string preserves that empty string.
+
+The API copies the tokens and leaves the caller's records unchanged. Nonempty `Before` or `After` fields cause a usage error. Empty attachment lists are dropped.
 
 
 ## Results
@@ -64,7 +66,9 @@ Such an action can have `Elided`, a read of a terminator that the check wrote ba
 
 `Brackets(result, BracketOptions{ShowElided})` renders the tree as nested groups. It shows each token by its `Image`. A token with attachments is a group of its before-attachments, its image and its after-attachments, so `mi ui klama` is `([mi ui] klama)` in the `cll-ebnf` dialect.
 
-A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Reserved Unicode tags include `_L`, `_Ll`, and `_White_Space`.
+A `*Dialect` is safe for concurrent use. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+
+The `Tags` of a `Token` or a `Node` are a `[]string` in code point order. Each tag appears once. User tags start with an uppercase ASCII letter. Reserved Unicode tags include `_L`, `_Ll`, and `_White_Space`.
 
 A `Token` has `Value`, the string that recognition reads, and `Image`, the string that brackets show. Both strings remain exact. Each grammar recipe computes its chosen output channel. Ordinary concatenation adds no separator. The engine applies no lowercase conversion, comma removal, or pause join.
 

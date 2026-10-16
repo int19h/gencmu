@@ -33,7 +33,7 @@ The sources are plain JavaScript with JSDoc type annotations. TypeScript makes s
 
 ```sh
 npm test                # the tests; no install needed
-npm ci                  # installs TypeScript and Playwright
+npm ci                  # installs TypeScript, Playwright, and the Markdown parser
 npm run check-types     # checks src/ and a client of the package, typecheck/client.ts
 npm run types           # rewrites types/ after a change to the annotations
 ```

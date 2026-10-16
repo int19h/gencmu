@@ -1,6 +1,6 @@
 # CLL word forms
 
-This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
+This document is the family part of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)). A family is a set of word forms that dialects use. This family gives the word forms of *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3][^cll-c4] The loader stitches it into the forms stage after [forms.md](forms.md) and [shapes.md](shapes.md), whose sounds it builds words from.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

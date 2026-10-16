@@ -148,9 +148,9 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-In cll-ebnf and kihei, the y rules read syllable commas by `Syllable-Break` because those tokens have empty values.
+Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause.
 
-Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this hesitation starts a run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 

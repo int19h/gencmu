@@ -426,9 +426,9 @@ Engine tags belong to stage-zero tokens. Grammars forward or filter them but nev
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. Neither side of `%implies` can name one. Classifiers and elidable terminators cannot assign them. [Engine §1](engine.md#engine-tag-provenance) defines `lit` for nested filters.
 
-An `%extend-rule` takes its own header clauses, never those of the base definition. This stressed mapping supplies its tag explicitly:
-
 Stage zero decomposes the text, so an accented letter arrives as its base and a combining mark.
+
+An `%extend-rule` takes its own header clauses, never those of the base definition. This stressed mapping supplies its tag explicitly:
 
 ```jbogenbau
 %extend-rule stressed-vowel
@@ -436,7 +436,9 @@ Stage zero decomposes the text, so an accented letter arrives as its base and a 
 %emits
 ```
 
-The extension also supplies its own `%emits`. Without `:: Stressed`, the extension inherits `_Lu` and `_L` from the character. Normalization then forwards `A` unchanged, and forms cannot read it. A consonant extension likewise needs `:: ∅` to stop inherited engine tags.
+The extension also supplies its own `%emits`. A two-symbol alternative inherits no tags. Without `:: Stressed`, normalization forwards `A` unchanged, and forms cannot read it.
+
+A one-symbol mapping, such as `"B" := "b"`, inherits `_Lu` and `_L` from its input character. Such a consonant extension needs `:: ∅` to stop inherited engine tags.
 
 ## Normalize through grammar
 

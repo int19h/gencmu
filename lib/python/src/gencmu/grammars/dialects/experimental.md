@@ -138,7 +138,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
 
 A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
 
-The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
+The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
 The dialect does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
 

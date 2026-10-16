@@ -88,11 +88,13 @@ The sections below explain these forms.
 
 Names use ASCII letters, digits, hyphens, and underscores, and a rule, classifier, or stage starts with a lowercase letter. A feature name starts with an ASCII letter of either case, followed by ASCII letters, digits, or hyphens. A rule can also be named `#`. A tag starts with a capital or `_`. A tag terminal reads a token carrying that stored tag. For example, `KOhA` reads a word tagged by the lexicon.
 
-A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`. A selma'o is a class of Lojban particles.
+A tag is an identifier string. A tag has no strength: a token either carries it or not. A class starts and ends with an uppercase ASCII letter and never starts with `_`.
 
 - A class is a tag such as `KOhA`, `BRIVLA`, or `FOREIGN`.
 - A mark is a tag such as `Word`, `Stressed`, or `Run-Initial`.
 - An engine tag is a stored property such as `_Lu`, `_L`, or `_White_Space`.
+
+A selma'o is a class of Lojban particles.
 
 A tag literal is a singleton tag set written as its capitalized name. `KOhA` denotes the same tag in a body, a tag term, and a set expression. Bare adjacent tag names form one union atom. The section "Juxtaposition" gives its grouping rules.
 
@@ -104,7 +106,7 @@ A scalar value is a Unicode code point outside surrogates. Engine constants such
 
 A grammar document is decomposed too, so the written part of a string literal holds decomposed characters. `"é"` and `"e$(_0301)"` are one two-scalar string, and no stage-zero token can match it. A first-stage grammar reads `"e" $_0301`. An engine constant names an exact scalar, so `$_00E9` stays one scalar, inside a string too: `"$(_00E9)"` is U+00E9. The loader does not reorder a string's marks. A range endpoint must still be one scalar, so `"à".."ź"` is an error.
 
-A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `...` is a chain marker, so `"a"..."z"` is an error.
+A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
 The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` completes the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
@@ -140,7 +142,7 @@ A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
-A test does not replace a class. `zo la` quotes a word with value `la` but only the tag `Word`, so `LA="la"` cannot read it. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
+A test does not replace a class. A synthetic token with value `la` and only tag `Word` cannot match `LA="la"`. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
 
 ## Operators
 
@@ -157,7 +159,7 @@ The body adds repetition, elidable terminators, and ranked choices to the CLL op
 
 `&` binds tighter than either `|` or `≻`. Parentheses, brackets and braces each delimit what they hold, so they need no precedence.
 
-`#` is shorthand for an optional list of free modifiers (CLL 1.1 section 21.2, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
+`#` is shorthand for an optional list of free modifiers (CLL 1.1 section 21.1, point 9). This construct appears in many places. A free modifier is a word or phrase that stands almost anywhere. A vocative is an example.
 
 `#` is not an operator but a rule, whose name is `#` and not a word. The grammar defines it like any other rule. The syntax grammars define it as `[{free}]`, zero or more free modifiers, as CLL's own EBNF does with `[free ...]`. Its constituent is a node of the tree like that of any rule, so the free modifiers in one slot are grouped under it.
 
@@ -252,7 +254,7 @@ The parses that survive ranked filtering are admitted.
 An earlier option can exclude a later option even when intervening options are absent. The same dominance rule applies. An ordinary choice inside an option gives its branches equal rank. Different spans still compete through the ordinary stage ranking.
 
 ```jbogenbau
-%rule me-unit
+%rule preferred-operand
   ME # (sumti ≻ mex) [+MEhU] # [MOI #]
 ```
 
@@ -279,7 +281,7 @@ A rule with header clauses writes a ranked body as `| (a ≻ b)`. Its DOM is the
 
 Every ranked expression needs at least two nonempty written operands. `ε` supplies an explicit empty operand. Each operand is a complete conjunction expression. `≻` has no operator meaning inside strings, conditions, or tree patterns.
 
-Optionals and repetitions accept ranked content in their existing expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
+Optionals and repetitions accept ranked content in their expression positions. A repetition separator can contain a ranked group too. Repetition items must still read at least one token. An elidable optional still requires its leading terminal.
 
 Ranked options have no local guard, tag clause, or emission clause. Ordinary alternative guards and trailing tags apply to the whole expression. A named rule can express a feature-dependent category.
 
@@ -329,7 +331,7 @@ A dialect that extends another dialect can use the two kinds for two kinds of ch
 
 A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
 
-The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in the `cll-ebnf` dialect, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
+The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in `cll-ebnf` and `kihei`, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
 ## Stitching documents
 
@@ -384,7 +386,7 @@ Inside `%redefine-const $X EXPR`, `$X` denotes X's immediately previous definiti
 
 Each declaration creates a version, an immutable definition of one constant. The loader resolves lexical self-references to the preceding version and all other references to final versions. It rejects unknown names, dependency cycles and type changes across every definition, including replaced definitions. A cycle error names its dependency path and source positions.
 
-A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition. `%rule digit "0".."9"` names a scalar interval.
+A constant stands wherever its type is required. A string constant can be a terminal or range endpoint in a body. A tag-set constant belongs in terms and tag tests. A pattern constant belongs in patterns. A never-defined constant is an error, including in a replaced definition.
 
 The loader gives the constants their values when it stitches each stage. So a document that several dialects include takes the values of each dialect. The loader reports a constant error at its reference or incorrect definition. The reader reports an engine-tag literal outside a pattern at that literal.
 
@@ -600,15 +602,9 @@ The first type includes spans, sequences of tokens. A capture `$x` retains its m
 
 The string type includes `$x.value`, the exact concatenation of input token values. `$x.image` concatenates their stored images. Both observations ignore the current stage's chosen emission and include erased input. No observation lowercases values, removes commas, or changes pause spacing. A grammar normalization stage supplies the comparison policy.
 
-The next paragraph uses four more Lojban terms. A gismu is a root word. A lujvo is a compound word. A fu'ivla is a borrowed word. A cmevla is a proper name.
-
-In the `cll-ebnf` dialect, a comma between two vowels marks a syllable break, as CLL 3.3 describes. In that dialect, a cmavo, a gismu or a lujvo has no comma between two vowels. A fu'ivla or a cmevla can have one, as in the cmevla `nu,iork`. Without its commas and with its capitals lowered, a fu'ivla must still be a fu'ivla, and a cmevla must still be a cmevla. For example, the fu'ivla `zba,A,u` passes this check as `zbaau`, which is a fu'ivla, although `zbaAu` is none. So `ba,irgau` and `ma,i` are no words, because `bairgau` is a lujvo and `mai` is a cmavo.
-
-The `kihei` dialect follows the comma rules of `cll-ebnf`. In `bpfk`, `experimental` and `zantufa`, a comma between two vowels has no effect, so `ma,i` is `mai`.
-
-In all five bundled Lojban dialects, zoi delimiters compare exact normalized values. In `cll-ebnf` and `kihei`, normalization maps syllable comma values to empty and preserves `Syllable-Break`. The other dialects drop commas in the phoneme stage. The forms stage retains dialect-specific comma restrictions. `nuiork` and `nu,iork` therefore compare equally when both delimiters are valid.
-
 `span.source-text` is the original text that the span covers. A string in double quotes, such as `"la"`, is a string literal. Where a condition compares one word's value with a literal, as in `$l.value = "la"`, a test says it in the body: `LA="la"`.
+
+[The CLL word forms](../grammars/words/cll.md#commas) define the comma restrictions of cll-ebnf and kihei.
 
 The third type is the set of strings. `string.split(delimiter)` is the set of the pieces of the string between the occurrences of the delimiter. It reads the string from the left, and two occurrences never overlap. It drops the empty pieces.
 
@@ -706,7 +702,7 @@ For example, these rules hold an omitted BOI fixed:
 
 On one LETTER token with text `my`, the candidate omits BOI at its end. The restored view contains the original `my` token followed by a synthetic BOI token. The rival omits the same BOI at the same boundary, so the query holds. Changing the rival to `LETTER BOI` makes the query fail. The restored token cannot create a required written BOI on the original input.
 
-An ordinary nested query inside an aligned witness reads its original projected span with ordinary query rules. An explicit nested `$y.without-elision` or `$y.without-elision-except(family)` fixes the witness's own captured closes. The second form also permits the closes of its own family. Neither form receives a family from an outer query. It restores no token twice. Recursive queries keep the existing grammar error across query forms and restoration views.
+An ordinary nested query inside an aligned witness reads its original projected span with ordinary query rules. An explicit nested `$y.without-elision` or `$y.without-elision-except(family)` fixes the witness's own captured closes. The second form also permits the closes of its own family. Neither form receives a family from an outer query. It restores no token twice. Recursive queries give a grammar error across query forms and restoration views.
 
 Engine §4 gives the exact bounds, proof rules, and cache identity.
 
@@ -872,7 +868,7 @@ A production reads each name at most once, so each name is one part of it and th
 
 The compact form `[$b:bahe-run] $w:unit [$a:indicator-run]` has the same capture bindings and emission order as the four alternatives. Its expansions supply `$w`, `$w $a`, `$b $w`, and `$b $w $a`, in that order (see "Captures"). This equivalence concerns captures and emission, rather than ranking.
 
-Introducing these optionals changes logical symbol counts. The explicit `$w:unit` alternative has one logical symbol and a transparent close. The compact alternative retains three logical symbols even when both optionals are absent, so its close is visible. A lazy comparison can therefore resolve readings that the explicit alternatives leave tied. Adding a capture inside an existing optional remains neutral.
+Introducing these optionals changes logical symbol counts. The explicit `$w:unit` alternative has one logical symbol and a transparent close. The compact alternative retains three logical symbols even when both optionals are absent, so its close is visible. A lazy comparison can therefore resolve readings that the explicit alternatives leave tied. A capture inside an optional changes no logical symbol count.
 
 A forwarded token keeps attachments. A covering token over one counted input token inherits its attachments, whatever tags or strings recipes assign. Combining that input token with another counted part is a grammar error. Empty strings do not remove counted parts. Disjoint carriers and attachment captures prevent two emitted tokens from inheriting the same attachment.
 
@@ -887,9 +883,10 @@ A part that an emission list does not name remains a counted part, although it e
   $
 
 %rule quoted-word
-  $m:zo-marker gap $w:quotable-word
+  $m:word-quote-marker $g:word-gap $w:read-word
+    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
 %emits
-  $m, $w :: Word
+  $
 
 %rule erasure
   unit gap si-word
@@ -961,7 +958,7 @@ The recipe says nothing about whether text is grammatical Lojban. A zoi body can
   | zoi-part | zoi-body zoi-part
 ```
 
-`zoi gy. John is a man .gy.` emits a body whose image is `John is a man`. Experimental's phoneme mappings give normalized body parts such as `jo'n is a man`. Their concatenation supplies the body value. The renderings show the image, and an exact comparison reads the value.
+`zoi gy. John is a man .gy.` emits one ZOI token whose image preserves the whole quote. Its body image is `John is a man`. FOREIGN parts take their values from decomposed source text, so `John` retains its capital and spelling. The quote value joins its opener, delimiters, and body through the word grammar's spacing recipes.
 
 `.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. Each neighbor bound limits only the extension on its own side. The method does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
 
@@ -989,22 +986,7 @@ A directive is a keyword and its operands. By convention each stands in a block 
 
 ## Normalization as a stage
 
-A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipelines place it after phonemes and before forms. It tests a value and tag together. [The normalization grammar](../grammars/phonemes/normalize.md) defines token preservation through the ordinary [stage rules](engine.md#1-tokens).
-
-```jbogenbau
-%stage normalize
-%ambiguity-resolution lazy
-%rule text [{unit}]
-%rule unit :- $.image
-  | "A"<Stressed> := "a" | "E"<Stressed> := "e"
-  | "I"<Stressed> := "i" | "O"<Stressed> := "o"
-  | "U"<Stressed> := "u" | "Y"<Stressed> := "y"
-  | ","<Syllable-Break> := ""
-  | _<¬Stressed ¬Syllable-Break>
-%emits
-```
-
-The explicit image recipe preserves written images while value recipes provide normalized comparisons. A mapped tag without a supported value fails recognition. In cll-ebnf and kihei, phonemes emits one comma per comma run, and forms reads its surviving `Syllable-Break` tag. The other Lojban dialects discard commas in the phoneme stage. The catch-all keeps a foreign run's value and image. Its output still follows ordinary span and provenance rules.
+[The normalization grammar](../grammars/phonemes/normalize.md) defines the bundled Lojban mappings and token preservation.
 
 ## Pipelines
 
@@ -1049,7 +1031,7 @@ By convention, each document keeps its link in the prose, and its `%include` fol
 
 The layout is a matter of style, and the notation does not require it. An `%include` can stand in any block, between any two rules or directives. `tools/sync.js --check` makes sure that the bundled pipelines keep the style.
 
-Stage zero applies Unicode Normalization Form D (NFD) and supplies one token per decomposed scalar. Each token has that scalar as its value and image. The configured Unicode table assigns its general category, major category, and applicable `_White_Space`. The first grammar can read strings, scalar ranges, or stored engine tags. Every later stage reads emitted tokens, with no engine normalization.
+[Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
 `node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 

@@ -14,7 +14,7 @@ The rule names identify reader constructors. Section 9.2 maps recognition names 
 
 ## Choosing among readings
 
-The greedy reading favors the longest complete piece. It keeps `...` together and prevents layout from splitting a name.
+The syntax stage receives complete tokens without layout. Greedy ranking resolves whether a following test belongs inside a capture or outside it. In `$x:A<B>`, it keeps `<B>` on the captured primary A.
 
 A keyword begins every declaration. Inside each declaration, punctuation and lexical categories determine where its lists end.
 

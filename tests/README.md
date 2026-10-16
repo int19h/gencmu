@@ -23,7 +23,7 @@ Tests must not depend on execution order. Go tests with process-wide controls or
 
 ## Engine cases: `engine/*.json`
 
-The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`. No language migration gate remains.
+The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`.
 
 Each file is one case:
 
@@ -219,7 +219,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 30. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 30. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -306,7 +306,7 @@ Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNo
 
 A family run uses `.without-elision-except`. Its entry names an engine fixture in `case`, and its strict twin in `strictCase`. Every library runs both at each size in `lengths`. The strict twin uses `.without-elision` instead.
 
-An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry retains its existing absolute bounds beside its bounds over the strict twin.
+An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry keeps its absolute bounds beside its bounds over the strict twin.
 
 Each library also runs the shared engine cases with a conformance switch for family alignment. The switch applies the whole-observation deletion test of engine §4 beside the item summaries of §4.1. Both answers must agree for every eligible family witness. Only this switch can retain permission marks for the independent test.
 
@@ -314,7 +314,7 @@ A library records chart items, proof edges, close observation states, close sequ
 
 A join costs one image for each row. An empty item without records has the identity relation, and an image, preimage or join through it costs nothing. A close or block that the automaton does not read costs nothing, such as one beyond `b`. The JavaScript work counters call these seven `items`, `packedEdges`, `closeStates`, `closeSequences`, `summaryContexts`, `familySummaries` and `familySteps`. No library retains a marked close, so there is no count of marked events.
 
-Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these new fields:
+Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these fields:
 
 | Field | Bound at each length |
 | --- | --- |
@@ -326,7 +326,7 @@ Counts from different libraries are not compared, so most bounds compare a run w
 | `equalsStrict` | items and close states equal the strict twin's |
 | `atMostStrict` | items and close states do not exceed the strict twin's |
 
-Within `overStrict`, a missing field is zero. An entry without `overStrict` has no bound over its twin. The existing `itemsPerUnit` and `slack` keep their meaning, an absolute linear bound on items.
+Within `overStrict`, a missing field is zero. An entry without `overStrict` has no bound over its twin. `itemsPerUnit` and `slack` set an absolute linear bound on items.
 
 ## Result mutants: `result-mutants.json`
 
