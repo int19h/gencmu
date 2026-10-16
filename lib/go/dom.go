@@ -995,14 +995,14 @@ func decodeString(raw json.RawMessage) (string, error) {
 	return decodeJSONString(raw)
 }
 
-// decodePosition reads a [line, column] pair, each an integer.
+// decodePosition reads a [line, column] pair of positive integers.
 func decodePosition(raw json.RawMessage) ([2]int, error) {
 	at, err := decodeList(raw, func(r json.RawMessage) (int, error) {
 		var n int
 		err := unmarshal(r, &n)
 		return n, err
 	})
-	if err != nil || len(at) != 2 {
+	if err != nil || len(at) != 2 || at[0] < 1 || at[1] < 1 {
 		return [2]int{}, fmt.Errorf("a malformed position")
 	}
 	return [2]int{at[0], at[1]}, nil

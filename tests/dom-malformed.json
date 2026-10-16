@@ -30,6 +30,66 @@
     "malformed": false
   },
   {
+    "description": "An unknown directive member does not permit a zero line.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "extra": true,
+      "at": [
+        0,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An unknown directive member does not permit a zero column.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "extra": true,
+      "at": [
+        1,
+        0
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An unknown directive member does not permit a negative line.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "extra": true,
+      "at": [
+        -1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An unknown directive member does not permit a negative column.",
+    "directive": {
+      "name": "ambiguity-resolution",
+      "args": [
+        "greedy"
+      ],
+      "extra": true,
+      "at": [
+        1,
+        -1
+      ]
+    },
+    "malformed": true
+  },
+  {
     "description": "An unknown directive name is malformed.",
     "directive": {
       "name": "unknown",
