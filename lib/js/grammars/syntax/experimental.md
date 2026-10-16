@@ -70,7 +70,9 @@ The second change permits an ek after a text-leading `.i`, as in `.i .e do klama
 
 The third change is that an ek, a jek or a joik directly after `.i` is always a connective. So `i.e`, `.iji` and `mi klama .i e` read `.i e` or `.i ji` as a connective. Without this rule, these texts tie, because a bare ek is a fragment. The rule `lone-i` is an `.i` that no ek, jek or joik follows directly. It stands in the bare-`.i` positions of `text-1` and `paragraph`, before a statement, a fragment or nothing.
 
-The `lone-i` rule tests these three connective families. A VUhU can also follow `.i` as a connective, as in `mi klama .i su'i do klama`. It needs no test, because no statement or fragment begins with it. A gihek answer after `.i` stays a fragment, as in `.i gi'e` and `mi klama .i gi'e`. No `.i` connective is a gihek, so these texts cause no tie.
+The `lone-i` rule tests these three connective families. A VUhU can also follow `.i` as a connective, as in `mi klama .i su'i do klama`. It can instead start a mathematical fragment, as in `mi klama .i su'i pa`. Therefore `lone-i` permits VUhU after it.
+
+In `mi klama .i su'i pa moi`, both the connective and operator readings complete. Late elision selects the connective reading. A gihek answer after `.i` stays a fragment, as in `.i gi'e` and `mi klama .i gi'e`. No `.i` connective is a gihek, so these texts cause no tie.
 
 A bare connective answer needs no `.i`. `e` alone is an ek fragment, and `je` alone is the connective before an empty `text-1`. So reading `.i e` as a connective loses no answer.
 
@@ -590,7 +592,7 @@ A bare `fa`, which matches the rule `tag`, can come before a selbri. The term af
 
 The whole `mex MOI #` construction outranks an SE conversion over the same span. A mekso can begin with SE through a forethought `gek`, as in `mi se ga pa gi re moi`.
 
-NAhE stays outside this group. Late elision puts `na'e` on `pa moi` in `la djonz. cu na'e pamoi cusku`, because the mekso option omits LUhU earlier.
+An outer NAhE modifier outranks the whole `mex MOI #` construction over the same span. Thus `mi na'e su'i pa moi` puts `na'e` on the predicate. Writing PEhO before NAhE selects the operator modifier instead, as in `mi pe'o na'e su'i pa moi`.
 
 In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. Its LAhE holds the forethought sumti and the following connection.
 
@@ -663,10 +665,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | cbm? CMEVLA #
   | GOhA [RAhO] #
   | me-unit
-  | (mex MOI # ≻ SE # tanru-unit-2)
+  | (NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
   | JAI # [tag] tanru-unit-2
-  | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
@@ -690,10 +691,9 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   | cbm? CMEVLA #
   | GOhA [RAhO] #
   | me-unit
-  | (mex MOI # ≻ SE # tanru-unit-2)
+  | (NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)
   | NUhA # operator
   | JAI # [tag] tanru-unit-2
-  | NAhE # tanru-unit-2
   | abstractor-chain subsentence [+KEI] #
   | linkargs tanru-unit-1
   | MEhOI anything #
@@ -745,7 +745,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 The layer reads mekso with the rules below. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
 - A number is a run of PA words, `ni'e` selbri and `mo'e` sumti, with no lerfu word in it. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one date expression, while `li pa by` is two terms.
-- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression, with or without `pe'o`, or a reverse Polish expression. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
+- `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression or a reverse Polish expression. A bare joik, jek or ek needs PEhO as a forethought operator. Other operator forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
 - Plain operator connections use `plain-connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
@@ -785,8 +785,13 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   | VEI # mex [+VEhO] #
   | gek mex gik mex-2
   | (LAhE # | NAhE # [BO #]) mex [+LUhU] #
-  | [PEhO #] operator {mex} [+KUhE] #
+  | (PEhO # operator | forethought-operator) {mex} [+KUhE] #
   | FUhA # rp-expression
+
+%rule forethought-operator
+  $o:operator
+%conditions
+  $o ≇ @(joik-jek-ek ⋰)
 
 %redefine-rule rp-expression
   mex-1 [{rp-expression operator}]
@@ -825,12 +830,13 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   lerfu-word [{PA | lerfu-word}]
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>quantifier</code> to <code>lerfu-string</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/quantifier.svg" alt="Railroad diagram of the rule quantifier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-barrier.svg" alt="Railroad diagram of the rule gek-barrier"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex.svg" alt="Railroad diagram of the rule mex"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-1.svg" alt="Railroad diagram of the rule mex-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/mex-2.svg" alt="Railroad diagram of the rule mex-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/forethought-operator.svg" alt="Railroad diagram of the rule forethought-operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/rp-expression.svg" alt="Railroad diagram of the rule rp-expression"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator.svg" alt="Railroad diagram of the rule operator"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/operator-1.svg" alt="Railroad diagram of the rule operator-1"></p>
@@ -1126,7 +1132,9 @@ The mekso rules follow camxes-exp.peg except for digits in letter strings and fo
 
 CLL permits PA words inside a letter string.[^cll-s17-8] This layer keeps that form because real dates use letters and digits together, as in `li cy mu my ci no`. camxes-exp excludes PA from its letter strings and rejects this text. A written BOI permits a string to end before another letter or PA. Without it, the string consumes every continuation.
 
-CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text. The two spellings have the same operator and operand boundaries.
+CLL makes PEhO optional before a forethought operator.[^cll-s21-1] This layer keeps that form, so `li gei so'i` and `li pe'o gei so'i` both parse. camxes-exp requires PEhO and rejects the first text. A bare joik, jek or ek instead needs PEhO, because CLL has no such operator form. The first-child pattern excludes exactly that bare form, while converted, grouped and connected operators retain omitted PEhO.
+
+An outer NAhE predicate modifier takes priority over an omitted-PEhO operator modifier when both readings complete over the same span. Both forms otherwise elide the same terminators, so elision ranking cannot choose between them. Explicit PEhO preserves the distinction: `mi na'e pe'o su'i pa moi` modifies the predicate, while `mi pe'o na'e su'i pa moi` modifies the operator.
 
 A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`.
 
