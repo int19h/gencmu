@@ -136,7 +136,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../syntax/experimental.md"
   ```
 
-A ranked choice orders alternatives at one written position. An earlier option completes that position when its own tests and conditions pass, and excludes later options over the same span. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. The `fewest` preference then favors fewer plain term links. `late-elision` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier qualified proof excludes a later proof over the same span when its open boundary facts dominate. The [notation document](../../docs/notation.md#ranked-choices) defines that comparison. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
 
@@ -152,11 +152,9 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. Tree conditions retain the restrictions after listed bare NA and tags. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
+The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. Bare NA and tag terms follow the [KU rule](../syntax/experimental.md#terms). Its [departure list](../syntax/experimental.md#deliberate-ku-omission-limits) explains the deliberate limits. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
 
 The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
-
-A plain term link remains when no larger connection completes. This permits `broda be mi .e pu ke brode ke'e bo brodi` and `mi klama .e to do .e pu bo .i do klama`. camxes-exp rejects both because its ordered choice commits to a connection that cannot complete.
 
 ### Explicit grammar differences
 

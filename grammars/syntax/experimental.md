@@ -180,7 +180,7 @@ The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or
 
 A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
 
-The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag cannot omit KU before a following selbri or gek-sentence. A written KU or final CU keeps the term separate.
+The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before an actual sumti. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
 ```jbogenbau
 %redefine-rule sentence
@@ -252,7 +252,9 @@ The layer joins terms at two levels. A connective, an optional stag, and `bo` jo
 
 A `listed-term` stands in head or tail terms, a prenex, a fragment, or a NUhI termset. A `term` follows BE, BEI, GOI, LAhE, or NAhE, which each take one term. Branches of a bare forethought termset also use `term`.
 
-A bare NA or tag term can omit KU only before a closing word or the end of the text. Closing words are `.i`, `ni'o`, `cu`, `gi`, `bei`, `fa'o`, a gihek, and every written terminator. An omitted terminator never counts as a closing word.
+A bare NA or tag term can omit KU only before a written closing word, a gihek, or the text's end. Closing words are `.i`, `ni'o`, `cu`, `gi`, `bei`, `fa'o`, and every written terminator. An omitted terminator never counts as a closing word.
+
+A gihek can start with NA or SE. Thus `mi klama pu se gi'e tavla` and `mi klama pu na gi'e tavla` keep the bare tag before that gihek. As a closing word, `.i` can stand before its own connective. NA or SE before an ordinary connective permits no KU omission.
 
 A bare NA term can also omit KU before a sumti in the same reading. Thus `na mi` contains a NA term before the sumti `mi`. A tag term has no such exception. A tag with its own sumti uses the separate tagged-term alternative and needs no KU.
 
@@ -1047,7 +1049,9 @@ The description's possessor can be any unquantified sumti. camxes-exp also reads
 
 ### Deliberate KU omission limits
 
-This layer deliberately limits KU omission more than camxes-exp. A bare `na` or tag term can omit `ku` only at the input's end, or when the next word visibly closes its place. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before a sumti in the same reading. Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
+This layer deliberately limits KU omission more than camxes-exp. A bare `na` or tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before a sumti in the same reading. Thus a reader never has to guess which construct an omitted `ku` ends. CLL requires a written `ku` after a `na` term in every position.[^cll-s21-1]
+
+A gihek can start with NA or SE. These prefixes close the term's place only when they belong to the actual gihek. An ordinary connective without `.i` does not close that place.
 
 Writing `ku` makes each text below parse. For example, `mi pe na klama` becomes `mi pe na ku klama`. `na na` becomes `na ku na ku`. `ze'u na do tavla` becomes `ze'u ku na ku do tavla`.
 

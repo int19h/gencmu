@@ -366,7 +366,7 @@ A tag with a sumti argument has its own alternative. GI cannot follow that actua
 
 A tag unit that omits KUhE also counts. So `mi klama pu ke my .e gy ke'e roi` and `mi klama pu ke my .e gy roi` keep one tag run.
 
-Boundary conditions test actual following predicate nodes after bare tags, `fa-jai`, and the NA clause of `brigahi`. The GI, BO, free-modifier and connective queries keep their separate parsing rules.
+After a bare tag, a boundary condition tests actual tag units, selbri, or forethought bridi-tails. Other boundary conditions test following predicate nodes after `fa-jai` and the NA clause of `brigahi`. The GI, BO, free-modifier and connective queries keep their separate parsing rules.
 
 The condition `¬$t.following-tokens.begins(free)` excludes a tag term that leaves a following free modifier unread. So in `sei abu pensi ba ju'o rinka`, the tag is `ba ju'o`, and the selbri `rinka` follows it. The condition on a selbri then removes the term, and the statement of the `sei` ends after `pensi`, as in Zantufa.
 
