@@ -73,14 +73,14 @@ class Frames:
         self.closes, self.project = closes, project
         self.frames,self.productions = {},{}
 
-    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0):
+    def entry(self, p, dot, origin, prefix, caps, rule, restores=False, close_prefix=0, at=0, boundary=None):
         own = self.lowered.rule_productions[rule]
         if not own or not self.lowered.productions[own[0]].contextual:
             return None
         outer = p.lexical
         if outer is not None and p.lhs==rule:
             return outer
-        key = written_prefix(self.lowered,p,dot,origin,prefix,caps,restores)
+        key = (written_prefix(self.lowered,p,dot,origin,prefix,caps,restores), boundary.id if boundary is not None else None)
         if self.closes is not None:
             key = key, close_prefix
         if key in self.frames:
@@ -139,6 +139,10 @@ class Frames:
         source = p.slot.source
         private = set().union(*(reads(g.expr) for g in self.lowered.grammar.ranked.groups if g.source is source))
         for raw in source.conditions if p.ranked is not None else []:
+            from ._boundary import atoms
+            boundary = atoms(raw)
+            if boundary and boundary[0]["receiver"]["capture"] and boundary[0]["receiver"]["capture"] in frame.captures:
+                continue
             if any(n in private and n not in p.private_names and n not in frame.known_private and n not in p.captures and n not in frame.captures for n in reads(raw)):
                 continue
             condition = simplify_condition(raw,present)

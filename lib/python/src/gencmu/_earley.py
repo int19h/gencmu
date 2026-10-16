@@ -1084,7 +1084,7 @@ class Parser:
                 # final group alone owns a whole-rule literal.
                 private = p.private_names | (p.lexical.known_private if p.lexical else set())
                 from ._ranked import reads
-                if not whole or not p.helper or bool(reads(condition) & private):
+                if not whole or not p.helper or bool(reads(condition) & p.private_names):
                     site = next((site for raw, site in sites.get((source.document, source.at), ()) if atom in atoms(raw)), None)
                     obligations.append((atom, boundaries.literal(atom, yes), site))
             return yes or no
@@ -1201,7 +1201,7 @@ class Parser:
             if frames is None:
                 return None
             p = productions[prod[item]]
-            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item])
+            return frames.entry(p, dot[item], origin[item], prefixes[item], caps[item], rule, any(edge[1] == RESTORE for edge in edges[item]), close_prefixes[item] if closes is not None else 0, end[item], records[item] if boundaries is not None else None)
 
         def candidate(p, frame, requested=False):
             p = frames.production(p, frame) if frames is not None else p

@@ -3,11 +3,12 @@ from ._ranked_facts import RankedFacts
 from ._rank import Summaries
 from ._ranked_frame import written_prefix
 from ._earley import RESTORE
+from ._boundary import dominates
 
 
 def prefix(forest,item):
     p = forest.lowered.productions[forest.prod[item]]
-    return (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item], forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False)
+    return (written_prefix(forest.lowered, p, forest.dot[item], forest.origin[item], forest.prefix[item], forest.caps[item], any(e[1] == RESTORE for e in forest.edges[item]), forest.close_machine, forest.close_prefix[item] if forest.close_prefix else 0), forest.strict[item] if forest.strict else False, forest.boundaries[item].id if forest.boundaries else None)
 
 
 def ancestry(forest,scope):
@@ -24,6 +25,7 @@ class RankedAdmission(RankedFacts):
         Summaries.__init__(self,forest)
         self.check = check
         self.at,self.slot_groups,self.maxima,self.masks = {},{},{},{}
+        self.open = {}
         self.stats = {'chart_facts':len(forest.prod),'groups':0,'candidate_edges':0,'retained_edges':0}
         lowered = forest.lowered
         for item,edges in enumerate(forest.edges):
@@ -43,6 +45,7 @@ class RankedAdmission(RankedFacts):
                 key = (group_info.id,prefix(forest,previous),ancestry(forest,scope),forest.origin[child],forest.end[child])
                 group = self.slot_groups.setdefault(key,[])
                 group.append((item,index,self.productions[forest.prod[child]].option))
+                self.open[item,index] = (forest.boundary_machine.open(forest.boundaries[previous], forest.boundaries[child]) if forest.boundary_machine is not None else None)
                 self.at.setdefault(item,{})[index] = key
                 self.stats['candidate_edges'] += 1
         self.stats['groups'] = len(self.slot_groups)
@@ -56,16 +59,18 @@ class RankedAdmission(RankedFacts):
             context = self.availability_key(key,group)
             kept = self.maxima.get(context)
             if context not in self.maxima:
-                present = set()
+                present = []
                 for item,number,option in self.slot_groups[group]:
                     candidate = self.partial_key(item,key[2])
                     step = next((s for s in self.all_steps(candidate) if s[0]==number),None)
                     if step is not None and self.ways(step):
-                        present.add(option)
-                kept = self.maxima[context] = min(present,default=None)
+                        present.append((item, number, option))
+                kept = self.maxima[context] = frozenset((item, number) for item, number, option in present
+                    if not any(higher < option and dominates(self.open[other, edge], self.open[item, number])
+                               for other, edge, higher in present))
             child = self.forest.edges[key[1]][index][2]
             option = self.productions[self.forest.prod[child]].option
-            if option==kept:
+            if (key[1], index) in kept:
                 all_.add(index)
         mask = frozenset(all_)
         self.masks[key] = mask
