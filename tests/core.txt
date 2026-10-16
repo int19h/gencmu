@@ -5679,3 +5679,6 @@ merge223.boundary.10
 merge223.boundary.11
 merge223.boundary.12
 merge223.boundary.13
+adhoc.syntax.joik-ke-selbri-elided-inner-ku.kihei
+adhoc.syntax.gihek-ke-inside-nu-sumti.kihei
+adhoc.syntax.gihek-tense-ke-group-elided-inner-ku.kihei

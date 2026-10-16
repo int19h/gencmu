@@ -19,7 +19,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma `","`, with tag `Syllable-Break`
 
-A comma run emits one comma token. Normalization then empties its value and keeps its image and boundary tag. The forms stage tests stress and syllable boundaries through these tags.
+In cll-ebnf and kihei, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). All five dialects retain stress tags for forms.
 
 `PAUSE` marks a pause of any length, with value and image `" "`. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the word stage admits it only inside a foreign quote or after `fa'o`.
 
@@ -97,7 +97,7 @@ An ordinary run is letters. A run of adjacent vowel letters is one vowel group, 
 
 A script that writes no apostrophe tags its full vowel letters `Syllabic`. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [cyrillic.md](cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
-A comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with value `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
+In cll-ebnf and kihei, a comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with value `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 
 ```jbogenbau
 %rule ordinary-run

@@ -406,7 +406,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                         and set(receiver["receiver"]) == {"capture"}
                     )
                     if not valid:
-                        return "a recipe requires one of its six captured string methods"
+                        return "a recipe requires one of its seven captured string methods"
                     pending.append(("recipe-method", atom, below, False, False))
                 else:
                     pending.append(("string", atom, below, False, False))

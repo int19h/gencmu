@@ -4,7 +4,7 @@ This document is a layer over [the CLL grammar](cll.md), the grammar of *The Com
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its reference is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
+The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 

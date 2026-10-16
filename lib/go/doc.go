@@ -55,7 +55,7 @@
 // read (engine §11). Canonical JSON omits an attached token's Span.
 // Brackets shows the attachments around the carrier's Image.
 //
-// Parse decomposes text with the shared Unicode table before stage zero.
+// Stage zero decomposes text with the shared Unicode table for Parse.
 // Original text and source positions stay unchanged. ParseTokens bypasses
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.

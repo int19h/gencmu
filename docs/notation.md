@@ -1004,7 +1004,7 @@ A dialect normalizes with an ordinary grammar stage. The bundled Lojban pipeline
 %emits
 ```
 
-The explicit image recipe preserves written images while value recipes provide normalized comparisons. A mapped tag without a supported value fails recognition. The phoneme stage emits one comma for a comma run. Forms reads its surviving Syllable-Break tag. The catch-all keeps a foreign run's value and image. Its output still follows ordinary span and provenance rules.
+The explicit image recipe preserves written images while value recipes provide normalized comparisons. A mapped tag without a supported value fails recognition. In cll-ebnf and kihei, phonemes emits one comma per comma run, and forms reads its surviving `Syllable-Break` tag. The other Lojban dialects discard commas in the phoneme stage. The catch-all keeps a foreign run's value and image. Its output still follows ordinary span and provenance rules.
 
 ## Pipelines
 

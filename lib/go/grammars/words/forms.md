@@ -17,7 +17,7 @@ The prose uses these Lojban terms for words:
 - A brivla is a predicate word.
 - A cmevla is a name word.
 
-The `cll-ebnf` and `kihei` dialects stitch [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
+The `cll-ebnf` and `kihei` dialects stitch [shapes.md](shapes.md) and [cll.md](cll.md) as their family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
@@ -148,7 +148,7 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-The y rules read syllable commas by `Syllable-Break`, because those tokens have empty values.
+In cll-ebnf and kihei, the y rules read syllable commas by `Syllable-Break` because those tokens have empty values.
 
 Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
