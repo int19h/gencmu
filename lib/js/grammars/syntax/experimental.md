@@ -789,7 +789,7 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
-The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. A quote such as `zo ga` instead emits one ZO token with value `zo ga`.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. The GA class test excludes caller-supplied tokens with value `ga` or `gu` but no GA tag.
 
 ```jbogenbau
 %redefine-rule ek
@@ -1113,7 +1113,7 @@ This layer also accepts `ge mi klama pu gi do klama` and `ge mi pu gi do nu'u kl
 
 ### Free modifiers and subscripts
 
-Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
+The free-modifier preference compares complete readings. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
 
 A number cannot end before another number part without written BOI. So `li pa joi xi re re` fails because both `re` words belong to the subscript. No operand remains after `joi`. `li pa joi xi re boi re` keeps the subscript boundary and the following operand.
 

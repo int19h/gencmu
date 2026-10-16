@@ -225,7 +225,7 @@ A library that refuses a malformed precompiled DOM reads the document instead. T
 
 ## DOM depth cases: `dom-depth.json` and `dom-depth-source.json`
 
-The shared depth cases pin the compound-ancestor count of [engine §9](../docs/engine.md#9-reading-a-grammar-document). They cover recursive DOM forms, leaves, cross-form transitions, and independent declaration and emission roots.
+The shared depth cases pin the compound-ancestor count of [engine §9.3](../docs/engine.md#93-conversion-and-validation). They cover recursive DOM forms, leaves, cross-form transitions, and independent declaration and emission roots.
 
 Each DOM case supplies an envelope without `format`, a `leaf`, a `wrapper`, and `atLimit`. The envelope and wrapper each contain one string placeholder, `$inner`. A runner wraps the leaf `atLimit` times and substitutes the result into the envelope. It supplies the current DOM format. The resulting DOM must pass, and one additional wrapper must fail because of depth.
 

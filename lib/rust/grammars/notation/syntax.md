@@ -14,7 +14,7 @@ The rule names identify reader constructors. Section 9.2 maps recognition names 
 
 ## Choosing among readings
 
-The syntax stage receives complete tokens without layout. Greedy ranking resolves whether a following test belongs inside a capture or outside it. In `$x:A<B>`, it keeps `<B>` on the captured primary A.
+The syntax stage receives complete tokens without layout. Greedy ranking resolves how selectors group into method chains. In `%rule r A %conditions $x.a.b(c)`, one chain takes both selectors instead of nesting `$x.a` as the receiver of `.b(c)`. The reader folds that chain from left to right.
 
 A keyword begins every declaration. Inside each declaration, punctuation and lexical categories determine where its lists end.
 

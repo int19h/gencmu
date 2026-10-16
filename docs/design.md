@@ -172,7 +172,7 @@ A capitalized tag name is a terminal that reads stored membership. Strings and s
 
 User tags use capitalized names, such as `Cmavo`, `Stressed`, and `PAUSE`. Stage zero assigns reserved Unicode property tags. Later stages forward or filter them but never introduce them. Tags never assign a token's value or image.
 
-A reference or terminal can carry one signed tag test followed by one exact value test. `LA="la"` compares its input value with that string. `cmavo<¬UI>` forbids UI on its own tags. Tests cannot replace token classes. A synthetic token can have value `la` and tag `Word` without LA. `cmavo<¬UI>="la"` requires both tests.
+A reference or terminal can carry one signed tag test followed by one exact value test. `LA="la"` compares its input value with that string. `cmavo<¬UI>` forbids UI on its own tags. Tests cannot replace token classes. A token that a caller supplies can have value `la` and tag `Word` without LA. `cmavo<¬UI>="la"` requires both tests.
 
 The body adds repetition, elidable terminators, and ranked choices to the CLL operators. "Repetition, lists and chains" and "Elidable optionals and captures" below say why. The operators are these:
 
@@ -255,7 +255,7 @@ The fixpoint alone proves only that the notation reads itself consistently. So `
 
 ## Normalization is a stage
 
-[The normalization grammar](../grammars/phonemes/normalize.md) defines the bundled Lojban mappings and token preservation.
+A visible grammar stage defines the comparison policy. A token with a mapped tag but no matching value mapping fails instead of receiving an invented value. A script extension that forwards another rule relies on tag inheritance. An explicit tag clause replaces that inheritance and can lose `Syllabic`. [The normalization grammar](../grammars/phonemes/normalize.md) defines the bundled Lojban mappings and token preservation.
 
 ## Two walks and recipe placement
 
@@ -326,7 +326,7 @@ Verbatim text is original spelling with adjacent uncovered punctuation. `.verbat
   | zohoi-payload payload-token
 ```
 
-The payload's outer image recipe replaces recursive descendant image contributions. Value concatenation still reads normalized body parts. A quote composes its image from the opener, original gap, and payload's `.emitted.image`. A covering compound receives that quote image. Forwarding stores the result and never reconstructs it from later neighbors.
+The payload's outer image recipe replaces recursive descendant image contributions. Value concatenation still reads input token values, including FOREIGN values from decomposed source text. A quote composes its image from the opener, original gap, and payload's `.emitted.image`. A covering compound receives that quote image. Forwarding stores the result and never reconstructs it from later neighbors.
 
 An empty delimited body contributes empty concatenation to the quote value. The complete delimited quote uses its source text as its image. A foreign character run in the phoneme stage takes its source text through an image recipe. Its image keeps the original spelling.
 
@@ -421,7 +421,7 @@ Reconstruction first locates the restored chosen derivation before filtering. Fi
 
 Experimental ranks text-initial bodies, NUhI bodies, and NAhE before mekso-MOI and SE conversion. Its ME operands use ordinary alternatives with an aligned sumti query. Zantufa ranks whole MOI constructions, MAhO, and MOhE. Its fragments and ME operands use ordinary alternatives with aligned category conditions. In Zantufa, SE can begin a mekso through an operator, so the MOI group also includes it. FA and JAI cannot begin those mekso forms.
 
-The ranked choices need no wrapper rules. The rule `me-unit` names the shared experimental ME construction. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture.
+The ranked choices need no wrapper rules. `gek-termset-body`, `termset-with-nuhi`, and `terms-vau` keep their bracket groups, reuse, or capture.
 
 Sealing remains an authoring limit. An outside pattern that needs hidden option structure requires an unranked position or an earlier local condition. Sequence captures remain unsupported. The fragment keeps `terms-vau` for its capture and `fragment-terms` for its aligned category query.
 

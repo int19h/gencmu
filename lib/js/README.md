@@ -32,8 +32,8 @@ The same explanations are functions of the library, for tools of your own: `expl
 The sources are plain JavaScript with JSDoc type annotations. TypeScript makes sure that their types agree, and it writes the declarations in `types/`. The repository holds the declarations, and the package publishes them. So TypeScript clients and editors see the types of the library. TypeScript is a development dependency only. Nothing needs it to run, test or use the library.
 
 ```sh
-npm test                # the tests; no install needed
 npm ci                  # installs TypeScript, Playwright, and the Markdown parser
+npm test                # runs the tests
 npm run check-types     # checks src/ and a client of the package, typecheck/client.ts
 npm run types           # rewrites types/ after a change to the annotations
 ```
@@ -48,7 +48,9 @@ The Node test runner runs files in separate processes. Its default concurrency i
 
 ## The playground's smoke test
 
-`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox. It makes sure that the playground parses, explains a rejection and never shows an out-of-date answer. It also compares token table contents, including values, images and nested attachments, with the expected result. It drives the browser with Playwright. Playwright is also a development dependency only. Nothing needs it to run, test or use the library or the playground.
+`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox. It makes sure that the playground parses, explains a rejection and never shows an out-of-date answer. It also compares token table contents, including values, images and nested attachments, with the expected result. It drives the browser with Playwright. Playwright is also a development dependency only.
+
+The library and playground run without Playwright. The browser smoke test needs Playwright and its browser installation.
 
 ```sh
 npm ci                                      # installs Playwright

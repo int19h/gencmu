@@ -222,7 +222,7 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 Every complete quote is one opaque unit and emits one token. Later operations see its opening class and no class from its contents or closing marker. Indicators after it and BAhE before it mark the whole quote.
 
-The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
+The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins input token values, including FOREIGN decomposed source text, and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
 
 Quoted Lojban keeps its written case instead of each word's normalized image. For example, `SINdarin` has image `sIndarin` alone, but `zo SINdarin` keeps its capitals.
 
@@ -558,7 +558,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 ### Raw payloads
 
-`raw-tokens` and `zohoi-payload` concatenate ordinary normalized values. Delimited quotes take their images from their whole source intervals.
+`raw-tokens` and `zohoi-payload` concatenate input token values, including FOREIGN values from decomposed source text. Delimited quotes take their images from their whole source intervals.
 
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 

@@ -142,7 +142,7 @@ A test belongs to its one symbol, so every item of `{UI="ui"}` must have value `
 
 A test holds or fails as a condition does, including over an empty span. `X=""` and `X≠"la"` hold for a rule that reads nothing. An empty `<>` or empty constant requirement holds vacuously. An elidable terminator can carry either test kind or both. All its tests control both written and omitted routes.
 
-A test does not replace a class. A synthetic token with value `la` and only tag `Word` cannot match `LA="la"`. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
+A test does not replace a class. A token that a caller supplies with value `la` and only tag `Word` cannot match `LA="la"`. A captured `cmavo` with condition `$c.tags ∩ UI = ∅` can instead use `cmavo<¬UI>`. A combined test spells `_<Stressed>≠"y"`. A second test of either kind, or a tag test after a value test, is an error.
 
 ## Operators
 
@@ -958,7 +958,7 @@ The recipe says nothing about whether text is grammatical Lojban. A zoi body can
   | zoi-part | zoi-body zoi-part
 ```
 
-`zoi gy. John is a man .gy.` emits one ZOI token whose image preserves the whole quote. Its body image is `John is a man`. FOREIGN parts take their values from decomposed source text, so `John` retains its capital and spelling. The quote value joins its opener, delimiters, and body through the word grammar's spacing recipes.
+`zoi gy. John is a man .gy.` emits one ZOI token whose image preserves the whole quote. The illustrative body recipe gives the body image `John is a man`. FOREIGN parts take their values from decomposed source text, so `John` retains its capital and spelling. The quote value joins its opener, delimiters, and body through the word grammar's spacing recipes.
 
 `.verbatim-text` extends a nonempty source envelope through adjacent uncovered text, up to neighboring stage-input tokens or text ends. Each neighbor bound limits only the extension on its own side. The method does not change the token's source or text. Different evaluated spans cannot claim the same nonempty gap. An empty span returns empty and claims nothing. Engine §11 defines overlapping and out-of-order source bounds.
 

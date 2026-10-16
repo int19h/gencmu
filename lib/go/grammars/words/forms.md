@@ -150,7 +150,7 @@ The parser tests it as soon as it reads `$r`. If the condition fails, the parser
 
 Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause.
 
-`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this hesitation starts a run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
