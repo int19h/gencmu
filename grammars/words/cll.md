@@ -582,6 +582,8 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
 
+The [word stream](stream.md#cll-and-magic-words) also lists the omitted pause after hesitation as a departure from CLL.
+
 ### Compound words and borrowings
 
 - Hyphens: CLL[^cll-s4-11] says that "it is illegal to add a hyphen at a place that is not required by this algorithm". So a lujvo has a `y` only where the algorithm puts one, and `rokyre'o`, `basykla` and `lojybangri` are no lujvo. The algorithm has no rule for an `n` before `tc`, `ts`, `dj` or `dz`. These make a triple that CLL forbids,[^cll-s3-7] so this grammar inserts `y`, as in `junydji`.

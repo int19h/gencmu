@@ -246,7 +246,9 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-Hesitation needs no pause after it, as the Magic Words proposal says. The words stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+CLL[^cll-s19-14] requires pauses before and after `.y.`. These dialects omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
+
+The words stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 
 ```jbogenbau
 %rule hesitation-shape
@@ -276,3 +278,5 @@ camxes-std, the standard grammar of the camxes parser, rejects the whole text `k
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 
 [^cll-s3-3]: [CLL 1.1, section 3.3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lojban-characters.html).
+
+[^cll-s19-14]: [CLL 1.1, section 19.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-hesitation.html).

@@ -31,7 +31,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished quote from the words stage arrives as one token of its opening class.
 
-[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
+[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
 
 CLL writes repetition as `x ...`, and the notation writes it with braces. CLL's notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
@@ -306,7 +306,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 
 `sumti-5` places the outer quantifier. A number before a sumti-6 counts its referents: `re lo gerku`. A quantifier directly before a selbri makes a sumti with an implicit `lo`, `re gerku`, whose `ku` is elidable[^cll-s6-8]. Relative clauses can follow either.
 
-`sumti-6` is the closed list of simple sumti. A LAhE word such as `la'e`, or a NAhE word with `bo` such as `na'e bo`, makes a sumti from the referent of another sumti. Relative clauses can stand inside. `lu'u` closes the resulting sumti. `KOhA` is a pronoun. A lerfu string, `.abu` or `xy.`, is a sumti, and `boi` closes it and separates it from a following number or lerfu string.
+`sumti-6` is the closed list of simple sumti. A LAhE word such as `la'e`, or a NAhE word with `bo` such as `na'e bo`, qualifies another sumti. Relative clauses can stand inside. `lu'u` closes the resulting sumti. `KOhA` is a pronoun. A lerfu string, `.abu` or `xy.`, is a sumti, and `boi` closes it and separates it from a following number or lerfu string.
 
 `la` before names makes a name. `la` or `le` (that is, any member of LA or LE) before a `sumti-tail` makes a description closed by `ku`. `li` opens a mekso closed by `lo'o`. Four forms quote[^cll-s19-9][^cll-s19-10]:
 
@@ -488,7 +488,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 
 ## Numbers, lerfu strings and mekso
 
-A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
+A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] `PA` words or lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
 
 A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The words stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 
@@ -524,7 +524,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 - A sumti through `mo'e`
 - An array through `jo'i`
 - A forethought connection
-- A `la'e` or `na'e bo` reference
+- A qualifier, `la'e` or `na'e bo`, before an operand
 
 ```jbogenbau
 %rule quantifier
@@ -836,7 +836,7 @@ This grammar departs from the EBNF printed in CLL in eleven places. The first se
 
 The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth uses a ranked choice and the seventh a condition to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh replaces three printed quote forms with terminals for whole quotes and omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
 
 ### Printed rules and translations
 

@@ -75,7 +75,7 @@ mi .e do # grammars/syntax/cll.md # the shape of an afterthought sumti connectio
 mi joi do # grammars/syntax/cll.md # the shape of a joik sumti connection
 ge mi gi do # grammars/syntax/cll.md # the shape of a forethought sumti connection
 re lo gerku # grammars/syntax/cll.md # the shape of an outer quantifier
-na'e bo # grammars/syntax/cll.md @ "makes a sumti from the referent" @ "A `la'e` or `na'e bo` reference" # the shape of a NAhE sumti
+na'e bo # grammars/syntax/cll.md @ "qualifies another sumti" @ "A qualifier, `la'e` or `na'e bo`, before an operand" # the shape of a NAhE sumti
 le mi zdani # grammars/syntax/cll.md # the shape of a possessive inner sumti
 lo re lo gerku # grammars/syntax/cll.md # the shape of a quantifier and a sumti after a descriptor
 mi goi ko'a # grammars/syntax/cll.md # the shape of a goi clause
