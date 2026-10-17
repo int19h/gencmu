@@ -580,9 +580,9 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 ## Where the book leaves a choice
 
-In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
+The [word stream](stream.md#cll-and-magic-words) lists one more departure from CLL, the omitted pause after hesitation.
 
-The [word stream](stream.md#cll-and-magic-words) also lists the omitted pause after hesitation as a departure from CLL.
+In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
 
 ### Compound words and borrowings
 
