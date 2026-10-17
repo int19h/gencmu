@@ -223,14 +223,15 @@ The last nucleus of a cmavo is unstressed, or it is not followed by a consonant 
 
 A brivla cannot start where a cmavo begins. Unstressed initial rafsi precede its core, which contains the stressed syllable. The borrowing core excludes rafsi strings, including gismu starts and compound endings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. The `lujvo` conditions exclude both gismu and borrowings, so the three word classes cannot complete together.
 
+A borrowing cannot cross a y-hyphen or end before its nucleus y. Its head excludes the rafsi strings that describe the classical cores. A gismu has CCVCV or CVCCV shape. A CVV final has an apostrophe where neither gismu shape permits one.
+
+A stressed initial rafsi with a short final either contains a hyphen or differs from those shapes in letters or stress. A short final's diphthong cannot split into a gismu's final vowel and another word, because that vowel forbids a following nucleus. The apostrophe form of a stressed CVV rafsi starts with an unstressed vowel, while a CVV final starts with a stressed vowel.
+
 ```jbogenbau
 %rule brivla  (* A predicate word cannot start where a particle begins. Unstressed initial rafsi precede its stressed core. *)
   [{initial-rafsi}] brivla-core
 %conditions
   ¬$.onward.begins(cmavo)
-
-%rule initial-rafsis  (* Unstressed initial rafsi precede the stressed core. Only the full run reaches that core. *)
-  [{initial-rafsi}]
 
 %rule brivla-core  (* Borrowing heads exclude rafsi strings. The other cores differ in consonant positions, apostrophes, hyphens, or stress. *)
   | fuhivla
@@ -243,9 +244,8 @@ A brivla cannot start where a cmavo begins. Unstressed initial rafsi precede its
 
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>brivla</code> to <code>stressed-initial-rafsi</code></summary>
+<details><summary>Railroad diagrams of <code>brivla</code>, <code>brivla-core</code> and <code>stressed-initial-rafsi</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/brivla.svg" alt="Railroad diagram of the rule brivla"></p>
-<p><img src="../../docs/diagrams/words/bpfk/initial-rafsis.svg" alt="Railroad diagram of the rule initial-rafsis"></p>
 <p><img src="../../docs/diagrams/words/bpfk/brivla-core.svg" alt="Railroad diagram of the rule brivla-core"></p>
 <p><img src="../../docs/diagrams/words/bpfk/stressed-initial-rafsi.svg" alt="Railroad diagram of the rule stressed-initial-rafsi"></p>
 </details>
@@ -403,7 +403,7 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 %rule short-final-body        (* consonant diphthong / initial_pair vowel; the second letter is a vowel in one and a consonant in the other *)
   consonant diphthong | initial-pair vowel
 
-%rule stressed-y-rafsi  (* A stressed long rafsi or CVC rafsi ends before y. A long form leaves a consonant after its CVC prefix, so only one reaches y. *)
+%rule stressed-y-rafsi  (* A stressed long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. *)
   stressed-long-rafsi y | stressed-cvc-rafsi y
 
 %rule stressed-y-less-rafsi  (* CVC, CCV, and CVV differ in their second or third letter. The CVC form cannot end directly before y. *)
@@ -428,7 +428,7 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 %rule stressed-cvv-body       (* unstressed_vowel h stressed_vowel / stressed_diphthong; the second letter is an apostrophe in one and a vowel in the other *)
   unstressed-vowel h stressed-vowel | stressed-diphthong
 
-%rule y-rafsi  (* A long rafsi or CVC rafsi ends before y. A long form leaves a consonant after CVC. The following rafsi cannot start with apostrophe. *)
+%rule y-rafsi  (* A long rafsi or CVC rafsi ends before y. The forms differ in their second letter, or a consonant follows the CVC prefix before the long form reaches y. The following rafsi cannot start with apostrophe. *)
   (long-rafsi | cvc-rafsi) y [h]
 
 %rule y-less-rafsi  (* An unhyphenated rafsi excludes all hyphenated forms at its start. It cannot end directly before an apostrophe. *)
@@ -479,7 +479,7 @@ A rafsi followed by `'y` is a `hy_rafsi`. The BPFK grammar uses it only to end a
 %rule stressed-hy-rafsi       (* stressed_hy_rafsi <- (long_rafsi stressed_vowel / stressed_CCV_rafsi / stressed_CVV_rafsi) h y *)
   stressed-hy-rafsi-body h y
 
-%rule stressed-hy-rafsi-body  (* long_rafsi stressed_vowel / stressed_CCV_rafsi / stressed_CVV_rafsi; CVV differs from each of the others in its second or third letter, and long_rafsi differs from stressed_CCV_rafsi in its second letter or in the stress of its third *)
+%rule stressed-hy-rafsi-body  (* CVV differs in its second or third letter. The long form differs from stressed CCV in its second letter or third-letter stress. *)
   long-rafsi-stressed-vowel | stressed-ccv-rafsi | stressed-cvv-rafsi
 
 %rule long-rafsi-stressed-vowel  (* long_rafsi stressed_vowel *)
@@ -626,9 +626,6 @@ If a coda stands before another syllable, omitting it leaves consonants that can
 %conditions
   $c.following-tokens.begins(syllabic)
 
-%rule consonantal-syllables  (* Consonantal syllables cannot consume the start of a following vowel-bearing syllable. *)
-  [{consonantal-syllable}]
-
 %rule coda  (* A nonempty coda ends before a syllable or a pause. Those following boundaries cannot coincide. *)
   coda-before-syllable | coda-before-pause
 
@@ -688,12 +685,11 @@ If a coda stands before another syllable, omitting it leaves consonants that can
   a | e | i | o | u
 ```
 
-<details><summary>Railroad diagrams of the 16 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
+<details><summary>Railroad diagrams of the 15 rules from <code>any-syllable</code> to <code>vowel-letter</code></summary>
 <p><img src="../../docs/diagrams/words/bpfk/any-syllable.svg" alt="Railroad diagram of the rule any-syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
 <p><img src="../../docs/diagrams/words/bpfk/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/consonantal-syllable.svg" alt="Railroad diagram of the rule consonantal-syllable"></p>
-<p><img src="../../docs/diagrams/words/bpfk/consonantal-syllables.svg" alt="Railroad diagram of the rule consonantal-syllables"></p>
 <p><img src="../../docs/diagrams/words/bpfk/coda.svg" alt="Railroad diagram of the rule coda"></p>
 <p><img src="../../docs/diagrams/words/bpfk/coda-before-syllable.svg" alt="Railroad diagram of the rule coda-before-syllable"></p>
 <p><img src="../../docs/diagrams/words/bpfk/coda-before-pause.svg" alt="Railroad diagram of the rule coda-before-pause"></p>
@@ -1007,20 +1003,6 @@ Each consonant letter refuses a following apostrophe that begins a syllable, a g
 </details>
 
 
-
-## Apostrophe after a hyphen
-
-A following rafsi or core cannot start with an apostrophe. Thus omitting an available apostrophe after a y-hyphen leaves a letter that the next part cannot read. The helper below serves the experimental layer's borrowing rafsi.
-
-```jbogenbau
-%rule h-opt  (* A following rafsi or core cannot start with apostrophe, so only one optional choice completes. *)
-  [h]
-
-```
-
-<details><summary>Railroad diagram of <code>h-opt</code></summary>
-<p><img src="../../docs/diagrams/words/bpfk/h-opt.svg" alt="Railroad diagram of the rule h-opt"></p>
-</details>
 
 ## Differences from CLL and the reference PEG
 
