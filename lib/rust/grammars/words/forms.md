@@ -135,7 +135,7 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 %conditions
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
-    ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
+    ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
     ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
     ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
@@ -148,7 +148,9 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 
 
 
-A join permits two words without a pause. Each join is one branch of the second condition. For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
+A join permits two words without a pause. No two joins apply to the same pair. The general join excludes `Open-Stress`, which has its own join.
+
+For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
