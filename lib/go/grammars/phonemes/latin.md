@@ -4,13 +4,13 @@ This document adds to [latin-strict.md](latin-strict.md) the conventions that Lo
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-Most conventions here admit spellings that latin-strict.md rejects. Two change how it reads an existing spelling: a comma between vowels, and a capital run. A capital run has multiple vowel groups with only capital vowels. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
+Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and a silent run between pauses. A capital run has multiple vowel groups with only capital vowels. A silent run preserves ignored text in its own token. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
 - `h` writes the apostrophe.
 - A capital run carries no stress mark except its accents.
-- An accent marks stress, and a breve marks a glide.
+- An accent marks stress, and a breve marks a glide. A breve is the U+0306 mark. A glide is `i` or `u` before a vowel in one syllable.
 - A digit stands for its number word.
 
 ## Punctuation
@@ -29,7 +29,7 @@ The phoneme stage cannot know that a pause stands in a quote. So punctuation bet
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
-A pause core can hold punctuation, but not a stretch that holds an ignored character. Such a stretch between two cores is a silent run. It emits a `Silent` token between two pause tokens, so that a quote body keeps its text.
+An ignored character at a pause edge is a comma or a non-breaking format character. A pause core can hold punctuation, but not a stretch that holds such a character. Such a stretch between two cores is a silent run. It emits a `Silent` token between two pause tokens, so that a quote body keeps its text.
 
 ```jbogenbau
 %redefine-rule pause
@@ -273,7 +273,9 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So in bpfk and Zantufa, `mï` and `mi`U+093E are foreign. The experimental layer reads both marks ([latin-experimental.md](latin-experimental.md)).
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks.
+
+A combining mark that no letter rule takes makes its run foreign, whatever its category. So in bpfk and Zantufa, `mï` and `mi` followed by U+093E are foreign. The experimental layer reads both marks ([latin-experimental.md](latin-experimental.md)).
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅
@@ -428,17 +430,17 @@ A period between two digits is the decimal point in a foreign run too, so it bel
 
 ## Differences from CLL and the working morphology
 
-These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels and capital runs instead change readings that [latin-strict.md](latin-strict.md) also permits.
+These conventions extend CLL's Latin orthography. Most admit spellings that CLL does not describe. Commas between vowels, capital runs and silent runs between pauses change readings that [latin-strict.md](latin-strict.md) also permits.
 
-The working morphology calls `?` and `!` pauses through `space_char`. This document extends pauses to other punctuation, so it accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`. The morphology's letter rules skip preceding commas.
+The working morphology's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the working morphology rejects. It also accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`.
 
 camxes-std, the standard grammar of the camxes parser, also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. The phoneme stage cannot know whether a pause stands inside a quote.
 
 The working morphology ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
 
-CLL does not use `h` for the apostrophe. The working morphology accepts it through `h <- comma* ['h] &nucleus`, as this document does.
+CLL does not use `h` for the apostrophe. The working morphology accepts lowercase `h` through `h <- comma* ['h] &nucleus`. This document also reads capital `H` as an apostrophe, so `koHa` is `ko'a`, which the working morphology rejects.
 
-CLL does not define capital folding, accented vowels or breve glides. This document accepts those conventions. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
+CLL does not define capital folding, accented vowels or breve glides. The working morphology lacks these conventions too, and marks stress only with capital `A`, `E`, `I`, `O` and `U`. This document accepts those conventions, so it reads `KLAMA` as `klama`, while camxes-std rejects it. Capital folding supports titles and shouts, while requiring two vowel groups preserves stress in names with one capital syllable.
 
 PA is the number selma'o. The working morphology reads digits directly as PA words and also permits them inside names. This stage emits their letters instead. CLL does not write digits. A period between digits emits `pi` rather than a pause.
 

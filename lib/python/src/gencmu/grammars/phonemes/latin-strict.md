@@ -6,7 +6,9 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
-This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
+This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects include that document but turn its `cll-cyrillic` feature off by default. A feature is a named switch that the grammars test.
+
+Those dialects also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
@@ -95,7 +97,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 
 An ordinary run is letters. A run of adjacent vowel letters is one vowel group, and a group carries the tags of its last vowel. In the Latin orthography, a group is its vowels, one phoneme each.
 
-A script that writes no apostrophe tags its full vowel letters `Syllabic`. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [cyrillic.md](cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
+A script can tag its full vowel letters `Syllabic` to separate adjacent vowels without a written apostrophe. Two adjacent syllabic vowels form two syllables. `joined-vowel` inserts an apostrophe between them, with value `'` and no text of its own. [cyrillic.md](cyrillic.md) uses this rule. Each vowel of a group is its own token, so a group of three vowels keeps all three. Each vowel pair matches exactly one of the three cases, so a run has one parse.
 
 In cll-ebnf and kihei, a comma stands only between two letters of a run. Between two vowels it is the syllable break of CLL[^cll-s3-3], a token with value `,` and tag `Syllable-Break`. So `kore,a` is `e` and `a` in two syllables. CLL[^cll-s4-7] writes it so "because ea is not a valid diphthong". Anywhere else it is nothing, so `ban,gu` is `bangu`.
 

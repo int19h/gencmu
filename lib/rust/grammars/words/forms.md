@@ -27,7 +27,7 @@ The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold w
 
 A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
 
-A prolonged y run tests for the whole cmavo `bu` across one pause.
+A prolonged y run tests for `bu` across one pause. In the BPFK family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL family, it tests only the letters `bu`, even at the start of another word.
 
 In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
@@ -125,6 +125,8 @@ The stage reads the words of a run from the left. Each word after the first can 
 - `Final-Stress`, `Initial-Stress` and `Stress-Guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `Initial-Stress` cannot directly follow a word with `Final-Stress`.[^cll-s4-2] Neither can a brivla with `Stress-Guard` (pause rule 5).[^cll-s4-9]
 - `Open-Stress` and `Uncounted`: `Open-Stress` marks a brivla whose stress is not marked, and `Uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. The run carries `Open-Stress` on through them.
 
+A nucleus is the vowel or diphthong of a syllable.
+
 The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
@@ -156,7 +158,7 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. A word that only begins with `bu` does not split the run, so `yy buntu` keeps `yy` whole.
+Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
 `split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 

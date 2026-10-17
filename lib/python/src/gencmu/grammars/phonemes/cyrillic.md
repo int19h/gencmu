@@ -4,7 +4,7 @@ This document adds gencmu's Cyrillic orthography to the phoneme stage, the first
 
 A dialect that lists neither this document nor [cyrillic-cll.md](cyrillic-cll.md) reads a Cyrillic letter as foreign. [The notation document](../../docs/notation.md) explains the notation.
 
-The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
+The rules map Cyrillic letters to their Lojban phonemes. The consonant mappings are `ш` for `c`, `ж` for `j`, `х` for `x`, and the others in the obvious ways. `ъ`, the Bulgarian hard sign, is `y`. The rules also accept letters from other Cyrillic alphabets with the same or nearly the same sounds:
 
 - `э` and `є` for `e`
 - `і` for `i`
@@ -12,6 +12,7 @@ The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings 
 - `щ` for `c`
 - `ґ` for `g`
 - `ј` for the glide `i`, as `й`
+- `ў` and `Ў` for the glide `u`
 - `һ` as an explicit apostrophe
 - The palochka `ӏ` as a period
 
@@ -52,7 +53,7 @@ The consonant rules map Cyrillic letters to their Lojban phonemes. The mappings 
 <p><img src="../../docs/diagrams/phonemes/cyrillic/cyrillic-period.svg" alt="Railroad diagram of the rule cyrillic-period"></p>
 </details>
 
-The orthography has no apostrophe between vowels. Two adjacent vowel letters are two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`.
+Two adjacent full Cyrillic vowel letters form two syllables, so `аи` is `a'i`. The orthography writes a diphthong with the short forms `й` and `ў`, so `ай` is `ai`.
 
 So a full vowel letter carries the tag `Syllabic`, which the vowel-group rules of [latin-strict.md](latin-strict.md) read. The stage inserts an apostrophe between adjacent syllabic vowels. `й`, `ј` and `ў`, the glides, carry no such tag, and they join the vowel beside them into a diphthong.
 

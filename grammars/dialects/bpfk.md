@@ -4,6 +4,8 @@ This dialect combines syntax from *The Complete Lojban Language* (CLL) with the 
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
+A tag marks a token by an identifier.
+
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
@@ -140,11 +142,13 @@ A text that remains ambiguous after terminator restoration is an error. The CLL 
 
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. CLL 1.3.4[^cll-later-a3-1] keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
-A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology has extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology uses extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
 
 CLL 1.3.4[^cll-later-s4-16] already teaches the borrowing form, as in `spageti'ykukte`.
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
+
+This dialect accepts `kyyykerlo`, which full camxes-std rejects through its lexer wrapper. The [word-form document](../words/bpfk.md#words) explains why its morphology-only parser accepts the same division.
 
 ### Syntax decisions
 
