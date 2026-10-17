@@ -22,7 +22,7 @@ FUhE opens an indicator group. The [indicator document](../indicators/cll.md#dif
 
 ## Erasure boundary
 
-A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
+A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last surviving `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
 
 ```jbogenbau
 %features su-boundary
@@ -164,7 +164,7 @@ In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and 
 
 ### Erasure and elision
 
-Like cll-ebnf and kihei, this dialect preserves the last NIhO, LU, TUhE, or TO word when SU erases back to it. The policy follows the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std. The [word stream](../words/stream.md#cll-and-magic-words) explains this departure from the whole-text reading of CLL[^cll-s19-13].
+SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in cll-ebnf and kihei. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std supply these boundaries. The [word stream](../words/stream.md#cll-and-magic-words) explains the LU and TO agreement with CLL and the NIhO and TUhE departures from CLL[^cll-s19-13].
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 

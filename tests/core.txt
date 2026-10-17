@@ -5711,3 +5711,9 @@ adhoc.words.kihei.shared-erasure.8
 adhoc.su.current-subordinate-text.cll-ebnf
 adhoc.su.current-subordinate-text.bpfk
 adhoc.su.current-subordinate-text.kihei
+adhoc.v0.morphology.basic.su-erases-to-previous-lu
+adhoc.v0.morphology.basic.su-erases-to-previous-lu.bpfk
+adhoc.v0.syntax.basic.su-erases-to-previous-lu
+adhoc.v0.syntax.basic.su-erases-to-previous-lu.bpfk
+adhoc.values.su-survivor.spaced.kihei
+adhoc.values.su-survivor.unspaced.kihei

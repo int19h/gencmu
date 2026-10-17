@@ -138,7 +138,9 @@ In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails af
 
 ## Differences from CLL and the official parser
 
-SU stops at the last NIhO, LU, TUhE, or TO word, which survives. Kihei inherits this policy. The [word stream](../words/stream.md#cll-and-magic-words) explains this departure from the whole-text reading of CLL 19.13. The dialect follows Magic Words and camxes-std.
+SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std supply the boundaries. Kihei inherits this policy.
+
+The LU and TO stops agree with CLL's subordinate texts, as the [word stream](../words/stream.md#cll-and-magic-words) explains. The NIhO and TUhE stops depart from CLL[^cll-s19-13] under any reading.
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
@@ -149,6 +151,8 @@ The [indicator document](../indicators/cll.md#quotation-boundaries) defines quot
 The dialect chooses `late-elision` and `elision-only` to fit CLL's conventions. Note 10 does not specify them. It does not say which parse a text has when the grammar allows more than one. Nor does it say how to find that no ambiguity results. `elision-only` tests one completion, as described above. "Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) separates terminator advice, parser limitations, and boundaries that the whole text forces.
 
 Under this policy, `le nanmu joi le ninmu cu klama` parses with KU elided at the boundary that CLL[^cll-s14-14] intends. CLL describes the official parser's failed left-to-right reading. "Elision policy and CLL advice" in [the CLL grammar](../syntax/cll.md#elision-policy-and-cll-advice) explains the same kind of forced boundary in the examples[^cll-e8-48][^cll-e8-62]. CLL describes their merged readings without naming the official parser. The elision policy disagrees with no specific text of CLL.
+
+[^cll-s19-13]: [CLL 1.1, section 19.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-erasure.html).
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
