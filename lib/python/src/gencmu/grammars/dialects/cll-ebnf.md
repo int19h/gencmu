@@ -130,9 +130,9 @@ Among parses with equal flagged groups, `late-elision` prefers the parse that om
 
 `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses, and its description ends before `se farvi`. If terminators, the grammar's flag, and grammar conditions leave an ambiguity unresolved, the text is an error that shows both readings.
 
-A tanru is a compound predicate. A tanru unit is one part of a tanru. A bridi-tail is a predicate with its following terms. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`.
+A tanru is a compound predicate. A tanru unit is one part of a tanru. A bridi-tail is a predicate with its following terms. The CLL grammar settles two connective ambiguities with a ranked choice and a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`.
 
-The printed grammar also reads `joi` before a tanru unit that begins with `ke`. The rules `plain-joik-jek` and `joik-before-ke` of the CLL grammar remove that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect keeps it, as the printed grammar does.
+The printed grammar also reads `joi` before a tanru unit that begins with `ke`. The ranked choice in `selbri-4` of the CLL grammar removes that second reading. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect keeps it, as the printed grammar does.
 
 In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. The ranking ties or takes that reading. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the dialect keeps it.
 

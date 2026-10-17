@@ -23,7 +23,7 @@
 # node tools/quoted-texts.js checks it.
 
 # Parts of texts that the sentences make claims about.
-ke brode ke'e bo brodi # grammars/syntax/cll.md @ "The plain joik reading remains" @ "The official lexer makes" = selbri-5-not-ke-group adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
+ke brode ke'e bo brodi # grammars/syntax/cll.md @ "The plain joik reading remains" @ "The official lexer makes" = selbri-5 adhoc.syntax.joik-ke-group-then-bo adhoc.syntax.joik-ke-group-then-bo.bpfk
 se se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.se-se-unit adhoc.syntax.se-se-unit.bpfk
 na'e se broda # grammars/syntax/cll.md = tanru-unit-2 adhoc.syntax.nahe-se-unit adhoc.syntax.nahe-se-unit.bpfk
 pa xy. # grammars/syntax/cll.md = number adhoc.syntax.number-then-lerfu adhoc.syntax.number-then-lerfu.bpfk

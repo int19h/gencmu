@@ -430,9 +430,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 
 %rule selbri-4
   | selbri-5
-  | selbri-4 plain-joik-jek selbri-5
-  | selbri-4 joik-before-ke selbri-5-not-ke-group
-  | selbri-4 joik [stag] KE # selbri-3 [+KEhE #]
+  | selbri-4 (joik [stag] KE # selbri-3 [+KEhE #] ≻ joik-jek selbri-5)
 
 %rule selbri-5
   {selbri-6 ... / (jek | joik) [stag] BO #}
@@ -510,7 +508,7 @@ The first level of the chain is one `mex-1`, the first operand. Each later level
 
 Operators have their own connectives and grouping, in the same shape as selbri. `operator` joins operators by jek or joik or a `ke` group. These connections group from the left[^cll-s14-7][^cll-s14-17]. `operator`, like `selbri-4`, is written with left recursion, so the tree shows that grouping.
 
-As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
+As in `selbri-4`, a ranked choice prefers the connective's `ke` group over a plain `joik-jek` connection across the same span. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
 
 A simple `mex-operator` is a VUhU word, possibly converted by `se` or negated by `na'e`. It can also be an operator made from a mekso through `ma'o`, or a selbri used as an operator through `na'u`. `te'u` closes these last two.
 
@@ -548,9 +546,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 %rule operator
   | operator-1
-  | operator plain-joik-jek operator-1
-  | operator joik-before-ke operator-1-not-ke-group
-  | operator joik [stag] KE # operator [+KEhE #]
+  | operator (joik [stag] KE # operator [+KEhE #] ≻ joik-jek operator-1)
 
 %rule operator-1
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
@@ -630,15 +626,13 @@ Lojban has one set of logical connectives, spelled differently for each level of
 
 Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`, possibly bounded by `ga'o` or `ke'i`[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
-The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, four rules prefer the `ke` group. Both readings elide the same terminators, so elision ranking cannot choose between them. The printed grammar has a dedicated `joik [stag] KE` form for this reading. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
-
-`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
+The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
 In cll-ebnf, kihei, and bpfk, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
 
 A jek has no connective-plus-`ke` form, so `mi broda je ke brode ke'e` keeps its plain reading. The plain joik reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
-The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no `ke` form, so the condition does not apply to it.
+The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no dedicated `ke` form.
 
 A gek is a forethought logical connective, a joik used in forethought with `gi`, or a tense with `gi` (`pu gi ... gi`). A gik separates the two halves: `gi`, optionally negated. A guhek is the forethought connective of tanru units.
 
@@ -666,27 +660,6 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 %rule joik-jek
   joik # | jek #
 
-%rule plain-joik-jek
-  | $j:joik #
-  | jek #
-%conditions
-  KE ⊈ $j.following-tokens.first-token.tags
-
-%rule joik-before-ke
-  $j:joik #
-%conditions
-  KE ⊆ $j.following-tokens.first-token.tags
-
-%rule selbri-5-not-ke-group
-  $u:selbri-5
-%conditions
-  $u ≇ $KE-UNIT
-
-%rule operator-1-not-ke-group
-  $u:operator-1
-%conditions
-  $u ≇ $KE-UNIT
-
 %rule gek
   [SE] GA [NAI] # | joik GI # | stag gik
 
@@ -697,7 +670,7 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   GI [NAI] #
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>ek</code> to <code>gik</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>ek</code> to <code>gik</code></summary>
 <p><img src="../../docs/diagrams/syntax/cll/ek.svg" alt="Railroad diagram of the rule ek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/jek.svg" alt="Railroad diagram of the rule jek"></p>
@@ -705,10 +678,6 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 <p><img src="../../docs/diagrams/syntax/cll/interval.svg" alt="Railroad diagram of the rule interval"></p>
 <p><img src="../../docs/diagrams/syntax/cll/joik-ek.svg" alt="Railroad diagram of the rule joik-ek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/joik-jek.svg" alt="Railroad diagram of the rule joik-jek"></p>
-<p><img src="../../docs/diagrams/syntax/cll/plain-joik-jek.svg" alt="Railroad diagram of the rule plain-joik-jek"></p>
-<p><img src="../../docs/diagrams/syntax/cll/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
-<p><img src="../../docs/diagrams/syntax/cll/selbri-5-not-ke-group.svg" alt="Railroad diagram of the rule selbri-5-not-ke-group"></p>
-<p><img src="../../docs/diagrams/syntax/cll/operator-1-not-ke-group.svg" alt="Railroad diagram of the rule operator-1-not-ke-group"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gik.svg" alt="Railroad diagram of the rule gik"></p>
@@ -878,15 +847,15 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes and says that FUhO "cancels all in-force attitudinals". This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
 
    A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
-6. In `selbri-4` and `operator`, four rules prefer the connective's `ke` group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. One joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the first parse.
+6. In `selbri-4` and `operator`, ranked choices prefer the connective's `ke` group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. One joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the first parse.
 
-   `plain-joik-jek` and `joik-before-ke` test whether KE follows the joik. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. The condition applies only where the two parses compete.
+   Each choice puts the dedicated KE option first and the plain `joik-jek` connection second. The options compete only when they read the same span.
 
    In `mi broda joi ke brode ke'e bo brodi`, the group cannot take `bo brodi`, so only the plain reading parses. There `joi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official lexer makes `joi ke` one token there too, so it rejects the text. This grammar keeps the plain reading, as the printed grammar does.
 
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. Item 6 uses `$KE-UNIT` for its constructed unit.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 
