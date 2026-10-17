@@ -25,9 +25,15 @@ The text is runs and pauses. A run is a stretch of text with no pause inside. Th
 
 The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
-A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads. A prolonged y run tests whether BU follows across one pause. In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
+A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
+
+A prolonged y run tests for the letters `bu` across one pause. The test does not require a whole BU word. Both pieces remain hesitation before another word, so the split changes no reading.
+
+In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
+
+A `Silent` token from [latin.md](../phonemes/latin.md) preserves ignored source text between pauses. This stage preserves its strings and adds `Run-Initial` and `Run-Final`.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
@@ -115,9 +121,9 @@ The stage reads the words of a run from the left. Each word after the first can 
 - `Onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
 - `Continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
 - `Name-Intro` and `Name-Onset`: `Name-Intro` marks `la`, `lai`, `la'i` and `doi`, and `Name-Onset` marks a name that begins with a consonant. The name can follow the cmavo directly (rule 4).
-- `Cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6)
+- `Cy`: A `Cy` letter, which only another `Cy` letter can follow directly (rule 6).
 - `Final-Stress`, `Initial-Stress` and `Stress-Guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `Initial-Stress` cannot directly follow a word with `Final-Stress`.[^cll-s4-2] Neither can a brivla with `Stress-Guard` (pause rule 5).[^cll-s4-9]
-- `Open-Stress` and `Uncounted`: `Open-Stress` marks a brivla whose stress is not marked, and `Uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] counts a brivla's syllables to the next pause, so only words with no counted syllable can follow it in its run. The run carries `Open-Stress` on through them.
+- `Open-Stress` and `Uncounted`: `Open-Stress` marks a brivla whose stress is not marked, and `Uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. The run carries `Open-Stress` on through them.
 
 The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
@@ -129,7 +135,7 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 %conditions
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
-    ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
+    ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
     ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
     ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,
@@ -142,13 +148,15 @@ The BPFK word forms set only `Onset` and `Continued`, with the meaning that the 
 
 
 
-A join permits two words without a pause. This document states the joins so that no two joins apply to the same pair. For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
+A join permits two words without a pause. No two joins apply to the same pair. The general join excludes `Open-Stress`, which has its own join.
+
+For example, in the CLL family, a word tagged `Cy` never carries `Continued`. So only the `Cy` rule joins two `Cy` letters there, and the general join, a continued word followed by an onset, never follows one. The BPFK word forms tag no word `Cy`. They join a `Cy`-shaped word such as `fy` by the general join, so `fyno` is `fy` and `no`.
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause.
+Before the letters `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The test accepts the prefix of another word too. Both pieces remain hesitation there, so the words stage reads the same text.
 
 `split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
@@ -246,7 +254,9 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-Hesitation needs no pause after it, as the Magic Words proposal says. The words stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+CLL[^cll-s19-14] requires pauses before and after `.y.`. These dialects omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
+
+The words stage drops hesitation, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 
 ```jbogenbau
 %rule hesitation-shape
@@ -276,3 +286,5 @@ camxes-std, the standard grammar of the camxes parser, rejects the whole text `k
 [^cll-s17-4]: [CLL 1.1, section 17.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-bu.html).
 
 [^cll-s3-3]: [CLL 1.1, section 3.3](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-lojban-characters.html).
+
+[^cll-s19-14]: [CLL 1.1, section 19.14](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-hesitation.html).

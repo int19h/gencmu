@@ -134,7 +134,7 @@ const supplied = dialect.parse("A", {
 result.ok; result.tree; result.error; result.warnings;
 dialect.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
                   //  { name: "sa-su", kind: "gate", default: false },
-                  //  { name: "su-boundary", kind: "gate", default: false },
+                  //  { name: "su-boundary", kind: "gate", default: true },
                   //  { name: "y-cmavo", kind: "warning", default: false }]
 toJson(result); toBrackets(result, { showElided: true });
 ```
@@ -160,7 +160,7 @@ supplied = dialect.parse_tokens(tokens, "A", until="phonemes", auto_features=Fal
 result.ok, result.tree, result.error, result.warnings
 dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
                   #  Feature(name="sa-su", kind="gate", default=False),
-                  #  Feature(name="su-boundary", kind="gate", default=False),
+                  #  Feature(name="su-boundary", kind="gate", default=True),
                   #  Feature(name="y-cmavo", kind="warning", default=False))
 gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
@@ -191,7 +191,7 @@ supplied, err := dialect.ParseTokens("A", []gencmu.InputToken{{
 }}, gencmu.ParseOptions{Until: "phonemes", NoAutoFeatures: true})
 dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
                    //   {Name: "sa-su", Kind: "gate", Default: false},
-                   //   {Name: "su-boundary", Kind: "gate", Default: false},
+                   //   {Name: "su-boundary", Kind: "gate", Default: true},
                    //   {Name: "y-cmavo", Kind: "warning", Default: false}}
 data, err := gencmu.MarshalResult(result)
 gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})

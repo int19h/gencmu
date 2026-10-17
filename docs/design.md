@@ -617,7 +617,7 @@ The cll-ebnf and bpfk dialects each name their reading in their pipeline documen
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble prepares the words for its grammar and joins runs of them into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. A word-level rule therefore does not express the same policy.
 
-A dialect that reads as the official parser does needs that preparser as a separate stage ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. The CLL conditions on plain joik and gihek settle these overlaps ("Syntax conventions" below).
+A dialect that reads as the official parser does needs that preparser as a separate stage ([issue 28](https://github.com/int19h/gencmu/issues/28)). The same preparser settles ambiguities that the printed grammar leaves open, such as a gihek or joik directly before `ke`. The CLL grammar settles these overlaps with a ranked joik choice and a gihek condition ("Syntax conventions" below).
 
 Two connected sumti can also parse as connected terms in the experimental grammar. A sumti is an argument of a predicate. A term is a wider kind of argument that includes sumti. The experimental rule for sumti connections selects the sumti reading of `mi .e do klama` and `mi .e bo do klama`.
 
@@ -627,17 +627,17 @@ A parse option overrides `elision-only` either way. A caller switches it on to f
 
 The syntax stages of all five bundled Lojban dialects use `late-elision`. The `cll-ebnf`, `kihei` and `bpfk` dialects also declare `elision-only`.
 
-The CLL grammar applies the condition that the official parser's lexer applies with `JOIK_KE`. A plain joik is a joik in the ordinary connective alternative of a rule, which joins two units. It is not the joik of the dedicated alternative `joik [stag] KE … KEhE`, which groups with the connective itself. Where both alternatives can read the same words, a unit that starts with `ke` cannot directly follow a plain joik.
+The CLL grammar expresses the official lexer's `JOIK_KE` preference with a ranked choice. Its preferred option groups with `joik [stag] KE … KEhE`. Its plain option joins two units with `joik-jek`. The preferred option removes the plain reading only over the same span.
 
-The condition stands in `selbri-4` and in `operator`, the two rules where a joik overlap exists. It removes the plain reading only where the unit after the joik is only a `ke` group, so that the two readings compete. So `mi broda joi ke brode ke'e bo brodi` keeps its one plain reading, as in the printed grammar and camxes. The official parser rejects it. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. In the same way, `li ci su'i joi ke pi'i ke'e re du li xa` keeps only the operator's own `ke` group.
+The choices stand in `selbri-4` and `operator`, where the readings overlap. So `mi broda joi ke brode ke'e` keeps only its reading through `joik KE selbri-3 KEhE`. Likewise, `li ci su'i joi ke pi'i ke'e re du li xa` keeps the operator's own `ke` group. Where only the plain reading parses, the grammar keeps it, as in `mi broda joi ke brode ke'e bo brodi`. The official parser rejects that last text.
 
-The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no condition.
+The `sumti` and `operand` rules have a joik-plus-`ke` alternative too, but no competing alternative, so they need no ranked preference.
 
-The condition covers no jek, because the dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
+The dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one reading, a jek before a tanru unit grouped with `ke`.
 
 The CLL grammar also applies the condition that the official parser's lexer applies with `GIhEK_KE`, in the rule `bridi-tail-1-final` of the CLL grammar. The `ke` form of `bridi-tail` groups the tails after a gihek, as in `mi broda gi'e ke brode ke'e`. A plain gihek can read the same words. "Sentences and bridi-tails" in [the CLL grammar](../grammars/syntax/cll.md) states the condition, which removes the plain reading in some of these texts. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the grammar keeps it, as the printed grammar does. The official parser rejects that text.
 
-The experimental dialect redefines `selbri-4` and `operator`, so a condition on the CLL definitions does not reach it (engine §2). Its own definitions of both rules state the same condition. It also redefines `bridi-tail` and `bridi-tail-1`, so the CLL gihek condition does not reach it either. The CLL rule `bridi-tail-1-final` is unused there. The `audit` report lists it as unreachable in that dialect. It also states three conventions as rules:
+The experimental dialect redefines `selbri-4` and `operator`, with the same ranked KE preference. It also redefines `bridi-tail` and `bridi-tail-1`, so the CLL gihek condition does not reach it either. The CLL rule `bridi-tail-1-final` is unused there. The `audit` report lists it as unreachable in that dialect. It also states three conventions as rules:
 
 - A connection that can be a sumti connection is a sumti connection, and not a connection of terms.
 - A `be` group attaches to the preceding unit when there is one.

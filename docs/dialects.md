@@ -181,7 +181,7 @@ Use example filenames that do not clash with your own files. The commands below 
    ````text
    cll-cyrillic            gate     on
    sa-su                   gate     off
-   su-boundary             gate     off
+   su-boundary             gate     on
    y-cmavo                 warning  off
    ````
 

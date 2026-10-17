@@ -1319,6 +1319,8 @@ cll.6.5.c6e2d1
 corpus.camxes.1072
 adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti
 adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+adhoc.syntax.gihek-ke-inside-be
+adhoc.syntax.gihek-ke-inside-be.bpfk
 adhoc.syntax.gihek-ke-inside-nu-sumti
 adhoc.syntax.gihek-ke-inside-nu-sumti.bpfk
 adhoc.syntax.gihek-tense-ke-group-elided-inner-ku
@@ -5706,3 +5708,15 @@ adhoc.words.kihei.shared-erasure.5
 adhoc.words.kihei.shared-erasure.6
 adhoc.words.kihei.shared-erasure.7
 adhoc.words.kihei.shared-erasure.8
+adhoc.su.current-subordinate-text.cll-ebnf
+adhoc.su.current-subordinate-text.bpfk
+adhoc.su.current-subordinate-text.kihei
+adhoc.v0.morphology.basic.su-erases-to-previous-lu
+adhoc.v0.morphology.basic.su-erases-to-previous-lu.bpfk
+adhoc.v0.syntax.basic.su-erases-to-previous-lu
+adhoc.v0.syntax.basic.su-erases-to-previous-lu.bpfk
+adhoc.values.su-survivor.spaced.kihei
+adhoc.values.su-survivor.unspaced.kihei
+adhoc.su.departure-open.experimental
+adhoc.su.departure-closed.kihei
+adhoc.su.departure-closed.experimental

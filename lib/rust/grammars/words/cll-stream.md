@@ -8,7 +8,7 @@ The word forms admit a cmavo with `y` as one more vowel unit. Examples are `ka'y
 
 This stage reads the word under the warning `y-cmavo`. The stage always reads the word. A feature is a named switch that the grammars test. A caller who turns on the feature `y-cmavo` gets a warning for each such word.
 
-The stage gives the warning where it reads the word as a Lojban word. That is, the word can be a word of the text, a quoted word, or a word inside `lo'u ... le'u`. It can also be a `zoi` delimiter or an operand of `zei`, erased or not. The warning is absent for the word inside a `zoi` body or after `fa'o`, because the stage does not read that word as Lojban.
+The stage gives the warning where it reads the word as a Lojban word. That is, the word can be a word of the text, a quoted word, or a word inside `lo'u ... le'u`. It can also be either `zoi` delimiter or an operand of `zei`, erased or not. Each delimiter warns when it is a `y`-cmavo. The warning is absent for the word inside a `zoi` body or after `fa'o`, because the stage does not read that word as Lojban.
 
 ```jbogenbau
 %redefine-rule cmavo-token

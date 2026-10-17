@@ -1,50 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="771" height="250" viewBox="0 0 771 250" role="img" aria-label="Railroad diagram of the rule selbri-4-not-starting-with-ke">
-<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<svg xmlns="http://www.w3.org/2000/svg" width="822" height="256" viewBox="0 0 822 256" role="img" aria-label="Railroad diagram of the rule selbri-4-not-starting-with-ke">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}.rank-frame{fill:none;stroke:#777;stroke-width:1;stroke-dasharray:3 3}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text>
 <path d="M10 38v16m4 -16v16M14 46h6"/>
 <path d="M20 46h20"/>
 <g class="rule"><rect x="40" y="34" width="260" height="24" rx="0"/><text x="170" y="51" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-5-not-starting-with-ke</text></g>
-<path d="M300 46H751"/>
+<path d="M300 46H802"/>
 <path d="M20 46a10 10 0 0 1 10 10V70a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="68" width="260" height="24" rx="0"/><text x="170" y="85" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
-<path d="M300 80h10"/>
-<g class="rule"><rect x="310" y="68" width="151" height="24" rx="0"/><text x="385.5" y="85" textLength="134.4" lengthAdjust="spacingAndGlyphs">plain-connective</text></g>
-<path d="M461 80h10"/>
-<g class="rule"><rect x="471" y="68" width="84" height="24" rx="0"/><text x="513" y="85" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
-<path d="M555 80H731a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V104a10 10 0 0 0 10 10"/>
-<g class="rule"><rect x="40" y="102" width="260" height="24" rx="0"/><text x="170" y="119" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
-<path d="M300 114h10"/>
-<g class="rule"><rect x="310" y="102" width="134" height="24" rx="0"/><text x="377" y="119" textLength="117.6" lengthAdjust="spacingAndGlyphs">joik-before-ke</text></g>
-<path d="M444 114h10"/>
-<g class="rule"><rect x="454" y="102" width="193" height="24" rx="0"/><text x="550.5" y="119" textLength="176.4" lengthAdjust="spacingAndGlyphs">selbri-5-not-ke-group</text></g>
-<path d="M647 114H731a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M20 46a10 10 0 0 1 10 10V148a10 10 0 0 0 10 10"/>
-<path d="M40 158h20"/>
-<g class="rule"><rect x="60" y="146" width="260" height="24" rx="0"/><text x="190" y="163" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
-<path d="M320 158h10"/>
-<g class="rule"><rect x="330" y="146" width="109" height="24" rx="0"/><text x="384.5" y="163" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-jek-ek</text></g>
-<path d="M439 158h10"/>
-<path d="M449 158h20"/>
-<g class="rule"><rect x="469" y="146" width="50" height="24" rx="0"/><text x="494" y="163" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
-<path d="M519 158H539"/>
-<path d="M449 158a10 10 0 0 0 10 -10V146a10 10 0 0 1 10 -10H519a10 10 0 0 1 10 10V148a10 10 0 0 0 10 10"/>
-<path d="M539 158h10"/>
-<g class="terminal"><rect x="549" y="146" width="33" height="24" rx="12"/><text x="565.5" y="163" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
-<path d="M582 158h10"/>
-<g class="rule"><rect x="592" y="146" width="25" height="24" rx="0"/><text x="604.5" y="163" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M617 158h10"/>
-<g class="rule"><rect x="627" y="146" width="84" height="24" rx="0"/><text x="669" y="163" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-3</text></g>
-<path d="M711 158H711a10 10 0 0 1 10 10V170a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V218a10 10 0 0 0 10 10"/>
-<path d="M60 228h20"/>
-<g class="terminal"><rect x="80" y="216" width="50" height="24" rx="12"/><text x="105" y="233" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
-<path d="M130 228H152"/>
-<path d="M60 228a10 10 0 0 0 10 -10V216a10 10 0 0 1 10 -10H132a10 10 0 0 1 10 10V218a10 10 0 0 0 10 10"/>
-<text class="label" x="84" y="201" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M152 228h10"/>
-<g class="rule"><rect x="162" y="216" width="25" height="24" rx="0"/><text x="174.5" y="233" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M187 228H731"/>
-<path d="M731 228H731a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
-<path d="M751 46h6m0 -8v16m4 -16v16"/>
+<path d="M40 80h20"/>
+<g class="rule"><rect x="60" y="68" width="260" height="24" rx="0"/><text x="190" y="85" textLength="243.6" lengthAdjust="spacingAndGlyphs">selbri-4-not-starting-with-ke</text></g>
+<path d="M320 80H762a10 10 0 0 1 10 10V92a10 10 0 0 1 -10 10H60a10 10 0 0 0 -10 10V150a10 10 0 0 0 10 10"/>
+<path d="M60 160h88"/>
+<text class="label" x="64" y="155" textLength="79.2" lengthAdjust="spacingAndGlyphs">≻ same span</text>
+<path d="M148 160h10"/>
+<g class="ranked-choice"><rect class="rank-frame" x="163" y="117" width="594" height="98" rx="4"/>
+<path d="M158 160h10"/>
+<path d="M168 160h20"/>
+<path d="M188 160h16"/>
+<text class="label" x="192" y="155" textLength="7.2" lengthAdjust="spacingAndGlyphs">1</text>
+<path d="M204 160h10"/>
+<g class="rule"><rect x="214" y="148" width="109" height="24" rx="0"/><text x="268.5" y="165" textLength="92.4" lengthAdjust="spacingAndGlyphs">joik-jek-ek</text></g>
+<path d="M323 160h10"/>
+<path d="M333 160h20"/>
+<g class="rule"><rect x="353" y="148" width="50" height="24" rx="0"/><text x="378" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M403 160H423"/>
+<path d="M333 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H403a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<path d="M423 160h10"/>
+<g class="terminal"><rect x="433" y="148" width="33" height="24" rx="12"/><text x="449.5" y="165" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M466 160h10"/>
+<g class="rule"><rect x="476" y="148" width="25" height="24" rx="0"/><text x="488.5" y="165" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M501 160h10"/>
+<g class="rule"><rect x="511" y="148" width="84" height="24" rx="0"/><text x="553" y="165" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-3</text></g>
+<path d="M595 160h10"/>
+<path d="M605 160h20"/>
+<g class="terminal"><rect x="625" y="148" width="50" height="24" rx="12"/><text x="650" y="165" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M675 160H697"/>
+<path d="M605 160a10 10 0 0 0 10 -10V148a10 10 0 0 1 10 -10H677a10 10 0 0 1 10 10V150a10 10 0 0 0 10 10"/>
+<text class="label" x="629" y="133" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M697 160h10"/>
+<g class="rule"><rect x="707" y="148" width="25" height="24" rx="0"/><text x="719.5" y="165" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M732 160H752"/>
+<path d="M168 160a10 10 0 0 1 10 10V188a10 10 0 0 0 10 10"/>
+<path d="M188 198h16"/>
+<text class="label" x="192" y="193" textLength="7.2" lengthAdjust="spacingAndGlyphs">2</text>
+<path d="M204 198h10"/>
+<g class="rule"><rect x="214" y="186" width="100" height="24" rx="0"/><text x="264" y="203" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
+<path d="M314 198h10"/>
+<g class="rule"><rect x="324" y="186" width="84" height="24" rx="0"/><text x="366" y="203" textLength="67.2" lengthAdjust="spacingAndGlyphs">selbri-5</text></g>
+<path d="M408 198H732a10 10 0 0 0 10 -10V170a10 10 0 0 1 10 -10"/>
+<path d="M752 160h10"/>
+</g>
+<path d="M762 160H782"/>
+<path d="M782 160H782a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<path d="M802 46h6m0 -8v16m4 -16v16"/>
+<text class="label" x="10" y="242" textLength="734.4" lengthAdjust="spacingAndGlyphs">A qualified higher proof removes a lower proof only over the same span and with dominating open facts.</text>
 </svg>

@@ -31,7 +31,7 @@ The stages before it make the word stream that it reads. The forms stage ([forms
 
 The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished quote from the words stage arrives as one token of its opening class.
 
-[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
+[The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as the section "Choosing among parses" says.
 
 CLL writes repetition as `x ...`, and the notation writes it with braces. CLL's notation note 7 calls `...` "optional repetition of the construct to the left".[^cll-s21-1] So CLL's `x ...` is `{x}` here, one `x` and optionally more, and CLL's `[x] ...` or `[x ...]` is `[{x}]`, which allows none.
 
@@ -157,6 +157,8 @@ The bridi-tail levels state how sentences share a head under a gihek, the connec
 
 `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`. The brackets group the tails inside them against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
 
+`late-elision` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
+
 After a plain gihek, `ke` can begin either a group of tails or a tanru unit of the next tail. Elided terminators cannot reliably choose between those readings. In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`, and the tanru parse elides nothing there. So `late-elision` takes the tanru parse.
 
 CLL groups tails with `ke` after a gihek, with any tense before `ke` on the connective.[^cll-s14-10][^cll-s14-18] A condition on the last tail after a plain gihek prefers that group. `$KE-TAIL` tests the structure of that actual tail. A structural pattern describes a node or its children. Patterns pass through single-child wrappers and retain written or omitted terminator nodes.
@@ -165,6 +167,10 @@ CLL groups tails with `ke` after a gihek, with any tense before `ke` on the conn
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It separates the last plain connection from the earlier connections in `bridi-tail-1`. Only that connection can compete with the `ke` form of `bridi-tail`. The grouped form reads one `ke` group last, followed by one run of tail terms.
 
+A ranked choice over the whole `bridi-tail` span filters readings before `late-elision` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. The condition applies only to the last plain connection, so `late-elision` still sees that reading. This grammar reads it as `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
+
+Unlike a whole `bridi-tail` choice, the `selbri-4` and `operator` choices share their left operand, so they cannot move connections outside it.
+
 The `ke` form of `bridi-tail` overlaps a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition.
 
 So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective.
@@ -172,6 +178,8 @@ So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one pars
 In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is in the outer tail terms, after `ke'e`. Tail terms after a connection of tails apply to both sides of it[^cll-s14-9][^cll-e14-54]. So `le zarci` applies to `broda` and to the group.
 
 The tree still shows the whole left grouping of plain giheks[^cll-s14-10], since `bridi-tail-1` groups to the left. So four tails group as `((A gi'e B) gi'a C) gi'u D`.
+
+`elision-only` rejects ranked parses whose restored terminators leave ambiguity. ["Choosing among parses"](#choosing-among-parses) defines this test.
 
 A lookahead tests the input that follows a construct. The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition tests that tail's structure and the text of its tail terms. The `elision-only` test writes back elided terminators, but these tests still read the original words.
 
@@ -252,7 +260,7 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 A term is one argument of a bridi, or one tense or modal standing on its own[^cll-s9-3][^cll-s10-13][^cll-s16-11]. It is one of these:
 
 - A sumti
-- A sumti or an elided `ku` after a tense, a modal or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
+- A sumti, or `ku` written or elided, after a tense, a modal or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
 - A termset
 - A termset after a tense or modal tag
 - `na ku`, the sentence-level negation written as a term
@@ -302,7 +310,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 
 `sumti-5` places the outer quantifier. A number before a sumti-6 counts its referents: `re lo gerku`. A quantifier directly before a selbri makes a sumti with an implicit `lo`, `re gerku`, whose `ku` is elidable[^cll-s6-8]. Relative clauses can follow either.
 
-`sumti-6` is the closed list of simple sumti. A LAhE word such as `la'e`, or a NAhE word with `bo` such as `na'e bo`, makes a sumti from the referent of another sumti. Relative clauses can stand inside. `lu'u` closes the resulting sumti. `KOhA` is a pronoun. A lerfu string, `.abu` or `xy.`, is a sumti, and `boi` closes it and separates it from a following number or lerfu string.
+`sumti-6` is the closed list of simple sumti. A LAhE word such as `la'e`, or a NAhE word with `bo` such as `na'e bo`, qualifies another sumti. Relative clauses can stand inside. `lu'u` closes the resulting sumti. `KOhA` is a pronoun. A lerfu string, `.abu` or `xy.`, is a sumti, and `boi` closes it and separates it from a following number or lerfu string.
 
 `la` before names makes a name. `la` or `le` (that is, any member of LA or LE) before a `sumti-tail` makes a description closed by `ku`. `li` opens a mekso closed by `lo'o`. Four forms quote[^cll-s19-9][^cll-s19-10]:
 
@@ -390,7 +398,7 @@ A selbri is the predicate of a bridi[^cll-c5]. A tense or modal can come before 
 
 `selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, by the left-grouping rule of tanru[^cll-s5-3], so `barda gerku zdani` is `(barda gerku) zdani`. It is a left chain, so the tree shows that grouping.
 
-`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left[^cll-s14-12]. The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its three forms of connection read different units after the connective. Where the unit after a plain joik is only a `ke` group, the second form reads the same words. The grammar then takes the second form.
+`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left[^cll-s14-12]. The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its two forms of connection read different units after the connective. A ranked choice states them: the `ke` group of the joik comes first, and the plain connection second. Where the unit after a plain joik is only a `ke` group, both options read the same words, and the grammar takes the `ke` group.
 
 `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. It is a right chain, since a run of `bo` groups from the right[^cll-s5-4][^cll-s14-8][^cll-s14-12].
 
@@ -430,9 +438,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 
 %rule selbri-4
   | selbri-5
-  | selbri-4 plain-joik-jek selbri-5
-  | selbri-4 joik-before-ke selbri-5-not-ke-group
-  | selbri-4 joik [stag] KE # selbri-3 [+KEhE #]
+  | selbri-4 (joik [stag] KE # selbri-3 [+KEhE #] ≻ joik-jek selbri-5)
 
 %rule selbri-5
   {selbri-6 ... / (jek | joik) [stag] BO #}
@@ -486,7 +492,7 @@ The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-
 
 ## Numbers, lerfu strings and mekso
 
-A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
+A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] `PA` words or lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
 
 A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The words stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 
@@ -510,7 +516,7 @@ The first level of the chain is one `mex-1`, the first operand. Each later level
 
 Operators have their own connectives and grouping, in the same shape as selbri. `operator` joins operators by jek or joik or a `ke` group. These connections group from the left[^cll-s14-7][^cll-s14-17]. `operator`, like `selbri-4`, is written with left recursion, so the tree shows that grouping.
 
-As in `selbri-4`, its plain connective is `plain-joik-jek`. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
+As in `selbri-4`, a ranked choice prefers the connective's `ke` group over a plain `joik-jek` connection across the same span. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the group `ke pi'i ke'e` through `joik [stag] KE`. `operator-1` gives the guhek forethought and the `bo` forms. `operator-2` is a simple operator or a `ke ... ke'e` group.
 
 A simple `mex-operator` is a VUhU word, possibly converted by `se` or negated by `na'e`. It can also be an operator made from a mekso through `ma'o`, or a selbri used as an operator through `na'u`. `te'u` closes these last two.
 
@@ -522,7 +528,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 - A sumti through `mo'e`
 - An array through `jo'i`
 - A forethought connection
-- A `la'e` or `na'e bo` reference
+- A qualifier, `la'e` or `na'e bo`, before an operand
 
 ```jbogenbau
 %rule quantifier
@@ -548,9 +554,7 @@ Operands connect in the same way. `operand` takes a `ke` group, `operand-1` the 
 
 %rule operator
   | operator-1
-  | operator plain-joik-jek operator-1
-  | operator joik-before-ke operator-1-not-ke-group
-  | operator joik [stag] KE # operator [+KEhE #]
+  | operator (joik [stag] KE # operator [+KEhE #] ≻ joik-jek operator-1)
 
 %rule operator-1
   operator-2 | guhek operator-1 gik operator-2 | operator-2 (jek | joik) [stag] BO # operator-1
@@ -628,17 +632,15 @@ Lojban has one set of logical connectives, spelled differently for each level of
 - A jek joins tanru units and, after `.i`, sentences (`je`).
 - A gek is the forethought form (`ga ... gi`).
 
-Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`, possibly bounded by `ga'o` or `ke'i`[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
+Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`. The interval has `ga'o` or `ke'i` on both sides or on neither[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
-The ordinary alternative of `selbri-4` and `operator` joins two units with a plain connective. The other alternative, `joik [stag] KE`, groups with the connective itself. Where both alternatives read the same words, four rules prefer the `ke` group. Both readings elide the same terminators, so elision ranking cannot choose between them. The printed grammar has a dedicated `joik [stag] KE` form for this reading. `plain-joik-jek` is a jek, or a joik that `ke` does not directly follow.
-
-`joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
+The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
 In cll-ebnf, kihei, and bpfk, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
 
 A jek has no connective-plus-`ke` form, so `mi broda je ke brode ke'e` keeps its plain reading. The plain joik reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
-The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no `ke` form, so the condition does not apply to it.
+The `sumti` and `operand` rules have a joik-plus-`ke` form too. But no unit of their plain alternatives begins with `ke`, so they keep `joik-ek`. A jek has no dedicated `ke` form.
 
 A gek is a forethought logical connective, a joik used in forethought with `gi`, or a tense with `gi` (`pu gi ... gi`). A gik separates the two halves: `gi`, optionally negated. A guhek is the forethought connective of tanru units.
 
@@ -666,27 +668,6 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 %rule joik-jek
   joik # | jek #
 
-%rule plain-joik-jek
-  | $j:joik #
-  | jek #
-%conditions
-  KE ⊈ $j.following-tokens.first-token.tags
-
-%rule joik-before-ke
-  $j:joik #
-%conditions
-  KE ⊆ $j.following-tokens.first-token.tags
-
-%rule selbri-5-not-ke-group
-  $u:selbri-5
-%conditions
-  $u ≇ $KE-UNIT
-
-%rule operator-1-not-ke-group
-  $u:operator-1
-%conditions
-  $u ≇ $KE-UNIT
-
 %rule gek
   [SE] GA [NAI] # | joik GI # | stag gik
 
@@ -697,7 +678,7 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
   GI [NAI] #
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>ek</code> to <code>gik</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>ek</code> to <code>gik</code></summary>
 <p><img src="../../docs/diagrams/syntax/cll/ek.svg" alt="Railroad diagram of the rule ek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gihek.svg" alt="Railroad diagram of the rule gihek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/jek.svg" alt="Railroad diagram of the rule jek"></p>
@@ -705,10 +686,6 @@ A gek is a forethought logical connective, a joik used in forethought with `gi`,
 <p><img src="../../docs/diagrams/syntax/cll/interval.svg" alt="Railroad diagram of the rule interval"></p>
 <p><img src="../../docs/diagrams/syntax/cll/joik-ek.svg" alt="Railroad diagram of the rule joik-ek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/joik-jek.svg" alt="Railroad diagram of the rule joik-jek"></p>
-<p><img src="../../docs/diagrams/syntax/cll/plain-joik-jek.svg" alt="Railroad diagram of the rule plain-joik-jek"></p>
-<p><img src="../../docs/diagrams/syntax/cll/joik-before-ke.svg" alt="Railroad diagram of the rule joik-before-ke"></p>
-<p><img src="../../docs/diagrams/syntax/cll/selbri-5-not-ke-group.svg" alt="Railroad diagram of the rule selbri-5-not-ke-group"></p>
-<p><img src="../../docs/diagrams/syntax/cll/operator-1-not-ke-group.svg" alt="Railroad diagram of the rule operator-1-not-ke-group"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gek.svg" alt="Railroad diagram of the rule gek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/guhek.svg" alt="Railroad diagram of the rule guhek"></p>
 <p><img src="../../docs/diagrams/syntax/cll/gik.svg" alt="Railroad diagram of the rule gik"></p>
@@ -799,7 +776,7 @@ A free modifier can occupy any `#` slot. CLL permits free modifiers after many c
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
-- A vocative phrase: `coi` or `doi` and their kin, followed by a selbri, by names, or by a sumti, and closed by `do'u`
+- A vocative phrase: `coi` or `doi` and their kin, alone or followed by a selbri, names, or a sumti. Relative clauses can surround the selbri or names. The phrase closes with `do'u`.
 - An utterance ordinal, `pa mai`
 - A parenthetical text, `to ... toi`
 - A subscript `xi` with a number, lerfu string or bracketed mekso
@@ -861,9 +838,9 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF cites that grammar's rule numbers. In each case, the YACC grammar has a path that the EBNF omits, and the official parser accepts the text.
 
-The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
+The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth uses a ranked choice and the seventh a condition to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh replaces three printed quote forms with terminals for whole quotes and omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
 
 ### Printed rules and translations
 
@@ -878,15 +855,15 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 5. A run can contain several FUhE groups, as in `ui fu'e ia mi klama`. Printed rule 411 permits one group. CLL[^cll-s19-8] lets local attitudinals coexist with marked attitudes and says that FUhO "cancels all in-force attitudinals". This grammar infers permission for several FUhE groups. The indicator stage uses the same rule after a word.
 
    A leading `fu'e` still needs an indicator. Thus, `fu'e ui mi klama` parses here, but the official parser rejects it.
-6. In `selbri-4` and `operator`, four rules prefer the connective's `ke` group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. One joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the first parse.
+6. In `selbri-4` and `operator`, ranked choices prefer the connective's `ke` group, as ["Logical and non-logical connectives"](#logical-and-non-logical-connectives) explains. The printed grammar reads `mi broda joi ke brode ke'e` in two ways. One joins a `ke` group to `broda` through `joik [stag] KE`. The other joins `broda` to a tanru unit that begins with `ke`. Both parses elide the same terminators at the same places, so no ranking of elided terminators can choose. The official lexer makes `joi ke` one token, `JOIK_KE`, and reads only the first parse.
 
-   `plain-joik-jek` and `joik-before-ke` test whether KE follows the joik. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. The condition applies only where the two parses compete.
+   Each choice puts the dedicated KE option first and the plain `joik-jek` connection second. The options compete only when they read the same span.
 
    In `mi broda joi ke brode ke'e bo brodi`, the group cannot take `bo brodi`, so only the plain reading parses. There `joi` joins `broda` to the unit `ke brode ke'e bo brodi`. The official lexer makes `joi ke` one token there too, so it rejects the text. This grammar keeps the plain reading, as the printed grammar does.
 
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. Item 6 uses `$KE-UNIT` for its constructed unit.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 
@@ -914,9 +891,11 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
+    A `zei` compound gets the free-modifier slot of `BRIVLA #`, which printed rule 152 omits after its ZEI alternative. YACC [step 4a](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L98-L99) merges the compound into BRIVLA, and [`bridi_valsi_407`](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L909-L913) permits a free modifier after it.
+
 ### Earlier stages
 
-Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists seven departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, and whole-quote attachment. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
+Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
@@ -942,9 +921,9 @@ In the printed EBNF and this grammar, bare `.i` binds loosest. The next level co
 
 CLL[^cll-s14-6] prints the example[^cll-e14-27], `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 
-The LLG, the Logical Language Group, publishes `techfix.300`, an official grammar correction. Its CHANGE 45 deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives that example[^cll-e14-27] the same framing under its earlier numbering.
+The LLG, the Logical Language Group, publishes `techfix.300`, an official grammar correction. Its CHANGE 45 deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all."
 
-The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. The reply's Message-ID is `20040618052316.ga24048@ccil.org`. His reply says:
+The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. Cowan calls fragment connections obsolete:[^cowan-fragments]
 
 > It's wrong, or rather obsolete.
 
@@ -1254,3 +1233,5 @@ The indivisible-number rule follows these CLL requirements in the cll-ebnf, kihe
 [^cll-c9]: [CLL 1.1, chapter 9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-sumti-tcita.html).
 
 [^cll-c10]: [CLL 1.1, chapter 10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-tenses.html).
+
+[^cowan-fragments]: [John Cowan, "Re: fragment + i-jek", lojban-list](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/mail/lojban-list/threads/2004/659baea03053-fragment_%252B_i-jek.txt#L28). Message-ID: `20040618052316.ga24048@ccil.org`.

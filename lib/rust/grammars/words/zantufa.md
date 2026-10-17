@@ -105,7 +105,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   RAhOI ⊈ $r.tags ∨ ¬$v.onward.begins(rahoi-form),
   (Continued ∪ Cy ∪ Name-Intro ∪ Open-Stress) ∩ $r.tags ≠ ∅,
   Cy ⊆ $r.tags ∧ Cy ⊆ $v.tags
-    ∨ Continued ⊆ $r.tags ∧ Onset ⊆ $v.tags
+    ∨ Continued ⊆ $r.tags ∧ Open-Stress ⊈ $r.tags ∧ Onset ⊆ $v.tags
     ∨ Name-Intro ⊆ $r.tags ∧ Name-Onset ⊆ $v.tags
     ∨ Open-Stress ⊆ $r.tags ∧ Cy ⊈ $r.tags ∧ Onset ⊆ $v.tags,
   Final-Stress ⊈ $r.tags ∨ (Stress-Guard ∪ Initial-Stress) ∩ $v.tags = ∅,

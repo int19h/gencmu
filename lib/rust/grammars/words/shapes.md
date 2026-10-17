@@ -135,301 +135,34 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]), and so can the middle of a borrowing (CLL[^cll-s4-7]). A run that ends in a consonant C is C alone. Or it is a run that ends in a consonant that can precede C, followed by C. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [cll.md](cll.md#borrowings) use `has-n-affricate` to exclude those triples.
+
+`permissible-run` reads one consonant, or extends a permissible run by one consonant. The condition starts a `consonant-pair` lookahead at the preceding run's last token, so each extension tests its new adjacent pair. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
 ```jbogenbau
 %rule permissible-run
-  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l | run-m
-  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
-
-%rule run-b
-  "b" | run-before-b "b"
-
-%rule run-c
-  "c" | run-before-c "c"
-
-%rule run-d
-  "d" | run-before-d "d"
-
-%rule run-f
-  "f" | run-before-f "f"
-
-%rule run-g
-  "g" | run-before-g "g"
-
-%rule run-j
-  "j" | run-before-j "j"
-
-%rule run-k
-  "k" | run-before-k "k"
-
-%rule run-l
-  "l" | run-before-l "l"
-
-%rule run-m
-  "m" | run-before-m "m"
-
-%rule run-n
-  "n" | run-before-n "n"
-
-%rule run-p
-  "p" | run-before-p "p"
-
-%rule run-r
-  "r" | run-before-r "r"
-
-%rule run-s
-  "s" | run-before-s "s"
-
-%rule run-t
-  "t" | run-before-t "t"
-
-%rule run-v
-  "v" | run-before-v "v"
-
-%rule run-x
-  "x" | run-before-x "x"
-
-%rule run-z
-  "z" | run-before-z "z"
-
-%rule run-before-b
-  run-d | run-g | run-j | run-l | run-m | run-n | run-r | run-v | run-z
-
-%rule run-before-c
-  run-f | run-k | run-l | run-m | run-n | run-p | run-r | run-t
-
-%rule run-before-d
-  run-b | run-g | run-j | run-l | run-m | run-n | run-r | run-v | run-z
-
-%rule run-before-f
-  run-c | run-k | run-l | run-m | run-n | run-p | run-r | run-s | run-t | run-x
-
-%rule run-before-g
-  run-b | run-d | run-j | run-l | run-m | run-n | run-r | run-v | run-z
-
-%rule run-before-j
-  run-b | run-d | run-g | run-l | run-m | run-n | run-r | run-v
-
-%rule run-before-k
-  run-c | run-f | run-l | run-m | run-n | run-p | run-r | run-s | run-t
-
-%rule run-before-l
-  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-m
-  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
-
-%rule run-before-m
-  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
-  | run-n | run-p | run-r | run-s | run-t | run-v | run-x | run-z
-
-%rule run-before-n
-  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
-  | run-m | run-p | run-r | run-s | run-t | run-v | run-x | run-z
-
-%rule run-before-p
-  run-c | run-f | run-k | run-l | run-m | run-n | run-r | run-s | run-t | run-x
-
-%rule run-before-r
-  | run-b | run-c | run-d | run-f | run-g | run-j | run-k | run-l
-  | run-m | run-n | run-p | run-s | run-t | run-v | run-x | run-z
-
-%rule run-before-s
-  run-f | run-k | run-l | run-m | run-n | run-p | run-r | run-t | run-x
-
-%rule run-before-t
-  run-c | run-f | run-k | run-l | run-m | run-n | run-p | run-r | run-s | run-x
-
-%rule run-before-v
-  run-b | run-d | run-g | run-j | run-l | run-m | run-n | run-r | run-z
-
-%rule run-before-x
-  run-f | run-l | run-m | run-n | run-p | run-r | run-s | run-t
-
-%rule run-before-z
-  run-b | run-d | run-g | run-l | run-n | run-r | run-v
+  consonant | $r:permissible-run consonant
+%conditions
+  $r.last-token.onward.begins(consonant-pair)
 ```
 
-<details><summary>Railroad diagrams of the 35 rules from <code>permissible-run</code> to <code>run-before-z</code></summary>
+<details><summary>Railroad diagram of <code>permissible-run</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/permissible-run.svg" alt="Railroad diagram of the rule permissible-run"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-b.svg" alt="Railroad diagram of the rule run-b"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-c.svg" alt="Railroad diagram of the rule run-c"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-d.svg" alt="Railroad diagram of the rule run-d"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-f.svg" alt="Railroad diagram of the rule run-f"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-g.svg" alt="Railroad diagram of the rule run-g"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-j.svg" alt="Railroad diagram of the rule run-j"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-k.svg" alt="Railroad diagram of the rule run-k"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-l.svg" alt="Railroad diagram of the rule run-l"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-m.svg" alt="Railroad diagram of the rule run-m"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-n.svg" alt="Railroad diagram of the rule run-n"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-p.svg" alt="Railroad diagram of the rule run-p"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-r.svg" alt="Railroad diagram of the rule run-r"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-s.svg" alt="Railroad diagram of the rule run-s"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-t.svg" alt="Railroad diagram of the rule run-t"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-v.svg" alt="Railroad diagram of the rule run-v"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-x.svg" alt="Railroad diagram of the rule run-x"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-z.svg" alt="Railroad diagram of the rule run-z"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-b.svg" alt="Railroad diagram of the rule run-before-b"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-c.svg" alt="Railroad diagram of the rule run-before-c"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-d.svg" alt="Railroad diagram of the rule run-before-d"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-f.svg" alt="Railroad diagram of the rule run-before-f"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-g.svg" alt="Railroad diagram of the rule run-before-g"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-j.svg" alt="Railroad diagram of the rule run-before-j"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-k.svg" alt="Railroad diagram of the rule run-before-k"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-l.svg" alt="Railroad diagram of the rule run-before-l"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-m.svg" alt="Railroad diagram of the rule run-before-m"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-n.svg" alt="Railroad diagram of the rule run-before-n"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-p.svg" alt="Railroad diagram of the rule run-before-p"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-r.svg" alt="Railroad diagram of the rule run-before-r"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-s.svg" alt="Railroad diagram of the rule run-before-s"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-t.svg" alt="Railroad diagram of the rule run-before-t"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-v.svg" alt="Railroad diagram of the rule run-before-v"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-x.svg" alt="Railroad diagram of the rule run-before-x"></p>
-<p><img src="../../docs/diagrams/words/shapes/run-before-z.svg" alt="Railroad diagram of the rule run-before-z"></p>
 </details>
 
 
 
-Each `initial-run-C` reads a cluster ending in C whose adjacent pairs can begin a word. `long-initial-run` adds one consonant and makes a cluster of at least three.
+`long-initial-run` extends an `initial-cluster` by one consonant. `initial-cluster` starts with an `initial-pair`, so the result has at least three consonants. The condition starts an `initial-pair` lookahead at the cluster's last token. Because `initial-cluster` also reads `long-initial-run`, repeated extensions form longer clusters.
 
 ```jbogenbau
 %rule long-initial-run
-  | initial-run-b "l"
-  | initial-run-b "r"
-  | initial-run-c "f"
-  | initial-run-c "k"
-  | initial-run-c "l"
-  | initial-run-c "m"
-  | initial-run-c "n"
-  | initial-run-c "p"
-  | initial-run-c "r"
-  | initial-run-c "t"
-  | initial-run-d "j"
-  | initial-run-d "r"
-  | initial-run-d "z"
-  | initial-run-f "l"
-  | initial-run-f "r"
-  | initial-run-g "l"
-  | initial-run-g "r"
-  | initial-run-j "b"
-  | initial-run-j "d"
-  | initial-run-j "g"
-  | initial-run-j "m"
-  | initial-run-j "v"
-  | initial-run-k "l"
-  | initial-run-k "r"
-  | initial-run-m "l"
-  | initial-run-m "r"
-  | initial-run-p "l"
-  | initial-run-p "r"
-  | initial-run-s "f"
-  | initial-run-s "k"
-  | initial-run-s "l"
-  | initial-run-s "m"
-  | initial-run-s "n"
-  | initial-run-s "p"
-  | initial-run-s "r"
-  | initial-run-s "t"
-  | initial-run-t "c"
-  | initial-run-t "r"
-  | initial-run-t "s"
-  | initial-run-v "l"
-  | initial-run-v "r"
-  | initial-run-z "b"
-  | initial-run-z "d"
-  | initial-run-z "g"
-  | initial-run-z "m"
-  | initial-run-z "v"
-
-%rule initial-run-b
-  | "j" "b"
-  | "z" "b"
-  | initial-run-j "b"
-  | initial-run-z "b"
-
-%rule initial-run-c
-  | "t" "c"
-  | initial-run-t "c"
-
-%rule initial-run-d
-  | "j" "d"
-  | "z" "d"
-  | initial-run-j "d"
-  | initial-run-z "d"
-
-%rule initial-run-f
-  | "c" "f"
-  | "s" "f"
-  | initial-run-c "f"
-  | initial-run-s "f"
-
-%rule initial-run-g
-  | "j" "g"
-  | "z" "g"
-  | initial-run-j "g"
-  | initial-run-z "g"
-
-%rule initial-run-j
-  | "d" "j"
-  | initial-run-d "j"
-
-%rule initial-run-k
-  | "c" "k"
-  | "s" "k"
-  | initial-run-c "k"
-  | initial-run-s "k"
-
-%rule initial-run-m
-  | "c" "m"
-  | "j" "m"
-  | "s" "m"
-  | "z" "m"
-  | initial-run-c "m"
-  | initial-run-j "m"
-  | initial-run-s "m"
-  | initial-run-z "m"
-
-%rule initial-run-p
-  | "c" "p"
-  | "s" "p"
-  | initial-run-c "p"
-  | initial-run-s "p"
-
-%rule initial-run-s
-  | "t" "s"
-  | initial-run-t "s"
-
-%rule initial-run-t
-  | "c" "t"
-  | "s" "t"
-  | initial-run-c "t"
-  | initial-run-s "t"
-
-%rule initial-run-v
-  | "j" "v"
-  | "z" "v"
-  | initial-run-j "v"
-  | initial-run-z "v"
-
-%rule initial-run-z
-  | "d" "z"
-  | initial-run-d "z"
+  $r:initial-cluster consonant
+%conditions
+  $r.last-token.onward.begins(initial-pair)
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>long-initial-run</code> to <code>initial-run-z</code></summary>
+<details><summary>Railroad diagram of <code>long-initial-run</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/long-initial-run.svg" alt="Railroad diagram of the rule long-initial-run"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-b.svg" alt="Railroad diagram of the rule initial-run-b"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-c.svg" alt="Railroad diagram of the rule initial-run-c"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-d.svg" alt="Railroad diagram of the rule initial-run-d"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-f.svg" alt="Railroad diagram of the rule initial-run-f"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-g.svg" alt="Railroad diagram of the rule initial-run-g"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-j.svg" alt="Railroad diagram of the rule initial-run-j"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-k.svg" alt="Railroad diagram of the rule initial-run-k"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-m.svg" alt="Railroad diagram of the rule initial-run-m"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-p.svg" alt="Railroad diagram of the rule initial-run-p"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-s.svg" alt="Railroad diagram of the rule initial-run-s"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-t.svg" alt="Railroad diagram of the rule initial-run-t"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-v.svg" alt="Railroad diagram of the rule initial-run-v"></p>
-<p><img src="../../docs/diagrams/words/shapes/initial-run-z.svg" alt="Railroad diagram of the rule initial-run-z"></p>
 </details>
 
 

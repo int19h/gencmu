@@ -2341,15 +2341,13 @@ The following texts pin value, image, and recognition boundaries. `Five` names `
 | `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. le'ai bu` |
 | `mi lo'ai do` | `experimental`, `zantufa` | `rejected` | The error points to the input end and names LEhAI |
 | `mi lo'ai si klama` | `experimental`, `zantufa` | `unique` | The images are `mi` and `klama` |
-| `ni'o su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o su bu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o su bu` | `cll-ebnf`, `kihei` | `rejected` | No output from the words stage |
-| `ni'o mi si su bu` | `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o mi si su bu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o mi si su bu` | `cll-ebnf`, `kihei` | `rejected` | No output from the words stage |
-| `ni'o subu` | `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
-| `ni'o .su mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `ni'o su .y. mi` | `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `ni'o subu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
+| `ni'o .su mi` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `ni'o su .y. mi` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
 | `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy. MI   DO .gy bu`, also after indicators |
 
 These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.

@@ -26,7 +26,7 @@ The forms stage joins two words without a pause only if the numbered pause rules
 - `Onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
 - `Continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
 - `Open-Stress`: The word is a brivla whose stress is not marked. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `Uncounted`, one with no counted syllable, can follow it without a pause.
-- `Cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
+- `Cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly.
 - `Name-Intro` and `Name-Onset`: `Name-Intro` marks `la`, `lai`, `la'i` and `doi`, and `Name-Onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
 - `Initial-Stress` and `Final-Stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `Final-Stress` and a following word with `Initial-Stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `Stress-Guard` (rule 5).[^cll-s4-9]
 
@@ -412,7 +412,7 @@ An initial CC leaves no cmavo to take. An initial CVCC or CVV rafsi leaves, afte
 
 A borrowing, or fu'ivla, is a brivla that is neither a gismu nor a lujvo (CLL[^cll-s4-7]). It has no `y`, and it ends in a vowel. It has a consonant cluster among its first five letters, not counting apostrophes and commas.
 
-A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerldjamo` of CLL[^cll-s4-7]). Its vowels can stand in any run, with apostrophes or commas between two of them. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
+A cluster at its start is an initial pair or a longer run of initial pairs. A cluster in its middle can be of any length. Each adjacent pair must be permissible, and a cluster must not hold any of the four `n` triples (the `lerndjamo` of CLL[^cll-s4-7]). Its vowels can stand in any run, with apostrophes or commas between two of them. A comma is allowed only where the letters without it, with capitals lowered, also form a borrowing (see "Commas"). A run of vowels divides into syllables as [shapes.md](shapes.md) says, so `bantua` has two syllables, `ban-tua`, and the `korea` of `bangrkorea` has three.
 
 A borrowing is also not "any combination of cmavo, gismu, and lujvo". The `denpabu` of CLL[^cll-s17-4] shows what that means: the same spoken word, with its syllables and stress, read as those words under the pause rules. Only one such reading is possible. It is one or more cmavo followed by one brivla, because a second brivla needs a second stress. The last word must begin with a consonant, and it can be a borrowing too, as in `abaspageti`, which is `a ba spageti`.
 
@@ -579,6 +579,8 @@ A name needs one more test. Its `doi` test applies at its start or after a vowel
 
 
 ## Where the book leaves a choice
+
+The [word stream](stream.md#cll-and-magic-words) lists one more departure from CLL, the omitted pause after hesitation.
 
 In a few places CLL 1.1 is silent, or two passages disagree. This grammar reads each place as follows:
 

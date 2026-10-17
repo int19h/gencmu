@@ -10,7 +10,7 @@ A dialect is a pipeline of stages, defined by one pipeline document. A stage is 
 
 A rafsi is a word form used inside compounds. An extended rafsi uses a whole or shortened word before a y-hyphen inside a compound. The forms stage also reads [`../words/experimental.md`](../words/experimental.md), which permits the consonant pair `mz` and changes extended rafsi. The indicator stage starts with the cll-ebnf dialect's stage ([`cll-ebnf.md`](cll-ebnf.md)). The experimental layer adds bare NAI indicators and keeps flat attachment.
 
-A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last `ni'o`, `no'i`, `lu`, `tu'e`, `to`, or `to'i`.
+A feature is a named switch that the grammars test. The dialect turns on `su-boundary`. That feature makes SU stop at the last surviving word of NIhO, LU, TUhE or TO.
 
 The dialect turns on two syntax features. `cbm` is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). `soi-clause` makes `soi` a term that takes a subsentence, in place of CLL's free modifier of reciprocity. A caller (the program or person that asks for a parse) can turn either off to read the CLL form.
 

@@ -166,7 +166,7 @@ The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so n
 
 A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
-The reason is that the syntax reads this run. If the stage nested a `nai` under its attitudinal, the syntax would not see it. The syntax would then read a second `nai` as that attitudinal's own, and `pau nai nai mi klama` would be a text. The stage keeps the `nai` in the stream, so the syntax rejects that text.
+The syntax reads the attitudinal run. Suppose that the stage nested a `nai` under its attitudinal. Then the syntax does not see that `nai`. It reads a second `nai` as that attitudinal's own, and `pau nai nai mi klama` is a text. So the stage keeps the `nai` in the stream, and the syntax rejects that text.
 
 ```jbogenbau
 %rule leading
@@ -202,13 +202,15 @@ Experimental with `cbm` and Zantufa reject those texts under their own name-as-p
 
 CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The example[^cll-e19-67] in CLL[^cll-s19-12] uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The ["Digressives" section, revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) of the BPFK defines `to'i` as "Equivalent to {to sa'a}". These sources support the choice that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL[^cll-s19-8][^cll-s13-9].
 
-The official parser, CLL's reference implementation, differs after `lu` because its preprocessor absorbs following indicators into the preceding token. On lojban-list, Cyril Slobin reported this for `lu .ue la djan. klama li'u` on October 1, 1995. John Cowan replied on October 2, 1995, under the subject "Parser bug - or my?". His reply says:
+The official parser, CLL's reference implementation, differs after `lu` because its preprocessor absorbs following indicators into the preceding token. John Cowan, the author of CLL, calls that reading a parser error:[^cowan-lu]
 
 > Yes; the parser is in error here, and you are correct.
 
 ### Attitude scopes
 
-CLL's sources do not agree on `fu'e`. CLL[^cll-s21-1] prints the EBNF (Extended Backus-Naur Form) rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL[^cll-s19-16] says that `fu'e` is "the same as UI". The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
+CLL's sources do not agree on `fu'e`. CLL[^cll-s21-1] prints the EBNF (Extended Backus-Naur Form) rule `indicators = [FUhE] indicator ...`. An indicator must therefore follow a `fu'e`. The magic-word list of CLL[^cll-s19-16] and the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) call `fu'e` "the same as UI".
+
+The YACC preamble is the official parser's steps before its grammar. Step 4e of that preamble, printed in CLL 1.0, absorbs every `fu'e` after a word, and so does the official parser.
 
 This stage follows CLL[^cll-s19-8], which gives the meaning of `fu'e`: "Placing fu'e in front of an attitudinal disconnects it from what precedes it". So a `fu'e` stands directly in front of an indicator, and the stage rejects a `fu'e` that has no indicator after it.
 
@@ -238,7 +240,7 @@ Rule 1100, one of four non-formal rules, prints `word = [BAhE] any-word [indicat
 
 > Multiple BAhE cmavo may be used in succession
 
-CLL counts Y as an indicator.[^cll-s21-1] The words stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as a pause. A FUhE followed only by hesitation therefore has no indicator and fails.
+CLL counts Y as an indicator.[^cll-s21-1] The words stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as whitespace, not as a word. A FUhE followed only by hesitation therefore has no indicator and fails.
 
 The Magic Words proposal says that `ba'e` "marks the following word but does not change its meaning". It also states: "One NAI can follow any UI or CAI cmavo". The attachment rules retain both properties, even with BAhE before NAI.
 
@@ -253,3 +255,5 @@ The Magic Words proposal says that `ba'e` "marks the following word but does not
 [^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
 
 [^cll-e19-67]: [CLL 1.1, section 19.12, example 19.67](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html#c19e12d2).
+
+[^cowan-lu]: [John Cowan, "Re: Parser bug - or my?", lojban-list](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/mail/lojban-list/threads/1995/860176d1d576-parser_bug_-_or_my%253F.txt#L54-L73).
