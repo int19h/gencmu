@@ -165,7 +165,7 @@ CLL groups tails with `ke` after a gihek, with any tense before `ke` on the conn
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It separates the last plain connection from the earlier connections in `bridi-tail-1`. Only that connection can compete with the `ke` form of `bridi-tail`. The grouped form reads one `ke` group last, followed by one run of tail terms.
 
-A ranked choice over the whole `bridi-tail` span filters readings before `late-elision` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. The condition applies only to the last plain connection, so `late-elision` still sees that reading. The CLI gives `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
+A ranked choice over the whole `bridi-tail` span filters readings before `late-elision` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. The condition applies only to the last plain connection, so `late-elision` still sees that reading. This grammar reads it as `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
 
 Unlike a whole `bridi-tail` choice, the `selbri-4` and `operator` choices share their left operand, so they cannot move connections outside it.
 
