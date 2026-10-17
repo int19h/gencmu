@@ -10,6 +10,8 @@ The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и
 
 The apostrophe and period are those of the Latin orthography. In cll-ebnf and kihei, a comma marks a syllable break. The other dialects discard it through [latin.md](latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
 
+A capital `Ъ` writes stressed `y` and maps to `Y`. The [Latin stress rules](latin-strict.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. A compound hyphen stays unstressed.
+
 ```jbogenbau
 %extend-rule consonant
   cll-cyrillic? cll-cyrillic-consonant
@@ -75,6 +77,10 @@ The apostrophe and period are those of the Latin orthography. In cll-ebnf and ki
 
 CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
 
-The [Latin choices](latin-strict.md#choices-beyond-cll) explain consonant folding and stress on `y`, also written `ъ`.
+The [Latin choices](latin-strict.md#choices-beyond-cll) explain consonant folding.
+
+[^cll-s3-9]: [CLL 1.1, section 3.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-stress.html).
+
+[^cll-s4-8]: [CLL 1.1, section 4.8](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmene.html).
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

@@ -215,6 +215,10 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 The stage emits each consonant as its lowercase Latin letter. Each `:=` mapping sets the value and image to its Latin phoneme letter, for every script. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
+A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So a capital `Y` cannot stand in a brivla.
+
+Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
+
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
 ```jbogenbau
@@ -274,8 +278,6 @@ This grammar also accepts U+2019 (`’`), U+2018 (`‘`), and U+02BC (`ʼ`) as a
 
 CLL[^cll-s3-1] uses capitals only for nonstandard stress in names. This grammar also folds capital consonants without a capital vowel. This choice lets a writer capitalize a name or a sentence start.
 
-CLL[^cll-s3-9] requires weak stress for syllables with `y`, but also lets names and cmavo stress any syllable. This grammar follows the second rule and accepts stressed `Y`. CLL Cyrillic also accepts stressed `Ъ`, which maps to `Y`.
-
 CLL[^cll-s3-12] describes Loglan-compatible and Tengwar orthographies. This grammar reads neither. CLL calls the Loglan-compatible orthography nonstandard and unused.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
@@ -285,6 +287,8 @@ CLL[^cll-s3-12] describes Loglan-compatible and Tengwar orthographies. This gram
 [^cll-s4-7]: [CLL 1.1, section 4.7](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-fuhivla.html).
 
 [^cll-s3-9]: [CLL 1.1, section 3.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-stress.html).
+
+[^cll-s4-8]: [CLL 1.1, section 4.8](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmene.html).
 
 [^cll-s3-1]: [CLL 1.1, section 3.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-phonology.html#section-orthography).
 
