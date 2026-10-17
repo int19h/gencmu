@@ -21,7 +21,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 - The apostrophe `"'"`
 - The syllable comma `","`, with tag `Syllable-Break`
 
-In cll-ebnf, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). These dialects retain stress tags for forms.
+In cll-ebnf, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
 
 `PAUSE` marks a pause of any length, with value and image `" "`. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
