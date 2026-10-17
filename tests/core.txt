@@ -5708,3 +5708,6 @@ adhoc.words.kihei.shared-erasure.5
 adhoc.words.kihei.shared-erasure.6
 adhoc.words.kihei.shared-erasure.7
 adhoc.words.kihei.shared-erasure.8
+adhoc.su.current-subordinate-text.cll-ebnf
+adhoc.su.current-subordinate-text.bpfk
+adhoc.su.current-subordinate-text.kihei
