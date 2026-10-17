@@ -824,7 +824,7 @@ The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ i
 
 8. Except in Zantufa, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std name these boundaries. The dialects keep the boundary word, as camxes-std does. Its [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
 
-   CLL[^cll-s19-13] says that SU "erases the entire text". The LU and TO stops agree with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts.
+   CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A stop after LIhU or TOI has closed the quote or parenthesis, and every NIhO and TUhE stop, follow Magic Words and camxes-std alone.
 
    The NIhO and TUhE stops follow Magic Words and camxes-std alone. They depart from CLL[^cll-s19-13] under any reading.
 
@@ -854,7 +854,7 @@ These dialects instead use the next word's class and select the nearest matching
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-In cll-ebnf, kihei, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. The boundaries come from Magic Words and camxes-std. The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) separates the LU and TO agreement with CLL from the NIhO and TUhE departures. Zantufa erases the whole preceding text, as its reference grammar specifies.
+In cll-ebnf, kihei, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. The boundaries come from Magic Words and camxes-std. The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
 
 ### Final markers and Zantufa exceptions
 

@@ -140,7 +140,7 @@ In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails af
 
 SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std supply the boundaries. Kihei inherits this policy.
 
-The LU and TO stops agree with CLL's subordinate texts, as the [word stream](../words/stream.md#cll-and-magic-words) explains. The NIhO and TUhE stops depart from CLL[^cll-s19-13] under any reading.
+A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../words/stream.md#cll-and-magic-words) explains. A stop after LIhU or TOI, and every NIhO and TUhE stop, depart from CLL[^cll-s19-13] under any reading.
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
