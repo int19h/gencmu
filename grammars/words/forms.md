@@ -248,7 +248,7 @@ Hesitation is `y` of any length. It is a source word of its own here, because th
 
 CLL[^cll-s19-14] requires pauses before and after `.y.`. These dialects omit the following pause because they treat `y` as whitespace, as the Magic Words proposal does. That proposal states no pause rule. [Departure 4](stream.md#cll-and-magic-words) records this difference from CLL.
 
-The words stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+The words stage drops hesitation, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 
 ```jbogenbau
 %rule hesitation-shape
