@@ -4,6 +4,22 @@ from gencmu._boundary import Records, Annotations, Source, dominates
 
 
 class BoundaryTests(unittest.TestCase):
+    def test_nested_queries_discover_boundary_targets_once_per_stage(self):
+        from .shared import calls, count_work, load_case_dialect, parse_case
+        for boundary in ('', '\n%conditions ¬$.followed-by(A)'):
+            grammar = ('%rule text {piece}\n%rule piece A\n'
+                       '%conditions $.matches(one), $.begins(two), Seen ⊆ $.tags(three)\n'
+                       '%rule one A' + boundary + '\n%rule two A\n%rule three A :: Seen')
+            dialect, error = load_case_dialect({'grammar': grammar})
+            self.assertIsNone(error)
+            case = {'tokens': [{'text': 'a', 'tags': ['A']}] * 10}
+            for _ in range(2):
+                with self.subTest(boundary=boundary), count_work(calls(Records.__init__)) as work:
+                    value, _, error = parse_case(dialect, case)
+                self.assertIsNone(error)
+                self.assertTrue(value['ok'], value)
+                self.assertEqual(work.count, 1)
+
     def test_empty_child_keeps_prefix_forward_literal(self):
         machine = Records([])
         atom = {'method': 'followed-by', 'args': [{'rule': 's'}]}
