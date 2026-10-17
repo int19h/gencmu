@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects omit this script. CLL is *The Complete Lojban Language*. The stage reads the script as the code points of the private-use block that its fonts assign it.
+This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The [CLL](../dialects/cll-ebnf.md) dialect omits this script. CLL is *The Complete Lojban Language*. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -12,7 +12,7 @@ A diacritic is a mark on another symbol. Each zbalermorna symbol is a radical, a
 - Four diphthong diacritics
 - A stress mark, placed after the vowel
 - An "attitudinal shorthand" that stands for a vowel and the apostrophe after it
-- Glide radicals for `i` and `u` before a vowel
+- Glide radicals for `i` and `u`, which read as plain vowels without a following vowel
 
 The code points are those of the private-use block of the font. This document writes each code point as an escape, so that a reader can read the rule without the font.
 
@@ -59,7 +59,7 @@ The first rules below read the consonant radicals. U+ED89 is the radical for the
 <p><img src="../../docs/diagrams/phonemes/zbalermorna/comma.svg" alt="Railroad diagram of the rule comma"></p>
 </details>
 
-A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB are `i` and `u` before a vowel.
+A vowel diacritic and its full-vowel form are the same phoneme. The stress mark U+ED98 after either, or after a diphthong diacritic, makes it stressed, and a repeated mark is one mark. The glide radicals U+EDAA and U+EDAB read as the plain vowel letters `i` and `u`, even without a following vowel.
 
 A diphthong diacritic is two phonemes and stands where a vowel stands. The first emission covers the character and any stress marks. The second is inserted after them, with empty source and text. Only the first stressed token carries `Stressed`. Normalization lowers that value and preserves both images.
 
@@ -198,8 +198,12 @@ A stress mark or a shorthand is a mark of the script, like an accent. So this do
 
 ## Differences from CLL and jbotci
 
-Lojbanists made zbalermorna after CLL. The book describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect therefore omits zbalermorna.
+CLL 1.1 describes Tolkien's Tengwar, a different script.[^cll-s3-12] The CLL dialect follows that edition and omits zbalermorna.
 
 jbotci, another Lojban parser, ignores U+ED8C, U+ED99 and U+ED9B. This document treats them as commas.
+
+After the shorthand U+ED8B, jbotci accepts the diphthong diacritics U+EDA6 to U+EDA9, which make the run foreign here. This document instead accepts Latin and Cyrillic vowels and the glide radicals U+EDAA and U+EDAB there, which jbotci rejects.
+
+This document reads U+EDAC, U+ED8D, U+ED9C and U+EDB6 as pauses, while jbotci rejects them as invalid characters. A stress mark after a glide radical makes the run foreign here. jbotci ignores that mark when no earlier full vowel takes its stress.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

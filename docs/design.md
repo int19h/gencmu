@@ -472,7 +472,7 @@ A dialect that extends another makes two kinds of change. Most are additions, wh
 
 An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
 
-A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf and kihei.
+A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
@@ -611,9 +611,9 @@ Zantufa uses patterns and aligned category queries to remove duplicate construct
 - YACC is the grammar of CLL 1.1's official parser. That parser reads one lexeme ahead and never goes back. A lexeme is one word or one run of words that the parser joins. The parser elides a terminator only through the error recovery of its grammar, where the next lexeme cannot continue what it is reading. CLL's own explanations of elision describe this. That is why CLL 14.14 says that `le nanmu ku joi le ninmu` needs its `ku`.
 - camxes-std commits too, but in another way. camxes-std provides an alternative. It reads as far as its rules permit before it elides a terminator. So `le nanmu joi le ninmu` parses. The `le lojbo` text above does not.
 
-The cll-ebnf, kihei, and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa also uses ordinary early closure for TOI and SEhU. Its grammar document lists the three accepted departures from PEG commitment.
+The cll-ebnf and bpfk dialects take the printed grammar as normative and keep the whole-text reading. So do the experimental and Zantufa dialects, which accept the most. Zantufa also uses ordinary early closure for TOI and SEhU. Its grammar document lists the three accepted departures from PEG commitment.
 
-The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. The kihei dialect inherits the reading of cll-ebnf. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
+The cll-ebnf and bpfk dialects each name their reading in their pipeline documents, after they include the CLL grammar. A stage states its `%ambiguity-resolution` exactly once, so the experimental layer over the CLL grammar states its own.
 
 The official parser's reading is not in the notation. Its lookahead is a lexeme, not a word. Step 5 of its preamble prepares the words for its grammar and joins runs of them into one lexeme. Examples are the connective `na ja`, or a number followed by `moi`. A rule that reads one word ahead over a stage's tokens sees the `na` of `le nanla na vrude` as the start of `na ja`. A word-level rule therefore does not express the same policy.
 
@@ -625,7 +625,7 @@ A parse option overrides `elision-only` either way. A caller switches it on to f
 
 ### Syntax conventions
 
-The syntax stages of all five bundled Lojban dialects use `late-elision`. The `cll-ebnf`, `kihei` and `bpfk` dialects also declare `elision-only`.
+The syntax stages of the bundled Lojban grammars use `late-elision`. The `cll-ebnf` and `bpfk` dialects also declare `elision-only`.
 
 The CLL grammar expresses the official lexer's `JOIK_KE` preference with a ranked choice. Its preferred option groups with `joik [stag] KE … KEhE`. Its plain option joins two units with `joik-jek`. The preferred option removes the plain reading only over the same span.
 
@@ -660,11 +660,11 @@ Zantufa marks neither `CU` nor `IAU` as elidable. CLL also leaves `CU` unmarked.
 
 ## Indivisible numbers and letter strings
 
-The `cll-ebnf`, `kihei`, and `bpfk` dialects use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
+The `cll-ebnf` and `bpfk` dialects use `late-elision elision-only`. Their numbers and letter strings cannot end before another continuation unit. A continuation unit is `PA` or a complete `lerfu-word`. It includes recursive LAU words and balanced TEI/FOI compounds. CLL 17.9 and 18.6 require `boi` between adjacent runs. CLL 17.14 lists what can follow a LAU cmavo.
 
 The conditions on `number` and `lerfu-string` test the completed run once, where it ends. The rules use brace notation.
 
-The `cll-ebnf`, `kihei`, and `bpfk` dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. This policy interprets CLL 1.1 section 21.1 note 10. Number and letter boundaries follow CLL 17.9 and 18.6.
+The `cll-ebnf` and `bpfk` dialects accept example 8.48 without `ku'o`, despite the requirement in CLL 8.6. This policy interprets CLL 1.1 section 21.1 note 10. Number and letter boundaries follow CLL 17.9 and 18.6.
 
 ## Lexicons
 

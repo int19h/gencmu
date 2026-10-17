@@ -4,11 +4,13 @@ This dialect combines syntax from *The Complete Lojban Language* (CLL) with the 
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
+A tag marks a token by an identifier.
+
 [CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. The `cll-ebnf`, `kihei`, and `bpfk` dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. The `cll-ebnf` and `bpfk` dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -16,7 +18,7 @@ Indicators after `lu` begin quoted content. Indicators after `to` and `to'i` att
 
 ## NAI attachment
 
-The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. CLL[^cll-s19-16] separates UI and CAI from DAhO and FUhO, which do not absorb `nai`.
+The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) separates UI and CAI from DAhO, FUhE and FUhO, which do not absorb `nai`. The camxes-std rule `indicator` attaches NAI only to UI and CAI. CLL[^cll-s19-16] agrees.
 
 FUhE opens an indicator group. The [indicator document](../indicators/cll.md#differences-from-cll-and-camxes-std) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
 
@@ -66,7 +68,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../phonemes/normalize.md"
   ```
 
-A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+A stressed vowel keeps the tag `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this tag to identify stress.
 
 The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
 
@@ -132,7 +134,7 @@ A constituent can end wherever a parse of the whole text needs it. Numbers and l
 
 A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
 
-The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
+A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities, one with a ranked choice and one with a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 ## Differences from CLL, BPFK proposals and camxes-std
 
@@ -140,11 +142,13 @@ The stage does not order the alternatives of a rule. A text that remains ambiguo
 
 The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&oldid=109606) defers morphology. The [Formal Grammar section](https://mw.lojban.org/index.php?title=BPFK_Section:_Formal_Grammar&oldid=111787) proposes replacing YACC with a PEG. CLL 1.3.4[^cll-later-a3-1] keeps EBNF (Extended Backus-Naur Form) and YACC as the official syntax. It describes camxes PEG syntax as practice without ratification.
 
-A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology has extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
+A rafsi is a word form used inside compounds. A brivla is a predicate word. The working morphology uses extended rafsi. One kind lets a non-borrowing brivla stand whole before `'y` inside a compound, as in `klama'ybroda`. Neither CLL 1.1[^cll-c4] nor CLL 1.3.4[^cll-later-c4] teaches that form in its chapter on word forms.
 
 CLL 1.3.4[^cll-later-s4-16] already teaches the borrowing form, as in `spageti'ykukte`.
 
 The working morphology also lets a `Cy` letter word stand before another word without a pause, so `fyno` is `fy no`. CLL[^cll-s4-9] requires a pause there.
+
+This dialect accepts `kyyykerlo`, which full camxes-std rejects through its lexer wrapper. The [word-form document](../words/bpfk.md#words) explains why its morphology-only parser accepts the same division.
 
 ### Syntax decisions
 
@@ -164,7 +168,7 @@ In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and 
 
 ### Erasure and elision
 
-SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in cll-ebnf and kihei. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std supply these boundaries. The [word stream](../words/stream.md#cll-and-magic-words) says which stops agree with CLL and which depart from CLL[^cll-s19-13].
+SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in cll-ebnf. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std supply these boundaries. The [word stream](../words/stream.md#cll-and-magic-words) says which stops agree with CLL and which depart from CLL[^cll-s19-13].
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 
@@ -172,7 +176,11 @@ CLL gives terminator advice and describes some limitations of its official parse
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-A tanru unit is a component of a selbri. camxes-std tries the plain connective before a `ke` unit. It therefore reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+A tanru unit is a component of a selbri. Before a `ke` group, camxes-std tries the plain connective first, and this dialect prefers the `ke` group. This difference appears in three places:
+
+- In a tanru, camxes-std reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+- In an operator, camxes-std reads `li ci su'i joi ke pi'i ke'e re` with a plain `joi` and the `ke` group inside the next operator. This dialect reads `joi ke` as one connected operator.
+- In a bridi tail, camxes-std never reads a plain gihek before `ke`. It agrees with this dialect on the group reading. But where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, camxes-std rejects the text and this dialect accepts it.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 

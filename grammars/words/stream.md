@@ -1,6 +1,6 @@
 # The word stream
 
-This document defines the words stage of cll-ebnf, kihei, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
+This document defines the words stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -169,7 +169,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family, cll-ebnf and kihei, adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -599,7 +599,7 @@ Erased regions and ordinary hesitation can separate an operand from its operator
 
 `Trailing-Pause` marks a surviving SU boundary whose strings already end with a space. BU and ZEI then use `suppressed-gap` to avoid a second contribution. [Erasure by `sa` and `su`](#erasure-by-sa-and-su) explains that boundary and its recipes.
 
-cll-ebnf and kihei require pauses around a direct name base of BU. They test the source run boundary. A name inside a compound does not make that compound a direct name.
+cll-ebnf requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
 
 ```jbogenbau
 %rule compound-gap
@@ -683,13 +683,13 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its tags keep classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In cll-ebnf, kihei, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
+In cll-ebnf, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
 `su-survivor` keeps its base's emitted strings when a compound covers the survivor. If its skipped tail has a surviving pause, it adds one space and introduces `Trailing-Pause`. `unit` forwards that mark. BU and ZEI suppress their next gap contribution when their left unit carries it, then end the mark. The suppressed gap keeps its structure and erasure ownership.
 
-The survivor has no emission clause, so a standalone survivor forwards only its base token. Its trailing recipe acts inside a covering compound. In cll-ebnf, kihei, bpfk, and experimental, `ni'o su bu` has one space, and `ni'o subu` retains the earlier surviving space.
+The survivor has no emission clause, so a standalone survivor forwards only its base token. Its trailing recipe acts inside a covering compound. In cll-ebnf, bpfk, and experimental, `ni'o su bu` has one space, and `ni'o subu` retains the earlier surviving space.
 
 These examples show the target choice. `le broda le brode sa le` leaves `le broda le`. `le broda le brode sa sa le` leaves `le`. `mi bu sa bu` fails. `broda sa` leaves nothing.
 
@@ -828,9 +828,9 @@ The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ i
 
    So does every NIhO and TUhE stop. The stops at a closed LU or TO and the NIhO and TUhE stops depart from CLL[^cll-s19-13] under any reading.
 
-In cll-ebnf, kihei, bpfk, and experimental, `mi klama lu mi su do li'u` gives `(mi [klama {lu do li'u}])`. SU erases `mi` after `lu` and keeps the quote opener and the outer text.
+In cll-ebnf, bpfk, and experimental, `mi klama lu mi su do li'u` gives `(mi [klama {lu do li'u}])`. SU erases `mi` after `lu` and keeps the quote opener and the outer text.
 
-In cll-ebnf, kihei, bpfk, and experimental, `mi klama lu do cadzu li'u su broda` gives `(mi [klama {lu broda}])`. SU erases `li'u` and the other words after `lu`.
+In cll-ebnf, bpfk, and experimental, `mi klama lu do cadzu li'u su broda` gives `(mi [klama {lu broda}])`. SU erases `li'u` and the other words after `lu`.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
@@ -848,13 +848,13 @@ A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by 
 
 camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`.
 
-It rejects `mi ni'o do su si`, which cll-ebnf, kihei, bpfk, and experimental reduce to `mi`.
+It rejects `mi ni'o do su si`, which cll-ebnf, bpfk, and experimental reduce to `mi`.
 
-These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, kihei, bpfk, and experimental.
+These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, bpfk, and experimental.
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-In cll-ebnf, kihei, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. The boundaries come from Magic Words and camxes-std. The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
+In cll-ebnf, bpfk, and experimental, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. The boundaries come from Magic Words and camxes-std. The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
 
 ### Final markers and Zantufa exceptions
 

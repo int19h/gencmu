@@ -138,7 +138,7 @@ In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails af
 
 ## Differences from CLL and the official parser
 
-SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std supply the boundaries. Kihei inherits this policy.
+SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std supply the boundaries.
 
 A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../words/stream.md#cll-and-magic-words) explains. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO departs from CLL[^cll-s19-13] under any reading. So does every NIhO and TUhE stop.
 

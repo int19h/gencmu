@@ -4,7 +4,7 @@ This document defines the indicator processing rules before syntax. A stage is o
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
+The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
 
 This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
@@ -196,7 +196,7 @@ CLL[^cll-s19-8] says that an attitudinal "Normally" applies to the preceding wor
 
 CLL[^cll-s13-9] states: "If the word that an indicator (or group) attaches to is itself a cmavo which governs a grammatical structure". It then says: "then the indicator construct pertains to the referent of the entire structure". That sentence describes meaning, and a quotation refers to its quoted text. It does not require attachment to `lu`.
 
-A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `cll-ebnf`, `kihei`, and `bpfk` dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
+A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `cll-ebnf` and `bpfk` dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
 Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [corpus cases](../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
 
@@ -226,7 +226,7 @@ camxes-std nests further FUhE groups inside every clause whose post is [`post_cl
 
 camxes-std also lets UI and CAI clauses take further indicators before their following optional NAI. This stage instead keeps the run flat. Within a run, it attaches `nai` only to the UI or CAI directly before it. BAhE can intervene. Leading runs use the same boundary, but keep NAI as a syntax token.
 
-A NAI after DAhO or FUhO stays available to the syntax. CLL[^cll-s19-16] says that those classes do not absorb `nai`. The syntax reads it under its own rules.
+A NAI after DAhO or FUhO stays available to the syntax. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that DAhO, FUhE and FUhO do not absorb `nai`, and CLL[^cll-s19-16] agrees. The syntax reads it under its own rules.
 
 In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
 

@@ -4,7 +4,7 @@ This document opens the forms stage. A stage is one step of a pipeline, with its
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their phoneme images and tags.
+The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their phoneme images and tags.
 
 The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -17,7 +17,7 @@ The prose uses these Lojban terms for words:
 - A brivla is a predicate word.
 - A cmevla is a name word.
 
-The `cll-ebnf` and `kihei` dialects stitch [shapes.md](shapes.md) and [cll.md](cll.md) as their family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
+The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
@@ -27,7 +27,7 @@ The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold w
 
 A lookahead tests following input without consuming it. The word forms of the BPFK, the Lojban language planning committee, look ahead only as far as the next pause. This stage reads each run on its own, except for two lookaheads.
 
-A prolonged y run tests for the letters `bu` across one pause. The test does not require a whole BU word. Both pieces remain hesitation before another word, so the split changes no reading.
+A prolonged y run tests for `bu` across one pause. In the BPFK family, `cmavo-shape` ends with the PEG's `post_word` test, so this lookahead requires the whole cmavo. In the CLL family, it tests only the letters `bu`, even at the start of another word.
 
 In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` before a pause changes how the stage divides the next run ([zantufa.md](zantufa.md)).
 
@@ -37,7 +37,7 @@ A `Silent` token from [latin.md](../phonemes/latin.md) preserves ignored source 
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
-In `cll-ebnf` and `kihei`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
+In `cll-ebnf`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -125,6 +125,8 @@ The stage reads the words of a run from the left. Each word after the first can 
 - `Final-Stress`, `Initial-Stress` and `Stress-Guard`: The word's last or first syllable is stressed, or the word is a brivla. A word with `Initial-Stress` cannot directly follow a word with `Final-Stress`.[^cll-s4-2] Neither can a brivla with `Stress-Guard` (pause rule 5).[^cll-s4-9]
 - `Open-Stress` and `Uncounted`: `Open-Stress` marks a brivla whose stress is not marked, and `Uncounted` marks a word with no counted syllable. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. The run carries `Open-Stress` on through them.
 
+A nucleus is the vowel or diphthong of a syllable.
+
 The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
@@ -156,9 +158,9 @@ The first condition of `run-words` follows from the second. Each join of the sec
 
 The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-Before the letters `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The test accepts the prefix of another word too. Both pieces remain hesitation there, so the words stage reads the same text.
+Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
-`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
@@ -199,7 +201,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom

@@ -2289,7 +2289,7 @@ Universal character matching uses the wildcard `_`. This includes two terminals 
 
 The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings and §1 for the token contract.
 
-A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. In `cll-ebnf` and `kihei`, a syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token in those dialects.
+A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. In `cll-ebnf`, a syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token in this dialect.
 
 A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy` in the phoneme-stage output. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
 
@@ -2309,45 +2309,45 @@ Quote spacing groups each surviving pause run into one gap. Compound spacing cla
 
 Parse-result format 13 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-The following texts pin value, image, and recognition boundaries. `Five` names `bpfk`, `cll-ebnf`, `experimental`, `kihei`, and `zantufa`. The verdict column describes the words stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
 | Text | Dialects | Verdict of the words stage | Required observation |
 | --- | --- | --- | --- |
-| `zoi nu,iork. foo .nuiork.` | Five | `unique` | The comma-insensitive delimiter comparison succeeds |
-| `zoi mai. x .ma,i.` | Five | `unique` | The comma-insensitive closing delimiter succeeds |
-| `zoi .y. bu. foo .y. bu.` | Five | `unique` | The matching fixed y key closes the quote |
-| `zoi ybu foo ybu` | Five | `unique` | The unspaced fixed y keys match |
-| `zoi .yy. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. foo .yy. bu.` | Five | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. "Hello!" .y. bu.` | Five | `unique` | The quote image is `zoi .y. bu. "Hello!" .y. bu` |
+| `zoi nu,iork. foo .nuiork.` | Four | `unique` | The comma-insensitive delimiter comparison succeeds |
+| `zoi mai. x .ma,i.` | Four | `unique` | The comma-insensitive closing delimiter succeeds |
+| `zoi .y. bu. foo .y. bu.` | Four | `unique` | The matching fixed y key closes the quote |
+| `zoi ybu foo ybu` | Four | `unique` | The unspaced fixed y keys match |
+| `zoi .yy. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
+| `zoi .y. bu. "Hello!" .y. bu.` | Four | `unique` | The quote image is `zoi .y. bu. "Hello!" .y. bu` |
 | `zo'oi "Hello!"` | `experimental` | `unique` | The quote image is `zo'oi "Hello!"` |
 | `mi,zo'oi foo` | `experimental` | `unique` | The images are `mi` and `zo'oi foo`, without the comma before the opener |
 | `la'oi クリボー` | `experimental` | `unique` | The quote image is `la'oi クリボー`, including the uncovered final character |
-| `zo SINdarin` | Five | `unique` | The quote image keeps `zo SINdarin`, with its written capitals |
-| `zo .y. coi` | Five | `unique` | The quote image is `zo .y. coi`, and its value is `zo coi` |
-| `zoi klama. abc .Ｋlama.` | Five | `rejected` | A fullwidth-K closing value does not equal `klama` |
-| `zoi klama. abc .Klama.` | Five | `unique` | The Kelvin sign decomposes to `K`, so the closing delimiter matches |
-| `zoi klama. Ｋlama .klama.` | Five | `unique` | The fullwidth-K body value does not equal the delimiter |
-| `zoi klama. Klama .klama.` | Five | `unique` | The Kelvin-sign word equals the delimiter, so it closes an empty quote |
-| `abu` | Five | `unique` | The word image is `abu` |
-| `broda brode si bu` | Five | `unique` | The word image is `broda bu` |
-| `lo'u broda ybrode le'u bu` | Five | `unique` | The letteral image is `lo'u broda ybrode le'u bu` |
-| `lo'u broda .y. brode le'u bu` | Five | `unique` | The letteral image is `lo'u broda .y. brode le'u bu` |
-| `lo'u .y. broda le'u bu` | Five | `unique` | The letteral image is `lo'u .y. broda le'u bu` |
-| `lo'u broda .y. le'u bu` | Five | `unique` | The letteral image is `lo'u broda .y. le'u bu` |
-| `lo'u y le'u bu` | Five | `unique` | The letteral image is `lo'u y le'u bu`, and its value is `lo'u le'u bu` |
+| `zo SINdarin` | Four | `unique` | The quote image keeps `zo SINdarin`, with its written capitals |
+| `zo .y. coi` | Four | `unique` | The quote image is `zo .y. coi`, and its value is `zo coi` |
+| `zoi klama. abc .Ｋlama.` | Four | `rejected` | A fullwidth-K closing value does not equal `klama` |
+| `zoi klama. abc .Klama.` | Four | `unique` | The Kelvin sign decomposes to `K`, so the closing delimiter matches |
+| `zoi klama. Ｋlama .klama.` | Four | `unique` | The fullwidth-K body value does not equal the delimiter |
+| `zoi klama. Klama .klama.` | Four | `unique` | The Kelvin-sign word equals the delimiter, so it closes an empty quote |
+| `abu` | Four | `unique` | The word image is `abu` |
+| `broda brode si bu` | Four | `unique` | The word image is `broda bu` |
+| `lo'u broda ybrode le'u bu` | Four | `unique` | The letteral image is `lo'u broda ybrode le'u bu` |
+| `lo'u broda .y. brode le'u bu` | Four | `unique` | The letteral image is `lo'u broda .y. brode le'u bu` |
+| `lo'u .y. broda le'u bu` | Four | `unique` | The letteral image is `lo'u .y. broda le'u bu` |
+| `lo'u broda .y. le'u bu` | Four | `unique` | The letteral image is `lo'u broda .y. le'u bu` |
+| `lo'u y le'u bu` | Four | `unique` | The letteral image is `lo'u y le'u bu`, and its value is `lo'u le'u bu` |
 | `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. brode le'ai bu` |
 | `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai .y. broda le'ai bu` |
 | `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. le'ai bu` |
 | `mi lo'ai do` | `experimental`, `zantufa` | `rejected` | The error points to the input end and names LEhAI |
 | `mi lo'ai si klama` | `experimental`, `zantufa` | `unique` | The images are `mi` and `klama` |
-| `ni'o su bu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o su bu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o mi si su bu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
+| `ni'o mi si su bu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
 | `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o subu` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
-| `ni'o .su mi` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `ni'o su .y. mi` | `cll-ebnf`, `kihei`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `zoi gy. MI   DO .gy. bu` | Five | `unique` | The image is `zoi gy. MI   DO .gy bu`, also after indicators |
+| `ni'o subu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
+| `ni'o .su mi` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `ni'o su .y. mi` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
+| `zoi gy. MI   DO .gy. bu` | Four | `unique` | The image is `zoi gy. MI   DO .gy bu`, also after indicators |
 
 These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.

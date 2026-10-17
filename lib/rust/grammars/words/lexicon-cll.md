@@ -1,6 +1,6 @@
 # The CLL lexicon
 
-This document supplies the forms-stage lexicon for the [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), and [BPFK](../dialects/bpfk.md) dialects. BPFK is the Lojban language planning committee.
+This document supplies the forms-stage lexicon for the [CLL](../dialects/cll-ebnf.md) and [BPFK](../dialects/bpfk.md) dialects. BPFK is the Lojban language planning committee.
 
 A lexicon is a list of words, each with its classes. The forms stage follows normalization. It divides the phonemes of the text into words. A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo.
 
