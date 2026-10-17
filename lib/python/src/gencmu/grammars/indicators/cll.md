@@ -238,7 +238,7 @@ Rule 1100, one of four non-formal rules, prints `word = [BAhE] any-word [indicat
 
 > Multiple BAhE cmavo may be used in succession
 
-CLL counts Y as an indicator.[^cll-s21-1] The words stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as a pause. A FUhE followed only by hesitation therefore has no indicator and fails.
+CLL counts Y as an indicator.[^cll-s21-1] The words stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as whitespace, not as a word. A FUhE followed only by hesitation therefore has no indicator and fails.
 
 The Magic Words proposal says that `ba'e` "marks the following word but does not change its meaning". It also states: "One NAI can follow any UI or CAI cmavo". The attachment rules retain both properties, even with BAhE before NAI.
 
