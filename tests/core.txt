@@ -1319,6 +1319,8 @@ cll.6.5.c6e2d1
 corpus.camxes.1072
 adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti
 adhoc.syntax.gihek-ke-group-then-gihek-inside-nu-sumti.bpfk
+adhoc.syntax.gihek-ke-inside-be
+adhoc.syntax.gihek-ke-inside-be.bpfk
 adhoc.syntax.gihek-ke-inside-nu-sumti
 adhoc.syntax.gihek-ke-inside-nu-sumti.bpfk
 adhoc.syntax.gihek-tense-ke-group-elided-inner-ku

@@ -165,6 +165,10 @@ CLL groups tails with `ke` after a gihek, with any tense before `ke` on the conn
 
 The condition stands in `bridi-tail-1-final`, the form of `bridi-tail` without the `ke` group of tails. It separates the last plain connection from the earlier connections in `bridi-tail-1`. Only that connection can compete with the `ke` form of `bridi-tail`. The grouped form reads one `ke` group last, followed by one run of tail terms.
 
+A ranked choice over the whole `bridi-tail` span filters readings before `late-elision` ranks them. It removes the reading that keeps the connection inside an abstraction, as in `mi broda be le nu brodi gi'e ke brodo ke'e`. The condition applies only to the last plain connection, so `late-elision` still sees that reading. The CLI gives `(mi [broda {be (le [nu {brodi gi'e ke brodo ke'e}])}])`.
+
+Unlike a whole `bridi-tail` choice, the `selbri-4` and `operator` choices share their left operand, so they cannot move connections outside it.
+
 The `ke` form of `bridi-tail` overlaps a plain gihek only in one case. In that case, the last tail is one `ke` group with one run of tail terms. The condition removes the plain parse in that case and in no other. The tails before the last one are in `bridi-tail-1`, which has no condition.
 
 So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one parse, the group. In `mi klama gi'e pu ke cadzu ke'e`, `pu` stays on the connective.
@@ -855,7 +859,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 7. In `bridi-tail-1-final`, the last tail after a plain gihek cannot be one `ke` group with one run of tail terms. Those are the words that the `ke` form of `bridi-tail` can read as a group of tails.
 
-   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms.
+   `bridi-tail-1-final` separates the last plain connection of the printed `bridi-tail-1`, so its condition needs no lookahead. `$KE-TAIL` tests the actual last tail. The exception requires its own written VAU and nonempty following tail terms. This rule uses a condition because a ranked choice removes readings inside abstractions before `late-elision` can rank them.
 
    The printed grammar reads `mi broda gi'e ke brode ke'e` in two ways. One is a `ke` group of tails after `gi'e` (rule 50). The other is a plain `gi'e` (rule 51) before a tail whose selbri is a `ke` tanru unit. The elided terminators cannot choose: the two parses tie when `ke'e` is elided at the end, and `late-elision` takes the tanru when `ke'e` is written.
 
