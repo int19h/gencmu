@@ -10,7 +10,7 @@ The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и
 
 The apostrophe and period are those of the Latin orthography. In cll-ebnf and kihei, a comma marks a syllable break. The other dialects discard it through [latin.md](latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
 
-A capital `Ъ` writes stressed `y` and maps to `Y`. The [Latin stress rules](latin-strict.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. A compound hyphen stays unstressed.
+A capital `Ъ` writes stressed `y` and maps to `Y`. The [Latin stress rules](latin-strict.md#letters) apply: names can stress any syllable,[^cll-s3-9][^cll-s4-8] and particles can stress any syllable or none.[^cll-s3-9] So `Ъ` can stand in names and particles. In cll-ebnf and kihei, a compound hyphen stays unstressed. The other dialects ignore a stress mark on `y`, so they read `bajЪkla` as a brivla.
 
 ```jbogenbau
 %extend-rule consonant

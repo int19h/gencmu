@@ -226,7 +226,7 @@ camxes-std nests further FUhE groups inside every clause whose post is [`post_cl
 
 camxes-std also lets UI and CAI clauses take further indicators before their following optional NAI. This stage instead keeps the run flat. Within a run, it attaches `nai` only to the UI or CAI directly before it. BAhE can intervene. Leading runs use the same boundary, but keep NAI as a syntax token.
 
-A NAI after DAhO or FUhO stays available to the syntax. CLL[^cll-s19-16] says that those classes do not absorb `nai`. The syntax reads it under its own rules.
+A NAI after DAhO or FUhO stays available to the syntax. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that DAhO, FUhE and FUhO do not absorb `nai`, and CLL[^cll-s19-16] agrees. The syntax reads it under its own rules.
 
 In cll-ebnf and bpfk, `mi .e ui da'o nai do` negates `.e`. camxes-std instead negates `ui`.
 

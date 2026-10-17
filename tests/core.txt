@@ -5720,3 +5720,6 @@ adhoc.values.su-survivor.unspaced.kihei
 adhoc.su.departure-open.experimental
 adhoc.su.departure-closed.kihei
 adhoc.su.departure-closed.experimental
+adhoc.connective.operator-joi-ke.bpfk
+adhoc.forms.y-run-before-bu-prefix.bpfk
+adhoc.forms.y-run-before-bu-prefix.cll-ebnf

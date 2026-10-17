@@ -215,7 +215,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 The stage emits each consonant as its lowercase Latin letter. Each `:=` mapping sets the value and image to its Latin phoneme letter, for every script. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
-A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So a capital `Y` cannot stand in a brivla.
+A brivla is a predicate word. CLL's weak stress for `y` applies to its use as a compound hyphen in a brivla.[^cll-s3-9] So in cll-ebnf and kihei, a capital `Y` cannot stand in a brivla. The other dialects ignore a stress mark on `y`, so they read `bajYkla` as a brivla.
 
 Names can stress any syllable.[^cll-s3-9][^cll-s4-8] A cmavo is a particle. Cmavo can stress any syllable or none.[^cll-s3-9] So a stressed `y` can stand in names and cmavo.
 

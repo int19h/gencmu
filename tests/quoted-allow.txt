@@ -111,3 +111,4 @@ ractu du # grammars/syntax/cll.md @ "omits CU before `du`" = words corpus.camxes
 kanla viska # grammars/syntax/cll.md @ "remains the modal selbri" = words adhoc.syntax.elision-unforced.3.cll-ebnf adhoc.syntax.elision-unforced.4.bpfk
 pu ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.tag-stag-gek.sumti-time-time adhoc.syntax.tag-stag-gek.sumti-time-time.bpfk
 ca gi # grammars/syntax/cll.md @ "forms one connective" = gek adhoc.syntax.leftmost-longest.sumti-time-space-time adhoc.syntax.leftmost-longest.sumti-time-space-time.bpfk
+joi ke # grammars/dialects/bpfk.md = operator adhoc.connective.operator-joi-ke.bpfk

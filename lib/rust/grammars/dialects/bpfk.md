@@ -16,7 +16,7 @@ Indicators after `lu` begin quoted content. Indicators after `to` and `to'i` att
 
 ## NAI attachment
 
-The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. CLL[^cll-s19-16] separates UI and CAI from DAhO and FUhO, which do not absorb `nai`.
+The shared indicator stage keeps each run flat. Within a run, `nai` attaches only to the UI or CAI directly before it. BAhE can stand between them. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) separates UI and CAI from DAhO, FUhE and FUhO, which do not absorb `nai`. The camxes-std rule `indicator` attaches NAI only to UI and CAI. CLL[^cll-s19-16] agrees.
 
 FUhE opens an indicator group. The [indicator document](../indicators/cll.md#differences-from-cll-and-camxes-std) compares the FUhE grouping and NAI rules. The syntax reads any NAI that the indicator stage leaves outside a pair under its own rules.
 
@@ -66,7 +66,7 @@ A feature is a named switch that the grammars test. The dialect turns on `su-bou
   %include "../phonemes/normalize.md"
   ```
 
-A stressed vowel keeps the mark `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this mark to identify stress.
+A stressed vowel keeps the tag `Stressed` and gets a lowercase value. The stage preserves each phoneme image. Forms reads this tag to identify stress.
 
 The Latin phoneme rules discard commas, so this dialect supplies no syllable comma to normalize.
 
@@ -172,7 +172,11 @@ CLL gives terminator advice and describes some limitations of its official parse
 
 A PEG commits to choices before it knows whether the whole text parses. This dialect follows the whole text instead. So `le lojbo se farvi le loglo gi'enai mintu ja dunli le logla` parses with the description ending before `se farvi`.
 
-A tanru unit is a component of a selbri. camxes-std tries the plain connective before a `ke` unit. It therefore reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+A tanru unit is a component of a selbri. Before a `ke` group, camxes-std tries the plain connective first, and this dialect prefers the `ke` group. This difference appears in three places:
+
+- In a tanru, camxes-std reads `joi` before a tanru unit that begins with `ke`. Where only the plain reading parses, as in `mi broda joi ke brode ke'e bo brodi`, the dialect agrees with camxes-std.
+- In an operator, camxes-std reads `li ci su'i joi ke pi'i ke'e re` with a plain `joi` and the `ke` group inside the next operator. This dialect reads `joi ke` as one connected operator.
+- In a bridi tail, camxes-std never reads a plain gihek before `ke`. It agrees with this dialect on the group reading. But where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, camxes-std rejects the text and this dialect accepts it.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 
