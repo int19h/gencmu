@@ -44,7 +44,7 @@ Phonemes supplies phoneme and pause tokens. Normalization then gives stressed vo
 
 The PEG's lookaheads decide where each word ends and which words can stand together without a pause. So every word here is `Continued`: the rules of the word decide whether another word can follow it without a pause. A nucleus is the vowel or diphthong of a syllable. A word has `Onset` when it does not begin with a nucleus, because the PEG's `post_word` lets only such a word follow another word directly.
 
-The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. This stage reads `ybu` as two words, as the [closing comparison](#the-ybu-exception) explains.
+The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o. This stage reads `ybu` as two words, as [the ybu exception](#the-ybu-exception) explains.
 
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 

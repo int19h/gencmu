@@ -273,7 +273,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So `mï` and `mi`U+093E are foreign.
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So in bpfk and Zantufa, `mï` and `mi`U+093E are foreign. The experimental layer reads both marks ([latin-experimental.md](latin-experimental.md)).
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅

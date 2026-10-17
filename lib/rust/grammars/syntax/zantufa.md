@@ -259,7 +259,7 @@ The sentence pattern removes the forethought alternative only when every actual 
 
 The outer connective level reads a tag and written CU directly. Without CU, its following bridi-tail must begin with actual KE. The inner level excludes that actual KE prefix, including KE after a tag. A written KEhE around a bare selbri selects the tanru construction. An omitted KEhE around the same body selects the grouped bridi-tail.
 
-The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. With repeated tags, `pu ba ke ge broda mi gi brode do ke'e` has two readings, with one tag or two. They elide the same terminators, so they tie.
+The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. So `pu ba ke ge broda mi gi brode do ke'e` reads `pu ba` as one tag before `ke`.
 
 ```jbogenbau
 

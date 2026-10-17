@@ -166,7 +166,7 @@ The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so n
 
 A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
-The reason is that the syntax reads this run. A `nai` nested under its attitudinal hides from the syntax, which then reads a second `nai` after the attitudinal as that attitudinal's own. So `pau nai nai mi klama` becomes a text. With the `nai` in the stream, the syntax rejects it.
+The reason is that the syntax reads this run. If the stage nested a `nai` under its attitudinal, the syntax would not see it. The syntax would then read a second `nai` as that attitudinal's own, and `pau nai nai mi klama` would be a text. The stage keeps the `nai` in the stream, so the syntax rejects that text.
 
 ```jbogenbau
 %rule leading
