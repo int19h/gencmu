@@ -164,7 +164,7 @@ In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and 
 
 ### Erasure and elision
 
-This dialect's `su-boundary`, a project choice, stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) names those boundaries but leaves their survival unspecified. camxes-std also stops at these boundaries. Under CLL[^cll-s19-13], SU erases the whole text.
+Like cll-ebnf and kihei, this dialect preserves the last NIhO, LU, TUhE, or TO word when SU erases back to it. The policy follows the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std. The [word stream](../words/stream.md#cll-and-magic-words) explains this departure from the whole-text reading of CLL[^cll-s19-13].
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 

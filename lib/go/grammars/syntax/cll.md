@@ -889,7 +889,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 ### Earlier stages
 
-Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists seven departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, and whole-quote attachment. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
+Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 

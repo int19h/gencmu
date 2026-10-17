@@ -683,7 +683,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its tags keep classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In cll-ebnf, kihei, and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
+In cll-ebnf, kihei, bpfk, and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives. In Zantufa, SU erases everything before it.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
@@ -812,7 +812,7 @@ The dialects follow the [Magic Words proposal](https://mw.lojban.org/papri/Magic
 
 CLL describes erasure,[^cll-s19-13] hesitation,[^cll-s19-14] FAhO,[^cll-s19-15] and their interactions.[^cll-s19-16] These sections do not specify one complete processing order.
 
-The dialects use seven departures from CLL.[^cll-c19] Items 2 and 4 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
+The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ in Zantufa. There ZEI erases, and hesitation attached to a word has class Y ([zantufa-stream.md](zantufa-stream.md)).
 
 1. SI, BU, and ZEI each take a whole quote or compound as one unit. The CLL examples[^cll-e19-77][^cll-e19-79] count quotation markers and contents separately. CLL[^cll-s19-16] defines BU and ZEI by the preceding word, and CLL[^cll-s17-4] limits BU to one word.
 2. ZEI takes any next word as its right operand. CLL[^cll-s19-16] excludes several magic words from that interaction.
@@ -821,6 +821,10 @@ The dialects use seven departures from CLL.[^cll-c19] Items 2 and 4 differ in Za
 5. LOhU closes at the first LEhU. CLL[^cll-s19-16] excludes a LEhU after ZO, and CLL permits a ZOI quote inside LOhU.[^cll-s19-10]
 6. ZOI compares whole raw runs by exact stored values, including FOREIGN values from decomposed source text. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
+
+8. SU stops at the last NIhO, LU, TUhE, or TO unit and preserves it, except in Zantufa. CLL[^cll-s19-13] says that SU "erases the entire text". These dialects read the current subordinate text, following Magic Words and camxes-std. CLL's grammar[^cll-c21] uses `LU text` and `TO text`, and CLL[^cll-s19-15] names those subordinate texts.
+
+In cll-ebnf and bpfk, `mi klama lu mi su do li'u` gives `(mi [klama {lu do li'u}])`. SU erases `mi` after `lu` and keeps the quote opener and the outer text.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
@@ -836,13 +840,13 @@ camxes-std, the standard grammar of the camxes parser, follows the grammatical r
 
 A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by cy sa .ebu` erases both letters. In `by boi cy sa .ebu`, BOI ends the first sumti, so SA keeps `by`. `mi do sa ti` keeps `mi`, and `mi broda le brode sa ti` gives `mi broda ti`.
 
-camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`. It rejects `mi ni'o do su si`, which cll-ebnf and kihei accept as empty.
+camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`. It rejects `mi ni'o do su si`, which cll-ebnf and kihei reduce to `mi`.
 
 These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, kihei, bpfk, and experimental.
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-The cll-ebnf and kihei SU policies follow CLL[^cll-s19-13]. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
+The cll-ebnf, kihei, bpfk, and experimental SU policies follow Magic Words and camxes-std, with the stopping boundary preserved. [Departure 8](#cll-and-magic-words) explains their reading of CLL's subordinate texts. Zantufa erases the whole preceding text, as its reference grammar specifies.
 
 ### Final markers and Zantufa exceptions
 
@@ -869,5 +873,7 @@ Zantufa retains its reference parser's quote-first fallback and SU-before-BU let
 [^cll-s19-15]: [CLL 1.1, section 19.15](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-faho.html).
 
 [^cll-s19-10]: [CLL 1.1, section 19.10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-more-quotations.html).
+
+[^cll-c21]: [CLL 1.1, chapter 21](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html).
 
 [^cll-c19]: [CLL 1.1, chapter 19](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-structure.html).

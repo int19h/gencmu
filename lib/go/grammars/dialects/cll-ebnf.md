@@ -8,10 +8,10 @@ The printed grammar is normative here, with the repairs that [the CLL grammar](.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted.
 
-`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on the feature `cll-cyrillic`.
+`docs/notation.md` explains the notation. A feature is a named switch that the grammars test. This dialect turns on `cll-cyrillic` and `su-boundary`.
 
 ```jbogenbau
-%features cll-cyrillic
+%features cll-cyrillic su-boundary
 ```
 
 ## Stage 1: phonemes
@@ -137,6 +137,8 @@ The printed grammar also reads `joi` before a tanru unit that begins with `ke`. 
 In the same way, `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`, as CLL[^cll-s14-10][^cll-s14-18] describes. The printed grammar also reads a plain `gi'e` before a bridi-tail that is one `ke` group. The ranking ties or takes that reading. The condition of the rule `bridi-tail-1-final` of the CLL grammar removes it. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the dialect keeps it.
 
 ## Differences from CLL and the official parser
+
+SU stops at the last NIhO, LU, TUhE, or TO word, which survives. Kihei inherits this policy. The [word stream](../words/stream.md#cll-and-magic-words) explains this departure from the whole-text reading of CLL 19.13. The dialect follows Magic Words and camxes-std.
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
 
