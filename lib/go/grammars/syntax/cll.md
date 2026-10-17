@@ -394,7 +394,7 @@ A selbri is the predicate of a bridi[^cll-c5]. A tense or modal can come before 
 
 `selbri-3` is a plain tanru: a sequence of `selbri-4` with no connective between them. It groups to the left, by the left-grouping rule of tanru[^cll-s5-3], so `barda gerku zdani` is `(barda gerku) zdani`. It is a left chain, so the tree shows that grouping.
 
-`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left[^cll-s14-12]. The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its three forms of connection read different units after the connective. Where the unit after a plain joik is only a `ke` group, the second form reads the same words. The grammar then takes the second form.
+`selbri-4` joins units by a jek or joik in afterthought, `barda je melbi`, or by a joik followed by `ke ... ke'e`. These connections group from the left[^cll-s14-12]. The rule is written with left recursion, so the tree shows that grouping. It is not a chain, since its two forms of connection read different units after the connective. A ranked choice states them: the `ke` group of the joik comes first, and the plain connection second. Where the unit after a plain joik is only a `ke` group, both options read the same words, and the grammar takes the `ke` group.
 
 `selbri-5` joins units by a jek or joik with `bo`, which binds more tightly than plain juxtaposition, as in `melbi je bo cmalu nixli`. It is a right chain, since a run of `bo` groups from the right[^cll-s5-4][^cll-s14-8][^cll-s14-12].
 
@@ -834,7 +834,7 @@ For example, `le sutra tavla` has two parses. One is a statement with the descri
 
 This grammar departs from the EBNF printed in CLL in eleven places. The first settles a precedence that the printed text leaves open. The next three repair the EBNF's copy of the YACC grammar, used by the official parser, CLL's reference implementation. YACC is a parser generator. The EBNF cites that grammar's rule numbers. In each case, the YACC grammar has a path that the EBNF omits, and the official parser accepts the text.
 
-The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
+The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth uses a ranked choice and the seventh a condition to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
 The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
 
