@@ -1,0 +1,18 @@
+{
+  "description": "Stage-local features: earlier-warning (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text f! A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

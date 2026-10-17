@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "lo'u pa le'u re mai",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

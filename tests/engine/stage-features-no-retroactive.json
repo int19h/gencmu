@@ -1,0 +1,18 @@
+{
+  "description": "Stage-local features: no-retroactive (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text ¬g? A\n%emits\n%stage second\n%features f g\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "na zo cu",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

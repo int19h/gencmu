@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zoi gy. l`amour .gy",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

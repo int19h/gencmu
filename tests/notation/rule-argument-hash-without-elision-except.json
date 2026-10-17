@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions $x.without-elision-except(#).matches(rival)\n```\n",
   "expect": {
     "dom": {
-      "format": 31,
+      "format": 32,
       "rules": [
         {
           "conditions": [

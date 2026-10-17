@@ -1236,7 +1236,7 @@
    */
 
 
-  const RESULT_FORMAT = 13;
+  const RESULT_FORMAT = 14;
 
   /**
    * A token in the result JSON. An attached token has no span, and a list of
@@ -3779,7 +3779,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 31;
+  const DOM_FORMAT = 32;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a

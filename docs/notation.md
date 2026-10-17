@@ -1013,7 +1013,44 @@ A pipeline document, which is Markdown too, defines a dialect. Each stage is a h
 - `%extend-stage NAME` selects an earlier stage. Subsequent stage items append to that stage until another stage selector appears. An unknown name is an error.
 - `%redefine-stage NAME` selects an earlier stage and clears all its accumulated stage items. The stage keeps its execution position. Subsequent items define the replacement, and later extensions append to it. An unknown name is an error.
 - `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the include path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold stage selectors and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
-- `%features NAME…` names one or more features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
+- Before the first stage selector, `%features NAME…` declares global defaults for every stage.
+- After a stage selector, `%features NAME…` belongs to that stage. It enables its features for that stage and every later stage.
+- A stage-local `%features` accepts a following `%conditions` clause list. All conditions must hold before it enables its features.
+
+A conditional declaration reads its stage input once, before that stage parses:
+
+```jbogenbau
+%stage words
+%features sa-su
+%conditions
+  $.classes ∩ (SA SU) ≠ ∅
+```
+
+Here `$` denotes all input tokens as one span, without a constituent or a position query.
+
+Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, and `.split`.
+
+These methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
+
+Other methods and tree comparisons `≅` and `≇` are loading errors, even in a condition that cannot hold.
+
+Named captures are loading errors. The presence predicate `$` is always true, including for empty input.
+
+Constants use the selected stage's binding rules. Each condition must have Boolean type, as a rule condition does.
+
+A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
+
+A stage-local feature is a loading error if any earlier stage tests it, including through a classifier guard.
+
+This restriction applies even when the same feature has a global declaration or the caller enables it.
+
+The loader examines surviving rules and declarations before feature filtering. Stage replacement also clears its local feature declarations.
+
+A caller-enabled feature is on everywhere. A local declaration never removes an enabled feature.
+
+If conditional features conflict with `without_features`, the parse returns `feature-conflict` with the feature and stage names.
+
+An unconditional declaration respects `without_features`. An `until` before the stage never evaluates its declarations.
 
 Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
@@ -1025,7 +1062,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 

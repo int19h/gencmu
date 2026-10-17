@@ -556,11 +556,13 @@ A directive starts a stage, includes a document, declares features, or chooses a
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 
+`%features` alone accepts a following `%conditions` clause. The loader requires a selected stage for that clause.
+
 `%include` takes exactly one quoted path. Its first operand uses literal path decoding. An include path cannot serve as a method receiver.
 
 ```jbogenbau
 %rule directive
-  directive-name [{directive-argument}]
+  directive-name [{directive-argument}] [conditions-clause]
 
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE

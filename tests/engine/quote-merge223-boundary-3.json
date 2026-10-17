@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "lo'ai ni'o le'ai ni'o coi do .i mi klama",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

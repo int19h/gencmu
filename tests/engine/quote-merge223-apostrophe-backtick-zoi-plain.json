@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zoi la`o. l`amour .la`o",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

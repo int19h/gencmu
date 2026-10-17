@@ -1,0 +1,13 @@
+{
+  "description": "Stage-local features: empty-input (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%features f\n%conditions $, $.tags = ∅, $.first-token.value = \"\"\n%ambiguity-resolution greedy\n%rule text f? ε\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

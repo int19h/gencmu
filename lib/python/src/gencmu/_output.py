@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 13
+FORMAT = 14
 
 
 def token_json(token: Token) -> dict[str, Any]:

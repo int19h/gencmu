@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zo lá`o",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

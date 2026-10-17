@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "pu lo'ai ku le'ai klama",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

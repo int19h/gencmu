@@ -139,7 +139,7 @@ A rule flag gives a rule a preference. Two flags exist, `leftmost-longest` and `
 
 Parentheses follow the keyword and precede the name. Their only accepted content is one flag name, `leftmost-longest` or `fewest`, with optional surrounding spaces. Empty parentheses, duplicates, unknown flags, arguments and parentheses on `%extend-rule` are errors of the document. Section 9 gives their priority and positions.
 
-The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, `%include`, and `%features` shape the pipeline (§13) and do not belong to a stage. `%ambiguity-resolution` belongs to the stage.
+The loader collects directives from all the stage's items. `%stage`, `%extend-stage`, `%redefine-stage`, and `%include` shape the pipeline (§13). Global `%features` also shapes the pipeline. Local `%features` and `%ambiguity-resolution` belong to a stage.
 
 A stage also has constants. A constant is a named value that terms and conditions use (§10). Its name is `$` and a name (§9) that begins with `A` to `Z`, such as `$SU-STOPS`. By convention, the whole name is in capitals.
 
@@ -1389,7 +1389,7 @@ terminal = tag | string-literal | range | "_"
 pattern-brackets = "[" pattern-union "]"
 pattern-repeat = "{" pattern-union ["/" pattern-union] "}"
 pattern-path = ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
-directive = directive-name {directive-argument}
+directive = directive-name {directive-argument} [conditions]
 directive-name = "%stage" | "%extend-stage" | "%redefine-stage"
                | "%include" | "%features" | "%ambiguity-resolution"
 directive-argument = argument-word | argument-string | argument-tag | argument-term
@@ -1515,7 +1515,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | Constructor | Required parts and lookup order | DOM conversion |
 | --- | --- | --- |
 | The root | Declaration constructors in source order | Five ordered item arrays, including empty arrays. A known non-declaration part is an error. |
-| `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. |
+| `directive` | Keyword token, then argument parts in order | Validate written operand count and types before converting terms. Report every wrong operand at the directive. Produce `name` and valid argument values as `args`. A following `conditions-clause` gives optional `conditions` only for `%features`. |
 | `argument-word` | One name token | Name string |
 | `argument-string` | One quoted operand | Only the first `%include` operand uses literal path decoding. Other quoted operands follow ordinary lexical forms and fail operand validation at the directive. |
 | `argument-tag` | One tag token or range | Tag identifier or range operand for validation at the directive |
@@ -2237,9 +2237,9 @@ To splice a pipeline, the loader reads the pipeline document's items (§9) in or
 
 Stage selection continues across grammar blocks and include boundaries. The includer's next item goes into the stage selected at the end of the include.
 
-Replacement clears rules, constants, classifiers, implications, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2).
+Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2).
 
-The names of every `%features` of the stream are the features the pipeline turns on. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
+A `%features` before the first stage selector declares global defaults. Every later `%features` belongs to the selected stage, including across include boundaries. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
 
 - An `%include` of a document that does not exist is an error at the `%include`. The error names the documents that included it.
 - An `%include` of a document that is already being included, which is a cycle, is an error at the `%include`. The error names the documents that included it.
@@ -2253,25 +2253,55 @@ A document can be included more than once, in one stage or in several. The loade
 
 The first stage reads stage-zero tokens, or caller tokens that bypass stage zero (§1). Each later stage reads the preceding stage's emitted tokens. The caller's `until` names the last stage to run, inclusive. If the caller omits `until`, every stage runs.
 
-The features on for every stage are those that the pipeline or the caller turns on, less those that the caller turns off. A caller who names one feature both to turn on and to turn off makes a usage error. Naming a feature that no guard of the dialect uses is not an error: the feature is on or off. A stage that rejects its input ends the run with that rejection. An `ambiguous` error, of a tie (§6) or of the check of §7, ends it likewise.
+The caller's enabled features and the global defaults are on from the first stage, less the caller's disabled features.
+
+A caller who names one feature both to enable and disable makes a usage error. Unknown feature names are legal.
+
+Before each stage parses, the engine evaluates its conditional feature declarations on that stage's input, in declaration order.
+
+Each declaration's conditions form a conjunction with the usual short-circuit rules (§10). Each declaration evaluates once, even if its features are already enabled.
+
+Here `$` is the whole input span, with token tags unioned and no constituent tags. The presence predicate `$` is always true.
+
+Bare `$` reads token values. Legal methods are `tags` without arguments, `classes`, `value`, `image`, `source-text`, and `decomposed-source-text`.
+
+The methods `first-token`, `tokens-after-first`, `last-token`, and `split` are also legal. Each method keeps its usual types and arities.
+
+All other methods, named captures, and tree comparisons are loading errors there, even in unreachable branches.
+
+Constants bind in the selected stage (§2). Conditions use the usual Boolean type rules (§10).
+
+A global declaration with conditions, or conditions on another directive, is a loading error at that directive.
+
+If all conditions hold, the declaration enables its features from this stage onward. An unconditional declaration enables its features at the same point.
+
+Unconditional declarations respect the caller's disabled features. An enabled feature stays enabled.
+
+If a conditional declaration holds and names a caller-disabled feature, the parse ends with a `feature-conflict` result.
+
+The error names the stage and feature, without a position. For several conflicts, declaration order wins, then operand order.
+
+The failed stage has a null verdict, no tree, and no output. Earlier stages retain their outputs and warnings.
+
+A runtime grammar error in a feature condition ends the stage with the usual `grammar` result and a null verdict.
+
+An `until` before a stage never evaluates that stage's declarations. Each stage parses at most once.
+
+A stage-local feature is a loading error if a surviving earlier stage tests it, whether or not it also has a global declaration.
+
+The loader examines rule guards and classifier guards before feature filtering. This includes classifiers used by conditions.
+
+Its own stage and later stages can test the feature. Caller configuration cannot bypass this loading rule.
+
+A rejection or an `ambiguous` error ends the run as usual.
 
 The result's `ok` is true when every stage run accepted without an error. The result's warnings are those of every stage that ran (§12), in stage order, and they are kept whether or not the result is `ok`.
 
 A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 
-Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect. The loader finds this error when it loads the dialect. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether `%features` turns it on.
+Local declarations also contribute their names to this inventory.
 
-When all of these hold, the engine runs the stages up to and including the one named `words` once without `sa-su`:
-
-- The caller asks for auto features.
-- The dialect has `sa-su` as a gate.
-- `sa-su` is not already on.
-- The caller did not turn `sa-su` off.
-- The run reaches a stage named `words`: the dialect has one, and `until`, if given, names it or a later stage.
-
-The engine then runs the parse again from the first stage with `sa-su` added, in two cases. In the first case, that first run does not end with the `words` stage accepting. Any reason counts: a rejection, a tie or another error in it or in a stage before it. In the second case, the chosen tree of the `words` stage has a constituent of the rule `word` whose tag set has `SA` or `SU`.
-
-In either case, the engine discards the first run's stages and warnings. Otherwise that first run's stages are the parse's, with their warnings, continued to the end. The engine tests the class and not the value, because the lexicon decides which words erase. For example, Zantufa classifies `sa` as UI, so that value does not trigger a retry.
+Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect. The loader finds this error when it loads the dialect. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether an unconditional `%features` declares it as a default. Conditional declarations contribute names, but no defaults.
 
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 
@@ -2307,9 +2337,9 @@ Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the 
 
 Quote spacing groups each surviving pause run into one gap. Compound spacing classifies erasure-aware derivations with Gap-Pause. SU survivor recipes use Trailing-Pause to avoid duplicating a gap across constituent boundaries. These structural rules preserve attachment ownership independently of their images. The dialect guide states each tag's origin and end.
 
-Parse-result format 13 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
+Parse-result format 14 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with default features and auto features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with default features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
 | Text | Dialects | Verdict of the words stage | Required observation |
 | --- | --- | --- | --- |

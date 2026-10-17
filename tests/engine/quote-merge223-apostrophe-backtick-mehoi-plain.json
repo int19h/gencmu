@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "me`oi l`amour",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

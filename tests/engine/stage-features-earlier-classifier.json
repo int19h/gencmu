@@ -1,0 +1,18 @@
+{
+  "description": "Stage-local features: earlier-classifier (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%classifier c\n f? \"a\" ∈ A\n%stage second\n%features f\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
