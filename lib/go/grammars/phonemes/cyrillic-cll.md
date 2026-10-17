@@ -6,9 +6,9 @@ The [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experi
 
 The two read the same letters differently, so a dialect or a caller chooses one of them. The letters of this document apply only while `cll-cyrillic` is on. The document has no frame of its own, that is, no rules for the text, its pauses and its runs. It adds its letters to the rules of [latin-strict.md](latin-strict.md), so a text can mix scripts. [The notation document](../../docs/notation.md) explains the notation.
 
-The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. So `ж` is `j`, `х` is `x` and `ш` is `c`.
+The rules map 23 letters to phonemes. Five are the vowel letters `а`, `е`, `и`, `о` and `у`. Seventeen are the consonants `б`, `в`, `г`, `д`, `ж`, `з`, `к`, `л`, `м`, `н`, `п`, `р`, `с`, `т`, `ф`, `х` and `ш`. The Bulgarian hard sign `ъ` maps to `y`. Their images use these Latin phoneme letters. So `ж` is `j`, `х` is `x` and `ш` is `c`.
 
-The apostrophe, the comma and the period are those of the Latin orthography. The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
+The apostrophe and period are those of the Latin orthography. In cll-ebnf and kihei, a comma marks a syllable break. The other dialects discard it through [latin.md](latin.md#the-comma). The orthography writes a diphthong as a vowel pair, as in the Latin orthography, so `маи` is `mai`. A capital vowel marks stress, and a capital consonant preserves its phoneme. The all-capital runs of [latin.md](latin.md) do not apply to these letters, so in every dialect a capital vowel here marks stress.
 
 ```jbogenbau
 %extend-rule consonant
@@ -74,5 +74,7 @@ The apostrophe, the comma and the period are those of the Latin orthography. The
 ## Choices beyond CLL
 
 CLL first lists 22 letters, which it maps "in the obvious ways". It then assigns the Bulgarian hard sign to `y`.[^cll-s3-12] This grammar maps all 23 letters. CLL says nothing about capitals. This document extends the Latin treatment of capitals to Cyrillic. Its capital vowels always mark stress, including in dialects with capital folding for other scripts.
+
+The [Latin choices](latin-strict.md#choices-beyond-cll) explain consonant folding and stress on `y`, also written `ъ`.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).

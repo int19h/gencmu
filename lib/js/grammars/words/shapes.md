@@ -135,7 +135,9 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
 
 
 
-A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]), and so can the middle of a borrowing (CLL[^cll-s4-7]). `permissible-run` reads one consonant, or extends a permissible run by one consonant. The condition starts a `consonant-pair` lookahead at the preceding run's last token, so each extension tests its new adjacent pair. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
+A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [cll.md](cll.md#borrowings) use `has-n-affricate` to exclude those triples.
+
+`permissible-run` reads one consonant, or extends a permissible run by one consonant. The condition starts a `consonant-pair` lookahead at the preceding run's last token, so each extension tests its new adjacent pair. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
 ```jbogenbau
 %rule permissible-run

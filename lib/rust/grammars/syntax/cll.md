@@ -157,6 +157,8 @@ The bridi-tail levels state how sentences share a head under a gihek, the connec
 
 `bridi-tail` at the top lets a gihek be followed by `ke ... ke'e`. The brackets group the tails inside them against the tail to the left. The tail terms after each selbri belong to that selbri. `vau` closes them and is almost always elided.
 
+`late-elision` prefers parses with later omitted terminators. ["Choosing among parses"](#choosing-among-parses) defines this ranking.
+
 After a plain gihek, `ke` can begin either a group of tails or a tanru unit of the next tail. Elided terminators cannot reliably choose between those readings. In `mi broda gi'e ke brode`, both parses elide the same terminators at the same places, so they tie. In `mi broda gi'e ke brode ke'e`, the group elides the `vau` of `brode` before `ke'e`, and the tanru parse elides nothing there. So `late-elision` takes the tanru parse.
 
 CLL groups tails with `ke` after a gihek, with any tense before `ke` on the connective.[^cll-s14-10][^cll-s14-18] A condition on the last tail after a plain gihek prefers that group. `$KE-TAIL` tests the structure of that actual tail. A structural pattern describes a node or its children. Patterns pass through single-child wrappers and retain written or omitted terminator nodes.
@@ -176,6 +178,8 @@ So `mi broda gi'e ke brode` and `mi broda gi'e ke brode ke'e` each have one pars
 In `mi broda gi'e ke brode ke'e le zarci`, `le zarci` is in the outer tail terms, after `ke'e`. Tail terms after a connection of tails apply to both sides of it[^cll-s14-9][^cll-e14-54]. So `le zarci` applies to `broda` and to the group.
 
 The tree still shows the whole left grouping of plain giheks[^cll-s14-10], since `bridi-tail-1` groups to the left. So four tails group as `((A gi'e B) gi'a C) gi'u D`.
+
+`elision-only` rejects ranked parses whose restored terminators leave ambiguity. ["Choosing among parses"](#choosing-among-parses) defines this test.
 
 A lookahead tests the input that follows a construct. The condition needs no lookahead. The last tail has no following gihek in the same bridi-tail. The condition tests that tail's structure and the text of its tail terms. The `elision-only` test writes back elided terminators, but these tests still read the original words.
 
@@ -256,7 +260,7 @@ The gek-sentence's tail terms follow the whole connection and apply to both side
 A term is one argument of a bridi, or one tense or modal standing on its own[^cll-s9-3][^cll-s10-13][^cll-s16-11]. It is one of these:
 
 - A sumti
-- A sumti or an elided `ku` after a tense, a modal or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
+- A sumti, or `ku` written or elided, after a tense, a modal or a place marker `fa`, `fe`, ... (`ca lo nu broda`, `fi mi`, `pu ku`)
 - A termset
 - A termset after a tense or modal tag
 - `na ku`, the sentence-level negation written as a term
@@ -628,7 +632,7 @@ Lojban has one set of logical connectives, spelled differently for each level of
 - A jek joins tanru units and, after `.i`, sentences (`je`).
 - A gek is the forethought form (`ga ... gi`).
 
-Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`, possibly bounded by `ga'o` or `ke'i`[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
+Each afterthought connective can be negated on either side, `na` before and `nai` after, and converted by `se`. A joik is a non-logical connective. It is `joi`, `ce`, `jo'u` and the rest of JOI, or an interval `bi'i` or `bi'o`. The interval has `ga'o` or `ke'i` on both sides or on neither[^cll-s14-14][^cll-s14-16]. `joik-ek` and `joik-jek` are the pairs that stand in the same position. Each carries a free-modifier slot.
 
 The recursive alternative of `selbri-4` and `operator` ranks two options after the left operand. The preferred option groups with the connective through `joik [stag] KE`. The plain option joins the left operand to another unit through `joik-jek`. The preferred option removes the plain reading only across the same span. Both readings can elide the same terminators, so elision ranking alone cannot choose between them.
 
@@ -772,7 +776,7 @@ A free modifier can occupy any `#` slot. CLL permits free modifiers after many c
 
 - A `sei ... se'u` discursive bridi, `sei mi cusku`
 - A `soi ... se'u` reciprocity marker
-- A vocative phrase: `coi` or `doi` and their kin, followed by a selbri, by names, or by a sumti, and closed by `do'u`
+- A vocative phrase: `coi` or `doi` and their kin, alone or followed by a selbri, names, or a sumti. Relative clauses can surround the selbri or names. The phrase closes with `do'u`.
 - An utterance ordinal, `pa mai`
 - A parenthetical text, `to ... toi`
 - A subscript `xi` with a number, lerfu string or bracketed mekso
@@ -887,6 +891,8 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
+    A `zei` compound gets the free-modifier slot of `BRIVLA #`, which printed rule 152 omits after its ZEI alternative. YACC [step 4a](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L98-L99) merges the compound into BRIVLA, and [`bridi_valsi_407`](https://github.com/lojban/cll-parser/blob/8dd52fa5fc8e8a60dea81bf64477c84ed13d2dd1/grammar.y#L909-L913) permits a free modifier after it.
+
 ### Earlier stages
 
 Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
@@ -915,9 +921,9 @@ In the printed EBNF and this grammar, bare `.i` binds loosest. The next level co
 
 CLL[^cll-s14-6] prints the example[^cll-e14-27], `la djan. .ije la .alis. klama le zarci`, with a fragment before the sentence connective. This grammar rejects it. Printed rules 10, 12, and 13 allow fragments only beside bare `.i`.
 
-The LLG, the Logical Language Group, publishes `techfix.300`, an official grammar correction. Its CHANGE 45 deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all." The 1997 online draft gives that example[^cll-e14-27] the same framing under its earlier numbering.
+The LLG, the Logical Language Group, publishes `techfix.300`, an official grammar correction. Its CHANGE 45 deliberately removes fragments as operands of sentence connectives. It states that "they can only be connected by I, not by any lower-level form." CLL presents the fragment connection as worse than the sumti connection.[^cll-e14-27][^cll-e14-26] The fragment example leaves "the reader uncertain why John is mentioned at all."
 
-The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. On lojban-list, John Cowan addressed fragment connections in "fragment + i-jek" on June 18, 2004. The reply's Message-ID is `20040618052316.ga24048@ccil.org`. His reply says:
+The official parser accepts the example[^cll-e14-27] because its lexer never produces the statement-level token `I_JEK_820`. Cowan calls fragment connections obsolete:[^cowan-fragments]
 
 > It's wrong, or rather obsolete.
 
@@ -1227,3 +1233,5 @@ The indivisible-number rule follows these CLL requirements in the cll-ebnf, kihe
 [^cll-c9]: [CLL 1.1, chapter 9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-sumti-tcita.html).
 
 [^cll-c10]: [CLL 1.1, chapter 10](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-tenses.html).
+
+[^cowan-fragments]: [John Cowan, "Re: fragment + i-jek", lojban-list](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/mail/lojban-list/threads/2004/659baea03053-fragment_%252B_i-jek.txt#L28). Message-ID: `20040618052316.ga24048@ccil.org`.

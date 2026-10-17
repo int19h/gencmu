@@ -828,9 +828,9 @@ The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ i
 
    So does every NIhO and TUhE stop. The stops at a closed LU or TO and the NIhO and TUhE stops depart from CLL[^cll-s19-13] under any reading.
 
-In cll-ebnf and bpfk, `mi klama lu mi su do li'u` gives `(mi [klama {lu do li'u}])`. SU erases `mi` after `lu` and keeps the quote opener and the outer text.
+In cll-ebnf, kihei, bpfk, and experimental, `mi klama lu mi su do li'u` gives `(mi [klama {lu do li'u}])`. SU erases `mi` after `lu` and keeps the quote opener and the outer text.
 
-In cll-ebnf and bpfk, `mi klama lu do cadzu li'u su broda` gives `(mi [klama {lu broda}])`. SU erases `li'u` and the other words after `lu`.
+In cll-ebnf, kihei, bpfk, and experimental, `mi klama lu do cadzu li'u su broda` gives `(mi [klama {lu broda}])`. SU erases `li'u` and the other words after `lu`.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
@@ -858,7 +858,7 @@ In cll-ebnf, kihei, bpfk, and experimental, SU erases back to the last surviving
 
 ### Final markers and Zantufa exceptions
 
-The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. This policy differs from acceptance by camxes-exp, the experimental grammar of the camxes parser ([experimental.md](../dialects/experimental.md)).
+The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg)).
 
 Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The dialect document](../dialects/zantufa.md) defines both exceptions.
 

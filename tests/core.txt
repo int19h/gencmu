@@ -5717,3 +5717,6 @@ adhoc.v0.syntax.basic.su-erases-to-previous-lu
 adhoc.v0.syntax.basic.su-erases-to-previous-lu.bpfk
 adhoc.values.su-survivor.spaced.kihei
 adhoc.values.su-survivor.unspaced.kihei
+adhoc.su.departure-open.experimental
+adhoc.su.departure-closed.kihei
+adhoc.su.departure-closed.experimental

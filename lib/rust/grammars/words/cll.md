@@ -26,7 +26,7 @@ The forms stage joins two words without a pause only if the numbered pause rules
 - `Onset`: The word begins with a consonant and is not a name. Only such a word can follow another word without a pause (rules 3 and 4), apart from a name after `la`, below.
 - `Continued`: Another word can follow this one without a pause. Every cmavo but a `Cy` letter has it, and so does a brivla whose stress is marked.
 - `Open-Stress`: The word is a brivla whose stress is not marked. CLL[^cll-s3-9] puts its stress on its penultimate syllable, so no counted syllable can follow it before the next pause. Only a word tagged `Uncounted`, one with no counted syllable, can follow it without a pause.
-- `Cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly
+- `Cy`: A `Cy` letter, which rule 6 lets only another `Cy` follow directly.
 - `Name-Intro` and `Name-Onset`: `Name-Intro` marks `la`, `lai`, `la'i` and `doi`, and `Name-Onset` marks a name that begins with a consonant. Rule 4 lets the name follow the cmavo without a pause.
 - `Initial-Stress` and `Final-Stress`: The word's first or last syllable is stressed. Such syllables are those of the first and the last vowel nucleus of the word as written, `y` included. A pause must stand between a word with `Final-Stress` and a following word with `Initial-Stress` (CLL[^cll-s4-2]). It must also stand before a following brivla, which carries the tag `Stress-Guard` (rule 5).[^cll-s4-9]
 

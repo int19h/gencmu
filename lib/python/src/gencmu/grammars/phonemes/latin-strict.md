@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
-This document reads the Latin orthography of CLL[^cll-c3], with typographic forms of the apostrophe. The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
+This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
@@ -213,7 +213,7 @@ A foreign run has at least one character that no rule of `any-lojban-char` reads
 
 ## Letters
 
-The stage emits a consonant as itself, whatever its case. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
+The stage emits each consonant as its lowercase Latin letter. Each `:=` mapping sets the value and image to its Latin phoneme letter, for every script. CLL[^cll-s3-9] writes a stressed syllable of a name in capitals, but only the capital vowel marks the stress. A capital vowel carries `Stressed` and an uppercase value. The apostrophe has value `'`. The stage reads each apostrophe character that the rule `apostrophe` lists as that same phoneme.
 
 CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does not write the apostrophe. This stage treats `h` as foreign text. [latin.md](latin.md) reads `h` as the apostrophe.
 
@@ -271,6 +271,12 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 CLL writes a pause as a period.[^cll-s3-3] It does not define spaces. This grammar treats whitespace as a pause because texts separate words with spaces. No CLL word contains a space.
 
 This grammar also accepts U+2019 (`’`), U+2018 (`‘`), and U+02BC (`ʼ`) as apostrophes. They are typographic forms of the same character. They change the reading of no CLL text.
+
+CLL[^cll-s3-1] uses capitals only for nonstandard stress in names. This grammar also folds capital consonants without a capital vowel. This choice lets a writer capitalize a name or a sentence start.
+
+CLL[^cll-s3-9] requires weak stress for syllables with `y`, but also lets names and cmavo stress any syllable. This grammar follows the second rule and accepts stressed `Y`. CLL Cyrillic also accepts stressed `Ъ`, which maps to `Y`.
+
+CLL[^cll-s3-12] describes Loglan-compatible and Tengwar orthographies. This grammar reads neither. CLL calls the Loglan-compatible orthography nonstandard and unused.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 

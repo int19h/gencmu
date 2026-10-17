@@ -29,7 +29,7 @@ A dialect is a pipeline of stages, defined by one pipeline document. A stage is 
   %include "../phonemes/cyrillic-cll.md"
   ```
 
-The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL[^cll-c3], with typographic forms of the apostrophe. A digit, an accent or a question mark is foreign to the stage. So the words stage rejects a text with one, except in a foreign quote, such as `zoi`, or after `fa'o`. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
+The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL[^cll-c3], with the [phoneme choices](../phonemes/latin-strict.md#choices-beyond-cll). A digit, an accent or a question mark is foreign to the stage. So the words stage rejects a text with one, except in a foreign quote, such as `zoi`, or after `fa'o`. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
 
 The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL[^cll-s3-12]. With the feature off, the stage reads no Cyrillic.
 
@@ -143,6 +143,8 @@ SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word su
 A stop at an open LU or TO agrees with CLL's subordinate texts, as the [word stream](../words/stream.md#cll-and-magic-words) explains. A closed LU or TO is one that a later LIhU or TOI closed. A stop at a closed LU or TO departs from CLL[^cll-s19-13] under any reading. So does every NIhO and TUhE stop.
 
 gencmu's own Cyrillic assigns different readings from CLL's. This dialect therefore selects only CLL's Cyrillic, while a caller can turn that script off. A caller is the program or person asking for a parse.
+
+This dialect reads neither the Loglan-compatible orthography nor Tengwar from CLL[^cll-s3-12]. CLL calls the former nonstandard and unused.
 
 The [indicator document](../indicators/cll.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../indicators/cll.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
