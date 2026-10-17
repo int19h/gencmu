@@ -34,7 +34,8 @@
           "verdict": null
         }
       ]
-    }
+    },
+    "error": "feature-conflict"
   },
   "options": {
     "withoutFeatures": [

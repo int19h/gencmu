@@ -1,7 +1,7 @@
 import type { GrammarDom } from "./types.js";
 export declare const CAPTURE_NAME: RegExp;
 export declare const DOM_MAX_DEPTH = 256;
-export declare const DOM_FORMAT = 31;
+export declare const DOM_FORMAT = 32;
 export declare const CONSTANT_NAME: RegExp;
 export declare const CLASSIFIER_NAME: RegExp;
 export declare const RULE_NAME: RegExp;
@@ -409,3 +409,5 @@ export declare function openPart(term: unknown): any;
  * @returns {import("./types.js").ConstantTerm[]}
  */
 export declare function constantsIn(node: unknown): import("./types.js").ConstantTerm[];
+/** @param {any[]} conditions @returns {string|null} */
+export declare function inputConditionsProblem(conditions: any[]): string | null;

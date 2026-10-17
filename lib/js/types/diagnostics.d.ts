@@ -227,7 +227,7 @@ export type Trace = {
  * grammar not accept this text here".
  * @param {Dialect} dialect
  * @param {string} text
- * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>, autoFeatures?: boolean}} options
+ * @param {{stage: string, position: number, features?: Iterable<string>, withoutFeatures?: Iterable<string>}} options
  * @returns {Trace}
  */
 export declare function trace(dialect: Dialect, text: string, options: {
@@ -235,7 +235,6 @@ export declare function trace(dialect: Dialect, text: string, options: {
     position: number;
     features?: Iterable<string>;
     withoutFeatures?: Iterable<string>;
-    autoFeatures?: boolean;
 }): Trace;
 /**
  * A trace as text.

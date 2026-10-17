@@ -359,6 +359,14 @@ class Parser {
       else if (this.is("#") || this.is("_")) children.push(this.node("argument-term", at, [this.tok()]));
       else children.push(this.node("argument-term", at, [this.node("term-atom", at, [(yield this.atom(false))])]));
     }
+    if (this.is("%conditions")) {
+      const at = this.index;
+      const clause = [this.tok()];
+      if (this.is(",")) clause.push(this.tok());
+      clause.push((yield this.implication()));
+      while (this.is(",")) clause.push(this.tok(), (yield this.implication()));
+      children.push(this.node("conditions-clause", at, clause));
+    }
     return this.node("directive", start, children);
   }
 

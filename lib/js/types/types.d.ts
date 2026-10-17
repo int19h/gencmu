@@ -53,7 +53,8 @@ export type Expectation = {
     rules: string[];
 };
 export type ParseError = {
-    kind: "rejected" | "ambiguous" | "grammar";
+    kind: "rejected" | "ambiguous" | "grammar" | "feature-conflict";
+    feature?: string;
     stage?: string;
     /**
      * why an ambiguous error is
@@ -248,11 +249,6 @@ export type ParseOptions = {
      */
     withoutFeatures?: Iterable<string>;
     /**
-     * enable `sa-su` only for a text that
-     * needs it; on unless `false`
-     */
-    autoFeatures?: boolean;
-    /**
      * the name of the last stage to run
      */
     until?: string;
@@ -311,6 +307,7 @@ export type Recipe = {
     concat: Term[];
 };
 export type DomDirective = {
+    conditions?: Condition[];
     name: string;
     args: string[];
     at: Position;
@@ -870,7 +867,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * Why a text did not parse: rejected by a stage, ambiguous with a tie or
  * under elision-only, or a defect of the grammar found while running it.
  * @typedef {object} ParseError
- * @property {"rejected" | "ambiguous" | "grammar"} kind
+ * @property {"rejected" | "ambiguous" | "grammar" | "feature-conflict"} kind
+ * @property {string} [feature]
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -1022,8 +1020,6 @@ export type ParseContext = import("./earley.js").ParseContext;
  *   those the dialect's pipeline turns on
  * @property {Iterable<string>} [withoutFeatures] the features to turn off,
  *   the pipeline's among them; naming one in both lists is a usage error
- * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
- *   needs it; on unless `false`
  * @property {string} [until] the name of the last stage to run
  * @property {boolean | null} [elisionOnly] override the grammar's own
  *   elision-only setting
@@ -1078,6 +1074,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {{concat:Term[]}} Recipe */
 /**
  * @typedef {object} DomDirective
+ * @property {Condition[]} [conditions]
  * @property {string} name
  * @property {string[]} args
  * @property {Position} at

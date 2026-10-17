@@ -1,0 +1,19 @@
+{
+  "description": "Stage-local features: illegal-unreachable (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions ∅ ≠ ∅ ∧ $.starts-input\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Mixed"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
