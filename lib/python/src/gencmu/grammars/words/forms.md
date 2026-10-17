@@ -160,7 +160,7 @@ The parser tests it as soon as it reads `$r`. If the condition fails, the parser
 
 Before the cmavo `bu`, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. In the BPFK family, the `post_word` test requires the whole cmavo, so `yy buntu` keeps `yy` whole. In the CLL family, the test reads only the letters `bu`, so `yy buntu` splits `yy`. Both pieces stay hesitation, so the split changes no reading there.
 
-`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+Both split rules mark their final y with `Spacing` for the Zantufa word stream. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
 The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
@@ -201,7 +201,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom

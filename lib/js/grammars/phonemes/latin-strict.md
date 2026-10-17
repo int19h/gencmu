@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
-This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects include that document but turn its `cll-cyrillic` feature off by default. A feature is a named switch that the grammars test.
+This document reads the Latin orthography of CLL[^cll-c3], with the [choices below](#choices-beyond-cll). The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). A feature is a named switch that the grammars test. The CLL and kihei dialects turn the `cll-cyrillic` feature on by default. The other dialects include that document but turn its feature off by default.
 
 Those dialects also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
