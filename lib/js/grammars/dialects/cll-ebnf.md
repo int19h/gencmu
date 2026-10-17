@@ -29,7 +29,7 @@ A dialect is a pipeline of stages, defined by one pipeline document. A stage is 
   %include "../phonemes/cyrillic-cll.md"
   ```
 
-The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL[^cll-c3] and no more. A digit, an accent or a question mark is foreign to the stage. So the words stage rejects a text with one, except in a foreign quote, such as `zoi`, or after `fa'o`. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
+The stage receives the text's characters and hands on one token per phoneme, whatever the script, and a `PAUSE` wherever the text pauses. It reads the orthography of CLL[^cll-c3], with typographic forms of the apostrophe. A digit, an accent or a question mark is foreign to the stage. So the words stage rejects a text with one, except in a foreign quote, such as `zoi`, or after `fa'o`. A run of letters is one stretch until a pause says otherwise. So the stage is greedy: it ends each constituent as late as the grammar allows.
 
 The feature `cll-cyrillic`, which the dialect turns on, reads the Cyrillic of CLL[^cll-s3-12]. With the feature off, the stage reads no Cyrillic.
 

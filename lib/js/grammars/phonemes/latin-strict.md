@@ -6,7 +6,7 @@ A token is one unit that a stage reads or emits. A token's value is the string t
 
 The phoneme stage is the first stage of every Lojban dialect. The bundled dialects are [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md), and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. The stage reads the characters of a text and hands normalization the phoneme tokens they stand for.
 
-This document reads the Latin orthography of CLL[^cll-c3] and no more. The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
+This document reads the Latin orthography of CLL[^cll-c3], with typographic forms of the apostrophe. The CLL and kihei dialects add only the Cyrillic of CLL[^cll-s3-12], in [cyrillic-cll.md](cyrillic-cll.md). The other dialects add that too. They also add the conventions of [latin.md](latin.md), such as digits and accents, and the scripts of [cyrillic.md](cyrillic.md) and [zbalermorna.md](zbalermorna.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The terminals of the stage are exact strings, such as `"a"`, scalar ranges, such as `"0".."9"`, and stored Unicode tags, such as `_White_Space`. A string terminal tests its value. An engine-tag terminal tests a tag stored at stage zero. The wildcard `_` reads any token.
 
@@ -269,6 +269,8 @@ CLL[^cll-s3-1] omits `h` from the alphabet. CLL[^cll-s3-3] says that `h` does no
 ## Choices beyond CLL
 
 CLL writes a pause as a period.[^cll-s3-3] It does not define spaces. This grammar treats whitespace as a pause because texts separate words with spaces. No CLL word contains a space.
+
+This grammar also accepts U+2019 (`’`), U+2018 (`‘`), and U+02BC (`ʼ`) as apostrophes. They are typographic forms of the same character. They change the reading of no CLL text.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
 
