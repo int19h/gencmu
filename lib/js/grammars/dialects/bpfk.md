@@ -10,7 +10,7 @@ A tag marks a token by an identifier.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 
-Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. The `cll-ebnf`, `kihei`, and `bpfk` dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
+Outside the working morphology and the project choices below, this dialect follows CLL 1.1. It uses the [Magic Words stream](../words/stream.md) and the shared CLL indicator stage. The `cll-ebnf` and `bpfk` dialects use `late-elision elision-only` for omitted terminators. Their numbers and letter strings are indivisible. The project choices below specify this dialect's erasure, elision, and connective policies.
 
 A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar. Beyond CLL's orthography, the phoneme stage reads the conventions of [`../phonemes/latin.md`](../phonemes/latin.md). The working morphology reads part of these conventions too. The phoneme stage also reads gencmu's Cyrillic and zbalermorna. The indicator stage is the indicator stage of the [cll-ebnf](cll-ebnf.md) dialect.
 
@@ -168,7 +168,7 @@ In cll-ebnf and bpfk, `mi ui ia nai nai klama` fails. camxes-std accepts it and 
 
 ### Erasure and elision
 
-SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in cll-ebnf and kihei. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std supply these boundaries. The [word stream](../words/stream.md#cll-and-magic-words) says which stops agree with CLL and which depart from CLL[^cll-s19-13].
+SU erases back to the last surviving word of NIhO, LU, TUhE, or TO, as in cll-ebnf. That word survives, as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) and camxes-std supply these boundaries. The [word stream](../words/stream.md#cll-and-magic-words) says which stops agree with CLL and which depart from CLL[^cll-s19-13].
 
 CLL gives terminator advice and describes some limitations of its official parser. The elision policy follows the intended boundary where the whole text forces it. Where nothing forces that boundary, the elision policy keeps the reading that CLL warns about.
 
