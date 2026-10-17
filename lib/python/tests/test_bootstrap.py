@@ -66,7 +66,12 @@ class Compiled(unittest.TestCase):
         self.assertEqual(self.compiled["bootstrap"], fnv1a64(bootstrap))
         self.assertEqual(self.compiled["unicode"], fnv1a64(bundled_text("unicode.txt") or ""))
 
-    def test_every_document_agrees_with_a_fresh_reading(self) -> None:
+    def test_dialects_with_and_without_the_cache(self) -> None:
+        """Each cached document equals a fresh reading.
+
+        Both loading paths give the same stages, grammars, and features.
+        One worker shares the fresh reads between these comparisons.
+        """
         self.assertTrue(self.compiled["documents"])
         for path, entry in self.compiled["documents"].items():
             with self.subTest(document=path):
@@ -75,9 +80,6 @@ class Compiled(unittest.TestCase):
                 self.assertEqual(entry["hash"], fnv1a64(text))
                 self.assertEqual(fresh_dom(path), entry["dom"])
 
-    def test_dialects_with_and_without_the_cache(self) -> None:
-        """Each bundled dialect has the same stages and features whether its
-        documents' DOMs come from compiled.json or from a fresh reading."""
         names = sorted(entry.name[:-3] for entry in _bundled_root().joinpath("dialects").iterdir() if entry.name.endswith(".md"))
         self.assertTrue(names)
         for name in names:

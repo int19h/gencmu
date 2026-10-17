@@ -43,6 +43,33 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features")
 
 
 class EngineCases(unittest.TestCase):
+    def test_whole_dialect_cases_share_sources_but_load_fresh_dialects(self) -> None:
+        documents = {
+            "memo-a.md": '```jbogenbau\n%include "../dialects/notation.md"\n```\n',
+            "memo-b.md": '```jbogenbau\n%include "../dialects/bpfk.md"\n```\n',
+        }
+        case = {"documents": documents, "pipeline": "memo-a.md"}
+        with patch.object(gencmu, "load_dialect_sources", wraps=gencmu.load_dialect_sources) as load:
+            first, error = load_case_dialect(case)
+            self.assertIsNone(error)
+            again, error = load_case_dialect({**case, "documents": dict(reversed(list(documents.items())))})
+            self.assertIsNone(error)
+            # A case never sees a dialect that an earlier case used.
+            self.assertIsNot(again, first)
+            self.assertEqual(load.call_count, 2)
+            self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
+            other, error = load_case_dialect({**case, "pipeline": "memo-b.md"})
+            self.assertIsNone(error)
+            self.assertNotEqual(other.stage_names, first.stage_names)
+            changed, error = load_case_dialect({**case, "documents": {**documents, "memo-a.md": documents["memo-b.md"]}})
+            self.assertIsNone(error)
+            self.assertEqual(changed.stage_names, other.stage_names)
+            uncached, error = load_case_dialect(case, use_cache=False)
+            self.assertIsNone(error)
+            self.assertIsNot(uncached, first)
+            self.assertEqual(uncached.stage_names, first.stage_names)
+            self.assertEqual(load.call_args.kwargs, {"use_cache": False})
+
     def test_cases_are_present(self) -> None:
         paths = cases("engine")
         self.assertTrue(paths, "no engine cases found")

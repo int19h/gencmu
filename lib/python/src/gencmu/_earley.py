@@ -353,6 +353,9 @@ class StageContext:
     machine: PatternMachine | None = field(init=False, default=None)
     close_rules: frozenset[int] = field(init=False, default=frozenset())
     closes: CloseMachine | None = field(init=False, default=None)
+    # Boundary targets depend on the grammar, not a nested query's span.
+    # The mutable records belong to this stage context alone.
+    boundary_machine: Records | None = field(init=False, default=None)
     aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
     qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
 
@@ -362,6 +365,9 @@ class StageContext:
         self.machine = self.observed.machine if self.observed is not None else observation_machine(self.lowered)
         self.close_rules = self.observed.close_rules if self.observed is not None else needed(self.lowered)
         self.closes = self.observed.closes if self.observed is not None else CloseMachine() if self.close_rules else None
+        boundaries = Records(self.lowered.productions)
+        if boundaries.forward or boundaries.backward:
+            self.boundary_machine = boundaries
 
     def carries(self, terminal: str, token_index: int) -> bool:
         """String and range terminals observe stored values on ordinary tokens."""
@@ -910,9 +916,7 @@ class Parser:
         last_reading = reading_last(lowered) if recon else []
         elidable_helpers = lowered.elidable_helpers
 
-        boundaries = Records(productions)
-        if not boundaries.forward and not boundaries.backward:
-            boundaries = None
+        boundaries = context.boundary_machine
         records, annotations, failures, prediction_obligations = [], [], [], {}
         boundary_seen = set()
         has_slots = bool(ranked_groups)

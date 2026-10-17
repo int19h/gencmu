@@ -5,10 +5,20 @@ from __future__ import annotations
 import sys
 import unittest
 
-from .shared import OverBudget, calls, count_work, steps
+from .shared import OverBudget, calls, count_work, reads, steps
 
 
 class WorkCount(unittest.TestCase):
+    def test_weighted_lines_keep_the_cost_of_a_copy(self) -> None:
+        def copied(values: list[int]) -> list[int]:
+            return values[:]
+
+        for size in (2, 5):
+            values = list(range(size))
+            with count_work(steps(copied, "return values[:]", weight=reads)) as work:
+                self.assertEqual(copied(values), values)
+            self.assertEqual(work.count, size + 1)
+
     def test_nested_counts_keep_the_outer_calls(self) -> None:
         def visit() -> None:
             pass

@@ -11,6 +11,7 @@ from collections import deque
 from collections.abc import ItemsView, KeysView, ValuesView
 import dis
 import faulthandler
+import functools
 import inspect
 import json
 import linecache
@@ -459,7 +460,7 @@ _COMPREHENSIONS = frozenset({"<genexpr>"})
 
 # The offset of the first loop instruction of each line of each code
 # object, found once.
-_LOOPS: dict[CodeType, dict[int, int]] = {}
+_LOOPS: dict[int, tuple[CodeType, dict[int, int]]] = {}
 
 
 def _starting(frame: FrameType) -> bool:
@@ -470,9 +471,10 @@ def _starting(frame: FrameType) -> bool:
     code = frame.f_code
     if code.co_name in _COMPREHENSIONS:
         return False
-    loops = _LOOPS.get(code)
-    if loops is None:
-        loops = _LOOPS[code] = {}
+    entry = _LOOPS.get(id(code))
+    if entry is None:
+        loops: dict[int, int] = {}
+        _LOOPS[id(code)] = (code, loops)
         lines = [(start, number) for start, _, number in code.co_lines()]
         for instruction in dis.get_instructions(code):
             if instruction.opname != "FOR_ITER":
@@ -480,12 +482,16 @@ def _starting(frame: FrameType) -> bool:
             number = next((number for start, number in reversed(lines) if start <= instruction.offset), None)
             if number is not None and number not in loops:
                 loops[number] = instruction.offset
+    else:
+        loops = entry[1]
     first = loops.get(frame.f_lineno)
     return first is None or frame.f_lasti < first
 
 
 # The charges of each line of each code object, found once.
-_CODE_CHARGES: dict[tuple[CodeType, int], tuple[Charges, Charges]] = {}
+# Code objects have structural hashes. Identity keys avoid that work,
+# and each entry retains its code object so that its ID stays unique.
+_CODE_CHARGES: dict[int, tuple[CodeType, dict[int, tuple[Charges, Charges]]]] = {}
 
 
 def reads(frame: FrameType) -> int:
@@ -497,10 +503,16 @@ def reads(frame: FrameType) -> int:
     iterable is charged as the loop starts. Every operand of the line
     counts, whichever branch runs, so the weight does not fall short of
     the work."""
-    key = (frame.f_code, frame.f_lineno)
-    charges = _CODE_CHARGES.get(key)
+    code = frame.f_code
+    entry = _CODE_CHARGES.get(id(code))
+    if entry is None:
+        by_line: dict[int, tuple[Charges, Charges]] = {}
+        _CODE_CHARGES[id(code)] = (code, by_line)
+    else:
+        by_line = entry[1]
+    charges = by_line.get(frame.f_lineno)
     if charges is None:
-        charges = _CODE_CHARGES[key] = _charges(frame.f_code.co_filename).get(frame.f_lineno, ([], []))
+        charges = by_line[frame.f_lineno] = _charges(code.co_filename).get(frame.f_lineno, ([], []))
     every, starts = charges
     if not every and not starts:
         return 1
@@ -533,11 +545,18 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
     The count watches only the named code through sys.monitoring. Each
     nested count uses its own monitoring tool."""
     work = Work()
-    starts: dict[CodeType, list[Watch]] = {}
-    lines: dict[CodeType, list[Watch]] = {}
+    # Keep the code objects alive while callbacks use their identity keys.
+    codes: dict[int, CodeType] = {}
+    starts: dict[int, list[Watch]] = {}
+    lines: dict[int, list[tuple[frozenset[int] | None, Weight | None]]] = {}
     for watch in watches:
-        for code in watch.codes:
-            (starts if watch.calls else lines).setdefault(code, []).append(watch)
+        for code, numbers in watch.codes.items():
+            key = id(code)
+            codes[key] = code
+            if watch.calls:
+                starts.setdefault(key, []).append(watch)
+            else:
+                lines.setdefault(key, []).append((numbers, watch.weight))
 
     # Every unit counts before its work, so the budget stops the work at
     # the first unit past it and none of that unit's work is done. A
@@ -550,26 +569,27 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         work.count += count
 
     def begin(code: CodeType, frame: FrameType) -> None:
-        for watch in starts[code]:
+        for watch in starts[id(code)]:
             add(1 if watch.weight is None else watch.weight(frame))
 
     def step(code: CodeType, number: int, frame: FrameType) -> bool:
         """Counts a step of a line, and tells whether any watch counts it."""
         counted = False
-        for watch in lines[code]:
-            numbers = watch.codes[code]
+        for numbers, weight in lines[id(code)]:
             if numbers is None or number in numbers:
                 counted = True
-                add(1 if watch.weight is None else watch.weight(frame))
+                add(1 if weight is None else weight(frame))
         return counted
 
-    places: dict[CodeType, tuple[list[int], list[int | None]]] = {}
+    places: dict[int, tuple[list[int], list[int | None]]] = {}
 
     def line_at(code: CodeType, offset: int) -> int | None:
-        if code not in places:
+        key = id(code)
+        found = places.get(key)
+        if found is None:
             spans = [(start, number) for start, _, number in code.co_lines()]
-            places[code] = ([start for start, _ in spans], [number for _, number in spans])
-        starts_of, numbers = places[code]
+            found = places[key] = ([start for start, _ in spans], [number for _, number in spans])
+        starts_of, numbers = found
         return numbers[bisect.bisect_right(starts_of, offset) - 1]
 
     def looped(code: CodeType, source: int, target: int, frame: FrameType) -> bool:
@@ -599,11 +619,11 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         monitoring.register_callback(
             tool, events.JUMP, lambda code, source, target: None if looped(code, source, target, sys._getframe(1)) else skip
         )
-        for code in set(starts) | set(lines):
+        for key, code in codes.items():
             wanted = events.NO_EVENTS
-            if code in starts:
+            if key in starts:
                 wanted |= events.PY_START
-            if code in lines:
+            if key in lines:
                 wanted |= events.LINE | events.JUMP
             monitoring.set_local_events(tool, code, wanted)
         # The places that an earlier count turned off count again.
@@ -611,7 +631,7 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
         yield work
     finally:
         monitoring.set_events(tool, events.NO_EVENTS)
-        for code in set(starts) | set(lines):
+        for code in codes.values():
             monitoring.set_local_events(tool, code, events.NO_EVENTS)
         for event in (events.PY_START, events.LINE, events.JUMP):
             monitoring.register_callback(tool, event, None)
@@ -994,10 +1014,21 @@ def _case_tokens(specs: list[dict[str, Any]]) -> Walk:
     return tokens
 
 
+@functools.lru_cache(maxsize=16)
+def _whole_case_sources(documents: tuple[tuple[str, str], ...], pipeline: str) -> tuple[dict[str, str], str]:
+    """Share a whole-dialect case's source documents within one worker.
+    Each case still loads a fresh dialect, so that no case depends on the
+    state that an earlier case left in a shared dialect."""
+    return case_sources({"documents": dict(documents), "pipeline": pipeline})
+
+
 def load_case_dialect(case: dict[str, Any], use_cache: bool = True) -> tuple[gencmu.Dialect | None, gencmu.GencmuError | None]:
     """An engine case's loaded dialect, or the error of its load."""
-    sources, pipeline = case_sources(case)
     try:
+        if use_cache and "grammar" not in case and any("../dialects/" in text for text in case["documents"].values()):
+            sources, pipeline = _whole_case_sources(tuple(sorted(case["documents"].items())), case["pipeline"])
+            return gencmu.load_dialect_sources(sources, pipeline), None
+        sources, pipeline = case_sources(case)
         dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=use_cache)
         return dialect, None
     except gencmu.GencmuError as error:
