@@ -1,10 +1,10 @@
 # The CLL grammar
 
-This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](../dialects/cll-ebnf.md) dialect and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. It also supplies the base for the [experimental](../dialects/experimental.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
+This document gives the grammar of *The Complete Lojban Language* (CLL), edition 1.1. The grammar opens the syntax stage of the [CLL](../dialects/cll-ebnf.md) dialect, the [kihei](../dialects/kihei.md) dialect, and the dialect of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee. It also supplies the base for the [experimental](../dialects/experimental.md) syntax. A dialect is a pipeline of stages, defined by one pipeline document. A stage is one step of a pipeline, with its own grammar.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The grammar follows the printed rules of CLL.[^cll-s21-1] It uses the notation of that book. That notation is EBNF (Extended Backus-Naur Form). The closing section lists differences from the printed grammar.
+The grammar follows the printed rules of CLL.[^cll-s21-1] The printed rules use EBNF (Extended Backus-Naur Form). This document uses jbogenbau. The closing section lists differences from the printed grammar.
 
 A cmavo is a particle, a short structure word. A selma'o is a word class of cmavo. The terminals of this grammar are selma'o. A terminal matches an input token by tag. A tag marks a token by an identifier. A free modifier is a phrase permitted in designated syntax slots.
 
@@ -16,17 +16,20 @@ The prose uses these Lojban terms before the sections that explain them:
 - A sumti is an argument of a selbri.
 - A tanru is a compound selbri.
 - A jek is a logical connective between tanru units, such as `je`.
+- An ek is a logical connective between sumti, such as `.e`.
+- A gek is a forethought connective, such as `ga ... gi`.
+- A guhek is a forethought connective between tanru units, such as `gu'e ... gi`.
 - A joik is a non-logical connective, such as `joi`.
 - A stag is a tense or modal inside a connective.
 - A mekso is a mathematical expression.
 - A brivla is a predicate word.
 - A lerfu word is a letter word, such as `.abu` or `xy.`.
 
-The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The word stage, [the word stream](../words/stream.md), makes quotes and compounds. The word stage also processes the erasers `si`, `sa` and `su`.
+The stages before it make the word stream that it reads. The forms stage ([forms.md](../words/forms.md), with a family of word forms and a lexicon) reads phonemes into words. The words stage, [the word stream](../words/stream.md), makes quotes and compounds. The words stage also processes the erasers `si`, `sa` and `su`.
 
 [The indicator stage](../indicators/cll.md) attaches `ba'e` and indicators to their words, before syntax reads them.
 
-The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished word-stage quote arrives as one token of its opening class.
+The earlier stages supply cmavo with classes from [the CLL lexicon](../words/lexicon-cll.md). Each finished quote from the words stage arrives as one token of its opening class.
 
 [The notation document](../../docs/notation.md) explains the notation. An elided terminator is a closing word left unwritten. Two points of this notation matter here. First, an elided terminator takes its `#` with it, so an elided `[+X #]` leaves no free-modifier slot (see `#` below) at that point. Second, when omitted terminators leave a text with more than one parse, the stage chooses the parse as "Choosing among parses" after the grammar says.
 
@@ -40,7 +43,7 @@ A left chain, `{... x / s}`, groups from the left, and each level of it is a nod
 
 This document writes the grammar literately: each block of rules follows the prose that explains it, and the blocks together are the grammar. The prose says what each construct is for and how the rules do it. Footnotes link to the CLL sources.
 
-A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each dialect states the remaining ranking policy after this document. The cll-ebnf and bpfk dialects state their policies in their pipeline documents. The experimental layer (a document that changes earlier rules) states its policy itself.
+A rule flag is a named parsing preference. ["Tenses and modals"](#tenses-and-modals) explains this grammar's flag. Each dialect states the remaining ranking policy after this document. The cll-ebnf and bpfk dialects state their policies in their pipeline documents, and kihei inherits the policy of cll-ebnf. The experimental layer (a document that changes earlier rules) states its policy itself.
 
 CLL marks a terminator as elidable by writing it between slashes, `/KU/`, or `/KU#/` when its free-modifier slot goes with it. Here each is an elidable optional, marked in its place: `[+KU]`, or `[+KU #]`. An absent one shows in the parse tree as that terminator, elided. Every terminator between slashes in the printed grammar is marked so, and no other optional is.
 
@@ -174,7 +177,7 @@ A lookahead tests the input that follows a construct. The condition needs no loo
 
 In `mi klama lo nu broda gi'e ke brode ke'e gi'a brodi`, this grammar keeps plain `gi'e` inside the `nu`. The condition applies only to the last tail, so it leaves this earlier connection alone. `late-elision` then keeps `gi'a brodi` inside the abstraction.
 
-In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. Both CLL dialects still read one `ke` group, so `pu` stays on the connective. The plain parse remains where the group cannot read the same words:
+In `mi klama lo nu broda gi'e ke brode ke'e`, the group stays inside the `nu`. In `mi broda gi'e pu ke me le le brodi brodo ku me'u ke'e`, the inner `ku` is elided. The cll-ebnf, kihei, and bpfk dialects still read one `ke` group, so `pu` stays on the connective. The plain parse remains where the group cannot read the same words:
 
 - The tail is not the last one, as in `mi broda gi'e ke brode ke'e gi'a brodi` and `mi broda gi'e ke ga brode gi brodi ke'e do gi'a brodi`. The `ke` form must end its bridi-tail.
 - The tail goes on after `ke'e`, as in `mi broda gi'e ke brode ke'e brodi`.
@@ -308,7 +311,7 @@ The top rule `sumti` adds `vu'o` followed by relative clauses. `vu'o` attaches t
 - `lo'u ... le'u` quotes a run of Lojban words that need not be grammatical, possibly none.
 - `zoi` quotes any text between two copies of a delimiter word.
 
-The word stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one token of its opening class. This grammar reads one terminal for each such quote. The word-stage tree retains its internal structure. This grammar delimits `lu ... li'u` through syntax. Its free-modifier slot follows the quote whether or not `li'u` is written.
+The words stage delimits each `zo`, `lo'u`, and `zoi` quote and emits it as one token of its opening class. This grammar reads one terminal for each such quote. The tree of the words stage retains its internal structure. This grammar delimits `lu ... li'u` through syntax. Its free-modifier slot follows the quote whether or not `li'u` is written.
 
 `sumti-tail` is what follows a descriptor.[^cll-s6-2] It begins with an optional inner sumti that possesses or restricts, `le mi zdani`.[^cll-s8-7] Then come the inner quantifier and the selbri, `le ci gerku`, or a quantifier and a sumti, `lo re lo gerku`. Relative clauses can come after the inner sumti.[^cll-s8-7] They can also replace it.[^cll-s8-6]
 
@@ -410,7 +413,7 @@ The `SE`, `JAI` and `NAhE` forms refer back to `tanru-unit-2`, so `se se broda` 
 
 Each level of the chain holds its first abstractor. So a single abstractor with `nai` or free modifiers is a node of its own, `[nu nai]`.
 
-The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2` reads.
+The words stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2` reads.
 
 ```jbogenbau
 %rule selbri
@@ -485,7 +488,7 @@ The word stage builds each `zei` compound into one `BRIVLA`, which `tanru-unit-2
 
 A number is a string of PA words, such as the digits `pa` and `re` and the decimal point `pi`.[^cll-s18-2] Lerfu words can follow its first word (`pa re ci`, `pa xy.`). A lerfu string begins with a lerfu word instead.[^cll-s17-8]
 
-A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The word stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
+A lerfu word is a BY word, a `lau` shift before a lerfu word, or a `tei ... foi` compound. The words stage builds each `bu` letter word into one `BY`, which `lerfu-word` reads.
 
 A number or letter string cannot end before another unit of the same run. A written `boi` ends the run. At the syntax stage, the run ends where no complete continuation unit begins.
 
@@ -631,7 +634,7 @@ The ordinary alternative of `selbri-4` and `operator` joins two units with a pla
 
 `joik-before-ke` is a joik that `ke` directly follows. The unit after it cannot be only a KE group. `selbri-5-not-ke-group` and `operator-1-not-ke-group` test the constructed unit against `$KE-UNIT`. A single-child path reaches a whole KE group. BO, link arguments or another tanru child after the group stop that match.
 
-In both CLL dialects, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
+In cll-ebnf, kihei, and bpfk, `mi broda joi ke me le le brodi brodo ku me'u ke'e` remains the group. Its inner KU is omitted. Omitted terminators inside the group do not change the outer KE constructor.
 
 A jek has no connective-plus-`ke` form, so `mi broda je ke brode ke'e` keeps its plain reading. The plain joik reading remains when the unit continues after its KE group, as in `ke brode ke'e bo brodi`. The group form cannot read that unit. A free modifier between the joik and KE also leaves only the plain reading, since the group form has no slot there.
 
@@ -809,7 +812,7 @@ A vocative is a run of COI words, each with an optional `nai`, or `doi`, or both
 - The cancel `da'o`
 - `fu'o`, which closes a scope opened by `fu'e`
 
-The forms stage reads `y` as hesitation, and the word stage drops it before syntax.
+The forms stage reads `y` as hesitation, and the words stage drops it before syntax.
 
 The indicator stage attaches later indicator runs to their preceding words. This syntax reads separate indicators only at the start of a text. Each indicator can carry its own `fu'e`, which opens an attitude scope.
 
@@ -842,13 +845,13 @@ The indicator stage attaches later indicator runs to their preceding words. This
 
 ## Choosing among parses
 
-Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf and bpfk dialects declare `late-elision elision-only`. The experimental layer declares only `late-elision`.
+Because terminators can be omitted, some texts have more than one parse. The stage chooses among them by the rule that [the notation document](../../docs/notation.md) states under "Ambiguity" and "Elided terminators", with the resolution that each dialect declares. The cll-ebnf, kihei, and bpfk dialects declare `late-elision elision-only`. The experimental layer declares only `late-elision`.
 
 The flag described under ["Tenses and modals"](#tenses-and-modals) applies first. `late-elision` then compares parses with equal flagged groups. It prefers the parse that omits a terminator later. Equal flagged groups and equal elision counts at every position leave a tie, which is an error.
 
-In cll-ebnf and bpfk, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../docs/notation.md#elided-terminators) gives the check exactly.
+In cll-ebnf, kihei, and bpfk, `elision-only` tests the parse that ranking selects after the verdict `resolved`. It does not run after `unique`, and a tie fails before it. It restores that parse's omitted terminators and parses the restored text with the rule flag, without an elision preference. Another reading of the restored text that the flag does not rank below that parse makes the original text an error. Conditions and tags still read the original words. [The notation document](../../docs/notation.md#elided-terminators) gives the check exactly.
 
-Both CLL dialects let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
+The cll-ebnf, kihei, and bpfk dialects let a constituent end wherever a parse of the whole text needs it. Their numbers and letter strings remain indivisible.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, its `ku` elided before `tavla`, and the selbri `tavla`. The other is a fragment that consists of the single description `le sutra tavla`. The fragment elides its `ku` only at the end of the text.
 
@@ -860,7 +863,7 @@ This grammar departs from the EBNF printed in CLL in eleven places. The first se
 
 The fifth adopts an inference from CLL[^cll-s19-8] about several active FUhE groups. The sixth and seventh use conditions to prefer connective groups when both readings complete. They retain the plain reading when only it completes. The seventh follows CLL's grouping descriptions[^cll-s14-10][^cll-s14-18] and compares the official lexer, the component that divides input into tokens.
 
-The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the word stage's class for a name.
+The eighth applies the grouping preference described under ["Tenses and modals"](#tenses-and-modals). The ninth follows the number and letter boundaries of CLL[^cll-s17-9][^cll-s18-6]. The tenth repairs rule 83 so a tag governs its whole termset, as CLL[^cll-s10-25] states. The eleventh omits three printed alternatives that the earlier stages make unreachable. This grammar also spells printed `CMENE` as `CMEVLA`, the words stage's class for a name.
 
 ### Printed rules and translations
 
@@ -909,7 +912,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
     This grammar resolves the conflict in favor of CLL[^cll-s10-25]. The official parser reads the tag and termset as separate terms. camxes-std, the standard grammar of the camxes parser, does too.
 
-11. The word stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
+11. The words stage builds quotes, `zei` compounds, and `bu` letter words as single tokens and drops hesitation. This grammar reads ZO, LOhU, and ZOI terminals for whole quotes. It omits printed `ZO any-word`, `LOhU any-word ... LEhU`, and `ZOI any-word anything any-word`. It also omits `any-word {ZEI any-word}` in `tanru-unit-2`, `any-word BU` in `lerfu-word`, and indicator `Y`.
 
 ### Earlier stages
 
@@ -917,7 +920,7 @@ Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists
 
 [The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
 
-The word stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
+The words stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
 ### Free modifiers after terminators
 
@@ -1006,13 +1009,13 @@ CLL gives advice about boundaries that preserve an intended reading. A complete 
 
 CLL[^cll-s6-2] warns about a description before a selbri. In `le broda brode gi'e brodi`, the whole text forces the description to end before `brode`.
 
-CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. Both dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
+CLL[^cll-s8-6][^cll-s8-7] describe the merged readings that a left-to-right reading of the words gives. The cll-ebnf, kihei, and bpfk dialects accept `le poi blabi gerku cu klama` and `le le nanmu karce cu blanu`. The whole text forces KUhO and KU exactly where the examples[^cll-e8-48][^cll-e8-62] write them. Merging the selbri leaves the outer description incomplete under printed rules 111 and 112. The official parser rejects both omitted forms.
 
-CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. Both dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
+CLL[^cll-s9-5] warns that a non-logical connective can continue the modal's selbri without `fe'u`. The cll-ebnf, kihei, and bpfk dialects read `mi fi'o broda joi pu brode` with `fe'u` elided before `joi`. The whole text forces that boundary.
 
 In `le broda brode`, both selbri stay inside the description, as CLL[^cll-s6-2] warns. In `mi fi'o kanla viska do`, `kanla viska` remains the modal selbri, as CLL[^cll-s9-9] warns for the example[^cll-e9-61]. Neither text forces the intended outside selbri. These passages therefore describe our readings too and give no departure.
 
-CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. Both dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
+CLL[^cll-s6-11] says that `do'u` is rarely needed. CLL[^cll-s19-12] gives the same advice for `se'u`, except before an outside selbri. The cll-ebnf, kihei, and bpfk dialects read `mi coi broda brode gi'e brodi` and `mi sei do broda brode gi'e brodi` with the free modifier ending before `brode`.
 
 Other warnings describe the official parser. CLL[^cll-s14-14] says that "Lojban's parsing rules would see le nanmu joi and assume that another tanru component is to follow". The complete grammar permits a sumti connection that this left-to-right reading misses. Here `le nanmu joi le ninmu cu klama le zarci` has the intended sumti connection. The official parser rejects it.
 
@@ -1020,17 +1023,17 @@ CLL[^cll-s18-11] says that the parser combines `pa` and `moi` in the example[^cl
 
 CLL[^cll-s18-17] says that the parser assumes another operand after `.onai` in the example[^cll-e18-116] without `lo'o`. Here `li re su'i re du li vo .onai lo nalseldjuno namcu` retains the example's sumti connection. The official parser rejects it. These parser limitations do not require written terminators in the grammar.
 
-The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for both dialects.
+The shared elision policy follows CLL's boundary advice where the whole text determines the intended boundary. It disagrees with no specific text of CLL. CLL[^cll-s8-6][^cll-s8-7] describe merged readings that cannot complete the outer description. CLL[^cll-s14-14][^cll-s18-11][^cll-s18-17] describe the official parser's left-to-right reading. The policy does not override number and letter boundaries. The maintainer approves this policy and the reading of note 10 above for the cll-ebnf, kihei, and bpfk dialects.
 
 ### Number and letter boundaries
 
 CLL[^cll-s17-9] requires the indivisible-run boundary for letter strings. The example[^cll-e17-27] requires `boi` before the following `PA` word. CLL[^cll-s18-6] requires the boundary for numbers and function names. CLL[^cll-s17-8] allows digits inside a letter string. CLL[^cll-s17-11] repeats the function example with `boi`.
 
-The indivisible-number rule follows these CLL requirements in both dialects:
+The indivisible-number rule follows these CLL requirements in the cll-ebnf, kihei, and bpfk dialects:
 
-- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. Both dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
-- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. Both dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
-- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. Both dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
+- CLL[^cll-s17-9], after the example[^cll-e17-25], requires `boi` between adjacent letter or numeral strings. The cll-ebnf, kihei, and bpfk dialects reject `pa xy. cu barda` and accept `pa boi xy. cu barda`.
+- CLL[^cll-s18-6], after the example[^cll-e18-32], requires `boi` between adjacent numbers. CLL[^cll-s18-16] shows the reverse Polish examples[^cll-e18-110][^cll-e18-111][^cll-e18-112] with the required `boi` boundaries. The cll-ebnf, kihei, and bpfk dialects reject `li fu'a pa re su'i du li ci` and accept `li fu'a pa boi re su'i du li ci`.
+- CLL[^cll-s18-6], after the example[^cll-e18-34], requires `boi` between the function name and its operand. The cll-ebnf, kihei, and bpfk dialects reject `li zy du li ma'o fy. xy.` and accept `li zy du li ma'o fy. boi xy.`.
 
 [^cll-s19-5]: [CLL 1.1, section 19.5](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-questions-and-answers.html).
 

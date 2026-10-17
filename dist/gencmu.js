@@ -3779,7 +3779,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 29;
+  const DOM_FORMAT = 31;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3927,7 +3927,7 @@
     }
     for (const directive of dom.directives) {
       const { name, args } = directive;
-      if (!DIRECTIVE_NAMES.has(name) || "maximal" in directive || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
+      if (!DIRECTIVE_NAMES.has(name) || !Array.isArray(args) || args.some(arg => typeof arg !== "string")) return "a malformed directive";
       if (["stage", "extend-stage", "redefine-stage"].includes(name) && !(args.length === 1 && CLASSIFIER_NAME.test(args[0]))) return "a malformed directive";
       if (name === "include" && args.length !== 1 || name === "features" && !(args.length > 0 && args.every(arg => FEATURE_NAME.test(arg)))) return "a malformed directive";
       if (name === "ambiguity-resolution" && !(args.length >= 1 && args.length <= 2 && ["greedy", "lazy", "late-elision"].includes(args[0]) && (args.length === 1 || args[1] === "elision-only"))) return "a malformed directive";
@@ -3972,7 +3972,7 @@
       if (depth > DOM_MAX_DEPTH) return "nested too deeply";
       if (!object(value)) return `a malformed ${kind}`;
       /** @type {(kind: string, value: any, context?: any) => void} */
-    const child = (kind, value, context = {}) => push(kind, value, depth + 1, context);
+      const child = (kind, value, context = {}) => push(kind, value, depth + 1, context);
       const fields = Object.keys(value);
       if (kind === "expr") {
         if (value.test) {
@@ -3999,10 +3999,10 @@
           if (!exact(value, ["repeat", "separator", "chain"]) || "chain" in value && (!task.whole || !["left", "right"].includes(value.chain))) return "a malformed repetition";
           child("expr", value.repeat, { sealed: true });
           if ("separator" in value) child("expr", value.separator, { sealed: true });
-        } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; child("term", value.literal); }
+        } else if ("literal" in value) { if (fields.length !== 1 || !stringTerm(value.literal)) return "a malformed literal"; push("term", value.literal, depth); }
         else if ("range" in value) {
           if (fields.length !== 1 || !Array.isArray(value.range) || value.range.length !== 2 || !value.range.every(stringTerm)) return "a malformed range";
-          for (const end of value.range) child("term", end);
+          for (const end of value.range) push("term", end, depth);
           const problem = rangeProblem(value.range, unicode); if (problem) return problem;
         } else if ("ref" in value) { if (fields.length !== 1 || !(value.ref === "#" || CLASSIFIER_NAME.test(value.ref) || tag(value.ref))) return "a malformed reference"; }
         else if (!(fields.length === 1 && (value.empty === true || value.wildcard === true))) return "a malformed expression";
@@ -4054,8 +4054,8 @@
       } else if (kind === "pattern-part") {
         if (value.test === "tags") for (const requirement of value.requirements) child("term", requirement.value);
         else if (value.test) child("term", value.value);
-        if (value.literal) child("term", value.literal);
-        if (value.range) for (const endpoint of value.range) child("term", endpoint);
+        if (value.literal) push("term", value.literal, depth);
+        if (value.range) for (const endpoint of value.range) push("term", endpoint, depth);
         for (const item of patternParts(value)) if (item !== value.value) child("pattern-part", item);
       } else {
         if (!hasOneForm(value, [["string"], ["interpolate"], ["tag"], ["const", "at"], ["emptySet"], ["capture"], ["method", "receiver", "args"], ["union"], ["intersection"], ["difference"], ["if", "then"], ["pattern"]])) return "a malformed term";
@@ -11409,7 +11409,7 @@
    * @property {string[]} unreachable rules no derivation of `text` can reach
    * @property {{kind: string, rule: string, document: string, previous: string,
    *   flagChange?: {from: string[], to: string[]}}[]} changes
-   * @property {{rule: string, document: string}[]} idleErasures rules that emit `ε` although nothing
+   * @property {{rule: string, document: string}[]} idleErasures rules marked `%erased` although nothing
    *   under them could emit and no token could cover them
    * @property {Membership[]} memberships every membership of a key in a class
    *   that an entry of a classifier adds or removes, in the order of the
@@ -12275,7 +12275,7 @@
    * @property {Rope | null} second
    * @property {[Action | null, Action | null] | null} witness
    * @property {RuleProfile} profile
-   * @property {boolean | null} witnessCounted with the witness hook's marks,
+   * @property {boolean | null} witnessCounted with the runtime witness marks,
    *   whether the count counted W(D); null without marks
    */
 
@@ -12625,11 +12625,10 @@
       // faults read.
       this.check = false;
       /**
-       * The witness hook's marks (tests/README.md): for each item of W(D),
+       * The runtime witness marks (tests/README.md): for each item of W(D),
        * the indices of its edges that W(D) uses. With marks, the count also
-       * says whether it counted a derivation made of marked edges only. A
-       * parse that no test watches has none, and does the same work as
-       * without them.
+       * says whether it counted a derivation made of marked edges only.
+       * Every elision-only check supplies these marks, including without a test hook.
        * @type {Map<Item, Set<number>> | null}
        */
       this.marks = null;
@@ -12927,7 +12926,7 @@
     }
 
     /**
-     * The number of an item's derivations, capped at two. With the witness hook's marks, `w`
+     * The number of an item's derivations, capped at two. With the runtime witness marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.
@@ -14248,7 +14247,7 @@
       let roots;
       try {
         // Lowering for these features may itself find an error of the grammar
-        // (engine §3.3), which is a result like any found while parsing.
+        // (engine §3), which is a result like any found while parsing.
         lowered = this.grammar.lower(features);
         context = new ParseContext(lowered, tokens, sourceText, unicode);
         chart = recognize(context, "text", 0, tokens.length);
@@ -14438,8 +14437,8 @@
       }
       let roots = rootItems(chart, "text");
       if (fault("lost:roots")) roots = [];
-      // A test that watches the check marks W(D)'s edges before the check
-      // ranks (tests/README.md).
+      // Runtime tracking marks W(D)'s edges before the check ranks.
+      // An optional test hook observes the witness (tests/README.md).
       const run = { chosen, chart, roots, synthetic, originalAt, recordAt };
       const protectWitness = true;
       const walk = protectWitness ? walkWitness(run) : null;
@@ -15294,9 +15293,6 @@
         const operands = parts(item).filter((child) => ruleOf(child) === "argument-word" || ruleOf(child) === "argument-string" || ruleOf(child) === "argument-tag" || ruleOf(child) === "argument-term");
         const problem = operandProblem(name, operands.map((child) => operandKind(child)));
         if (problem) fail(problem, item);
-        if (name === "ambiguity-resolution" && operands.some((child) => valueOf(token(child)) === "maximal")) {
-          fail("the maximal operand is retired", item);
-        }
         const args = operands.map((child) => {
             if (ruleOf(child) === "argument-word") return valueOf(token(child));
             if (ruleOf(child) === "argument-string") return sourceText(token(child)).slice(1, -1);
@@ -16990,7 +16986,7 @@
       if (surrogate !== null) {
         throw new GencmuError("usage", `the text is not a sequence of Unicode scalar values: a lone surrogate U+${surrogate.code.toString(16).toUpperCase()} at code point ${surrogate.at}`);
       }
-      // A token that the caller supplies has its text as its image (engine §5).
+      // A caller token defaults its image to its text only when `image` is absent (engine §5).
       // It has no attachments: a list that is not empty is the caller's
       // mistake, and an empty one is dropped (docs/api.md). The parse copies
       // each token, its tags and its positions, so the caller's objects stay

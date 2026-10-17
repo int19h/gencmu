@@ -126,7 +126,7 @@ struct Entry {
 struct NodeResult {
     entries: Vec<Entry>,
     count: u8,
-    /// With the witness hook's marks, whether `count` includes a derivation
+    /// With the runtime witness marks, whether `count` includes a derivation
     /// made of marked links only (tests/README.md). The same loop decides
     /// both, so any choice that drops W(D) from the count drops it here.
     w: bool,
@@ -463,7 +463,7 @@ pub(crate) struct Ranking {
     pub first: u32,
     pub second: Option<u32>,
     pub witness: Option<(Act, Act)>,
-    /// With the witness hook's marks, whether the count counted W(D): the
+    /// With the runtime witness marks, whether the count counted W(D): the
     /// root has the bit (tests/README.md).
     pub witness_counted: Option<bool>,
     pub profile: Profile,
@@ -764,9 +764,9 @@ pub(crate) struct Ranker<'c> {
     fset_index: FxMap<Vec<u32>, u32>,
     /// Under `late-elision`, the vectors and the summaries.
     elisions: Option<Elisions>,
-    /// The witness hook's marks of W(D) (tests/README.md). With them, each
+    /// The runtime witness marks of W(D) (tests/README.md). With them, each
     /// count also says whether it includes a derivation made of marked links
-    /// only. A parse that no test watches has none.
+    /// only. Every elision-only check supplies these marks, including without a test hook.
     marks: Option<&'c Marks>,
     /// Reconstruction selects canonical companions and enables its fault tests.
     check: bool,
@@ -1173,8 +1173,8 @@ impl<'c> Ranker<'c> {
         self
     }
 
-    /// Ranks for the check of `elision-only`, with the witness hook's marks
-    /// of W(D) where a test watches it (tests/README.md).
+    /// Ranks for the check of `elision-only` with runtime marks of W(D).
+    /// Tests can observe this ranking (tests/README.md).
     pub(crate) fn checking(mut self, marks: Option<&'c Marks>) -> Ranker<'c> {
         self.check = true;
         self.dag.canonical_companions = true;

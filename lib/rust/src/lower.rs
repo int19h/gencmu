@@ -116,7 +116,7 @@ pub(crate) enum LEmitItem {
 pub(crate) enum LEmit {
     /// No emission: the constituent is walked.
     None,
-    /// `%emits ε`: the constituent emits nothing and does not count.
+    /// `%erased`: the constituent emits nothing and does not count.
     Nothing,
     /// `%emits $`, once per item, with the item's tag term if it has one.
     This(Vec<Option<LTerm>>),
@@ -244,8 +244,7 @@ pub(crate) struct Prod {
     pub strings: crate::dom::Channels,
     pub item_strings: Vec<crate::dom::Channels>,
     pub names: FxMap<String, u32>,
-    /// `%erased`: its constituent is an erased part, which sounds `?` and
-    /// shows its text (§11).
+    /// `%erased`: its constituent contributes empty value and image strings (§11).
     pub erased: bool,
     /// Conditions, each with the dot at which it is evaluated, in order of
     /// that dot and then in written order.
@@ -1371,7 +1370,7 @@ fn lower_mode(
                 _ => Some(Term::Union(written)),
             };
             // The reader has made sure a tag term uses only captures its
-            // alternative has, and so every production of it has (§3.3).
+            // alternative has, and so every production of it has (§3.6).
             // Validation reads the symbolic slot clauses. Private names
             // are diagnosed in group order before runtime binding (§2.1).
             production.tags = if validation {

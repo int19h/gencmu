@@ -1,10 +1,10 @@
 # Word shapes
 
-This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
+This document is part of the forms stage in the [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects. A stage is one step of a pipeline, with its own grammar ([engine §1](../../docs/engine.md#1-tokens)).
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The other dialects use [bpfk.md](bpfk.md), the word forms of the BPFK, the Lojban language planning committee, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
+The document holds the sounds of the word forms in *The Complete Lojban Language* (CLL), edition 1.1. These are the consonants and their pairs, the vowels, diphthongs and stress. A diphthong combines two vowels in one syllable. The loader stitches it into the stage after [forms.md](forms.md) and before [cll.md](cll.md), which builds the words from these parts. The BPFK, experimental, and Zantufa dialects use [bpfk.md](bpfk.md), the word forms of the BPFK, the Lojban language planning committee, and use nothing here. [The notation document](../../docs/notation.md) explains the notation.
 
 The phoneme stage folds consonants to lowercase and writes each apostrophe with value `'`. Normalization gives every vowel a lowercase value and keeps stress through `Stressed`. It gives the syllable comma an empty value and keeps its tag `Syllable-Break`.
 
@@ -501,7 +501,7 @@ The rule `any-letter` reads `Syllable-Break` to include commas in stress lookahe
 
 ## Syllables and stress
 
-The syllable scans read commas through `Syllable-Break`, because a comma token has an empty value. `brivla-item` permits only unstressed `y`. `name-item` permits stressed `y` too.
+The syllable scans read commas by their `Syllable-Break` tag, because a comma token has an empty value. `brivla-item` permits only unstressed `y`. `name-item` permits stressed `y` too.
 
 A run of vowels with no apostrophe or comma in it divides into syllables from the left (CLL[^cll-s3-5]). At each point, the next two vowels are one syllable if they form a diphthong that the word allows. Otherwise the next vowel is a syllable alone. So `briau` is `bria-u`, and `.meiin.` is `mei-in`. A name or a borrowing can have two vowels that form no diphthong, each its own syllable, as in the `korea` of `bangrkorea`.
 
@@ -557,7 +557,9 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 
 
 
-A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none. `name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. `name-diphthong` also admits `iy` and `uy`. Its tags are:
+A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none.
+
+`name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. `name-diphthong` also admits `iy` and `uy`. Its tags are:
 
 - `N0` to `N3` and `Single-End`, as above
 - `V0` before the scan reads a nucleus, and `V1` after the first nucleus

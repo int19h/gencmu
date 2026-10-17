@@ -17,7 +17,7 @@ export type Ranking = {
     witness: [Action | null, Action | null] | null;
     profile: RuleProfile;
     /**
-     * with the witness hook's marks,
+     * with the runtime witness marks,
      * whether the count counted W(D); null without marks
      */
     witnessCounted: boolean | null;
@@ -126,11 +126,10 @@ export declare class Ranker {
     reads: Map<string, RopeLeaf>;
     check: boolean;
     /**
-     * The witness hook's marks (tests/README.md): for each item of W(D),
+     * The runtime witness marks (tests/README.md): for each item of W(D),
      * the indices of its edges that W(D) uses. With marks, the count also
-     * says whether it counted a derivation made of marked edges only. A
-     * parse that no test watches has none, and does the same work as
-     * without them.
+     * says whether it counted a derivation made of marked edges only.
+     * Every elision-only check supplies these marks, including without a test hook.
      * @type {Map<Item, Set<number>> | null}
      */
     marks: Map<Item, Set<number>> | null;
@@ -220,7 +219,7 @@ export declare class Ranker {
      */
     count(item: Item): number;
     /**
-     * The number of an item's derivations, capped at two. With the witness hook's marks, `w`
+     * The number of an item's derivations, capped at two. With the runtime witness marks, `w`
      * says whether the count includes a derivation made of marked edges
      * only (tests/README.md). The same loop decides both, over the same
      * edges, so any choice that drops W(D) from the count drops it from `w`.

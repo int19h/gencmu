@@ -173,9 +173,9 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("seq of one item", set_expr({"seq": [A]})),
     ("choice of one item", set_expr({"choice": [A]})),
     ("& of more than 16 items", set_expr({"and": [A] * 17})),
-    # Format 17's repeat had a min, which format 18 has not (docs/output.md).
-    ("repetition with a min", set_expr({"seq": [CAP_X, {"repeat": A, "min": 1}]})),
-    ("separated list with a min", set_expr({"seq": [CAP_X, {"repeat": A, "separator": A, "min": 0}]})),
+    # Expression forms reject unknown members (docs/output.md).
+    ("repetition with an unknown member", set_expr({"seq": [CAP_X, {"repeat": A, "extra": True}]})),
+    ("separated list with an unknown member", set_expr({"seq": [CAP_X, {"repeat": A, "separator": A, "extra": False}]})),
     ("separator of a bad reference", set_expr({"seq": [CAP_X, {"repeat": A, "separator": {"ref": "x y"}}]})),
     # A chain is the whole expression of its alternative, to the left or
     # to the right (engine §9).
@@ -191,10 +191,10 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("optional elidable 'true'", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": "true"}]})),
     ("optional elidable null", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": None}]})),
     ("optional elidable 1", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": 1}]})),
-    ("optional maximal true is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": True}]})),
-    ("optional maximal null is retired", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": None}]})),
-    ("optional maximal without elidable", set_expr({"seq": [CAP_X, {"optional": KU, "maximal": True}]})),
-    ("optional maximal false", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "maximal": False}]})),
+    ("unknown optional member (true)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": True}]})),
+    ("unknown optional member (null)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": None}]})),
+    ("unknown member on a plain optional", set_expr({"seq": [CAP_X, {"optional": KU, "extra": True}]})),
+    ("unknown optional member (false)", set_expr({"seq": [CAP_X, {"optional": KU, "elidable": True, "extra": False}]})),
     ("elidable choice", set_expr({"seq": [CAP_X, marked({"choice": [KU, {"ref": "VAU"}]})]})),
     ("elidable and", set_expr({"seq": [CAP_X, marked({"and": [KU, {"ref": "A"}]})]})),
     ("elidable rule", set_expr({"seq": [CAP_X, marked({"ref": "ku"})]})),
@@ -305,13 +305,8 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
     ("a terminal that is no tag", set_expr({"capture": "x", "expr": {"terminal": "é"}})),
     ("a terminal of two characters", set_expr({"capture": "x", "expr": {"literal": {"string": "ab"}}})),
     ("a capture name with a capital", set_expr({"capture": "X", "expr": A})),
-    # %elidable is no directive, and no directive has a maximal member
-    # (engine §9).
-    ("an elidable directive", lambda dom: dom["directives"].append({"name": "elidable", "args": ["KU"], "at": [9, 1]})),
-    (
-        "a maximal member on a directive",
-        lambda dom: dom["directives"].append({"name": "features", "args": ["f"], "maximal": True, "at": [9, 1]}),
-    ),
+    # Unknown directive names fail (engine §9).
+    ("an unknown directive", lambda dom: dom["directives"].append({"name": "unknown", "args": ["KU"], "at": [9, 1]})),
     ("phonemes of two spans", set_tags({"method": "value", "args": [X], "receiver": X})),
     ("phonemes of a tag", set_tags({"method": "value", "args": [], "receiver": TAG})),
     ("tags with a term for a rule", set_tags({"method": "tags", "args": [TAG], "receiver": X})),
@@ -378,7 +373,7 @@ CASES: list[tuple[str, Callable[[Dom], None]]] = [
         with_bare_alternative(set_emit({"items": [{"insert": True, "tags": {"tag": "Y"}}, {"capture": "x"}]})),
     ),
     ("an emission that leaves an alternative nothing", with_bare_alternative(set_emit({"items": [{"capture": "x"}]}))),
-    ("opaque with ε", lambda dom: (rule(dom).update(opaque=True), set_emit({"items": []})(dom))),
+    ("opaque with an empty emission list", lambda dom: (rule(dom).update(opaque=True), set_emit({"items": []})(dom))),
     # Tests in a body (engine §2, §9).
     ("a test with an unknown comparator", set_expr({"capture": "x", "expr": {"test": "==", "value": {"string": "a"}, "expr": A}})),
     ("a test whose comparator is no string", set_expr({"capture": "x", "expr": {"test": 7, "value": {"string": "a"}, "expr": A}})),
@@ -632,12 +627,12 @@ class PrecompiledDomRules(unittest.TestCase):
                     self.assertEqual(dom_problem(dom) is None, allowed, dom_problem(dom))
 
     def test_what_the_reader_allows_is_allowed(self) -> None:
-        """$ in conditions, in emission and as a span of $.tags(rule), ε,
+        """$ in conditions, in emission and as a span of $.tags(rule), emission lists,
         ∧, ⟹, presence tests, guarded terms, # as a rule's name, a negated
         gate and a warning (engine §9)."""
         for name, change in (
             ("$ twice", set_emit({"items": [{"capture": "", "tags": TAG}, WHOLE]})),
-            ("ε", set_emit({"items": []})),
+            ("empty emission list", set_emit({"items": []})),
             ("opaque", lambda dom: rule(dom).update(opaque=True)),
             (
                 "$.tags in an emitted term",
@@ -738,9 +733,9 @@ class PrecompiledDomRules(unittest.TestCase):
             with self.subTest(what=name):
                 dom = copy.deepcopy(self.dom)
                 change(dom)
-                # Format 26 retires these forms rather than assigning
-                # strings through tags or treating an empty list as erasure.
-                if name in ("ε", "opaque", "tag of a string", "tag of text", "a character tag"):
+                # These forms cannot assign strings through tags or treat
+                # an empty list as erasure.
+                if name in ("empty emission list", "opaque", "tag of a string", "tag of text", "a character tag"):
                     self.assertIsNotNone(dom_problem(dom))
                 else:
                     self.assertIsNone(dom_problem(dom))
@@ -1204,8 +1199,8 @@ def _mixed_changes() -> list[tuple[str, Callable[[Dom], None]]]:
         ("a repetition with an optional", second({"repeat": b, "optional": c})),
         ("an optional with a repetition", second({"optional": c, "repeat": b})),
         ("a repetition with an optional of a bad reference", second({"repeat": b, "optional": {"ref": ["x"]}})),
-        ("a repetition with the min of format 17", second({"repeat": b, "min": 1})),
-        ("a separated list with the min of format 17", second({"repeat": b, "separator": c, "min": 0})),
+        ("a repetition with an unknown member", second({"repeat": b, "extra": True})),
+        ("a separated list with an unknown member", second({"repeat": b, "separator": c, "extra": False})),
         ("a reference that is not a name", second({"ref": "x y"})),
         ("a top-level sequence with a choice", beside("choice", [b, c])),
         ("a captured terminal not in its canonical spelling", captured({"literal": {"string": "ab"}})),

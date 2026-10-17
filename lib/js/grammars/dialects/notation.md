@@ -12,7 +12,7 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
 
 `../../docs/engine.md` specifies these steps in §8 and §9.
 
-## Stage 1: tokens
+## Stage 1: lexical
 
 ```jbogenbau
 %stage lexical
@@ -23,9 +23,9 @@ The input is the text of a grammar document's `jbogenbau` blocks, joined with a 
   %include "../notation/lexical.md"
   ```
 
-The stage receives one token per character. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens is a run of the characters that the author wrote. The stage drops spaces and comments.
+Stage zero applies Unicode Normalization Form D (NFD). The lexical stage receives one token per decomposed scalar, with that scalar as its value and image. A token is one unit that a stage reads or emits. The stage hands on the notation's tokens: names, strings, captures, constants, guards, keywords, and punctuation. Each of these tokens covers a run of decomposed scalars from the document. The stage drops spaces and comments.
 
-## Stage 2: the document
+## Stage 2: syntax
 
 ```jbogenbau
 %stage syntax
@@ -36,4 +36,4 @@ The stage receives one token per character. A token is one unit that a stage rea
   %include "../notation/syntax.md"
   ```
 
-The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 29.
+The stage receives those tokens. It builds the tree of rules and directives from which a library reads the grammar. The stage recognizes methods, captures, and repeated tests before reader validation. The bootstrap and grammar DOMs use format 31.

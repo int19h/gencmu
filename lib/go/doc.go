@@ -55,12 +55,12 @@
 // read (engine §11). Canonical JSON omits an attached token's Span.
 // Brackets shows the attachments around the carrier's Image.
 //
-// Parse decomposes text with the shared Unicode table before stage zero.
+// Stage zero decomposes text with the shared Unicode table for Parse.
 // Original text and source positions stay unchanged. ParseTokens bypasses
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 13 and grammar DOM format 29 follow docs/output.md.
+// Result format 13 and grammar DOM format 31 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.

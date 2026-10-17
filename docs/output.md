@@ -43,7 +43,7 @@ A token has this form. This one is the token of `mi` that the forms stage of the
 
 `image` always exists and can be empty or contain line breaks. It can include adjacent text outside the token's source interval. `text` remains the original source interval and never expands through an image recipe.
 
-In the first stage, a token over one precomposed character has that character's source and text, though its value is decomposed.
+For a precomposed character, each stage-zero token keeps the original source and text. Its value is one decomposed scalar.
 
 `insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
 
@@ -65,7 +65,7 @@ A node has one of these forms:
 
 A list that flat braces read has no node of its own. Each level of a chain is a `rule` node of the chain's rule (engine §12). So braces add no kind of node.
 
-A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling. Elided nodes expose no ended-constituent assignment.
+A token node's `token` indexes the stage-input token it reads. `terminal` records canonical terminal identity, such as `KOhA`, `"a"`, `"a".."z"`, or `_`. Tests do not change that identity. Constants expand to their string identity. Read witnesses and expected lists use the same spelling.
 
 An equality-tested elided node records the saved operand as `value`, after `source`. It preserves an explicit empty operand as `value:""`. Other elided nodes omit this member. Canonical tree comparisons include saved `value`. This metadata does not change the empty value observed by an omitted pattern leaf.
 
@@ -151,7 +151,7 @@ kind, code, message, group, option, expression, inheritance
 
 `rule`, `alternative`, and `path` identify the final stitched source expression where available. `alternative` and `option` are zero-based indexes. Omit `option` for a failure common to the whole group.
 
-`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components retain their existing names.
+`path` is a JSON Pointer relative to the alternative's `expr`. Ranked children use `/ranked/0`, `/ranked/1`, and subsequent indexes. Captures and tests continue through `expr`. Other components keep their names.
 
 `expression` is the offending written expression as a DOM value where available. `inheritance` appears only for a tag error with a witness. It lists rule or helper sites from the group toward the tag source. Helper sites use written paths and the same source fields.
 
@@ -163,13 +163,13 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":29,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1.
+Its envelope is `{"format":31,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 29 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 29 also supports boundary atoms, the `ends-input` method and the `fewest` flag.
+DOM format 31 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 31 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
 
-Format 29 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":29,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 31 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":31,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -210,11 +210,11 @@ An expression has no member but those of its one form.
 
 `seq`, `choice`, `ranked`, and `and` require at least two children. `and` accepts at most 16.
 
-`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A `repeat` has no `min`: a list counts one or more items, and an optional list is an `optional`.
+`repeat` is braces (engine §3, §9). Its value is the item, and its `separator` is present only where the braces have `/`. Its `chain` is present only for a chain: `left` for `{... x / s}` and `right` for `{x ... / s}`. So `{x}` is `{"repeat":X}`, `{x / s}` is `{"repeat":X,"separator":S}`, and `[{x}]` is `{"optional":{"repeat":X}}`. A `repeat` with a `chain` is the whole `expr` of its alternative, and never part of another expression. A list counts one or more items, and an optional list is an `optional`.
 
 A `ref` stores a rule or tag name, including `#` or an engine tag. `literal` stores an unresolved string term. A range stores two string terms that resolve to single scalar endpoints. `wildcard` is exactly `true`.
 
-An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member. Any `maximal` member makes an optional malformed, regardless of its value.
+An `optional` with `"elidable":true` is an elidable optional (engine §3.8). `[+KU #]` is `{"optional":{"seq":[{"ref":"KU"},{"ref":"#"}]},"elidable":true}`. A plain optional has no `elidable` member.
 
 `BASETARGET` is a `ref` other than `#`, `literal`, `wildcard`, or `range`. `TESTTARGET` is a BASETARGET, or its tag-tested form under a value test. `CAPTURETARGET` is a BASETARGET, its legal tested form, or an untested `ref:"#"`.
 
@@ -295,7 +295,7 @@ For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
 
 The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
-A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the six recipe string methods on a bare capture. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
+A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
 ```json
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
@@ -345,9 +345,9 @@ A directive is `{"name":"features","args":["cbm"],"at":[line,column]}`.
 
 Directive names are `stage`, `extend-stage`, `redefine-stage`, `include`, `features`, and `ambiguity-resolution`. Stage selectors take one lowercase name. Includes take one include path. Features take at least one feature name as engine §9.1 defines it. Ambiguity resolution takes `greedy`, `lazy`, or `late-elision`, optionally followed by `elision-only`.
 
-A directive of any other name is malformed, `elidable` included (engine §9). An argument is a name or, for `include`, the include path: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`. The operand `maximal` in `args` is an error.
+A directive of any other name is malformed (engine §9). An argument is a name or, for `include`, the include path: `{"name":"include","args":["../words/stream.md"],"at":[4,3]}`.
 
-A directive has no `maximal` member, and one with that member is malformed (engine §9). A library ignores any other member of a directive. The members that it knows, `name`, `args`, `maximal` and `at`, keep their rules, so an unknown member does not excuse a malformed known one.
+A library ignores unknown members of a directive. Its known members, `name`, `args`, and `at`, keep their rules. An unknown member does not excuse a malformed known member.
 
 `rules`, `directives`, `constants`, `classifiers` and `implications` each keep the order in which the document has them. `at` is the line and column of an item's first token. So the order of all of a document's items is the order of their positions. No two items of a DOM share a position (engine §9).
 
@@ -416,7 +416,7 @@ Intersection and difference retain their operands. Union and intersection requir
 
 Optional and repeat require nonempty written bodies. A repeat body that only matches empty sequences is malformed. A sibling ellipsis cannot serve as a repeat item or separator.
 
-A tree comparison uses the existing `op`, `left` and `right` members:
+A tree comparison uses the `op`, `left` and `right` members:
 
 ```json
 {"op":"≅","left":{"capture":"x"},"right":{"pattern":{"name":"sumti","at":[1,9]}}}
@@ -439,11 +439,11 @@ For example, `mex MOI # ≻ SE # tanru-unit-1` produces this expression:
 {"ranked":[{"seq":[{"ref":"mex"},{"ref":"MOI"},{"ref":"#"}]},{"seq":[{"ref":"SE"},{"ref":"#"},{"ref":"tanru-unit-1"}]}]}
 ```
 
-The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their existing written form before terminal resolution. Expression traversal includes `ranked` beside the existing expression forms.
+The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choices), or selected option. References retain their written form before terminal resolution. Expression traversal includes `ranked` alongside other expression forms.
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":29,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":31,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 

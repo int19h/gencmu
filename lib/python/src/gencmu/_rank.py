@@ -509,10 +509,11 @@ class Ranker(Summaries):
         # Whether this ranks the check of elision-only, which only its
         # faults read.
         self.check = False
-        # The witness hook's marks (tests/README.md): for each item of W(D),
+        # The runtime witness marks (tests/README.md): for each item of W(D),
         # the indices of its edges that W(D) uses. With them, the same loop
         # that counts also says, for each key, whether its count includes a
-        # derivation of marked edges only. A parse that no test watches has none.
+        # derivation of marked edges only. Every elision-only check supplies
+        # these marks, including without a test hook.
         self.marks: dict[int, set[int]] | None = None
         self.witnessed: dict[Key, bool] = {}
 
@@ -1108,7 +1109,7 @@ class Ranking:
     """The outcome of a ranking (engine §6): its verdict, its first reading
     ``m``, and for an ordinary tie its second reading ``t`` and first differing actions.
     ``witness_counted``, with the
-    witness hook's marks, says whether the count counted W(D)
+    runtime witness marks, says whether the count counted W(D)
     (tests/README.md); ``None`` without marks."""
 
     __slots__ = ("verdict", "first", "second", "witness", "witness_counted", "profile", "raw_witness_counted")

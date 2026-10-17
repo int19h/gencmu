@@ -1,6 +1,6 @@
 {
-  "description": "The retired stage-wide maximal operand is a document error, regardless of operand order (engine §3.8 and §4).",
-  "grammar": "%ambiguity-resolution greedy maximal elision-only\n%rule text x\n%rule x A [ + T ]",
+  "description": "An unknown ranking operand is a document error, regardless of operand order (engine §9).",
+  "grammar": "%ambiguity-resolution greedy extra elision-only\n%rule text x\n%rule x A [ + T ]",
   "tokens": [
     {
       "text": "a",

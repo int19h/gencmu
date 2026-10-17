@@ -17,6 +17,7 @@ from unittest import mock
 import gencmu
 from gencmu import _clauses, _grammar, _pipeline, _tags, _types
 from gencmu._clauses import definition_problem
+from gencmu._dialect import DOM_FORMAT
 from gencmu._earley import EdgeSets, Evaluator, Forest, Parser, StageContext, reading_last
 from gencmu._grammar import Lowered, Production, _Constants, _Lowerer, lower, stitch
 from gencmu._model import Token
@@ -483,7 +484,7 @@ class SharedClauses(Linear):
                 "at": [3, 1],
             }
             dom = {
-                "format": 29,
+                "format": DOM_FORMAT,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -513,7 +514,7 @@ class SharedClauses(Linear):
                 "at": [2, 1],
             }
             dom = {
-                "format": 29,
+                "format": DOM_FORMAT,
                 "rules": [rule],
                 "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
                 "constants": [],
@@ -603,7 +604,7 @@ class GuardedClauses(Linear):
             **clause(n),
         }
         dom = {
-            "format": 29,
+            "format": DOM_FORMAT,
             "rules": [rule],
             "directives": [{"name": "ambiguity-resolution", "args": ["greedy"], "at": [1, 1]}],
             "constants": [{"name": "K", "op": "define", "value": {"tag": "K"}, "at": [2, 1]}],
@@ -717,7 +718,7 @@ class Classifiers(Linear):
 
 def pipeline_dom(directives: list[dict[str, Any]], rules: int = 0) -> dict[str, Any]:
     return {
-        "format": 29,
+        "format": DOM_FORMAT,
         "rules": [
             {"name": "text", "op": "define", "flags": [], "alternatives": [], "conditions": [], "at": [line + 1, 9]}
             for line in range(len(directives), len(directives) + rules)

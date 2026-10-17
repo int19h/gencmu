@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 29
+FORMAT = 31
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -166,7 +166,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     pending = []
     for d in dom["directives"]:
         name, args = d.get("name"), d.get("args")
-        if name not in _DIRECTIVES or "maximal" in d or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
+        if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             return "a malformed directive"
         if name in ("stage", "extend-stage", "redefine-stage"):
             valid = len(args) == 1 and CLASSIFIER_NAME.fullmatch(args[0]) is not None
@@ -369,6 +369,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                         pending.append(("tags", value, below, False, False))
                 else:
                     pending.append(("string", node["value"], below, False, False))
+            # Literal and range wrappers add no compound ancestor.
             elif "range" in node:
                 if keys != {"range"} or range_problem(node["range"], unicode):
                     return "a malformed range"
@@ -406,7 +407,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                         and set(receiver["receiver"]) == {"capture"}
                     )
                     if not valid:
-                        return "a recipe requires one of its six captured string methods"
+                        return "a recipe requires one of its seven captured string methods"
                     pending.append(("recipe-method", atom, below, False, False))
                 else:
                     pending.append(("string", atom, below, False, False))
@@ -498,6 +499,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 return problem
             for atom, offset in walk_pattern(node["pattern"]):
                 atom_depth = below + offset
+                # Pattern literals and ranges use the same transparent transition.
                 if "literal" in atom:
                     pending.append(("string", atom["literal"], atom_depth, False, False))
                 elif "range" in atom:

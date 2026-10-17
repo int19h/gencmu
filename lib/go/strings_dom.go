@@ -104,14 +104,17 @@ func decodeRequirements(raw json.RawMessage, depth int) ([]tagRequirement, error
 		if err != nil || len(o) != 2 || unmarshal(o["negated"], &r.Negated) != nil {
 			return r, fmt.Errorf("a malformed tag requirement")
 		}
-		r.Value, err = decodeTermAt(o["value"], depth+1)
+		r.Value, err = decodeTermAt(o["value"], depth)
 		return r, err
 	})
 }
 
 func decodeStringRange(raw json.RawMessage, depth int) ([2]*domTerm, error) {
 	ends, err := decodeList(raw, func(raw json.RawMessage) (*domTerm, error) { return decodeTermAt(raw, depth) })
-	if err != nil || len(ends) != 2 {
+	if err != nil {
+		return [2]*domTerm{}, err
+	}
+	if len(ends) != 2 {
 		return [2]*domTerm{}, fmt.Errorf("a range requires two string operands")
 	}
 	return [2]*domTerm{ends[0], ends[1]}, nil

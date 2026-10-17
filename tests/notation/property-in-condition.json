@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $b:B\n%conditions\n$b.tags∩ _L ≠ ∅\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 31,
       "rules": [
         {
           "name": "a",

@@ -1,6 +1,6 @@
 # The CLL word stream
 
-This document is part of the word stage in the [CLL](../dialects/cll-ebnf.md) dialect. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. The dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
+This document is part of the words stage in the [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects. A stage is one step of a pipeline, with its own grammar. A token is one unit that a stage reads or emits. Each stage reads the tokens that the stage before it emitted, and emits new tokens. Each dialect includes this document after [stream.md](stream.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The rules follow *The Complete Lojban Language* (CLL). A cmavo is a particle, a short structure word. A letteral is a letter word of class BY, as [stream.md](stream.md) defines it. This document warns about cmavo with `y` as a vowel and requires pauses around a name that `bu` takes.
 

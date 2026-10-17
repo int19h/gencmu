@@ -4,7 +4,7 @@ This document is part of the forms stage in the [experimental](../dialects/exper
 
 A layer is a document that changes earlier rules. This layer changes the translated word forms in [bpfk.md](bpfk.md). A lookahead tests input without reading it.
 
-The reference is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three translated rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). Each rule here has the name of the camxes-exp rule that it translates, and its comment gives that rule, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three translated rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
@@ -133,7 +133,7 @@ The comments mark these tests as gencmu's own.
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
 
-A run with a glide letter where no glide can stand then divides into no words. The forms stage emits it as a foreign run ([forms.md](forms.md)), and the word stage rejects it outside a quote. So `mɩ`, `mĭ`, `kaw` and `www` are errors, while `maĭ`, `coĭ` and `kaŭ` read as `mai`, `coi` and `kau`.
+A run with a glide letter where no glide can stand then divides into no words. The forms stage emits it as a foreign run ([forms.md](forms.md)), and the words stage rejects it outside a quote. So `mɩ`, `mĭ`, `kaw` and `www` are errors, while `maĭ`, `coĭ` and `kaŭ` read as `mai`, `coi` and `kau`.
 
 The lookaheads still read the letter as `i` or `u`. A glide letter is no vowel, so it is a nucleus only as the end of a diphthong. So `aɩa` and `aĭa` are `a` and `ia`, as `aia` is. The `!i` after a diphthong still sees a glide letter, so `aiɩa` divides into no words, as `aiia` does.
 
@@ -183,6 +183,6 @@ In the working morphology, a short rafsi without a y-hyphen cannot stand where a
 
 camxes-exp's `indicator` rule accepts a bare NAI like an attitudinal. This layer marks NAI as an indicator so that the indicator stage can attach it.
 
-[^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
-
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
+
+[^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

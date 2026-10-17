@@ -4,7 +4,7 @@ This document is a layer over [the CLL grammar](cll.md), the grammar of *The Com
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its reference is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
+The layer adds experimental constructs. It always accepts some constructs, and a feature, a named switch that the grammars test, guards others. Its baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). A PEG tries alternatives in order.
 
 The layer restates each CLL rule that it changes with `%redefine-rule`. It states its own rules with `%rule`. Each section below says what the layer changes in that part of the grammar. A rule that this document does not name is the CLL grammar's, as that document explains it.
 
@@ -33,7 +33,7 @@ The prose uses these Lojban terms, as [the CLL grammar](cll.md) does:
 
 [The notation document](../../docs/notation.md) explains the notation. The terminals of this grammar (the symbols that each match one input token) are selma'o. A token is one unit of input. A tag marks a token by an identifier.
 
-A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
+A stage is one step of a pipeline, with its own grammar. The pipeline is the sequence of stages that reads a text. The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
 The layer uses two feature guards, which make a part of a rule depend on a feature. `cbm` is the cmevla-brivla merger, which permits name words as predicates. `soi-clause` makes `soi` a term that takes a subsentence. The experimental dialect turns both on. A caller, the program that requests parsing, can turn either off.
 
@@ -409,7 +409,7 @@ Sumti connectives are ek, joik, jek or VUhU (`connective`). This change and the 
 - `la'e` or `na'e bo` around a term that is not a sumti, such as `na ku` or a tense or modal with its sumti or `ku`
 - `na'e` around a term that is neither a sumti nor a tense or modal with its sumti or `ku`, such as `na ku`
 - `lo'oi` and `ku'au` surround a subsentence as a description.
-- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the word stage delimits
+- The single-word quotes `zo'oi`, `la'oi` and `ra'oi`, whose bodies the words stage delimits
 
 A bare NAhE cannot wrap one tagged term, even when that term omits KU. The pattern tests the actual `tagged-term` constructor. A connected term can begin with such a term, as in `na'e pu ku .e na ku lu'u`. This grammar accepts `mi na'e pu ku .e ca lu'u klama`. The first tag requires KU before `.e`. The second can omit KU before `lu'u`.
 
@@ -664,7 +664,7 @@ The layer reads mekso with the rules below. No reachable rule calls `operand`, `
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` reference. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
 - `bo` after an operator, with an optional tense or modal, groups two operands tighter (`li pa su'i bo re`). There is no `bi'e`. A forethought operator takes one or more mekso operands, as in `li gei so'i`.
 - An operator can be any of the four connective families. Each has one final slot of free modifiers.
-- Plain operator connections use `plain-connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `ke pi'i ke'e je bo vu'u`, only the plain reading parses. The layer keeps it.
+- Plain operator connections use `plain-connective`, with all four families. BO and KE connections use `joik-jek-ek`, without VUhU. The KE preference covers JOI, JA and A. So `li ci su'i joi ke pi'i ke'e re du li xa` joins `su'i` to the operator's own `ke` group. Where the operator goes on after its `ke` group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`, only the plain reading parses. The layer keeps it.
 - A quantifier is a whole mekso, as in `pa su'i re broda`. A competing `sumti-6` or selbri at its start excludes it. The queries preserve the selected mekso's omitted terminators and free-modifier boundaries. The `sumti-6` constructor holds a sumti without its own outer quantifier. Numeric LAhE and NAhE operands remain possible where no such sumti exists. So in `mi piso'umei jimpe`, `pi so'u mei jimpe` is the selbri, and not a quantifier of a description.
 - The first branch of a forethought quantifier cannot begin a `sumti-6` either. The rule `gek-barrier` tests that branch, including nested connections. So in `ge nai abu gi no drata`, `ge nai ... gi` joins the two sumti `abu` and `no drata`. The quantifier `ge nai abu gi no` over `drata` is not a reading. In the same way, `ge ge abu gi by gi no drata` joins two sumti, and the first one connects `abu` and `by`.
 - A forethought connection of numbers can form a quantifier, as in `lo ge pa gi re mi broda`. Numeric references also remain possible, as in `ge la'e pa gi re broda`.
@@ -789,7 +789,7 @@ A forethought connective can be `ga` or `gu` followed by a joik, jek, ek or VUhU
 
 After `ga` or `gu`, an SE word can convert the whole connective, as in `ga se su'i mi gi do`. This is the outer conversion. The alternative without outer conversion cannot begin with SE, so `ga se je mi gi do` has one reading. A second SE belongs to the inner connective, as in `ga se se je mi gi do`. After NA, an SE word stays inside the connective, as in `ga na se je mi gi do`. The rule `prefixed-connective` states this for both prefixes.
 
-The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. They keep the class GA, because a word that `zo` quotes has the value but not the class.
+The rules name the two words by their values, `GA="ga"` and `GA="gu"`, which ignores stress. The GA class test excludes caller-supplied tokens with value `ga` or `gu` but no GA tag.
 
 ```jbogenbau
 %redefine-rule ek
@@ -895,7 +895,7 @@ The `tense-modal` flag prefers the earliest, longest atom run among complete rea
 
 ## Free modifiers, vocatives and indicators
 
-A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The word stage reads its contents as raw words and emits one quote token ([`../words/lohai.md`](../words/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
+A replacement quote is a free modifier. It has up to two runs of words, each opened by a word of LOhAI (`lo'ai` or `sa'ai`), and then `le'ai`. The words stage reads its contents as raw words and emits one quote token ([`../words/lohai.md`](../words/lohai.md)). Syntax requires the `Quote` tag on LOhAI to exclude incomplete quotes.
 
 `soi` is a free modifier here only without `soi-clause`. Under `cbm`, the layer removes the form of a vocative with a run of names, because a cmevla is then a selbri word. With both forms, their two readings tie.
 
@@ -983,7 +983,7 @@ CLL reads a bare jek answer to `je'i` only in its text-initial connective slot. 
 
 A free modifier can still separate `.i` from an ek fragment. Neither CLL nor this layer permits bare `ge'i` or `gu'i` answers.[^cll-s14-13][^cll-e14-105] This layer rejects `.i e gi mi gi do` and `mi klama .i je gi mi gi do`, as camxes-exp does. The `.i` takes the initial connective.
 
-The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. Real texts write `.i` after `ni'o` and its free modifiers, as in 16 audit lines. The break accepts every text-leading form, such as `ni'o .ije`.
+The CLL grammar's `text-1` reads initial `.i ni'o`, as [its repair list](cll.md#printed-rules-and-translations) explains. Real texts write `.i` after `ni'o` and its free modifiers. The break accepts every text-leading form, such as `ni'o .ije`.
 
 Thus `ni'o coi do .i mi klama` keeps `do` in the vocative. Neither printed CLL nor camxes-exp provides that separator position. Printed CLL instead shortens the vocative and reads `do` as a fragment before `.i`. camxes-exp rejects that text at `klama`.
 
@@ -1045,7 +1045,7 @@ The corpus records these examples that camxes-exp accepts and this layer rejects
 
 - `mi pe na klama` places a bare NA before a selbri.
 - `broda be pu brode` places a bare tag before a selbri.
-- `not canada` places a bare tag before NA.
+- `not canada` divides into `not ca na da` and places the bare tag `ca` before NA.
 - `ze'u na do tavla` places a bare tag before NA.
 - `na to mi toi .e do` places a bare NA before a connective.
 - `.i lei za'u da ba na ku curmi le nu mi'ai klama lo nenri be le purdi` places a bare tag before NA.
@@ -1091,9 +1091,13 @@ An outer NAhE predicate modifier takes priority over an omitted-PEhO operator mo
 
 A connective operator has one effective final free slot in this layer and camxes-exp. camxes-exp never reads the second `free*`.
 
-`plain-connective` and `joik-before-ke` give JOI, JA and A the same KE preference in operators. camxes-exp first reads the plain connective. It joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `ke pi'i ke'e je bo vu'u`.
+`plain-connective` and `joik-before-ke` give JOI, JA and A the same KE preference in operators. camxes-exp first reads the plain connective. It joins `su'i` to a KE operator unit in `li pa su'i je ke pi'i ke'e re`. This layer gives the KE group to the connective instead. Both parsers keep the plain reading when the operator continues after its group, as in `li ci su'i joi ke pi'i ke'e je bo vu'u re du li xa`.
 
-The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-barrier` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`. LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible in `la'e pa lu'u broda` and `ge la'e pa gi re broda`. The layer extends the sumti check into nested forethought connections. CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
+The quantifier restrictions test the selected mekso's restored view against `sumti-6`, `gek-barrier` and `selbri`. Each query keeps its free modifiers and omitted terminators at their selected boundaries. These tests correspond to camxes-exp's `!sumti_6` and `!selbri`.
+
+LAhE and NAhE exclude a quantifier only when their operand forms a sumti. Numeric operands remain possible in `la'e pa lu'u broda` and `ge la'e pa gi re broda`. The layer extends the sumti check into nested forethought connections.
+
+CLL gives `ge nai abu gi no drata` only a sumti reading because its quantifiers are numbers or VEI groups. camxes-exp instead takes the quantifier `ge nai abu gi no` before `drata`, as in `re prenu`.
 
 This layer accepts `la'e to mi pa broda` and `na'e to mi pa broda`, while camxes-exp rejects both. The parenthesis stays on the LAhE or NAhE prefix. The operand is `pa broda`.
 
@@ -1109,7 +1113,7 @@ This layer also accepts `ge mi klama pu gi do klama` and `ge mi pu gi do nu'u kl
 
 ### Free modifiers and subscripts
 
-The free-modifier preference compares complete readings rather than requiring a maximal TOI or SEhU. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
+The free-modifier preference compares complete readings. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
 
 A number cannot end before another number part without written BOI. So `li pa joi xi re re` fails because both `re` words belong to the subscript. No operand remains after `joi`. `li pa joi xi re boi re` keeps the subscript boundary and the following operand.
 

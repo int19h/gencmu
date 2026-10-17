@@ -1,4 +1,4 @@
-//! Schema validation for format 29. The work list bounds the complete DOM
+//! Schema validation for grammar DOMs. The work list bounds the complete DOM
 //! before conversion constructs any recursively owned term or expression.
 use super::*;
 
@@ -185,7 +185,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                         ),
                         _ => false,
                     };
-                    if !valid || item.get("maximal").is_some() {
+                    if !valid {
                         return Some("a malformed directive");
                     }
                 }

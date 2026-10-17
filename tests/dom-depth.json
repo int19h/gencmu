@@ -1,0 +1,3271 @@
+[
+  {
+    "description": "Expression reference",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression wildcard",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "wildcard": true
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression empty",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "empty": true
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression literal",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression constant literal",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "const": "_0061",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression interpolated literal",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "interpolate": [
+          {
+            "string": "a"
+          }
+        ]
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Expression range",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "string": "a"
+        },
+        {
+          "string": "a"
+        }
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression interpolated range endpoint",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "interpolate": [
+            {
+              "string": "a"
+            }
+          ]
+        },
+        {
+          "string": "a"
+        }
+      ]
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Expression seq",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "seq": [
+        "$inner",
+        {
+          "ref": "A"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression choice",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "choice": [
+        "$inner",
+        {
+          "ref": "A"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression ranked",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "ranked": [
+        "$inner",
+        {
+          "ref": "A"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression and",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "and": [
+        "$inner",
+        {
+          "ref": "A"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression optional",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression repeat item",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "repeat": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression repeat separator",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "ref": "A"
+    },
+    "wrapper": {
+      "repeat": {
+        "ref": "A"
+      },
+      "separator": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Expression capture",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "capture": "x",
+      "expr": {
+        "ref": "A"
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Expression value test",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "value": {
+        "string": "a"
+      },
+      "expr": {
+        "ref": "A"
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Expression tag test",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "tags",
+      "requirements": [
+        {
+          "negated": true,
+          "value": {
+            "tag": "Tag"
+          }
+        }
+      ],
+      "expr": {
+        "ref": "A"
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Expression value and tag tests",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "value": {
+        "string": "a"
+      },
+      "expr": {
+        "test": "tags",
+        "requirements": [
+          {
+            "negated": false,
+            "value": {
+              "tag": "Tag"
+            }
+          }
+        ],
+        "expr": {
+          "ref": "A"
+        }
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Expression interpolated test value",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "value": {
+        "interpolate": [
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "expr": {
+        "ref": "A"
+      }
+    },
+    "wrapper": {
+      "optional": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Term union",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Term intersection",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "intersection": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Term difference",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "difference": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Term guarded result",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "if": {
+        "captured": "x"
+      },
+      "then": "$inner"
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Term guarded condition",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "if": {
+        "captured": "x"
+      },
+      "then": {
+        "tag": "Tag"
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Term string",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "string": "a"
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Term constant",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "const": "_0061",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Term interpolate",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "interpolate": [
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Term capture",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "capture": "x"
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Term value method",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "method": "value",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": []
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Term split argument",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "method": "split",
+        "receiver": {
+          "string": "a"
+        },
+        "args": [
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "right": {
+        "emptySet": true
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Term split interpolation argument",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "method": "split",
+        "receiver": {
+          "string": "a"
+        },
+        "args": [
+          {
+            "interpolate": [
+              {
+                "string": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "right": {
+        "emptySet": true
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 253
+  },
+  {
+    "description": "Term classify method",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "method": "classify",
+        "receiver": {
+          "string": "a"
+        },
+        "args": [
+          {
+            "classifier": "lexicon"
+          }
+        ]
+      },
+      "right": {
+        "emptySet": true
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Term empty set",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "emptySet": true
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Term tag",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              },
+              "tags": "$inner"
+            }
+          ],
+          "conditions": []
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "Method receiver chain",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "starts-input",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": []
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition not",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "starts-input",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": []
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition any",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "starts-input",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": []
+    },
+    "wrapper": {
+      "any": [
+        "$inner",
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition all",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "starts-input",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": []
+    },
+    "wrapper": {
+      "all": [
+        "$inner",
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": "x"
+          },
+          "args": []
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition if",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "starts-input",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": []
+    },
+    "wrapper": {
+      "if": "$inner",
+      "then": {
+        "method": "starts-input",
+        "receiver": {
+          "capture": "x"
+        },
+        "args": []
+      }
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition comparison",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "string": "a"
+      },
+      "right": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition query receiver",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "matches",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": [
+        {
+          "rule": "text"
+        }
+      ]
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition boundary terminal argument",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "method": "followed-by",
+      "receiver": {
+        "capture": "x"
+      },
+      "args": [
+        {
+          "terminal": "A"
+        }
+      ]
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Condition guarded comparison operand",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            "$inner"
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "op": "=",
+      "left": {
+        "if": {
+          "captured": "x"
+        },
+        "then": {
+          "tag": "Tag"
+        }
+      },
+      "right": {
+        "tag": "Tag"
+      }
+    },
+    "wrapper": {
+      "not": "$inner"
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern name",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "name": "text",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern terminal",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern constant",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "constant": "C",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern wildcard",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "wildcard": true,
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern literal",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "string": "a"
+      },
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern interpolated literal",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "literal": {
+        "interpolate": [
+          {
+            "string": "a"
+          }
+        ]
+      },
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern range",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "string": "a"
+        },
+        {
+          "string": "a"
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern interpolated range endpoint",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "range": [
+        {
+          "string": "a"
+        },
+        {
+          "interpolate": [
+            {
+              "string": "a"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern value test",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "value": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern tag test",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "tags",
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "requirements": [
+        {
+          "negated": true,
+          "value": {
+            "tag": "Tag"
+          }
+        }
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern value after tag test",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "expr": {
+        "test": "tags",
+        "expr": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        },
+        "requirements": [
+          {
+            "negated": true,
+            "value": {
+              "tag": "Tag"
+            }
+          }
+        ]
+      },
+      "value": {
+        "string": "a"
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 253
+  },
+  {
+    "description": "Pattern interpolated test value",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "test": "=",
+      "expr": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      },
+      "value": {
+        "interpolate": [
+          {
+            "string": "a"
+          }
+        ]
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 253
+  },
+  {
+    "description": "Pattern descendant path",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "path": "descendant",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern first path",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "path": "first",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern last path",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "path": "last",
+      "pattern": {
+        "terminal": "A",
+        "at": [
+          1,
+          1
+        ]
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern children node",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "node": {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 253
+  },
+  {
+    "description": "Pattern children siblings",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "siblings": true
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 254
+  },
+  {
+    "description": "Pattern children optional",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "optional": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 252
+  },
+  {
+    "description": "Pattern children sequence",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "sequence": [
+          {
+            "node": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          },
+          {
+            "node": {
+              "terminal": "A",
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 252
+  },
+  {
+    "description": "Pattern children repeat item",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 252
+  },
+  {
+    "description": "Pattern children repeat separator",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "children": {
+        "repeat": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        },
+        "separator": {
+          "node": {
+            "terminal": "A",
+            "at": [
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 252
+  },
+  {
+    "description": "Pattern union",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern intersection",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "intersection": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "Pattern difference",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": {
+            "pattern": "$inner"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "terminal": "A",
+      "at": [
+        1,
+        1
+      ]
+    },
+    "wrapper": {
+      "difference": [
+        "$inner",
+        {
+          "terminal": "A",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "atLimit": 255
+  },
+  {
+    "description": "header tag root",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "tags": "$inner"
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "constant root",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "op": "define",
+          "name": "C",
+          "value": "$inner",
+          "at": [
+            1,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "implication root",
+    "dom": {
+      "rules": [],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": [
+        {
+          "if": "$inner",
+          "then": {
+            "tag": "Tag"
+          },
+          "at": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  },
+  {
+    "description": "emission tag root beside a recipe",
+    "dom": {
+      "rules": [
+        {
+          "op": "define",
+          "name": "text",
+          "flags": [],
+          "at": [
+            1,
+            1
+          ],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "emit": {
+            "items": [
+              {
+                "capture": "x",
+                "tags": "$inner",
+                "value": {
+                  "concat": [
+                    {
+                      "method": "value",
+                      "receiver": {
+                        "capture": "x"
+                      },
+                      "args": []
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "tag": "Tag"
+    },
+    "wrapper": {
+      "union": [
+        "$inner",
+        {
+          "tag": "Tag"
+        }
+      ]
+    },
+    "atLimit": 256
+  }
+]

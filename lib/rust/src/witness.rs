@@ -1,9 +1,8 @@
-//! The private test hook of the check of `elision-only` (tests/README.md,
-//! engine §7.8, §7.9): whether a check kept W(D), the chosen derivation
-//! mapped to the reconstructed input, as a derivation of its forest that
-//! its own ranking counts; and two ways to lose that witness on purpose, after
-//! recognition. Nothing here is part of the documented API, and a parse
-//! that no test watches pays nothing for it.
+//! Runtime witness tracking and private test hooks for `elision-only`.
+//! W(D) is the chosen derivation mapped to the reconstructed input.
+//! Every check tracks it before ranking (engine §7.8, §7.9).
+//! Optional hooks observe the result or lose the witness for tests (tests/README.md).
+//! Nothing here is part of the documented API.
 
 use std::cell::RefCell;
 

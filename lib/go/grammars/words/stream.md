@@ -1,12 +1,12 @@
 # The word stream
 
-This document defines the word stage of cll-ebnf, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
+This document defines the words stage of cll-ebnf, kihei, bpfk, experimental, and Zantufa. A stage reads the tokens from the previous stage and emits tokens for the next stage.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 The [forms stage](forms.md) supplies source words. This stage applies quotes, compounds, erasers, hesitation, and FAhO. The [notation document](../../docs/notation.md) explains the notation of the rules below.
 
-A unit is one item on which an operation acts. A token is one emitted item for the next stage. An opaque unit hides its internal words from later operations. Every finished quote and compound emits one token.
+A unit is one item on which an operation acts. An opaque unit hides its internal words from later operations. Every finished quote and compound emits one token.
 
 A letteral is a letter word of class BY. The y letteral sounds like ybu.
 
@@ -24,13 +24,13 @@ An erased region emits nothing. Later operators skip that region and use the sur
 
 A dangling `bu` creates a unit with a missing-base fault. A dangling `le'u` creates a unit with an unopened-quote fault. Constructors preserve these faults, and erasers remove the whole units.
 
-A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. If a fault survives to the text end or an active `fa'o`, the word stage rejects the text.
+A second `bu` wraps a fault unit like any other unit. Thus `bu bu si` leaves nothing. If a fault survives to the text end or an active `fa'o`, the words stage rejects the text.
 
 An active `fa'o` ends the text. The stage reads no words after it. A quoted `fa'o` or a right operand of `zei` does not end the text.
 
 BAhE marks the next word in the indicator stage. It remains a separate unit during word operations. The dialects keep `mi ba'e fa'o` rejected because the surviving BAhE has no target.
 
-The rule `empty` reads a prefix that leaves no units. Its first three alternatives read the text start, stray SI, and an erased stretch. The next three read SU after an empty prefix, whole-prefix SU, and boundary-aware SU without a boundary. The last three read unmatched SA and trailing SA after an empty or nonempty prefix. The rule `su-cleared` keeps its boundary test beside the stream that it tests.
+The rule `empty` reads a prefix that leaves no units. Its alternatives use `text-start`, `si-word`, `erasure`, `su-word`, `su-cleared`, `sa-wiped`, and `sa-tail`. The `su-word` routes clear an empty prefix or the whole prefix. The `su-cleared` route clears a prefix without an SU boundary and keeps its boundary test beside the stream. The `sa-wiped` route reads unmatched SA. The `sa-tail` routes read trailing SA after an empty or nonempty prefix.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -169,9 +169,9 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. The dialect of *The Complete Lojban Language* (CLL) adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family, cll-ebnf and kihei, adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
-A failed word stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
+A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
@@ -222,7 +222,7 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
 
 Every complete quote is one opaque unit and emits one token. Later operations see its opening class and no class from its contents or closing marker. Indicators after it and BAhE before it mark the whole quote.
 
-The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins normalized, decomposed parts and the gap recipes below. The word-stage tree retains the marker, contents, and closing delimiter.
+The token keeps the opening marker's class and the tags `Word` and `Cmavo`. Its image keeps the original spelling of the quoted material. An undelimited payload also keeps adjacent characters that no input token covers. The opening marker uses only its source text, so it takes no punctuation from the preceding word. Its value joins input token values, including FOREIGN decomposed source text, and the gap recipes below. The tree of the words stage retains the marker, contents, and closing delimiter.
 
 Quoted Lojban keeps its written case instead of each word's normalized image. For example, `SINdarin` has image `sIndarin` alone, but `zo SINdarin` keeps its capitals.
 
@@ -558,7 +558,7 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 
 ### Raw payloads
 
-`raw-tokens` and `zohoi-payload` concatenate ordinary normalized values. Delimited quotes take their images from their whole source intervals.
+`raw-tokens` and `zohoi-payload` concatenate input token values, including FOREIGN values from decomposed source text. Delimited quotes take their images from their whole source intervals.
 
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
@@ -599,7 +599,7 @@ Erased regions and ordinary hesitation can separate an operand from its operator
 
 `Trailing-Pause` marks a surviving SU boundary whose strings already end with a space. BU and ZEI then use `suppressed-gap` to avoid a second contribution. [Erasure by `sa` and `su`](#erasure-by-sa-and-su) explains that boundary and its recipes.
 
-The CLL dialect requires pauses around a direct name base of BU. It tests the source run boundary. A name inside a compound does not make that compound a direct name.
+cll-ebnf and kihei require pauses around a direct name base of BU. They test the source run boundary. A name inside a compound does not make that compound a direct name.
 
 ```jbogenbau
 %rule compound-gap
@@ -683,7 +683,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its tags keep classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In cll-ebnf and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
+In cll-ebnf, kihei, and Zantufa, SU erases everything before it. In bpfk and experimental, SU stops at the last NIhO, LU, TUhE, or TO unit. That boundary survives.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
@@ -819,12 +819,12 @@ The dialects use seven departures from CLL.[^cll-c19] Items 2 and 4 differ in Za
 3. BU forms a letteral over BAhE. CLL[^cll-s17-4][^cll-s19-16] exclude BAhE as a BU base.
 4. Ordinary hesitation counts as space, not a word. CLL[^cll-s19-14] gives y the class Y. Only the shared reader forms the y letteral.
 5. LOhU closes at the first LEhU. CLL[^cll-s19-16] excludes a LEhU after ZO, and CLL permits a ZOI quote inside LOhU.[^cll-s19-10]
-6. ZOI compares whole raw runs by normalized value. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
+6. ZOI compares whole raw runs by exact stored values, including FOREIGN values from decomposed source text. The CLL examples[^cll-e19-50][^cll-e19-51] instead forbid the delimiter's spelling or sound inside a longer run.
 7. Every finished quote emits one token, with indicators after it and BAhE before it marking the whole quote. The Magic Words proposal names whole quotes as attitudinal targets. In camxes-std, the quote clauses take `pre_clause` before the quote and `post_clause` after it. This policy also applies to the newer quote kinds. CLL[^cll-s19-16] says that UI marks the previous word and BAhE the following word. In `zo coi ui` and `ba'e zo coi`, those words are `coi` and `zo`.
 
 The [proposal's BU page](https://mw.lojban.org/papri/bu) lets SA BU reach inside a letteral. Its main page marks this interpretation controversial. These dialects instead keep the letteral opaque. SA ZEI likewise finds no ZEI inside a compound.
 
-The proposal's ZEI paragraph writes "ZEI+BU grabs back to the last ZEI". The maintainer reads "ZEI+BU" as a typo for "SA+ZEI". The page's discussion records the unclear wording. This grammar permits no such search inside a compound.
+The [Tiki copy of Magic Words](https://www.lojban.org/tiki/Magic+Words) strikes out "ZEI+BU grabs back to the last ZEI". Its ZEI paragraph instead lets SA before a brivla consume a whole ZEI clause. This grammar permits no search inside a compound.
 
 The proposal also exposes a completed LOhU quote's LEhU ending to SA. These dialects expose only the opening class. A constructor keeps the unopened-quote fault. `le'u bu` still fails, and `le'u bu si` is empty.
 
@@ -836,13 +836,13 @@ camxes-std, the standard grammar of the camxes parser, follows the grammatical r
 
 A run of letterals forms one camxes sumti, an argument of a predicate. Thus `by cy sa .ebu` erases both letters. In `by boi cy sa .ebu`, BOI ends the first sumti, so SA keeps `by`. `mi do sa ti` keeps `mi`, and `mi broda le brode sa ti` gives `mi broda ti`.
 
-camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`. It rejects `mi ni'o do su si`, which cll-ebnf accepts as empty.
+camxes-std reads `sa sa` as one SA. It rejects a trailing SA and an SA with no construct before it. Thus it rejects `mi do sa brodi`, `sa broda`, and `broda sa`. It also rejects `bu si` and `.abu sa bu`. It rejects `mi ni'o do su si`, which cll-ebnf and kihei accept as empty.
 
-These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, bpfk, and experimental.
+These dialects instead use the next word's class and select the nearest matching unit. Counted SA selects successively earlier matches. A trailing SA clears the text, as the `bu sa` row of the proposal's BU page specifies. The opaque-unit rule keeps `.abu sa bu` rejected in cll-ebnf, kihei, bpfk, and experimental.
 
 Zantufa gives SA class UI, so it performs no SA erasure.
 
-The cll-ebnf SU policy follows CLL[^cll-s19-13]. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
+The cll-ebnf and kihei SU policies follow CLL[^cll-s19-13]. Zantufa also erases the whole preceding text, as its reference grammar specifies. Bpfk and experimental preserve a boundary unit by the maintainer's decision. The Magic Words proposal names those boundaries but does not say whether they survive.
 
 ### Final markers and Zantufa exceptions
 

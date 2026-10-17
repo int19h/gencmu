@@ -252,9 +252,7 @@ An include path keeps dollar signs literally. It excludes quotes and backslashes
   [layout-run] include-path
 
 %rule include-keyword
-  "%" $n:whole-name
-%conditions
-  $n.value = "include"
+  "%" whole-name="include"
 
 %rule include-path
   $_0022 [{path-part}] $_0022
@@ -314,58 +312,31 @@ An unknown keyword receives `Keyword`, which the syntax grammar never reads. Rec
 
 The `%include` alternative applies only when no quoted path follows. A complete include instead uses the path rule above.
 
+Value tests select known keywords. `$KEYWORDS` holds their exact names. The fallback excludes that set with one membership condition.
+
 ```jbogenbau
+%const $KEYWORDS "rule redefine-rule extend-rule conditions emits erased ambiguity-resolution stage extend-stage redefine-stage include features const redefine-const classifier implies".split(" ")
+
 %rule keyword
-  | "%" $rule:whole-name :: KW-RULE
-  | "%" $redefine-rule:whole-name :: KW-REDEFINE-RULE
-  | "%" $extend-rule:whole-name :: KW-EXTEND-RULE
-  | "%" $conditions:whole-name :: KW-CONDITIONS
-  | "%" $emits:whole-name :: KW-EMITS
-  | "%" $erased:whole-name :: KW-ERASED
-  | "%" $ambiguity-resolution:whole-name :: KW-AMBIGUITY-RESOLUTION
-  | "%" $stage:whole-name :: KW-STAGE
-  | "%" $extend-stage:whole-name :: KW-EXTEND-STAGE
-  | "%" $redefine-stage:whole-name :: KW-REDEFINE-STAGE
-  | "%" $include:whole-name :: KW-INCLUDE
-  | "%" $features:whole-name :: KW-FEATURES
-  | "%" $const:whole-name :: KW-CONST
-  | "%" $redefine-const:whole-name :: KW-REDEFINE-CONST
-  | "%" $classifier:whole-name :: KW-CLASSIFIER
-  | "%" $implies:whole-name :: KW-IMPLIES
+  | "%" whole-name="rule" :: KW-RULE
+  | "%" whole-name="redefine-rule" :: KW-REDEFINE-RULE
+  | "%" whole-name="extend-rule" :: KW-EXTEND-RULE
+  | "%" whole-name="conditions" :: KW-CONDITIONS
+  | "%" whole-name="emits" :: KW-EMITS
+  | "%" whole-name="erased" :: KW-ERASED
+  | "%" whole-name="ambiguity-resolution" :: KW-AMBIGUITY-RESOLUTION
+  | "%" whole-name="stage" :: KW-STAGE
+  | "%" whole-name="extend-stage" :: KW-EXTEND-STAGE
+  | "%" whole-name="redefine-stage" :: KW-REDEFINE-STAGE
+  | "%" $include:whole-name="include" :: KW-INCLUDE
+  | "%" whole-name="features" :: KW-FEATURES
+  | "%" whole-name="const" :: KW-CONST
+  | "%" whole-name="redefine-const" :: KW-REDEFINE-CONST
+  | "%" whole-name="classifier" :: KW-CLASSIFIER
+  | "%" whole-name="implies" :: KW-IMPLIES
   | "%" $other:whole-name :: Keyword
 %conditions
-  $rule.value = "rule",
-  $redefine-rule.value = "redefine-rule",
-  $extend-rule.value = "extend-rule",
-  $conditions.value = "conditions",
-  $emits.value = "emits",
-  $erased.value = "erased",
-  $ambiguity-resolution.value = "ambiguity-resolution",
-  $stage.value = "stage",
-  $extend-stage.value = "extend-stage",
-  $redefine-stage.value = "redefine-stage",
-  $include.value = "include",
-  $features.value = "features",
-  $const.value = "const",
-  $redefine-const.value = "redefine-const",
-  $classifier.value = "classifier",
-  $implies.value = "implies",
-  $other.value ≠ "rule",
-  $other.value ≠ "redefine-rule",
-  $other.value ≠ "extend-rule",
-  $other.value ≠ "conditions",
-  $other.value ≠ "emits",
-  $other.value ≠ "erased",
-  $other.value ≠ "ambiguity-resolution",
-  $other.value ≠ "stage",
-  $other.value ≠ "extend-stage",
-  $other.value ≠ "redefine-stage",
-  $other.value ≠ "include",
-  $other.value ≠ "features",
-  $other.value ≠ "const",
-  $other.value ≠ "redefine-const",
-  $other.value ≠ "classifier",
-  $other.value ≠ "implies",
+  $other.value ∉ $KEYWORDS,
   $include ⟹ ¬$.following-tokens.begins(include-tail)
 %emits
   $

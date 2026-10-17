@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 29
+const domFormat = 31
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -212,7 +212,7 @@ type domCond struct {
 	Items       []*domCond
 }
 
-// domEmit is an emission; no items is %emits ε.
+// domEmit holds the items of a %emits clause. Erasure uses a separate rule flag.
 type domEmit struct {
 	Items []*domEmitItem
 }
@@ -249,8 +249,7 @@ func (e *domEmit) whole() bool {
 	return len(e.Items) > 0 && !e.Items[0].IsInsert && e.Items[0].Capture == ""
 }
 
-// nothing says the emission is ε: the constituent emits nothing and does
-// not count (engine §11).
+// nothing reports whether the emission has no items (engine §11).
 func (e *domEmit) nothing() bool {
 	return len(e.Items) == 0
 }
@@ -746,17 +745,6 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		// No directive has a maximal member (engine §9).
-		if _, ok := o["maximal"]; ok {
-			return nil, fmt.Errorf("a malformed directive")
-		}
-		if name == "ambiguity-resolution" {
-			for _, arg := range args {
-				if arg == "maximal" {
-					return nil, fmt.Errorf("a malformed directive")
-				}
-			}
-		}
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
 	}
 	if err := validateDOM(d, uni); err != nil {
@@ -1006,14 +994,14 @@ func decodeString(raw json.RawMessage) (string, error) {
 	return decodeJSONString(raw)
 }
 
-// decodePosition reads a [line, column] pair, each an integer.
+// decodePosition reads a [line, column] pair of positive integers.
 func decodePosition(raw json.RawMessage) ([2]int, error) {
 	at, err := decodeList(raw, func(r json.RawMessage) (int, error) {
 		var n int
 		err := unmarshal(r, &n)
 		return n, err
 	})
-	if err != nil || len(at) != 2 {
+	if err != nil || len(at) != 2 || at[0] < 1 || at[1] < 1 {
 		return [2]int{}, fmt.Errorf("a malformed position")
 	}
 	return [2]int{at[0], at[1]}, nil

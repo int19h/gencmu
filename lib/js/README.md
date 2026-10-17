@@ -15,11 +15,11 @@ console.log(result.ok, toBrackets(result));
 
 ## Results
 
-A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). No other error has a `code`.
+A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). Other parse-result errors have no `code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 ## The command line
 
-Run `node cli.js` in `lib/js`. It parses texts, audits grammars and runs test files. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
+Run `node cli.js` in `lib/js`. The commands are `parse`, `audit`, `stitch`, `test`, `dialects`, `features`, and `help`. `stitch` prints a dialect's pipeline as one jbogenbau text. A published package exposes the same commands through `npx gencmu`. `node cli.js help` lists the commands.
 
 A parse prints its result on standard output. It explains any tie or error on standard error. A rejection shows the line, with a caret under the word that the stage failed to read. It also shows, by rule, what can come there. A tie shows where the two readings first differ, and both trees side by side.
 
@@ -32,8 +32,8 @@ The same explanations are functions of the library, for tools of your own: `expl
 The sources are plain JavaScript with JSDoc type annotations. TypeScript makes sure that their types agree, and it writes the declarations in `types/`. The repository holds the declarations, and the package publishes them. So TypeScript clients and editors see the types of the library. TypeScript is a development dependency only. Nothing needs it to run, test or use the library.
 
 ```sh
-npm test                # the tests; no install needed
-npm ci                  # installs TypeScript and Playwright
+npm ci                  # installs TypeScript, Playwright, and the Markdown parser
+npm test                # runs the tests
 npm run check-types     # checks src/ and a client of the package, typecheck/client.ts
 npm run types           # rewrites types/ after a change to the annotations
 ```
@@ -48,7 +48,9 @@ The Node test runner runs files in separate processes. Its default concurrency i
 
 ## The playground's smoke test
 
-`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox. It makes sure that the playground parses, explains a rejection and never shows an out-of-date answer. It also compares token table contents, including values, images and nested attachments, with the expected result. It drives the browser with Playwright. Playwright is also a development dependency only. Nothing needs it to run, test or use the library or the playground.
+`tools/smoke-playground.js` opens the playground in headless Chromium or Firefox. It makes sure that the playground parses, explains a rejection and never shows an out-of-date answer. It also compares token table contents, including values, images and nested attachments, with the expected result. It drives the browser with Playwright. Playwright is also a development dependency only.
+
+The library and playground run without Playwright. The browser smoke test needs Playwright and its browser installation.
 
 ```sh
 npm ci                                      # installs Playwright

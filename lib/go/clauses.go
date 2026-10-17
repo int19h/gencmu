@@ -677,9 +677,9 @@ func definitionProblem(r *domRule) string {
 		for _, i := range emits.present(ns) {
 			present = append(present, items[i])
 		}
-		// Only a rule that lists items can leave nothing; ε lists none.
+		// An emission that loses every item is an error (engine §9).
 		if len(present) == 0 && len(items) > 0 {
-			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit; a rule that emits nothing says %%emits ε", r.Name)
+			return fmt.Sprintf("%%emits of %s leaves a production nothing to emit. A rule that erases its constituent uses %%erased", r.Name)
 		}
 		// A production without an item's carrier lacks its attachments too
 		// (engine §9). The first such item in the order written gives the

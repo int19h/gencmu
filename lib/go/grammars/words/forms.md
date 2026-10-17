@@ -4,9 +4,9 @@ This document opens the forms stage. A stage is one step of a pipeline, with its
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their phoneme images and tags.
+The forms stage follows phonemes and normalization in every Lojban dialect: [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [BPFK](../dialects/bpfk.md), [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md). The stage reads the normalized phoneme values and their phoneme images and tags.
 
-The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the word stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
+The stage divides the text into its source words and tags each word with its class. A tag marks a token by an identifier. The stage hands the words to the words stage ([stream.md](stream.md)), where the magic words act on them. [The notation document](../../docs/notation.md) explains the notation.
 
 This document does not decide what a word looks like. The loader stitches other documents into the stage with this one: the word forms of one family, and one lexicon. A family is a set of word forms that dialects use. The family defines three of the shapes this grammar reads: `cmavo-shape`, `brivla-shape` and `cmevla-shape`. It tags each with the pause properties below.
 
@@ -17,7 +17,7 @@ The prose uses these Lojban terms for words:
 - A brivla is a predicate word.
 - A cmevla is a name word.
 
-The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
+The `cll-ebnf` and `kihei` dialects stitch [shapes.md](shapes.md) and [cll.md](cll.md) as their family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
 ## Runs
 
@@ -29,9 +29,9 @@ A lookahead tests following input without consuming it. The word forms of the BP
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A foreign run is not an error here. The word stage decides whether a foreign run can stand where it is. The word stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
+A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
-The comma has an empty value, so `nonpause-phoneme` reads it by its `Syllable-Break` tag.
+In `cll-ebnf` and `kihei`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
 
 A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
 
@@ -110,7 +110,7 @@ The rule `word-run` is a run that divides into words. A dialect that divides a r
 
 ## Words in a run
 
-The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after:
+The stage reads the words of a run from the left. Each word after the first can follow the word before it only if the pause rules let the two stand together with no pause. The family tags each word with the properties that these rules test. The run carries the tags of its last word, so the condition sees the word before and the word after. The following list describes the CLL family:
 
 - `Onset`: The word can follow another word directly. It begins with a consonant and is not a name (rules 3 and 4).
 - `Continued`: Another word can follow this one directly. A name never has it (rule 2), nor a `Cy` letter, nor a brivla whose stress is not marked.
@@ -146,13 +146,13 @@ A join permits two words without a pause. This document states the joins so that
 
 The first condition of `run-words` follows from the second. Each join of the second needs one of four tags on the words before: `Continued`, `Cy`, `Name-Intro` or `Open-Stress`. The first condition stays because it uses only `$r`.
 
-The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join. The full corpus then takes about 13% longer in the Rust library.
+The parser tests it as soon as it reads `$r`. If the condition fails, the parser drops the join before reading another word. Engine §4 gives this order of evaluation. Without the condition, the parser tries every word shape after a word that no word can join.
 
-The y rules read syllable commas by `Syllable-Break`, because those tokens have empty values.
+Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause.
 
-Before BU, this stage splits prolonged y hesitation into a prefix and a final y token, with or without a pause. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
+`split-first-y` marks its final y with `Spacing` for the Zantufa word stream. The mark records that this final y continues the space at the start of the run. Other dialects ignore it. The word reader drops the prefix and joins only the final y with BU. This split preserves source positions and leaves raw quote bodies unjoined.
 
-The word stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
+The words stage needs to know where a run begins and ends. A name that `bu` takes needs a pause before it (CLL[^cll-s17-4]). A `zoi` quote and a `zo'oi` quote end at the end of a run. So this stage tags the first word of each run `Run-Initial`, and the last word `Run-Final`.
 
 ```jbogenbau
 %rule first-word
@@ -182,7 +182,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word) ∪ Run-Initial,
-  $y :: $.tags(source-word) ∪ Spacing ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ Spacing ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule split-later-y
   $p:y-prefix $y:y-atom :: $.tags(source-word)
@@ -191,7 +191,7 @@ The word stage needs to know where a run begins and ends. A name that `bu` takes
   $.following-tokens.begins(bu-form-ahead)
 %emits
   $p :: $.tags(source-word),
-  $y :: $.tags(source-word) ∪ After-Hesitation ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
+  $y :: $.tags(source-word) ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule y-prefix
   y-atom | y-prefix y-atom
@@ -246,7 +246,7 @@ A source word is a cmavo, a brivla, a name, or hesitation. The stage hands it on
 
 Hesitation is `y` of any length. It is a source word of its own here, because the pause rules hold for it as for any word. It begins with a vowel, so a pause comes before it, unless the family gives it `Onset`. The BPFK word forms read `kyyykerlo` as `ky`, `yy` and `kerlo`. The first `y` of `yy` is not a nucleus there.
 
-Hesitation needs no pause after it, as the Magic Words proposal says. The word stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
+Hesitation needs no pause after it, as the Magic Words proposal says. The words stage drops it, or reads it as the base of the letter word `.y bu`. The terminal `"y"` reads a `y` with or without `Stressed`. Two letters `y` never form one syllable, so a comma between them changes nothing, and `y,y` is hesitation as `yy` is (CLL[^cll-s3-3]).
 
 ```jbogenbau
 %rule hesitation-shape
@@ -265,7 +265,7 @@ Hesitation needs no pause after it, as the Magic Words proposal says. The word s
 
 ## Differences from camxes
 
-camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The bpfk and experimental word stages instead drop the hesitation `yy`.
+camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of bpfk and experimental instead drop the hesitation `yy`.
 
 [^cll-s4-9]: [CLL 1.1, section 4.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-pauses.html).
 

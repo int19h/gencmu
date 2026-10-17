@@ -288,7 +288,7 @@ func implicationSideFault(side *domTerm, ct constTypes) *typeFault {
 // directiveOperandsOK checks a directive's name, one of the notation's four
 // directives, and the operands the notation's syntax allows the pipeline
 // directives (engine §9): stage selectors take one name, %include one string and
-// %features one or more names. %elidable is no directive.
+// %features one or more names.
 func directiveOperandsOK(dir *domDirective) bool {
 	switch dir.Name {
 	case "stage", "extend-stage", "redefine-stage":
@@ -952,6 +952,18 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		}
 	case tmPattern:
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
+			switch p.Kind {
+			case "literal":
+				c.term(p.Value, d, false)
+				return ""
+			case "range":
+				for _, end := range p.Ends {
+					c.term(end, d, false)
+				}
+				return ""
+			case "wildcard":
+				return ""
+			}
 			c.term(p.Value, d+1, false)
 			if p.Op == "tags" {
 				for _, r := range p.Requirements {

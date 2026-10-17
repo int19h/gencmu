@@ -111,7 +111,7 @@ export type StageAudit = {
         };
     }[];
     /**
-     * rules that emit `ε` although nothing
+     * rules marked `%erased` although nothing
      * under them could emit and no token could cover them
      */
     idleErasures: {

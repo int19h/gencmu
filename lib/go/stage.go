@@ -242,7 +242,7 @@ func (run *stageRun) run(g *lowered, elisionOnly bool) (out stageOutcome) {
 		}
 	}()
 	// An error of the grammar that lowering for these features found is a
-	// result like one found while parsing (§3.3).
+	// result like one found while parsing (§3).
 	if g.fault != "" {
 		panic(&parseFailure{message: g.fault, located: true})
 	}

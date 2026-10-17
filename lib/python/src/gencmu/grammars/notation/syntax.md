@@ -14,7 +14,7 @@ The rule names identify reader constructors. Section 9.2 maps recognition names 
 
 ## Choosing among readings
 
-The greedy reading favors the longest complete piece. It keeps `...` together and prevents layout from splitting a name.
+The syntax stage receives complete tokens without layout. Greedy ranking resolves how selectors group into method chains. In `%rule r A %conditions $x.a.b(c)`, one chain takes both selectors instead of nesting `$x.a` as the receiver of `.b(c)`. The reader folds that chain from left to right.
 
 A keyword begins every declaration. Inside each declaration, punctuation and lexical categories determine where its lists end.
 
@@ -312,7 +312,7 @@ Attachments are named captures in parentheses around a named carrier. The reader
 
 `::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe concatenates its atoms in written order.
 
-Recognition reads each recipe atom as a term. The reader permits only strings, string constants, and the six capture string methods of engine §11.3.
+Recognition reads each recipe atom as a term. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
 
 This wider recognition lets the reader reject a written operator or forbidden method at its atom. It does not make those atoms valid recipes.
 

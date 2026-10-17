@@ -594,9 +594,8 @@ func TestUnicodeTable(t *testing.T) {
 	}
 }
 
-// A precompiled DOM of format 17 is never used: compiled.json of that
-// format is a miss, and so is a DOM of that shape, a repeat with min, in a
-// file of the current format.
+// A cache of another format is a miss.
+// An unknown expression member also invalidates a current DOM.
 func TestFormat17Refused(t *testing.T) {
 	t.Parallel()
 	if err := loadBundled(); err != nil {
@@ -611,12 +610,12 @@ func TestFormat17Refused(t *testing.T) {
 	if got := readCompiled(entry(domFormat, dom(domFormat, `{"repeat":{"ref":"A"}}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 1 {
 		t.Fatalf("a compiled.json of format %d is not used", domFormat)
 	}
-	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"min":1}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 0 {
+	if got := readCompiled(entry(17, dom(17, `{"repeat":{"ref":"A"},"extra":true}`)), bundled.reader.hash, bundled.uni.hash); len(got) != 0 {
 		t.Fatal("a compiled.json of format 17 is used")
 	}
-	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"min":1}`)} {
+	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
 		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {
-			t.Errorf("a DOM of format 17 decodes: %s", d)
+			t.Errorf("an unsupported or malformed DOM decodes: %s", d)
 		}
 	}
 }

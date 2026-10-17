@@ -1,6 +1,6 @@
 # zbalermorna
 
-This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The dialect of [CLL](../dialects/cll-ebnf.md), *The Complete Lojban Language*, omits this script. The stage reads the script as the code points of the private-use block that its fonts assign it.
+This document adds the zbalermorna script to the phoneme stage. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read it. The [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects omit this script. CLL is *The Complete Lojban Language*. The stage reads the script as the code points of the private-use block that its fonts assign it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 

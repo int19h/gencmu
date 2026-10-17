@@ -1558,8 +1558,7 @@ pub(crate) fn definition_problem(rule: &RuleDef) -> Option<String> {
                 .map(|at| (&items[at], item_waits[at]))
                 .collect()
         };
-        // Nothing left to emit is an error only where the rule lists items:
-        // `%emits ε` lists none (§9).
+        // An emission that loses every item is an error (§9).
         if present.is_empty() && !items.is_empty() {
             return Some(format!("%emits of {} leaves a production nothing to emit", rule.name));
         }

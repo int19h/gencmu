@@ -55,7 +55,7 @@ type production struct {
 	predictConds      []*domCond // conditions using no capture but $ of an empty production, checked at prediction
 	rankedConditions  []*domCond // effective conditions across static ranked entry contexts
 	emit              *domEmit   // as dropped and simplified for the production (§3.6)
-	nothing           bool       // %emits ε: the constituent emits nothing and does not count (§11)
+	nothing           bool       // %erased: the constituent emits nothing and does not count (§11)
 	value, image      *domTerm
 	transparent       bool
 	helper            bool
@@ -116,7 +116,7 @@ type lowered struct {
 	lean       string // "greedy", "lazy", "late-elision", or "" for no lean (§6, §7)
 	sccMembers [][]int32
 	// fault is an error of the grammar that lowering for these features
-	// found (§3.3), or "": parsing with it is a result with that error.
+	// found (§3), or "": parsing with it is a result with that error.
 	fault         string
 	faultLocation *Error
 	// warns says some production gives warnings under these features (§12).
@@ -230,7 +230,7 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	l := &lowered{stage: g, byName: map[string]int32{}, termID: map[string]int32{}, lean: g.lean}
 	// The stage resolves its classifiers for the same features, before it
 	// lowers its rules; an error there ends the stage as an error of
-	// lowering does (§2, §3.3).
+	// lowering does (§2, §3).
 	if !validation {
 		tables := g.classifiers(features)
 		if tables.fault != "" {

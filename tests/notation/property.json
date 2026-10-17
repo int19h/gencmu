@@ -1,5 +1,5 @@
 {
-  "description": "A stored engine tag is a named terminal in the DOM. A capture can wrap that terminal, and its name remains unchanged (engine §1, §9.3, docs/output.md format 28).",
+  "description": "A stored engine tag is a named terminal in the DOM. A capture can wrap that terminal, and its name remains unchanged (engine §1, §9.3, docs/output.md).",
   "document": "```jbogenbau\n%rule a (_L $c:_White_Space _)\n```\n",
   "expect": {
     "dom": {

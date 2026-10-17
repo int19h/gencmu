@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Writes grammars/notation/bootstrap.json with the hand-written reader. Run
-// it only to create the first bootstrap or to recover from a notation change
-// the current bootstrap cannot read; otherwise tools/sync.js regenerates the
-// bootstrap with the engine itself, reading the notation's documents until
-// that reaches a fixpoint.
+// Writes grammars/notation/bootstrap.json with the hand-written reader.
+// Run it to create the first bootstrap or recover from a notation or DOM
+// format change that prevents the current bootstrap from loading.
+// Otherwise tools/sync.js regenerates the bootstrap with the engine itself,
+// reading the notation's documents until that reaches a fixpoint.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

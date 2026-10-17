@@ -4,7 +4,7 @@ This document defines the normalization stage of every bundled Lojban dialect. A
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-A stressed vowel enters with an uppercase value and the tag `Stressed`. Each vowel mapping tests both of those fields. It writes the corresponding lowercase value. The syllable comma enters with value `,` and the tag `Syllable-Break`. Its mapping writes an empty value so that comparisons ignore the syllable boundary.
+A stressed vowel enters with an uppercase value and the tag `Stressed`. Each vowel mapping tests both of those fields. It writes the corresponding lowercase value. In cll-ebnf and kihei, a syllable comma enters with value `,` and the tag `Syllable-Break`. Its mapping writes an empty value so that comparisons ignore the syllable boundary. The other Lojban dialects discard commas in the phoneme stage.
 
 The image recipe reads the original input image. Each alternative has one symbol, so ordinary inheritance keeps its tags. The catch-all reads only tokens without either mapped tag. A token with a mapped tag and an unsupported value fails this stage.
 

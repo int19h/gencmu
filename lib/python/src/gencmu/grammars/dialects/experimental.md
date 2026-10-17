@@ -138,7 +138,7 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
 
 A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
 
-The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing. This preference keeps the selected TO and SEI contents without a maximality requirement.
+The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
 The dialect does not declare `elision-only`. That rule allows an elided terminator only where no ambiguity results.
 
@@ -188,32 +188,26 @@ ME takes a sumti or a mekso. A sumti excludes a mekso only when both read the sa
 
 ### Quotes and indicators
 
-A replacement quote is one unit of raw words in the word stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
+A replacement quote is one unit of raw words in the words stage (`../words/lohai.md`), as in camxes-exp. A magic word is a word, such as `si`, that acts on other words. A magic word after the quote acts on all of it, as the left-to-right rule requires. Zantufa also accepts all four texts below, but its `zei` erases, so it reads the compound as `broda`. camxes-exp rejects them:
 
 - `mi lo'ai do le'ai si klama` is `mi klama`, and camxes-exp rejects it.
 - `lo'ai mi le'ai bu` is a letter word, and `lo'ai mi le'ai zei broda` a compound. camxes-exp rejects both.
 - `mi lo'ai lu le'ai su klama` is `klama`, since the `lu` inside the quote is no boundary for `su`. camxes-exp rejects it.
 
-`ba'e` is not a magic word, as the Magic Words proposal says. So the word stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
+`ba'e` is not a magic word, as the Magic Words proposal says. So the words stage removes `fa'o` and what follows it first, and `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls that an error, and the dialect rejects it. camxes-exp accepts it.
 
-Every finished word-stage quote emits one token. Indicators after it and BAhE before it mark the whole quote. This includes `ma'oi`, ZOhOI, MEhOI, and replacement quotes.
-
-Indicators after `to` and `to'i` attach to the opener, as camxes-exp's `TO_post` specifies. The example[^cll-e19-67] in CLL[^cll-s19-12] gives `sa'a` after `to'i` scope over the whole bracketed remark.
-
-Indicators after `lu` begin the quoted content. CLL[^cll-s21-1] writes `LU text`, and the text-initial exception of CLL[^cll-s13-9] gives initial indicators scope over what follows. The [indicator document](../indicators/cll.md#quotation-boundaries) explains why quotes need this boundary. Its [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
+The [indicator document](../indicators/cll.md#quotation-boundaries) defines quotation and parenthesis boundaries. Its [source comparison](../indicators/cll.md#quotation-and-parenthesis-boundaries) explains CLL and the official parser.
 
 A quote or a parenthesis whose terminator is elided can hold a fragment of terms or a whole sentence. So `to mi klama` holds `mi` or `mi klama`. The reading with `mi` elides `vau` and `toi` after `mi`, so `late-elision` takes the sentence, as camxes-exp does.
 
 ### Erasure
 
-The dialect also reads `sa` by a different rule. The word stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
+The dialect also reads `sa` by a different rule. The words stage erases with `sa` left to right, as the Magic Words proposal says ([`../words/stream.md`](../words/stream.md)). A `sa` erases back to the last word of the selma'o of the word after it, or to the start of the text. camxes-exp tries to do the same inside its syntax grammar, with one `_sa` rule for each kind of construct, and it reads some texts differently:
 
 - `mi broda le brode sa ti` is `ti`, since `mi` is the last word of KOhA before the `sa`. camxes-exp reads `mi broda ti`.
 - `lo broda sa broda` is `lo broda`, and `mi broda sa brode` is `mi brode`. camxes-exp rejects both.
 - The dialect rejects `mi broda gi'e klama da de di sa na gi'e prami`. No word of NA comes before the `sa`, so it erases back to the start of the text. What is left, `na gi'e prami`, is not a text. camxes-exp accepts the text.
 - The dialect rejects `le le broda ku brode le broda sa sa le brodi`. The two `sa` words erase back to the second `le` before them, which leaves `le le brodi`. camxes-exp accepts the text.
-
-The corpus is the collection of Lojban test texts. A measurement in September 2026 read its 358 texts with the word `sa` under this dialect, whatever their own dialects. The dialect accepted 215 of them that camxes-exp rejects, and it rejected 6 that camxes-exp accepts.
 
 ### Feature choices
 
@@ -222,11 +216,3 @@ camxes-exp also stops SU at `ni'o`, `no'i`, `lu`, `tu'e`, `to` and `to'i`. This 
 camxes-exp always uses the name-as-predicate merger and the SOI subsentence form. This dialect enables them by default but permits a caller to turn either off.
 
 [^cll-s3-12]: [CLL 1.1, section 3.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-oddball-orthographies.html).
-
-[^cll-s19-12]: [CLL 1.1, section 19.12](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html).
-
-[^cll-s21-1]: [CLL 1.1, section 21.1](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/chapter-grammars.html#section-EBNF).
-
-[^cll-s13-9]: [CLL 1.1, section 13.9](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-scope.html).
-
-[^cll-e19-67]: [CLL 1.1, section 19.12, example 19.67](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-parentheses.html#c19e12d2).

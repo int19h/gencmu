@@ -41,11 +41,11 @@ The `free` rule tests the actual terminal before the slot. Its conditions exclud
 
 A complete quote supplies its opening terminal at this boundary. Quoted words and closing delimiters supply no syntax terminal. Their classes cannot trigger these backward conditions.
 
-The word stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
+The words stage reads the magic words, the words such as `si` that act on other words. `zei` is SI there and erases a word, `sa` is an attitudinal, and `su` erases the whole text before it. SU instead supplies a letter base before BU, as the reference grammar specifies. "Differences from Zantufa 1.9999" explains how whole-text erasure differs inside nested texts.
 
 [The notation document](../../docs/notation.md) explains the notation. Following-input queries test words after the selected constituent. Patterns inspect its actual children and boundaries. The terminals of this grammar each match one input token and represent selma'o. A tag marks a token by an identifier.
 
-The word stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the word-stage tree.
+The words stage emits each finished quote as one token of its opening class. The syntax reads one terminal for that token. Its internal structure remains in the tree of the words stage.
 
 A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs.
 
@@ -259,7 +259,7 @@ The sentence pattern removes the forethought alternative only when every actual 
 
 The outer connective level reads a tag and written CU directly. Without CU, its following bridi-tail must begin with actual KE. The inner level excludes that actual KE prefix, including KE after a tag. A written KEhE around a bare selbri selects the tanru construction. An omitted KEhE around the same body selects the grouped bridi-tail.
 
-The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. With repeated tags, `pu ba ke ge broda mi gi brode do ke'e` has two readings, with one tag or two. They elide the same terminators, so they tie.
+The tenses and modals before `ke` and a forethought bridi-tail are one tag. `[tag]` takes the whole run. So `pu ba ke ge broda mi gi brode do ke'e` reads `pu ba` as one tag before `ke`.
 
 ```jbogenbau
 
@@ -1075,17 +1075,17 @@ CLL writes both `LU text` and `TO text`.[^cll-s21-1] Those rules alone do not di
 
 The slot after TO takes leading free modifiers, as Zantufa's `TO_post <- post_clause` specifies. In a CLL example, `sa'a` after `to'i` marks the whole bracketed remark.[^cll-e19-67] The [indicator explanation](../indicators/cll.md#quotation-boundaries) gives the reason for LU. The indicator document's [closing comparison](../indicators/cll.md#differences-from-cll-and-camxes-std) describes the official parser, CLL's reference implementation.
 
-The word stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
+The words stage reads a stray `si` or `bu` at the start of a text as the Magic Words proposal does. So `si mi` is `mi`, and `bu si` is nothing. Zantufa rejects both, because its `si` and `bu` need a word before them there.
 
 `su` erases the whole text before it. Zantufa scans for `su` from the start of each text. The scan passes a letter word, or a `su`, together with the free modifiers after it. A parenthesis among those free modifiers, or a quote inside one, holds a text with its own start. A `su` inside that text erases only back to that start.
 
 So Zantufa reads `mi bu to mi su do toi broda` and `su to mi su do toi broda` with the inner `su` erasing only `mi`. Here it erases back to the start of the whole text, and the `toi` is left without its `to`.
 
-The forms stage reads the rafsi or gismu form after `ra'oi` before the word stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
+The forms stage reads the rafsi or gismu form after `ra'oi` before the words stage knows whether that `ra'oi` opens a quote. So where `ra'oi` is itself quoted or is a `zoi` delimiter, the forms stage still divides the letters after it. It divides them as the form of a `ra'oi` quote. There Zantufa reads them as ordinary words, and the dialect rejects the text: `zo ra'oi broda`, `go'oi ra'oi broda`, `lo'u ra'oi broda le'u`, `lo'ai ra'oi broda le'ai` and `zoi ra'oi x ra'oi broda`. A `zoi` body, a closing `zoi` delimiter and the text after `fa'o` take the form as it is. So `zoi gy ra'oi broda gy`, `zoi broda ra'oi broda` and `fa'o ra'oi broda` read as in Zantufa.
 
 Here, `su` cannot erase a quote word that opens no quote. So the dialect rejects `zoi su mi` and `mi lo'ai su klama`. Zantufa's `su` passes such a word with its `any_word` fallback, and accepts both.
 
-`ba'e` is not a magic word, as the Magic Words proposal says. The word stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
+`ba'e` is not a magic word, as the Magic Words proposal says. The words stage first removes `fa'o` and what follows it. So `mi ba'e fa'o` leaves a `ba'e` with nothing to mark. The proposal calls this an error. Zantufa reads `ba'e` inside its grammar, and accepts the text.
 
 The phoneme stage accepts commas and the other conventions of `phonemes/latin.md`. Zantufa reads only two of them: `h` as the apostrophe, and `?` and `!` as pauses. It rejects commas, digits, accents and other punctuation. The stage ignores a comma, so a comma is not the syllable break of CLL[^cll-s3-3] here.
 

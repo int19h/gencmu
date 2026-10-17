@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule text $x:A %conditions X ⊆ $x.tags(#)\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 31,
       "rules": [
         {
           "conditions": [

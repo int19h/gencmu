@@ -128,16 +128,10 @@ fn a_tie_in_the_notation_is_a_grammar_error_with_no_position() {
     assert_eq!(error.message, "the grammar text is ambiguous: the syntax stage of the notation reads it in two ways");
 }
 
-/// No directive names elidable terminators: `%elidable` is an unknown
-/// keyword, a syntax error at the keyword. A marker makes an optional
-/// elidable (engine §3.8, §9).
+/// A marker makes an optional elidable (engine §3.8, §9).
 #[test]
 fn an_optional_is_marked_elidable_in_place() {
     let read = |text: &str| gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{text}\n```\n"));
-    for text in ["%elidable KU", "%elidable maximal KU", "%elidable"] {
-        let error = read(text).expect_err(text);
-        assert_eq!((error.line, error.column), (Some(2), Some(1)), "{text}: {error}");
-    }
     let expr = |text: &str| {
         let json = read(text).expect(text);
         let dom = parse_json(&json).expect("a DOM");

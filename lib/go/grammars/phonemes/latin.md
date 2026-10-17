@@ -1,6 +1,6 @@
 # Latin conventions
 
-This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them after latin-strict.md. The [CLL](../dialects/cll-ebnf.md) dialect does not. [The notation document](../../docs/notation.md) explains the notation.
+This document adds to [latin-strict.md](latin-strict.md) the conventions that Lojban texts use beyond *The Complete Lojban Language* (CLL), edition 1.1.[^cll-c3] Both documents belong to the phoneme stage, the first stage of the pipeline. The dialects of the [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) read them after latin-strict.md. The [CLL](../dialects/cll-ebnf.md) and [kihei](../dialects/kihei.md) dialects do not. [The notation document](../../docs/notation.md) explains the notation.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -273,7 +273,7 @@ An accent on a capital still marks stress there, and the other capitals fold. So
 
 ## Accents and breves
 
-A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So `mï` and `mi`U+093E are foreign.
+A vowel with an acute or a grave accent is the stressed phoneme, as a capital vowel is. A breve on `i` or `u` marks a glide in some texts. The word grammar finds a glide by its position, so the stage emits the letter plain. Stage zero gives a precomposed letter as its base and its marks. A combining mark that no letter rule takes makes its run foreign, whatever its category. So in bpfk and Zantufa, `mï` and `mi`U+093E are foreign. The experimental layer reads both marks ([latin-experimental.md](latin-experimental.md)).
 
 ```jbogenbau
 %extend-rule plain-vowel :: ∅

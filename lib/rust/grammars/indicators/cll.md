@@ -4,17 +4,17 @@ This document defines the indicator processing rules before syntax. A stage is o
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-The [CLL](../dialects/cll-ebnf.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
+The [CLL](../dialects/cll-ebnf.md), [kihei](../dialects/kihei.md), [BPFK](../dialects/bpfk.md), the Lojban language planning committee, [experimental](../dialects/experimental.md) and [Zantufa](../dialects/zantufa.md) dialects include these rules as their fifth stage.
 
-This stage reads the words that the word stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
+This stage reads the words that the words stage emits and attaches emphasis markers and indicators before syntax. It implements the non-formal rule `word ≔ [BAhE] any-word [indicators]` of *The Complete Lojban Language* (CLL). That rule applies before syntax and orders emphasis, a word, then indicators.[^cll-s21-1] The emphasis and indicator parts here each permit a run.
 
 A cmavo is a particle, a short structure word. An attitudinal expresses an attitude. A discursive comments on the discourse.
 
-The indicators are the attitudinals and discursives of UI and CAI with an optional `nai` after each. They are also the cancel `da'o` and the scope marker `fu'o`. A `fu'e` opens a group of them. The word stage drops hesitation, so `y` never reaches this stage.
+The indicators are the attitudinals and discursives of UI and CAI with an optional `nai` after each. They are also the cancel `da'o` and the scope marker `fu'o`. A `fu'e` opens a group of them. The words stage drops hesitation, so `y` never reaches this stage.
 
 A run of indicators attaches to the word before it, and a `ba'e` attaches to the word after it. The stage hands on the word as one token, which carries them as its attachments ([the engine](../../docs/engine.md), §11). The syntax does not read an attachment, but the renderings show it with its word. So `mi ui klama` is `([mi ui] klama)` in brackets, and the syntax reads `mi klama`.
 
-The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The word stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole unit.
+The forms lexicon supplies word classes and the `Indicator` tag for indicators and `fu'e`. The words stage emits each complete quote, compound, and letteral as one token. Its contents supply no indicator class. Indicators after that token and BAhE before it mark the whole unit.
 
 A run of indicators at the start of the text, before any word, stays in the stream. This is because the `text` rule of the syntax grammar reads it there. A `ba'e` with no word after it stays in the stream too. In a run that stays in the stream, the stage attaches only `ba'e`, as the section "Leading runs" says. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -30,7 +30,7 @@ The closing section compares this stage with other indicator rules.
 
 The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats a quoted word, LOhU quote, and ZOI phrase as whole targets for attitudinals. Its left-to-right model governs word operations in every dialect. In camxes-std, `ZO_pre`, `LOhU_pre`, and `ZOI_pre` take `pre_clause`, and their matching `_post` rules take `post_clause`. Those clauses put BAhE before the whole quote and indicators after it.
 
-The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The word-stage tree retains its internal structure.
+The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The tree of the words stage retains its internal structure.
 
 `$QUOTE-OPENERS` identifies LU as a boundary where indicators remain syntax tokens. Indicators after `to`, `to'i` and `tu'e` instead attach to those openers. An indicator after `to` marks the whole parenthetical remark, so it attaches to the opener.[^cll-e19-67]
 
@@ -38,7 +38,7 @@ A quotation must hold any text, including one that begins with an indicator. Att
 
 The stage preserves the initial indicators of the quoted text. So `lu ui mi klama li'u` quotes `ui mi klama`, and `lu ui li'u` quotes `ui`.
 
-The word stage supplies one token for each finished quote, including `zo`, `lo'u ... le'u`, and `zoi`. This stage cannot read inside that token. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
+The words stage supplies one token for each finished quote, including `zo`, `lo'u ... le'u`, and `zoi`. This stage cannot read inside that token. Zantufa's `lu'ei` also introduces quoted content, but its syntax handles that boundary. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there.
 
 A leading indicator run also stays in the stream at the start of the whole text. Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
 
@@ -160,13 +160,13 @@ The CLL lexicon marks `fu'e` `Indicator`, so `unit` never reads it as a word. Un
 
 A `ba'e` can stand before the word or before the `fu'e`, as in `ba'e mi fu'e ui klama` and `mi ba'e fu'e ui klama`. In the second, the `ba'e` goes with the `fu'e`.
 
-The stage also rejects `mi fu'e y klama`. The word stage drops hesitation, so no indicator remains after `fu'e`. A run at the start of the text follows the same rule. So `fu'e ui mi klama` and `ui fu'e ia mi klama` are texts, and the stage rejects `fu'e mi klama`.
+The stage also rejects `mi fu'e y klama`. The words stage drops hesitation, so no indicator remains after `fu'e`. A run at the start of the text follows the same rule. So `fu'e ui mi klama` and `ui fu'e ia mi klama` are texts, and the stage rejects `fu'e mi klama`.
 
 ## Leading runs
 
 A leading run is a run of indicators that the syntax reads itself: at the start of the text, or directly after a quotation opener. Its indicators stay in the stream, each as a token of its own. A `ba'e` before one of them attaches to it, since the syntax does not read `ba'e`. But a `nai` after an attitudinal stays a token of its own, and the syntax reads `UI NAI`. So `ba'e ui nai mi klama` hands on `ui`, with `ba'e` attached before it, and then `nai`, `mi` and `klama`.
 
-The reason is that the syntax reads this run. A `nai` nested under its attitudinal hides from the syntax, which then reads a second `nai` after the attitudinal as that attitudinal's own. So `pau nai nai mi klama` becomes a text. With the `nai` in the stream, the syntax rejects it.
+The reason is that the syntax reads this run. If the stage nested a `nai` under its attitudinal, the syntax would not see it. The syntax would then read a second `nai` as that attitudinal's own, and `pau nai nai mi klama` would be a text. The stage keeps the `nai` in the stream, so the syntax rejects that text.
 
 ```jbogenbau
 %rule leading
@@ -196,9 +196,9 @@ CLL[^cll-s19-8] says that an attitudinal "Normally" applies to the preceding wor
 
 CLL[^cll-s13-9] states: "If the word that an indicator (or group) attaches to is itself a cmavo which governs a grammatical structure". It then says: "then the indicator construct pertains to the referent of the entire structure". That sentence describes meaning, and a quotation refers to its quoted text. It does not require attachment to `lu`.
 
-A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. Both CLL dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
+A quoted text starts as a whole text does. CLL[^cll-s21-1] lets `text` start with names or indicators, but not both. The `cll-ebnf`, `kihei`, and `bpfk` dialects reject `ui .djan. mi klama` and `lu ui .djan. mi klama li'u` for that reason.
 
-Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [TO name probes](../../tests/corpus/adhoc.jsonl) record those policies as `adhoc.indicators.opener.to-ui-name.experimental` and `adhoc.indicators.opener.to-ui-name.zantufa`.
+Experimental with `cbm` and Zantufa reject those texts under their own name-as-predicate rules. The [corpus cases](../../tests/corpus/adhoc.jsonl) pin both texts under `adhoc.indicators.initial-name-and-indicator.{text,quote}.{experimental,zantufa}`.
 
 CLL[^cll-s21-1] also writes `TO text`, so that rule alone does not separate TO from LU. The example[^cll-e19-67] in CLL[^cll-s19-12] uses `to'isa'a` and says that `sa'a` marks the whole bracketed remark. The ["Digressives" section, revision 111784](https://mw.lojban.org/index.php?title=BPFK_Section:_Digressives&oldid=111784) of the BPFK defines `to'i` as "Equivalent to {to sa'a}". These sources support the choice that indicators after `to` and `to'i` attach to the opener. Indicators after `tu'e` also attach to that opener under CLL[^cll-s19-8][^cll-s13-9].
 
@@ -238,7 +238,7 @@ Rule 1100, one of four non-formal rules, prints `word = [BAhE] any-word [indicat
 
 > Multiple BAhE cmavo may be used in succession
 
-CLL counts Y as an indicator.[^cll-s21-1] The word stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as a pause. A FUhE followed only by hesitation therefore has no indicator and fails.
+CLL counts Y as an indicator.[^cll-s21-1] The words stage drops hesitation because the [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words), which specifies word processing before syntax, treats `.y.` as a pause. A FUhE followed only by hesitation therefore has no indicator and fails.
 
 The Magic Words proposal says that `ba'e` "marks the following word but does not change its meaning". It also states: "One NAI can follow any UI or CAI cmavo". The attachment rules retain both properties, even with BAhE before NAI.
 

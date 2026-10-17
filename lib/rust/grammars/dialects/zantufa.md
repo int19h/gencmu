@@ -1,6 +1,6 @@
 # The Zantufa dialect
 
-The dialect follows Guskant's Zantufa 1.9999, a PEG (parsing expression grammar) of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, the PEG grammar of the definition effort. It has no termsets and no `tense` rule, and most tense words are modals. Free modifiers can follow almost any word, and a statement can take terms after it.
+The dialect follows Guskant's Zantufa 1.9999, a PEG (parsing expression grammar) of Lojban. A PEG commits to the first matching alternative. Zantufa restates almost every rule of camxes, a PEG grammar of Lojban. It has no termsets and no `tense` rule, and most tense words are modals. Free modifiers can follow almost any word, and a statement can take terms after it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
@@ -12,7 +12,7 @@ A cmavo is a particle, a short structure word. A selma'o is a word class of cmav
 
 The indicator stage is the cll-ebnf dialect's. No word of the Zantufa lexicon is an indicator, so the stage attaches no indicators. It attaches only `ba'e` and the other words of BAhE, to the word after them. The syntax reads the attitudinals as free modifiers.
 
-Each finished word-stage quote emits one token. BAhE before it marks the whole quote. Following attitudinals occupy the quote's free-modifier slot in syntax.
+Each finished quote from the words stage emits one token. BAhE before it marks the whole quote. Following attitudinals occupy the quote's free-modifier slot in syntax.
 
 The reference is [guskant/gerna_cipra at d5a5065](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg). Its `ZO_pre`, `LOhU_pre`, `ZOI_pre`, `GOhOI_pre`, `RAhOI_pre`, `MUhOI_pre`, and `LOhAI_pre` begin with `pre_clause`. Their `_post` rules read `post_clause`. Thus whole-quote emphasis and following attitudinals agree with the reference. The reference's greedy LOhU body reads BAhE before LEhU as quoted content. This dialect does too.
 

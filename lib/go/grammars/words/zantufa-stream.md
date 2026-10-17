@@ -4,7 +4,7 @@ A letteral is a letter word of class BY, as [stream.md](stream.md) defines it.
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-This document is part of the word stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
+This document is part of the words stage in the [Zantufa](../dialects/zantufa.md) dialect. A stage is one step of a pipeline, with its own grammar. Each stage reads the tokens that the stage before it emitted, and emits new tokens.
 
 The dialect includes this document after [the word stream](stream.md). The document changes what the Zantufa lexicon's classes alone do not. The reference is Zantufa 1.9999, whose rules the comments give. [The notation document](../../docs/notation.md) explains the notation.
 
@@ -55,7 +55,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
-`mu'oi` quotes a body between two delimiters, as `zoi` does. Zantufa compares the two delimiters in lower case, so `zoi .ko. x .kO.` is a quote. Every dialect compares their normalized values ([the word stream](stream.md)). So the dialect needs only the marker.
+`mu'oi` quotes a body between two delimiters, as `zoi` does. `zoi .ko. x .kO.` is a quote because both Lojban delimiters have stored value `ko`. Every dialect compares exact stored values, including FOREIGN values from decomposed source text ([the word stream](stream.md)). So the dialect needs only the marker.
 
 ```jbogenbau
 %redefine-rule zoi-marker

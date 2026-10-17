@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a [ + Sound-0061-s ]\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 31,
       "rules": [
         {
           "name": "a",

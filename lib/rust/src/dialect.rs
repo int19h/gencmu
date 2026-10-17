@@ -68,8 +68,8 @@ pub struct Feature {
 ///
 /// The original text of such a parse is the tokens' texts joined with
 /// single spaces, and each token's source is its text's place in it. Each
-/// token's image is its text (engine §5). It has no attachments, since a
-/// caller cannot supply them (engine §11).
+/// token's image defaults to its text only when `image` is `None` (engine §5).
+/// It has no attachments, since a caller cannot supply them (engine §11).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InputToken {
     /// The token's text.
@@ -290,7 +290,7 @@ impl Dialect {
     }
 
     /// The stage's grammar lowered for a set of features, or the error of
-    /// the grammar that lowering found (engine §3.3), which a parse reports
+    /// the grammar that lowering found (engine §3), which a parse reports
     /// as it reports any found while parsing.
     ///
     /// Only the gates that are on change the productions. So two sets of
@@ -375,8 +375,8 @@ impl Dialect {
             for (index, token) in tokens.iter().enumerate() {
                 let length = token.text.chars().count();
                 let set = tags.set_of(token.tags.iter().map(String::as_str));
-                // A token that a caller supplies has its text as its image
-                // (§5).
+                // A caller token defaults its image to its text only when
+                // `image` is `None` (§5).
                 public.push(Token {
                     text: token.text.clone(),
                     value: token.value.clone().unwrap_or_else(|| token.text.clone()),
@@ -880,8 +880,8 @@ impl Dialect {
         let chart = Recognizer { g, matchers, shared, recon: Some(&recon) }.recognize(&tokens, 0, g.start)?;
         let loss = witness::loss();
         let rooted = chart.accepts(g.start, tokens.len()) && loss != Some(witness::Loss::Roots);
-        // A test that watches the check marks W(D)'s links before the check
-        // ranks (tests/README.md).
+        // Runtime tracking marks W(D)'s links before the check ranks.
+        // An optional test hook observes the witness (tests/README.md).
         let flagged = g.rules.iter().any(|rule| rule.leftmost_longest || rule.fewest);
         let chosen_profile = if flagged { tree_profile(g, chosen) } else { crate::rank::Profile::ZERO };
         let protect = true;

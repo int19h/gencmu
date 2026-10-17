@@ -23,7 +23,7 @@ Tests must not depend on execution order. Go tests with process-wide controls or
 
 ## Engine cases: `engine/*.json`
 
-The bundled grammars use the current notation. The JavaScript runner executes every language case and the complete corpus when `GENCMU_CORPUS=full`. No language migration gate remains.
+The bundled grammars use the current notation. The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
 
 Each file is one case:
 
@@ -118,7 +118,7 @@ The answer records raw W(D), which engine §7.8 reconstructs from the chosen der
   A cut that closes a cycle has no bit. The loop can stop once the count is two, but at a marked item only once the bit is known. A root of W(D) must have the bit.
 - The selection channel: An elision-only error reports raw W(D) first, including when admission excludes it. The second reading is the T-first best admitted competitor distinct from W(D). The walk builds the witness actions in post-order for comparison.
 
-A parse that no test watches passes no marks to its ranker.
+Every check tracks W(D) and passes its marks to the ranker, whether or not a test watches it. The optional test hook observes the reconstruction and ranking. It does not enable runtime witness tracking.
 
 The hook asks about the check's own ranking because any other question is a stand-in. A chart that holds W(D) is not enough, because a faulty ranker can still lose it. A positive count is not enough, because another reading can survive without W(D). Ranking W(D) alone is insufficient because edge handling can depend on siblings.
 
@@ -163,7 +163,7 @@ Every library also runs a notation case with `cacheMisses: true` through its doc
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
-The reference library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
+The JavaScript library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
 
 Open names are names that grammar authors choose.
 
@@ -219,9 +219,17 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with the other array empty. The DOM uses format 29. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 31. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
+
+## DOM depth cases: `dom-depth.json` and `dom-depth-source.json`
+
+The shared depth cases pin the compound-ancestor count of [engine §9.3](../docs/engine.md#93-conversion-and-validation). They cover recursive DOM forms, leaves, cross-form transitions, and independent declaration and emission roots.
+
+Each DOM case supplies an envelope without `format`, a `leaf`, a `wrapper`, and `atLimit`. The envelope and wrapper each contain one string placeholder, `$inner`. A runner wraps the leaf `atLimit` times and substitutes the result into the envelope. It supplies the current DOM format. The resulting DOM must pass, and one additional wrapper must fail because of depth.
+
+The source cases give `head`, `prefix`, `leaf`, `suffix`, and `tail`. A runner repeats each prefix and suffix `atLimit` times around the leaf, then adds the head and tail. It surrounds that text with a jbogenbau fence. That document must read, and one additional repetition must fail because of depth. Source cases also cover signed tag tests and pattern terms under their enclosing constructors.
 
 ## Growth cases: `growth.json`
 
@@ -306,7 +314,7 @@ Both families repeat the fixture's unit for each count in `lengths`. `maxCloseNo
 
 A family run uses `.without-elision-except`. Its entry names an engine fixture in `case`, and its strict twin in `strictCase`. Every library runs both at each size in `lengths`. The strict twin uses `.without-elision` instead.
 
-An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry retains its existing absolute bounds beside its bounds over the strict twin.
+An entry with `depths` uses those rule depths instead of token lengths. It regenerates the doubled rules as the strict case does. Every entry keeps its absolute bounds beside its bounds over the strict twin.
 
 Each library also runs the shared engine cases with a conformance switch for family alignment. The switch applies the whole-observation deletion test of engine §4 beside the item summaries of §4.1. Both answers must agree for every eligible family witness. Only this switch can retain permission marks for the independent test.
 
@@ -314,7 +322,7 @@ A library records chart items, proof edges, close observation states, close sequ
 
 A join costs one image for each row. An empty item without records has the identity relation, and an image, preimage or join through it costs nothing. A close or block that the automaton does not read costs nothing, such as one beyond `b`. The JavaScript work counters call these seven `items`, `packedEdges`, `closeStates`, `closeSequences`, `summaryContexts`, `familySummaries` and `familySteps`. No library retains a marked close, so there is no count of marked events.
 
-Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these new fields:
+Counts from different libraries are not compared, so most bounds compare a run with the same library's strict twin. An entry can hold these fields:
 
 | Field | Bound at each length |
 | --- | --- |
@@ -326,7 +334,7 @@ Counts from different libraries are not compared, so most bounds compare a run w
 | `equalsStrict` | items and close states equal the strict twin's |
 | `atMostStrict` | items and close states do not exceed the strict twin's |
 
-Within `overStrict`, a missing field is zero. An entry without `overStrict` has no bound over its twin. The existing `itemsPerUnit` and `slack` keep their meaning, an absolute linear bound on items.
+Within `overStrict`, a missing field is zero. An entry without `overStrict` has no bound over its twin. `itemsPerUnit` and `slack` set an absolute linear bound on items.
 
 ## Result mutants: `result-mutants.json`
 
@@ -369,7 +377,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the word stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
+- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
 

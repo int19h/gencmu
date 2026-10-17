@@ -2,7 +2,7 @@
   "document": "```jbogenbau\n%rule r A<B ¬C>\n```\n",
   "expect": {
     "dom": {
-      "format": 29,
+      "format": 31,
       "rules": [
         {
           "name": "r",
@@ -46,5 +46,5 @@
       "implications": []
     }
   },
-  "description": "The DOM preserves positive and negative requirements in written order (engine §4, output format 28)."
+  "description": "The DOM preserves positive and negative requirements in written order (engine §4, docs/output.md)."
 }

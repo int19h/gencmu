@@ -36,13 +36,15 @@ println!("{}", gencmu::to_json(&result));
 
   An error whose `kind` is `ParseErrorKind::Grammar` and whose `code` is `Some(ErrorCode::ElisionWitnessLost)` marks a library defect. The check loses the stage's chosen derivation (engine §7.9). Such an error also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back. Each `Restoration` has its `terminal`, input position `at`, and the empty `source` of its elided node.
 
-  A terminator with an `=` test also has its `value`. The JSON writes them after the message, as `docs/output.md` says. Every other error has no `code`, no `chosen` and an empty `completion`.
+  A terminator with an `=` test also has its `value`. The JSON writes them after the message, as `docs/output.md` says. Other parse-result errors have no `code`, no `chosen` and an empty `completion`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
   A token has its `text`, `value`, `image`, tags, span, and source range. Its `value` controls string terminals and value tests. Its `image` controls renderings for people. Both are exact strings, including an explicit empty string. Constituent and item recipes assign these channels. A missing image recipe follows the selected value recipe.
 
   A token also has its attachments, `before` and `after`. These are tokens that belong to it and that no later stage reads, such as the indicators after a word. Each is an `Attachment`, a token without a span, with attachments of its own. Both lists are empty unless an emission gives the token attachments.
 
-  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage. Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
+  The warnings are those of the enabled warning features. Source positions count Unicode code points. Spans and token indices count tokens of the relevant stage.
+
+  Tags are a `BTreeSet<String>`. Stage zero stores the category, major category, and whitespace tags supplied by the Unicode table. Later stages test this stored membership. Grammar recipes supply normalization.
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
@@ -63,7 +65,7 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 29. The result format is 13. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`. An optional with a `maximal` member is malformed. No directive names elidable terminators: `%elidable` is a syntax error.
+The DOM format is 31. The result format is 13. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 
@@ -116,12 +118,12 @@ The shared engine runner enables `gencmu::tools::with_family_conformance` on eac
 - The tests in `tests/engine.rs` compare the place and order of lowering errors. The tests in `src/earley.rs` measure captures with many ends, which keep one completed item per end.
 - The eligibility property test in `src/eligible.rs` searches eligible proof trees for small random grammars. These grammars contain chained elidable optionals.
 - The tests examine invariants of canonical results from shared cases. Examples include ties and ambiguous errors without positions. Other tests supply broken results to these tests.
-- The witness of the check of `elision-only` (tests/README.md). The runners of the shared cases and of the corpus fail any result with the error `elision-witness-lost`. They also ask the hidden hook `gencmu::tools::with_elision_checks`, after each check, whether the check kept the chosen derivation, mapped to the reconstructed input. A watched check marks that derivation's links before it ranks.
+- The witness of the check of `elision-only` (tests/README.md). The runners of the shared cases and of the corpus fail any result with the error `elision-witness-lost`. They also ask the hidden hook `gencmu::tools::with_elision_checks`, after each check, whether the check kept the chosen derivation, mapped to the reconstructed input. Every check marks that derivation's links before it ranks, whether or not a test watches it. The hook observes that runtime tracking.
 
   Its own ranking then says whether it counted them, and where its readings stand against them. The library's own tests lose that witness on purpose with `gencmu::tools::losing_witness`, which the documented API does not name. They also turn on faults of the library's own paths in the check with `gencmu::tools::with_fault`. `tests/faults.rs` shows that the shared cases catch each one, through the result or through the hook alone (tests/README.md).
 
 `GENCMU_PROPERTY_CASES` and `GENCMU_PROPERTY_SEED` run a larger sweep. `GENCMU_CORPUS=full cargo test --release --test corpus` runs the whole corpus, on `GENCMU_CORPUS_WORKERS` threads. By default, the number of threads is one fewer than the number of cores.
 
-The crate uses the MIT License.
-
 Set `GENCMU_BOUNDARY_SPLITS` to a log path when you run the corpus to record admission groups that retain lower options. Each entry names the case, recognition, group span, and prefix context. An empty file means that no such group survives in the run. `gencmu::tools::with_slot_statistics` exposes the same reports for focused tests.
+
+The crate uses the MIT License.
