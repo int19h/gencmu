@@ -1,15 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="396" height="68" viewBox="0 0 396 68" role="img" aria-label="Railroad diagram of the rule stress">
+<svg xmlns="http://www.w3.org/2000/svg" width="496" height="122" viewBox="0 0 496 122" role="img" aria-label="Railroad diagram of the rule stress">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="50.4" lengthAdjust="spacingAndGlyphs">stress</text>
 <text class="label" x="80.4" y="24" textLength="115.2" lengthAdjust="spacingAndGlyphs">conditions apply</text>
-<path d="M10 38v16m4 -16v16M14 46h6"/>
-<g class="rule"><rect x="20" y="34" width="126" height="24" rx="0"/><text x="83" y="51" textLength="109.2" lengthAdjust="spacingAndGlyphs">stress-onsets</text></g>
-<path d="M146 46h10"/>
-<g class="rule"><rect x="156" y="34" width="58" height="24" rx="0"/><text x="185" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">h-opt</text></g>
-<path d="M214 46h10"/>
-<g class="rule"><rect x="224" y="34" width="58" height="24" rx="0"/><text x="253" y="51" textLength="42" lengthAdjust="spacingAndGlyphs">y-opt</text></g>
-<path d="M282 46h10"/>
-<g class="rule"><rect x="292" y="34" width="84" height="24" rx="0"/><text x="334" y="51" textLength="67.2" lengthAdjust="spacingAndGlyphs">syllable</text></g>
-<path d="M376 46h6m0 -8v16m4 -16v16"/>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<path d="M60 56h20"/>
+<g class="rule"><rect x="80" y="44" width="92" height="24" rx="0"/><text x="126" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M172 56H192"/>
+<path d="M60 56a10 10 0 0 1 10 10V80a10 10 0 0 0 10 10"/>
+<g class="rule"><rect x="80" y="78" width="58" height="24" rx="0"/><text x="109" y="95" textLength="42" lengthAdjust="spacingAndGlyphs">glide</text></g>
+<path d="M138 90H172a10 10 0 0 0 10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M192 56H212"/>
+<path d="M192 56a10 10 0 0 1 10 10V102a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M212 56H232"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H212a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M232 56h10"/>
+<path d="M242 56h20"/>
+<g class="rule"><rect x="262" y="44" width="25" height="24" rx="0"/><text x="274.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">h</text></g>
+<path d="M287 56H307"/>
+<path d="M242 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H287a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M307 56h10"/>
+<path d="M317 56h20"/>
+<g class="rule"><rect x="337" y="44" width="25" height="24" rx="0"/><text x="349.5" y="61" textLength="8.4" lengthAdjust="spacingAndGlyphs">y</text></g>
+<path d="M362 56H382"/>
+<path d="M317 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H362a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M382 56h10"/>
+<g class="rule"><rect x="392" y="44" width="84" height="24" rx="0"/><text x="434" y="61" textLength="67.2" lengthAdjust="spacingAndGlyphs">syllable</text></g>
+<path d="M476 56h6m0 -8v16m4 -16v16"/>
 </svg>

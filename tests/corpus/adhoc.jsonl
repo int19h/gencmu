@@ -2937,7 +2937,7 @@
 {"id":"adhoc.zantufa.order.gek-statement-prenex-ku","text":"ga broda gi le brode brodi ku zo'u brodo","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ga","broda","gi","le","brode","brodi","ku","zo'u","brodo"],"brackets":"(ga broda gi [{(le [brode brodi] ku) zo'u} brodo])"}
 {"id":"adhoc.zantufa.rahoi.odd-y-then-bu","text":"ra'oi brodyyyybu","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi brody","ybu"],"brackets":"(ra'oi brody ybu)","reason":"The forms stage separates the hesitation prefix from the final y before BU. The shared reader forms the letteral from that final y."}
 {"id":"adhoc.zantufa.rahoi.odd-y-then-bu-erased","text":"ra'oi brodyyyybu si si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":""}
-{"id":"adhoc.zantufa.rahoi.odd-y-erased","text":"ra'oi brodyyyy si si","dialect":"zantufa","expect":"accept","verdict":"unique","words":["ra'oi brody"],"brackets":"ra'oi brody"}
+{"id":"adhoc.zantufa.rahoi.odd-y-erased","text":"ra'oi brodyyyy si si","dialect":"zantufa","expect":"accept","verdict":"unique","words":[],"brackets":"","reason":"The attached y run is one hesitation token. The first SI erases that token, and the second SI erases the quote."}
 {"id":"adhoc.zantufa.y.space-after-lu","text":"luyy mi li'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lu","mi","li'u"],"brackets":"(lu mi li'u)"}
 {"id":"adhoc.zantufa.y.ieho-after-lu","text":"luie'o mi li'u","dialect":"zantufa","expect":"accept","verdict":"unique","words":["lu","mi","li'u"],"brackets":"(lu mi li'u)"}
 {"id":"adhoc.zantufa.y.space-after-to","text":"toyy mi toi","dialect":"zantufa","expect":"accept","verdict":"unique","words":["to","mi","toi"],"brackets":"(to mi toi)"}
