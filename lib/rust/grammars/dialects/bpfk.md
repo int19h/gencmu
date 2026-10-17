@@ -132,7 +132,7 @@ A constituent can end wherever a parse of the whole text needs it. Numbers and l
 
 A selbri is the predicate of a sentence. A bridi-tail is a selbri with any terms after it.
 
-The stage does not order the alternatives of a rule. A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities with conditions. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
+A text that remains ambiguous after terminator restoration is an error. The CLL grammar settles two connective ambiguities, one with a ranked choice and one with a condition. `mi broda joi ke brode ke'e` is a `ke` group joined to `broda` by `joi`. `mi broda gi'e ke brode ke'e` is a `ke` group of bridi-tails after `gi'e`.
 
 ## Differences from CLL, BPFK proposals and camxes-std
 

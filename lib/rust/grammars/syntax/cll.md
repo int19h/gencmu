@@ -897,7 +897,7 @@ The eighth applies the grouping preference described under ["Tenses and modals"]
 
 Earlier stages also depart from CLL. [The word stream](../words/stream.md) lists eight departures under ["Departures from CLL, Magic Words, and the reference parsers"](../words/stream.md#departures-from-cll-magic-words-and-the-reference-parsers). They concern SI, ZEI, BU, hesitation, LOhU, ZOI, whole-quote attachment, and SU boundaries. The Magic Words proposal specifies word processing before syntax. The stream prose states each relationship to that proposal.
 
-[The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. [The word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. These documents and this section together describe the dialect's departures.
+[The indicator stage](../indicators/cll.md) permits several FUhE groups and several BAhE words. Printed rules 411 and 1100 each allow only one. For cll-ebnf and kihei, [the word forms](../words/cll.md) and [CLL word stream](../words/cll-stream.md) describe their choices and extensions, including `y` as a vowel. For bpfk, [the BPFK word forms](../words/bpfk.md) and [its pipeline](../dialects/bpfk.md) describe them. These documents and this section together describe each dialect's departures.
 
 The words stage implements CLL's non-formal erasure rule `null = any-word SI | utterance SA | text SU`. A non-formal rule runs before syntax. CLL never defines the `utterance` that `sa` erases.
 
