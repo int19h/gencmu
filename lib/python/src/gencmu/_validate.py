@@ -165,6 +165,10 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
             positions.add(at)
     pending = []
     for d in dom["directives"]:
+        if "conditions" in d:
+            if d.get("name") != "features" or not isinstance(d["conditions"], list) or not d["conditions"]:
+                return "malformed feature conditions"
+            pending.extend(("condition", condition, 0, False, False) for condition in d["conditions"])
         name, args = d.get("name"), d.get("args")
         if name not in _DIRECTIVES or not isinstance(args, list) or any(not isinstance(x, str) for x in args):
             return "a malformed directive"
@@ -299,6 +303,11 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     problem = _walk(pending, unicode)
     if problem:
         return problem
+    for directive in dom["directives"]:
+        if "conditions" in directive:
+            problem = input_conditions_problem(directive["conditions"])
+            if problem:
+                return problem
     for r in dom["rules"]:
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
@@ -538,4 +547,24 @@ def _walk(pending: list, unicode: Marks) -> str | None:
             pending.append(("tags", node["then"], below, False, False))
         elif not (keys == {"emptySet"} and node["emptySet"] is True):
             return "a malformed term"
+    return None
+
+
+def input_conditions_problem(conditions):
+    allowed = {"tags", "classes", "value", "image", "source-text", "decomposed-source-text", "first-token", "tokens-after-first", "last-token", "split"}
+    pending = list(conditions)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, list):
+            pending.extend(node)
+        elif isinstance(node, dict):
+            if ("capture" in node and node["capture"] != "") or ("captured" in node and node["captured"] != ""):
+                return "feature conditions can read only $"
+            if node.get("op") in ("≅", "≇") or "method" in node and (node["method"] not in allowed or node["method"] == "tags" and node["args"]):
+                return "feature conditions can read only tokens"
+            pending.extend(node.values())
+    for condition in conditions:
+        problem = condition_type_problem(condition)
+        if problem:
+            return problem
     return None

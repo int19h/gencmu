@@ -116,7 +116,9 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                     raise fail(f"{target} was not found ({chain_to(target)})")
                 run = None
                 enter(target, included)
-            elif name == "features":
+            elif name == "features" and selected is None:
+                if "conditions" in item:
+                    raise fail("global features cannot have conditions")
                 features.update(item["args"])
             elif name == "stage":
                 stage_name = item["args"][0]

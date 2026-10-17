@@ -293,7 +293,13 @@ class DomBuilder:
             raise self.fail(node, "invalid feature name")
         if name == "ambiguity-resolution" and args not in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"]):
             raise self.fail(node, "invalid ambiguity resolution operands")
-        return {"name": name, "args": args, "at": list(self.position(node))}
+        directive = {"name": name, "args": args, "at": list(self.position(node))}
+        clause = self.one(node, "conditions-clause")
+        if clause is not None:
+            if name != "features":
+                raise self.fail(node, "only %features accepts conditions")
+            directive["conditions"] = [run(self._condition(item)) for item in self.some(clause, "implication")]
+        return directive
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a

@@ -145,6 +145,7 @@ class Grammar:
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
+    feature_items: list[tuple[str, Dom]] = field(default_factory=list)
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
@@ -673,6 +674,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     resolutions: list[tuple[list[str], str, Any]] = []
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
+    feature_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
         for rule,message in getattr(dom,"deferred_emissions",()):
             if not constants_in(rule) and not _rule_has_pattern(rule):
@@ -734,7 +736,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             name = directive["name"]
             args = list(directive.get("args", []))
             at = directive.get("at")
-            if name == "ambiguity-resolution":
+            if name == "features":
+                feature_items.append((path, directive))
+            elif name == "ambiguity-resolution":
                 resolutions.append((args, path, at))
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
@@ -745,6 +749,25 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    from ._validate import input_conditions_problem
+    from ._types import condition_type_fault
+    resolved_features = []
+    for path, directive in feature_items:
+        if "conditions" not in directive:
+            resolved_features.append((path, directive))
+            continue
+        for reference in constants_in(directive["conditions"]):
+            if scalar(reference["const"]) is None and reference["const"] not in constants.values:
+                raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
+        conditions = run(constants.with_values(directive["conditions"]))
+        problem = input_conditions_problem(conditions)
+        if problem:
+            raise _error(problem, path, directive["at"], stage)
+        for condition in conditions:
+            fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
+            if fault:
+                raise _error(fault[0], path, directive["at"], stage)
+        resolved_features.append((path, {**directive, "conditions": conditions}))
     from ._boundary import validate_targets
     validate_targets(rules, stage)
     classifier_items = [
@@ -836,6 +859,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         unicode=unicode,
         changes=changes,
         classifier_items=classifier_items,
+        feature_items=resolved_features,
         implications=implications,
         families=members(rules, family_names),
     )

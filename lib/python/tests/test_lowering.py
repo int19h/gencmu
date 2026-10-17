@@ -26,7 +26,7 @@ class LoweringErrors(unittest.TestCase):
     and the dialect loads (engine §3)."""
 
     def parse(self, dialect: gencmu.Dialect, features: list[str]) -> gencmu.ParseResult:
-        return dialect.parse_tokens([Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a", features=features, auto_features=False)
+        return dialect.parse_tokens([Token("a", frozenset({"A"}), (0, 1), (0, 1))], "a", features=features)
 
     def test_the_message_names_the_definition_and_the_order_is_engine_3(self) -> None:
         sources = {
@@ -55,7 +55,7 @@ class LoweringErrors(unittest.TestCase):
     def test_in_one_rule_a_chain_beside_another_alternative_comes_before_an_empty_item(self) -> None:
         dialect, error = load_case_dialect({"grammar": "%rule text r\n%rule r {... [A]} | B"})
         assert dialect is not None, error
-        result = dialect.parse_tokens([Token("b", frozenset({"B"}), (0, 1), (0, 1))], "b", auto_features=False)
+        result = dialect.parse_tokens([Token("b", frozenset({"B"}), (0, 1), (0, 1))], "b")
         assert result.error is not None
         self.assertTrue(result.error.message.startswith("main.md:4:1: r is a chain"), result.error.message)
 

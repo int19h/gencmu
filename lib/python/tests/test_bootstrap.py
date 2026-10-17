@@ -184,7 +184,6 @@ class Lexical(unittest.TestCase):
         result = notation.parse(
             '%rule a ¬f? B "c" "d" {E ... / "$(_005C)"} | g! %tags X %rulex $e ¬h "x".."y" _L "a"... [+F] [+G]',
             until="lexical",
-            auto_features=False,
         )
         self.assertTrue(result.ok, result.error)
         output = result.stages[0].output

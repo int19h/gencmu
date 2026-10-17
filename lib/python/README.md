@@ -2,7 +2,7 @@
 
 gencmu is a Lojban parser. A literate grammar document mixes prose with grammar rules. gencmu loads these Markdown documents at runtime. This is the Python library. An API is the operations that a library exposes.
 
-The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 31 and writes result format 13. It writes the canonical JSON of `docs/output.md`.
+The library is pure Python, uses the standard library only, and needs Python 3.14 or later. It implements the engine specification of the gencmu repository, `docs/engine.md`. The library reads DOM format 32 and writes result format 14. It writes the canonical JSON of `docs/output.md`.
 
 ```python
 import gencmu
@@ -33,16 +33,17 @@ A dialect that cannot be loaded raises `gencmu.GencmuError`. Its `kind` is `"gra
 ## Parsing
 
 ```python
-result = dialect.parse(text, features=(), without_features=(), auto_features=True, until=None, elision_only=None)
+result = dialect.parse(text, features=(), without_features=(), until=None, elision_only=None)
 ```
 
 - `features` names the features that the caller turns on in every stage, besides those the pipeline turns on with `%features`.
 - `without_features` names the features that the caller turns off in every stage, those that the pipeline turns on included. A name in both lists raises `GencmuError` with `kind` `"usage"`.
-- `auto_features` adds `sa-su` only where the text needs it. To find out, the parser first parses up to the stage named `words` without `sa-su`. This works only in a dialect that has `sa-su` as a gate and a stage named `words`. It does nothing if `sa-su` is already on, if `without_features` names it, or if `until` names a stage before `words`.
 - `until` names the last stage to run. An unknown name raises `GencmuError` with `kind` `"usage"`.
 - `elision_only`, when it is `True` or `False`, overrides the grammars' `%ambiguity-resolution ... elision-only`.
 
-A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
+A `text` with a lone surrogate raises `GencmuError` with `kind` `"usage"`. A text that does not parse is a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`. An `ambiguous` error has a `reason` and two `readings`.
+
+A `feature-conflict` error names a required conditional feature that the caller disables. Its `stage` and `feature` fields identify the conflict.
 
 A rejected error can carry `boundary`. It names the rule, the condition index from zero, and the input boundary where a tree condition fails. The index counts conditions through the rule definitions in source order.
 

@@ -194,8 +194,8 @@ class Expected:
 
 @dataclass
 class ParseError:
-    """Why a parse failed: ``kind`` is ``"rejected"``, ``"ambiguous"`` or
-    ``"grammar"`` (docs/output.md, "Error").
+    """Why a parse failed: ``kind`` is ``"rejected"``, ``"ambiguous"``,
+    ``"feature-conflict"``, or ``"grammar"`` (docs/output.md, "Error").
 
     An ambiguous error has a ``reason``: ``"tie"`` where a stage has two or
     more best readings (engine §6), or ``"elision-only"`` where the check of
@@ -224,6 +224,7 @@ class ParseError:
     chosen: Node | None = None
     completion: list[Restoration] | None = None
     witness: tuple[Action, Action] | None = None
+    feature: str | None = None
 
 
 @dataclass(frozen=True)
