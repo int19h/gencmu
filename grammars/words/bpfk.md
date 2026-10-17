@@ -26,7 +26,7 @@ A nucleus is the vowel or diphthong of a syllable. A glide is an `i` or `u` befo
 
 This grammar states the morphology's rules directly. Its alternatives have no order. It retains PEG lookaheads where they state word shapes, stress, hyphens, or word boundaries. A lookahead tests the text without consuming it. The conditions use `begins` at a constituent's start or end, including text beyond the word and before the next pause.
 
-Different letters or incompatible conditions separate most alternatives. Other alternatives overlap as prefixes, but only one can complete the surrounding word. Their comments and the prose name the letters, stress, hyphens, or boundaries that force completion. A word-form test asks only whether a form begins, so its alternative endpoints need no preference.
+Different letters or incompatible conditions separate most alternatives. Other alternatives overlap as prefixes, but only one can complete the surrounding word. Their comments and the prose name the letters, stress, hyphens, or boundaries that force completion. At the end of a lookahead, alternative endpoints need no preference because the test asks only whether a form begins. Inside a lookahead, optionals and repetitions need the same exclusion or completion argument as consumed ones.
 
 Plain optionals and repetitions express parts whose presence or count follows from their context. A shorter name body leaves a consonant before the required final consonant and pause. A shorter nucleus-apostrophe run leaves an apostrophe where the last nucleus must begin. A shorter unstressed rafsi or syllable run cannot reach the stressed core or its required hyphen. Consonantal syllables cannot consume the start of a following vowel-bearing syllable. A following rafsi cannot start with an apostrophe or the consonant pair that an r-hyphen supplies.
 
@@ -40,9 +40,9 @@ The document [forms.md](forms.md) says how words join.
 
 The word-boundary conditions decide which words can stand together without a pause. Every word carries `Continued`, so its own rules permit a following word without a pause. A word carries `Onset` when no nucleus begins it. Only such a word can follow another directly.
 
-The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` and the `y+` of `Y` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
+The PEG's `CMAVO` is a list of the selma'o, each a set of spellings, followed by `cmavo` for every other cmavo. Each selma'o rule begins with `&cmavo` and ends with `&post_word`. Every spelling except `ybu` reads exactly what `cmavo` reads, and the lexicon gives each cmavo its selma'o.
 
-A whole run of `y` letters is one hesitation token, whatever its length. The BPFK treats it as hesitation noise. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
+A whole run of `y` letters is one hesitation token, whatever its length. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Thus `.yyy.` is one token here. The separate split before `bu` preserves letter words, as [the ybu exception](#the-ybu-exception) explains.
 
 `cmavo-shape` reads `cmavo`. A cmavo made only of `y` letters is hesitation, which [forms.md](forms.md) reads as `y-run`, so this document redefines `y-run` as that cmavo.
 
@@ -170,7 +170,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
   ¬$f.onward.begins(cvcy-lujvo),
   $f.following-tokens.begins(post-word)
 
-%rule cvcy-lujvo  (* Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Only a lookahead. *)
+%rule cvcy-lujvo  (* Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead. *)
   | cvc-rafsi y [h] [{initial-rafsi}] brivla-core
   | stressed-cvc-rafsi y short-final-rafsi
 
@@ -255,7 +255,7 @@ A stressed initial rafsi with a short final either contains a hyphen or differs 
 A short rafsi without a y-hyphen cannot start an extended rafsi or borrowing, or stand directly before one. Thus `spageti'ybroda` begins with `spageti'y`, and `selspageti` is one borrowing. The short rafsi also excludes every hyphenated form through `y-less-rafsi`. A borrowing head excludes ordinary rafsi strings. A brivla rafsi needs apostrophe-y after its fixed head, while a borrowing rafsi forbids that apostrophe onset. These restrictions separate the initial and extended alternatives, including their stressed forms.
 
 ```jbogenbau
-%rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede an extended rafsi or borrowing. Hyphenated and extended forms exclude that short form. *)
+%rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede an extended rafsi or borrowing. The short form excludes every hyphenated form through y-less-rafsi, and extended forms through any-extended-rafsi. A borrowing head's rafsi-string test separates y-rafsi from the extended forms. *)
   | extended-rafsi
   | y-rafsi
   | $l:y-less-rafsi
@@ -361,7 +361,7 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
   | stressed-y-less-rafsi short-final-rafsi
   | y-rafsi
   | stressed-y-rafsi
-  | [stressed-y-less-rafsi] initial-pair y
+  | [stressed-y-less-rafsi] initial-pair y  (* A stressed short rafsi has a vowel where initial-pair needs a consonant, so the optional cannot consume the required pair. *)
   | hy-rafsi
   | stressed-hy-rafsi
 
@@ -577,7 +577,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
   ¬$v.onward.begins(stressed),
   ¬$v.following-tokens.begins(stress)
 
-%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. Only existence matters in this lookahead, not its internal splits. *)
+%rule stress  (* Positional stress precedes the last counted syllable before a pause. The counted syllable cannot start with y. It permits an empty onset, so the PEG's greedy split succeeds whenever any split does. *)
   [{consonant | glide}] [h] [y] $s:syllable
 %conditions
   $s.following-tokens.begins(pause)
@@ -1025,7 +1025,9 @@ A run stays one hesitation token except for the split that prepares a letter wor
 
 ### Whole hesitation runs and duplicate proofs
 
-The PEG's onset alternative takes one y from an odd run of three or more letters. This grammar excludes pure y from that alternative and reads the whole run as hesitation. Thus `.yyy.` is one hesitation token instead of `y` and `yy`. This follows the BPFK treatment of hesitation as noise and the PEG's own `Y` rule, which reads the whole run. The words stage drops this noise in BPFK and experimental. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
+The PEG's onset alternative takes one y from an odd run of three or more letters. This grammar excludes pure y from that alternative and reads the whole run as hesitation. Thus `.yyy.` is one hesitation token instead of `y` and `yy`. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The PEG's own `Y` rule also reads the whole run.
+
+The words stage drops this hesitation in BPFK and experimental. Zantufa can retain attached hesitation, so its erasure can observe the whole-run division.
 
 Names use the general name shape once instead of choosing between general and syllabified proofs of the same letters. Marked and positional stress share one constituent when both tests hold. Final codas have one form per nonempty length, and the absent optional supplies the empty form. These changes affect internal proofs without changing ordinary word division or word classes.
 

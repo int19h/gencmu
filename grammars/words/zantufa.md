@@ -198,7 +198,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 
 ## Hesitation in the word stream
 
-A whole run of `y` is one hesitation token, whatever its length. It follows the BPFK treatment of hesitation as noise.
+A whole run of `y` is one hesitation token, whatever its length. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace.
 
 The words stage derives space behavior from `Spacing` and its `Y-Letters` test.
 
@@ -235,7 +235,7 @@ Zantufa's letter rule for `m` refuses only another `m` among the consonants. cam
 
 The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-Zantufa's `Y` reads a whole run of `y` as one token, so its `spaces` treats the whole run as space. This grammar also reads each run whole, including attached hesitation that the words stage retains. The reference particle rule instead divides an odd attached run into one y and the even remainder. The whole-run rule follows the BPFK treatment of hesitation as noise.
+Zantufa's `Y` reads a whole run of `y` as one token, so its `spaces` treats the whole run as space. This grammar also reads each run whole, including attached hesitation that the words stage retains. The reference particle rule instead divides an odd attached run into one y and the even remainder. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The whole-run rule follows this treatment.
 
 Erasure can observe this division. In `ra'oi brodyyyy si si`, the quoted `brody` leaves one hesitation token. The first `si` erases the hesitation, and the second erases the quote. The reference division leaves two hesitation tokens, so two erasures retain the quote.
 

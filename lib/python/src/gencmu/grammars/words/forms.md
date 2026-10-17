@@ -16,6 +16,8 @@ The prose uses these Lojban terms for words:
 - A selma'o is a word class of cmavo.
 - A brivla is a predicate word.
 - A cmevla is a name word.
+- A rafsi is a shortened word form used inside compounds.
+- A gismu is a root word.
 
 The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as its family. The other dialects stitch [bpfk.md](bpfk.md), with [experimental.md](experimental.md) or [zantufa.md](zantufa.md) after it. The lexicon is [lexicon-cll.md](lexicon-cll.md), [lexicon-experimental.md](lexicon-experimental.md) or [lexicon-zantufa.md](lexicon-zantufa.md), and it gives each cmavo its selma'o.
 
@@ -39,7 +41,7 @@ A foreign run is not an error here. The words stage decides whether a foreign ru
 
 In `cll-ebnf`, a syllable comma has an empty value, so `nonpause-phoneme` reads its `Syllable-Break` tag. The other Lojban dialects drop commas in the phoneme stage.
 
-A run that divides into words divides in one way only. The word forms of each family make sure of that. So the choice of the stage among parses never decides anything here.
+Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is the exception. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading. The other word forms fix every boundary, so the stage's `lazy` choice decides nothing else.
 
 ```jbogenbau
 %ambiguity-resolution lazy
@@ -127,7 +129,7 @@ The stage reads the words of a run from the left. Each word after the first can 
 
 A nucleus is the vowel or diphthong of a syllable.
 
-The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar of the BPFK word forms. [bpfk.md](bpfk.md) translates it. Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
+The BPFK word forms set only `Onset` and `Continued`, with the meaning that the PEG gives them. The PEG is the parsing expression grammar from which [bpfk.md](bpfk.md) derives its word forms. That document states the morphology's rules directly and [lists its departures](bpfk.md#differences-from-cll-and-the-reference-peg). Every word is `Continued`, and a word that does not begin with a nucleus is `Onset`, a name included. Their words look past their own ends, as the words of the PEG do, and decide the rest themselves.
 
 ```jbogenbau
 %rule run-words

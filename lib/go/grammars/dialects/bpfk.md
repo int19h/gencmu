@@ -1,12 +1,12 @@
 # CLL syntax with BPFK word forms
 
-This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms use a parsing expression grammar (PEG).
+This dialect combines syntax from *The Complete Lojban Language* (CLL) with the working word forms of the BPFK, the Lojban language planning committee. Those word forms derive from a parsing expression grammar (PEG).
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
 A tag marks a token by an identifier.
 
-[CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that grammar in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) translates that grammar rule by rule.
+[CLL 1.3.4](https://github.com/int19h/cll/blob/v1.3.4/chapters/a02.xml) prints that PEG in appendix A2. [`../words/bpfk.md`](../words/bpfk.md) derives from it and states the morphology's rules directly. Its [closing section](../words/bpfk.md#differences-from-cll-and-the-reference-peg) lists deliberate departures and their reasons.
 
 The executable baseline is camxes-std, the standard grammar of the camxes parser: `camxes.peg` at ilmentufa commit [`778ea138f7d150121ca722db7536ce3b123943ac`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg).
 

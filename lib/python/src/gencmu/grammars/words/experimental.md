@@ -4,7 +4,7 @@ This document is part of the forms stage in the [experimental](../dialects/exper
 
 A layer is a document that changes earlier rules. This layer changes the word forms in [bpfk.md](bpfk.md). A lookahead tests input without reading it.
 
-The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three translated rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
+The baseline is camxes-exp, the experimental grammar of the camxes parser, written as a parsing expression grammar (PEG). The rule names follow camxes-exp, while their comments state the morphology constraints, as in bpfk.md. The section on glide letters adds a test of gencmu's own to three inherited rules. The [Zantufa](../dialects/zantufa.md) dialect makes only the first change, in [zantufa.md](zantufa.md). [The notation document](../../docs/notation.md) explains the notation.
 
 The prose uses these Lojban terms for words:
 
