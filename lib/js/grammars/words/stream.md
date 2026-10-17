@@ -824,7 +824,7 @@ The dialects use eight departures from CLL.[^cll-c19] Items 2, 4, and 8 differ i
 
 8. Except in Zantufa, SU erases back to the last surviving word of NIhO, LU, TUhE, or TO. That word survives. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. Magic Words and camxes-std name these boundaries. The dialects keep the boundary word, as camxes-std does. Its [`su_word`](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L402) excludes `NIhO_clause`, `LU_clause`, `TUhE_clause`, and `TO_clause`.
 
-   CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A stop after LIhU or TOI has closed the quote or parenthesis, and every NIhO and TUhE stop, follow Magic Words and camxes-std alone.
+   CLL[^cll-s19-13] says that SU "erases the entire text". A stop at an open LU or TO agrees with CLL's `LU text` and `TO text`[^cll-c21]. CLL[^cll-s19-15] names these subordinate texts. A stop at an LU or TO that a later LIhU or TOI closed follows Magic Words and camxes-std alone, and so does every NIhO and TUhE stop.
 
    The NIhO and TUhE stops follow Magic Words and camxes-std alone. They depart from CLL[^cll-s19-13] under any reading.
 
