@@ -43,7 +43,7 @@ AFTER_LOAD = ("result", "brackets", "warnings", "features")
 
 
 class EngineCases(unittest.TestCase):
-    def test_shared_whole_dialects_keep_the_sources_pipeline_and_cache_mode(self) -> None:
+    def test_whole_dialect_cases_share_sources_but_load_fresh_dialects(self) -> None:
         documents = {
             "memo-a.md": '```jbogenbau\n%include "../dialects/notation.md"\n```\n',
             "memo-b.md": '```jbogenbau\n%include "../dialects/bpfk.md"\n```\n',
@@ -54,8 +54,10 @@ class EngineCases(unittest.TestCase):
             self.assertIsNone(error)
             again, error = load_case_dialect({**case, "documents": dict(reversed(list(documents.items())))})
             self.assertIsNone(error)
-            self.assertIs(again, first)
-            self.assertEqual(load.call_count, 1)
+            # A case never sees a dialect that an earlier case used.
+            self.assertIsNot(again, first)
+            self.assertEqual(load.call_count, 2)
+            self.assertIs(load.call_args_list[1].args[0], load.call_args_list[0].args[0])
             other, error = load_case_dialect({**case, "pipeline": "memo-b.md"})
             self.assertIsNone(error)
             self.assertNotEqual(other.stage_names, first.stage_names)
