@@ -251,6 +251,8 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 
 `%conditions` lists predicates that the captured parts must satisfy. Its comma-separated list can start with a comma.
 
+On `%features`, the clause tests stage input before parsing ([Pipelines](../../docs/notation.md#pipelines)).
+
 `%emits` lists output items, or means one whole-rule item when it has no items. A clause without a target also applies to that whole-rule item.
 
 A valid target is a capture or `ε`, which inserts a token. Recognition admits names and ranges too, so the reader reports an invalid target at that item.

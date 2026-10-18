@@ -307,7 +307,7 @@ After admission, rule flags take precedence over the stage directive. With no fl
 
 ## Feature guards
 
-A feature is a name that is on or off at each stage of a parse. The pipeline can enable a feature from a selected stage onward (see "Pipelines"). The caller, the program or person that asks for the parse, can turn features on for every stage. The caller can also disable features. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
+A feature is a name that is on or off at each stage of a parse. The pipeline can enable a feature from a selected stage onward (see "Pipelines"). The caller, the program or person that asks for the parse, can turn features on for every stage. The caller can also disable features. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result (see "Pipelines").
 
 An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
 
@@ -572,6 +572,8 @@ A capture changes nothing about how its rule is interpreted. Plain optionals ret
 Diagnostic bookkeeping can follow expansion. Production numbers, witness action lists, reported tied pairs and their order, and elision-only competitors can differ. None of these diagnostic choices changes a verdict, accepted tree, tags, ranking, or query eligibility.
 
 ## Conditions
+
+A `%features` directive also accepts `%conditions` on the stage input, evaluated before parsing (see "Pipelines").
 
 `%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete.
 
@@ -1032,9 +1034,11 @@ Here `$` denotes all input tokens as one span, without a constituent or a positi
 
 Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, and `.split`.
 
-These methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
+Apart from the ban on a rule argument to `.tags`, these methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
 
 Other methods and tree comparisons `≅` and `≇` are loading errors, even in a condition that cannot hold.
+
+The loader reports every feature-condition error at its `%features` directive.
 
 Named captures are loading errors. The presence predicate `$` is always true, including for empty input.
 
@@ -1042,19 +1046,21 @@ Constants use the selected stage's binding rules. Each condition must have Boole
 
 A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
 
-A stage-local feature is a loading error if any earlier stage tests it, including through a classifier guard.
+A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier guard. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
+
+Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Repeated declarations in one stage are legal, and each evaluates in order.
 
 This restriction applies even when the same feature has a global declaration or the caller enables it.
 
-The loader examines surviving rules and declarations before feature filtering. Stage replacement also clears its local feature declarations.
+Every feature check applies only to surviving stage definitions, including feature conditions and tests in rule alternatives. The loader does not check declarations or alternatives that replacement discards. Source syntax, DOM shape and depth, and include errors still fail the load. The loader examines surviving rules and declarations before feature filtering. Stage replacement also clears its local feature declarations.
 
 A caller-enabled feature is on everywhere. A local declaration never removes an enabled feature.
 
-If a conditional declaration holds for a feature in `without_features`, the parse returns `feature-conflict` with the feature and stage names.
+If a conditional declaration holds for a feature that the caller disables, the parse returns `feature-conflict` with the feature and stage names.
 
 The engine evaluates the declarations in order. It stops at the first declaration that holds and names a disabled feature, or whose condition raises a runtime error. That declaration decides the result. Within one declaration, the error names the first disabled feature in operand order.
 
-An unconditional declaration respects `without_features`. An `until` before the stage never evaluates its declarations.
+An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
 Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 

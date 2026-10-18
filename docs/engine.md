@@ -2237,7 +2237,7 @@ To splice a pipeline, the loader reads the pipeline document's items (§9) in or
 
 Stage selection continues across grammar blocks and include boundaries. The includer's next item goes into the stage selected at the end of the include.
 
-Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2).
+Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. Later extensions append to the replacement. The loader reads every source document, including source whose stage items a later replacement discards. Source syntax errors and include errors still fail the load. Only surviving stage definitions undergo grammar validation (§2). This includes every feature check in this section. Discarded feature declarations and replaced rule alternatives undergo none of these checks. Source syntax, DOM shape and depth, and include errors still fail the load.
 
 A `%features` before the first stage selector declares global defaults. Every later `%features` belongs to the selected stage, including across include boundaries. The loader stitches each stage's other items in order (§2). Each of these is an error of the dialect, and the loader reports it at the item named:
 
@@ -2265,9 +2265,9 @@ Here `$` is the whole input span, with token tags unioned and no constituent tag
 
 Bare `$` reads token values. Legal methods are `tags` without arguments, `classes`, `value`, `image`, `source-text`, and `decomposed-source-text`.
 
-The methods `first-token`, `tokens-after-first`, `last-token`, and `split` are also legal. Each method keeps its usual types and arities.
+The methods `first-token`, `tokens-after-first`, `last-token`, and `split` are also legal. Apart from the ban on a rule argument to `tags`, each method keeps its usual types and arities.
 
-All other methods, named captures, and tree comparisons are loading errors there, even in unreachable branches.
+All other methods, named captures, and tree comparisons are loading errors there, even in unreachable branches. The loader reports every feature-condition error at its `%features` directive. This includes type errors, unknown constants, and closed delimiter errors.
 
 Constants bind in the selected stage (§2). Conditions use the usual Boolean type rules (§10).
 
@@ -2291,7 +2291,9 @@ A runtime grammar error in a feature condition ends the stage with the usual `gr
 
 An `until` before a stage never evaluates that stage's declarations. Each stage parses at most once.
 
-A stage-local feature is a loading error if a surviving earlier stage tests it, whether or not it also has a global declaration.
+A stage-local feature is a loading error if a surviving earlier stage tests it, whether or not it also has a global declaration. The loader reports it at the local `%features` declaration, and the message names the earlier stage.
+
+Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Several declarations of one feature in the same stage are legal. The engine evaluates each declaration in order.
 
 The loader examines rule guards and classifier guards before feature filtering. This includes classifiers used by conditions.
 
@@ -2303,7 +2305,7 @@ The result's `ok` is true when every stage run accepted without an error. The re
 
 A dialect's features are the names its guards use in any stage and the names its `%features` declare. The guards counted are those of each stage's rules after stitching (§2). Alternatives that `%redefine-rule` replaces and stage items that `%redefine-stage` discards no longer count. The gates of every classifier's entries count too. The loader counts them before any gate drops an alternative (§3.1), whatever features are on.
 
-Local declarations also contribute their names to this inventory.
+Local declarations also contribute their names to this inventory. An unconditional local declaration sets `default:true`, as a global declaration does, even when the caller stops before that stage. A conditional declaration sets no default.
 
 Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a guard uses it as `f!`. A name that one guard uses as a gate and another as a warning is an error of the dialect. The loader finds this error when it loads the dialect. A name that only `%features` declares is a gate. A dialect lists its features, each with its kind and whether an unconditional `%features` declares it as a default. Conditional declarations contribute names, but no defaults.
 

@@ -18,6 +18,8 @@ if result.ok {
 println!("{}", gencmu::to_json(&result));
 ```
 
+A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
+
 ## Loading a dialect
 
 `load_dialect(name)` loads a bundled dialect, the pipeline document `grammars/dialects/NAME.md`. `load_dialect_file(path)` loads a pipeline document from disk, and finds the documents that it includes relative to it. `load_dialect_sources(sources, pipeline)` loads documents held in memory, from any iterable of `(path, text)` pairs. Each returns `Result<Dialect, gencmu::Error>`. A tie while the notation reads a document is an error of the kind `ErrorKind::Grammar` that names the document, with no line or column.

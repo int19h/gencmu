@@ -22,7 +22,7 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 32 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 32 supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
 The compatibility boundary is the format number and the notation contract. Callers supply format-32 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
@@ -32,7 +32,7 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 A feature is a named switch that the grammars of the dialect test (engine §13).
 
-A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Only unconditional declarations set defaults. Conditional declarations contribute feature names without defaults.
+A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller’s last stage. Conditional declarations contribute feature names without defaults.
 
 ### Parsing
 
@@ -40,8 +40,8 @@ A loaded dialect parses a text with these configuration arguments. Each argument
 
 | Argument | Default | Meaning |
 | --- | --- | --- |
-| features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
-| without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. A name in both lists is a usage error. |
+| features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on. Unknown names are legal and do not change grammar behavior. |
+| without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. Unknown names are legal and do not change grammar behavior. A name in both lists is a usage error. |
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
@@ -64,6 +64,12 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 ### The result
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
+
+The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
+
+It includes caller-enabled names, including unknown names, and global defaults, except names that the caller disables. It also includes features enabled by declarations in stages that the run reaches. A cutoff before a stage excludes its declarations.
+
+A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand can enable features before that declaration reports a conflict. Each parse starts with a fresh feature set.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 

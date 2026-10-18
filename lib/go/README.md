@@ -22,6 +22,8 @@ fmt.Println(gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true}))
 data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 ```
 
+A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
+
 ## Loading a dialect
 
 - `LoadDialect(name)` loads a bundled dialect. `name` is the name of a pipeline document under `grammars/dialects/` without `.md`.

@@ -14,6 +14,8 @@ gencmu.to_json(result)
 gencmu.to_brackets(result, show_elided=True)
 ```
 
+A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
+
 ## Loading a dialect
 
 A pipeline document and the grammar documents that it includes define a dialect. The pipeline declares its stages with `%stage`, and the grammar documents of each stage with `%include`. It declares the features that it turns on with `%features` (`docs/notation.md`, "Pipelines").

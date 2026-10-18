@@ -25,13 +25,13 @@ A stage has one of these forms:
 {"name":"syntax","verdict":"tie","witness":[ACTION,ACTION]}
 ```
 
-`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejected ([engine §6](engine.md#6-choosing-a-parse) and [§13](engine.md#13-the-pipeline)). `witness` is present only for a `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
+`verdict` is `unique`, `resolved`, `tie`, or `null` for a stage that rejects or fails before recognition ([engine §6](engine.md#6-choosing-a-parse) and [§13](engine.md#13-the-pipeline)). `witness` is present only for a `tie`. It is the pair of actions at the first visible difference between the two readings of the tie (engine §6). The action of the first reading comes first.
 
 If there is no visible difference, it is the pair at their first difference. That is the first pair of differing actions of the whole sequences, transparent ones included. A derivation whose visible sequence is a proper prefix of the other's differs from it where the shorter ends.
 
 The readings themselves are in the result's error (below), and the stage holds no tree of them. The canonical order *T* of engine §6 orders the ambiguity diagnostics. The canonical tie-break keys never turn a tie into an accepted reading.
 
-`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
+`output` is the emitted tokens of a stage whose verdict is `unique` or `resolved`, the last stage included. It is absent for a rejection or a failure before recognition, including a feature conflict or a feature-condition runtime error. It is absent for a tie, since a tied stage emits nothing (engine §6, §11). It is absent when the emission of the stage fails (engine §11). It is also absent where the check of `elision-only` meets an error of the grammar or loses its witness (engine §7.7, §7.9).
 
 A token has this form. This one is the token of `mi` that the forms stage of the `cll-ebnf` dialect emits:
 
@@ -176,7 +176,9 @@ Its envelope is `{"format":32,"rules":[RULE...],"directives":[DIRECTIVE...],"con
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 32 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 32 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9.
+DOM format 32 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 32 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+
+The change from DOM format 31 to 32 adds `conditions` to feature directives. The change from parse-result format 13 to 14 adds the `feature-conflict` error kind and its `feature` member.
 
 Format 32 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":32,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 

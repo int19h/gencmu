@@ -486,7 +486,7 @@ The erasers `sa` and `su` reach back over any number of words. So the parser kee
 
 The cost then grows in proportion to the text, but each word costs more. In JavaScript, a text of 13,700 characters takes about 22 seconds with the feature and 6.5 without it. These erasers are rare, so they are behind a feature, `sa-su`.
 
-SA and SU tokens require the feature, including tokens inside quotations or erased spans. The input classes determine activation before word reading.
+Any SA or SU input token activates the feature, including a token inside a quotation or an erased span.
 
 The words stage declares `sa-su` with conditions on its input classes. It enables the feature when any input token carries SA or SU. Each stage parses once. A caller that disables a feature whose conditional declaration holds for the stage input gets a `feature-conflict` result.
 

@@ -58,7 +58,7 @@ A usage case can supply an invalid field. The runner passes that field to the li
 
 Each case follows the global and stage-local feature declarations of its pipeline (engine §13).
 
-The paired condition-loading cases stop before the condition's stage, so a runtime failure cannot satisfy their expectation.
+The condition-loading cases stop before the condition's stage, so a runtime failure cannot satisfy their expectation.
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
@@ -76,6 +76,8 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
 
+`expect.enabledFeatures` compares the result’s enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
+
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
 A case can also parse its input several times with the one loaded dialect. Then it has `parses`, a list of objects, each with its own `options` and `expect`, in place of the case's `options` and `expect`:
@@ -90,7 +92,7 @@ The library loads the dialect once, and then parses the input with each item's c
 
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
 
-For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
 
@@ -357,6 +359,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 - `append`: the given value is added at the end of the list there.
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
+
+The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled dialects.
 
 Corpus identifiers stay stable when grammar rules change.
 
