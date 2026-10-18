@@ -498,7 +498,10 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
             while let Some(part) = stack.pop() {
                 match part {
                     Part::C(c) => match c {
-                        Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
+                        Cond::Boundary(_, _, targets, location) => {
+                            roots.extend(targets.iter().filter(|target| target.starts_with(|c: char| c.is_ascii_uppercase())).cloned());
+                            atoms.push((alt, targets, location));
+                        }
                         Cond::Matches(_, r) | Cond::Begins(_, r) => roots.extend(r.iter().cloned()),
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),

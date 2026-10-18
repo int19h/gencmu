@@ -889,9 +889,11 @@ impl<'a> Scope<'a> {
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
-            // A span is never a value (§10); the reader refuses one. And
-            // stitching gives every constant its value (§2).
+            // String contexts project captures and derived spans to input values (§10).
             Term::Capture(_) => LTerm::Value(self.span(term)?),
+            Term::Call(name, _) if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except") => {
+                LTerm::Value(self.span(term)?)
+            }
             Term::Pattern(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {

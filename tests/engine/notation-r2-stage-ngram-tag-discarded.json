@@ -1,0 +1,14 @@
+{
+  "description": "Stage replacement discards the ngram tag feature declaration (engine section 13).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions A.ngrams(1) = ∅\n%rule text ε\n%redefine-stage main\n%ambiguity-resolution greedy\n%rule text ε\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": []
+  }
+}

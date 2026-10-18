@@ -1,0 +1,16 @@
+{
+  "description": "Stage replacement retains the span subset feature declaration (engine section 13).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions $ ⊆ \"a\"\n%rule text ε\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "pipeline.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

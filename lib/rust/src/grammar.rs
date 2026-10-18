@@ -1759,7 +1759,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 }
             }
             ("head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except", _) => {
-                Err(format!("{name}() is a span, not a value"))
+                check_span(grammar, term)
             }
             (
                 "value"

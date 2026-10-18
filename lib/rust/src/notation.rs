@@ -1039,10 +1039,15 @@ impl<'a> Reader<'a> {
                 // The reader has checked each comparison of a condition, so
                 // a condition's terms agree; the term guarded last must be a
                 // tag set, an error at its guard.
-                let kind = crate::dom::joined_type(&[ty], "⟹").map_err(|p| self.error(last, p))?;
-                if kind == Type::Pattern {
-                    return Err(self.error(last, "a guarded term requires a set"));
-                }
+                let kind = if self.feature_context.get() {
+                    Type::Any
+                } else {
+                    let kind = crate::dom::joined_type(&[ty], "⟹").map_err(|p| self.error(last, p))?;
+                    if kind == Type::Pattern {
+                        return Err(self.error(last, "a guarded term requires a set"));
+                    }
+                    kind
+                };
                 let mut guarded = term;
                 while let Some(cond) = frame.conds.pop() {
                     guarded = Term::If(Box::new(cond), Box::new(guarded));
