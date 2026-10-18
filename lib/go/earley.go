@@ -343,9 +343,48 @@ type step struct {
 
 func (r *recognizer) set(k int) *eset {
 	for len(r.sets) <= k {
-		r.sets = append(r.sets, &eset{index: map[itemKey]*item{}})
+		r.sets = append(r.sets, r.run.freshSet())
 	}
 	return r.sets[k]
+}
+
+// freshSet is an empty set, one that a finished nested recognition left
+// where the run has one, so that its tables keep their room. A recognizer
+// of the library's own tests can have no run.
+func (run *stageRun) freshSet() *eset {
+	if run != nil && len(run.spareSets) > 0 {
+		n := len(run.spareSets)
+		s := run.spareSets[n-1]
+		run.spareSets = run.spareSets[:n-1]
+		return s
+	}
+	return &eset{index: map[itemKey]*item{}}
+}
+
+// recycle keeps the sets of a nested recognition that gave its answer,
+// emptied, for later recognitions of the run. The items stay where the
+// forest holds them, and only the set's own storage is reused.
+func (run *stageRun) recycle(r *recognizer) {
+	for _, s := range r.sets {
+		clear(s.items)
+		clear(s.queue)
+		clear(s.index)
+		clear(s.waiting)
+		clear(s.predicted)
+		clear(s.syms)
+		clear(s.empties)
+		*s = eset{
+			items:     s.items[:0],
+			queue:     s.queue[:0],
+			index:     s.index,
+			waiting:   s.waiting,
+			predicted: s.predicted,
+			syms:      s.syms,
+			empties:   s.empties,
+		}
+		run.spareSets = append(run.spareSets, s)
+	}
+	r.sets = nil
 }
 
 // recognize runs the recognizer over tokens [base, base+n) of the stage with

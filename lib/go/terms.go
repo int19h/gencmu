@@ -864,6 +864,7 @@ func (run *stageRun) drive(root *recognizer) {
 			// can reuse.
 			run.walks = append(run.walks, r.w)
 			r.w = walk{}
+			run.recycle(r)
 		}
 	}
 }

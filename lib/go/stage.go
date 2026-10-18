@@ -103,6 +103,9 @@ type stageRun struct {
 	// walks holds the walks of recognitions that have finished, for the
 	// next to reuse, since most nested parses are short and many.
 	walks []walk
+	// spareSets holds the emptied sets of finished nested recognitions,
+	// which later recognitions reuse (earley.go).
+	spareSets []*eset
 }
 
 // walk is a walk for a new recognition: one that a finished recognition
