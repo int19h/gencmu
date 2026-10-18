@@ -156,7 +156,16 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The layer follows camxes-exp's ordered choice where that choice decides what a text means. A query is a parse requested by a condition. Bare NA and tag terms follow the [KU rule](../syntax/experimental.md#terms). Its [departure list](../syntax/experimental.md#deliberate-ku-omission-limits) explains the deliberate limits. Other queries preserve their captured prefixes. The [syntax document](../syntax/experimental.md) lists the exceptions.
+The syntax layer preserves these camxes-exp preferences among complete readings:
+
+- A connective directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
+- A sumti connection takes priority over a term connection ([terms](../syntax/experimental.md#terms)).
+- A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
+- A final `gi'e ke` group belongs to the bridi-tail connective ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
+- A number or letter string consumes every continuation without written BOI ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
+- A subscript after another subscript nests ([free modifiers](../syntax/experimental.md#free-modifiers-vocatives-and-indicators)).
+
+The syntax document's [closing section](../syntax/experimental.md#differences-from-cll-and-camxes-exp) lists departures and their reasons. Bare NA and tag terms use its explicit [KU omission limits](../syntax/experimental.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
 
 The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
 
@@ -178,7 +187,7 @@ After `vu'o`, a connected sumti can follow without relative clauses here. So `mi
 
 ### Preferred readings
 
-Some readings differ where camxes-exp's ordered choice picks a reading that the grammar does not prefer. This dialect follows camxes-exp where its choice decides what a text means. It keeps its own reading where camxes-exp's choice only follows from the order in which a PEG tries its rules. Two texts show this.
+The examples below compare this layer's explicit preferences with camxes-exp. Some agree with its ordered choice, and others differ. The syntax document names each rule and its reason.
 
 First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 

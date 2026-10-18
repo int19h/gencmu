@@ -600,7 +600,7 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 
 ## Numbers, lerfu strings and mekso
 
-The layer reads mekso with the rules below. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
+The layer reads mekso with the rules below. Its number and lerfu rules leave the CLL helper `number-continuation` unreachable because their conditions read the actual following node. No reachable rule calls `operand`, `operand-1` to `operand-3` or `rp-operand`. The forms are these:
 
 - A number starts with PA, `ni'e` selbri or `mo'e` sumti. It continues with those parts or lerfu words. A lerfu string starts with a letter word and continues with letter words or PA. Thus `li cy mu my ci no` is one lerfu string, and `li pa by` is one number.
 - `mex-2` reads a number, a lerfu string, a `vei` group, a forethought connection, or a `la'e` or `na'e` qualifier. It can also be a forethought expression or a reverse Polish expression. An operator that begins with an unconverted, ungrouped joik, jek or ek unit needs PEhO, including connected operators. Other initial forms permit omitted PEhO. The operands `ni'e` and `mo'e` are inside numbers. There is no `jo'i` array, although the lexicon has `jo'i`.
@@ -1039,7 +1039,11 @@ This layer accepts `la'e to mi pa broda` and `na'e to mi pa broda`, while camxes
 
 Where no sumti reading remains, this layer and CLL reject `ge abu gi by broda cu klama`. camxes-exp takes the quantifier `ge abu gi by`. In `lo ge by gi re mi broda`, this layer takes `ge by gi re mi` as the possessor. camxes-exp takes `ge by gi re` as the quantifier of `mi`. Numeric forethought quantifiers remain possible, as in `lo ge pa gi re mi broda`.
 
-The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots. The joik's initial NA, extended forethought forms and gihek forms follow camxes-exp. The atomic tenses and FA atom follow its `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
+The connective rules omit optional NAI because the indicator stage attaches those words first. This applies to ek, jek, joik, interval, gek, guhek and gik, as well as gihek. CLL instead gives these rules NAI slots.
+
+The joik's initial NA and extended forethought forms follow camxes-exp. Its bare JA and JOI gihek alternatives instead use `connective` here, because `bridi-tail-connective` already admits that family. A bare JA or JOI answer therefore uses the text-initial connective slot, rather than a gihek fragment.
+
+The atomic tenses and FA atom follow camxes-exp's `tense_modal`. Its `stag` reads the same words as its `tag`, as in this layer.
 
 Only `ga` and `gu` introduce the extended forethought forms, so `ge je` and `gu'e je` remain invalid.
 
