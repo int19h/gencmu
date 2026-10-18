@@ -848,7 +848,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
     out
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct QueryPrefix {
     pub(crate) nullable: bool,
     pub(crate) leading_close: bool,

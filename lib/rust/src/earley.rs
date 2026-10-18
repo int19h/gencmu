@@ -812,8 +812,8 @@ pub(crate) struct Shared<'a> {
     pub emission_boundaries: FxMap<(bool, u32), FxSet<String>>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub machine: Option<Rc<RefCell<Machine>>>,
-    close_demands: Vec<crate::restoration::LocalDemand>,
-    close_prefixes: Vec<crate::restoration::QueryPrefix>,
+    close_demands: Arc<[crate::restoration::LocalDemand]>,
+    close_prefixes: Arc<[crate::restoration::QueryPrefix]>,
     pattern_grammar: usize,
     pub tags: Tags,
     pub unicode: &'a Unicode,
@@ -844,8 +844,8 @@ impl<'a> Shared<'a> {
             boundaries: None,
             emission_boundaries: FxMap::default(),
             machine: None,
-            close_demands: Vec::new(),
-            close_prefixes: Vec::new(),
+            close_demands: Arc::new([]),
+            close_prefixes: Arc::new([]),
             pattern_grammar: 0,
             tags: Tags::new(),
             unicode,
@@ -1459,12 +1459,26 @@ impl<'t, 'g> Run<'t, 'g> {
     }
 }
 
-impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
-    fn prepare_patterns(&mut self) {
-        let key = self.g as *const Lowered as usize;
-        if self.shared.pattern_grammar == key {
-            return;
-        }
+/// What every recognition of one lowered grammar prepares from the grammar
+/// alone: the tree patterns that its conditions and terms demand, its
+/// restoration demands and query prefixes, and its boundary records before
+/// any parse adds to them. A lowered grammar prepares it once, at its first
+/// recognition, and every parse of it then starts from it.
+#[derive(Debug)]
+pub(crate) struct Preparation {
+    roots: Vec<Pattern>,
+    /// Whether a recognition needs a pattern machine.
+    machine: bool,
+    /// Whether a rule observes closes, so that the machine records
+    /// observations.
+    observes: bool,
+    close_demands: Arc<[crate::restoration::LocalDemand]>,
+    close_prefixes: Arc<[crate::restoration::QueryPrefix]>,
+    boundaries: Option<crate::boundary::Records>,
+}
+
+impl Preparation {
+    fn new(g: &Lowered) -> Preparation {
         fn cond(c: &LCond, out: &mut Vec<Pattern>) {
             match c {
                 LCond::Tree(_, _, p) => out.push(p.clone()),
@@ -1505,7 +1519,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let mut roots = vec![];
-        for p in &self.g.prods {
+        for p in &g.prods {
             for (c, _) in &p.conds {
                 cond(c, &mut roots);
             }
@@ -1530,7 +1544,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 _ => {}
             }
         }
-        for plan in self.g.ranked.plans.values() {
+        for plan in g.ranked.plans.values() {
             for group in &plan.conditions {
                 for (c, _) in group {
                     cond(c, &mut roots);
@@ -1540,22 +1554,35 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 term(t, &mut roots);
             }
         }
-        self.shared.close_demands = crate::restoration::local_demands(self.g);
-        let close_rules = crate::restoration::demanded(self.g);
-        let observes = !close_rules.is_empty();
-        self.shared.close_prefixes = if observes { crate::restoration::query_prefixes(self.g) } else { Vec::new() };
-        self.shared.machine = if roots.is_empty() && self.g.ranked.slots.is_empty() && !observes {
-            None
-        } else {
-            {
-                let mut machine = Machine::new(&roots);
-                if observes {
-                    machine.observations = Some(crate::restoration::Observations::new());
-                }
-                Some(Rc::new(RefCell::new(machine)))
+        let observes = !crate::restoration::demanded(g).is_empty();
+        Preparation {
+            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes),
+            roots,
+            observes,
+            close_demands: crate::restoration::local_demands(g).into(),
+            close_prefixes: if observes { crate::restoration::query_prefixes(g) } else { Vec::new() }.into(),
+            boundaries: crate::boundary::Records::new(g),
+        }
+    }
+}
+
+impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
+    fn prepare_patterns(&mut self) {
+        let key = self.g as *const Lowered as usize;
+        if self.shared.pattern_grammar == key {
+            return;
+        }
+        let prepared = self.g.prepared.get_or_init(|| Arc::new(Preparation::new(self.g)));
+        self.shared.close_demands = prepared.close_demands.clone();
+        self.shared.close_prefixes = prepared.close_prefixes.clone();
+        self.shared.machine = prepared.machine.then(|| {
+            let mut machine = Machine::new(&prepared.roots);
+            if prepared.observes {
+                machine.observations = Some(crate::restoration::Observations::new());
             }
-        };
-        self.shared.boundaries = crate::boundary::Records::new(self.g).map(|m| Rc::new(RefCell::new(m)));
+            Rc::new(RefCell::new(machine))
+        });
+        self.shared.boundaries = prepared.boundaries.clone().map(|m| Rc::new(RefCell::new(m)));
         self.shared.pattern_grammar = key;
     }
     fn observes_closes(&self, item: Item) -> bool {

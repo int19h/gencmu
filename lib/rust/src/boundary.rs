@@ -27,7 +27,7 @@ impl Record {
             && self.end.is_subset(&lower.end)
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Records {
     pub records: Vec<Record>,
     index: FxMap<Record, u32>,

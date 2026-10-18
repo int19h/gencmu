@@ -359,6 +359,26 @@ pub(crate) struct Lowered {
     /// Whether a rule has an elidable optional's terminator, found once so
     /// that a nested query does not look at every rule.
     pub elides: bool,
+    /// What recognitions of this grammar prepare from it, made at the first.
+    pub prepared: Prepared,
+}
+
+/// The preparation of a lowered grammar, made once. A copy of the grammar
+/// starts without it, since the copy can change.
+#[derive(Debug, Default)]
+pub(crate) struct Prepared(std::sync::OnceLock<Arc<crate::earley::Preparation>>);
+
+impl Clone for Prepared {
+    fn clone(&self) -> Self {
+        Prepared::default()
+    }
+}
+
+impl std::ops::Deref for Prepared {
+    type Target = std::sync::OnceLock<Arc<crate::earley::Preparation>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1636,6 +1656,7 @@ fn lower_mode(
         reads_until,
         classifiers,
         implications: grammar.implications.clone(),
+        prepared: Prepared::default(),
     };
     if !validation {
         lowered.ranked = ranked_runtime(grammar, &lowered);
