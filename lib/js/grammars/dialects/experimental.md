@@ -160,6 +160,7 @@ A PEG has ordered choice. Ordered choice keeps the first matching alternative. T
 
 The syntax layer preserves these camxes-exp preferences among complete readings:
 
+- A free modifier or a tense takes the earliest and longest span (`leftmost-longest`, [parse preferences](../syntax/experimental.md#choosing-among-parses)).
 - A connective directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
 - A sumti connection takes priority over a term or bridi-tail connection ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
@@ -167,9 +168,13 @@ The syntax layer preserves these camxes-exp preferences among complete readings:
 - Without written BOI, a number consumes every following number part, and a letter string consumes every following letter ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
 - A subscript after another subscript nests ([free modifiers](../syntax/experimental.md#free-modifiers-vocatives-and-indicators)).
 
-Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection, but this layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`. camxes-exp also splits a run that mixes digits and letters, as in `li pa by`, while this layer reads it as one operand. The syntax document's [closing section](../syntax/experimental.md#differences-from-cll-and-camxes-exp) lists these and the other departures with their reasons. Bare NA and tag terms use its explicit [KU omission limits](../syntax/experimental.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
+Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection. This layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`.
 
-The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
+camxes-exp also splits a run that mixes digits and letters, as in `li pa by`, while this layer reads it as one operand.
+
+The syntax document's [closing section](../syntax/experimental.md#differences-from-cll-and-camxes-exp) lists these and the other departures with their reasons. Bare NA and tag terms use its explicit [KU omission limits](../syntax/experimental.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
+
+The `leftmost-longest` preference includes vocatives, but it compares only readings that pass the grammar's conditions.
 
 ### Explicit grammar differences
 
@@ -191,11 +196,11 @@ After `vu'o`, a connected sumti can follow without relative clauses here. So `mi
 
 The examples below compare this layer's explicit preferences with camxes-exp. Some agree with its ordered choice, and others differ. The syntax document names each rule and its reason.
 
-First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
+`la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
 In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
 
-Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one, as in `mi nelci lo nu mi djica gy ku .e lo nu do klama`. Only the meaning separates the two readings, so the grammar does not guess.
+Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one, as in `mi nelci lo nu mi djica gy ku .e lo nu do klama`. Only the meaning separates the two readings, so the grammar does not choose by meaning.
 
 A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 

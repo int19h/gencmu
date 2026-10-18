@@ -285,7 +285,7 @@ A bare NA term can also omit KU before any term in the same reading. These terms
 
 The KU test starts after the term's own free modifiers. The test of the next written word uses its selma'o. The gihek and term tests read the complete tree. They parse nothing again.
 
-Both written and omitted KU use `bare-na`, so the tree records every omitted KU. The closing-position condition applies only when KU is omitted.
+Both written and omitted KU use `bare-na`, so the tree records every omitted KU. The closing-position condition applies only when KU is omitted. `KU=""` matches only an omitted KU because an omitted terminator has an empty value.
 
 The same KU rule applies in lists and single-term positions. A written KU permits either term before any following constituent. A bare `na` cannot begin a term where its NA token starts a connective.
 
@@ -339,6 +339,7 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
 %const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI
 
 %const $BARE-TAG @(tag KU="" [#])
+%const $BARE-NA @(NA [#] KU="" [#])
 
 %rule term-3
   (* term_3 <- sumti / tag_term / termset *)
@@ -353,7 +354,7 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
   $n:NA # [+KU] #
 %conditions
   ¬$n.onward.begins(na-connective),
-  $ ≇ @(NA [#] KU="" [#]) ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ $BARE-NA ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -938,6 +939,10 @@ The statement connectives follow camxes-exp, including `mi klama joi .i do klama
 camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
 camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri. The final plain connection also excludes a whole KE-wrapped forethought sentence to keep that KE on the connective. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
+
+Only the final connection has the connective's KE-group alternative. This layer therefore accepts `mi broda gi'e ke ge brode gi brodi ke'e gi'e brodo` as a non-final plain connection, while camxes-exp rejects it.
+
+The headless-selbri exclusion also applies after a free modifier. Thus this layer rejects `mi broda gi'e to do toi ke brode ke'e gi'e brodo`, which camxes-exp accepts. This keeps the same KE boundary with or without a free modifier.
 
 ### Terms and descriptions
 
