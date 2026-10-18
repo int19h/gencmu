@@ -506,7 +506,7 @@ The count composes by addition over the packed forest, the shared graph of all p
 
 The syntax grammars declare `late-elision` ("Syntax conventions" below).
 
-The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages use `lazy`. Ordinary word forms divide a run in one way only. In the words stage, a magic word acts on what exists when it is read.
+The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages use `lazy`. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below. In the words stage, a magic word acts on what exists when it is read.
 
 A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
 

@@ -361,7 +361,7 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
   | stressed-y-less-rafsi short-final-rafsi
   | y-rafsi
   | stressed-y-rafsi
-  | [stressed-y-less-rafsi] initial-pair y  (* A stressed short rafsi has a vowel where initial-pair needs a consonant, so the optional cannot consume the required pair. *)
+  | [stressed-y-less-rafsi] initial-pair y  (* A stressed CVC or CVV rafsi differs from initial-pair in its second letter, and a stressed CCV rafsi has a vowel where the following y is required, so the optional cannot consume the required pair. *)
   | hy-rafsi
   | stressed-hy-rafsi
 
@@ -1010,11 +1010,11 @@ The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&o
 
 The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
 
-- The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this translation has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
-- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the translation leaves out `comma*`, with the same result, except in the letter word `ybu`.
+- The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this grammar has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
+- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the grammar leaves out `comma*`, with the same result, except in the letter word `ybu`.
 
   The PEG's `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. Where `ybu` fails, the PEG reads the `y` as hesitation, which is space. So the PEG rejects `y, bu` and `y , bu`, and reads `doi y, bu` as the letter word `doi bu`. The words stage reads the one letter word `y bu` in these texts (below). Both read `y ,bu` as that letter word.
-- The PEG reads a lowercase `h` as an apostrophe, and a consonant in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits every apostrophe as `'` and every consonant in lower case, so the translation reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
+- The PEG reads a lowercase `h` as an apostrophe, and a consonant in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits every apostrophe as `'` and every consonant in lower case, so the grammar reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
 - The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). The phoneme stage reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the PEG rejects. It emits a run of pause characters as one `PAUSE`.
 
 ### The ybu exception

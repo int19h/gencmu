@@ -1087,7 +1087,7 @@ For example, the experimental grammar can read `to mi klama` in two ways. One en
 
 The syntax stages of the bundled Lojban grammars use `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
 
-The forms and words stages are lazy. Ordinary word forms divide a run in one way only.
+The forms and words stages are lazy. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below.
 
 A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
 
