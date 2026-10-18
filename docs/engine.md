@@ -761,13 +761,13 @@ The channels are independent. An explicit image recipe can suppress descendant i
 
 An inserted `ε` token has no input parts. Its default strings are empty, and its item recipes can supply either channel. `ε :: ∅ := "'"` inserts an apostrophe as value and image. The token retains empty source text and the inserting rule's name.
 
-Every emitted token stores a value and image, including empty strings. Stage-zero tokens store both too. Empty tag sets are legal. Implications alter tags without changing strings. No phoneme-tag conflict or tag-to-string mapping exists.
+Every emitted token stores a value and image, including empty strings. Stage-zero tokens store both too. Empty tag sets are legal. Implications alter tags without changing strings. No tag-to-string mapping exists.
 
 `span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. A dialect normalizes through an ordinary stage. The engine supplies no lowercase mapping or comma removal.
 
-The input value keeps every character that its tokens store. A stressed `lA` can have normalized value `la` and image `lA`. `ma,i` can have value `mai` and image `ma,i`. Tags retain stress and syllable-break information. These are grammar mappings, not comparison behavior.
+The input value keeps every character that its tokens store. For example, a grammar can give `lA` value `la` and image `lA`. It can give `ma,i` value `mai` and image `ma,i`. Its tags can retain stress and syllable-break information. These are grammar mappings, not comparison behavior.
 
-Every comparison is exact. A zoi compound compares by the concatenation or value recipes of its ordinary parts. Its quote body concatenates its input token values by default. Foreign text has no placeholder value. Different foreign strings need not compare equally.
+Every comparison is exact.
 
 `span.source-text` is the original text over the source of the span's tokens (§1), and the empty string for an empty span.
 
@@ -2021,7 +2021,7 @@ Every stage whose verdict is `unique` or `resolved` emits tokens by walking its 
 
 - The stage walks the children of a constituent whose production has no emission, in order. A token that the constituent reads directly emits nothing.
 - A constituent whose production has an emission emits exactly the items of the emission, as dropped for its production (§3.6). It emits them in the order in which the emission lists them. The stage walks nothing inside it but the attachment captures of its items (below):
-  - A `$` item emits one token over its constituent, with inherited tags or its item tag clause. Two covering items cannot overlap input positions. Extra phonemes use inserted `ε` items, with empty spans.
+  - A `$` item emits one token over its constituent, with inherited tags or its item tag clause. Two covering items cannot overlap input positions. Extra tokens use inserted `ε` items, with empty spans.
   - A capture item emits one token covering the captured part, with the part's own tags, or with the tags of the item's term. The token takes the attachments that its item names (below).
   - An inserted `ε` item emits an ordinary empty-span token. Its default tags and strings are empty. Clauses can supply both strings and tags.
 - A constituent marked `%erased` emits nothing and supplies no counted parts. A merely unlisted part emits nothing but still contributes to a covering token. Erased source text remains inside the surrounding source envelope.
