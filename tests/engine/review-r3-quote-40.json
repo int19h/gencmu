@@ -1,0 +1,35 @@
+{
+  "description": "The rafsi quote accepts attached marks and quiet gaps, but cannot skip standalone material.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ra'oi .y. broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "ra'oi .y. broda",
+              "value": "ra'oi broda",
+              "tags": [
+                "Cmavo",
+                "RAhOI",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

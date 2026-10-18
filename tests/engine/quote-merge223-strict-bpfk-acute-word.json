@@ -94,11 +94,11 @@
           "name": "words",
           "output": [
             {
-              "image": "zo la",
+              "image": "zo la´",
               "value": "zo la",
               "source": [
                 0,
-                5
+                6
               ],
               "tags": [
                 "Cmavo",

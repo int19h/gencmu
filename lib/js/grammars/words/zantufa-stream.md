@@ -31,19 +31,22 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
-`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The gap cannot skip punctuation or ignored material.
+`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The shared quote gap permits attached punctuation, as in `ra'oi "klama"`. It cannot skip standalone punctuation or ignored material.
 
 ```jbogenbau
 %extend-rule quote
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker $g:word-gap $f:Rafsi-Form
+  $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
     :: $m.tags :- $m.source-text $g.source-text $f.verbatim-text
-%conditions
-  Quote-Material ⊈ $g.tags
 %emits
   $
+
+%rule rafsi-quote-target
+  $f:Rafsi-Form [quote-attachment] :: $f.tags :- $.verbatim-text
+%conditions
+  Quote-Material ⊈ $.following-tokens.first-token.tags
 
 %rule rahoi-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -51,9 +54,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   RAhOI ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of <code>quote</code>, <code>rahoi-quote</code> and <code>rahoi-marker</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa-stream/quote.svg" alt="Railroad diagram of the rule quote"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-quote.svg" alt="Railroad diagram of the rule rahoi-quote"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/rafsi-quote-target.svg" alt="Railroad diagram of the rule rafsi-quote-target"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 

@@ -208,11 +208,11 @@
               ]
             },
             {
-              "image": "zo coi",
+              "image": "zo coi´",
               "value": "zo coi",
               "source": [
                 4,
-                10
+                11
               ],
               "tags": [
                 "Cmavo",
@@ -230,6 +230,6 @@
         }
       ]
     },
-    "brackets": "(mi zo coi)"
+    "brackets": "(mi zo coi´)"
   }
 }

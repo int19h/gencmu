@@ -281,23 +281,34 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ### One-word quotes
 
-ZO quotes one word from the shared reader or one literal punctuation stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
+ZO quotes one word from the shared reader or one standalone punctuation stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`quoted-word` reads `word-gap` before its word. The gap cannot skip punctuation or ignored material. The gap supplies one space for surviving pauses, even when hesitation separates them.
+`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A punctuation target must fill its stretch between whitespace or periods. `quote-attachment` contributes no value because punctuation around a word only marks its written image.
 
 ```jbogenbau
 %rule quoted-word
-  | $m:word-quote-marker $g:word-gap $w:read-word
+  | $m:word-quote-marker $g:word-quote-gap $w:word-quote-target
       :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
-  | $m:word-quote-marker $g:word-gap $w:zo-punctuation
+  | $m:word-quote-marker $g:word-gap<¬Quote-Material> $w:zo-punctuation
       :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
-%conditions
-  Quote-Material ⊈ $g.tags
 %emits
   $
 
+%rule word-quote-gap
+  word-gap<¬Quote-Material> [quote-attachment]
+
+%rule word-quote-target
+  $w:read-word [quote-attachment] :: $w.tags :- $.verbatim-text
+%conditions
+  Quote-Material ⊈ $.following-tokens.first-token.tags
+
+%rule quote-attachment
+  PAUSE<Quote-Material> := ""
+
 %rule zo-punctuation
   PAUSE<Quote-Material> := $.decomposed-source-text :- $.source-text
+%conditions
+  $.ends-input ∨ $.following-tokens.begins(quiet-pause)
 
 %rule word-quote-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -305,8 +316,11 @@ ZO quotes one word from the shared reader or one literal punctuation stretch. In
   ZO ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of <code>quoted-word</code>, <code>zo-punctuation</code> and <code>word-quote-marker</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>quoted-word</code> to <code>word-quote-marker</code></summary>
 <p><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
+<p><img src="../../docs/diagrams/words/stream/word-quote-gap.svg" alt="Railroad diagram of the rule word-quote-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/word-quote-target.svg" alt="Railroad diagram of the rule word-quote-target"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-attachment.svg" alt="Railroad diagram of the rule quote-attachment"></p>
 <p><img src="../../docs/diagrams/words/stream/zo-punctuation.svg" alt="Railroad diagram of the rule zo-punctuation"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
@@ -941,7 +955,7 @@ An opening delimiter also cannot skip material. This keeps its boundary consiste
 
 A decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. This keeps numeric spellings intact.
 
-ZO can quote literal punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class.
+ZO can quote standalone punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words.
 
 The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across dialect lexicons.
 
