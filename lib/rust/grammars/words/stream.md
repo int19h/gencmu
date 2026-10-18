@@ -953,7 +953,9 @@ Unlike camxes-exp's `non_space`, raw quotes here also keep `?` and `!` inside a 
 
 An opening delimiter also cannot skip material. This keeps its boundary consistent with one-word quotes.
 
-A decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. This keeps numeric spellings intact.
+Unlike camxes-exp, a decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
+
+Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skipping it. Thus `zo'oi , broda` and `la'oi , klama` quote the comma here. camxes-exp quotes the following word. This follows the decision that ignored characters can form the quote body.
 
 ZO can quote standalone punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words.
 
