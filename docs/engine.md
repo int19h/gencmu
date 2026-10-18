@@ -2054,7 +2054,7 @@ An empty span gives empty verbatim text and claims no uncovered gap. It retains 
 
 A nonempty verbatim span begins with its source envelope `[l,r)`. Its image can include adjacent uncovered original text. The following bounds use the stage-input neighbors, independent of emitted token order.
 
-At a later stage, erased or attached text can lack coverage by ordinary stage-input tokens. A verbatim extension can then include that text. Bundled grammars call `.verbatim-text` only in the words stage.
+At a later stage, erased or attached text can lack coverage by ordinary stage-input tokens. A verbatim extension can then include that text.
 
 Let the span be `[a,b)`. Its left bound P is the preceding token's source end, or 0 at input start. Its right bound Q is the following token's source start, or original text length at input end. Each bound limits only its own side.
 

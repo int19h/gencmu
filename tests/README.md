@@ -23,7 +23,7 @@ Tests must not depend on execution order. Go tests with process-wide controls or
 
 ## Engine cases: `engine/*.json`
 
-The bundled grammars use the current notation. A case that loads a bundled pipeline tests that pipeline's documents, not the engine specification. The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
+The bundled grammars use the current notation. A case that loads a bundled pipeline tests that pipeline's documents ([engine.md](../docs/engine.md)). The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
 
 The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
@@ -247,7 +247,7 @@ Include nested omissions, repeated wrappers, recursive queries, and ambiguous ra
 
 For ranked admission, record chart facts, admission groups, and retained edges. Measure loader cost separately from recognition. Include stored-value comparison work when interpreting admission costs.
 
-The cases in `without-elision-growth.json` bound the measured close-summary fixtures. Their bounds do not establish a grammar-wide bound on summaries. A passing language corpus alone does not establish sharing and termination properties. The growth sections below define the fixture counters and bounds.
+The cases in `without-elision-growth.json` bound the measured close-summary fixtures. Their bounds do not establish a grammar-wide bound on summaries. A passing language corpus alone does not establish sharing and termination properties. The growth sections below define the fixture bounds. The growth tests of each library define its counters, as `lib/js/test/ranked-growth.test.js` and `lib/js/test/grammar-growth.test.js` do in JavaScript.
 
 ## Growth cases: `growth.json`
 
