@@ -270,6 +270,46 @@ impl ESet {
         self.strict.get(index).copied().unwrap_or(false)
     }
 
+    /// Empties the set and keeps its room, so that a later set of the same
+    /// parse reuses it. The lists of its tables go to `lists`, emptied.
+    /// Every field is named, so that a new one cannot be left out.
+    fn clear(&mut self, lists: &mut Vec<Vec<u32>>) {
+        let ESet {
+            items,
+            strict,
+            queue,
+            processed,
+            tagset,
+            index,
+            failed,
+            waiting,
+            completed,
+            origins,
+            done,
+            empty,
+            predicted,
+            skipped,
+        } = self;
+        items.clear();
+        strict.clear();
+        queue.clear();
+        processed.clear();
+        tagset.clear();
+        index.clear();
+        failed.clear();
+        let mut keep = |mut list: Vec<u32>| {
+            list.clear();
+            lists.push(list);
+        };
+        waiting.drain().for_each(|(_, list)| keep(list));
+        completed.drain().for_each(|(_, list)| keep(list));
+        origins.drain().for_each(|(_, list)| keep(list));
+        done.clear();
+        empty.clear();
+        predicted.clear();
+        skipped.clear();
+    }
+
     /// Queues a new item, and in the reconstruction mode records its
     /// strictness.
     fn enqueue(&mut self, index: u32, recon: bool, strict: bool) {
@@ -791,6 +831,11 @@ pub(crate) struct Shared<'a> {
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
+    /// Empty sets with room, kept from the charts of nested parses that
+    /// finished, which later charts reuse.
+    spare: Vec<ESet>,
+    /// Empty lists with room, kept from the tables of those sets.
+    lists: Vec<Vec<u32>>,
 }
 
 impl<'a> Shared<'a> {
@@ -810,7 +855,27 @@ impl<'a> Shared<'a> {
             qualified: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
+            spare: Vec::new(),
+            lists: Vec::new(),
         }
+    }
+
+    /// An empty set, with room kept from an earlier chart if one has it.
+    fn fresh_set(&mut self) -> ESet {
+        self.spare.pop().unwrap_or_default()
+    }
+
+    /// Keeps the sets of a chart that is done with, for later charts.
+    fn recycle(&mut self, chart: Chart) {
+        for mut set in chart.sets {
+            set.clear(&mut self.lists);
+            self.spare.push(set);
+        }
+    }
+
+    /// An empty list, with room kept from an earlier set if one has it.
+    fn fresh_list(&mut self) -> Vec<u32> {
+        self.lists.pop().unwrap_or_default()
     }
 
     /// Forgets the nested parses of the previous parse, whose rules and
@@ -1350,7 +1415,8 @@ struct Run<'t, 'g> {
 }
 
 impl<'t, 'g> Run<'t, 'g> {
-    fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>) -> Run<'t, 'g> {
+    /// A run that starts with `first`, an empty set, as its set 0.
+    fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
         let mut chart = Chart { boundary_root: Some(start), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
@@ -1358,7 +1424,7 @@ impl<'t, 'g> Run<'t, 'g> {
             depth: 0,
             cap: Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags: 0, structure: u32::MAX },
         });
-        chart.sets.push(ESet::default());
+        chart.sets.push(first);
         // The first step predicts the start rule in a set that holds
         // nothing yet, as `begin_predict` would begin it.
         chart.sets[0].predicted.insert(u64::from(start), false);
@@ -1377,9 +1443,9 @@ impl<'t, 'g> Run<'t, 'g> {
 
     /// The recognition that answers `request`: its span alone, with its
     /// rule as the start rule, in the ordinary mode (§7.6).
-    fn answering(request: Request<'t>) -> Run<'t, 'g> {
+    fn answering(request: Request<'t>, first: ESet) -> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
-        let mut run = Run::new(tokens, request.base + request.start, request.rule, None);
+        let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
         run.chart.close_requested = request.aligned.is_some();
         run.chart.family = request.aligned.and_then(|a| a.family);
@@ -1696,7 +1762,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
         self.prepare_patterns();
-        let mut run = Run::new(tokens, base, start, self.recon);
+        let first = self.shared.fresh_set();
+        let mut run = Run::new(tokens, base, start, self.recon, first);
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -1725,6 +1792,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     match runs.last_mut() {
                         None => break Ok((chart, answer)),
                         Some(waiting) => {
+                            self.shared.recycle(chart);
                             let held = waiting.evals.held.as_mut().expect("the evaluation that asked");
                             held.eval.answer = answer;
                         }
@@ -1734,7 +1802,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
                     Ok(()) => {
-                        let mut run = Run::answering(*request);
+                        let first = self.shared.fresh_set();
+                        let mut run = Run::answering(*request, first);
                         run.chart.machine = self.shared.machine.clone();
                         run.chart.boundaries = self.shared.boundaries.clone();
                         runs.push(run);
@@ -1776,7 +1845,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn answer(&mut self, request: Request) -> Result<Answer, EngineError> {
         self.start_query(&request)?;
         self.prepare_patterns();
-        let mut run = Run::answering(request);
+        let first = self.shared.fresh_set();
+        let mut run = Run::answering(request, first);
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.1.expect("an answer"))
@@ -2063,7 +2133,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     let requested = self.requests_child(item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
                     if !again {
-                        chart.sets[e].waiting.entry(key).or_default().push(k as u32);
+                        chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
                     }
                     let strict = chart.sets[e].is_strict(k);
                     // A strict item predicts its next symbol strictly where
@@ -2118,7 +2188,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(());
         }
         if set >= chart.sets.len() {
-            chart.sets.resize_with(set + 1, ESet::default);
+            while chart.sets.len() <= set {
+                chart.sets.push(self.shared.fresh_set());
+            }
         }
         let target = &mut chart.sets[set];
         work::count(Work::Found, 1);
@@ -2629,7 +2701,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
         if e + 1 >= chart.sets.len() {
-            chart.sets.resize_with(e + 2, ESet::default);
+            while chart.sets.len() < e + 2 {
+                chart.sets.push(self.shared.fresh_set());
+            }
         }
         let target = &mut chart.sets[e + 1];
         work::count(Work::Found, 1);
@@ -2823,13 +2897,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Records the completed item `k` of set `e`, whose constituent has
     /// `tags`, and gives the step that advances the items waiting for it,
     /// if a constituent of its rule, origin and tags is new here.
-    fn complete(&self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
+    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
         let item = chart.sets[e].items[k];
         let rule = self.g.prods[item.prod as usize].rule;
         chart.sets[e].tagset[k] = tags;
-        let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
+        let completed = chart.sets[e].completed.entry((rule, item.origin)).or_insert_with(|| self.shared.fresh_list());
         if completed.is_empty() {
-            chart.sets[e].origins.entry(rule).or_default().push(item.origin);
+            chart.sets[e].origins.entry(rule).or_insert_with(|| self.shared.fresh_list()).push(item.origin);
             chart.sets[e].completed.get_mut(&(rule, item.origin)).expect("just made").push(k as u32);
         } else {
             completed.push(k as u32);
