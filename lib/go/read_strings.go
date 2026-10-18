@@ -382,6 +382,23 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 	return
 }
 
+func recipeStringRun(n *Node) *Node {
+	for _, wrapper := range []string{"term", "union", "intersection", "term-atom"} {
+		if n.Rule != wrapper {
+			return nil
+		}
+		children := parts(n)
+		if len(children) != 1 || children[0].Kind != KindRule {
+			return nil
+		}
+		n = children[0]
+	}
+	if n.Rule == "string-run" {
+		return n
+	}
+	return nil
+}
+
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
@@ -394,6 +411,12 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			case "∪", "∩", "∖", "⟹":
 				b.fail(atom, "a recipe atom uses no operator")
 			}
+		}
+		if run := recipeStringRun(b.only(atom, "term")); run != nil {
+			for _, str := range b.some(run, "string", 2) {
+				r.Items = append(r.Items, b.term(str))
+			}
+			continue
 		}
 		b.inRecipe = true
 		t := b.term(b.only(atom, "term"))
