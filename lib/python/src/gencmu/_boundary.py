@@ -264,9 +264,8 @@ def validate_targets(rules, stage):
                 if isinstance(part, list):
                     pending.extend(part)
                 else:
-                    query = part.get('method') in ('matches', 'begins', 'tags')
-                    if query or part.get('method') in ('followed-by', 'preceded-by'):
-                        queries.extend(arg.get('rule', arg.get('terminal')) for arg in part.get('args', []) if 'terminal' in arg or query and 'rule' in arg)
+                    if part.get('method') in ('matches', 'begins', 'tags'):
+                        queries.extend(arg.get('rule', arg.get('terminal')) for arg in part.get('args', []) if 'terminal' in arg or 'rule' in arg)
                     pending.extend(part.values())
     reached, terminals, pending = set(), set(), ['text', *queries]
     while pending:

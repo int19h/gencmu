@@ -351,6 +351,9 @@ class DomBuilder:
                 if len(rules) != 1:
                     raise self.fail(atom, "a recipe atom requires a string or captured string method")
                 current = rules[0]
+            if current.rule == "string-run":
+                atoms.extend(self.value(string) for string in self.some(current, "string", 2))
+                continue
             if current.rule not in ("string", "constant-reference", "method"):
                 raise self.fail(atom, "a recipe atom requires a string or captured string method")
             before = self.recipe_context
