@@ -954,11 +954,13 @@ The [checkpoint record](https://mw.lojban.org/index.php?title=BPFK_Checkpoints&o
 The phoneme stage reads the text before this stage does. In four ways, the text that this stage reads differs from the text that the PEG reads:
 
 - The PEG reads a digit as a cmavo, and lets a digit stand in a name (its rule `digit`). The phoneme stage reads each digit as the letters of its number word, so `2` is `re`. So this grammar has no rule `digit`. `.b1b.` is not a name, and `.dj2n.` is the name `djren`.
-- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops every comma, so the grammar leaves out `comma*`, with the same result, except in the letter word `ybu`.
+- The PEG ignores a comma before any letter (`comma*` in each letter rule). The phoneme stage drops commas inside words. This grammar omits `comma*` in letter rules, with the same result except in the letter word `ybu`. Separate comma material remains a pause token.
 
   The PEG's `ybu` reads pause characters between the `y` and the `bu`, but no comma, unless the comma stands directly before the `bu`. Where `ybu` fails, the PEG reads the `y` as hesitation, which is space. So the PEG rejects `y, bu` and `y , bu`, and reads `doi y, bu` as the letter word `doi bu`. The words stage reads the one letter word `y bu` in these texts (below). Both read `y ,bu` as that letter word.
-- The PEG reads a lowercase `h` as an apostrophe, and a consonant in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits every apostrophe as `'` and every consonant in lower case, so the grammar reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
-- The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). The phoneme stage reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the PEG rejects. It emits a run of pause characters as one `PAUSE`.
+- The PEG reads a lowercase `h` as an apostrophe, and a consonant in either case. The phoneme stage reads a capital `H` as an apostrophe too, so `koHa` is `ko'a`, which the PEG rejects. It emits each apostrophe phoneme as `'` and every consonant in lower case, so the grammar reads only those. A capital vowel is a stressed vowel for both. The phoneme stage also reads accents as stress and folds runs of two vowel groups or more in which every vowel is a capital. The PEG reads neither convention.
+- The PEG's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). The phoneme stage reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the PEG rejects. A quiet pause emits one `PAUSE` with value `" "`. Punctuation in the same pause emits its own material token.
+
+  A pause token can retain a punctuation apostrophe as its value. The apostrophe rule excludes that token so that raw punctuation never becomes a word phoneme.
 
 ### The ybu exception
 
@@ -981,5 +983,3 @@ The consonant rules retain the ban on a consonant followed by a glide and a vowe
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 
 [^cll-later-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L243). This later approval record has no CLL 1.1 counterpart.
-
-A pause token can retain a punctuation apostrophe as its value. The apostrophe rule excludes that token so that raw punctuation never becomes a word phoneme.

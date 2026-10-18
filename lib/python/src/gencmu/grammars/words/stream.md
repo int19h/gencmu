@@ -111,7 +111,7 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
-`pause-run` reads consecutive pause tokens as one pause. It also accepts a supplied `Silent` token between pauses. A raw quote body keeps punctuation and ignored characters.
+`pause-run` groups consecutive pause tokens. Its gap recipe contributes one space. The rule emits no token of its own. It also accepts a supplied `Silent` token between pauses. A raw quote body keeps punctuation and ignored characters.
 
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
