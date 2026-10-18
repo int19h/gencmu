@@ -304,7 +304,9 @@ Only requested selected recipes run. `.emitted` reads a constituent before the c
 
 ## Pauses and spacing
 
-A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause has value and image `" "`. Material pause tokens keep decomposed source values and original source images. The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
+A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause has value and image `" "`. Material pauses keep decomposed source values and original source images in the phoneme stage. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
+
+The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
 
 A gap is a run between lexical parts. A quote gap excludes erasures because quoted `si`, `sa`, and `su` are words. A compound gap retains erasure-aware recognition. These two contexts share a spacing policy but require separate recognizers.
 
@@ -468,13 +470,13 @@ A document can be included in several stages. An included document can hold stag
 
 A one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
-The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its value keeps the decomposed punctuation.
+The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
 
-Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip material. Other quote bodies keep their own spacing rules.
+Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip standalone material. Attached marks remain formatting. Other quote bodies keep their own spacing rules.
 
-ZO also takes literal punctuation as its next word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
+ZO also takes a standalone punctuation stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 
-Delimited foreign quotes also keep bodies that contain only punctuation. Quiet pauses delimit their bodies, and their closing delimiters occupy complete raw runs. The CLL family retains its strict punctuation rules.
+Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The CLL family retains its strict punctuation rules.
 
 ## Gates and warnings
 
