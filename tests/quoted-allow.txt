@@ -93,8 +93,6 @@ pa mai # grammars/syntax/cll.md # the shape of an utterance ordinal
 a e i o u # grammars/words/cll.md # notation: the vowel letters
 a e i o u # grammars/words/shapes.md @ "A vowel of a word form" @ "counts the syllables" # notation: the vowel letters
 c j s z # grammars/words/shapes.md # notation: a set of consonant letters
-b d g v j z # grammars/words/shapes.md # notation: the voiced consonant letters
-p t k f c s x # grammars/words/shapes.md # notation: the unvoiced consonant letters
 l m n r # grammars/words/shapes.md # notation: the consonant letters that are neither voiced nor unvoiced
 ai ei oi au # grammars/words/shapes.md # notation: the falling diphthongs
 ia ie ii io iu ua ue ui uo uu # grammars/words/shapes.md # notation: the rising diphthongs
