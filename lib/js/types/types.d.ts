@@ -245,7 +245,9 @@ export type ParseOptions = {
     features?: Iterable<string>;
     /**
      * the features to turn off,
-     * the pipeline's among them; naming one in both lists is a usage error
+     * including defaults. A holding conditional declaration for a disabled
+     * feature gives a feature-conflict result. A name in both lists is a
+     * usage error
      */
     withoutFeatures?: Iterable<string>;
     /**
@@ -1019,7 +1021,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Iterable<string>} [features] the features to turn on, besides
  *   those the dialect's pipeline turns on
  * @property {Iterable<string>} [withoutFeatures] the features to turn off,
- *   the pipeline's among them; naming one in both lists is a usage error
+ *   including defaults. A holding conditional declaration for a disabled
+ *   feature gives a feature-conflict result. A name in both lists is a
+ *   usage error
  * @property {string} [until] the name of the last stage to run
  * @property {boolean | null} [elisionOnly] override the grammar's own
  *   elision-only setting

@@ -17284,8 +17284,8 @@
     const problem = domProblem(dom, unicode, deferEmission);
     if (problem === null) return dom;
     if (problem === "nested too deeply") {
-      // Reported at the first item, a rule, a constant's definition or an
-      // implication, that holds it, in the order of the document.
+      // Reported at the first declaration that holds it, including feature
+      // declarations, in the order of the document.
       const item = itemsAlone(dom).find((candidate) => domProblem(candidate.alone, unicode, deferEmission) === "nested too deeply");
       const [line, column] = item ? item.at : [1, 1];
       throw new GencmuError("grammar", `${path}:${line}:${column}: an expression, term or condition is nested more than ${DOM_MAX_DEPTH} deep`, { document: path, line, column });
@@ -17301,8 +17301,8 @@
 
   // Adds the line and column of an error's source position.
   /**
-   * Each rule, constant definition and implication of a DOM, alone in a DOM
-   * of its own, in the order of the document.
+   * Each declaration alone in a DOM of its own, including directives and
+   * classifiers, in the order of the document.
    * @param {GrammarDom} dom
    * @returns {{at: [number, number], alone: GrammarDom}[]}
    */
@@ -17311,6 +17311,8 @@
     return [
       ...dom.rules.map((rule) => ({ at: rule.at, alone: { ...dom, ...none, rules: [rule] } })),
       ...dom.constants.map((constant) => ({ at: constant.at, alone: { ...dom, ...none, constants: [constant] } })),
+      ...dom.directives.map((directive) => ({ at: directive.at, alone: { ...dom, ...none, directives: [directive] } })),
+      ...dom.classifiers.map((classifier) => ({ at: classifier.at, alone: { ...dom, ...none, classifiers: [classifier] } })),
       ...dom.implications.map((implication) => ({ at: implication.at, alone: { ...dom, ...none, implications: [implication] } })),
     ].sort((a, b) => a.at[0] - b.at[0] || a.at[1] - b.at[1]);
   }
@@ -17732,7 +17734,9 @@
    * @property {Iterable<string>} [features] the features to turn on, besides
    *   those the dialect's pipeline turns on
    * @property {Iterable<string>} [withoutFeatures] the features to turn off,
-   *   the pipeline's among them; naming one in both lists is a usage error
+   *   including defaults. A holding conditional declaration for a disabled
+   *   feature gives a feature-conflict result. A name in both lists is a
+   *   usage error
    * @property {string} [until] the name of the last stage to run
    * @property {boolean | null} [elisionOnly] override the grammar's own
    *   elision-only setting
