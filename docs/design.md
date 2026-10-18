@@ -659,7 +659,9 @@ The dedicated form takes only a joik. So `mi broda je ke brode ke'e` has one rea
 
 The CLL grammar also applies the condition that the official parser's lexer applies with `GIhEK_KE`, in the rule `bridi-tail-1-final` of the CLL grammar. The `ke` form of `bridi-tail` groups the tails after a gihek, as in `mi broda gi'e ke brode ke'e`. A plain gihek can read the same words. "Sentences and bridi-tails" in [the CLL grammar](../grammars/syntax/cll.md) states the condition, which removes the plain reading in some of these texts. Where only the plain reading parses, as in `mi broda gi'e ke brode ke'e brodi`, the grammar keeps it, as the printed grammar does. The official parser rejects that text.
 
-The experimental dialect redefines `selbri-4` and `operator`, with the same ranked KE preference. It also redefines `bridi-tail` and `bridi-tail-1`, so the CLL gihek condition does not reach it either. The CLL rule `bridi-tail-1-final` is unused there. The `audit` report lists it as unreachable in that dialect. It also states three conventions as rules:
+The experimental dialect redefines `selbri-4` and `operator`, with the same ranked KE preference. It also redefines `bridi-tail`, `bridi-tail-1`, and `bridi-tail-1-final`. Its headless tail condition excludes an initial KE tanru unit. Its final plain connection excludes a whole KE-wrapped forethought sentence. These conditions keep KE on the connective where that group completes.
+
+The dialect also states three conventions as rules:
 
 - A connection that can be a sumti connection is a sumti connection, and not a connection of terms.
 - A `be` group attaches to the preceding unit when there is one.

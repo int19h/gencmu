@@ -190,7 +190,9 @@ A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
 
-A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The first-child pattern follows the selected tail to its selbri, including an initial tag. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
+A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The first-child pattern follows the selected tail to its selbri, including an initial tag. The `gek-sentence` alternative still permits its KE wrapper.
+
+The layer reuses `bridi-tail-1-final` for the final plain connection. Its pattern excludes a whole KE-wrapped forethought sentence, so the connective owns that KE group. An earlier plain connection remains available before a following connection. A head or BO continuation stops the whole-wrapper pattern.
 
 The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
@@ -213,10 +215,18 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
   [bridi-tail-head] bridi-tail-2
 
 %redefine-rule bridi-tail
-  bridi-tail-1 [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
+  bridi-tail-1-final [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
 
 %redefine-rule bridi-tail-1
   bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
+
+%const $KE-FORETHOUGHT @([tag] KE [#] gek-sentence KEhE [#])
+
+%redefine-rule bridi-tail-1-final
+  | bridi-tail-2
+  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail tail-terms
+%conditions
+  $b ≇ $KE-FORETHOUGHT
 
 %const $KE-START @(KE ⋰) ∪ @(tag @(KE ⋰))
 
@@ -239,7 +249,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
   [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 13 rules from <code>sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
@@ -247,6 +257,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 <p><img src="../../docs/diagrams/syntax/experimental/headed-bridi-tail-2.svg" alt="Railroad diagram of the rule headed-bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail.svg" alt="Railroad diagram of the rule bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
@@ -924,7 +935,7 @@ The statement connectives follow camxes-exp, including `mi klama joi .i do klama
 
 camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri.
+camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri. The final plain connection also excludes a whole KE-wrapped forethought sentence to keep that KE on the connective. A free modifier after the connective does not change this preference, because its slot belongs to `bridi-tail-connective` in either reading. camxes-exp's immediate lookahead instead permits a plain connection when a free modifier separates the connective from KE.
 
 ### Terms and descriptions
 
