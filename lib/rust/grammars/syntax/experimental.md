@@ -284,7 +284,7 @@ Three tags carry these facts through the tree. `Link-Extensible-End` marks a sum
 
 A termset closed by written NUhU is not a sumti, and a link that starts with it has no `Sumti-Start` tag. Thus `mi .e ge do gi ti nu'u klama` joins terms. Without NUhU, `mi .e ge do gi ti klama` joins sumti.
 
-Each term level has its own link rules and sumti conditions. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
+Each term level has its own link rules and sumti conditions. Neither `term-link` nor `term-bo-link` carries a rule flag. `term-bo-link` permits BO with or without a stag, as in `fa mi .e bo fe do klama`.
 
 PEhE takes any statement connective. `terms-1` and its forethought form `gek-terms-1` are left chains. A SOI term contains a subsentence and ends with SEhU. The `soi-clause` feature enables it, and `fi'oi` belongs to SOI.
 

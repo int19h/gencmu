@@ -2,6 +2,8 @@
 
 This document describes what a gencmu library returns, as data and as text. The shared tests compare the canonical JSON as parsed JSON values. So two libraries agree when their outputs parse to equal values. The renderings are for people to read.
 
+Grammar names, tags, features, and texts below are examples that illustrate the output forms. Grammar documents define their dialect behavior.
+
 JSON member names are case-sensitive. Names that differ in case are distinct members. If an exact name repeats, the last value replaces the earlier value. Escapes that decode to the same name identify the same member. Each schema decides whether it accepts unknown members. An accepted unknown member cannot overwrite a member with a different name.
 
 ## Canonical JSON
@@ -47,7 +49,7 @@ For a precomposed character, each stage-zero token keeps the original source and
 
 `insertedBy` follows `source` for an `ε` emission item. It names its inserting rule. The token has empty span, source, and text. Its strings come from its item recipes. A covering item over an empty constituent does not acquire `insertedBy`.
 
-`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicator stage of the `cll-ebnf` dialect emits:
+`before` and `after` follow `insertedBy` for a token with attachments (engine §11). Each is an array of tokens in this form, and each is present only when it is not empty. An attached token has no `span`, so its object leaves it out. This is the token of `mi ui` that the indicators stage of the `cll-ebnf` dialect emits:
 
 ```
 {"text":"mi","value":"mi","image":"mi","tags":["Cmavo","Continued","KOhA","Onset","Run-Final","Run-Initial","Word"],
@@ -483,7 +485,7 @@ Tree patterns do not change bracket grouping. The renderer applies the rules bel
    If no child is left, the node is empty. If one child is left, the node is that child. Otherwise, the node is a group.
 4. The depth *d* of a group counts groups only: a child group of a group at depth *d* is at *d*+1. A group is written between `(` `)` when *d* mod 3 is 0, `[` `]` when 1, and `{` `}` when 2. One space separates its members.
 
-So `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`. In the `cll-ebnf` dialect, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
+In the `cll-ebnf` dialect, `lo mlatu cu citka le finpe` is `([lo mlatu] cu [citka {le finpe}])`, `mi ui klama` is `([mi ui] klama)`, `ba'e mi klama` is `([ba'e mi] klama)`, and `mi ui nai klama` is `([mi {ui nai}] klama)`.
 
 ### Tree
 

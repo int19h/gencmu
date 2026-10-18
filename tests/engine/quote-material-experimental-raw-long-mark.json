@@ -1,5 +1,5 @@
 {
-  "description": "A raw quote keeps its original payload spelling and its independent normalized value.",
+  "description": "A raw quote keeps its original payload spelling and its independent normalized value. The word stream gives one unique words-stage reading (grammars/words/stream.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
@@ -31,7 +31,9 @@
                 9
               ]
             }
-          ]
+          ],
+          "name": "words",
+          "verdict": "unique"
         }
       ]
     }

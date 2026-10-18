@@ -1,5 +1,5 @@
 {
-  "description": "The forms tree preserves named closes, stored tags, and source spans. The normalize stage changes values and preserves images (engine §14).",
+  "description": "The forms tree preserves named closes, stored tags, and source spans. Normalization changes values and preserves images (grammars/phonemes/normalize.md).",
   "pipeline": "pipeline.md",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
