@@ -5786,3 +5786,11 @@ i200.syntax.4
 i201.syntax.1
 i201.syntax.2
 i201.syntax.3
+i205.syntax.bare-na
+i205.syntax.tagged
+i205.syntax.sumti
+i205.syntax.plain
+i205.syntax.bo-before-plain
+i205.syntax.mixed-start
+i205.syntax.mixed-end
+i205.syntax.all-tagged
