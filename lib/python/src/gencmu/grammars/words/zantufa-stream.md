@@ -15,7 +15,7 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
-Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
+Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. The shared punctuation restriction still applies to the spelling `zei`. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
 
 A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`. The Zantufa lexicon has no word of ZOhOI or MEhOI. So no Zantufa word quotes the rest of a run.
 
@@ -234,5 +234,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 </details>
 
 ## Differences from the shared word stream
+
+The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 
 The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.

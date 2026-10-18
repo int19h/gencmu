@@ -117,6 +117,8 @@ Hesitation emits nothing unless the word reader joins it with `bu`. The reader t
 
 `Quote-Material` also marks a gap with surviving punctuation or ignored material. Erased quote contents supply no such mark. `Punctuation-Material` distinguishes visible punctuation from ignored characters in these gaps.
 
+Spacing and skipped regions reject surviving punctuation before the word `zei`, whatever class its lexicon assigns. Quoted contents execute no such operation.
+
 `Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
 
 A quiet pause token has value `" "`, and `$PAUSE` names that string. Material pause tokens retain raw punctuation values. Gap recipes still contribute one space for surviving pauses.
@@ -133,10 +135,14 @@ A quiet pause token has value `" "`, and `$PAUSE` names that string. Material pa
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
     :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material))
      ∪ ($p ⟹ $p.tags ∩ (Quote-Material ∪ Punctuation-Material)) ∪ ($q ⟹ $q.tags ∩ (Quote-Material ∪ Punctuation-Material))
+%conditions
+  Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule skipped
   $s:spacing [$e:erasures $t:spacing]
     :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
+%conditions
+  Punctuation-Material ⊈ $.tags ∨ ¬$.following-tokens.begins(zei-spelling)
 
 %rule erasures
   | erasure :: ∅
@@ -177,7 +183,7 @@ Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The 
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
-The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
+The lexicon gives each cmavo its classes. Operators use these classes rather than spelling, except the punctuation restriction on `zei`. The experimental syntax can treat names as predicates without changing their lexical class.
 
 The feature `sa-su` enables the two long-range erasers. The stage enables it when any input token has class SA or SU. If the condition holds and the caller disables `sa-su`, the parse gives a `feature-conflict` result ([engine §13](../../docs/engine.md#13-the-pipeline)).
 
@@ -699,6 +705,8 @@ SI erases the preceding live unit. Quotes and compounds each count as one unit. 
 
 SI skips hesitation and erased regions. It never erases an already executed SA or SU as a word. A fault unit is an ordinary operand for erasure.
 
+When the word `zei` has class SI, it also refuses punctuation in its following gap. Other SI words keep their ordinary spacing.
+
 ```jbogenbau
 %rule si-erasure
   unit skipped si-word
@@ -707,12 +715,23 @@ SI skips hesitation and erased regions. It never erases an already executed SA o
 %rule si-word
   $q:cmavo-token
 %conditions
-  SI ⊆ $q.classes
+  SI ⊆ $q.classes,
+  $q.value ≠ "zei" ∨ ¬$q.following-tokens.begins(punctuation-word-gap)
+
+%rule zei-spelling
+  Cmavo
+%conditions
+  $.value = "zei"
+
+%rule punctuation-word-gap
+  word-gap<Punctuation-Material>
 ```
 
-<details><summary>Railroad diagrams of <code>si-erasure</code> and <code>si-word</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>si-erasure</code> to <code>punctuation-word-gap</code></summary>
 <p><img src="../../docs/diagrams/words/stream/si-erasure.svg" alt="Railroad diagram of the rule si-erasure"></p>
 <p><img src="../../docs/diagrams/words/stream/si-word.svg" alt="Railroad diagram of the rule si-word"></p>
+<p><img src="../../docs/diagrams/words/stream/zei-spelling.svg" alt="Railroad diagram of the rule zei-spelling"></p>
+<p><img src="../../docs/diagrams/words/stream/punctuation-word-gap.svg" alt="Railroad diagram of the rule punctuation-word-gap"></p>
 </details>
 
 
@@ -920,7 +939,7 @@ A decimal point between digits stays inside a raw run, as [latin.md](../phonemes
 
 ZO can quote literal punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class.
 
-ZEI rejects surviving punctuation beside its operator. Ignored comma-like characters remain spacing for ZEI. This preserves its operands instead of silently combining words across that material.
+The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across dialect lexicons.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 

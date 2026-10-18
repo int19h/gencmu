@@ -472,7 +472,7 @@ The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`
 
 Ordinary spacing still reads these tokens as pauses. Quote gaps read only plain pauses, so punctuation cannot move the quote to a later word.
 
-ZO also takes literal punctuation as its next word. ZEI rejects surviving punctuation between its operands and the operator. Ignored comma-like characters remain spacing for ZEI.
+ZO also takes literal punctuation as its next word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 
 Delimited foreign quotes also keep bodies that contain only punctuation. Quiet pauses delimit their bodies, and their closing delimiters occupy complete raw runs. The CLL family retains its strict punctuation rules.
 
