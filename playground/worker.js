@@ -125,14 +125,13 @@
     }
 
     function parse(entry, request) {
-      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.withoutFeatures, request.autoFeatures, request.until, request.elisionOnly]);
+      const key = JSON.stringify([version, request.dialect, request.text, request.features, request.withoutFeatures, request.until, request.elisionOnly]);
       if (last && last.key === key) return last;
       phase("parsing");
       const started = now();
       const result = entry.dialect.parse(request.text, {
         features: request.features,
         withoutFeatures: request.withoutFeatures,
-        autoFeatures: request.autoFeatures,
         until: request.until || undefined,
         elisionOnly: request.elisionOnly,
       });
@@ -157,7 +156,7 @@
           output: stage.output ? stage.output.length : null,
         })),
         error: error ? {
-          kind: error.kind, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
+          kind: error.kind, feature: error.feature || null, reason: error.reason || null, stage: error.stage || null, token: error.token === undefined ? null : error.token,
           line: error.line || null, column: error.column || null, message: error.message,
         } : null,
         explanation: gencmu.explainError(result),
@@ -257,7 +256,7 @@
       try {
         const traced = gencmu.trace(entry.dialect, request.text, {
           stage: request.trace.stage, position: request.trace.position,
-          features: request.features, withoutFeatures: request.withoutFeatures, autoFeatures: request.autoFeatures,
+          features: request.features, withoutFeatures: request.withoutFeatures,
         });
         // The tokens around the position, for the page's picker.
         const from = Math.max(0, traced.position - 40);
@@ -276,7 +275,7 @@
 
     // One run: load the dialect, parse the text, render what the page shows.
     //
-    // request: { dialect, text, features: string[], withoutFeatures: string[], autoFeatures, until,
+    // request: { dialect, text, features: string[], withoutFeatures: string[], until,
     //   elisionOnly: null | boolean, view: { format, showElided, pretty,
     //   stage }, trace: null | { stage: string | null, position }, audit: boolean }
     //
@@ -302,9 +301,6 @@
         return Object.assign(answer, { parseError: describeError(error), ms: now() - started });
       }
       answer.parse = parsed.summary;
-      // The features auto features switched on for this text.
-      answer.autoFeatures = parsed.summary.features.filter((name) =>
-        !request.features.includes(name) && !entry.info.features.some((feature) => feature.name === name && feature.default));
       answer.parseMs = parsed.ms;
       answer.output = render(parsed, request.view);
       // A trace asked for before the page knew the dialect's stages names
