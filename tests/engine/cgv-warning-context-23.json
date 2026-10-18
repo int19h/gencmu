@@ -1,0 +1,107 @@
+{
+  "description": "The raw one-word quote takes FAhO as its body. The following CgV word remains outside and warns.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'oi fa'o atkuila",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zo'oi fa'o",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOhOI"
+                  ]
+                },
+                {
+                  "value": "atkuila",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "brivla-token",
+            "source": [
+              11,
+              18
+            ],
+            "span": [
+              4,
+              5
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zo'oi fa'o",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOhOI"
+                  ]
+                },
+                {
+                  "value": "atkuila",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

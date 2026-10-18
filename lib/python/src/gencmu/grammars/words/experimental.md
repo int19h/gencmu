@@ -42,38 +42,14 @@ CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-lette
 
 Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows the separate treatment of `r` in jbotci, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
-The `experimental-cgv` warning is on by default. It covers each complete name or predicate word that contains CgV. Disabling the warning changes no reading. The span test reads only that word, so it cannot warn about CgV in a later word.
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](experimental-stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
 
 ```jbogenbau
-%features experimental-cgv
-
 %redefine-rule cmevla-shape
-  | $n:ordinary-cgv-name :: $n.tags
-  | experimental-cgv! $n:warned-cgv-name :: $n.tags
-
-%rule ordinary-cgv-name
-  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
-%conditions
-  ¬$n.matches(cgv-form)
-
-%rule warned-cgv-name
-  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset)
-%conditions
-  $n.matches(cgv-form)
+  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset) ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
 
 %redefine-rule brivla-shape
-  | $b:ordinary-cgv-brivla :: $b.tags
-  | experimental-cgv! $b:warned-cgv-brivla :: $b.tags
-
-%rule ordinary-cgv-brivla
-  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
-%conditions
-  ¬$b.matches(cgv-form)
-
-%rule warned-cgv-brivla
-  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset)
-%conditions
-  $b.matches(cgv-form)
+  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset) ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
 
 %rule cgv-form
   [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
@@ -212,13 +188,9 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
   ¬$c.following-tokens.begins(h | t | voiced)
 ```
 
-<details><summary>Railroad diagrams of the 34 rules from <code>cmevla-shape</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 30 rules from <code>cmevla-shape</code> to <code>t</code></summary>
 <p><img src="../../docs/diagrams/words/experimental/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
-<p><img src="../../docs/diagrams/words/experimental/ordinary-cgv-name.svg" alt="Railroad diagram of the rule ordinary-cgv-name"></p>
-<p><img src="../../docs/diagrams/words/experimental/warned-cgv-name.svg" alt="Railroad diagram of the rule warned-cgv-name"></p>
 <p><img src="../../docs/diagrams/words/experimental/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
-<p><img src="../../docs/diagrams/words/experimental/ordinary-cgv-brivla.svg" alt="Railroad diagram of the rule ordinary-cgv-brivla"></p>
-<p><img src="../../docs/diagrams/words/experimental/warned-cgv-brivla.svg" alt="Railroad diagram of the rule warned-cgv-brivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
 <p><img src="../../docs/diagrams/words/experimental/brivla-onset.svg" alt="Railroad diagram of the rule brivla-onset"></p>
 <p><img src="../../docs/diagrams/words/experimental/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
@@ -399,7 +371,7 @@ This layer inherits whole hesitation runs from [bpfk.md](bpfk.md#whole-hesitatio
 
 The alternatives and repetitions state morphology constraints without PEG order. Merged stress tests and name forms remove duplicate proofs without changing the word classes.
 
-This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The warning identifies this extension by default. The full borrowing shape still rejects invalid compound-like forms. Only borrowing syllables receive the added onset, so a rafsi slot cannot use it.
+This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The words stage identifies this extension by default when it reads a marked word. Opaque raw bodies and text after active FAhO contain no such word reads. The full borrowing shape still rejects invalid compound-like forms. Only borrowing syllables receive the added onset, so a rafsi slot cannot use it.
 
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
 

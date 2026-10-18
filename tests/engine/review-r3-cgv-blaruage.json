@@ -1,5 +1,5 @@
 {
-  "description": "The separate r branch permits this borrowing with a CgV warning.",
+  "description": "Forms marks the CgV borrowing. Disabling the later warning preserves the same marked form.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -24,6 +24,7 @@
                   "image": "blaruage",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -35,21 +36,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "brivla-shape",
-            "source": [
-              0,
-              8
-            ],
-            "span": [
-              0,
-              8
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     },
     {
@@ -73,6 +60,7 @@
                   "image": "blaruage",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",

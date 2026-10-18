@@ -1,5 +1,5 @@
 {
-  "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
+  "description": "Forms marks each CgV word separately. Stopping before words produces no warning.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -226,6 +226,7 @@
                   "value": "mariam",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -262,6 +263,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -272,34 +274,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-shape",
-            "source": [
-              4,
-              10
-            ],
-            "span": [
-              3,
-              9
-            ],
-            "stage": "forms"
-          },
-          {
-            "feature": "experimental-cgv",
-            "rule": "brivla-shape",
-            "source": [
-              15,
-              22
-            ],
-            "span": [
-              13,
-              20
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     },
     {
@@ -525,6 +500,7 @@
                   "value": "mariam",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -561,6 +537,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -794,6 +771,7 @@
                   "value": "mariam",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -830,6 +808,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -840,34 +819,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-shape",
-            "source": [
-              4,
-              10
-            ],
-            "span": [
-              3,
-              9
-            ],
-            "stage": "forms"
-          },
-          {
-            "feature": "experimental-cgv",
-            "rule": "brivla-shape",
-            "source": [
-              15,
-              22
-            ],
-            "span": [
-              13,
-              20
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     }
   ]

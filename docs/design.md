@@ -484,7 +484,11 @@ Delimited foreign quotes also keep bodies that contain only punctuation. A pause
 
 A dialect that extends another makes two kinds of change. Most are additions, which the base grammar rejects and the dialect accepts, such as `cu` before a bare selbri (a predicate) in the experimental dialect. Some change how the dialect reads a text that the base grammar accepts. An example is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). Under the merger, `la .alis. klama` is one description. The notation has a kind of feature guard for each kind of change.
 
-An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The experimental dialect enables `experimental-cgv` by default for consonants before glides in names and borrowings. Other bundled warnings require the caller to enable them.
+An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text.
+
+The experimental dialect enables `experimental-cgv` by default for consonants before glides in names and borrowings. Forms marks those words with `Cgv-Warning`. The words stage warns when its chosen derivation reads a marked word.
+
+Other bundled warnings require the caller to enable them.
 
 A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled warnings are `y-cmavo` in cll-ebnf and `experimental-cgv` in experimental.
 

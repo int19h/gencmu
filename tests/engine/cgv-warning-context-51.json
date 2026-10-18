@@ -1,0 +1,73 @@
+{
+  "description": "The ZOI body keeps FAhO and the CgV spelling opaque. Neither supplies a live word read.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. fa'o mariam .gy.",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi gy fa'o mariam gy",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi gy fa'o mariam gy",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

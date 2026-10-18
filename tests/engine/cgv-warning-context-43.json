@@ -1,0 +1,73 @@
+{
+  "description": "The quote takes an opaque raw body. Its CgV spelling supplies no Lojban word read.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'oi mariam",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zo'oi mariam",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOhOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zo'oi mariam",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOhOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

@@ -179,7 +179,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings there. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read uses `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings there. `brivla-token` and `cmevla-token` likewise let a dialect warn when it reads a predicate word or name. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -203,9 +203,15 @@ Without SA or SU input, both feature states admit the same plain words. The rule
 
 %rule read-word
   | $c:cmavo-token :: $c.tags
-  | $b:BRIVLA :: $b.tags
-  | $n:CMEVLA :: $n.tags
+  | $b:brivla-token :: $b.tags
+  | $n:cmevla-token :: $n.tags
   | $y:y-bu-word :: $y.tags
+
+%rule brivla-token
+  BRIVLA
+
+%rule cmevla-token
+  CMEVLA
 
 %rule y-bu-word
   $b:y-key [pause-run] $u:bu-word
@@ -226,8 +232,10 @@ Without SA or SU input, both feature states admit the same plain words. The rule
   $c:Cmavo :: $c.tags
 ```
 
-<details><summary>Railroad diagrams of <code>read-word</code>, <code>y-bu-word</code>, <code>word</code> and <code>cmavo-token</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>read-word</code> to <code>cmavo-token</code></summary>
 <p><img src="../../docs/diagrams/words/stream/read-word.svg" alt="Railroad diagram of the rule read-word"></p>
+<p><img src="../../docs/diagrams/words/stream/brivla-token.svg" alt="Railroad diagram of the rule brivla-token"></p>
+<p><img src="../../docs/diagrams/words/stream/cmevla-token.svg" alt="Railroad diagram of the rule cmevla-token"></p>
 <p><img src="../../docs/diagrams/words/stream/y-bu-word.svg" alt="Railroad diagram of the rule y-bu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/words/stream/cmavo-token.svg" alt="Railroad diagram of the rule cmavo-token"></p>

@@ -1,0 +1,165 @@
+{
+  "description": "A grammatical quote reads its contents as words. Its CgV word therefore warns.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lu mi mariam li'u",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "lu",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LU",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "mi",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "KOhA",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "mariam",
+                  "tags": [
+                    "CMEVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "li'u",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LIhU",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "cmevla-token",
+            "source": [
+              6,
+              12
+            ],
+            "span": [
+              4,
+              5
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "lu",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LU",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "mi",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "KOhA",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "mariam",
+                  "tags": [
+                    "CMEVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "li'u",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LIhU",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "description": "ZEI takes the parsed CgV word as its left operand. That word read keeps its warning.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mariam zei broda",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "mariam zei broda",
+                  "tags": [
+                    "BRIVLA",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "cmevla-token",
+            "source": [
+              0,
+              6
+            ],
+            "span": [
+              0,
+              1
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "mariam zei broda",
+                  "tags": [
+                    "BRIVLA",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

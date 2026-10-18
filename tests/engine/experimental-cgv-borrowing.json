@@ -1,5 +1,5 @@
 {
-  "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
+  "description": "Forms marks the CgV borrowing. Disabling the later warning preserves the same marked form.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -136,6 +136,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -146,21 +147,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "brivla-shape",
-            "source": [
-              3,
-              10
-            ],
-            "span": [
-              3,
-              10
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     },
     {
@@ -296,6 +283,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -439,6 +427,7 @@
                   "value": "atkuila",
                   "tags": [
                     "BRIVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Run-Final",
                     "Run-Initial",
@@ -449,21 +438,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "brivla-shape",
-            "source": [
-              3,
-              10
-            ],
-            "span": [
-              3,
-              10
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     }
   ]

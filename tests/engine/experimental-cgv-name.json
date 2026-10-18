@@ -1,5 +1,5 @@
 {
-  "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
+  "description": "Forms marks the CgV name. Its warning belongs to a later word read.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -144,6 +144,7 @@
                   "value": "lidias",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -163,21 +164,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-shape",
-            "source": [
-              4,
-              10
-            ],
-            "span": [
-              3,
-              9
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     },
     {
@@ -321,6 +308,7 @@
                   "value": "lidias",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -481,6 +469,7 @@
                   "value": "lidias",
                   "tags": [
                     "CMEVLA",
+                    "Cgv-Warning",
                     "Continued",
                     "Onset",
                     "Run-Final",
@@ -500,21 +489,7 @@
             }
           ]
         },
-        "warnings": [
-          {
-            "feature": "experimental-cgv",
-            "rule": "cmevla-shape",
-            "source": [
-              4,
-              10
-            ],
-            "span": [
-              3,
-              9
-            ],
-            "stage": "forms"
-          }
-        ]
+        "warnings": []
       }
     }
   ]

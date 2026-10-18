@@ -1,0 +1,91 @@
+{
+  "description": "The CgV word precedes active FAhO. Its word read keeps the warning.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "atkuila fa'o broda",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "atkuila",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "brivla-token",
+            "source": [
+              0,
+              7
+            ],
+            "span": [
+              0,
+              1
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "atkuila",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "description": "LOhU still reads Lojban words inside its ungrammatical quote. Its CgV word therefore warns.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lo'u atkuila le'u",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "lo'u atkuila le'u",
+                  "tags": [
+                    "Cmavo",
+                    "LOhU",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "brivla-token",
+            "source": [
+              5,
+              12
+            ],
+            "span": [
+              2,
+              3
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "lo'u atkuila le'u",
+                  "tags": [
+                    "Cmavo",
+                    "LOhU",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

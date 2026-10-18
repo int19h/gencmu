@@ -1,0 +1,103 @@
+{
+  "description": "Active FAhO discards the suffix. Its CgV spelling supplies no word read.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi klama fa'o mariam",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "mi",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "KOhA",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "klama",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "mi",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "KOhA",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": "klama",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}
