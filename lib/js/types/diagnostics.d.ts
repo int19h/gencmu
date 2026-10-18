@@ -221,6 +221,14 @@ export type Trace = {
  * @property {{terminal: string, rules: string[]}[]} expected terminals items at the position could read
  */
 /**
+ * The parse failure that prevents a stage from being traced.
+ * @param {Dialect} dialect
+ * @param {import("./types.js").ParseResult} result
+ * @param {string} name
+ * @returns {string | null}
+ */
+export declare function traceProblem(dialect: Dialect, result: import("./types.js").ParseResult, name: string): string | null;
+/**
  * What one stage's recognizer did at one position of its input: which items
  * it predicted, advanced and completed there, and which advances a
  * condition refused, with the condition. This is the tool for "why does my
