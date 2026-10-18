@@ -34,13 +34,13 @@ The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a gl
 
 Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
 
-The consonant rules retain every restriction except the glide ban. A borrowing onset can add a glide after a nonempty legal initial. Particles exclude that new onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
+The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
 A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV whose consonant differs from `r`.
 
 CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-letter limit for borrowings.[^cll-a3-3] The word must resolve as one brivla. Thus `puamamakla` is legal despite its late cluster.
 
-Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows jbotci’s separate treatment of `r`, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion.
+Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows the separate treatment of `r` in jbotci, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
 
 The `experimental-cgv` warning is on by default. It covers each complete name or predicate word that contains CgV. Disabling the warning changes no reading. The span test reads only that word, so it cannot warn about CgV in a later word.
 
@@ -78,8 +78,32 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
 %rule cgv-form
   [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
 
-%redefine-rule onset
-  h | glide | initial | cgv-onset
+%rule brivla-onset
+  onset | cgv-onset
+
+%redefine-rule onset-nucleus-coda
+  brivla-onset nucleus [coda]
+
+%redefine-rule syllable
+  $o:brivla-onset nucleus [coda]
+%conditions
+  ¬$o.following-tokens.begins(y)
+
+%redefine-rule final-syllable
+  $o:brivla-onset $n:nucleus
+%conditions
+  ¬$o.following-tokens.begins(y | stressed),
+  ¬$n.following-tokens.begins(cmevla),
+  $n.following-tokens.begins(post-word)
+
+%redefine-rule stressed
+  brivla-onset stress-mark
+
+%redefine-rule brivla-head
+  [{unstressed-syllable}]
+%conditions
+  ¬$.onward.begins(cmavo | slinkuhi | h),
+  $.onward.begins(brivla-onset)
 
 %rule cgv-onset
   cgv-initial glide
@@ -91,12 +115,6 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
   ¬$a.following-tokens.begins(consonant),
   ¬$p.following-tokens.begins(consonant),
   $p.value ≠ ""
-
-%redefine-rule cmavo-form-with-onset
-  $o:onset [{nucleus h}] cmavo-last-nucleus
-%conditions
-  ¬$o.onward.begins(h | cluster),
-  ¬$o.onward.begins(cgv-onset)
 
 %redefine-rule fuhivla
   $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
@@ -194,7 +212,7 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
   ¬$c.following-tokens.begins(h | t | voiced)
 ```
 
-<details><summary>Railroad diagrams of the 30 rules from <code>cmevla-shape</code> to <code>t</code></summary>
+<details><summary>Railroad diagrams of the 34 rules from <code>cmevla-shape</code> to <code>t</code></summary>
 <p><img src="../../docs/diagrams/words/experimental/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
 <p><img src="../../docs/diagrams/words/experimental/ordinary-cgv-name.svg" alt="Railroad diagram of the rule ordinary-cgv-name"></p>
 <p><img src="../../docs/diagrams/words/experimental/warned-cgv-name.svg" alt="Railroad diagram of the rule warned-cgv-name"></p>
@@ -202,10 +220,14 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
 <p><img src="../../docs/diagrams/words/experimental/ordinary-cgv-brivla.svg" alt="Railroad diagram of the rule ordinary-cgv-brivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/warned-cgv-brivla.svg" alt="Railroad diagram of the rule warned-cgv-brivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
-<p><img src="../../docs/diagrams/words/experimental/onset.svg" alt="Railroad diagram of the rule onset"></p>
+<p><img src="../../docs/diagrams/words/experimental/brivla-onset.svg" alt="Railroad diagram of the rule brivla-onset"></p>
+<p><img src="../../docs/diagrams/words/experimental/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
+<p><img src="../../docs/diagrams/words/experimental/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
+<p><img src="../../docs/diagrams/words/experimental/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
+<p><img src="../../docs/diagrams/words/experimental/stressed.svg" alt="Railroad diagram of the rule stressed"></p>
+<p><img src="../../docs/diagrams/words/experimental/brivla-head.svg" alt="Railroad diagram of the rule brivla-head"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-onset.svg" alt="Railroad diagram of the rule cgv-onset"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-initial.svg" alt="Railroad diagram of the rule cgv-initial"></p>
-<p><img src="../../docs/diagrams/words/experimental/cmavo-form-with-onset.svg" alt="Railroad diagram of the rule cmavo-form-with-onset"></p>
 <p><img src="../../docs/diagrams/words/experimental/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-cluster-form.svg" alt="Railroad diagram of the rule cgv-cluster-form"></p>
 <p><img src="../../docs/diagrams/words/experimental/cgv-rafsi-continuation.svg" alt="Railroad diagram of the rule cgv-rafsi-continuation"></p>
@@ -377,7 +399,7 @@ This layer inherits whole hesitation runs from [bpfk.md](bpfk.md#whole-hesitatio
 
 The alternatives and repetitions state morphology constraints without PEG order. Merged stress tests and name forms remove duplicate proofs without changing the word classes.
 
-This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The warning identifies this extension by default. The full borrowing shape still rejects invalid compound-like forms.
+This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The warning identifies this extension by default. The full borrowing shape still rejects invalid compound-like forms. Only borrowing syllables receive the added onset, so a rafsi slot cannot use it.
 
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
 
