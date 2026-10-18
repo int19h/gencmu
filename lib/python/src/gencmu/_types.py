@@ -346,10 +346,11 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         kind, fault = yield _term_typing(term["then"], constants, memo)
         if fault is not None:
             return None, fault
-        joined, problem = joined_type([kind], "⟹")
-        if joined == "pattern":
-            problem = "a guarded term requires a tag set or string set"
-        return (None, (problem, term)) if problem is not None else (joined, None)
+        kind = "strings" if kind == "string" else kind
+        if kind not in ("tags", "strings", "set", "any"):
+            problem = SPAN_NOT_VALUE if kind in ("capture", "span", "restored") else "a guarded term requires a tag set or string set"
+            return None, (problem, term)
+        return kind, None
     name = term.get("method")
     if isinstance(name, str):
         kind, fault = yield _term_typing(term["receiver"], constants, memo)

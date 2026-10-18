@@ -152,6 +152,7 @@ class Grammar:
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
+    query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -819,6 +820,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     # same document and place.
     checked: set[int] = set()
     family_names: list[str] = []
+    query_terminals: set[str] = set()
 
     def unchecked(clause: Any) -> Any:
         if clause is None or id(clause) in checked:
@@ -852,6 +854,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                             stage,
                         )
                     if "method" in value:
+                        if value["method"] in ("matches", "begins"):
+                            query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
                         stack.extend(reversed([value["receiver"], *value["args"]]))
@@ -875,6 +879,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         feature_items=resolved_features,
         implications=implications,
         families=members(rules, family_names),
+        query_terminals=frozenset(query_terminals),
     )
 
     grammar.ranked = RankedGroups(stage, rules)
@@ -1573,17 +1578,7 @@ class _Lowerer:
                     self.add(lhs, expansion, alt)
                 self.flush(expansions)
             self.current_alt = None
-        terminals = set()
-        pending = [p for rule in self.grammar.rules.values() for alt in rule.alternatives for p in (alt.conditions, alt.tags, alt.rule_tags, alt.emit)]
-        while pending:
-            part = pending.pop()
-            if isinstance(part, (list, tuple)):
-                pending.extend(part)
-            elif isinstance(part, dict):
-                if part.get("method") in ("matches", "begins"):
-                    terminals.update(arg["terminal"] for arg in part["args"] if "terminal" in arg)
-                pending.extend(part.values())
-        for terminal in sorted(terminals):
+        for terminal in sorted(self.grammar.query_terminals):
             name = "\0query:" + terminal
             lhs = len(self.rule_names)
             self.rule_names.append(name)

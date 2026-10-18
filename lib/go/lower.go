@@ -253,7 +253,14 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 		}
 	}
 	terminals := map[string]bool{}
+	visited := map[clausePart]bool{}
+	conditions := map[condListKey]bool{}
+	emissions := map[*domEmit]bool{}
 	scanQuery := func(p clausePart) bool {
+		if visited[p] {
+			return false
+		}
+		visited[p] = true
 		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins) {
 			for _, t := range p.c.queryTargets() {
 				if t.Kind == tmTerminal {
@@ -265,12 +272,19 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 	}
 	for _, r := range g.rules {
 		for _, a := range r.alts {
-			for _, c := range a.conds {
-				walkClause(clausePart{c: c}, scanQuery)
+			walkClause(clausePart{t: a.alt.Tags}, scanQuery)
+			if len(a.conds) > 0 {
+				key := condListKey{&a.conds[0], len(a.conds)}
+				if !conditions[key] {
+					conditions[key] = true
+					for _, c := range a.conds {
+						walkClause(clausePart{c: c}, scanQuery)
+					}
+				}
 			}
 			walkClause(clausePart{t: a.ruleTags}, scanQuery)
-			walkClause(clausePart{t: a.alt.Tags}, scanQuery)
-			if a.emit != nil {
+			if a.emit != nil && !emissions[a.emit] {
+				emissions[a.emit] = true
 				for _, it := range a.emit.Items {
 					walkClause(clausePart{t: it.Tags}, scanQuery)
 				}

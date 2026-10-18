@@ -2209,11 +2209,15 @@ fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
     }
     let mut stack = Vec::new();
     let mut result = BTreeSet::new();
+    let mut seen = FxSet::default();
     for rule in &grammar.rules {
         for a in &rule.alternatives {
+            stack.extend(a.alternative.tags.iter().map(Part::T));
+            if !seen.insert(Arc::as_ptr(&a.clauses)) {
+                continue;
+            }
             stack.extend(a.clauses.conditions.iter().map(Part::C));
             stack.extend(a.clauses.tags.iter().map(Part::T));
-            stack.extend(a.alternative.tags.iter().map(Part::T));
             for item in a.clauses.emit.iter().flatten() {
                 match item {
                     EmitItem::Capture(_, t, _) | EmitItem::Insert(t, _) => stack.extend(t.iter().map(Part::T)),
