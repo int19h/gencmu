@@ -24,16 +24,17 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅
+  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
 <details><summary>Railroad diagram of <code>word-quote-marker</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
-`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The shared quote gap permits attached punctuation, as in `ra'oi "klama"`. It cannot skip standalone punctuation or ignored material.
+`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The shared quote gap permits attached punctuation, as in `ra'oi "klama"`. It cannot skip standalone punctuation or ignored material. A mark before another word stays in spacing, as in the shared quote.
 
 ```jbogenbau
 %extend-rule quote
@@ -46,14 +47,15 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
   $
 
 %rule rafsi-quote-target
-  $f:Rafsi-Form [quote-attachment] :: $f.tags :- $.verbatim-text
+  $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
 %conditions
-  Quote-Material ⊈ $.following-tokens.first-token.tags
+  ¬$.following-tokens.begins(quote-end-mark)
 
 %rule rahoi-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  RAhOI ⊆ $q.classes
+  RAhOI ⊆ $q.classes,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
 <details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>
@@ -68,9 +70,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅
+  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
 <details><summary>Railroad diagram of <code>zoi-marker</code></summary>
@@ -243,7 +246,7 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 
 ## Differences from the shared word stream
 
-The rafsi quote refuses material in its gap, as the shared one-word quote does. Its body must be the next rafsi or gismu form.
+The rafsi quote refuses standalone material in its gap, as the shared one-word quote does. Its body must be the next rafsi or gismu form.
 
 The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 

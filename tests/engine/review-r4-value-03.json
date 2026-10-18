@@ -1,0 +1,34 @@
+{
+  "description": "A mark before another word remains spacing. BU keeps the same value as the plain-pause form.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo \"mi\" bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "zo mi bu",
+              "image": "zo \"mi\" bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

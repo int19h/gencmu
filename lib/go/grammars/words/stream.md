@@ -283,7 +283,11 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ZO quotes one word from the shared reader or one standalone punctuation stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A punctuation target must fill its stretch between whitespace or periods. `quote-attachment` contributes no value because punctuation around a word only marks its written image.
+`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A punctuation target must fill its stretch between whitespace or periods.
+
+An attached opening mark supplies one gap space, even without whitespace. `quote-marker-end` also keeps a mark attached to the marker before whitespace. A period after that mark keeps it available as a literal punctuation target.
+
+`quote-attachment` contributes no value at a closing edge. `quote-end-mark` keeps a closing mark only before another pause or the text end. A mark before a following word stays in the gap, so BU keeps its separating space.
 
 ```jbogenbau
 %rule quoted-word
@@ -295,12 +299,28 @@ ZO quotes one word from the shared reader or one standalone punctuation stretch.
   $
 
 %rule word-quote-gap
-  word-gap<¬Quote-Material> [quote-attachment]
+  | word-gap<¬Quote-Material>
+  | word-gap<¬Quote-Material> quote-attachment := $PAUSE
 
 %rule word-quote-target
-  $w:read-word [quote-attachment] :: $w.tags :- $.verbatim-text
+  $w:read-word [quote-end-mark] :: $w.tags :- $.verbatim-text
 %conditions
-  Quote-Material ⊈ $.following-tokens.first-token.tags
+  ¬$.following-tokens.begins(quote-end-mark)
+
+%rule quote-marker-end
+  quote-attachment
+%conditions
+  $.onward.begins(marker-whitespace)
+
+%rule marker-whitespace
+  $m:PAUSE<Quote-Material> PAUSE<¬Quote-Material>
+%conditions
+  $m.source-text ∉ $.source-text.split(".")
+
+%rule quote-end-mark
+  quote-attachment
+%conditions
+  $.ends-input ∨ $.following-tokens.begins(PAUSE)
 
 %rule quote-attachment
   PAUSE<Quote-Material> := ""
@@ -311,15 +331,19 @@ ZO quotes one word from the shared reader or one standalone punctuation stretch.
   $.ends-input ∨ $.following-tokens.begins(quiet-pause)
 
 %rule word-quote-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZO ⊆ $q.classes
+  ZO ⊆ $q.classes,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>quoted-word</code> to <code>word-quote-marker</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>quoted-word</code> to <code>word-quote-marker</code></summary>
 <p><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-gap.svg" alt="Railroad diagram of the rule word-quote-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-target.svg" alt="Railroad diagram of the rule word-quote-target"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-marker-end.svg" alt="Railroad diagram of the rule quote-marker-end"></p>
+<p><img src="../../docs/diagrams/words/stream/marker-whitespace.svg" alt="Railroad diagram of the rule marker-whitespace"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-end-mark.svg" alt="Railroad diagram of the rule quote-end-mark"></p>
 <p><img src="../../docs/diagrams/words/stream/quote-attachment.svg" alt="Railroad diagram of the rule quote-attachment"></p>
 <p><img src="../../docs/diagrams/words/stream/zo-punctuation.svg" alt="Railroad diagram of the rule zo-punctuation"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
@@ -346,9 +370,10 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   $
 
 %rule single-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅
+  $q.classes ∩ (ZOhOI ∪ MEhOI) ≠ ∅,
+  ¬$.following-tokens.begins(quote-marker-end)
 
 %rule raw-y-letter
   raw-y-base [pause-run] bu-word
@@ -420,9 +445,10 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $
 
 %rule zoi-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  ZOI ⊆ $q.classes
+  ZOI ⊆ $q.classes,
+  ¬$.following-tokens.begins(quote-marker-end)
 
 %rule delimiter
   $w:read-word
@@ -957,7 +983,7 @@ Unlike camxes-exp, a decimal point between digits stays inside a raw run, as [la
 
 Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skipping it. Thus `zo'oi , broda` and `la'oi , klama` quote the comma here. camxes-exp quotes the following word. This follows the decision that ignored characters can form the quote body.
 
-ZO can quote standalone punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words.
+ZO can quote standalone punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words. A mark between the target and a following word remains spacing. BU therefore keeps its separating space after a quoted word.
 
 The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across dialect lexicons.
 

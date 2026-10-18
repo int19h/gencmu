@@ -1,0 +1,30 @@
+{
+  "description": "An attached opening mark supplies the gap space even without whitespace.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo\"mi",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "zo mi",
+              "image": "zo\"mi"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
