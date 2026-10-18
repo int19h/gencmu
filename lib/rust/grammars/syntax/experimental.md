@@ -190,7 +190,7 @@ A bare tense, modal, or `na` is not a term before a selbri ("Terms" below). So `
 
 The afterthought connective between bridi-tails can be a gihek, joik, jek, ek or VUhU (`bridi-tail-connective`). Each of them can also open a `bo` or `ke` grouping of bridi-tails. So can a bare `gi` with a stag, as in `mi klama gi ba bo tavla`.
 
-A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
+A structural pattern tests a node and its children. Connected bridi-tails group from the left, and `bridi-tail-1` uses left recursion.[^cll-s14-10] After a plain connective, the headless selbri alternative excludes an initial KE tanru unit. The first-child pattern follows the selected tail to its selbri, including an initial tag. The `gek-sentence` alternative still permits its KE wrapper. Without these limits, `gi'e ke` and `gi'e ba ke` can each open two constructs.
 
 The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
@@ -218,18 +218,16 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 %redefine-rule bridi-tail-1
   bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
 
+%const $KE-START @(KE ⋰) ∪ @(tag @(KE ⋰))
+
 %rule connected-bridi-tail
   | bridi-tail-head bridi-tail-2
-  | bridi-tail-2-not-starting-with-ke
+  | $b:bridi-tail-2
+%conditions
+  $b ≇ @((selbri ∩ $KE-START) ⋰)
 
 %redefine-rule bridi-tail-2
   bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
-
-%rule bridi-tail-2-not-starting-with-ke
-  bridi-tail-3-not-starting-with-ke [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
-
-%rule bridi-tail-3-not-starting-with-ke
-  selbri-not-starting-with-ke tail-terms | gek-sentence
 
 %redefine-rule gek-sentence
   gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [+KEhE] # | NA # gek-sentence
@@ -241,7 +239,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
   [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 14 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
@@ -251,8 +249,6 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1.svg" alt="Railroad diagram of the rule bridi-tail-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-2-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule bridi-tail-3-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
@@ -516,7 +512,6 @@ In `mi me la'e ge my gi ny su'i zy moi`, ME takes the complete sumti operand. It
 
 Where only the plain reading parses, the layer keeps it. So `mi broda joi ke brode ke'e bo brodi` joins `broda` to the unit `ke brode ke'e bo brodi`.
 
-
 A group of preposed linked arguments comes before a whole `tanru-unit-1`. A `be` group attaches to the tanru unit before it, where there is one. So a unit without a group of its own cannot be directly followed by `be` (`tanru-unit-1`). A preposed group stands only where no such unit comes before it, as at the start of a selbri or after a connective.
 
 So `zdani be mi vorme` gives `be mi` to `zdani`, and `le tutci be sigdanva le marna` gives an empty `be` group to `tutci`. Without the rule, each text has two readings that elide the same terminators.
@@ -532,28 +527,6 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 
 %redefine-rule selbri-5
   {selbri-6 ... / connective [stag] BO #}
-
-%rule selbri-not-starting-with-ke
-  [tag] selbri-1-not-starting-with-ke
-
-%rule selbri-1-not-starting-with-ke
-  selbri-2-not-starting-with-ke | NA # selbri
-
-%rule selbri-2-not-starting-with-ke
-  selbri-3-not-starting-with-ke [CO # selbri-2]
-
-%rule selbri-3-not-starting-with-ke
-  selbri-4-not-starting-with-ke | selbri-3-not-starting-with-ke selbri-4
-
-%rule selbri-4-not-starting-with-ke
-  | selbri-5-not-starting-with-ke
-  | selbri-4-not-starting-with-ke (joik-jek-ek [stag] KE # selbri-3 [+KEhE] # ≻ connective selbri-5)
-
-%rule selbri-5-not-starting-with-ke
-  selbri-6-not-starting-with-ke [connective [stag] BO # selbri-5]
-
-%rule selbri-6-not-starting-with-ke
-  tanru-unit-not-starting-with-ke [BO # selbri-6] | [NAhE #] guhek selbri gik selbri-6
 
 %redefine-rule tanru-unit
   {tanru-unit-1 / CEI #} [selbri-relative-clauses]
@@ -582,27 +555,6 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 %conditions
   ¬$m.without-elision.matches(sumti)
 
-%rule tanru-unit-not-starting-with-ke
-  tanru-unit-1-not-starting-with-ke [{CEI # tanru-unit-1}] [selbri-relative-clauses]
-
-%rule tanru-unit-1-not-starting-with-ke
-  | $u:tanru-unit-2-not-starting-with-ke
-  | tanru-unit-2-not-starting-with-ke linkargs
-%conditions
-  BE ⊈ $u.following-tokens.first-token.tags
-
-%rule tanru-unit-2-not-starting-with-ke
-  | BRIVLA #
-  | cbm? CMEVLA #
-  | GOhA [RAhO] #
-  | me-unit
-  | (NAhE # tanru-unit-2 ≻ mex MOI # ≻ SE # tanru-unit-2)
-  | NUhA # operator
-  | JAI # [tag] tanru-unit-2
-  | abstractor-chain subsentence [+KEI] #
-  | linkargs tanru-unit-1
-  | MEhOI #
-
 %redefine-rule abstractor-chain
   {... NU # / connective}
 
@@ -620,23 +572,13 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
   BEI # [term] [links]
 ```
 
-<details><summary>Railroad diagrams of the 21 rules from <code>selbri-4</code> to <code>links</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>selbri-4</code> to <code>links</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-4.svg" alt="Railroad diagram of the rule selbri-4"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-5.svg" alt="Railroad diagram of the rule selbri-5"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-1-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-2-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-3-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-3-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-4-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-4-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-5-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-5-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/selbri-6-not-starting-with-ke.svg" alt="Railroad diagram of the rule selbri-6-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit.svg" alt="Railroad diagram of the rule tanru-unit"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1.svg" alt="Railroad diagram of the rule tanru-unit-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/me-unit.svg" alt="Railroad diagram of the rule me-unit"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-1-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-1-not-starting-with-ke"></p>
-<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2-not-starting-with-ke.svg" alt="Railroad diagram of the rule tanru-unit-2-not-starting-with-ke"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/abstractor-chain.svg" alt="Railroad diagram of the rule abstractor-chain"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clauses.svg" alt="Railroad diagram of the rule selbri-relative-clauses"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></p>
@@ -981,7 +923,7 @@ The statement connectives follow camxes-exp, including `mi klama joi .i do klama
 
 camxes-exp calls its four-family bridi-tail connection JACU. JOI, JA, A and VUhU join bridi-tails, as GIhA does, as in `mi klama do je tavla ti`. A separate [terms-before-selbri proposal](https://mw.lojban.org/papri/nu_curmi_lo_nu_lo_sumti_cu_jbini_zo_cu_joi_lo_selbri) permits terms before a later selbri, as in `mi klama je do tavla`. This layer has both changes. Like camxes-exp, it keeps `gi'e ke` and `gi'e ba ke` as the start of a KE group of bridi-tails.
 
-camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and the `-not-starting-with-ke` rules.
+camxes-exp uses lookahead after its gihek. This layer uses the KU omission conditions and a first-child pattern on the selected selbri.
 
 ### Terms and descriptions
 
