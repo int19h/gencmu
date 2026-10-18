@@ -300,14 +300,19 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
                     if "erased" in r:
                         return "an erased rule has a recipe"
                     pending.append(("recipe", a[channel], 0, False, False))
-    problem = _walk(pending, unicode)
+    # Feature types depend on the surviving selected stage.
+    deferred = set()
+    feature_nodes = [condition for directive in dom["directives"] for condition in directive.get("conditions", [])]
+    while feature_nodes:
+        node = feature_nodes.pop()
+        if isinstance(node, dict) and id(node) not in deferred:
+            deferred.add(id(node))
+            feature_nodes.extend(node.values())
+        elif isinstance(node, list):
+            feature_nodes.extend(node)
+    problem = _walk(pending, unicode, deferred)
     if problem:
         return problem
-    for directive in dom["directives"]:
-        if "conditions" in directive:
-            problem = input_conditions_problem(directive["conditions"])
-            if problem:
-                return problem
     for r in dom["rules"]:
         for a in r["alternatives"]:
             if duplicate_captures(a["expr"]):
@@ -324,7 +329,7 @@ def _dom_problem(dom: Any, unicode: Marks, defer_emission: bool = False) -> str 
     return None
 
 
-def _walk(pending: list, unicode: Marks) -> str | None:
+def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
     types = {}
     while pending:
         kind, node, depth, whole, sealed = pending.pop()
@@ -448,13 +453,13 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by")
             ):
                 return "a malformed condition"
-            problem = condition_type_problem(node, memo=types)
+            problem = None if id(node) in deferred else condition_type_problem(node, memo=types)
             if problem:
                 return problem
             if "method" not in node:
                 continue
         elif kind == "tags":
-            problem = tag_term_problem(node, memo=types)
+            problem = None if id(node) in deferred else tag_term_problem(node, memo=types)
             if problem:
                 return problem
         if "method" in node:
@@ -467,12 +472,12 @@ def _walk(pending: list, unicode: Marks) -> str | None:
                 and node["receiver"].get("method") == "emitted"
             ):
                 return "a recipe-only method outside a recipe"
-            result, problem = term_type(node, memo=types)
+            result, problem = ("any", None) if id(node) in deferred else term_type(node, memo=types)
             if problem:
                 return problem
             if kind == "string":
                 return "a string operand requires a literal or constant"
-            if node["method"] == "split" and literal_string(node["args"][0]) == "":
+            if id(node) not in deferred and node["method"] == "split" and literal_string(node["args"][0]) == "":
                 return "split has an empty delimiter"
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
@@ -536,7 +541,7 @@ def _walk(pending: list, unicode: Marks) -> str | None:
             key = next(k for k in ("union", "intersection", "difference") if k in node)
             if keys != {key} or not _items(node[key], 2, 2 if key == "difference" else float("inf")):
                 return "a malformed set expression"
-            problem = term_type(node, memo=types)[1]
+            problem = None if id(node) in deferred else term_type(node, memo=types)[1]
             if problem:
                 return problem
             pending.extend(("term", x, below, False, False) for x in node[key])

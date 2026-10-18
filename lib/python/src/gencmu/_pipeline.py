@@ -71,6 +71,7 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     # The stages by name, for the check of a second stage of a name.
     named: dict[str, SplicedStage] = {}
     features: set[str] = set()
+    declarations = []
     # The run being built: a path and its DOM.
     run: tuple[str, Dom] | None = None
     selected: SplicedStage | None = None
@@ -160,6 +161,8 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
                     run = (document, run_dom)
                     selected.documents.append(run)
                 run[1][_LISTS[kind]].append(item)
+                if name == "features":
+                    declarations.append((selected.name, run[1], document, item))
                 if kind == "rule" and isinstance(dom, DeferredDom):
                     run[1].deferred_emissions.extend(
                         (rule, problem) for rule, problem in dom.deferred_emissions if rule is item
@@ -175,4 +178,14 @@ def splice_pipeline(path: str, dom_of: Callable[[str], Dom | None]) -> Pipeline:
     for stage in stages:
         if not any(dom["rules"] for _, dom in stage.documents):
             raise GencmuError(f"stage {stage.name} has no rules", document=stage.document, line=stage.at[0], column=stage.at[1])
+    surviving = {id(dom) for stage in stages for _, dom in stage.documents}
+    owners = {}
+    for stage, dom, document, directive in declarations:
+        if id(dom) not in surviving:
+            continue
+        for name in directive["args"]:
+            owner = owners.setdefault(name, stage)
+            if owner != stage:
+                raise GencmuError(f"feature {name} is local to both {owner} and {stage}", document=document,
+                                  line=directive["at"][0], column=directive["at"][1], stage=stage)
     return Pipeline(stages, frozenset(features))

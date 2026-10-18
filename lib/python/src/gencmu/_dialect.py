@@ -554,17 +554,21 @@ def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[st
                 raise GencmuError(f"{document}:{at[0]}:{at[1]}: the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
     local = set()
     defaults = set(declared)
-    tested = set()
+    tested = {}
     for grammar in grammars:
         for document, directive in grammar.feature_items:
             for name in directive["args"]:
                 if name in tested:
-                    raise GencmuError(f"an earlier stage tests local feature {name}", document=document, line=directive["at"][0], column=directive["at"][1], stage=grammar.stage)
+                    raise GencmuError(f"stage {tested[name]} tests local feature {name}", document=document, line=directive["at"][0], column=directive["at"][1], stage=grammar.stage)
                 local.add(name)
                 if "conditions" not in directive:
                     defaults.add(name)
-        tested.update(guard["feature"] for rule in grammar.rules.values() for alt in rule.alternatives for guard in alt.guards)
-        tested.update(grammar.classifier_gates)
+        for rule in grammar.rules.values():
+            for alt in rule.alternatives:
+                for guard in alt.guards:
+                    tested.setdefault(guard["feature"], grammar.stage)
+        for name in grammar.classifier_gates:
+            tested.setdefault(name, grammar.stage)
     return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted(kinds.keys() | declared | local))
 
 
@@ -738,7 +742,7 @@ class Dialect:
                             if conditional:
                                 failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}", stage=grammar.stage, feature=feature)
                                 stages.append(Stage(grammar.stage, None, current))
-                                return ParseResult(False, stages, None, failure, text, warnings)
+                                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
                         else:
                             features = features | {feature}
                 lowered = self.lowered(number, features)
@@ -747,7 +751,7 @@ class Dialect:
                 # is a result, with its stage and no position (engine §13).
                 failure = ParseError("grammar", error.message, stage=grammar.stage)
                 stages.append(Stage(grammar.stage, None, current))
-                return ParseResult(False, stages, None, failure, text, warnings)
+                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
 
             runner = StageRunner(grammar.stage, lowered, current, text, self.unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
@@ -763,10 +767,10 @@ class Dialect:
             stages.append(stage)
             warnings.extend(outcome.warnings)
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, text, warnings)
+                return ParseResult(False, stages, None, outcome.error, text, warnings, features=sorted(features))
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings)
+        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings, features=sorted(features))
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:

@@ -278,7 +278,7 @@ class ParseResult:
     """The result of a parse: ``ok`` when every stage run accepted without an
     error, the stages run, the last stage's ``tree``, the ``error``, and the
     ``warnings`` of every stage run, in stage order, whether or not the
-    parse is ``ok``."""
+    parse is ``ok``. Its ``features`` list records the enabled names when the run ends."""
 
     ok: bool
     stages: list[Stage]
@@ -286,13 +286,14 @@ class ParseResult:
     error: ParseError | None
     text: str = ""
     warnings: list[ParseWarning] = field(default_factory=list)
+    features: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class Feature:
     """One of a dialect's features (engine §13): its ``name``, its ``kind``,
     ``"gate"`` or ``"warning"``, and whether the pipeline's
-    ``%features`` turns it on by ``default``."""
+    unconditional global or local ``%features`` declares it as a ``default``."""
 
     name: str
     kind: str

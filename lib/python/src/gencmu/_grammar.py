@@ -758,22 +758,25 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     from ._types import condition_type_fault
     resolved_features = []
     for path, directive in feature_items:
-        if "conditions" not in directive:
-            resolved_features.append((path, directive))
-            continue
-        for reference in constants_in(directive["conditions"]):
-            if scalar(reference["const"]) is None and reference["const"] not in constants.values:
-                raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
-        conditions = run(constants.with_values(directive["conditions"]))
-        problem = input_conditions_problem(conditions)
-        if problem:
-            raise _error(problem, path, directive["at"], stage)
-        for condition in conditions:
-            fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
-            if fault:
-                raise _error(fault[0], path, directive["at"], stage)
-        constants.check_delimiters(path, directive["conditions"], directive["at"])
-        resolved_features.append((path, {**directive, "conditions": conditions}))
+        try:
+            if "conditions" not in directive:
+                resolved_features.append((path, directive))
+                continue
+            for reference in constants_in(directive["conditions"]):
+                if scalar(reference["const"]) is None and reference["const"] not in constants.values:
+                    raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
+            conditions = run(constants.with_values(directive["conditions"]))
+            problem = input_conditions_problem(conditions)
+            if problem:
+                raise _error(problem, path, directive["at"], stage)
+            for condition in conditions:
+                fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
+                if fault:
+                    raise _error(fault[0], path, directive["at"], stage)
+            constants.check_delimiters(path, directive["conditions"], directive["at"])
+            resolved_features.append((path, {**directive, "conditions": conditions}))
+        except GencmuError as error:
+            raise _error(error.message, path, directive["at"], stage) from error
     from ._boundary import validate_targets
     validate_targets(rules, stage)
     classifier_items = [
