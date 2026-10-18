@@ -411,31 +411,29 @@ A bare NAhE cannot wrap one tagged term, even when that term omits KU. The patte
 
 The inner sumti of a description can be any sumti, including a connected one, as in `lo mi .e do broda`. It cannot start with a quantifier. Thus `lo re mi broda` contains `lo re mi` and the selbri `broda`.
 
-`Quantifier-Start` marks a sumti that begins with its own quantifier. A plain, BO or KE connection takes the mark from its first sumti, and so does a sumti with `vu'o`. Even when its first branch has the mark, a forethought connection has none. The rule `sumti-tail` refuses a possessor with the mark. The rules `sumti-2` and `sumti-3` use recursion, because a chain cannot name its first item.
+The `sumti-tail` condition follows the possessor's first-child path and refuses an initial quantifier. This path crosses plain, BO, KE, and VUhO connections. A forethought connection starts with its gek, so its first branch can begin with a quantifier. The rules `sumti-2` and `sumti-3` are left and right chains, respectively.
 
 A description can take a forethought sentence in place of a selbri, and so can a quantifier without a descriptor. Examples are `le ga mi klama gi do klama ku` and `re ga mi klama gi do klama ku`.
 
 ```jbogenbau
 %redefine-rule sumti
   | sumti-1
-  | $s:sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End ∪ ($s.tags ∩ Quantifier-Start)
-  | $s:sumti-1 VUhO # [relative-clauses] connective $i:sumti :: ($s.tags ∩ Quantifier-Start) ∪ ($i.tags ∩ $EXTENSIBLE-END)
+  | sumti-1 VUhO # [relative-clauses] :: Link-Extensible-End
+  | sumti-1 VUhO # [relative-clauses] connective $i:sumti :: $i.tags ∩ $EXTENSIBLE-END
 
 %redefine-rule sumti-1
   | sumti-2
-  | $s:sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: ($s.tags ∩ Quantifier-Start) ∪ (KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END)
+  | sumti-2 connective [stag] KE # $i:sumti [+KEhE] # :: KEhE ⊈ $i.following-tokens.first-token.tags ⟹ $i.tags ∩ $EXTENSIBLE-END
 
-%redefine-rule sumti-2 :: $EXTENSIBLE-END ∪ ($s.tags ∩ Quantifier-Start)
-  | $s:sumti-3
-  | $s:sumti-2 connective sumti-3
+%redefine-rule sumti-2 :: $EXTENSIBLE-END
+  | {... sumti-3 / connective}
 
-%redefine-rule sumti-3 :: $s.tags ∩ Quantifier-Start
-  | $s:sumti-4
-  | $s:sumti-4 connective [stag] BO # sumti-3
+%redefine-rule sumti-3
+  {sumti-4 ... / connective [stag] BO #}
 
 %redefine-rule sumti-5
-  | [$q:quantifier] sumti-6 [relative-clauses] :: $q ⟹ Quantifier-Start
-  | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses] :: Quantifier-Start
+  | [quantifier] sumti-6 [relative-clauses]
+  | quantifier (selbri | gek-sentence) [+KU] # [relative-clauses]
 
 %redefine-rule sumti-6
   | (LAhE # | NAhE BO # | NAhE #) [relative-clauses] sumti [+LUhU] #
@@ -463,7 +461,7 @@ A description can take a forethought sentence in place of a selbri, and so can a
   | relative-clauses sumti-tail-1
   | gek-sentence
 %conditions
-  Quantifier-Start ⊈ $s.tags
+  $s ≇ @(quantifier ⋰)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>sumti</code> to <code>sumti-tail</code></summary>
