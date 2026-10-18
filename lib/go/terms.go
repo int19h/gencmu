@@ -1,6 +1,7 @@
 package gencmu
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -708,6 +709,7 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 	k := nestedKey{g: g, kind: kind, rule: start, a: s.a, b: s.b}
 	contextEnd := s.b
 	if s.aligned != nil {
+		ps.alignedAsked++
 		if s.aligned.arena == nil || s.aligned.observation == invalidCloses {
 			return false, ps.in.empty(), nil
 		}
@@ -726,7 +728,27 @@ func (run *stageRun) nested(g *lowered, kind, rule string, s spanVal) (bool, *ta
 		k.queryContext = ps.queryContext
 	}
 	if r, ok := ps.nested[k]; ok {
+		if r.aligned {
+			ps.alignedAsked++
+		}
 		return r.holds, r.tags, nil
+	}
+	// While an aligned query is active, the shared memo serves nothing
+	// (engine §4.3). It still keeps what the parse computes.
+	if k.content != 0 && ps.memoLimit > 0 && ps.alignedActive == 0 {
+		if a, ok := g.memo.get(sharedKey{k.kind == cdBegins, start, ps.contentStrings[k.content-1]}, ps.memoLimit); ok {
+			if memoHitHook != nil {
+				memoHitHook(start, ps.alignedActive)
+			}
+			// The answer enters the memo of the parse, as the answer of its
+			// nested parse does.
+			res := &nestedResult{holds: a.holds}
+			if k.kind != cdBegins {
+				res.tags = ps.in.make(slices.Clone(a.tags))
+			}
+			ps.nested[k] = res
+			return res.holds, res.tags, nil
+		}
 	}
 	q := &nestedQuery{g: g, name: rule, start: start, key: k, at: at, aligned: s.aligned, matchEnd: s.b, parentContext: ps.queryContext}
 	if q.aligned != nil {
@@ -750,6 +772,8 @@ type nestedQuery struct {
 	aligned       *alignedSpan
 	matchEnd      int
 	parentContext int
+	// asked is the count of aligned queries when the nested parse began.
+	asked uint64
 }
 
 // Qualification does not depend on an outer close constraint. Summaries
@@ -825,6 +849,13 @@ func (run *stageRun) alignedAnswer(q *nestedQuery, proofs []qualifiedProof) *nes
 // with its rule as the start rule, in the ordinary mode (§7.6).
 func (q *nestedQuery) recognizer(run *stageRun) *recognizer {
 	a, b := q.at.a, q.at.b
+	q.asked = run.ps.alignedAsked
+	if q.aligned != nil {
+		run.ps.alignedActive++
+	}
+	if q.aligned != nil && alignedQueryHook != nil {
+		alignedQueryHook(1)
+	}
 	r := &recognizer{run: run, g: q.g, base: a, n: b - a, lo: a, hi: b, query: q, closeRequested: q.aligned != nil, w: run.walk()}
 	if q.aligned != nil && q.aligned.family != "" {
 		r.family = newFamilyArena(q.aligned.arena, q.aligned.observation, a, q.aligned.end, q.g.stage.families[q.aligned.family])
@@ -850,6 +881,12 @@ func (run *stageRun) drive(root *recognizer) {
 		for _, r := range frames {
 			if r.query != nil {
 				delete(run.ps.inProgress, r.query.at)
+				if r.query.aligned != nil {
+					run.ps.alignedActive--
+				}
+				if r.query.aligned != nil && alignedQueryHook != nil {
+					alignedQueryHook(-1)
+				}
 			}
 		}
 		run.inputStart, run.inputEnd = outerStart, outerEnd
@@ -866,6 +903,12 @@ func (run *stageRun) drive(root *recognizer) {
 		frames = frames[:len(frames)-1]
 		if r.query != nil {
 			delete(run.ps.inProgress, r.query.at)
+			if r.query.aligned != nil {
+				run.ps.alignedActive--
+			}
+			if r.query.aligned != nil && alignedQueryHook != nil {
+				alignedQueryHook(-1)
+			}
 			run.ps.queryContext = r.query.parentContext
 			run.settle(r)
 			// A nested recognition is done with its walk, which the next
@@ -947,6 +990,25 @@ func (run *stageRun) settle(rec *recognizer) {
 		res.holds, res.tags = len(sets) > 0, ps.in.unionAll(sets)
 	}
 	ps.nested[q.key] = res
+	run.remember(q, res)
+}
+
+// remember keeps the answer of a nested parse that has finished in the
+// shared memo, unless it depends on an aligned query (engine §4.3).
+func (run *stageRun) remember(q *nestedQuery, res *nestedResult) {
+	ps := run.ps
+	if ps.alignedAsked != q.asked {
+		res.aligned = true
+		return
+	}
+	if q.key.content == 0 || ps.memoLimit <= 0 {
+		return
+	}
+	a := sharedAnswer{holds: res.holds}
+	if q.key.kind != cdBegins && res.tags != nil {
+		a.tags = res.tags.names
+	}
+	q.g.memo.insert(sharedKey{q.key.kind == cdBegins, q.start, ps.contentStrings[q.key.content-1]}, a, ps.memoLimit)
 }
 
 // spanContent is the number of everything a nested parse of a span can
@@ -1006,7 +1068,9 @@ func (run *stageRun) spanContent(s spanVal) int {
 		return n
 	}
 	n := len(ps.contents) + 1
-	ps.contents[string(key)] = n
+	content := string(key)
+	ps.contents[content] = n
+	ps.contentStrings = append(ps.contentStrings, content)
 	return n
 }
 
@@ -1039,6 +1103,8 @@ type nestedKey struct {
 type nestedResult struct {
 	holds bool
 	tags  *tagset
+	// aligned says that the answer depends on an aligned query.
+	aligned bool
 }
 
 // parseFailure is a grammar error found while parsing: it ends the whole
