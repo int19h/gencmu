@@ -1989,6 +1989,21 @@ impl<'a> Reader<'a> {
         }
     }
 
+    fn recipe_string_run(mut node: &Node) -> Option<&Node> {
+        for wrapper in ["term", "union", "intersection", "term-atom"] {
+            if rule_name(node) != wrapper {
+                return None;
+            }
+            let children = Self::parts(node);
+            let [child] = children.as_slice() else { return None };
+            if child.kind != NodeKind::Rule {
+                return None;
+            }
+            node = child;
+        }
+        (rule_name(node) == "string-run").then_some(node)
+    }
+
     fn channels(&self, node: &'a Node) -> R<Channels> {
         let mut channels = Channels::default();
         for (name, target, at) in [
@@ -2008,6 +2023,12 @@ impl<'a> Reader<'a> {
                             .any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹"))
                     {
                         return Err(self.error(atom, "a recipe atom has no grouping or operators"));
+                    }
+                    if let Some(run) = Self::recipe_string_run(self.one(atom, "term")?) {
+                        for string in self.some(run, "string", 2)? {
+                            atoms.push(Arg::Term(self.string_term(self.token(string)?)?));
+                        }
+                        continue;
                     }
                     let (term, _) = self.term(self.one(atom, "term")?, true)?;
                     let valid = match &term {

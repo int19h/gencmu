@@ -891,7 +891,12 @@ impl<'a> Scope<'a> {
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
             // String contexts project captures and derived spans to input values (§10).
             Term::Capture(_) => LTerm::Value(self.span(term)?),
-            Term::Call(name, _) if matches!(name.as_str(), "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except") => {
+            Term::Call(name, _)
+                if matches!(
+                    name.as_str(),
+                    "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except"
+                ) =>
+            {
                 LTerm::Value(self.span(term)?)
             }
             Term::Pattern(_) | Term::Const(..) => return Err(Missing),
