@@ -1,0 +1,409 @@
+{
+  "description": "A period-only opening edge keeps its attached mark. Whitespace ends that edge, so a separate mark remains in the body.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi \"gy \" gy",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                7,
+                9
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                7,
+                9
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi",
+              "image": "zoi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                0,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                5,
+                7
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                7,
+                9
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                11,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi gy \" gy",
+              "image": "zoi \"gy \" gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ],
+              "source": [
+                0,
+                13
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

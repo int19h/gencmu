@@ -1,0 +1,21 @@
+{
+  "description": "The quote marker uses the script period classification. Standalone material cannot disappear into its gap.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ra'oi\" broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

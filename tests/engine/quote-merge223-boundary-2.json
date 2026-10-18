@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "zoi gy. ni'o coi do .gy ni'o coi do .i mi klama",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -78,7 +77,8 @@
                 8
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ]
             },
             {

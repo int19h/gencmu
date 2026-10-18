@@ -1,0 +1,359 @@
+{
+  "description": "The quote marker uses the script period classification. Standalone material cannot disappear into its gap.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'oi\" broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                9
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                13,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                9
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                13,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo'oi",
+              "image": "zo'oi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                0,
+                5
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                9
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                9,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo'oi\"",
+              "image": "zo'oi\"",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                0,
+                6
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                9,
+                14
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

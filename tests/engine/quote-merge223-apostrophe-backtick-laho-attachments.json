@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "ba'e la`o gy. l`amour .gy ui",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -134,7 +133,8 @@
                 14
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ]
             },
             {

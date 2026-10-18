@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi, la`o gy. l`amour .gy ui cmavo",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -116,7 +115,8 @@
                 13
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ]
             },
             {

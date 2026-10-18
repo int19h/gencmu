@@ -285,7 +285,7 @@ ZO quotes one word from the shared reader or one standalone punctuation stretch.
 
 `word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A punctuation target must fill its stretch between whitespace or periods.
 
-An attached opening mark supplies one gap space, even without whitespace. `quote-marker-end` also keeps a mark attached to the marker before whitespace. A period after that mark keeps it available as a literal punctuation target.
+An attached opening mark supplies one gap space, even without whitespace. `quote-marker-end` also keeps a mark attached to the marker before whitespace. A period after that mark keeps it available as a literal punctuation target. `Period-Initial` identifies that boundary through the phoneme grammar’s classification.
 
 `quote-attachment` contributes no value at a closing edge. `quote-end-mark` keeps a closing mark only before another pause or the text end. A mark before a following word stays in the gap, so BU keeps its separating space.
 
@@ -313,9 +313,7 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
   $.onward.begins(marker-whitespace)
 
 %rule marker-whitespace
-  $m:PAUSE<Quote-Material> PAUSE<¬Quote-Material>
-%conditions
-  $m.source-text ∉ $.source-text.split(".")
+  PAUSE<Quote-Material> PAUSE<¬Quote-Material ¬Period-Initial>
 
 %rule quote-end-mark
   quote-attachment
@@ -418,7 +416,7 @@ The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa
 
 Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. A pause separates the body from the closing run. Attached marks around either delimiter add no value. A mark before another word stays in spacing.
 
-`delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause contains no whitespace. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
+`delimiter-body-gap` reads the boundary after the opening delimiter. A marked opening delimiter can place its closing mark across a period-only pause. A period-only pause carries `Period-Only` from the phoneme grammar. It contains no whitespace or ignored characters. The first whitespace ends that opening edge. Separate material stretches remain in the raw body.
 
 The body leaves its final quiet pause to the closing gap. The closing edge keeps an attached mark before a pause or the text end. These boundaries give each mark and pause one owner.
 
@@ -434,7 +432,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   Y-Letter ⊆ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
   Delimiter-Edge ⊈ $b.tags ∨ Delimiter-Mark ⊆ $g.tags,
-  Delimiter-Mark ⊈ $g.tags ∨ $b.source-text.split(".") ≠ ∅ ∨ ¬$b.following-tokens.begins(quote-attachment),
+  Delimiter-Mark ⊈ $g.tags ∨ Period-Only ⊈ $b.tags ∨ ¬$b.following-tokens.begins(quote-attachment),
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
   $open.tags ∖ $Y-PROPERTIES ⊈ $content.tags(body-with-y-close)
 %emits
@@ -448,7 +446,7 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   Y-Letter ⊈ $open.tags,
   ¬$.following-tokens.begins(quote-end-mark),
   Delimiter-Edge ⊈ $b.tags ∨ Delimiter-Mark ⊆ $g.tags,
-  Delimiter-Mark ⊈ $g.tags ∨ $b.source-text.split(".") ≠ ∅ ∨ ¬$b.following-tokens.begins(quote-attachment),
+  Delimiter-Mark ⊈ $g.tags ∨ Period-Only ⊈ $b.tags ∨ ¬$b.following-tokens.begins(quote-attachment),
   $open.value = $close.value,
   $open.value ∉ $content.value.split($PAUSE)
 %emits
@@ -470,15 +468,14 @@ The body leaves its final quiet pause to the closing gap. The closing edge keeps
   | delimiter-spacing quote-attachment :: Delimiter-Mark := $PAUSE
 
 %rule delimiter-body-gap
-  | [quote-end-mark] PAUSE<¬Quote-Material> := $PAUSE
+  | $p:PAUSE<¬Quote-Material> :: $p.tags ∩ Period-Only := $PAUSE
+  | quote-end-mark PAUSE<¬Quote-Material> :: ∅ := $PAUSE
   | interword-mark := $PAUSE
   | period-pause quote-end-mark PAUSE<¬Quote-Material> :: Delimiter-Edge := $PAUSE
   | period-pause interword-mark :: Delimiter-Edge := $PAUSE
 
 %rule period-pause
-  PAUSE<¬Quote-Material>
-%conditions
-  $.source-text.split(".") = ∅
+  PAUSE<¬Quote-Material Period-Only>
 
 %rule interword-mark
   PAUSE<Quote-Material>
@@ -1013,6 +1010,8 @@ Zantufa retains its reference parser's quote-first fallback and SU-before-BU let
 The raw one-word quotes retain punctuation and ignored characters instead of skipping them as spacing. This follows camxes-exp for `:)`, `#` and attached brackets.
 
 Unlike camxes-exp's `non_space`, raw quotes here also keep `?` and `!` inside a raw stretch. Both are punctuation material under the shared Latin conventions.
+
+Period tags keep these boundaries independent of script spelling. Zbalermorna and Cyrillic periods therefore follow the same quote rules as Latin periods.
 
 An opening delimiter cannot skip standalone material. Marks attached to its marker or delimiter remain formatting, as they do around ordinary one-word quotes. Raw body material retains its spelling. This preserves the punctuation bodies required by the one-word quote policy.
 

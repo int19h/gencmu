@@ -1,0 +1,244 @@
+{
+  "description": "The decimal-point grammar test preserves the decimal rule. Zbalermorna periods remain pauses between digits.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "2.3",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "source": [
+                1,
+                1
+              ]
+            },
+            {
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                2,
+                2
+              ]
+            },
+            {
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                3,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "source": [
+                1,
+                1
+              ]
+            },
+            {
+              "value": "p",
+              "image": "p",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                2,
+                2
+              ]
+            },
+            {
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                3,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "re",
+              "image": "re",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "pi",
+              "image": "pi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Word"
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "ci",
+              "image": "ci",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Word"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "re",
+              "image": "re",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "pi",
+              "image": "pi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Word"
+              ],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "ci",
+              "image": "ci",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Word"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

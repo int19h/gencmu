@@ -310,6 +310,8 @@ The engine never trims edges or merges repeated spaces. Rules that form a coveri
 
 A gap is a run between lexical parts. A quote gap excludes erasures because quoted `si`, `sa`, and `su` are words. A compound gap retains erasure-aware recognition. These two contexts share a spacing policy but require separate recognizers.
 
+Quiet pauses preserve the phoneme grammar’s period classification through normalization and forms. `Period-Initial` marks a core that starts with a period. `Period-Only` marks a core of periods without whitespace or ignored characters. Quote boundaries read these tags instead of punctuation spellings.
+
 The gap-tag invariant states how recipes receive decisions. A fact that a recipe cannot branch on travels upward as a tag. Grammar prose names where that internal tag starts, which rules forward it, and where it ends.
 
 `Gap-Pause` means that a constituent contains a surviving pause. `hesitations` and `spacing` introduce it. `erasures` and `skipped` forward only surviving occurrences. Gap rules and `su-survivor` read it. Erased children never supply it.

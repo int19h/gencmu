@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "ba'e zoi la´o. l´amour .la´o ui",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -143,7 +142,8 @@
                 15
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ]
             },
             {

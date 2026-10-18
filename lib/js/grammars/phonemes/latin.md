@@ -19,7 +19,7 @@ A punctuation character is a pause when no letter, vowel or apostrophe rule read
 
 Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is a combining mark of category M, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
-A quiet pause contains only whitespace characters and periods. It emits one `PAUSE` token with value `" "`.
+A quiet pause contains only whitespace characters and periods. It emits one `PAUSE` token with value `" "`. The core keeps the period tags of [latin-strict.md](latin-strict.md). Quote boundaries can therefore read the period classification of each script.
 
 Punctuation beside a quiet pause emits a separate token tagged `PAUSE` and `Quote-Material`. Separate ignored stretches use these tags too. `Punctuation-Material` marks a stretch with visible punctuation rather than ignored characters. Their images keep their source spelling. Their values keep their decomposed source text.
 
@@ -78,7 +78,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %redefine-rule pause-core
   {core-char}
 %emits
-  $ :: PAUSE := " "
+  $ :: PAUSE ∪ ($.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($.matches(period-core) ⟹ Period-Only) := " "
 
 %rule punctuation-pause
   [commas] punctuation [commas]
@@ -336,7 +336,7 @@ Each digit emits the letters of its number word, so `2` is `re`. The first emiss
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
-The `items` condition compares the pause span's original source text with `.`. Commas remain in that text, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
+The `items` condition tests the pause span with `decimal-point`. Commas prevent that match, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
 
 A period between two digits is the decimal point in a foreign run too, so it belongs to the run. So `zoi gy. 3.0w .gy.` quotes the run `3.0w`. A period with something else beside it is still a pause, so `3.w` holds a pause.
 
@@ -345,7 +345,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches(digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches(digit)
+  ¬$i.last-token.matches(digit) ∨ ¬$p.matches(decimal-point) ∨ ¬$r.first-token.matches(digit)
 
 %extend-rule non-vowel
   digit

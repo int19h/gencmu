@@ -58,6 +58,8 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 
 A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
 
+`period-char` reads a core character that is not whitespace. Script extensions of `core-char` therefore supply their own periods. `Period-Initial` marks a core that starts with a period. `Period-Only` marks a core of periods without whitespace or ignored characters. Later stages preserve these tags for quote boundaries.
+
 CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma alone between two words is no pause. A comma at the start or the end of the text belongs to no token. A text of nothing but commas is an empty text.
 
 ```jbogenbau
@@ -67,7 +69,7 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule spaced-pause
   [pause-edge] $c:pause-core [pause-edge]
 %emits
-  $c :: PAUSE := " "
+  $c :: PAUSE ∪ ($c.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($c.matches(period-core) ⟹ Period-Only) := " "
 
 %rule pause-core
   core-char | pause-core core-char | pause-core pause-edge core-char
@@ -78,6 +80,14 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
 %rule core-char
   space-char | "."
 
+%rule period-char
+  $c:core-char
+%conditions
+  ¬$c.matches(space-char)
+
+%rule period-core
+  {period-char}
+
 %rule space-char
   _White_Space
 
@@ -85,12 +95,14 @@ CLL[^cll-s3-3] says that a comma "cannot be pronounced as a pause", so a comma a
   comma | commas comma
 ```
 
-<details><summary>Railroad diagrams of the 7 rules from <code>pause</code> to <code>commas</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>pause</code> to <code>commas</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/pause.svg" alt="Railroad diagram of the rule pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/core-char.svg" alt="Railroad diagram of the rule core-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/period-char.svg" alt="Railroad diagram of the rule period-char"></p>
+<p><img src="../../docs/diagrams/phonemes/latin-strict/period-core.svg" alt="Railroad diagram of the rule period-core"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/space-char.svg" alt="Railroad diagram of the rule space-char"></p>
 <p><img src="../../docs/diagrams/phonemes/latin-strict/commas.svg" alt="Railroad diagram of the rule commas"></p>
 </details>
