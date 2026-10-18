@@ -495,7 +495,9 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                 match part {
                     Part::C(c) => match c {
                         Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
-                        Cond::Matches(_, r) | Cond::Begins(_, r) => roots.push(r.clone()),
+                        Cond::Matches(_, r) | Cond::Begins(_, r) => {
+                            roots.extend(r.iter().filter(|t| !crate::grammar::is_terminal_name(t)).cloned())
+                        }
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
                         Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
@@ -569,7 +571,7 @@ fn lowered_term_atom(term: &crate::lower::LTerm) -> Option<&LCond> {
             }
             LTerm::Union(ts) | LTerm::Inter(ts) => stack.extend(ts.iter().rev()),
             LTerm::Diff(a, b) | LTerm::Split(a, b) => stack.extend([&**b, &**a]),
-            LTerm::Classify(t, _) => stack.push(t),
+            LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => stack.push(t),
             _ => {}
         }
     }
@@ -591,7 +593,7 @@ fn term_ownership(term: &mut crate::lower::LTerm, own: bool) {
             term_ownership(a, own);
             term_ownership(b, own);
         }
-        LTerm::Classify(t, _) => term_ownership(t, own),
+        LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => term_ownership(t, own),
         _ => {}
     }
 }

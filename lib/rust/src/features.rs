@@ -21,6 +21,7 @@ pub(crate) fn problem(conditions: &[Cond]) -> Result<(), String> {
                         | "tail"
                         | "last"
                         | "split"
+                        | "ngrams"
                         | "interpolate"
                 ) || name == "tags" && args.len() != 1
                 {
@@ -94,10 +95,9 @@ impl Value {
         }
     }
     fn set(self) -> Result<BTreeSet<String>, String> {
-        if let Self::Set(set) = self {
-            Ok(set)
-        } else {
-            Err("expected a set".into())
+        match self {
+            Self::Set(set) => Ok(set),
+            Self::Str(s) => Ok(BTreeSet::from([s])),
         }
     }
 }
@@ -178,6 +178,11 @@ impl Input<'_> {
                         }
                         Value::Str(text)
                     }
+                    "ngrams" => {
+                        let text = self.value(receiver)?.string()?;
+                        let Arg::Integer(n) = &args[1] else { unreachable!() };
+                        Value::Set(crate::dom::ngrams(&text, n).into_iter().collect())
+                    }
                     "split" => {
                         let text = self.value(receiver)?.string()?;
                         let delimiter = self.value(self.argument(args, 1))?.string()?;
@@ -257,8 +262,13 @@ impl Input<'_> {
                 let left = self.value(left)?;
                 let right = self.value(right)?;
                 match op.as_str() {
-                    "=" => left == right,
-                    "≠" => left != right,
+                    "=" | "≠" => {
+                        let equal = match (left, right) {
+                            (Value::Str(a), Value::Str(b)) => a == b,
+                            (a, b) => a.set()? == b.set()?,
+                        };
+                        equal == (op == "=")
+                    }
                     "∈" | "∉" => right.set()?.contains(&left.string()?) == (op == "∈"),
                     "⊆" | "⊈" => left.set()?.is_subset(&right.set()?) == (op == "⊆"),
                     _ => unreachable!("validated comparison"),

@@ -676,7 +676,8 @@ impl Value {
     fn set(self) -> BTreeSet<String> {
         match self {
             Value::Set(set) => set,
-            Value::Str(_) | Value::Pattern(_) => BTreeSet::new(),
+            Value::Str(s) => BTreeSet::from([s]),
+            Value::Pattern(_) => BTreeSet::new(),
         }
     }
 
@@ -1117,6 +1118,9 @@ impl Constants<'_> {
                 }
                 Term::Call(name, args) => match (name.as_str(), &args[..]) {
                     ("interpolate", _) => Value::Str(operands.map(Value::string).collect()),
+                    ("ngrams", [_, Arg::Integer(n)]) => {
+                        Value::Set(crate::dom::ngrams(&operands.next().unwrap().string(), n).into_iter().collect())
+                    }
                     ("split", [_, Arg::Term(delimiter)]) => {
                         let text = operands.next().unwrap().string();
                         let delimiter_value = operands.next().unwrap().string();
@@ -1729,6 +1733,9 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_span(grammar, span)?;
                 check_rule(grammar, rule)
             }
+            ("ngrams", [Arg::Term(string), Arg::Integer(n)]) if crate::dom::valid_integer(n) => {
+                check_term(grammar, string)
+            }
             ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
                 check_term(grammar, string)?;
                 check_term(grammar, delimiter)
@@ -1761,6 +1768,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 | "classes"
                 | "tags"
                 | "split"
+                | "ngrams"
                 | "classify"
                 | "matches"
                 | "begins"
@@ -1784,7 +1792,12 @@ fn check_cond(grammar: &StageGrammar, cond: &Cond) -> Result<(), String> {
         }
         Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
             check_span(grammar, span)?;
-            check_rule(grammar, rule)
+            for target in rule {
+                if !is_terminal_name(target) {
+                    check_rule(grammar, target)?
+                }
+            }
+            Ok(())
         }
         Cond::Initial(span) | Cond::Final(span) | Cond::Boundary(_, span, _, _) => check_span(grammar, span),
         Cond::Not(inner) => check_cond(grammar, inner),

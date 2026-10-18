@@ -421,7 +421,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                 term(a, p, w, todo);
                 term(b, p, w, todo);
             }
-            LTerm::Classify(t, _) => term(t, p, w, todo),
+            LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => term(t, p, w, todo),
             _ => {}
         }
     }
@@ -762,7 +762,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 term(a, out);
                 term(b, out);
             }
-            LTerm::Classify(t, _) => term(t, out),
+            LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => term(t, out),
             _ => {}
         }
     }
