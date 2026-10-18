@@ -272,6 +272,8 @@ A bare NA term can also omit KU before any term in the same reading. These terms
 
 The KU test starts after the term's own free modifiers. The test of the next written word uses its selma'o. The gihek and term tests read the complete tree. They parse nothing again.
 
+Both written and omitted KU use `bare-na`, so the tree records every omitted KU. The closing-position condition applies only when KU is omitted.
+
 The same KU rule applies in lists and single-term positions. A written KU permits either term before any following constituent. A bare `na` cannot begin a term where its NA token starts a connective.
 
 A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
@@ -330,16 +332,15 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
   | $s:sumti :: $s.tags ∪ Sumti-Start
   | tagged-term
   | termset
-  | NA # KU #
   | bare-na
   | soi-clause? soi-term
 
 %rule bare-na
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
-  $n:NA #
+  $n:NA # [+KU] #
 %conditions
   ¬$n.onward.begins(na-connective),
-  $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
+  $ ≇ @(NA [#] KU="" [#]) ∨ $.ends-input ∨ ($PLACE-CLOSE ∩ $.following-tokens.first-token.tags) ⊈ ∅ ∨ $.followed-by(gihek | term)
 
 %rule na-connective
   gek | joik-jek-ek | gihek
@@ -950,6 +951,8 @@ camxes-exp excludes every bare NAhE operand that starts with a tense or modal be
 The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
 
 ### Deliberate KU omission limits
+
+Bare NA records an omitted KU, as camxes-exp's `KU_elidible` requires. That marker participates in elision ranking and restoration queries.
 
 This layer deliberately limits KU omission more than camxes-exp. A bare tag term can omit `ku` only at the input's end, before a written closing word, or before a gihek. A bare `na` term can omit `ku` in these positions too. The test skips the term's own free modifiers. A bare `na` term can also omit `ku` before any term in the same reading.
 

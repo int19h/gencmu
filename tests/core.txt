@@ -5794,3 +5794,11 @@ i205.syntax.bo-before-plain
 i205.syntax.mixed-start
 i205.syntax.mixed-end
 i205.syntax.all-tagged
+fr4.bare-na.bare
+fr4.bare-na.written
+fr4.bare-na.adjacent
+fr4.bare-na.before-term
+fr4.bare-na.before-closer
+fr4.bare-na.own-parenthesis
+fr4.bare-na.written-parenthesis
+fr4.bare-na.gihek-control
