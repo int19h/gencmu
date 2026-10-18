@@ -303,7 +303,7 @@ var domRules = map[string]bool{
 	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true,
 	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
 	"method": true, "method-receiver": true, "method-selector": true, "method-name": true, "arguments": true,
-	"argument-term": true, "tag-run": true, "tree-comparator": true,
+	"argument-term": true, "tag-run": true, "string-run": true, "integer": true, "tree-comparator": true,
 }
 
 func (b *domBuilder) at(n *Node) [2]int {
@@ -449,7 +449,7 @@ var (
 	primaryRules   = []string{"reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 // sourceText reads original spelling only for include paths and source positions.

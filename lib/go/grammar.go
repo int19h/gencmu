@@ -452,8 +452,10 @@ func (g *stageGrammar) checkAlt(a *sAlt, checked *checkedClauses) *Error {
 			if err := checkTerm(c.Span); err != nil {
 				return err
 			}
-			if g.byName[c.Rule] == nil {
-				return fail("%s is not a rule of stage %s", c.Rule, g.name)
+			for _, t := range c.queryTargets() {
+				if t.Kind == tmRule && g.byName[t.Str] == nil {
+					return fail("%s is not a rule of stage %s", t.Str, g.name)
+				}
 			}
 			return nil
 		case cdInitial, cdEnd:

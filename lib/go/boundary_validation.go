@@ -89,7 +89,11 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 			for _, p := range parts {
 				walkClause(p, func(q clausePart) bool {
 					if q.c != nil && (q.c.Kind == cdMatches || q.c.Kind == cdBegins) {
-						roots = append(roots, q.c.Rule)
+						for _, t := range q.c.queryTargets() {
+							if t.Kind == tmRule {
+								roots = append(roots, t.Str)
+							}
+						}
 					}
 					if q.t != nil && q.t.Kind == tmCall && q.t.Str == "tags" && len(q.t.Items) == 2 {
 						roots = append(roots, q.t.Items[1].Str)

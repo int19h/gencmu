@@ -252,6 +252,43 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 			return l
 		}
 	}
+	terminals := map[string]bool{}
+	scanQuery := func(p clausePart) bool {
+		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins) {
+			for _, t := range p.c.queryTargets() {
+				if t.Kind == tmTerminal {
+					terminals[t.Str] = true
+				}
+			}
+		}
+		return true
+	}
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			for _, c := range a.conds {
+				walkClause(clausePart{c: c}, scanQuery)
+			}
+			walkClause(clausePart{t: a.ruleTags}, scanQuery)
+			walkClause(clausePart{t: a.alt.Tags}, scanQuery)
+			if a.emit != nil {
+				for _, it := range a.emit.Items {
+					walkClause(clausePart{t: it.Tags}, scanQuery)
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(terminals))
+	for name := range terminals {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, terminal := range names {
+		name := "\x00query:" + terminal
+		lhs := int32(len(l.rules))
+		l.byName[name] = lhs
+		l.rules = append(l.rules, &lrule{name: name, owner: name, helper: true, scc: -1})
+		lw.newProduction(lhs, []slot{{sym: lw.terminal(terminal)}})
+	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
 	if !validation {
