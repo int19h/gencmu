@@ -451,7 +451,11 @@ Two orders are free:
 
 The order between steps, between items and between sets is not observable either. Every step that the rules of this section reach runs in the end, so the same errors happen. §7.4 removes steps, and their errors with them. Two such errors differ only in their message.
 
-`span.matches(rule)`, `span.begins(rule)` and `span.tags(rule)` each run a nested parse. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
+A target choice is a nonempty set of rule names and user terminal tags. Written alternatives use `|`, and repeated targets change nothing. Each terminal target reads exactly one original token carrying its tag. A rule target runs a nested parse of that rule.
+
+`span.matches(S)` and `span.begins(S)` try the targets in written order until one succeeds or raises a grammar error. Every target must resolve, even where an earlier target always succeeds. `span.tags(rule)` accepts only one rule target.
+
+`span.matches(rule)`, `span.begins(rule)` and `span.tags(rule)` each run a nested parse for a rule target. For an ordinary span, a nested parse recognizes only its tokens, with `rule` as the start rule, over the same lowered grammar. It applies tests and conditions as the main parse does.
 
 A proof tree of an item shows how the rules of recognition justify the item from the chart. A predicted item, with its dot at the start, is a leaf. An advance of an item over a token or over a completed item is a node. Its children are a proof tree of the item before the advance and, for a completion, a proof tree of the completed item. Each advance follows the rules of this section, with its tests and conditions satisfied.
 
@@ -541,6 +545,8 @@ The permission depends on ownership alone. A witness can close a member construc
 After original position `b`, an extended witness follows ordinary omission rules. It can read real written terminators in the raw suffix. Those tokens retain written status. The candidate supplies no restoration records after `b`.
 
 Qualification uses original eligible proofs before applying the alignment filter. The witness's tests and conditions must hold on O. Written-terminator priority retains the full context bound and cannot treat a restored token as a written blocker. A blocker with another internal division still belongs to original eligibility. Filtering alignment before computing eligibility changes this policy and is forbidden. Ranked admission and stage ranking do not run inside the query.
+
+A terminal target has a witness with one original token and no close or block records. Restored queries apply the same alignment test to this witness. A retained candidate record in the comparison therefore prevents a terminal target from succeeding. With no such record, a matching original token supplies a positive terminal witness.
 
 A synthetic token supplies evidence for an omission, rather than an additional mandatory word. It cannot satisfy a bare terminal in the witness. An omitted optional keeps its omission predicate and does not require its remaining content. Alignment compares terminal identity and boundary, without comparing the candidate's saved equality-test value. For candidate `X [+T="a"]` and rival `X [+T="b"]` on X, both omission predicates hold and alignment succeeds.
 
@@ -1764,7 +1770,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - The reader applies `lit` to rule-header, alternative, and emission-item tag clauses (§1). Nonempty `lit` is an error at the first retained engine-tag literal.
 - A range in a term or condition is a document error. Property conditions instead read stored tag membership.
 - A value-test operand must resolve to a string. Any scalar string is legal, including capitals and commas. No engine normalization or canonical-value restriction applies.
-- Value tests require a string literal or string constant. Tag tests require signed tag names or tag-set constants. A capture, input method, or guarded term is invalid in either operand.
+- Value tests require a string literal or string constant. Equality-tested omissions save that scalar for restoration (§7). A string set supplies no unique saved value, so value tests exclude string sets in bodies and patterns. Tag tests require signed tag names or tag-set constants. A capture, input method, or guarded term is invalid in either operand.
 - A test with the wrong operand type is a document error at its operand. `LE=Word` and `LE<"la">` are invalid. A symbol can combine a tag test followed by a value test. Repeated kinds and reversed order are errors at the second test.
 - An unknown method, wrong arity, or wrong receiver type is a document error at the method. Section 10 lists all signatures. `.without-elision` requires a bare capture. The error for `$x.onward.without-elision` directs the author to `$x.without-elision.onward`. Capture analysis follows every receiver and argument.
 
@@ -1985,7 +1991,11 @@ In a `%redefine-const`, the type that the constant keeps (§2) gives the value i
 
 `a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind, with scalar strings converted to singletons. Membership also accepts a scalar string as the singleton right operand.
 
-`.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share a nonempty target choice. Each target is a rule name, including `#`, or an identifier terminal tag. Targets use `|` separators, without constants, strings, or commas. Parentheses around one target preserve that target. A grouped choice is invalid.
+`.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share a nonempty target choice. Each target is a rule name, including `#`, or a user terminal tag.
+
+Repeated targets are accepted and change nothing. Engine tags cannot be targets. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All four methods share this restriction.
+
+Targets use `|` separators, without constants, strings, or commas. Parentheses around one target preserve that target. A grouped choice is invalid.
 
 `s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does. Each rule target includes the empty prefix if that rule reads nothing. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
 

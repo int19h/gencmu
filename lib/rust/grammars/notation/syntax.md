@@ -6,7 +6,7 @@ A token's value is the string that exact comparisons read. Its image is the stri
 
 The stage recognizes a complete grammar document before the reader converts its tree. A syntax error anywhere therefore precedes every reader error.
 
-A tag is a named mark on a token. Lexical tags distinguish names, strings, prefixed names, guards, engine tags, and keywords. String terminals read punctuation by its value.
+A tag is a named mark on a token. Lexical tags distinguish names, strings, integers, prefixed names, guards, engine tags, and keywords. String terminals read punctuation by its value.
 
 These rules implement the recognition productions of [engine §9.2](../../docs/engine.md#92-syntax-forms). They admit forms that the reader rejects under [§9.3](../../docs/engine.md#93-conversion-and-validation).
 
@@ -347,7 +347,7 @@ This wider recognition lets the reader reject a written operator or forbidden me
 
 A term can be a string, a set, a pattern, a capture, a span, or a method result. Its context determines the type of `∅`.
 
-`∩` binds tighter than `∪` and `∖`. Union and difference group from the left. Adjacent tags or strings form one union.
+`∩` binds tighter than `∪` and `∖`. Union and difference group from the left. Outside a recipe, adjacent tags or strings form one union.
 
 A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A guard binds less tightly than set operators.
 

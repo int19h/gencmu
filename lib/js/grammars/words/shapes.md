@@ -12,7 +12,9 @@ Images spell phonemes in Latin letters. Only stressed vowels are capitals, and t
 
 ## Consonants
 
-CLL[^cll-s3-6] lists the permissible consonant pairs. A pair cannot repeat a consonant. It cannot mix a voiced and an unvoiced consonant. It cannot contain two consonants from `c j s z`. CLL[^cll-s3-6] also forbids `cx`, `kx`, `xc`, `xk` and `mz`. `$PERMISSIBLE` lists all 179 pairs that satisfy these restrictions.
+CLL[^cll-s3-6] gives the restrictions on permissible consonant pairs. A pair cannot repeat a consonant. It cannot mix a voiced and an unvoiced consonant. It cannot contain two consonants from `c j s z`. CLL[^cll-s3-6] also forbids `cx`, `kx`, `xc`, `xk` and `mz`. `$PERMISSIBLE` lists all 179 pairs that satisfy these restrictions.
+
+Each consonant token has one lowercase Latin letter as its value, in both the Latin and Cyrillic scripts. Thus adjacent code points in a consonant run are exactly its adjacent token values.
 
 `$VOICED` and `$UNVOICED` name the consonants subject to the voicing restriction. The restriction exempts `l m n r`. `$SIBILANTS` names the four consonants that cannot pair with each other.
 

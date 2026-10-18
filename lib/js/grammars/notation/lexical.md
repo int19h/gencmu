@@ -6,7 +6,7 @@ This stage reads the decomposed character tokens of stage zero. A token's value 
 
 A tag is a named mark on a token. The rules read characters by string terminals, ranges, or engine tags such as `_White_Space`.
 
-The stage passes names, strings, captures, constants, guards, keywords, and punctuation to [syntax.md](syntax.md). It discards whitespace and comments. Each emitted token covers the exact source characters that form it.
+The stage passes names, strings, integers, captures, constants, guards, keywords, and punctuation to [syntax.md](syntax.md). It discards whitespace and comments. Each emitted token covers the exact source characters that form it.
 
 [The notation guide](../../docs/notation.md) explains these forms. This document defines their lexical recognition under [engine §9.1](../../docs/engine.md#91-lexical-forms).
 

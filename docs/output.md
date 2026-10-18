@@ -290,7 +290,11 @@ A method node always has `method`, `receiver`, and `args`, in that order. Its me
 
 Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
 
-`.matches`, `.begins`, `.followed-by`, and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice. Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept any span.
+`.matches`, `.begins`, `.followed-by`, and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice.
+
+Repeated targets are accepted in source and supplied DOM, and change nothing. `terminal` names only a user tag, never an engine tag. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All four methods share this restriction.
+
+Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept any span.
 
 `.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 

@@ -630,6 +630,8 @@ A string in a set operation denotes its singleton set, including the empty strin
 
 String sets support the same grouping, set operators, guarded terms, empty sets, constants, and closed terms as tag sets. A guarded string set gives `∅` when its condition fails.
 
+Value tests remain scalar because equality-tested omissions save one exact string for restoration. A string set supplies no unique saved value in the current tree format. This restriction applies to both body and pattern value tests.
+
 Tag-specific positions still require tags because tokens and constituents carry named marks. String sets cannot supply tag clauses, tag tests, or implication sides. Membership `∈` tests a scalar string because tag literals already denote singleton sets. Tag membership therefore uses `⊆`. Ranges remain terminals for both kinds because they describe token recognition.
 
 The predicates are:
@@ -646,7 +648,9 @@ The predicates are:
 - `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbours in the parse" below explains it.
 - `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
 
-The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name. Strings, constants, grouped choices, and comma separators are errors. Parentheses around one target preserve that target.
+The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and user terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name.
+
+Repeated targets are accepted and change nothing. Engine tags are excluded because these shared arguments identify grammar-built targets. Strings, constants, grouped choices, and comma separators are errors. Parentheses around one target preserve that target.
 
 Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens. Restored queries retain their alignment rules for every alternative.
 
@@ -778,6 +782,8 @@ The test reads the actual neighbor, which a lookahead cannot do. In the experime
 In `mi klama na to broda`, the parenthesis stands in the term's slot, and the text ends after it. In `na da`, the parse has a term node at `da`. A lookahead `$.following-tokens.begins(term)` can instead find a term in another reading.
 
 A test cannot see another parse. Where one reading must beat another, write a ranked choice or a flag instead (see "Ambiguity").
+
+A terminal target of `.begins` or `.matches` makes its tag buildable, including inside another query. A `.followed-by` or `.preceded-by` target alone does not.
 
 Every name in a test must be one that a parse can build, either a parse of `text` or the parse inside a query. A name that nothing reaches is an error. A name that only queries reach is legal, but outside queries the test always gets its default answer. So the audit notes it.
 
