@@ -982,11 +982,7 @@ impl<'a> Reader<'a> {
             } else {
                 let comparator = self.operator(self.token(self.one(test, "test")?)?).to_string();
                 let operand = self.one(test, "test-operand")?;
-                let part = self.inner(operand, ATOMS)?;
-                if !matches!(rule_name(part), "string" | "constant-reference") {
-                    return Err(self.error(operand, "a value test requires a string literal or constant"));
-                }
-                (comparator, self.string_operand(part)?)
+                (comparator, self.value_test_operand(operand)?)
             };
             expr = Expr::Tested(op, operand, Box::new(expr));
         }
@@ -1530,7 +1526,7 @@ impl<'a> Reader<'a> {
             } else {
                 let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
-                (op, self.string_operand(self.inner(operand, ATOMS)?)?)
+                (op, self.value_test_operand(operand)?)
             };
             pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern));
         }
@@ -1904,6 +1900,14 @@ impl<'a> Reader<'a> {
             }
             _ => Err(self.unknown(node, rule_name(node))),
         }
+    }
+
+    fn value_test_operand(&self, operand: &'a Node) -> R<Term> {
+        let part = self.inner(operand, ATOMS)?;
+        if !matches!(rule_name(part), "string" | "constant-reference") {
+            return Err(self.error(operand, "a value test requires a string literal or constant"));
+        }
+        self.string_operand(part)
     }
 
     fn string_operand(&self, node: &'a Node) -> R<Term> {
