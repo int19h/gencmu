@@ -22,7 +22,7 @@
           "verdict": "unique",
           "output": [
             {
-              "value": "'",
+              "value": " ",
               "image": "'",
               "source": [
                 0,
@@ -52,7 +52,7 @@
               ]
             },
             {
-              "value": "'",
+              "value": " ",
               "image": "'",
               "source": [
                 4,

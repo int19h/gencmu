@@ -20,17 +20,52 @@
           "verdict": "unique",
           "output": [
             {
-              "value": "zoi gy foo @gy bar gy",
-              "image": "zoi gy. foo @gy bar .gy",
-              "text": "zoi gy. foo @gy bar .gy",
+              "value": "zoi gy foo gy",
+              "image": "zoi gy. foo @gy",
+              "text": "zoi gy. foo @gy",
               "source": [
                 0,
-                23
+                15
               ],
               "tags": [
                 "Cmavo",
                 "Word",
                 "ZOI"
+              ]
+            },
+            {
+              "value": "bar",
+              "image": "bar",
+              "text": "bar",
+              "source": [
+                16,
+                19
+              ],
+              "tags": [
+                "CMEVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "text": "gy",
+              "source": [
+                21,
+                23
+              ],
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
               ]
             }
           ]

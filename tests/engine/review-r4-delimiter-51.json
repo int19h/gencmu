@@ -1,0 +1,36 @@
+{
+  "description": "MUhOI uses the same delimiter boundaries as ZOI.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mu'oi \"gy.\" foo .\"gy.\"",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "mu'oi gy foo gy",
+              "image": "mu'oi \"gy.\" foo .\"gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -10,32 +10,12 @@
   },
   "expect": {
     "result": {
-      "ok": true,
-      "stages": [
-        {},
-        {},
-        {},
-        {
-          "name": "words",
-          "verdict": "unique",
-          "output": [
-            {
-              "value": "zoi ybu @ybu foo ybu",
-              "image": "zoi ybu. @ybu foo .ybu",
-              "text": "zoi ybu. @ybu foo .ybu",
-              "source": [
-                0,
-                22
-              ],
-              "tags": [
-                "Cmavo",
-                "Word",
-                "ZOI"
-              ]
-            }
-          ]
-        }
-      ]
-    }
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
   }
 }

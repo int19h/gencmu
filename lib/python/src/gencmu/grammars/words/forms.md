@@ -35,7 +35,7 @@ In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` be
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](../phonemes/latin.md). This stage preserves each pause token separately. A punctuation apostrophe tagged `PAUSE` is no word phoneme. A supplied `Silent` token also keeps its strings and receives `Run-Initial` and `Run-Final`.
+A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](../phonemes/latin.md). This stage preserves each pause token separately, with its tags and image. Every pause receives the value of one space. Raw quote recipes recover material from its source text. A punctuation apostrophe tagged `PAUSE` is no word phoneme. A supplied `Silent` token also keeps its strings and receives `Run-Initial` and `Run-Final`.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
@@ -61,7 +61,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 %rule pause-part
   PAUSE
 %emits
-  $
+  $ :: $.tags := " " :- $.image
 
 %rule run
   word-run | foreign-token | unsegmentable-run | silent-token
@@ -112,7 +112,7 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
 
 
 
-The stage covers every input token. It passes pauses and the foreign runs of the phoneme stage through, and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
+The stage covers every input token. It preserves pause boundaries, images and tags, and sets pause values to one space. It passes foreign runs through and combines phonemes into words or foreign runs. A phoneme-stage `FOREIGN` token keeps its value, image and text. The `foreign-token` rule adds `Run-Initial` and `Run-Final`.
 
 A run of phonemes that divides into no words becomes one `FOREIGN` token. Its value is its source text, the run as the author wrote it, in the decomposed form of stage zero. Its image concatenates its phoneme images. A word's value never equals such a text, so the run never closes a quote that a word opened. A delimiter must be a word, and such a run is none. The token's text retains what the author wrote.
 
@@ -282,6 +282,8 @@ The words stage drops hesitation, or reads it as the base of the letter word `.y
 
 
 ## Differences from camxes
+
+Separate material tokens preserve punctuation for raw quotes. Their normalized pause values also let delimiter comparisons find punctuation boundaries. The words stage recovers the raw spelling through source recipes, as [stream.md](stream.md) specifies.
 
 camxes-std, the standard grammar of the camxes parser, rejects the whole text `kyyykerlo`. camxes-exp, the experimental grammar of the camxes parser, rejects it too. Their [standard spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L1529-L1531) and [experimental spaces rule](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg#L1625-L1627) refuse a leading Y token. The words stages of bpfk and experimental instead drop the hesitation `yy`.
 

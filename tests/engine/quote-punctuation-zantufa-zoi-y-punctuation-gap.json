@@ -10,21 +10,32 @@
   },
   "expect": {
     "result": {
-      "ok": false,
+      "ok": true,
       "stages": [
         {},
         {},
         {},
         {
           "name": "words",
-          "verdict": null
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi ybu x y bu",
+              "image": "zoi ybu. x .y @ bu",
+              "text": "zoi ybu. x .y @ bu",
+              "source": [
+                0,
+                18
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
         }
-      ],
-      "error": {
-        "kind": "rejected",
-        "stage": "words"
-      }
-    },
-    "error": "rejected"
+      ]
+    }
   }
 }
