@@ -28,6 +28,7 @@ from typing import Any, Callable, Iterator
 from unittest import mock
 
 import gencmu
+from gencmu import _testing
 from gencmu._model import Token
 from gencmu._trampoline import Walk, run
 from gencmu._tags import is_tag
@@ -628,7 +629,10 @@ def count_work(*watches: Watch, budget: int | None = None) -> Iterator[Work]:
             monitoring.set_local_events(tool, code, wanted)
         # The places that an earlier count turned off count again.
         monitoring.restart_events()
-        yield work
+        # The work counts with the shared memo off (engine §4.3), so that
+        # answers of an earlier parse never shorten the counted one.
+        with mock.patch.object(_testing, "memo_limit", 0):
+            yield work
     finally:
         monitoring.set_events(tool, events.NO_EVENTS)
         for code in codes.values():
@@ -659,7 +663,9 @@ def mutant(owner: Any, name: str, *changes: tuple[str, str]) -> Iterator[Any]:
     defined: dict[str, Any] = {}
     exec(code, function.__globals__, defined)
     try:
-        with mock.patch.object(owner, name, defined[function.__name__]):
+        # A mutant's answers are wrong by design, so no shared memo keeps
+        # them (engine §4.3).
+        with mock.patch.object(owner, name, defined[function.__name__]), mock.patch.object(_testing, "memo_limit", 0):
             yield defined[function.__name__]
     finally:
         linecache.cache.pop(filename, None)

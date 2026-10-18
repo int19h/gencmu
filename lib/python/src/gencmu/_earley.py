@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
-from . import _testing
+from . import _memo, _testing
 from ._boundary import METHODS, Records, Annotations, atoms
 from ._clauses import WHOLE
 from ._eligible import eligible
@@ -358,6 +358,13 @@ class StageContext:
     boundary_machine: Records | None = field(init=False, default=None)
     aligned_memo: dict[tuple, NestedAnswer] = field(default_factory=dict)
     qualified_memo: dict[tuple, tuple[Forest, list[int]]] = field(default_factory=dict)
+    # How many aligned queries the parse asked, and the keys of the answers
+    # that depend on one. Such an answer stays out of the shared memo, and so
+    # does every answer that reads it (engine §4.3).
+    aligned_asked: int = 0
+    tainted: set[tuple[bool, tuple[Any, ...]]] = field(default_factory=set)
+    # How many aligned queries are active now.
+    aligned_active: int = 0
 
     def __post_init__(self) -> None:
         self.token_tags = [self.tagtab.intern(token.tags) for token in self.tokens]
@@ -473,6 +480,8 @@ class StageContext:
         if found is None:
             yield self.answer(rule, start, end, key, False)
             found = self.memo[key]
+        elif self.tainted and (False, key) in self.tainted:
+            self.aligned_asked += 1
         return found
 
     def begins(self, rule: str, start: int, end: int) -> Walk:
@@ -487,6 +496,8 @@ class StageContext:
         if found is None:
             yield self.answer(rule, start, end, key, True)
             found = self.begins_memo[key]
+        elif self.tainted and (True, key) in self.tainted:
+            self.aligned_asked += 1
         return found
 
     def require_inactive(self, rule, start, end):
@@ -498,6 +509,7 @@ class StageContext:
 
     def aligned(self, rule: str, span: RestoredSpan, prefix: bool) -> Walk:
         """Filter original eligible proofs with one captured observation."""
+        self.aligned_asked += 1
         self.require_inactive(rule, span.start, span.context_end)
         closes = self.closes
         assert closes is not None
@@ -511,6 +523,9 @@ class StageContext:
             return found
         request = rule, span.start, span.context_end
         self.running.add(request)
+        self.aligned_active += 1
+        if _testing.aligned_query is not None:
+            _testing.aligned_query(1)
         try:
             raw_key = rule, span.start, span.context_end, ancestry
             family = None
@@ -556,6 +571,9 @@ class StageContext:
             self.aligned_memo[key] = found
             return found
         finally:
+            self.aligned_active -= 1
+            if _testing.aligned_query is not None:
+                _testing.aligned_query(-1)
             self.running.discard(request)
 
     def answer(self, rule: str, start: int, end: int, key: tuple[Any, ...], begins: bool) -> Walk:
@@ -574,12 +592,71 @@ class StageContext:
         number = self.lowered.rule_ids.get(rule)
         if number is None:
             raise _GrammarFault(f"{rule} is not a rule of this stage")
+        bound = _memo.limit()
+        shared = self.shared_key(rule, start, end, begins) if bound > 0 and end - start <= CONTENT_KEY_LIMIT else None
+        # While an aligned query is active, the shared memo serves nothing
+        # (engine §4.3). It still keeps what the parse computes.
+        found = self.lowered.memo.get(shared, bound) if shared is not None and not self.aligned_active else None
+        if found is not None:
+            if _testing.memo_hit is not None:
+                _testing.memo_hit(rule, self.aligned_active)
+            # The answer enters the memo of the parse, as the answer of its
+            # nested parse does. A copy of its tags, since the memo's own
+            # objects never reach a caller.
+            if isinstance(found, NestedAnswer):
+                found = NestedAnswer(found.accepted, frozenset(list(found.tags)))
+            (self.begins_memo if begins else self.memo)[key] = found
+            return
+        asked = self.aligned_asked
         self.running.add(running)
         try:
             forest: Forest = yield Parser(self, start, end, query=True).walk(number)
         finally:
             # Also when the parse failed, so that the place is free again.
             self.running.discard(running)
+        self.remember(key, number, shared, begins, asked, bound, forest)
+
+    def remember(
+        self, key: tuple[Any, ...], number: int, shared: tuple[Any, ...] | None, begins: bool, asked: int, bound: int, forest: Forest
+    ) -> None:
+        """Remembers the answer of a nested parse in the memo of the parse,
+        and in the shared memo unless it depends on an aligned query (engine
+        §4.3)."""
+        self.settle(key, number, begins, forest)
+        if self.aligned_asked != asked:
+            self.tainted.add((begins, key))
+        elif shared is not None:
+            answer = (self.begins_memo if begins else self.memo)[key]
+            if isinstance(answer, NestedAnswer):
+                answer = NestedAnswer(bool(answer.accepted), frozenset(_plain(tag) for tag in answer.tags))
+            self.lowered.memo.insert(shared, answer, bound)
+
+    def shared_key(self, rule: str, start: int, end: int, begins: bool) -> tuple[Any, ...]:
+        """The key of the shared memo for a short span: the query kind, the
+        rule, and the span's content with each token's tags by name (engine
+        §4.3)."""
+        low, high = self.sources.of(start, end) if start < end else (0, 0)
+        # Plain built-in values only, so that hashing and comparing the key
+        # under the memo's lock runs no code of a caller's subclass.
+        return (
+            begins,
+            rule,
+            _plain(self.text[low:high]),
+            tuple(
+                (
+                    frozenset(_plain(tag) for tag in self.tagtab.get(self.token_tags[index])),
+                    _plain(self.tokens[index].text),
+                    _plain(self.tokens[index].value),
+                    _plain(self.tokens[index].image),
+                    int(self.tokens[index].source[0] - low),
+                    int(self.tokens[index].source[1] - low),
+                )
+                for index in range(start, end)
+            ),
+        )
+
+    def settle(self, key: tuple[Any, ...], number: int, begins: bool, forest: Forest) -> None:
+        """Remembers the answer of a nested parse in the memo of the parse."""
         if not begins:
             # The answer reads the completed items of the rule over the span
             # that have an eligible proof tree, under written-terminator
@@ -599,6 +676,12 @@ class StageContext:
         ]
         # Only an item with an eligible proof tree counts (engine §4).
         self.begins_memo[key] = bool(eligible(forest, boundary_witnesses(forest, witnesses)))
+
+
+def _plain(text: str) -> str:
+    """The same characters as a plain str, never a caller's subclass: the
+    method of str itself makes the copy, so no method of the subclass runs."""
+    return str.__getitem__(text, slice(None))
 
 
 def _as_set(value: Any) -> Tags:

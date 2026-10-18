@@ -11,6 +11,7 @@ from typing import Any, Union
 
 from ._clauses import WHOLE, Emission, Prepared, captures_in, definition_problem, deferred_emission_problem, rule_has_ranked, prepare, prepare_conditions, simplify_term
 from ._errors import ErrorData, GencmuError
+from ._memo import SharedMemo
 from ._recent import Recent
 from ._tags import (
     EMPTY,
@@ -1100,6 +1101,9 @@ class Lowered:
     close_prefixes: list | None = None
     ranked_helpers: dict = field(default_factory=dict)
     written_helpers: dict = field(default_factory=dict)
+    # The answers of ordinary nested queries, kept across parses (engine
+    # §4.3).
+    memo: SharedMemo = field(default_factory=SharedMemo, compare=False, repr=False)
 
     def implication_index(self) -> dict[str, list[int]]:
         index = self.implications_by_tag

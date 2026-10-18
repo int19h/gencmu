@@ -600,6 +600,12 @@ class Dialect:
     def stage_names(self) -> list[str]:
         return [grammar.stage for grammar in self.grammars]
 
+    def _lowered_grammars(self) -> list[Lowered]:
+        """Every lowered grammar the dialect holds, for the library's own
+        tests."""
+        with self._lock:
+            return [found for cache in self._lowered for found in cache.values() if isinstance(found, Lowered)]
+
     def lowered(self, number: int, features: frozenset[str]) -> Lowered:
         # Only the gates that are on change the productions. So two sets of
         # features with the same gates on share one lowered grammar. The
