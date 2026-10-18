@@ -1,0 +1,14 @@
+{
+  "description": "The cll-ebnf dialect accepts four initial consonants under long-initial-run in words/shapes.md (Consonants).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "tcflama",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "tcflama"
+  }
+}

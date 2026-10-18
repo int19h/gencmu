@@ -751,7 +751,7 @@ class Parser {
       case "@": base = yield this.patternLiteral(); break;
       case "string": {
         const strings = [this.leaf("string")];
-        if (runs) while (this.is("string") && !this.is("..", 1)) strings.push(this.leaf("string"));
+        if (runs) while (this.is("string")) strings.push(this.leaf("string"));
         base = strings.length === 1 ? strings[0] : this.node("string-run", start, strings);
         break;
       }

@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 rejects terminal witnesses with unmatched closes and permits the following rule alternative.",
+  "grammar": "%rule text $x:r %conditions ¬$x.without-elision.matches(A), $x.without-elision.matches(A | r)\n%rule r A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

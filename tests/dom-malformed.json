@@ -4758,5 +4758,423 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "Engine §10 rejects an empty begins target choice.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §10 rejects an engine tag as a begins target.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "_L"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §10 rejects an empty matches target choice.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §10 rejects an engine tag as a matches target.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "_L"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §10 requires one integer argument for ngrams.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Engine §10 accepts repeated rule and terminal targets in supplied DOM.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "preceded-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "Engine §9.3 rejects a string set in a scalar value test.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "test": "=",
+            "value": {
+              "union": [
+                {
+                  "string": "a"
+                },
+                {
+                  "string": "b"
+                }
+              ]
+            },
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Engine §9.3 rejects a string set in a scalar value test.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": ""
+          },
+          "right": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "union": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "string": "b"
+                  }
+                ]
+              },
+              "expr": {
+                "terminal": "A"
+              }
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

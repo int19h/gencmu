@@ -1,5 +1,5 @@
 {
-  "description": "Engine §10 counts Unicode code points rather than bytes or grapheme clusters in n-grams.",
+  "description": "Engine §10 counts a supplementary-plane code point as one character when it builds n-grams.",
   "grammar": "%const $S \"a😀b\".ngrams(2)\n%rule text ε %conditions $S = (\"a😀\" \"😀b\")",
   "input": "",
   "expect": {

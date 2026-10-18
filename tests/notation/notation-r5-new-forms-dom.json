@@ -1,0 +1,128 @@
+{
+  "description": "Engine §9 and output.md encode string runs as unions, target choices as argument arrays, and integer lengths as decimal text.",
+  "document": "```jbogenbau\n%const $S (\"ab\" \"bc\")\n%rule text $x:A %conditions $x.begins(B | A), $x.matches(A | r), $x.value.ngrams(2) ⊆ $S\n%rule r A\n```\n",
+  "cacheMisses": true,
+  "expect": {
+    "dom": {
+      "format": 33,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [
+            {
+              "method": "begins",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": [
+                {
+                  "terminal": "B"
+                },
+                {
+                  "terminal": "A"
+                }
+              ]
+            },
+            {
+              "method": "matches",
+              "receiver": {
+                "capture": "x"
+              },
+              "args": [
+                {
+                  "terminal": "A"
+                },
+                {
+                  "rule": "r"
+                }
+              ]
+            },
+            {
+              "op": "⊆",
+              "left": {
+                "method": "ngrams",
+                "receiver": {
+                  "method": "value",
+                  "receiver": {
+                    "capture": "x"
+                  },
+                  "args": []
+                },
+                "args": [
+                  {
+                    "integer": "2"
+                  }
+                ]
+              },
+              "right": {
+                "const": "S",
+                "at": [
+                  3,
+                  87
+                ]
+              }
+            }
+          ],
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "r",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "ref": "A"
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "S",
+          "op": "define",
+          "value": {
+            "union": [
+              {
+                "string": "ab"
+              },
+              {
+                "string": "bc"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

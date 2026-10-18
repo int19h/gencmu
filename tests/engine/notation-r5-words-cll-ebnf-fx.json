@@ -1,0 +1,14 @@
+{
+  "description": "The cll-ebnf dialect accepts fx under permissible-run in words/shapes.md (Consonants).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": ".afxab.",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "afxab"
+  }
+}

@@ -113,6 +113,10 @@ test("both readers admit every new family of written forms", () => {
     '%rule r $x:A %conditions $x ≅ @(A B)',
     '%rule r $x:A %conditions $x ≅ @(A @(B C))',
     '%const $S "a$(_0301)$$"', '%const $S "x".split("y")',
+    '%const $S "ab" "bc"', '%const $S ("ab" "bc") ∩ ("bc" ∪ "cd")',
+    '%const $S "ab".ngrams(2)', '%const $S "ab".ngrams(99999999999999999999)',
+    '%rule r A %conditions $.begins(B | r), $.matches(r | A)',
+    '%rule r A %conditions $.begins(r | r | A | A), $.matches((r))',
     '%classifier words "a" "$(KEY)" ∈ AB', '%implies A B ⟹ C D',
     '%rule r :: ($x ⟹ _Lu) ∩ $x.tags | $x:A',
     '%rule r A %erased', '%rule r $x:#', '%rule r (A ≻ B) #',
@@ -140,6 +144,16 @@ test("both readers reject invalid forms at the same specified position", () => {
     '%rule r $x:A %conditions $x.unknown = "x"',
     '%rule r "a$b"', '%rule r "a\\b"', "%bad A %prefer r A",
     "%rule r A ≻", "%rule r A ≻ B | C", "%rule r A | B ≻ C",
+    '%const $S "a" "b".."c"', '%const $S ("a" "b".."c")',
+    '%rule r A %conditions "a" ∈ ("a" "b".."c")',
+    '%const $S "ab".ngrams(0)', '%const $S "ab".ngrams(02)',
+    '%const $S "ab".ngrams(-1)', '%const $S "ab".ngrams()',
+    '%rule r A %conditions $.begins()', '%rule r A %conditions $.matches()',
+    '%rule r A %conditions $.begins((r | A))',
+    '%rule r A %conditions $.matches(r, A)',
+    '%rule r A %conditions $.begins(_L)', '%rule r A %conditions $.matches(_L)',
+    '%rule r A %conditions $.followed-by(_L)', '%rule r A %conditions $.preceded-by(_L)',
+    '%rule r A=("a" "b")', '%rule r A %conditions $ ≅ @A=("a" "b")',
   ]) {
     const document = `\x60\x60\x60jbogenbau\n${source}\n\x60\x60\x60`;
     const errorOf = (reader) => {
