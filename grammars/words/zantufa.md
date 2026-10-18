@@ -73,7 +73,7 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
 
 This document extends the rule `word-run` of forms.md to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of forms.md never takes such a run.
 
-The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join. The first of them follows from the second, but it lets the parser drop a join early, as forms.md explains.
+The redefined `run-words` keeps the join conditions of [forms.md](forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as forms.md explains.
 
 ```jbogenbau
 %redefine-rule runs
@@ -145,14 +145,13 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   Opener-Space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅
 
 %rule space-hesitation
-  (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)
+  (* A hesitation after space counts as space. Before BU, the split rules reserve the final y for its letter word. *)
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule opener-space
-  (* a hesitation after a text opener, or after such a hesitation: space if that word opens a
-     text *)
+  (* A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation. *)
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
@@ -170,8 +169,7 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule only-hesitation
-  (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after
-     it *)
+  (* A run of hesitation or silent text preserves a pending quote opener for the next run. *)
   first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation | silent-token
 
 %rule(leftmost-longest) rahoi-form
@@ -235,9 +233,9 @@ Zantufa's letter rule for `m` refuses only another `m` among the consonants. cam
 
 The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-Zantufa's `Y` reads a whole run of `y` as one token, so its `spaces` treats the whole run as space. This grammar also reads each run whole, including attached hesitation that the words stage retains. The reference particle rule instead divides an odd attached run into one y and the even remainder. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The whole-run rule follows this treatment.
+Zantufa 1.9999's [`initial_spaces`](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg#L1336) reads a whole y run. Its [`cmavo_form`](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg#L1110) onset alternative instead divides an attached odd run into one y and the even remainder. This grammar reads the attached run whole, so it departs from that particle reading. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The whole-run rule follows this treatment.
 
-Erasure can observe this division. In `ra'oi brodyyyy si si`, the quoted `brody` leaves one hesitation token. The first `si` erases the hesitation, and the second erases the quote. The reference division leaves two hesitation tokens, so two erasures retain the quote.
+Erasure can observe this division. In `ra'oi brodyyyy si si`, the quoted `brody` leaves one hesitation token. The first `si` erases the hesitation, and the second erases the quote. The Zantufa 1.9999 parser leaves two hesitation tokens, so two erasures retain the quote. Without those erasures, that parser rejects the attached hesitation after the quote.
 
 The split before BU still separates the final y from its prefix. The words stage forms the letter word from that y and BU. The `Spacing` and `Y-Letters` tags preserve the existing space behavior.
 

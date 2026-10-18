@@ -45,7 +45,7 @@ An extended rafsi is a whole or shortened word before a y-hyphen. It has a class
 %redefine-rule stressed-extended-rafsi  (* The stressed borrowing head excludes rafsi strings, including stressed-hy-rafsi. Only one extended form can complete at this start. *)
   stressed-hy-rafsi | stressed-fuhivla-rafsi
 
-%redefine-rule long-rafsi-vowel (* long_rafsi unstressed_vowel, in hy_rafsi *)
+%redefine-rule long-rafsi-vowel (* The long classical form appends an unstressed vowel to a long rafsi. *)
   long-rafsi unstressed-vowel
 ```
 
@@ -64,7 +64,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
   ¬$.onward.begins(cmavo),
   ¬$.onward.begins(slihykru)
 
-%rule slihykru                (* slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset; only a lookahead *)
+%rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and an onset. Vowel stress separates the CCV forms. *)
   (ccv-rafsi | stressed-ccv-rafsi) h y onset
 ```
 
@@ -91,12 +91,12 @@ The onset after a borrowing rafsi head can be an apostrophe. `spageti'ybroda` us
 <p><img src="../../docs/diagrams/words/experimental/stressed-fuhivla-rafsi.svg" alt="Railroad diagram of the rule stressed-fuhivla-rafsi"></p>
 </details>
 
-An initial rafsi is extended, hyphenated, or short and unhyphenated. The short form cannot start a borrowing or borrowing rafsi, or stand directly before one. Its inherited conditions also exclude y-rafsi and apostrophe-y forms.
+An initial rafsi is an extended form, an ordinary y-rafsi, or a short unhyphenated form. Extended forms also carry a hyphen. The short form cannot start a borrowing or borrowing rafsi, or stand directly before one. It excludes y-rafsi and apostrophe-y forms through `y-less-rafsi`.
 
 A y-rafsi requires y where a classical extended form needs a vowel or apostrophe. A borrowing head excludes that y-rafsi through its rafsi-string test. Thus only one kind can complete at the same start. No rule reads `any-extended-rafsi` after this replacement.
 
 ```jbogenbau
-%redefine-rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede a borrowing or borrowing rafsi. Its own conditions exclude all hyphenated forms. *)
+%redefine-rule initial-rafsi  (* A short unhyphenated rafsi cannot start or directly precede a borrowing or borrowing rafsi. It excludes y-rafsi and hy-rafsi through y-less-rafsi, and borrowing forms through any-fuhivla-rafsi. Initial borrowing rafsi need an unstressed first syllable. Classical extended forms require apostrophe-y. The stressed counterparts also need a short final that cannot start with consonant-y or apostrophe. *)
   | extended-rafsi
   | y-rafsi
   | $l:y-less-rafsi
@@ -104,7 +104,7 @@ A y-rafsi requires y where a classical extended form needs a vowel or apostrophe
   ¬$l.onward.begins(any-fuhivla-rafsi),
   ¬$l.following-tokens.begins(any-fuhivla-rafsi)
 
-%rule any-fuhivla-rafsi       (* any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi; only a lookahead *)
+%rule any-fuhivla-rafsi       (* `any_fuhivla_rafsi <- fuhivla / fuhivla_rafsi / stressed_fuhivla_rafsi`. The test detects a borrowing or either borrowing rafsi form. *)
   fuhivla | fuhivla-rafsi | stressed-fuhivla-rafsi
 ```
 
@@ -125,7 +125,7 @@ The implication marks every NAI word `Indicator`, as [the experimental lexicon](
 
 The experimental phoneme stage reads `ɩ`, `q`, `w`, `ĭ` and `ŭ` as the glides `i` and `u`, with the tag `Glide` ([latin-experimental.md](../phonemes/latin-experimental.md)). `ɩ`, `q` and `w` also carry `Onglide`, because they write only a glide before its vowel. Such a letter is a glide wherever it stands. So no rule reads it as a vowel. `vowel-letter` refuses every glide letter. `diphthong-letters` refuses an onglide letter, so `ĭ` and `ŭ` can end a diphthong, as in `maĭ`.
 
-The comments mark these tests as gencmu's own.
+These tests of glide letters are gencmu's own.
 
 When a diphthong ends in a glide letter, its second letter is no vowel. So the `a` of `maĭ` passes the `!nucleus` test of `vowel`, and without a change it reads as a vowel alone. `vowel` therefore also refuses a letter where a diphthong begins. Without a glide letter the extra test changes nothing, because a diphthong's second letter is then a nucleus, and the camxes test already fails.
 
@@ -179,7 +179,7 @@ In the working morphology, a short rafsi without a y-hyphen cannot stand where a
 
 camxes-exp's `indicator` rule accepts a bare NAI like an attitudinal. This layer marks NAI as an indicator so that the indicator stage can attach it.
 
-This layer inherits whole hesitation runs from [bpfk.md](bpfk.md#whole-hesitation-runs-and-duplicate-proofs). A pure run of y is one hesitation token, and the split before BU preserves its letter word. The words stage drops the hesitation, so its division changes no final reading here.
+This layer inherits whole hesitation runs from [bpfk.md](bpfk.md#whole-hesitation-runs). A pure run of y is one hesitation token, and the split before BU preserves its letter word. The words stage drops the hesitation, so its division changes no final reading here.
 
 The alternatives and repetitions state morphology constraints without PEG order. Merged stress tests and name forms remove duplicate proofs without changing the word classes.
 
