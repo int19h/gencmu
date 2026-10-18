@@ -163,11 +163,11 @@ The syntax layer preserves these camxes-exp preferences among complete readings:
 - A connective directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
 - A sumti connection takes priority over a term or bridi-tail connection ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
-- A final `gi'e ke` group belongs to the bridi-tail connective ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
-- A number or letter string consumes every continuation without written BOI ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
+- A `ke` group directly after a final `gi'e`, or after `gi'e` and a tag such as `ba`, belongs to the bridi-tail connective ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
+- Without written BOI, a number consumes every following number part, and a letter string consumes every following letter ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
 - A subscript after another subscript nests ([free modifiers](../syntax/experimental.md#free-modifiers-vocatives-and-indicators)).
 
-The syntax document's [closing section](../syntax/experimental.md#differences-from-cll-and-camxes-exp) lists departures and their reasons. Bare NA and tag terms use its explicit [KU omission limits](../syntax/experimental.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
+Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection, but this layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`. camxes-exp also splits a run that mixes digits and letters, as in `li pa by`, while this layer reads it as one operand. The syntax document's [closing section](../syntax/experimental.md#differences-from-cll-and-camxes-exp) lists these and the other departures with their reasons. Bare NA and tag terms use its explicit [KU omission limits](../syntax/experimental.md#deliberate-ku-omission-limits). A query is a parse requested by a condition. The syntax document states each query's boundary conditions.
 
 The free-modifier preference includes vocatives, but it compares only readings that pass the grammar's conditions.
 
