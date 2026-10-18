@@ -42,7 +42,7 @@ The backtick is U+0060 GRAVE ACCENT. The spacing acute accent is U+00B4 ACUTE AC
 
 latin-strict.md reads straight and curly quotation marks as apostrophes. This document removes them from `apostrophe`, so they are punctuation by default. The backtick and spacing acute accent also default to punctuation. `inner-quote-mark` reads one where a letter follows it, after any ignored characters. `inner-apostrophe` emits such a mark as the apostrophe of an ordinary or capital run. A foreign run holds it through the extensions of `lojban-chars` and `chars-with-non-lojban-char`, as [latin.md](latin.md) lets a foreign run hold a decimal point.
 
-The left neighbor needs a test of the whole run, because a condition can look ahead but not back. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
+The left neighbor needs a test of the whole run because the notation has no backward token-span query. `misplaced-quote` finds a mark whose left side has no letter. It reads three shapes of run:
 
 - The mark has only ignored characters and marks before it in the run.
 - The nearest character before it, past ignored characters and marks, is no letter. A digit, another quotation mark, punctuation and `ー` are no letters here.
@@ -158,7 +158,9 @@ Between two letters, a mark has two readings: in one run, or as a pause between 
 
 `apostrophe` keeps `h`, which latin.md adds, and takes the marks after it. `run` keeps the three kinds of run, the capital run of latin.md included.
 
-So a mark that touches a digit, another quotation mark, a stray combining mark or the run's edge has only its punctuation reading. `mi''do` is `mi do`, and `mi'` followed by U+0301 is `mi`, because punctuation takes the marks after it. U+0301 followed by `'a` gives a foreign run of the mark, a pause and `a`. `zoi gy. ß'a .gy.` quotes the one foreign run `ß'a`, and `zo'oibrodaß` stays one foreign run. `zoi gy. ß'٣ .gy.` splits at the mark, because `٣` is no letter. The Cyrillic orthographies use the same apostrophe characters, so the rule holds for them too: `'мои'` is `mo'i`.
+So a mark that touches a digit, another quotation mark, a stray combining mark or the run's edge has only its punctuation reading. `mi''do` is `mi do`, and `mi'` followed by U+0301 is `mi`, because punctuation takes the marks after it. U+0301 followed by `'a` gives a foreign run of the mark, a pause and `a`. `zoi gy. ß'a .gy.` quotes the one foreign run `ß'a`, and `zo'oibrodaß` stays one foreign run. `zoi gy. ß'٣ .gy.` splits at the mark, because `٣` is no letter.
+
+The Cyrillic orthographies use the same apostrophe characters. The default Cyrillic reads `'мои'` as `mo'i`. With `cll-cyrillic`, it reads as `moi`.
 
 ## Length marks and the middle dot
 
@@ -380,7 +382,7 @@ krulermorna writes a diphthong with one letter: `ą` for ai, `ę` for ei, `ǫ` f
 
 A diphthong letter stands where a vowel stands and gives two phonemes. The first covers the letter and its marks. The second is inserted after it, with empty source and text. An accent stresses the first vowel, so `ą́` is `Ai`, and a capital does the same outside an all-capital run. An accented capital diphthong letter is `Accented`, as a vowel is, and stays stressed in an all-capital run. Only the first token carries `Stressed`, as for zbalermorna.
 
-An ogonek and a caron together give no reading, so the run is foreign.
+An ogonek and a caron together on `a` give no reading, so the run is foreign. On `e` and `o`, the ogonek forms the diphthong and the caron is ignored.
 
 ```jbogenbau
 %rule latin-diphthong-i :: ($m ⟹ $m.tags ∩ Dieresis)
