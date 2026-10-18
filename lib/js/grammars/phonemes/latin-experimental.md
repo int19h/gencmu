@@ -170,7 +170,9 @@ Only U+00B7 is a silent mark among the dots. The Greek ano teleia U+0387 decompo
 
 The combining tilde U+0303 is a mark, so `letter-marks` already ignores it on a Latin letter.
 
-`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in latin.md, so `ja~i` is `jai`. Beside a quiet pause, a `Quote-Material` token keeps it. Elsewhere at a word edge, it belongs to no token. A raw quote body reads that material ([stream.md](../words/stream.md)).
+`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in latin.md, so `ja~i` is `jai`.
+
+A separate ignored stretch between quiet pauses becomes a `Quote-Material` token. The same holds at the text end after a quiet pause. Ignored-only edges beside words belong to no token. A raw quote body keeps both kinds of text ([stream.md](../words/stream.md)).
 
 So `mi · klama` is `mi klama`, and `zoi gy. ~~ .gy.` quotes `~~`.
 
@@ -182,7 +184,9 @@ A combining mark after a silent mark has no letter, so it makes its run foreign,
 
 A silent mark beside a quotation mark is skipped by the neighbor test of "Quotation marks", so `ko~'a` and `ko·'a` are `ko'a`.
 
-`any-lojban-char` reads a comma, so a silent mark inside a foreign run belongs to the run. A foreign run never begins or ends with a comma or a silent mark. Such a mark belongs to the pause beside it, as a comma does in latin-strict.md. So the foreign run of `クリボー` is `クリボ`, and its value is `クリボ`. The run's image is its source text, and a quote body keeps its verbatim text, so `zoi gy. クリボー .gy.` still shows `クリボー`.
+`any-lojban-char` reads a comma, so a silent mark inside a foreign run belongs to the run. A foreign run never begins or ends with a comma or a silent mark. At an ignored-only edge beside a word, a mark belongs to no token. A material stretch with punctuation keeps its marks. Thus the foreign run of `クリボー` has value `クリボ`.
+
+The run's image is its source text. A quote body keeps its verbatim text, so `zoi gy. クリボー .gy.` still shows `クリボー`.
 
 ```jbogenbau
 %extend-rule comma
