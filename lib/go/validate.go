@@ -948,6 +948,10 @@ func isSpanShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
+func isRuleName(name string) bool {
+	return name == "#" || classifierName.MatchString(name)
+}
+
 // term checks a term; argument says it is a function's argument, where a
 // span may stand. A nil term is an absent, optional one.
 func (c *domChecker) term(t *domTerm, depth int, argument bool) {
@@ -1031,7 +1035,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// head, tail, last, from and after only where a span may stand, and
 		// matches, begins and initial never as terms.
 		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
+		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
@@ -1111,7 +1115,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:
-		if !isSpanShape(d.Span) || d.Rule == "" {
+		if !isSpanShape(d.Span) || !isRuleName(d.Rule) {
 			c.fail("a malformed %s()", d.Kind)
 			return
 		}
@@ -1124,7 +1128,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && ((!domName.MatchString(t.Str) || isCapital(t.Str)) && t.Str != "#")) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed boundary target")
 				return
 			}
