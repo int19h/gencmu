@@ -15,10 +15,15 @@ type parseState struct {
 	lineStarts []int
 	// nested holds the answers of nested parses, and inProgress those now
 	// running (terms.go).
-	nested        map[nestedKey]*nestedResult
-	inProgress    map[spanKey]bool
-	queryContext  int
-	queryContexts map[activeQueryParent]int
+	nested     map[nestedKey]*nestedResult
+	inProgress map[spanKey]bool
+	// contents numbers the contents of the short spans that keys of nested
+	// hold, and contentKey and contentText are the room spanContent
+	// writes a content in before it looks the content up (terms.go).
+	contents                map[string]int
+	contentKey, contentText []byte
+	queryContext            int
+	queryContexts           map[activeQueryParent]int
 	// consts holds the tag set of each constant's value a term has read,
 	// made once (engine §2).
 	consts map[*constValue]*tagset
@@ -28,7 +33,7 @@ type parseState struct {
 }
 
 func newParseState(uni *unicodeTable, text []rune) *parseState {
-	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, inProgress: map[spanKey]bool{}, consts: map[*constValue]*tagset{}}
+	ps := &parseState{uni: uni, in: newInterner(), text: text, nested: map[nestedKey]*nestedResult{}, contents: map[string]int{}, inProgress: map[spanKey]bool{}, consts: map[*constValue]*tagset{}}
 	ps.lineStarts = []int{0}
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
