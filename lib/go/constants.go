@@ -334,6 +334,33 @@ func (g *stageGrammar) resolveConstants() *Error {
 		return err
 	}
 	types := g.constantTypes()
+	resolvedFeatures := newResolver(g.constants, g.uni)
+	for index, item := range g.features {
+		directive := item.directive
+		if directive.Conditions == nil {
+			continue
+		}
+		for _, ref := range constRefs(directive.Conditions) {
+			if _, scalar := engineScalar(ref.Str); !scalar && g.constants[ref.Str] == nil {
+				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		if problem := inputConditionsProblem(directive.Conditions); problem != "" {
+			return g.constError(item.doc, directive.At, "%s", problem)
+		}
+		for _, condition := range directive.Conditions {
+			if fault := condTypeFault(condition, types); fault != nil {
+				return g.constError(item.doc, directive.At, "%s", fault.problem)
+			}
+		}
+		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}); err != nil {
+			err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
+			return err
+		}
+		copied := *directive
+		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
+		g.features[index].directive = &copied
+	}
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {
 			if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {
@@ -376,23 +403,8 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, u.rule.At, "%s", msg)
 			}
 		}
-		for _, call := range closedCalls(u.rule) {
-			arg := call.Items[0]
-			if call.Str == "split" {
-				arg = call.Items[1]
-			}
-			if arg.Kind != tmConst {
-				continue
-			}
-			v, err := g.evaluateClosed(u.doc, arg, u.rule.At)
-			if err != nil {
-				return err
-			}
-			seen := v.s
-			if call.Str == "split" && seen == "" {
-				return g.constError(u.doc, arg.At, "split has an empty delimiter")
-			}
-
+		if err := g.checkDelimiters(u.doc, u.rule); err != nil {
+			return err
 		}
 	}
 
@@ -425,6 +437,24 @@ func (g *stageGrammar) resolveConstants() *Error {
 				copy.Image = r.term(copy.Image)
 				a.alt = &copy
 			}
+		}
+	}
+	return nil
+}
+
+// checkDelimiters applies the same closed-term validation to rules and features.
+func (g *stageGrammar) checkDelimiters(doc string, rule *domRule) *Error {
+	for _, call := range closedCalls(rule) {
+		delimiter := call.Items[1]
+		if openPart(delimiter) != nil {
+			continue
+		}
+		value, err := g.evaluateClosed(doc, delimiter, rule.At)
+		if err != nil {
+			return err
+		}
+		if value.s == "" {
+			return g.faultError(doc, delimiter, rule.At, "split has an empty delimiter")
 		}
 	}
 	return nil

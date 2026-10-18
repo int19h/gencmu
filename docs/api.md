@@ -22,9 +22,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 31 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 13 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 32 supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-31 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-32 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
@@ -32,7 +32,7 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 A feature is a named switch that the grammars of the dialect test (engine §13).
 
-A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name.
+A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
 
 ### Parsing
 
@@ -40,15 +40,18 @@ A loaded dialect parses a text with these configuration arguments. Each argument
 
 | Argument | Default | Meaning |
 | --- | --- | --- |
-| features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
-| without features | none | feature names to turn off for every stage, including any that the `%features` of the pipeline turns on. A name in both lists is a usage error. |
-| auto features | on | add `sa-su` only where the text needs it (design, "Expensive constructs behind features"). It does nothing when `without features` names `sa-su` or `sa-su` is already on. It also does nothing when the dialect lacks the gate `sa-su` or the stage `words`. It does nothing when `until` names an earlier stage (engine §13). |
+| features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on. Unknown names are legal and do not change grammar behavior. |
+| without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. Unknown names are legal and do not change grammar behavior. A name in both lists is a usage error. |
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
 A text must be a sequence of Unicode scalar values, or it is a usage error (engine §1). So a JavaScript or Python string with a lone surrogate is a usage error. So is a Go string that is not valid UTF-8. The same holds for a document held in memory. A document read from disk is different: bytes that are not valid UTF-8 there are a `grammar` load error, with no line or column.
 
-A text that does not parse is not an error, but a result whose `ok` is false and whose `error` says why. The kind of that error is `rejected`, `ambiguous` or `grammar`. An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
+A text that does not parse gives a failed result. Its `ok` is false, and its `error` explains the failure. The kind of that error is `rejected`, `ambiguous`, `feature-conflict`, or `grammar`.
+
+An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
+
+A `feature-conflict` error names a disabled feature whose conditional declaration holds for the stage input. It also names the stage. The failed stage has a null verdict and no output. Earlier stages retain their output and warnings.
 
 An `elision-only` error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal. A `tie` error has no witness of its own. The tied stage holds it (`docs/output.md`).
 
@@ -61,6 +64,12 @@ Parsing is synchronous, and you can use a loaded dialect for any number of parse
 ### The result
 
 The result has the fields of `docs/output.md`, in the data types of the language. These fields are `ok`, the stages, the `tree` of the last stage, the `error`, and the `warnings`. `warnings` is an empty list when there are no warnings.
+
+The result also has `features`, the enabled feature names in code point order, without duplicates. This field stays outside canonical JSON. Go calls it `Features`.
+
+It includes caller-enabled names, including unknown names, and global defaults, except names that the caller disables. It also includes features enabled by declarations in stages that the run reaches. A cutoff before a stage excludes its declarations.
+
+A failed result retains features enabled before the failure, including earlier declarations in the failed stage. Operands before a disabled operand can enable features before that declaration reports a conflict. Each parse starts with a fresh feature set.
 
 `unique` means exactly one [admitted derivation](notation.md#ranked-choices). `resolved` means several admitted derivations with exactly one best. Several best admitted derivations give a tie.
 
@@ -129,7 +138,7 @@ const dialect = loadDialect("cll-ebnf");
 const result = dialect.parse("mi klama", { features: ["y-cmavo"], until: "words" });
 const supplied = dialect.parse("A", {
     tokens: [{ text: "A", value: "a", image: "A", tags: ["_Lu", "_L"], span: [0, 1], source: [0, 1] }],
-    until: "phonemes", autoFeatures: false
+    until: "phonemes"
 });
 result.ok; result.tree; result.error; result.warnings;
 dialect.features; // [{ name: "cll-cyrillic", kind: "gate", default: true },
@@ -140,7 +149,7 @@ toJson(result); toBrackets(result, { showElided: true });
 ```
 
 - `loadDialect(name)` and `loadDialectFile(path)` come from `gencmu/node`. `loadDialectSources(sources, pipelinePath)` comes from both `gencmu` and `gencmu/node`, and its `sources` is a `Map` or a plain object. The `gencmu/node` version fills in `unicode.txt`, `notation/bootstrap.json` and `compiled.json` from the bundled grammars. The `gencmu` version has no files to read. So the map must hold the first two itself, as the grammar object of the browser bundle does.
-- `dialect.parse(text, { tokens, features, withoutFeatures, autoFeatures, until, elisionOnly })` returns a `ParseResult`. `autoFeatures` defaults to `true`.
+- `dialect.parse(text, { tokens, features, withoutFeatures, until, elisionOnly })` returns a `ParseResult`.
 - `dialect.features` is an array of `{ name, kind, default }`.
 - `toJson(result)` writes the canonical JSON as text, and `resultJson(result)` returns it as a value. `toBrackets`, `toTree`, `displayValue` and `prettyJson` render it. `toJson` and `prettyJson` do not recurse, because a tree can nest deeper than the call stack allows. `JSON.stringify` fails on such a tree.
 - Errors are `GencmuError`, with `kind` and `where`.
@@ -156,7 +165,7 @@ import gencmu
 dialect = gencmu.load_dialect("cll-ebnf")
 result = dialect.parse("mi klama", features={"y-cmavo"}, until="words")
 tokens = [gencmu.Token(text="A", value="a", image="A", tags={"_Lu", "_L"}, span=(0, 1), source=(0, 1))]
-supplied = dialect.parse_tokens(tokens, "A", until="phonemes", auto_features=False)
+supplied = dialect.parse_tokens(tokens, "A", until="phonemes")
 result.ok, result.tree, result.error, result.warnings
 dialect.features  # (Feature(name="cll-cyrillic", kind="gate", default=True),
                   #  Feature(name="sa-su", kind="gate", default=False),
@@ -167,8 +176,8 @@ gencmu.to_brackets(result, show_elided=True)
 ```
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` load a dialect. `sources` is a mapping from path to text.
-- `Dialect.parse(text, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult` parses a text.
-- `Dialect.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), auto_features=True, until=None, elision_only=None) -> ParseResult` parses supplied tokens.
+- `Dialect.parse(text, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses a text.
+- `Dialect.parse_tokens(tokens: Sequence[Token], text: str, *, features=(), without_features=(), until=None, elision_only=None) -> ParseResult` parses supplied tokens.
 - `Dialect.features` is a tuple of `Feature`, a dataclass with `name`, `kind` and `default`.
 - `ParseResult`, `Stage`, `Node`, `Token`, `ParseWarning` and `ParseError` are dataclasses. Tags are a set of strings. The warning class is not called `Warning`, because `Warning` is a built-in exception.
 - `to_json(result) -> str` writes the canonical JSON. `result_json(result)` returns it as plain data. `to_brackets(result, *, show_elided=False)` renders the tree as brackets.
@@ -188,7 +197,7 @@ value, image := "a", "A"
 supplied, err := dialect.ParseTokens("A", []gencmu.InputToken{{
     Text: "A", Value: &value, Image: &image, Tags: []string{"_Lu", "_L"},
     Span: [2]int{0, 1}, Source: [2]int{0, 1},
-}}, gencmu.ParseOptions{Until: "phonemes", NoAutoFeatures: true})
+}}, gencmu.ParseOptions{Until: "phonemes"})
 dialect.Features() // []gencmu.Feature{{Name: "cll-cyrillic", Kind: "gate", Default: true},
                    //   {Name: "sa-su", Kind: "gate", Default: false},
                    //   {Name: "su-boundary", Kind: "gate", Default: true},
@@ -198,9 +207,10 @@ gencmu.Brackets(result, gencmu.BracketOptions{ShowElided: true})
 ```
 
 - `LoadDialect(name)`, `LoadDialectFile(path)` and `LoadDialectSources(sources map[string]string, pipeline string)` each return `(*Dialect, error)`. A load error is a `*gencmu.Error`.
-- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `NoAutoFeatures bool`, `Until string` and `ElisionOnly *bool`.
+- `(*Dialect).Parse(text string, options ParseOptions) (*ParseResult, error)` parses a text. The error is for a mistake of the caller, such as an unknown stage name. A text that does not parse is a result. `ParseOptions` has `Features []string`, `WithoutFeatures []string`, `Until string` and `ElisionOnly *bool`.
 
-  Auto features are on unless `NoAutoFeatures` is set. `Until` is a string, so Go cannot tell an empty name from no name. An empty `Until` runs every stage.
+  `Until` is a string, so Go cannot distinguish an empty name from no name. An empty `Until` runs every stage.
+
 - `(*Dialect).ParseTokens(text string, tokens []InputToken, options ParseOptions) (*ParseResult, error)` parses supplied tokens with the same configuration.
 - `(*Dialect).Features() []Feature` lists the features. Each `Feature` has `Name`, `Kind` and `Default`.
 - `MarshalResult(result) ([]byte, error)` writes the canonical JSON.
@@ -219,7 +229,7 @@ let supplied = dialect.parse_tokens(&[gencmu::InputToken {
     text: "A".into(), value: Some("a".into()), image: Some("A".into()),
     tags: ["_Lu".into(), "_L".into()].into_iter().collect(),
 }], &gencmu::ParseOptions {
-    until: Some("phonemes".into()), auto_features: false, ..Default::default()
+    until: Some("phonemes".into()), ..Default::default()
 })?;
 let (ok, tree, error, warnings) = (result.ok, &result.tree, &result.error, &result.warnings);
 let features = dialect.features(); // &[Feature { name, kind, default }]
@@ -228,7 +238,7 @@ gencmu::to_brackets(&result, true);
 ```
 
 - `load_dialect(name)`, `load_dialect_file(path)` and `load_dialect_sources(sources, pipeline)` each return `Result<Dialect, gencmu::Error>`.
-- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `auto_features`, `until` and `elision_only`, and `ParseOptions::default()` has auto features on.
+- `Dialect::parse(&self, text: &str, options: &ParseOptions) -> Result<ParseResult, Error>` parses a text. `ParseOptions` has `features`, `without_features`, `until` and `elision_only`.
 - `Dialect::parse_tokens(&self, tokens: &[InputToken], options: &ParseOptions) -> Result<ParseResult, Error>` parses supplied tokens with the same configuration.
 - `Dialect::features(&self) -> &[Feature]` lists the features. Each `Feature` has `name`, `kind` and `default`.
 - `to_json(&ParseResult) -> String` writes the canonical JSON.

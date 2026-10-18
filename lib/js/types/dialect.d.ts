@@ -8,6 +8,7 @@ export type CompiledEntry = {
 };
 export type RunOptions = {
     features: Set<string>;
+    withoutFeatures?: Set<string>;
     until?: string;
     elisionOnly?: boolean | null;
     tokens?: Token[];
@@ -21,6 +22,7 @@ export type RunOptions = {
  * The options one run of the stages takes.
  * @typedef {object} RunOptions
  * @property {Set<string>} features
+ * @property {Set<string>} [withoutFeatures]
  * @property {string} [until]
  * @property {boolean | null} [elisionOnly]
  * @property {Token[]} [tokens]
@@ -104,13 +106,12 @@ export declare class Dialect {
      */
     parse(text: string, options?: ParseOptions): ParseResult;
     /**
-     * Runs the stages, continuing a probe's stages where it stopped.
+     * Runs each selected stage once.
      * @param {string} text
      * @param {RunOptions} options
-     * @param {ParseResult | null} continued
      * @returns {ParseResult}
      */
-    run(text: string, options: RunOptions, continued: ParseResult | null): ParseResult;
+    run(text: string, options: RunOptions): ParseResult;
 }
 /**
  * A document's DOM from the notation's syntax tree of it: the reader's DOM,

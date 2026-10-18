@@ -480,7 +480,7 @@ class PrecompiledDomRules(unittest.TestCase):
                 {"format": DOM_FORMAT, "bootstrap": self.bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": {"g.md": {"hash": fnv1a64(DOCUMENT), "dom": dom}}}
             )
         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=dom is not None)
-        return gencmu.to_json(dialect.parse("a", auto_features=False))
+        return gencmu.to_json(dialect.parse("a"))
 
     def test_the_reading_passes(self) -> None:
         self.assertIsNone(dom_problem(self.dom))
@@ -1073,7 +1073,7 @@ class CharacterClassLoading(unittest.TestCase):
 
     def test_a_precompiled_malformed_range_or_property_is_a_miss(self) -> None:
         sources = {"p.md": CLASS_PIPELINE, "g.md": CLASS_DOCUMENT}
-        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse("zb", auto_features=False)
+        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse("zb")
         self.assertTrue(fresh_result.ok)
         fresh = gencmu.to_json(fresh_result)
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
@@ -1082,7 +1082,7 @@ class CharacterClassLoading(unittest.TestCase):
             documents = {"g.md": {"hash": fnv1a64(CLASS_DOCUMENT), "dom": dom}}
             compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
-            return gencmu.to_json(dialect.parse("zb", auto_features=False))
+            return gencmu.to_json(dialect.parse("zb"))
 
         # The control: a well-formed entry with the range 'a'..'b' is used in
         # place of the document, and rejects the z. Each broken entry below
@@ -1228,7 +1228,7 @@ class MixedFormLoading(unittest.TestCase):
     def test_a_precompiled_node_of_two_forms_is_a_miss(self) -> None:
         sources = {"p.md": CLASS_PIPELINE, "g.md": MIXED_DOCUMENT}
         tokens = [Token("ok", frozenset(["A"]), (0, 1), (0, 2), None), Token("b", frozenset(["B"]), (1, 2), (3, 4), None)]
-        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse_tokens(tokens, "ok b", auto_features=False)
+        fresh_result = gencmu.load_dialect_sources(sources, "p.md", use_cache=False).parse_tokens(tokens, "ok b")
         self.assertTrue(fresh_result.ok)
         fresh = gencmu.to_json(fresh_result)
         bootstrap_hash = fnv1a64(bundled_text("notation/bootstrap.json") or "")
@@ -1237,7 +1237,7 @@ class MixedFormLoading(unittest.TestCase):
             documents = {"g.md": {"hash": fnv1a64(MIXED_DOCUMENT), "dom": dom}}
             compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**sources, "compiled.json": compiled}, "p.md")
-            return gencmu.to_json(dialect.parse_tokens(tokens, "ok b", auto_features=False))
+            return gencmu.to_json(dialect.parse_tokens(tokens, "ok b"))
 
         # The control: a well-formed entry whose condition wants "no" is
         # used in place of the document, and refuses the text. Each broken
@@ -1358,7 +1358,7 @@ class Constants(unittest.TestCase):
         miss, and the document is read instead (engine §2, §8)."""
         token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
         fresh = gencmu.load_dialect_sources(CONSTANT_SOURCES, "p.md", use_cache=False)
-        expected = fresh.parse_tokens(token, "a", auto_features=False)
+        expected = fresh.parse_tokens(token, "a")
         assert expected.tree is not None
         self.assertEqual(sorted(expected.tree.tags), ["A", "B"])
         dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
@@ -1369,7 +1369,7 @@ class Constants(unittest.TestCase):
             documents = {"g.md": {"hash": fnv1a64(CONSTANT_SOURCES["g.md"]), "dom": entry}}
             compiled = json.dumps({"format": DOM_FORMAT, "bootstrap": bootstrap_hash, "unicode": fnv1a64(bundled_text("unicode.txt") or ""), "documents": documents})
             dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
-            return gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False))
+            return gencmu.to_json(dialect.parse_tokens(token, "a"))
 
         # The control: an entry whose constant is ~c is used in place of the
         # document.
@@ -1408,7 +1408,7 @@ class Constants(unittest.TestCase):
         §9), so the entry is a miss and the document is read instead."""
         token = [Token("a", frozenset(["A"]), (0, 1), (0, 1), None)]
         fresh = gencmu.load_dialect_sources(CONSTANT_SOURCES, "p.md", use_cache=False)
-        expected = gencmu.to_json(fresh.parse_tokens(token, "a", auto_features=False))
+        expected = gencmu.to_json(fresh.parse_tokens(token, "a"))
         dom = read_document(CONSTANT_SOURCES["g.md"], "g.md")
         dom["constants"][0]["value"] = "@VALUE@"
         deep = json.dumps(dom).replace('"@VALUE@"', self.deep_value_json(2000))
@@ -1419,7 +1419,7 @@ class Constants(unittest.TestCase):
             f'"documents":{{"g.md":{{"hash":"{fnv1a64(CONSTANT_SOURCES["g.md"])}","dom":{deep}}}}}}}'
         )
         dialect = gencmu.load_dialect_sources({**CONSTANT_SOURCES, "compiled.json": compiled}, "p.md")
-        self.assertEqual(gencmu.to_json(dialect.parse_tokens(token, "a", auto_features=False)), expected)
+        self.assertEqual(gencmu.to_json(dialect.parse_tokens(token, "a")), expected)
 
     def test_a_bootstrap_constant_nested_too_deeply_is_an_error(self) -> None:
         """The bound on nesting holds before any walk that recurses (engine
@@ -1457,7 +1457,7 @@ class Constants(unittest.TestCase):
                 dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=entry is not None)
             except gencmu.GencmuError as error:
                 return (error.line, error.column)
-            result = dialect.parse_tokens(token, "a", auto_features=False)
+            result = dialect.parse_tokens(token, "a")
             assert result.tree is not None
             return sorted(result.tree.tags)
 
@@ -1480,7 +1480,7 @@ class Constants(unittest.TestCase):
         """The notation's lexical stage tags constants and the keywords that
         define them (grammars/notation/lexical.md)."""
         notation = gencmu.load_dialect("notation")
-        result = notation.parse("%const $SU-STOPS %redefine-const $x $ $K1", until="lexical", auto_features=False)
+        result = notation.parse("%const $SU-STOPS %redefine-const $x $ $K1", until="lexical")
         output = result.stages[0].output
         assert output is not None
         self.assertEqual(
@@ -1702,7 +1702,7 @@ class Classifiers(unittest.TestCase):
                 found = dom_problem(dom(part)) or ""
                 self.assertIn(problem, found)
                 dialect = cached(part)
-                self.assertTrue(dialect.parse_tokens([token], "a", auto_features=False).ok, "the document was read instead")
+                self.assertTrue(dialect.parse_tokens([token], "a").ok, "the document was read instead")
                 self.assertEqual(dialect.features, (), "no feature of the refused entry")
                 bootstrap = json.loads(bundled_text("notation/bootstrap.json") or "{}")
                 first = bootstrap["stages"][0]["documents"][0]["dom"]
@@ -1719,7 +1719,7 @@ class Classifiers(unittest.TestCase):
         """The notation's lexical stage tags the keywords of classifiers and
         implications (grammars/notation/lexical.md)."""
         notation = gencmu.load_dialect("notation")
-        result = notation.parse("%classifier %implies %classifiers", until="lexical", auto_features=False)
+        result = notation.parse("%classifier %implies %classifiers", until="lexical")
         output = result.stages[0].output
         assert output is not None
         self.assertEqual(

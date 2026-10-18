@@ -397,7 +397,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	// the others (§10); the error stands at the node that joins them.
 	t := in.(*domTerm)
 	ty, problem := b.typeOf(t)
-	if problem != "" {
+	if problem != "" && !b.featureContext {
 		b.fail(n, "%s", problem)
 	}
 	f.items = append(f.items, t)
@@ -411,7 +411,7 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 			op = o
 		}
 	}
-	if _, problem := joinedType(f.types, op); problem != "" {
+	if _, problem := joinedType(f.types, op); problem != "" && !b.featureContext {
 		b.fail(n, "%s", problem)
 	}
 	if n.Rule == "intersection" {
@@ -677,7 +677,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	switch n.Rule {
 	case "tree-comparison":
 		f.compare.Right = in.(*domTerm)
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil {
+		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
 			b.fail(n, "%s", fault.problem)
 		}
 		return give(f.compare)
@@ -691,7 +691,7 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 		}
 		f.compare.Right = in.(*domTerm)
 		// The two sides fit the comparator (§10).
-		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil {
+		if fault := condTypeMemo(f.compare, nil, b.types); fault != nil && !b.featureContext {
 			b.fail(n, "%s", fault.problem)
 		}
 		return give(f.compare)

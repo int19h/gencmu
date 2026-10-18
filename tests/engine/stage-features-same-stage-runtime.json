@@ -1,0 +1,28 @@
+{
+  "description": "An enabled local feature does not skip a later declaration whose condition fails at runtime (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%features f\n%conditions $.classes = A\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "first"
+      }
+    },
+    "enabledFeatures": [
+      "f"
+    ]
+  }
+}

@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 31;
+pub const DOM_FORMAT: i64 = 32;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -276,6 +276,7 @@ impl Attachments {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Directive {
+    pub conditions: Option<Vec<Cond>>,
     pub name: String,
     pub args: Vec<String>,
     pub at: (usize, usize),
@@ -319,6 +320,10 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
         .iter()
         .map(|directive| {
             Ok(Directive {
+                conditions: directive
+                    .get("conditions")
+                    .map(|_| array(directive, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>())
+                    .transpose()?,
                 name: string(directive, "name")?,
                 args: array(directive, "args")?
                     .iter()
@@ -917,6 +922,16 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             write_str(&mut out, arg);
         }
         out.push(']');
+        if let Some(conditions) = &directive.conditions {
+            out.push_str(",\"conditions\":[");
+            for (index, condition) in conditions.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_cond(&mut out, condition);
+            }
+            out.push(']');
+        }
         out.push_str(&format!(",\"at\":[{},{}]}}", directive.at.0, directive.at.1));
     }
     out.push_str("],\"constants\":[");
@@ -1607,6 +1622,11 @@ pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
     }
     roots.extend(rule.conditions.iter().map(Nested::Cond));
     too_deep(roots)
+}
+
+/// Whether any condition holds a node below more than 256 compound nodes.
+pub(crate) fn conditions_too_deep(conditions: &[Cond]) -> bool {
+    too_deep(conditions.iter().map(Nested::Cond).collect())
 }
 
 /// Whether a term holds a node below more than 256 compound nodes.

@@ -307,7 +307,9 @@ After admission, rule flags take precedence over the stage directive. With no fl
 
 ## Feature guards
 
-A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
+A feature is a name that is on or off at each stage of a parse. The pipeline can enable a feature from a selected stage onward (see "Pipelines"). The caller, the program or person that asks for the parse, can turn features on for every stage. The caller can also disable features. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result (see "Pipelines").
+
+An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
 
 A gate, `name?`, keeps the alternative only while the feature `name` is on, and `¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts. A gate can also stand before an entry of a classifier (see "Classifiers"). `?` and `!` have no other use in the notation.
 
@@ -327,7 +329,7 @@ An alternative with several guards exists when all its gates hold. A name is a g
 
 A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
+A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
 The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in `cll-ebnf`, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
@@ -570,6 +572,8 @@ A capture changes nothing about how its rule is interpreted. Plain optionals ret
 Diagnostic bookkeeping can follow expansion. Production numbers, witness action lists, reported tied pairs and their order, and elision-only competitors can differ. None of these diagnostic choices changes a verdict, accepted tree, tags, ranking, or query eligibility.
 
 ## Conditions
+
+A `%features` directive also accepts `%conditions` on the stage input, evaluated before parsing (see "Pipelines").
 
 `%conditions` lists what must hold of a rule's captured parts, separated by commas. A parse in which a condition fails does not exist. The parser evaluates each condition as soon as it reads the last capture that the condition mentions. It evaluates a condition that mentions `$` when the constituent is complete.
 
@@ -1013,11 +1017,54 @@ A pipeline document, which is Markdown too, defines a dialect. Each stage is a h
 - `%extend-stage NAME` selects an earlier stage. Subsequent stage items append to that stage until another stage selector appears. An unknown name is an error.
 - `%redefine-stage NAME` selects an earlier stage and clears all its accumulated stage items. The stage keeps its execution position. Subsequent items define the replacement, and later extensions append to it. An unknown name is an error.
 - `%include "PATH"` stands for the rules and directives of the document at `PATH`. The loader resolves the include path against the directory of the document that holds the `%include`. It works as if their text stood in its place, so an included document can include others and can hold stage selectors and `%features` too. Each document must still be complete rules and directives on its own. A document can be included in several stages. A document that includes itself, directly or through others, is an error.
-- `%features NAME…` names one or more features the dialect turns on for every parse, wherever it stands. A caller can turn other features on, and can turn any of these off.
+- Before the first stage selector, `%features NAME…` declares global defaults for every stage.
+- After a stage selector, `%features NAME…` belongs to that stage. It enables its features for that stage and every later stage.
+- A stage-local `%features` accepts a following `%conditions` clause list. All conditions must hold before it enables its features.
+
+A conditional declaration reads its stage input once, before that stage parses:
+
+```jbogenbau
+%stage words
+%features sa-su
+%conditions
+  $.classes ∩ (SA SU) ≠ ∅
+```
+
+Here `$` denotes all input tokens as one span, without a constituent or a position query.
+
+Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, and `.split`.
+
+Apart from the ban on a rule argument to `.tags`, these methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
+
+Other methods and tree comparisons `≅` and `≇` are loading errors, even in a condition that cannot hold.
+
+The loader reports every feature-condition error at its `%features` directive.
+
+Named captures are loading errors. The presence predicate `$` is always true, including for empty input.
+
+Constants use the selected stage's binding rules. Each condition must have Boolean type, as a rule condition does.
+
+A global declaration cannot have conditions. A directive other than `%features` cannot have conditions.
+
+A stage-local feature is a loading error if any surviving earlier stage tests it, including through a classifier guard. The loader reports it at the local `%features` declaration, and its message names the earlier stage.
+
+Two different stages cannot declare the same feature locally. The loader reports the second surviving declaration in document order, after include expansion. Repeated declarations in one stage are legal, and each evaluates in order.
+
+This restriction applies even when the same feature has a global declaration or the caller enables it.
+
+Every feature check applies only to surviving stage definitions, including feature conditions and tests in rule alternatives. The loader does not check declarations or alternatives that replacement discards. Source syntax, DOM shape and depth, and include errors still fail the load. The loader examines surviving rules and declarations before feature filtering. Stage replacement also clears its local feature declarations.
+
+A caller-enabled feature is on everywhere. A local declaration never removes an enabled feature.
+
+If a conditional declaration holds for a feature that the caller disables, the parse returns `feature-conflict` with the feature and stage names.
+
+The engine evaluates the declarations in order. It stops at the first declaration that holds and names a disabled feature, or whose condition raises a runtime error. That declaration decides the result. Within one declaration, the error names the first disabled feature in operand order.
+
+An unconditional declaration respects features that the caller disables. If the caller stops before a stage, the engine never evaluates its declarations.
 
 Rules can also stand in the pipeline document itself, between its `%include` blocks. The loader stitches them in their places. A rule, a constant, a classifier, an implication or a stage-level directive before the first `%stage` is an error. So are two stages of one name and a stage with no rules.
 
-Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, classifiers, implications, and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
+Stage selection continues across grammar blocks and include boundaries. Returning from an include does not restore the earlier selection. Replacement clears rules, constants, classifiers, implications, local feature declarations, and the ambiguity policy. It does not clear global `%features` or other stages. The loader reads every included document, but it evaluates only the surviving stage definitions. A missing ambiguity policy or an invalid final grammar gives the usual grammar error.
 
 By convention, each document keeps its link in the prose, and its `%include` follows in a block of its own, in the same list item. So the pipeline reads as hyperlinked prose. A block's fence can be indented by up to three spaces, so a block can stand under a list item, indented by two. The reader knows no other Markdown container.
 
@@ -1025,7 +1072,7 @@ The layout is a matter of style, and the notation does not require it. An `%incl
 
 [Stage zero](#values-and-images) supplies the first grammar's tokens, as defined at the start of this guide.
 
-`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the dialect's features in one `%features` at the top. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
+`node lib/js/cli.js stitch --dialect NAME` prints a dialect's pipeline as one jbogenbau text. The command replaces every `%include` with what it stands for, and puts the global features in one `%features` at the top. It preserves local declarations and their conditions. Each run of rules from one document follows a comment naming it. A classifier stands as its author wrote it, entry by entry, and not as the table that its entries make.
 
 ## Ambiguity
 

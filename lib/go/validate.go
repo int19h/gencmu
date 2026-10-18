@@ -30,6 +30,7 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
+	at          [2]int
 	code        string
 	message     string
 	rule        *domRule
@@ -52,6 +53,19 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 	for _, dir := range d.Directives {
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
+		}
+		if dir.Conditions != nil {
+			if dir.Name != "features" || len(dir.Conditions) == 0 {
+				return &domProblem{message: "malformed feature conditions", at: dir.At}
+			}
+			checker := &domChecker{uni: uni, deferTypes: true}
+			for _, condition := range dir.Conditions {
+				checker.condition(condition, 0)
+				if checker.problem != nil {
+					checker.problem.at = dir.At
+					return checker.problem
+				}
+			}
 		}
 	}
 	// The order of a document's items is the order of their positions, so
@@ -106,8 +120,10 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return &domProblem{message: "a malformed classifier"}
 		}
 		for _, e := range c.Entries {
-			if p := entryProblem(e, uni); p != "" {
-				return &domProblem{message: fmt.Sprintf("classifier %s: %s", c.Name, p)}
+			if p := entryProblem(e, uni); p != nil {
+				p.message = fmt.Sprintf("classifier %s: %s", c.Name, p.message)
+				p.at = c.At
+				return p
 			}
 		}
 	}
@@ -227,36 +243,36 @@ var (
 )
 
 // entryProblem is what is wrong with an entry of a classifier (engine §9),
-// or "": its guards are gates, it has one or more keys, each a canonical
+// or nil: its guards are gates, it has one or more keys, each a canonical
 // string, its operator is ∈ or ∉, and its class starts and ends uppercase.
-func entryProblem(e *domEntry, uni *unicodeTable) string {
+func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
 	if e == nil || e.Guards == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 && len(e.Keys) == 0 {
-		return "a malformed entry of a classifier"
+		return &domProblem{message: "a malformed entry of a classifier"}
 	}
 	for _, g := range e.Guards {
 		if g.Kind != FeatureGate {
-			return "a malformed entry of a classifier: an entry takes gates only, not a warning"
+			return &domProblem{message: "a malformed entry of a classifier: an entry takes gates only, not a warning"}
 		}
 		if !nameSyntaxFeature.MatchString(g.Feature) {
-			return "a malformed entry of a classifier: a gate's feature is a name"
+			return &domProblem{message: "a malformed entry of a classifier: a gate's feature is a name"}
 		}
 	}
 	for _, key := range e.KeyTerms {
 		if !stringTermShape(key) {
-			return "a classifier key requires a string term"
+			return &domProblem{message: "a classifier key requires a string term"}
 		}
 		c := &domChecker{uni: uni}
 		c.term(key, 0, false)
 		if c.problem != nil {
-			return c.problem.message
+			return c.problem
 		}
 	}
 	for _, key := range e.Keys {
 		if !utf8.ValidString(key) {
-			return "a classifier key is not valid UTF-8"
+			return &domProblem{message: "a classifier key is not valid UTF-8"}
 		}
 	}
-	return ""
+	return nil
 }
 
 // implicationSideProblem is why a side of an implication is not a closed
@@ -313,11 +329,12 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	deferTypes  bool
 	hasBoundary bool
 	rule        *domRule        // the rule checked, or nil
 	constant    *domConst       // the constant checked, or nil
 	implication *domImplication // the implication checked, or nil
-	label       string          // what the problems name: rule r, constant $C or an implication
+	label       string          // what the diagnostic names
 	uni         *unicodeTable
 	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem     *domProblem
@@ -931,6 +948,10 @@ func isSpanShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmCapture || (t.Kind == tmCall && isSpanFunction(t.Str)))
 }
 
+func isRuleName(name string) bool {
+	return name == "#" || classifierName.MatchString(name)
+}
+
 // term checks a term; argument says it is a function's argument, where a
 // span may stand. A nil term is an absent, optional one.
 func (c *domChecker) term(t *domTerm, depth int, argument bool) {
@@ -1014,7 +1035,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		// head, tail, last, from and after only where a span may stand, and
 		// matches, begins and initial never as terms.
 		args := t.Items
-		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && a.Str != "" }
+		isRule := func(a *domTerm) bool { return a != nil && a.Kind == tmRule && isRuleName(a.Str) }
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
@@ -1043,7 +1064,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a malformed call of %q", t.Str)
 			return
 		}
-		if msg := literalCallProblem(t.Str, args); msg != "" {
+		if msg := literalCallProblem(t.Str, args); msg != "" && !c.deferTypes {
 			c.fail("%s", msg)
 			return
 		}
@@ -1094,7 +1115,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:
-		if !isSpanShape(d.Span) || d.Rule == "" {
+		if !isSpanShape(d.Span) || !isRuleName(d.Rule) {
 			c.fail("a malformed %s()", d.Kind)
 			return
 		}
@@ -1107,7 +1128,7 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		}
 		c.term(d.Span, depth+1, true)
 		for _, t := range d.Targets {
-			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && ((!domName.MatchString(t.Str) || isCapital(t.Str)) && t.Str != "#")) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
 				c.fail("a malformed boundary target")
 				return
 			}
@@ -1887,4 +1908,47 @@ func constRefs(nodes ...any) []*domTerm {
 		}
 	}
 	return found
+}
+
+func inputConditionsProblem(conditions []*domCond) string {
+	allowed := map[string]bool{"tags": true, "classes": true, "value": true, "image": true, "source-text": true, "decomposed-source-text": true, "first-token": true, "tokens-after-first": true, "last-token": true, "split": true}
+	problem := ""
+	for _, condition := range conditions {
+		walkClause(clausePart{c: condition}, func(p clausePart) bool {
+			if problem != "" {
+				return false
+			}
+			if t := p.t; t != nil {
+				if t.Kind == tmCapture && t.Str != "" {
+					problem = "feature conditions can read only $"
+				}
+				if t.Kind == tmCall && (!allowed[t.Str] || t.Str == "tags" && len(t.Items) != 1) {
+					problem = "feature conditions can read only tokens"
+				}
+			}
+			if c := p.c; c != nil {
+				switch c.Kind {
+				case cdCompare:
+					if c.Op == "≅" || c.Op == "≇" {
+						problem = "feature conditions can read only tokens"
+					}
+				case cdCaptured:
+					if c.Rule != "" {
+						problem = "feature conditions can read only $"
+					}
+				case cdNot, cdAny, cdAll, cdIf:
+				default:
+					problem = "feature conditions can read only tokens"
+				}
+			}
+			return true
+		})
+		if problem != "" {
+			return problem
+		}
+		if problem = condTypeProblem(condition); problem != "" {
+			return problem
+		}
+	}
+	return ""
 }

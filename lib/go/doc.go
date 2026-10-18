@@ -60,7 +60,7 @@
 // decomposition. The .decomposed-source-text method decomposes the original
 // source text of a span with the same table.
 //
-// Result format 13 and grammar DOM format 31 follow docs/output.md.
+// Result format 14 and grammar DOM format 32 follow docs/output.md.
 // Source positions count Unicode code points, rather than UTF-8 bytes.
 // Spans and token indices count tokens of the relevant stage. Tags occur
 // once in code point order. User tags start with uppercase ASCII letters.
@@ -68,10 +68,13 @@
 //
 // # Features
 //
-// A feature is a name that is on or off for a parse, the same for every
-// stage. The pipeline turns some on; ParseOptions.Features turns others on,
-// and ParseOptions.WithoutFeatures turns any of them off. A guard on an
-// alternative of a grammar is a gate, f? or ¬f?, which keeps the
+// A feature is a name that is on or off at each stage of a parse.
+// The pipeline can enable a feature from a selected stage onward.
+// ParseOptions.Features enables features in every stage.
+// ParseOptions.WithoutFeatures disables features. If a conditional
+// declaration holds for a disabled feature, the result is feature-conflict.
+//
+// A guard on an alternative of a grammar is a gate, f? or ¬f?, which keeps the
 // alternative only while f is on, or off, or a warning, f!, which keeps it
 // either way and, while f is on, adds a Warning to the result for each node
 // of the chosen tree that the alternative built. A gate can also stand

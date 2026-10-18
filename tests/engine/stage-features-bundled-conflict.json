@@ -1,0 +1,47 @@
+{
+  "description": "A bundled cached word stage conflicts on quoted SA, but a cutoff before words skips activation (engine §13).",
+  "input": "zo sa",
+  "parses": [
+    {
+      "options": {
+        "withoutFeatures": [
+          "sa-su"
+        ]
+      },
+      "expect": {
+        "error": "feature-conflict",
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "feature-conflict",
+            "stage": "words",
+            "feature": "sa-su"
+          }
+        },
+        "enabledFeatures": [
+          "su-boundary"
+        ]
+      }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "sa-su"
+        ],
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "enabledFeatures": [
+          "su-boundary"
+        ]
+      }
+    }
+  ],
+  "documents": {
+    "p.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "p.md"
+}

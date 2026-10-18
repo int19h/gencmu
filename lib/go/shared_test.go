@@ -62,19 +62,19 @@ type caseOptions struct {
 	Features        []string `json:"features"`
 	WithoutFeatures []string `json:"withoutFeatures"`
 	ElisionOnly     *bool    `json:"elisionOnly"`
-	AutoFeatures    *bool    `json:"autoFeatures"`
 	Until           string   `json:"until"`
 }
 
 // caseExpect is what a case expects. Result, Warnings and Features are
 // decoded JSON, nil where the case leaves them out.
 type caseExpect struct {
-	Diagnostic string  `json:"diagnostic"`
-	Result     *any    `json:"result"`
-	Brackets   *string `json:"brackets"`
-	Warnings   *any    `json:"warnings"`
-	Features   *any    `json:"features"`
-	Error      string  `json:"error"`
+	Diagnostic      string  `json:"diagnostic"`
+	Result          *any    `json:"result"`
+	Brackets        *string `json:"brackets"`
+	Warnings        *any    `json:"warnings"`
+	Features        *any    `json:"features"`
+	EnabledFeatures *any    `json:"enabledFeatures"`
+	Error           string  `json:"error"`
 	// Where is where a load error stands (tests/README.md).
 	Where *struct {
 		Document string `json:"document"`
@@ -218,14 +218,11 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	if err := loadBundled(); err != nil {
 		return nil, nil, err
 	}
-	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
+	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until}
 	log := withChecks(&opts)
 	opts.private.loseWitness = lose
 	opts.private.fault, opts.private.hits = c.fault, c.hits
 	opts.private.familyOracle = c.familyOracle
-	if o.AutoFeatures != nil && *o.AutoFeatures {
-		opts.NoAutoFeatures = false
-	}
 	var res *ParseResult
 	var err error
 	if c.Input != nil && c.Tokens == nil {
@@ -332,7 +329,7 @@ func checkLoadError(expect *caseExpect, err error) error {
 	if expect.Error != e.Kind {
 		return fmt.Errorf("unexpected load error: %v", err)
 	}
-	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil {
+	if expect.Result != nil || expect.Brackets != nil || expect.Warnings != nil || expect.Features != nil || expect.EnabledFeatures != nil {
 		return fmt.Errorf("the dialect did not load: %v", err)
 	}
 	// Where the error stands, in a document of the case, given only for a
@@ -386,6 +383,20 @@ func checkParse(d *Dialect, c *engineCase, options *caseOptions, expect *caseExp
 	// (tests/README.md).
 	if n := log.lost(); n > 0 && !c.noHook {
 		return fmt.Errorf("%d checks of elision-only lost the witness of their chosen derivation\n%s", n, data)
+	}
+	if object, ok := got.(map[string]any); ok {
+		if _, present := object["features"]; present {
+			return fmt.Errorf("canonical JSON contains enabled features")
+		}
+	}
+	if expect.EnabledFeatures != nil {
+		have := []any{}
+		for _, name := range res.Features {
+			have = append(have, name)
+		}
+		if !equalJSON(have, *expect.EnabledFeatures) {
+			return fmt.Errorf("enabled features: expected %s, got %v", shown(*expect.EnabledFeatures), res.Features)
+		}
 	}
 	return checkResult(res, got, data, expect)
 }

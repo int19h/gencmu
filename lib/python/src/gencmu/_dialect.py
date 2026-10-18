@@ -241,6 +241,9 @@ class NotationReader:
         grammar_text = jbogenbau_text(text)
         tokens = character_tokens(grammar_text.text, self.unicode)
         name, lowered = self.stages[0]
+        features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, frozenset())
+        if features:
+            lowered = lower(lowered.grammar, features)
         outcome = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode).run(lowered.grammar.elision_only)
         if outcome.error is None and outcome.output is not None:
             return restore_locations(dom, outcome.output, grammar_text.position)
@@ -255,14 +258,18 @@ class NotationReader:
             raise
         tokens = character_tokens(grammar_text.text, self.unicode)
         tree = None
+        features = frozenset()
         for number, (name, lowered) in enumerate(self.stages):
+            features = _notation_features(lowered.grammar, tokens, grammar_text.text, self.unicode, features)
+            if features:
+                lowered = lower(lowered.grammar, features)
             if name == 'syntax':
                 for token in tokens:
                     if token.value == '%prefer':
                         line, column = grammar_text.position(token.source[0])
                         raise GencmuError('unknown directive %prefer; use an inline ranked choice (A ≻ B)', document=path, line=line, column=column)
             last = number == len(self.stages) - 1
-            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last)
+            runner = StageRunner(name, lowered, tokens, grammar_text.text, self.unicode, emit=not last, features=features)
             # Each notation stage runs the check of elision-only where its
             # own directive declares it (engine §8).
             outcome = runner.run(lowered.grammar.elision_only)
@@ -304,10 +311,12 @@ class NotationReader:
         problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
             return dom
-        # Each rule, constant definition and implication alone, in the
-        # order of the document.
+        # Each declaration alone, including feature directives and
+        # classifiers, in the order of the document.
         items = (
             [("rules", rule) for rule in dom["rules"]]
+            + [("directives", directive) for directive in dom["directives"]]
+            + [("classifiers", classifier) for classifier in dom["classifiers"]]
             + [("constants", constant) for constant in dom["constants"]]
             + [("implications", implication) for implication in dom["implications"]]
         )
@@ -543,7 +552,24 @@ def _dialect_features(path: str, grammars: list[Grammar], declared: frozenset[st
             kind = "warning" if guard.get("kind") == "warning" else "gate"
             if kinds.setdefault(name, kind) != kind:
                 raise GencmuError(f"{document}:{at[0]}:{at[1]}: the feature {name} is used both as a gate and as a warning", document=document, line=at[0], column=at[1], stage=grammar.stage)
-    return tuple(Feature(name, kinds.get(name, "gate"), name in declared) for name in sorted(kinds.keys() | declared))
+    local = set()
+    defaults = set(declared)
+    tested = {}
+    for grammar in grammars:
+        for document, directive in grammar.feature_items:
+            for name in directive["args"]:
+                if name in tested:
+                    raise GencmuError(f"stage {tested[name]} tests local feature {name}", document=document, line=directive["at"][0], column=directive["at"][1], stage=grammar.stage)
+                local.add(name)
+                if "conditions" not in directive:
+                    defaults.add(name)
+        for rule in grammar.rules.values():
+            for alt in rule.alternatives:
+                for guard in alt.guards:
+                    tested.setdefault(guard["feature"], grammar.stage)
+        for name in grammar.classifier_gates:
+            tested.setdefault(name, grammar.stage)
+    return tuple(Feature(name, kinds.get(name, "gate"), name in defaults) for name in sorted(kinds.keys() | declared | local))
 
 
 class Dialect:
@@ -600,7 +626,6 @@ class Dialect:
         *,
         features: Iterable[str] = (),
         without_features: Iterable[str] = (),
-        auto_features: bool = True,
         until: str | None = None,
         elision_only: bool | None = None,
     ) -> ParseResult:
@@ -617,7 +642,6 @@ class Dialect:
             text,
             features=features,
             without_features=without_features,
-            auto_features=auto_features,
             until=until,
             elision_only=elision_only,
         )
@@ -629,7 +653,6 @@ class Dialect:
         *,
         features: Iterable[str] = (),
         without_features: Iterable[str] = (),
-        auto_features: bool = True,
         until: str | None = None,
         elision_only: bool | None = None,
     ) -> ParseResult:
@@ -692,73 +715,47 @@ class Dialect:
             )
             for token in tokens
         ]
-        # Only a dialect that has sa-su as a gate adds it by itself, and not
-        # when the caller has turned it off (engine §13).
-        gated = any(feature.name == "sa-su" and feature.kind == "gate" for feature in self.features)
-        if auto_features and gated and "sa-su" not in enabled and "sa-su" not in off and "words" in names and names.index("words") <= last:
-            words = names.index("words")
-            probe, outcomes = self._run(text, tokens, enabled, 0, words, elision_only, None)
-            if not probe.ok or self._reads_sa_su(outcomes[words]):
-                # The parse runs again from the first stage, and the probe's
-                # stages and warnings are discarded.
-                return self._run(text, tokens, enabled | {"sa-su"}, 0, last, elision_only, None)[0]
-            if words == last:
-                return probe
-            following = probe.stages[words].output
-            assert following is not None
-            return self._run(text, following, enabled, words + 1, last, elision_only, probe)[0]
-        return self._run(text, tokens, enabled, 0, last, elision_only, None)[0]
-
-    @staticmethod
-    def _reads_sa_su(outcome: StageOutcome) -> bool:
-        """Whether the chosen tree has a constituent of the rule word whose
-        tag set has SA or SU (engine §13)."""
-        root = outcome.tree
-        if root is None:
-            return False
-        stack: list[Node] = [root]
-        while stack:
-            node = stack.pop()
-            if node.kind == "rule" and node.rule == "word" and node.tags is not None and ("SA" in node.tags or "SU" in node.tags):
-                return True
-            stack.extend(node.children or ())
-        return False
+        return self._run(text, tokens, enabled, off, last, elision_only)
 
     def _run(
         self,
         text: str,
         tokens: list[Token],
         features: frozenset[str],
-        first: int,
+        off: frozenset[str],
         last: int,
         elision_only: bool | None,
-        before: ParseResult | None,
-    ) -> tuple[ParseResult, list[StageOutcome]]:
-        """Run the stages from ``first`` to ``last`` over ``tokens``,
-        continuing the stages and warnings of the run ``before``, the auto
-        features' probe, when there is one."""
-        stages = list(before.stages) if before is not None else []
-        # Every stage's warnings, in stage order, kept whether or not the
-        # parse is ok (engine §13).
-        warnings: list[ParseWarning] = list(before.warnings) if before is not None else []
-        outcomes: list[StageOutcome] = []
+    ) -> ParseResult:
+        """Run each selected stage once."""
+        stages = []
+        warnings: list[ParseWarning] = []
         current = tokens
-        for number in range(first, last + 1):
+        for number in range(last + 1):
             grammar = self.grammars[number]
             try:
+                for _, directive in grammar.feature_items:
+                    conditional = "conditions" in directive
+                    if conditional and not _input_conditions_hold(directive["conditions"], current, text, self.unicode):
+                        continue
+                    for feature in directive["args"]:
+                        if feature in off:
+                            if conditional:
+                                failure = ParseError("feature-conflict", f"the {grammar.stage} stage requires disabled feature {feature}", stage=grammar.stage, feature=feature)
+                                stages.append(Stage(grammar.stage, None, current))
+                                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
+                        else:
+                            features = features | {feature}
                 lowered = self.lowered(number, features)
             except GencmuError as error:
                 # An error of the grammar lowering finds for these features
                 # is a result, with its stage and no position (engine §13).
                 failure = ParseError("grammar", error.message, stage=grammar.stage)
                 stages.append(Stage(grammar.stage, None, current))
-                outcomes.append(StageOutcome(error=failure))
-                return ParseResult(False, stages, None, failure, text, warnings), [StageOutcome()] * first + outcomes
+                return ParseResult(False, stages, None, failure, text, warnings, features=sorted(features))
 
             runner = StageRunner(grammar.stage, lowered, current, text, self.unicode, features=features)
             check = grammar.elision_only if elision_only is None else elision_only
             outcome = runner.run(check)
-            outcomes.append(outcome)
             stage = Stage(
                 grammar.stage,
                 outcome.verdict,
@@ -770,10 +767,10 @@ class Dialect:
             stages.append(stage)
             warnings.extend(outcome.warnings)
             if outcome.error is not None:
-                return ParseResult(False, stages, None, outcome.error, text, warnings), [StageOutcome()] * first + outcomes
+                return ParseResult(False, stages, None, outcome.error, text, warnings, features=sorted(features))
             assert outcome.output is not None
             current = outcome.output
-        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings), [StageOutcome()] * first + outcomes
+        return ParseResult(True, stages, stages[-1].tree if stages else None, None, text, warnings, features=sorted(features))
 
 
 def read_document(text: str, path: str = "document.md", *, sources: Mapping[str, str] | None = None) -> Dom:
@@ -781,3 +778,38 @@ def read_document(text: str, path: str = "document.md", *, sources: Mapping[str,
     cache: the reading the shared notation cases test (engine §8, §9)."""
     found = _resources(sources)
     return _reader(found.bootstrap, found.unicode).read(text, path)
+
+
+def _input_conditions_hold(conditions, tokens, text, unicode):
+    from types import SimpleNamespace
+    from ._earley import Evaluator, Sources
+    from ._errors import _GrammarFault
+    from ._trampoline import run
+    sources = Sources(tokens)
+    context = SimpleNamespace(
+        tokens=tokens, unicode=unicode,
+        nonempty_tokens=lambda: range(len(tokens) + 1),
+        value=lambda index: tokens[index].value,
+        span_text=lambda start, end: text[slice(*sources.of(start, end))] if start < end else "",
+    )
+    evaluator = Evaluator(context, 0, len(tokens))
+    bound = SimpleNamespace(get=lambda name: (0, len(tokens), None))
+    def present(node):
+        if isinstance(node, list):
+            return [present(item) for item in node]
+        if isinstance(node, dict):
+            if "captured" in node:
+                return {"all": []}
+            return {key: present(value) for key, value in node.items()}
+        return node
+    try:
+        return all(run(evaluator.walk_condition(present(condition), bound)) for condition in conditions)
+    except _GrammarFault as error:
+        raise GencmuError(error.message) from error
+
+
+def _notation_features(grammar, tokens, text, unicode, features):
+    for _, directive in grammar.feature_items:
+        if "conditions" not in directive or _input_conditions_hold(directive["conditions"], tokens, text, unicode):
+            features = features | frozenset(directive["args"])
+    return features

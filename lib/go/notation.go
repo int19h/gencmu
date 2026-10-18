@@ -137,6 +137,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
 	var out stageOutcome
+	features := map[string]bool{}
 	for i, g := range nr.stages {
 		if g.name == "syntax" {
 			for _, token := range toks {
@@ -148,7 +149,14 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).
-		out = run.run(nr.lowered[i], g.elisionOnly)
+		if failure := run.activateFeatures(g.features, features, nil); failure != nil {
+			return nil, &Error{Kind: ErrorGrammar, Document: docPath, Stage: g.name, Message: failure.Message}
+		}
+		lowered := nr.lowered[i]
+		if len(features) > 0 {
+			lowered = lower(g, features)
+		}
+		out = run.run(lowered, g.elisionOnly)
 		if out.err != nil && out.err.Kind == ErrorAmbiguous {
 			// A tie has no single position, so the error names the document
 			// alone, with no line or column (engine §8).
@@ -190,15 +198,16 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 	}()
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the first item, a rule, a
-	// constant's definition or an implication, that nests too deeply, in
-	// the order of the document.
+	// nesting deeper than 256 (§9), reported at the first declaration
+	// that nests too deeply, including feature directives and classifiers.
 	if p := checkDOM(dom, nr.uni); p != nil {
 		if p.tooDeep {
 			p = firstTooDeep(dom, nr.uni, p)
 		}
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message, Code: p.code}
-		if p.rule != nil {
+		if p.at != [2]int{} {
+			e.Line, e.Column = p.at[0], p.at[1]
+		} else if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
 		} else if p.constant != nil {
 			e.Line, e.Column = p.constant.At[0], p.constant.At[1]
@@ -225,6 +234,12 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	for _, k := range dom.Constants {
 		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
 	}
+	for _, dir := range dom.Directives {
+		items = append(items, item{dir.At, &domDoc{Directives: []*domDirective{dir}}})
+	}
+	for _, c := range dom.Classifiers {
+		items = append(items, item{c.At, &domDoc{Classifiers: []*domClassifier{c}}})
+	}
 	for _, m := range dom.Implications {
 		items = append(items, item{m.At, &domDoc{Implications: []*domImplication{m}}})
 	}
@@ -234,6 +249,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	})
 	for _, it := range items {
 		if p := checkDOM(it.alone, uni); p != nil && p.tooDeep {
+			p.at = it.at
 			return p
 		}
 	}
@@ -241,8 +257,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
-	hasBoundary   bool
-	deferEmission bool
+	hasBoundary    bool
+	deferEmission  bool
+	featureContext bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
@@ -543,6 +560,12 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			}
 			if !directiveOperandsOK(dir) {
 				b.fail(keyword, "invalid directive operands")
+			}
+			if clause := one(c, "conditions-clause"); clause != nil {
+				if dir.Name != "features" {
+					b.fail(keyword, "only %%features accepts conditions")
+				}
+				dir.Conditions = b.featureConditions(keyword, clause)
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -866,6 +889,9 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 // typeOf is a term's type, or why its parts do not agree, through the
 // reader's memo.
 func (b *domBuilder) typeOf(t *domTerm) (termType, string) {
+	if b.featureContext {
+		return tyAny, ""
+	}
 	ty, f := termTypeMemo(t, nil, b.types)
 	if f != nil {
 		return 0, f.problem
@@ -1059,4 +1085,24 @@ func flattenGroups(r *domRule) {
 			push(t)
 		}
 	}
+}
+
+// Feature-condition diagnostics identify the directive that owns them.
+func (b *domBuilder) featureConditions(keyword, clause *Node) (conditions []*domCond) {
+	b.featureContext = true
+	defer func() {
+		b.featureContext = false
+		if failure := recover(); failure != nil {
+			if err, ok := failure.(*Error); ok {
+				at := b.at(keyword)
+				err.Line, err.Column = at[0], at[1]
+			}
+			panic(failure)
+		}
+	}()
+	conditions = []*domCond{}
+	for _, condition := range b.some(clause, "implication", 1) {
+		conditions = append(conditions, b.implication(condition))
+	}
+	return conditions
 }

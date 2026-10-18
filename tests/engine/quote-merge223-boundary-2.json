@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zoi gy. ni'o coi do .gy ni'o coi do .i mi klama",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

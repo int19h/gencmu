@@ -1,0 +1,21 @@
+{
+  "description": "Feature conditions require loading errors for bad-arity, even when until skips the stage (engine §§9, 10, 13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n%const $E \"x\"\n%features f\n%conditions $.value.split($E $E) = ∅\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "until": "first"
+  },
+  "expect": {
+    "error": "grammar"
+  }
+}

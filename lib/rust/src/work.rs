@@ -344,10 +344,6 @@ mod tests {
         sources
     }
 
-    fn no_auto() -> ParseOptions {
-        ParseOptions { auto_features: false, ..ParseOptions::default() }
-    }
-
     /// The shared cases of `tests/growth.json` (tests/README.md): the work
     /// of the bundled grammars on long texts. A condition that parses a
     /// whole prefix again at each step makes a long text cost more than its
@@ -412,7 +408,7 @@ mod tests {
         // A context of one wrapper each, not one of each set of wrappers:
         // the context past that panics.
         budget(Work::Contexts, 4 * depth as u64);
-        let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+        let result = dialect.parse_tokens(&[], &ParseOptions::default()).unwrap();
         let contexts = counted(Work::Contexts);
         assert!(result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
@@ -448,7 +444,7 @@ mod tests {
                 budget(Work::Items, items);
                 budget(Work::Searched, searched);
             }
-            let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
+            let result = dialect.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n}");
             (counted(Work::Items), counted(Work::Searched))
         };
@@ -490,7 +486,7 @@ mod tests {
         // derivation, and the check restores the elided one.
         let tokens = [token("A"), token("KU"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {
-            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &no_auto()).unwrap();
+            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n} rules");
             assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved));
         });
@@ -524,7 +520,7 @@ mod tests {
         };
         let tokens = [token("A0"), token("B0")];
         assert_linear(Work::Found, 250, &mut |n| {
-            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &no_auto()).unwrap();
+            let result = dialects[usize::from(n != 250)].parse_tokens(&tokens, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{n} rules");
         });
     }

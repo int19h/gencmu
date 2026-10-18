@@ -1,0 +1,26 @@
+{
+  "description": "An unknown caller disabled feature does not change grammar behavior (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": []
+  },
+  "options": {
+    "withoutFeatures": [
+      "unknown"
+    ]
+  }
+}

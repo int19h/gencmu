@@ -56,13 +56,15 @@ The input is `input` or `tokens`. `input` supplies scalar characters as engine �
 
 A usage case can supply an invalid field. The runner passes that field to the library, which reports the usage error. If the API cannot express that field, the runner records its reason for skipping the case.
 
-Auto features (engine §13) are off for a case unless its configuration says `"autoFeatures": true`.
+Each case follows the global and stage-local feature declarations of its pipeline (engine §13).
+
+The condition-loading cases stop before the condition's stage, so a runtime failure cannot satisfy their expectation.
 
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.
 
-A pattern describes required result fields. `expect.result` is a pattern matched against the format 13 canonical result of `docs/output.md`. A pattern matches in these ways:
+A pattern describes required result fields. `expect.result` is a pattern matched against the format 14 canonical result of `docs/output.md`. A pattern matches in these ways:
 
 - An object matches when every member of the pattern matches the member of the same name.
 - An array matches when it has the same length and each element matches.
@@ -73,6 +75,8 @@ A pattern never pins the `message` of an error. Its wording is each library's ow
 A pattern matches a result that has members beyond its own. So the invariants, and not the patterns, say that a tied stage has no output.
 
 `expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
+
+`expect.enabledFeatures` compares the result's enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
@@ -88,7 +92,7 @@ The library loads the dialect once, and then parses the input with each item's c
 
 A load that fails gives only its error. Its kind is `grammar` for a grammar that cannot be loaded. A caller's mistake at load gives `usage`. One example is an in-memory document that is not a sequence of Unicode scalar values (engine §1). A case expects such an error with `expect.error` of that kind.
 
-For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings` or `features`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
+For a `grammar` error, it can also give `expect.where`. It gives no `result`, `brackets`, `warnings`, `features` or `enabledFeatures`, because only a loaded dialect gives them. A runner fails a case when the load fails with another kind, or when the case expects one of these members. It also fails a case that gives `expect.where` with a kind other than `grammar`.
 
 An error that lowering finds (engine §3), such as an item of braces that can match no tokens, is not a load error. The dialect loads, and the parse gives a result whose error has the kind `grammar`, so a case expects it with `expect.error`. Its message, which names the definition at fault, is the library's own, so no case compares it.
 
@@ -219,7 +223,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 31. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 32. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -356,6 +360,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 
 ## Corpus cases: `corpus/*.jsonl` and `core.txt`
 
+The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled dialects.
+
 Corpus identifiers stay stable when grammar rules change.
 
 `corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
@@ -377,9 +383,9 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
+- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect's grammar recipes supply pause spaces and verbatim text.
 
-A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case runs with auto features on, which is the default of the API. The case matches when every one of those fields that the case or the result of the library has is equal.
+A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
 
 Every runner compares all of these fields, `at` included.
 
@@ -449,7 +455,7 @@ Each entry of `quoted-allow.txt` covers one quoted text in one document: every l
 
 - ` = ` and cases, each as its id after its role. A role applies to the ids after it, and a role with no id after it is an error. A role is the name of a rule, `words` or `reject`. The check parses each case.
 
-  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect’s grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
+  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect's grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
 
   These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required dialect, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
 

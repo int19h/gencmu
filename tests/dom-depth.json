@@ -3267,5 +3267,48 @@
       ]
     },
     "atLimit": 256
+  },
+  {
+    "description": "Feature condition token methods",
+    "dom": {
+      "rules": [],
+      "directives": [
+        {
+          "name": "features",
+          "args": [
+            "f"
+          ],
+          "at": [
+            7,
+            1
+          ],
+          "conditions": [
+            {
+              "left": {
+                "method": "value",
+                "args": [],
+                "receiver": "$inner"
+              },
+              "right": {
+                "string": "a"
+              },
+              "op": "="
+            }
+          ]
+        }
+      ],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    },
+    "leaf": {
+      "capture": ""
+    },
+    "wrapper": {
+      "method": "first-token",
+      "args": [],
+      "receiver": "$inner"
+    },
+    "atLimit": 254
   }
 ]

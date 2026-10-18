@@ -24,7 +24,7 @@ func TestCapturedOptionalQueryPriority(t *testing.T) {
 			tokens[i].Span = [2]int{i, i + 1}
 			tokens[i].Source = [2]int{i, i + 1}
 		}
-		result, err := d.ParseTokens("aubtw", tokens, ParseOptions{NoAutoFeatures: true})
+		result, err := d.ParseTokens("aubtw", tokens, ParseOptions{})
 		if err != nil || !result.OK {
 			t.Fatalf("%s: %v %v", optional, err, result.Error)
 		}
@@ -64,7 +64,7 @@ func TestInputStringDefaults(t *testing.T) {
 		{stringPtr("A,b"), stringPtr("shown"), "A,b", "shown"},
 	} {
 		input := InputToken{Text: "x", Value: c.value, Image: c.image, Source: [2]int{0, 1}}
-		res, err := d.ParseTokens("x", []InputToken{input}, ParseOptions{NoAutoFeatures: true})
+		res, err := d.ParseTokens("x", []InputToken{input}, ParseOptions{})
 		if err != nil || !res.OK {
 			t.Fatalf("%v %+v", err, res)
 		}
@@ -86,7 +86,7 @@ func TestExactStoredStrings(t *testing.T) {
 %conditions "A" ∈ $x.split($_002C)
 %emits $`))
 	for _, v := range []string{"A,b", "a,b", "Ab", "ab"} {
-		res, err := d.ParseTokens("x", []InputToken{{Text: "x", Value: stringPtr(v), Source: [2]int{0, 1}}}, ParseOptions{NoAutoFeatures: true})
+		res, err := d.ParseTokens("x", []InputToken{{Text: "x", Value: stringPtr(v), Source: [2]int{0, 1}}}, ParseOptions{})
 		if err != nil || res.OK != (v == "A,b") {
 			t.Fatalf("%q: %v %+v", v, err, res)
 		}

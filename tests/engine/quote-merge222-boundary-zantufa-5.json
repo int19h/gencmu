@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zoi coi. Hello .coi coi",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

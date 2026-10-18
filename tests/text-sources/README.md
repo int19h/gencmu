@@ -1,6 +1,6 @@
 # Literary text sources
 
-The cases in `../corpus/literary.jsonl` cover texts from lojban.pw and suzypavlis.neocities.org. The collection includes eight short works, eleven song bodies, one journal entry, one story chapter, and one repaired sentence. The longest accepted body is Jordan DeLong's translation of The Book, at 6,022 characters. The cases run with the default automatic features of cll-ebnf and bpfk. The core sample includes 22 of these cases.
+The cases in `../corpus/literary.jsonl` cover texts from lojban.pw and suzypavlis.neocities.org. The collection includes eight short works, eleven song bodies, one journal entry, one story chapter, and one repaired sentence. The longest accepted body is Jordan DeLong's translation of The Book, at 6,022 characters. The cases follow the pipeline declarations and the caller configuration. The core sample includes 22 of these cases.
 
 `manifest.json` records each source URL, download date, HTML snapshot, extracted text, and transformation. SHA-256 hashes identify the exact downloaded bytes and text inputs. Each variant lists its corpus case identifiers. The grammar commit records the version that produced the current expectations. The audit grammar commit records the parser version from the original survey.
 

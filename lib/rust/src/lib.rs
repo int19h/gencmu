@@ -50,6 +50,7 @@ mod dom;
 mod earley;
 mod eligible;
 mod error;
+mod features;
 mod fxhash;
 mod grammar;
 mod json;

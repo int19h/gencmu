@@ -1,0 +1,26 @@
+{
+  "description": "Duplicate diagnostics follow expanded document order rather than stage execution order (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n%rule text A\n%features f\n%extend-stage first\n%features f\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "p.md",
+      "line": 11,
+      "column": 1
+    }
+  },
+  "options": {
+    "until": "first"
+  }
+}

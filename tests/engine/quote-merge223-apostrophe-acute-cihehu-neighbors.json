@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "mi, ci´e´u l´amour ui cmavo",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

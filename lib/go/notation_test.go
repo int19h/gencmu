@@ -554,7 +554,7 @@ func TestUnicodeTableOfCaller(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		res, err := d.Parse("a", ParseOptions{NoAutoFeatures: true})
+		res, err := d.Parse("a", ParseOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}

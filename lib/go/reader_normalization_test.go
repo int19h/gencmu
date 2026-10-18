@@ -3,7 +3,6 @@ package gencmu
 import (
 	"encoding/json"
 	"reflect"
-	"slices"
 	"testing"
 )
 
@@ -79,21 +78,17 @@ func notationCacheCases(t *testing.T, document string, expected *domDoc, reader 
 	}
 }
 
-func TestFeatureProbeStageZeroOnce(t *testing.T) {
+func TestStageZeroOnce(t *testing.T) {
 	t.Parallel()
 	d, err := LoadDialect("experimental")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.kind("sa-su") != FeatureGate || slices.Contains(d.declared, "sa-su") {
-		t.Fatal("fixture does not enable the automatic probe")
-	}
 	for _, option := range []struct {
 		name    string
 		options ParseOptions
 	}{
-		{"continued", ParseOptions{}},
-		{"disabled", ParseOptions{NoAutoFeatures: true}},
+		{"all", ParseOptions{}},
 		{"words", ParseOptions{Until: "words"}},
 	} {
 		t.Run(option.name, func(t *testing.T) {

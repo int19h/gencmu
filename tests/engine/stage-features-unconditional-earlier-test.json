@@ -1,0 +1,26 @@
+{
+  "description": "An unconditional local declaration cannot follow a test of its feature in an earlier stage (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text f? A\n%emits\n%stage second\n%features f\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "p.md",
+      "line": 7,
+      "column": 1
+    }
+  },
+  "options": {
+    "until": "first"
+  }
+}

@@ -395,7 +395,7 @@ Reconstruction observes each candidate's structure projected onto original token
 
 A seal is an opaque leaf that hides ranked content.
 
-Grammar DOM format 31 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 13 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
+Grammar DOM format 32 stores method expressions, string terminals, recipes, unresolved constants, patterns, and ranked groups. Structural states remain internal. Result format 14 exposes value and image and reports the restored selected witness first in elision-only errors. No ranked seal is serialized in a tree or DOM.
 
 A summary context is the cycle context of one summary. Measurements record structural states, chart items, packed edges and summary contexts alongside elapsed time and peak memory. Increasing list length, unary depth, nested omissions and independent ambiguous children expose product-state growth. Finite sharing can still require exponentially many states.
 
@@ -452,7 +452,7 @@ The basic declarations are these:
 
 - `%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call the stage, whatever the heading says. Two stages with one name are an error.
 - `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there. `PATH` is its include path.
-- `%features NAME…` names features that the dialect turns on for every parse, wherever it stands. The loader unions the names of every `%features`. A caller (the program or person that asks for a parse) can turn further features on, and can turn any of them off. So a feature that is on by default is a choice that the caller can undo.
+- `%features NAME…` before the first stage declares global defaults. After a stage selector, it enables features for that stage and later stages. A caller can turn further features on and can turn features off. If a conditional declaration holds for a feature that the caller turns off, the parse gives a `feature-conflict` result.
 
 The link to each included document stays in the prose, so the pipeline reads as hyperlinked prose on GitHub. The bundled grammars keep a style for this. The block of each `%include` stands under a list item, indented to the item's text. The item's line has an inline link `[text](PATH)` to the same path. The style is not part of jbogenbau, which accepts an `%include` in any block. Only `tools/sync.js --check` enforces it, and only for the bundled grammars.
 
@@ -474,7 +474,7 @@ An addition is a warning, `name!`. Its alternative is there whether the feature 
 
 A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf.
 
-A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
+A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
 A name is one kind or the other in a dialect. It is an error to load a dialect in which one guard uses a name as a gate and another uses it as a warning. Turning the feature on then means two things.
 
@@ -486,9 +486,9 @@ The erasers `sa` and `su` reach back over any number of words. So the parser kee
 
 The cost then grows in proportion to the text, but each word costs more. In JavaScript, a text of 13,700 characters takes about 22 seconds with the feature and 6.5 without it. These erasers are rare, so they are behind a feature, `sa-su`.
 
-Without the feature, the words of SA and SU are ordinary words. The syntax rejects a token of SA or SU that is still there after the words stage. But another magic word can act on such a token first. So `mi su si do` reads as `mi do` without the feature, because `si` erases the `su`. With the feature, it reads as `do`.
+Any SA or SU input token activates the feature, including a token inside a quotation or an erased span.
 
-The libraries' `auto_features` parse a text's words stage once without the feature. They enable the feature if the run does not reach an accepting words stage. They also enable it if the chosen tree of that stage has a `word` constituent tagged SA or SU. That word can be anywhere in the tree, erased by a `si` or not. A text with no such word parses the same either way. The CLI and the playground use `auto_features` by default.
+The words stage declares `sa-su` with conditions on its input classes. It enables the feature when any input token carries SA or SU. Each stage parses once. A caller that disables a feature whose conditional declaration holds for the stage input gets a `feature-conflict` result.
 
 ## Ambiguity
 
@@ -739,7 +739,7 @@ dialect = load_dialect("cll-ebnf")                 # a bundled dialect by name
 dialect = load_dialect_file("my/pipeline.md") # or a pipeline document on disk
 dialect = load_dialect_sources({path: text})  # or documents held in memory, for the browser
 result  = dialect.parse(text, features={"y-cmavo"}, without_features={"cll-cyrillic"},
-                        auto_features=True, until="words", elision_only=None)
+                        until="words", elision_only=None)
 result.ok; result.tree; result.error.describe(); result.warnings
 dialect.features                              # each feature: name, gate or warning, on by default or not
 to_json(result); to_brackets(result)
@@ -747,7 +747,7 @@ to_json(result); to_brackets(result)
 
 The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. In-memory sources are a map from path to text. The paths are `/`-separated and relative to a virtual root. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled dialects are that same map.
 
-Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. `auto_features`, on by default, adds `sa-su` to the given features only where it is needed (see "Expensive constructs behind features"). It adds nothing if `auto_features` is off or `without_features` names `sa-su`.
+Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
 The distributable artifacts are exactly these:
 
@@ -813,7 +813,7 @@ The test uses Playwright's own browsers, because a browser installed as a snap c
 The playground has these parts:
 
 - The text
-- The dialect, and a switch for each of the dialect's features, set to its default
+- The dialect and a Grammar, On, or Off selection for each feature
 - The warnings of the parse
 - The output in the four formats, and the tokens of each stage
 - The diagnostics above

@@ -57,7 +57,7 @@ type Node struct {
 	Children []*Node
 	// sound is the string of an elided node's terminator's = test, if it
 	// has one, which elision-only gives the restored token as its value
-	// (engine §7, §12). Value exposes it in result format 13. tested says that the
+	// (engine §7, §12). Value exposes it in result format 14. tested says that the
 	// terminator has an = test, so that sound holds, even where it is "".
 	sound  string
 	tested bool
@@ -113,9 +113,10 @@ type Stage struct {
 
 // Error kinds.
 const (
-	ErrorRejected  = "rejected"
-	ErrorAmbiguous = "ambiguous"
-	ErrorGrammar   = "grammar"
+	ErrorRejected        = "rejected"
+	ErrorAmbiguous       = "ambiguous"
+	ErrorGrammar         = "grammar"
+	ErrorFeatureConflict = "feature-conflict"
 	// ErrorUsage is a caller's mistake, returned by Parse, never a result.
 	ErrorUsage = "usage"
 )
@@ -176,6 +177,7 @@ type BoundaryCondition struct {
 // and Completion, the terminators that the check wrote back (engine §7.9).
 
 type ParseError struct {
+	Feature    string
 	Boundary   *BoundaryCondition
 	Kind       string
 	Stage      string
@@ -211,6 +213,8 @@ type Warning struct {
 // that ended the run, and the warnings of every stage run, in stage order,
 // an empty list when there are none.
 type ParseResult struct {
+	// Features lists enabled names when the run ends, outside canonical JSON.
+	Features []string
 	OK       bool
 	Stages   []Stage
 	Tree     *Node
@@ -227,7 +231,7 @@ const (
 
 // Feature is one of a dialect's features (engine §13): a name its guards
 // use or its pipeline's %features declares, its kind, and whether
-// %features turns it on by default.
+// an unconditional global or local %features declares it as a default.
 type Feature struct {
 	Name    string
 	Kind    string

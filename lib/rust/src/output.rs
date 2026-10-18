@@ -10,7 +10,7 @@ use crate::result::{
 };
 
 /// The version of the shape of the result (docs/output.md).
-pub const RESULT_FORMAT: u32 = 13;
+pub const RESULT_FORMAT: u32 = 14;
 
 fn write_range(out: &mut String, range: &Range<usize>) {
     out.push('[');
@@ -270,10 +270,15 @@ fn write_error(out: &mut String, error: &ParseError) {
         ParseErrorKind::Rejected => "\"rejected\"",
         ParseErrorKind::Ambiguous => "\"ambiguous\"",
         ParseErrorKind::Grammar => "\"grammar\"",
+        ParseErrorKind::FeatureConflict => "\"feature-conflict\"",
     });
     if let Some(stage) = &error.stage {
         out.push_str(",\"stage\":");
         write_str(out, stage);
+    }
+    if let Some(feature) = &error.feature {
+        out.push_str(",\"feature\":");
+        write_str(out, feature);
     }
     if let Some(code) = error.code {
         out.push_str(",\"code\":");
@@ -354,7 +359,7 @@ fn write_error(out: &mut String, error: &ParseError) {
                 out.push(']');
             }
         }
-        ParseErrorKind::Grammar => {}
+        ParseErrorKind::Grammar | ParseErrorKind::FeatureConflict => {}
     }
     out.push_str(",\"message\":");
     write_str(out, &error.message);

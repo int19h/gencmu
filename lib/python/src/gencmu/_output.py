@@ -8,7 +8,7 @@ from typing import Any
 from ._model import Action, Node, ParseError, ParseResult, ParseWarning, Restoration, Stage, Token
 from ._tags import sorted_tags
 
-FORMAT = 13
+FORMAT = 14
 
 
 def token_json(token: Token) -> dict[str, Any]:
@@ -103,6 +103,8 @@ def error_json(error: ParseError) -> dict[str, Any]:
     value: dict[str, Any] = {"kind": error.kind}
     if error.stage is not None:
         value["stage"] = error.stage
+    if error.feature is not None:
+        value["feature"] = error.feature
     if error.code is not None:
         value["code"] = error.code
     if error.reason is not None:

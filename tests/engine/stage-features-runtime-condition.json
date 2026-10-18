@@ -1,0 +1,40 @@
+{
+  "description": "A runtime error in a feature condition fails its stage with a grammar result and retains earlier output (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Mixed"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar",
+        "stage": "second"
+      },
+      "stages": [
+        {
+          "name": "first",
+          "output": [
+            {
+              "value": "a"
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "verdict": null
+        }
+      ]
+    }
+  }
+}

@@ -13,9 +13,11 @@ const result = dialect.parse("mi klama le zarci");
 console.log(result.ok, toBrackets(result));
 ```
 
+A caller can enable or disable an unknown feature name. Unknown names do not change grammar behavior. Naming one feature in both lists is a usage error.
+
 ## Results
 
-A text that does not parse gives a result whose `ok` is false and whose `error` says why: `rejected`, `ambiguous` or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). Other parse-result errors have no `code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
+A text that does not parse gives a result whose `ok` is false. Its error kind is `rejected`, `ambiguous`, `feature-conflict`, or `grammar` (`docs/api.md`). An error of kind `grammar` with the `code` `elision-witness-lost` marks a defect of the library in the check of `elision-only`. It also has `chosen`, the stage's chosen tree, and `completion`, the terminators that the check wrote back (engine §7.9). Other parse-result errors have no `code`. Ranked-choice load errors use the separate diagnostic schema of `docs/output.md`.
 
 ## The command line
 

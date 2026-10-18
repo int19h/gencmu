@@ -217,8 +217,7 @@ impl Context {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
             let grammar = grammar_text(text)?;
-            let options =
-                ParseOptions { until: Some("lexical".into()), auto_features: false, ..ParseOptions::default() };
+            let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
                 crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
@@ -235,7 +234,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 }
 fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
-    let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
+    let options = ParseOptions::default();
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
     if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {
@@ -280,6 +279,7 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     let position = |index: usize| grammar.position(index);
     let reader = Reader {
         defer_emission: defer,
+        feature_context: Default::default(),
         tokens: &stage.input,
         captures: Default::default(),
         braces: Default::default(),
@@ -322,6 +322,20 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 })
                 .map(|implication| implication.at),
         )
+        .chain(
+            dom.directives
+                .iter()
+                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
+                .map(|directive| directive.at),
+        )
+        .chain(
+            dom.classifiers
+                .iter()
+                .filter(|classifier| {
+                    classifier.entries.iter().any(|entry| entry.keys.iter().any(crate::dom::term_too_deep))
+                })
+                .map(|classifier| classifier.at),
+        )
         .collect();
     deep.sort();
     if let Some(&(line, column)) = deep.first() {
@@ -345,8 +359,8 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     let Some(problem) = problem_of(dom) else {
         return Ok(());
     };
-    // Each item alone, a rule, a constant's definition or an implication,
-    // in the order of the document.
+    // Each declaration alone, including feature directives and
+    // classifiers, in the order of the document.
     let mut singles: Vec<(Dom, (usize, usize))> = dom
         .rules
         .iter()
@@ -360,6 +374,16 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
             dom.implications
                 .iter()
                 .map(|implication| (Dom { implications: vec![implication.clone()], ..Dom::default() }, implication.at)),
+        )
+        .chain(
+            dom.directives
+                .iter()
+                .map(|directive| (Dom { directives: vec![directive.clone()], ..Dom::default() }, directive.at)),
+        )
+        .chain(
+            dom.classifiers
+                .iter()
+                .map(|classifier| (Dom { classifiers: vec![classifier.clone()], ..Dom::default() }, classifier.at)),
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);

@@ -28,6 +28,7 @@ from ._types import (
     constants_in,
     expected_problem,
     is_value_test,
+    open_part,
     rule_type_fault,
     term_type_fault,
     tests_in,
@@ -145,6 +146,7 @@ class Grammar:
     # The stage's %classifier items in stitching order, each with its
     # document (engine §2).
     classifier_items: list[tuple[str, Dom]] = field(default_factory=list)
+    feature_items: list[tuple[str, Dom]] = field(default_factory=list)
     # The stage's implications, each side's tags with the constants' final
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
@@ -523,10 +525,14 @@ class _Constants:
                     self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
                 else:
                     raise _error(problem, path, rule["at"], self.stage)
-            for call in _calls_in(rule):
-                argument = call["args"][0]
-                if call["method"] == "split" and literal_string(argument) == "":
-                    raise self.fault_error(path, argument, rule["at"], "split has an empty delimiter")
+            self.check_delimiters(path, rule, rule["at"])
+
+    def check_delimiters(self, path: str, clauses: Any, at: Any) -> None:
+        """Reject empty closed delimiters in rule and feature conditions."""
+        for call in _calls_in(clauses):
+            delimiter = call["args"][0]
+            if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
+                raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
@@ -673,6 +679,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     resolutions: list[tuple[list[str], str, Any]] = []
     classifier_items: list[tuple[str, Dom]] = []
     implication_items: list[tuple[str, Dom]] = []
+    feature_items: list[tuple[str, Dom]] = []
     for path, dom in documents:
         for rule,message in getattr(dom,"deferred_emissions",()):
             if not constants_in(rule) and not _rule_has_pattern(rule):
@@ -734,7 +741,9 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             name = directive["name"]
             args = list(directive.get("args", []))
             at = directive.get("at")
-            if name == "ambiguity-resolution":
+            if name == "features":
+                feature_items.append((path, directive))
+            elif name == "ambiguity-resolution":
                 resolutions.append((args, path, at))
             else:
                 raise _error(f"an unknown directive %{name}", path, at, stage)
@@ -745,6 +754,29 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     constants.bind()
     constants.check()
     constants.resolve(rules)
+    from ._validate import input_conditions_problem
+    from ._types import condition_type_fault
+    resolved_features = []
+    for path, directive in feature_items:
+        try:
+            if "conditions" not in directive:
+                resolved_features.append((path, directive))
+                continue
+            for reference in constants_in(directive["conditions"]):
+                if scalar(reference["const"]) is None and reference["const"] not in constants.values:
+                    raise _error(f"${reference['const']} is not defined in stage {stage}", path, directive["at"], stage)
+            conditions = run(constants.with_values(directive["conditions"]))
+            problem = input_conditions_problem(conditions)
+            if problem:
+                raise _error(problem, path, directive["at"], stage)
+            for condition in conditions:
+                fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
+                if fault:
+                    raise _error(fault[0], path, directive["at"], stage)
+            constants.check_delimiters(path, directive["conditions"], directive["at"])
+            resolved_features.append((path, {**directive, "conditions": conditions}))
+        except GencmuError as error:
+            raise _error(error.message, path, directive["at"], stage) from error
     from ._boundary import validate_targets
     validate_targets(rules, stage)
     classifier_items = [
@@ -836,6 +868,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         unicode=unicode,
         changes=changes,
         classifier_items=classifier_items,
+        feature_items=resolved_features,
         implications=implications,
         families=members(rules, family_names),
     )

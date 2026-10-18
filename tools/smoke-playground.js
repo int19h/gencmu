@@ -241,7 +241,7 @@ async function main() {
       { label: "A sentence", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
       { label: "A text with omitted endings", output: /tavla/, elided: true },
       { label: "A repeated le is rejected", rejected: true },
-      { label: "sa erases the earlier words", output: /^do$/, summary: /sa-su \(auto\)/ },
+      { label: "sa erases the earlier words", output: /^do$/, summary: /sa-su/, conditionalFeature: "sa-su" },
       { label: "Lojban written in Cyrillic", output: /^\(mi \[klama \{le zarci\}\]\)$/ },
       { label: "BPFK accepts an omitted ending", output: /gi'e nai/, elided: true },
       { label: "A whole MOI expression wins (Zantufa)", output: /^\(mi \[\{\(se su'i\) \(pa re\)\} moi\]\)$/,
@@ -284,6 +284,21 @@ async function main() {
       }
       const summary = await page.locator("#summary").textContent();
       if (check.summary && !check.summary.test(summary)) throw new Error(`${check.label}: unexpected summary ${summary}`);
+      if (check.conditionalFeature) {
+        const control = page.locator(`#features select[data-feature="${check.conditionalFeature}"]`);
+        if (await control.inputValue() !== "grammar") throw new Error("a conditional feature does not follow its grammar initially");
+        await control.selectOption("off");
+        const disabled = await answerFor(text);
+        if (!/required feature sa-su is disabled/.test(disabled.verdict) || !/words.*requires disabled feature sa-su/.test(disabled.explanation)) {
+          throw new Error(`the disabled required feature was not reported: ${JSON.stringify(disabled)}`);
+        }
+        await control.selectOption("on");
+        const enabled = await answerFor(text);
+        if (!/^accepted/.test(enabled.verdict)) throw new Error("a caller-enabled feature did not parse");
+        await control.selectOption("grammar");
+        const restored = await answerFor(text);
+        if (!/^accepted/.test(restored.verdict)) throw new Error("the grammar did not restore its conditional feature");
+      }
       if (check.elided) {
         await page.locator("#show-elided").check();
         const elided = await answerFor(text);
@@ -335,7 +350,7 @@ async function main() {
       console.log(`example works in ${browser}: ${check.label}`);
     }
 
-    // Format 13 separates original text, normalized values and images.
+    // Format 14 separates original text, normalized values and images.
     // Attachments keep all token fields except span, at every depth.
     await choose("dialects/cll-ebnf.md");
     const tokenText = "ba'e m,I ui nai klAma";
@@ -356,7 +371,7 @@ async function main() {
     assert.deepEqual(await tokenTable(), {header: tokenHeader, rows: [
       ["0", '"m,I"', '"mi"', '"mI"', "1–2", "5–8", miTags, "", beforeTokens, afterTokens],
       ["1", '"klAma"', '"klama"', '"klAma"', "4–5", "16–21", klamaTags, "", [], []],
-    ]}, "the token table must show format 13 fields and recursive attachments");
+    ]}, "the token table must show format 14 fields and recursive attachments");
     await page.locator("#tab-tree").click();
     const imageTree = await idle("the tree with images");
     assert.match(imageTree.output, /KOhA "mI"\n\s+◂ BAhE "ba'e"\n\s+▸ UI "ui"\n\s+▸ NAI "nai"/);
@@ -376,13 +391,13 @@ async function main() {
       "display JSON must render images and nested attachments");
     await page.locator("#tab-canonical").click();
     const canonical = JSON.parse((await idle("the canonical JSON with values and images")).output);
-    assert.equal(canonical.format, 13);
+    assert.equal(canonical.format, 14);
     const indicator = canonical.stages.find((stage) => stage.name === "indicators").output[0];
     assert.deepEqual(indicator, {text: "m,I", value: "mi", image: "mI", tags: miTags,
       span: [1, 2], source: [5, 8], before: beforeTokens, after: afterTokens});
     await page.locator("#tab-brackets").click();
     await idle("the brackets after the token assertions");
-    console.log(`format 13 token and tree views work in ${browser}`);
+    console.log(`format 14 token and tree views work in ${browser}`);
     // Rule navigation uses the reader's exact definitions and active documents.
     const navigationPreset = presets.find((preset) => preset.label === "A whole MOI expression wins (Zantufa)");
     const navigationText = "mi se su'i pa re moi";
@@ -607,7 +622,7 @@ async function main() {
       return line ? { text: line.textContent, codes: [...line.querySelectorAll("code")].map((code) => code.textContent) } : null;
     });
     const escaped = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const named = features && features.codes.map((name) => `${escaped(name)}(?: \\(auto\\))?`).join(", ");
+    const named = features && features.codes.map((name) => `${escaped(name)}`).join(", ");
     if (!features || !features.codes.length || !new RegExp(`^Features: ${named}$`).test(features.text)) {
       throw new Error(`the features used were not listed by name: ${JSON.stringify(features)}`);
     }

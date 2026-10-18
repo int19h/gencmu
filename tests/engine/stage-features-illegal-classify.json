@@ -1,0 +1,26 @@
+{
+  "description": "A classify method in a feature condition fails during loading (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%classifier c\n  \"a\" ∈ A\n%features f\n%conditions $.value.classify(c) = A\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "p.md",
+      "line": 9,
+      "column": 1
+    }
+  },
+  "options": {
+    "until": "first"
+  }
+}

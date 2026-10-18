@@ -1,0 +1,20 @@
+{
+  "description": "Feature conditions bind constants from their selected stage, including later definitions (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ $C ≠ ∅\n%ambiguity-resolution greedy\n%const $C A\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -296,6 +295,42 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 			kinds[f] = FeatureGate
 		}
 	}
+	tested := map[string]string{}
+	for _, stage := range stages {
+		for _, item := range stage.features {
+			for _, name := range item.directive.Args {
+				if earlier := tested[name]; earlier != "" {
+					err := grammarError(item.doc, item.directive.At, "stage %s tests local feature %s", earlier, name)
+					err.Stage = stage.name
+					return nil, err
+				}
+				if kinds[name] == "" {
+					kinds[name] = FeatureGate
+				}
+				if item.directive.Conditions == nil {
+					on[name] = true
+				}
+			}
+		}
+		for _, rule := range stage.rules {
+			for _, alt := range rule.alts {
+				for _, guard := range alt.alt.Guards {
+					if tested[guard.Feature] == "" {
+						tested[guard.Feature] = stage.name
+					}
+				}
+			}
+		}
+		for _, item := range stage.classifierSet.items {
+			for _, entry := range item.classifier.Entries {
+				for _, guard := range entry.Guards {
+					if tested[guard.Feature] == "" {
+						tested[guard.Feature] = stage.name
+					}
+				}
+			}
+		}
+	}
 	features := make([]Feature, 0, len(kinds))
 	for name, kind := range kinds {
 		features = append(features, Feature{Name: name, Kind: kind, Default: on[name]})
@@ -415,17 +450,16 @@ type lowerEntry struct {
 }
 
 // ParseOptions are the options of a parse (docs/api.md). The zero value
-// parses with the dialect's own features, auto features on, every stage,
+// parses with the dialect's own features, every stage,
 // and each grammar's own elision-only setting.
 type ParseOptions struct {
 	// Features to turn on for every stage, besides those the pipeline turns
 	// on.
 	Features []string
-	// WithoutFeatures to turn off for every stage, among them any the
-	// pipeline turns on; a name in both lists is a usage error.
+	// WithoutFeatures names features to disable in every stage, including
+	// defaults. A holding conditional declaration for a disabled feature
+	// gives a feature-conflict result. A name in both lists is a usage error.
 	WithoutFeatures []string
-	// NoAutoFeatures switches off adding sa-su only where the text needs it.
-	NoAutoFeatures bool
 	// Until names the last stage to run. The zero value, the empty string,
 	// runs every stage, so Go cannot ask for a stage with an empty name
 	// (docs/api.md).
@@ -448,19 +482,9 @@ func (d *Dialect) StageNames() []string {
 
 // Features lists the dialect's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
-// pipeline's %features turns it on.
+// pipeline declares it unconditionally, globally or locally.
 func (d *Dialect) Features() []Feature {
 	return append([]Feature{}, d.features...)
-}
-
-// kind is a feature's kind in the dialect, or "" for a name it does not have.
-func (d *Dialect) kind(name string) string {
-	for _, f := range d.features {
-		if f.Name == name {
-			return f.Kind
-		}
-	}
-	return ""
 }
 
 // lower is a stage's grammar lowered for a set of features. Only the guarded
@@ -598,41 +622,19 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 			features[f] = true
 		}
 	}
-	words := -1
-	for i, s := range d.stages {
-		if s.name == "words" {
-			words = i
-		}
-	}
 	ps := newParseState(d.uni, text)
 	ps.private = options.private
 	if tokens == nil {
 		tokens = ps.characterTokens()
 	}
-	var outcomes []stageOutcome
-	// Only a dialect with sa-su as a gate adds it by itself, and not when the
-	// caller turns it off (§13).
-	if !options.NoAutoFeatures && d.kind("sa-su") == FeatureGate && !features["sa-su"] && !off["sa-su"] && words >= 0 && words <= last {
-		outcomes = d.runStages(ps, features, options, tokens, 0, words)
-		probe := outcomes[len(outcomes)-1]
-		// Rerun with sa-su unless the probe ends with words accepting, or if
-		// words read a word of SA or SU (§13). A rerun discards the probe's
-		// stages and warnings.
-		if len(outcomes) != words+1 || probe.err != nil || hasSaSu(probe) {
-			features["sa-su"] = true
-			ps = newParseState(d.uni, text)
-			ps.private = options.private
-			outcomes = nil
-		} else if words < last {
-			outcomes = append(outcomes, d.runStages(ps, features, options, probe.stage.Output, words+1, last)...)
-		}
-	}
-	if outcomes == nil {
-		outcomes = d.runStages(ps, features, options, tokens, 0, last)
-	}
+	outcomes := d.runStages(ps, features, options, tokens, 0, last)
 	// The warnings of every stage run, in stage order, whether or not the
 	// result is ok (§13).
-	res = &ParseResult{OK: true, Warnings: []Warning{}}
+	res = &ParseResult{OK: true, Warnings: []Warning{}, Features: []string{}}
+	for name := range features {
+		res.Features = append(res.Features, name)
+	}
+	sort.Strings(res.Features)
 	for _, o := range outcomes {
 		res.Stages = append(res.Stages, o.stage)
 		res.Warnings = append(res.Warnings, o.warnings...)
@@ -655,7 +657,12 @@ func (d *Dialect) runStages(ps *parseState, features map[string]bool, options Pa
 			elision = *options.ElisionOnly
 		}
 		run := ps.newRun(g.name, g, tokens)
-		o := run.run(d.lower(i, features), elision)
+		var o stageOutcome
+		if failure := run.activateFeatures(g.features, features, options.WithoutFeatures); failure != nil {
+			o = stageOutcome{stage: Stage{Name: g.name, Input: tokens}, err: failure}
+		} else {
+			o = run.run(d.lower(i, features), elision)
+		}
 		out = append(out, o)
 		if o.err != nil {
 			break
@@ -663,27 +670,4 @@ func (d *Dialect) runStages(ps *parseState, features map[string]bool, options Pa
 		tokens = o.stage.Output
 	}
 	return out
-}
-
-// hasSaSu says whether a words stage's tree has a constituent of the rule
-// word whose tag set has SA or SU (engine §13).
-func hasSaSu(o stageOutcome) bool {
-	if o.tree == nil {
-		return false
-	}
-	stack := []*Node{o.tree}
-	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		if n.Kind != KindRule {
-			continue
-		}
-		if n.Rule == "word" {
-			if slices.Contains(n.Tags, "SA") || slices.Contains(n.Tags, "SU") {
-				return true
-			}
-		}
-		stack = append(stack, n.Children...)
-	}
-	return false
 }

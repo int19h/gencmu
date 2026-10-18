@@ -191,8 +191,8 @@ button.link {
   font-size: 0.85rem;
   cursor: pointer;
 }
-.chip:has(input:checked) { background: var(--accent-bg); border-color: var(--accent); }
-.chip.fixed { cursor: default; }
+.chip.enabled { background: var(--accent-bg); border-color: var(--accent); }
+.chip select { width: auto; padding: 0 4px; font: inherit; }
 .chip small { font-family: system-ui, sans-serif; color: var(--muted); }
 
 /* ---- Result ---- */

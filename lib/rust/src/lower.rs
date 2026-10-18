@@ -2242,7 +2242,12 @@ mod tests {
                 let next = if index + 1 < n { Expr::Ref(format!("e{}", index + 1)) } else { Expr::Empty };
                 rule(format!("e{index}"), vec![next])
             }));
-            let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+            let directive = Directive {
+                conditions: None,
+                name: "ambiguity-resolution".into(),
+                args: vec!["greedy".into()],
+                at: (0, 0),
+            };
             let dom = Dom {
                 rules,
                 directives: vec![directive],
@@ -2308,7 +2313,12 @@ mod tests {
     /// gives the productions of the rule, one for each branch.
     fn check_and_lower(rule: &RuleDef, unicode: &Unicode) -> Vec<super::Prod> {
         assert_eq!(definition_problem(rule), None);
-        let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+        let directive = Directive {
+            conditions: None,
+            name: "ambiguity-resolution".into(),
+            args: vec!["greedy".into()],
+            at: (0, 0),
+        };
         let dom = Dom {
             rules: vec![rule.clone()],
             directives: vec![directive],

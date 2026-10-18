@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "zoi pa. Hello .pa re mai",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

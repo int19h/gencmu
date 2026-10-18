@@ -102,6 +102,11 @@ export declare class Grammar {
         path: string;
         implication: DomImplication;
     }[];
+    /** @type {{path:string,directive:import("./types.js").DomDirective}[]} */
+    featureItems: {
+        path: string;
+        directive: import("./types.js").DomDirective;
+    }[];
     /** @type {WeakMap<DomEntry,string[]>} */
     classifierKeys: WeakMap<DomEntry, string[]>;
     /** @type {StageImplication[]} */

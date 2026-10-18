@@ -33,7 +33,7 @@ function rules(node: ResultNode): string[] {
 }
 if (result.tree) rules(result.tree);
 if (result.error) {
-  const kind: "rejected" | "ambiguous" | "grammar" = result.error.kind;
+  const kind: "rejected" | "ambiguous" | "feature-conflict" | "grammar" = result.error.kind;
   // An ambiguous error says why: a tie or the check of elision-only.
   const reason: "tie" | "elision-only" | undefined = result.error.reason;
   if (result.error.readings) result.error.readings.forEach(rules);

@@ -83,15 +83,15 @@ class StrictUtf8(unittest.TestCase):
             }
         )
         dialect = gencmu.load_dialect_file(os.path.join(root, "p.md"))
-        self.assertTrue(dialect.parse("�\U0001f600\U0010fffd", auto_features=False).ok)
-        self.assertFalse(dialect.parse("�\U0001f600", auto_features=False).ok)
+        self.assertTrue(dialect.parse("�\U0001f600\U0010fffd").ok)
+        self.assertFalse(dialect.parse("�\U0001f600").ok)
         # A byte order mark stays U+FEFF, so a fence after it opens no block.
         marked = self.directory({"p.md": "﻿" + PIPELINE[PIPELINE.index("```") :], "g.md": grammar('%rule text "a"')})
         with self.assertRaises(gencmu.GencmuError) as caught:
             gencmu.load_dialect_file(os.path.join(marked, "p.md"))
         self.assertIn("at least one %stage", str(caught.exception))
         prose = self.directory({"p.md": "﻿" + PIPELINE, "g.md": grammar('%rule text "\ufeff"')})
-        self.assertTrue(gencmu.load_dialect_file(os.path.join(prose, "p.md")).parse("﻿", auto_features=False).ok)
+        self.assertTrue(gencmu.load_dialect_file(os.path.join(prose, "p.md")).parse("﻿").ok)
 
 
 class UndecodableCache(unittest.TestCase):
@@ -122,7 +122,7 @@ class UndecodableCache(unittest.TestCase):
                     with mock.patch.dict(_dialect._bundled, clear=True), mock.patch.object(_dialect, "_bundled_root", lambda: root):
                         self.assertIsNone(_dialect.bundled_text("compiled.json"))
                         dialect = gencmu.load_dialect_sources(sources, "p.md", use_cache=use_cache)
-                        self.assertTrue(dialect.parse("a", auto_features=False).ok)
+                        self.assertTrue(dialect.parse("a").ok)
 
     def test_a_required_resource_that_does_not_decode_is_an_error(self) -> None:
         root = self.bundle(unicode_txt=b"unicode 15.1.0 \xff\n")

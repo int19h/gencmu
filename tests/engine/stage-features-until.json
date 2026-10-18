@@ -1,0 +1,31 @@
+{
+  "description": "Stopping before a stage skips its conditional declarations, including conflicts with caller exclusion (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "first"
+        }
+      ]
+    }
+  },
+  "options": {
+    "until": "first",
+    "withoutFeatures": [
+      "f"
+    ]
+  }
+}

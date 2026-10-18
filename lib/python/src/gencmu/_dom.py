@@ -14,6 +14,7 @@ from ._trampoline import Walk, run
 from ._patterns import pattern_problem
 from ._types import (
     comparison_problem,
+    method_shape_problem,
     method_type,
     Memo as TypeMemo,
     constant_value_type,
@@ -91,6 +92,7 @@ class DomBuilder:
         # (engine §10).
         self.types: TypeMemo = {}
         self.recipe_context = False
+        self.feature_context = False
         self.engine_nodes = {}
         self.boundary_nodes = {}
 
@@ -293,7 +295,19 @@ class DomBuilder:
             raise self.fail(node, "invalid feature name")
         if name == "ambiguity-resolution" and args not in (["greedy"], ["lazy"], ["late-elision"], ["greedy", "elision-only"], ["lazy", "elision-only"], ["late-elision", "elision-only"]):
             raise self.fail(node, "invalid ambiguity resolution operands")
-        return {"name": name, "args": args, "at": list(self.position(node))}
+        directive = {"name": name, "args": args, "at": list(self.position(node))}
+        clause = self.one(node, "conditions-clause")
+        if clause is not None:
+            if name != "features":
+                raise self.fail(node, "only %features accepts conditions")
+            self.feature_context = True
+            try:
+                directive["conditions"] = [run(self._condition(item)) for item in self.some(clause, "implication")]
+            except GencmuError as error:
+                raise self.fail(node, error.message) from error
+            finally:
+                self.feature_context = False
+        return directive
 
     def operand_kind(self, node: Node) -> str:
         """The kind of a directive's operand: ``name`` or ``class`` for a
@@ -796,7 +810,7 @@ class DomBuilder:
             kind, problem = term_type(right, memo=self.types)
             if problem is None:
                 problem = comparison_problem(op, "capture", kind)
-            if problem is not None:
+            if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
             return {"op":op, "left":left, "right":right}
         if node.rule == "comparison":
@@ -810,7 +824,7 @@ class DomBuilder:
                 right_type, problem = term_type(right, memo=self.types)
                 if problem is None:
                     problem = comparison_problem(op, left_type, right_type)  # type: ignore[arg-type]
-            if problem is not None:
+            if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
             return {"op": op, "left": left, "right": right}
         if node.rule == "negation":
@@ -854,15 +868,19 @@ class DomBuilder:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
                 if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
+            if self.feature_context:
+                problem = method_shape_problem(name, receiver, args, self.recipe_context)
+                if problem:
+                    raise self.fail(node, problem)
             kind, problem = term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)
             if name in ("without-elision", "without-elision-except") and set(receiver) != {"capture"}:
                 call = name + ("(F)" if name == "without-elision-except" else "")
                 problem = f".{name} requires a bare capture; use $x.{call}.onward"
-            if problem is not None:
+            if problem is not None and not self.feature_context:
                 raise self.fail(node, problem)
-            if name == "split" and literal_string(args[0]) == "":
+            if not self.feature_context and name == "split" and literal_string(args[0]) == "":
                 raise self.fail(node, "split has an empty delimiter")
             from ._boundary import Located
             receiver = Located({"method": name, "receiver": receiver, "args": args}, self.position(node))
@@ -872,13 +890,15 @@ class DomBuilder:
                 if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
-            if problem:
+            if problem and not self.feature_context:
                 raise self.fail(node, problem)
         return receiver
 
     def _joined(self, node: Node, items: list[Dom], operator: str) -> None:
         """Sets joined by an operator are of one kind (engine §10); the
         error stands at the construct that joins them."""
+        if self.feature_context:
+            return
         types = []
         for item in items:
             kind, problem = term_type(item, memo=self.types)
@@ -1036,7 +1056,7 @@ class DomBuilder:
             kind, problem = term_type(guarded, memo=self.types)
             if problem is None:
                 problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
-            if problem is not None:
+            if problem is not None and not self.feature_context:
                 raise self.fail(guards[-1], problem)
             for condition in reversed(conditions):
                 guarded = {"if": condition, "then": guarded}

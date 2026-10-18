@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "ba'e la`oi l`amour ui",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

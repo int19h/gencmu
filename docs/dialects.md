@@ -189,7 +189,7 @@ Use example filenames that do not clash with your own files. The commands below 
 
    A tie gives two best readings the same rank.
 
-   The CLI exits with `0` for acceptance, `1` for rejection or a tie, and `2` for a grammar or command error.
+   The CLI exits with `0` for acceptance, `1` for a failed result, and `2` for a grammar or command error.
 
 5. Compare the trees.
 
@@ -535,7 +535,7 @@ Set `%ambiguity-resolution` in the replacement stage. That directive specifies h
 
 ### Add a feature
 
-If your change needs a switch, guard its alternative with `name?`. Add `%features name` to enable it by default.
+If your change needs a switch, guard its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 

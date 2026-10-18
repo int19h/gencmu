@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "mi `zo coi`",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

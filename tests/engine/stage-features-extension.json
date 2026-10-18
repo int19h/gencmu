@@ -1,0 +1,63 @@
+{
+  "description": "A stage extension retains earlier feature declarations and appends its own declarations (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? g? A\n%extend-stage second\n%features g\n%conditions $.value = \"a\"\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Mixed"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "features": [
+          {
+            "name": "f",
+            "kind": "gate",
+            "default": false
+          },
+          {
+            "name": "g",
+            "kind": "gate",
+            "default": false
+          }
+        ],
+        "enabledFeatures": [
+          "f",
+          "g"
+        ]
+      }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "g"
+        ]
+      },
+      "expect": {
+        "error": "feature-conflict",
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "feature-conflict",
+            "feature": "g",
+            "stage": "second"
+          }
+        },
+        "enabledFeatures": [
+          "f"
+        ]
+      }
+    }
+  ]
+}

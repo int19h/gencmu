@@ -82,7 +82,7 @@ fn document_was_read_from(format: i64, dom: &str) -> bool {
     let Ok(dialect) = gencmu::load_dialect_sources(sources, "p.md") else {
         return false;
     };
-    let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+    let options = gencmu::ParseOptions::default();
     dialect.parse("a", &options).expect("a parse").ok
 }
 
@@ -1055,7 +1055,7 @@ fn a_precompiled_constant_serves_the_parse() {
             sources.push(("compiled.json", compiled));
         }
         let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
-        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let options = gencmu::ParseOptions::default();
         let result = dialect.parse("a", &options).expect("a parse");
         let tree = result.tree.expect("a tree");
         tree.tags.iter().cloned().collect::<Vec<String>>()
@@ -1159,7 +1159,7 @@ fn a_precompiled_clause_with_a_constant_waits_for_its_value() {
         }
         let dialect = gencmu::load_dialect_sources(sources, "p.md")
             .map_err(|error| (error.line.unwrap_or(0), error.column.unwrap_or(0)))?;
-        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let options = gencmu::ParseOptions::default();
         let result = dialect.parse("a", &options).expect("a parse");
         Ok(result.tree.expect("a tree").tags.iter().cloned().collect())
     };

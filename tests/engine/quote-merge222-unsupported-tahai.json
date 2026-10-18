@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "ta'ai coi",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

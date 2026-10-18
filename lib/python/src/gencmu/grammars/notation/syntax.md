@@ -251,6 +251,8 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 
 `%conditions` lists predicates that the captured parts must satisfy. Its comma-separated list can start with a comma.
 
+On `%features`, the clause tests stage input before parsing ([Pipelines](../../docs/notation.md#pipelines)).
+
 `%emits` lists output items, or means one whole-rule item when it has no items. A clause without a target also applies to that whole-rule item.
 
 A valid target is a capture or `ε`, which inserts a token. Recognition admits names and ranges too, so the reader reports an invalid target at that item.
@@ -556,11 +558,13 @@ A directive starts a stage, includes a document, declares features, or chooses a
 
 Recognition accepts wider operands than each directive permits. The reader rejects wrong counts and types at the directive before converting those operands.
 
+`%features` alone accepts a following `%conditions` clause. The loader requires a selected stage for that clause.
+
 `%include` takes exactly one quoted path. Its first operand uses literal path decoding. An include path cannot serve as a method receiver.
 
 ```jbogenbau
 %rule directive
-  directive-name [{directive-argument}]
+  directive-name [{directive-argument}] [conditions-clause]
 
 %rule directive-name
   | KW-STAGE | KW-EXTEND-STAGE | KW-REDEFINE-STAGE

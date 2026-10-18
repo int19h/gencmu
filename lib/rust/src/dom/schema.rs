@@ -188,6 +188,15 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     if !valid {
                         return Some("a malformed directive");
                     }
+                    if let Some(value) = item.get("conditions") {
+                        let Some(conditions) = value.as_array().filter(|items| !items.is_empty()) else {
+                            return Some("malformed feature conditions");
+                        };
+                        if item.get("name").and_then(Json::as_str) != Some("features") {
+                            return Some("conditions on another directive");
+                        }
+                        pending.extend(conditions.iter().map(|value| (Part::Condition, value, 0)));
+                    }
                 }
                 "rules" => {
                     if let Some(problem) = boundary_problem(item) {

@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "go'oi pa re mai",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

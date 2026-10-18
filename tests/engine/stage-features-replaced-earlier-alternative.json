@@ -1,0 +1,23 @@
+{
+  "description": "A replaced rule alternative does not count as an earlier feature test (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text f? A\n%redefine-rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": [
+      "f"
+    ]
+  }
+}

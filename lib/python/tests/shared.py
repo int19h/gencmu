@@ -1046,7 +1046,6 @@ def parse_case(
     kwargs: dict[str, Any] = {
         "features": options.get("features", []),
         "without_features": options.get("withoutFeatures", []),
-        "auto_features": options.get("autoFeatures", False),
         "until": options.get("until"),
         "elision_only": options.get("elisionOnly"),
     }

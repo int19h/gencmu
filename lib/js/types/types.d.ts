@@ -53,7 +53,8 @@ export type Expectation = {
     rules: string[];
 };
 export type ParseError = {
-    kind: "rejected" | "ambiguous" | "grammar";
+    kind: "rejected" | "ambiguous" | "grammar" | "feature-conflict";
+    feature?: string;
     stage?: string;
     /**
      * why an ambiguous error is
@@ -202,7 +203,7 @@ export type Feature = {
     name: string;
     kind: "gate" | "warning";
     /**
-     * whether the pipeline's `%features` turns it on
+     * whether an unconditional global or local declaration enables it
      */
     default: boolean;
 };
@@ -220,8 +221,9 @@ export type ParseResult = {
      */
     warnings: ParseWarning[];
     /**
-     * the features the parse ran with, those auto
-     * features added included; not part of the canonical JSON
+     * the features enabled for this parse,
+     * including activation before failure and only stages reached.
+     * Unknown caller-enabled names are included. Not part of canonical JSON.
      */
     features: string[];
 };
@@ -244,14 +246,11 @@ export type ParseOptions = {
     features?: Iterable<string>;
     /**
      * the features to turn off,
-     * the pipeline's among them; naming one in both lists is a usage error
+     * including defaults. A holding conditional declaration for a disabled
+     * feature gives a feature-conflict result. A name in both lists is a
+     * usage error
      */
     withoutFeatures?: Iterable<string>;
-    /**
-     * enable `sa-su` only for a text that
-     * needs it; on unless `false`
-     */
-    autoFeatures?: boolean;
     /**
      * the name of the last stage to run
      */
@@ -311,6 +310,7 @@ export type Recipe = {
     concat: Term[];
 };
 export type DomDirective = {
+    conditions?: Condition[];
     name: string;
     args: string[];
     at: Position;
@@ -870,7 +870,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * Why a text did not parse: rejected by a stage, ambiguous with a tie or
  * under elision-only, or a defect of the grammar found while running it.
  * @typedef {object} ParseError
- * @property {"rejected" | "ambiguous" | "grammar"} kind
+ * @property {"rejected" | "ambiguous" | "grammar" | "feature-conflict"} kind
+ * @property {string} [feature]
  * @property {string} [stage]
  * @property {"tie" | "elision-only"} [reason] why an ambiguous error is
  *   one: a tie (engine §6) or the check of elision-only (engine §7)
@@ -989,7 +990,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Feature
  * @property {string} name
  * @property {"gate" | "warning"} kind
- * @property {boolean} default whether the pipeline's `%features` turns it on
+ * @property {boolean} default whether an unconditional global or local declaration enables it
  */
 /**
  * The result of parsing a text.
@@ -1000,8 +1001,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {ParseError | null} error
  * @property {string} text
  * @property {ParseWarning[]} warnings every stage's warnings, in stage order
- * @property {string[]} features the features the parse ran with, those auto
- *   features added included; not part of the canonical JSON
+ * @property {string[]} features the features enabled for this parse,
+ *   including activation before failure and only stages reached.
+ *   Unknown caller-enabled names are included. Not part of canonical JSON.
  */
 /**
  * A caller token with independently optional value and image strings.
@@ -1021,9 +1023,9 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {Iterable<string>} [features] the features to turn on, besides
  *   those the dialect's pipeline turns on
  * @property {Iterable<string>} [withoutFeatures] the features to turn off,
- *   the pipeline's among them; naming one in both lists is a usage error
- * @property {boolean} [autoFeatures] enable `sa-su` only for a text that
- *   needs it; on unless `false`
+ *   including defaults. A holding conditional declaration for a disabled
+ *   feature gives a feature-conflict result. A name in both lists is a
+ *   usage error
  * @property {string} [until] the name of the last stage to run
  * @property {boolean | null} [elisionOnly] override the grammar's own
  *   elision-only setting
@@ -1078,6 +1080,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /** @typedef {{concat:Term[]}} Recipe */
 /**
  * @typedef {object} DomDirective
+ * @property {Condition[]} [conditions]
  * @property {string} name
  * @property {string[]} args
  * @property {Position} at

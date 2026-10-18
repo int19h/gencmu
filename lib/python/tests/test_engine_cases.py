@@ -39,7 +39,7 @@ from .shared import (
 
 
 # The members of `expect` that only a loaded dialect can meet.
-AFTER_LOAD = ("result", "brackets", "warnings", "features")
+AFTER_LOAD = ("result", "brackets", "warnings", "features", "enabledFeatures")
 
 
 class EngineCases(unittest.TestCase):
@@ -132,6 +132,9 @@ class EngineCases(unittest.TestCase):
             self.assertEqual(expect.get("error"), "usage", f"{label}: unexpected usage error: {error}")
             return
         assert value is not None and result is not None
+        self.assertNotIn("features", value)
+        if "enabledFeatures" in expect:
+            self.assertEqual(result.features, expect["enabledFeatures"], label)
         # A canonical result nests as deep as a case's attachments do
         # (attach-deep.json). So the runner reads, writes and compares it
         # with a list for a stack, as the library does, not with json and ==.

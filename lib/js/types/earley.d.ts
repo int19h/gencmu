@@ -546,4 +546,12 @@ export declare function rejectionOf(chart: Chart): {
  * @returns {Expectation[]}
  */
 export declare function expectedAt(chart: Chart, position: number): Expectation[];
+/**
+ * @param {import("./types.js").Condition[]} conditions
+ * @param {Token[]} tokens
+ * @param {string[]} sourceText
+ * @param {import("./unicode.js").UnicodeTable} unicode
+ * @returns {boolean}
+ */
+export declare function inputConditionsHold(conditions: import("./types.js").Condition[], tokens: Token[], sourceText: string[], unicode: import("./unicode.js").UnicodeTable): boolean;
 export {};

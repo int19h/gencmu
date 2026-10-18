@@ -1300,5 +1300,2829 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An empty feature condition list is malformed.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": []
+    },
+    "malformed": true
+  },
+  {
+    "description": "A stage directive cannot hold conditions.",
+    "directive": {
+      "name": "stage",
+      "args": [
+        "main"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "captured": ""
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Feature conditions must be an array.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": {}
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition uses the ordinary condition schema before stage validation.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition retains the structural signature of value (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "value",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for value (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "value",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of image (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "image",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for image (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "image",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of source-text (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "source-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for source-text (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "source-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of decomposed-source-text (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "decomposed-source-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for decomposed-source-text (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "decomposed-source-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of first-token (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "first-token",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for first-token (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "first-token",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of last-token (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "last-token",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for last-token (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "last-token",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of tokens-after-first (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tokens-after-first",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for tokens-after-first (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tokens-after-first",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of onward (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "onward",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for onward (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "onward",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of following-tokens (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "following-tokens",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for following-tokens (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "following-tokens",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of classes (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classes",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for classes (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classes",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of starts-input (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for starts-input (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "string": "x"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of ends-input (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "ends-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for ends-input (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "ends-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "string": "x"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of without-elision (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for without-elision (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for verbatim-text (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "verbatim-text",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for emitted (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "emitted",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of tags (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for tags (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              },
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects excess arguments for split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              },
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of classify (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "classifier": "c"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for classify (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects excess arguments for classify (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "classifier": "c"
+              },
+              {
+                "classifier": "c"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of without-elision-except (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for without-elision-except (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects excess arguments for without-elision-except (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              },
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of matches (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for matches (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects excess arguments for matches (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of begins (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for begins (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects excess arguments for begins (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of followed-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for followed-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the structural signature of preceded-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "preceded-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature condition rejects the wrong argument count for preceded-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "preceded-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: \"unknown\" (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "unknown",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: 1 (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": 1,
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: 0 (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": 0,
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: true (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": true,
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: null (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": null,
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: [] (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": [],
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: {} (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": {},
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature method requires a known string name: \"\" (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "",
+            "receiver": {
+              "capture": ""
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for tags (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "classifier": "c"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for classify (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for without-elision-except (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": "x"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for matches (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "string": "x"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for begins (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "classifier": "c"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for followed-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "string": "x"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for preceded-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "preceded-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "classifier": "c"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "classifier": "c"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition rejects the wrong named argument form for split (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "terminal": "A"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for value (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "value",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for image (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "image",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for classes (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classes",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for tags (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for first-token (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "first-token",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for onward (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "onward",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for without-elision (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision",
+            "receiver": {
+              "string": "x"
+            },
+            "args": []
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for without-elision-except (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "string": "x"
+            },
+            "args": [
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for starts-input (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "string": "x"
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for matches (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "string": "x"
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition retains the receiver shape for followed-by (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "string": "x"
+          },
+          "args": [
+            {
+              "rule": "r"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature query cannot stand as a term (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "method": "starts-input",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature split keeps its argument type check deferred (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "tag": "A"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature split keeps its empty delimiter check deferred (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "string": ""
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature tags call accepts one rule name (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "r"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature boundary atom accepts several targets (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A feature followed-by method retains its named argument schema (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "followed-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "lower"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature preceded-by method retains its named argument schema (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "preceded-by",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "terminal": "lower"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature tags method retains its named argument schema (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "Upper"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature classify method retains its named argument schema (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "classifier": "#"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature matches method retains its named argument schema (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r",
+              "extra": true
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature matches method requires a valid rule argument name (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "Upper"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature begins method requires a valid rule argument name (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "Upper"
+            }
+          ]
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature without-elision-except method requires a valid rule argument name (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "without-elision-except",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "Upper"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature tags method accepts the close-family rule argument (engine §§9, 13).",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "capture": ""
+            },
+            "args": [
+              {
+                "rule": "#"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ]
+    },
+    "malformed": false
   }
 ]

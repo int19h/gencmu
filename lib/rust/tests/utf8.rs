@@ -45,10 +45,6 @@ impl Drop for Directory {
     }
 }
 
-fn no_auto() -> ParseOptions {
-    ParseOptions { auto_features: false, ..ParseOptions::default() }
-}
-
 /// Invalid bytes: a stray continuation, a truncated sequence, an overlong
 /// form, an encoded surrogate and a value above U+10FFFF.
 const INVALID: [&[u8]; 6] = [b"\x80", b"\xe2\x82", b"\xc0\xaf", b"\xed\xa0\x80", b"\xf4\x90\x80\x80", b"\xff"];
@@ -116,8 +112,8 @@ fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
         ("g.md", grammar("%rule text \"�\" \"😀\" \"􏿽\" (* � 😀 *)").into_bytes()),
     ]);
     let dialect = gencmu::load_dialect_file(directory.pipeline()).expect("a dialect");
-    assert!(dialect.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &no_auto()).unwrap().ok);
-    assert!(!dialect.parse("\u{FFFD}\u{1F600}", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("\u{FFFD}\u{1F600}\u{10FFFD}", &ParseOptions::default()).unwrap().ok);
+    assert!(!dialect.parse("\u{FFFD}\u{1F600}", &ParseOptions::default()).unwrap().ok);
     // A byte order mark stays U+FEFF, so a fence after it opens no block.
     let fence = &PIPELINE[PIPELINE.find("```").unwrap()..];
     let marked = Directory::new(&[
@@ -130,5 +126,7 @@ fn fffd_supplementary_characters_and_a_byte_order_mark_decode_as_themselves() {
         ("p.md", format!("\u{FEFF}{PIPELINE}").into_bytes()),
         ("g.md", grammar("%rule text \"﻿\"").into_bytes()),
     ]);
-    assert!(gencmu::load_dialect_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &no_auto()).unwrap().ok);
+    assert!(
+        gencmu::load_dialect_file(prose.pipeline()).unwrap().parse("\u{FEFF}", &ParseOptions::default()).unwrap().ok
+    );
 }

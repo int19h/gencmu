@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "mi klama .i su'i pa zo coi",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

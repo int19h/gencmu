@@ -346,6 +346,8 @@ pub struct Stage {
 /// Why a text did not parse.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParseErrorKind {
+    /// A conditional declaration holds for a feature that the caller disables.
+    FeatureConflict,
     /// A stage's grammar does not accept its input.
     Rejected,
     /// A stage has two or more best readings, or the `elision-only` check
@@ -417,6 +419,8 @@ pub struct BoundaryFailure {
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// The disabled feature whose conditional declaration holds, for FeatureConflict.
+    pub feature: Option<String>,
     /// The failed neighbor condition, when one explains this rejection.
     pub boundary: Option<BoundaryFailure>,
     /// Why the text did not parse.
@@ -490,6 +494,8 @@ pub struct Warning {
 /// The result of parsing a text (`docs/output.md`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseResult {
+    /// Enabled feature names when the run ends, outside canonical JSON.
+    pub features: Vec<String>,
     /// Whether every stage run accepted its input without an error.
     pub ok: bool,
     /// The stages run, in order.

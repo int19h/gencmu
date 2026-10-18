@@ -1,0 +1,33 @@
+{
+  "description": "Unknown enabled names leave the grammar unchanged and appear once in code point order in result features (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": [
+      "unknown",
+      "",
+      "𐀀"
+    ]
+  },
+  "options": {
+    "features": [
+      "𐀀",
+      "unknown",
+      "",
+      "unknown"
+    ]
+  }
+}

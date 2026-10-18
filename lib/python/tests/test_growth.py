@@ -396,7 +396,7 @@ class QueryDepth(unittest.TestCase):
             with self.subTest(case=case["name"]):
                 sources, pipeline = case_sources(case)
                 dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
-                result = dialect.parse(case["link"] * case["count"] + case["suffix"], auto_features=False)
+                result = dialect.parse(case["link"] * case["count"] + case["suffix"])
                 self.assertTrue(result.ok, result.error)
 
 
@@ -493,7 +493,7 @@ class QueryWork(unittest.TestCase):
         dialect = gencmu.load_dialect_sources(sources, pipeline, use_cache=False)
         with count_work(*watches, budget=case["most"] * case["count"]) as counted:
             work.append(counted)
-            result = dialect.parse(case["text"], auto_features=False)
+            result = dialect.parse(case["text"])
         self.assertTrue(result.ok, result.error)
 
     def test_cases(self) -> None:

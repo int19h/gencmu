@@ -6,7 +6,6 @@
   "pipeline": "pipeline.md",
   "input": "ci'e'u 你好é~ cmavo",
   "options": {
-    "autoFeatures": true
   },
   "expect": {
     "result": {

@@ -69,11 +69,11 @@ class CallerTable(unittest.TestCase):
             }
 
         load = gencmu.load_dialect_sources
-        self.assertFalse(load(sources("_L"), "p.md").parse("a", auto_features=False).ok)
-        self.assertTrue(load(sources("_Cn"), "p.md").parse("a", auto_features=False).ok)
+        self.assertFalse(load(sources("_L"), "p.md").parse("a").ok)
+        self.assertTrue(load(sources("_Cn"), "p.md").parse("a").ok)
         bundled = sources("_L")
         del bundled["unicode.txt"]
-        self.assertTrue(load(bundled, "p.md").parse("a", auto_features=False).ok)
+        self.assertTrue(load(bundled, "p.md").parse("a").ok)
 
 
 class LoneSurrogates(unittest.TestCase):
@@ -95,13 +95,13 @@ class LoneSurrogates(unittest.TestCase):
             for text in ("\ud800", "a\udc00", "\udbff\udbff", "\udfff\ud800"):
                 with self.subTest(rule=rule, text=ascii(text)):
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        dialect.parse(text, auto_features=False)
+                        dialect.parse(text)
                     self.assertEqual(caught.exception.kind, "usage")
                     with self.assertRaises(gencmu.GencmuError) as caught:
-                        dialect.parse_tokens([], text, auto_features=False)
+                        dialect.parse_tokens([], text)
                     self.assertEqual(caught.exception.kind, "usage")
         dialect = gencmu.load_dialect_sources(self._sources("_"), "p.md")
-        self.assertTrue(dialect.parse("\U0001f600", auto_features=False).ok)
+        self.assertTrue(dialect.parse("\U0001f600").ok)
 
     def test_a_document_with_a_lone_surrogate_is_a_usage_error(self) -> None:
         with self.assertRaises(gencmu.GencmuError) as caught:
