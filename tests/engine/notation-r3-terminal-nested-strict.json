@@ -1,0 +1,17 @@
+{
+  "description": "Strict restoration preserves a captured tag terminal for nested query.",
+  "grammar": "%rule text $c:unit %conditions $c.matches(probe)\n%rule unit A\n%rule probe $x:A %conditions $x.without-elision.value = \"a\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

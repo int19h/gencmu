@@ -1,0 +1,24 @@
+{
+  "description": "Strict restoration preserves a captured range terminal for source-text.",
+  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.source-text = \"a\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

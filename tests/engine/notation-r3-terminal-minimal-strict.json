@@ -1,0 +1,15 @@
+{
+  "description": "Strict restoration preserves a captured string terminal for minimal ngrams.",
+  "grammar": "%rule text $x:\"a\" %conditions $x.without-elision.ngrams(1) = \"a\"\n%rule family \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

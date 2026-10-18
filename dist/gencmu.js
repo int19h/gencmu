@@ -2341,7 +2341,8 @@
               wanted.add(production.lhs);
             } else {
               const symbol = production.rhs[part.index];
-              if (!symbol.terminal) wanted.add(symbol.name);
+              // Terminal captures need the empty observation even without a rule demand.
+              wanted.add(symbol.name);
             }
           }
           for (const value of clauseChildren(node)) stack.push(value);

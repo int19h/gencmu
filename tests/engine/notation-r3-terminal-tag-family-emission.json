@@ -1,0 +1,30 @@
+{
+  "description": "Family restoration preserves a captured tag terminal for emission.",
+  "grammar": "%rule text $x:A\n%emits $x ::($x.without-elision-except(family).value = \"a\" ⟹ Out)\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "tags": [
+                "Out"
+              ],
+              "value": "a"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

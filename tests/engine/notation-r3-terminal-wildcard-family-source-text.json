@@ -1,0 +1,24 @@
+{
+  "description": "Family restoration preserves a captured wildcard terminal for source-text.",
+  "grammar": "%rule text $x:_ B %conditions $x.without-elision-except(family).source-text = \"a\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

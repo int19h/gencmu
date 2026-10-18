@@ -1,0 +1,24 @@
+{
+  "description": "Family restoration preserves a captured string terminal for following-tokens.",
+  "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).following-tokens.value = \"b\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
