@@ -58,16 +58,13 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			if dir.Name != "features" || len(dir.Conditions) == 0 {
 				return &domProblem{message: "malformed feature conditions", at: dir.At}
 			}
-			checker := &domChecker{uni: uni}
+			checker := &domChecker{uni: uni, deferTypes: true}
 			for _, condition := range dir.Conditions {
 				checker.condition(condition, 0)
 				if checker.problem != nil {
 					checker.problem.at = dir.At
 					return checker.problem
 				}
-			}
-			if problem := inputConditionsProblem(dir.Conditions); problem != "" {
-				return &domProblem{message: problem, at: dir.At}
 			}
 		}
 	}
@@ -332,6 +329,7 @@ func directiveOperandsOK(dir *domDirective) bool {
 }
 
 type domChecker struct {
+	deferTypes  bool
 	hasBoundary bool
 	rule        *domRule        // the rule checked, or nil
 	constant    *domConst       // the constant checked, or nil
@@ -1062,7 +1060,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a malformed call of %q", t.Str)
 			return
 		}
-		if msg := literalCallProblem(t.Str, args); msg != "" {
+		if msg := literalCallProblem(t.Str, args); msg != "" && !c.deferTypes {
 			c.fail("%s", msg)
 			return
 		}

@@ -257,8 +257,9 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 }
 
 type domBuilder struct {
-	hasBoundary   bool
-	deferEmission bool
+	hasBoundary    bool
+	deferEmission  bool
+	featureContext bool
 	// captureNodes holds the notation node of each capture of the
 	// alternative being read, where an error about it is reported.
 	captureNodes map[*domExpr]*Node
@@ -564,10 +565,7 @@ func (b *domBuilder) document(root *Node) *domDoc {
 				if dir.Name != "features" {
 					b.fail(keyword, "only %%features accepts conditions")
 				}
-				dir.Conditions = []*domCond{}
-				for _, condition := range b.some(clause, "implication", 1) {
-					dir.Conditions = append(dir.Conditions, b.implication(condition))
-				}
+				dir.Conditions = b.featureConditions(keyword, clause)
 			}
 			d.Directives = append(d.Directives, dir)
 		}
@@ -891,6 +889,9 @@ func (b *domBuilder) isStringTerm(t *domTerm) bool {
 // typeOf is a term's type, or why its parts do not agree, through the
 // reader's memo.
 func (b *domBuilder) typeOf(t *domTerm) (termType, string) {
+	if b.featureContext {
+		return tyAny, ""
+	}
 	ty, f := termTypeMemo(t, nil, b.types)
 	if f != nil {
 		return 0, f.problem
@@ -1084,4 +1085,24 @@ func flattenGroups(r *domRule) {
 			push(t)
 		}
 	}
+}
+
+// Feature-condition diagnostics identify the directive that owns them.
+func (b *domBuilder) featureConditions(keyword, clause *Node) (conditions []*domCond) {
+	b.featureContext = true
+	defer func() {
+		b.featureContext = false
+		if failure := recover(); failure != nil {
+			if err, ok := failure.(*Error); ok {
+				at := b.at(keyword)
+				err.Line, err.Column = at[0], at[1]
+			}
+			panic(failure)
+		}
+	}()
+	conditions = []*domCond{}
+	for _, condition := range b.some(clause, "implication", 1) {
+		conditions = append(conditions, b.implication(condition))
+	}
+	return conditions
 }

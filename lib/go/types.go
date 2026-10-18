@@ -213,6 +213,8 @@ type Warning struct {
 // that ended the run, and the warnings of every stage run, in stage order,
 // an empty list when there are none.
 type ParseResult struct {
+	// Features lists enabled names when the run ends, outside canonical JSON.
+	Features []string
 	OK       bool
 	Stages   []Stage
 	Tree     *Node
@@ -229,7 +231,7 @@ const (
 
 // Feature is one of a dialect's features (engine §13): a name its guards
 // use or its pipeline's %features declares, its kind, and whether
-// %features turns it on by default.
+// an unconditional global or local %features declares it as a default.
 type Feature struct {
 	Name    string
 	Kind    string

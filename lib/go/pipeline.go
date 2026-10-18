@@ -80,6 +80,13 @@ type splicedPipeline struct {
 func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error)) (*splicedPipeline, *Error) {
 	p := &splicedPipeline{}
 	features := map[string]bool{}
+	type declaration struct {
+		stage     *splicedStage
+		run       *domDoc
+		doc       string
+		directive *domDirective
+	}
+	var declarations []declaration
 	// The run being built: its DOM and its document.
 	var run *domDoc
 	runPath := ""
@@ -216,6 +223,9 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 					run.Implications = append(run.Implications, item.implication)
 				default:
 					run.Directives = append(run.Directives, item.dir)
+					if item.dir.Name == "features" {
+						declarations = append(declarations, declaration{s, run, docPath, item.dir})
+					}
 				}
 			}
 		}
@@ -245,6 +255,26 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 			e := grammarError(s.doc, s.at, "the stage has no rules")
 			e.Stage = s.name
 			return nil, e
+		}
+	}
+	surviving := map[*domDoc]bool{}
+	for _, stage := range p.stages {
+		for _, document := range stage.documents {
+			surviving[document.dom] = true
+		}
+	}
+	owners := map[string]*splicedStage{}
+	for _, item := range declarations {
+		if !surviving[item.run] {
+			continue
+		}
+		for _, name := range item.directive.Args {
+			if owner := owners[name]; owner != nil && owner != item.stage {
+				err := grammarError(item.doc, item.directive.At, "feature %s is local to both %s and %s", name, owner.name, item.stage.name)
+				err.Stage = item.stage.name
+				return nil, err
+			}
+			owners[name] = item.stage
 		}
 	}
 	sort.Strings(p.features)

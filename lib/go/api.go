@@ -295,12 +295,12 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 			kinds[f] = FeatureGate
 		}
 	}
-	tested := map[string]bool{}
+	tested := map[string]string{}
 	for _, stage := range stages {
 		for _, item := range stage.features {
 			for _, name := range item.directive.Args {
-				if tested[name] {
-					err := grammarError(item.doc, item.directive.At, "an earlier stage tests local feature %s", name)
+				if earlier := tested[name]; earlier != "" {
+					err := grammarError(item.doc, item.directive.At, "stage %s tests local feature %s", earlier, name)
 					err.Stage = stage.name
 					return nil, err
 				}
@@ -315,14 +315,18 @@ func dialectFeatures(stages []*stageGrammar, declared []string) ([]Feature, *Err
 		for _, rule := range stage.rules {
 			for _, alt := range rule.alts {
 				for _, guard := range alt.alt.Guards {
-					tested[guard.Feature] = true
+					if tested[guard.Feature] == "" {
+						tested[guard.Feature] = stage.name
+					}
 				}
 			}
 		}
 		for _, item := range stage.classifierSet.items {
 			for _, entry := range item.classifier.Entries {
 				for _, guard := range entry.Guards {
-					tested[guard.Feature] = true
+					if tested[guard.Feature] == "" {
+						tested[guard.Feature] = stage.name
+					}
 				}
 			}
 		}
@@ -478,7 +482,7 @@ func (d *Dialect) StageNames() []string {
 
 // Features lists the dialect's features in code point order of their names
 // (engine §13): each a gate or a warning, and on by default when the
-// pipeline's %features turns it on.
+// pipeline declares it unconditionally, globally or locally.
 func (d *Dialect) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }
@@ -626,7 +630,11 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 	outcomes := d.runStages(ps, features, options, tokens, 0, last)
 	// The warnings of every stage run, in stage order, whether or not the
 	// result is ok (§13).
-	res = &ParseResult{OK: true, Warnings: []Warning{}}
+	res = &ParseResult{OK: true, Warnings: []Warning{}, Features: []string{}}
+	for name := range features {
+		res.Features = append(res.Features, name)
+	}
+	sort.Strings(res.Features)
 	for _, o := range outcomes {
 		res.Stages = append(res.Stages, o.stage)
 		res.Warnings = append(res.Warnings, o.warnings...)

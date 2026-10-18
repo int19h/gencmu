@@ -464,7 +464,7 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 
 func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args []*domTerm, predicate bool) *domTerm {
 	fail := func() { b.fail(n, "invalid receiver or arguments for .%s", name) }
-	span := isSpanTerm(receiver)
+	span := b.featureContext || isSpanTerm(receiver)
 	valid := false
 	switch name {
 	case "value", "image", "source-text", "decomposed-source-text", "classes", "onward", "following-tokens", "first-token", "last-token", "tokens-after-first", "starts-input", "ends-input":
@@ -473,7 +473,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			valid = len(args) == 0 && (name == "value" || name == "image")
 		}
 	case "without-elision", "without-elision-except":
-		if receiver.Kind != tmCapture {
+		if receiver.Kind != tmCapture && !b.featureContext {
 			if name == "without-elision-except" {
 				b.fail(n, ".without-elision-except requires a bare capture. Use $x.without-elision-except(f).onward.")
 			}
@@ -485,7 +485,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case "tags":
 		valid = span && (len(args) == 0 || len(args) == 1 && args[0].Kind == tmRule)
 	case "followed-by", "preceded-by":
-		valid = receiver.Kind == tmCapture && len(args) > 0
+		valid = (b.featureContext || receiver.Kind == tmCapture) && len(args) > 0
 		for _, a := range args {
 			if a.Kind == tmTag && isCapital(a.Str) {
 				a.Kind = tmTerminal
@@ -495,9 +495,9 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	case "matches", "begins":
 		valid = span && len(args) == 1 && args[0].Kind == tmRule
 	case "split":
-		valid = len(args) == 1 && b.isStringTerm(receiver) && b.isStringTerm(args[0])
+		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver) && b.isStringTerm(args[0]))
 	case "classify":
-		valid = len(args) == 1 && b.isStringTerm(receiver) && args[0].Kind == tmRule && classifierName.MatchString(args[0].Str)
+		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && args[0].Kind == tmRule && classifierName.MatchString(args[0].Str)
 		if valid {
 			args[0] = &domTerm{Kind: tmClassifier, Str: args[0].Str}
 		}
@@ -515,7 +515,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		b.fail(n, ".%s has the wrong result type here", name)
 	}
 	items := append([]*domTerm{receiver}, args...)
-	if msg := literalCallProblem(name, items); msg != "" {
+	if msg := literalCallProblem(name, items); msg != "" && !b.featureContext {
 		b.fail(n, "%s", msg)
 	}
 	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}

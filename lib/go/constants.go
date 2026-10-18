@@ -345,12 +345,16 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
 			}
 		}
+		if problem := inputConditionsProblem(directive.Conditions); problem != "" {
+			return g.constError(item.doc, directive.At, "%s", problem)
+		}
 		for _, condition := range directive.Conditions {
 			if fault := condTypeFault(condition, types); fault != nil {
-				return g.faultError(item.doc, fault.node, directive.At, fault.problem)
+				return g.constError(item.doc, directive.At, "%s", fault.problem)
 			}
 		}
 		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}); err != nil {
+			err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
 			return err
 		}
 		copied := *directive
