@@ -235,6 +235,18 @@ Each DOM case supplies an envelope without `format`, a `leaf`, a `wrapper`, and 
 
 The source cases give `head`, `prefix`, `leaf`, `suffix`, and `tail`. A runner repeats each prefix and suffix `atLimit` times around the leaf, then adds the head and tail. It surrounds that text with a jbogenbau fence. That document must read, and one additional repetition must fail because of depth. Source cases also cover signed tag tests and pattern terms under their enclosing constructors.
 
+## Engine measurements
+
+Measure work on growing inputs for [shared observations](../docs/engine.md#41-shared-candidate-observations), [boundary obligations](../docs/engine.md#42-boundary-obligations), [ranking](../docs/engine.md#6-choosing-a-parse), and [ranked admission](../docs/engine.md#61-ranked-admission-before-ranking).
+
+Record chart items, packed proof edges, structural observation states, close observations, cycle contexts, and summary contexts. Record elapsed time and peak memory. Measure boundary records separately from structural states and close observations.
+
+Include nested omissions, repeated wrappers, recursive queries, and ambiguous ranked groups. Include increasingly long lists, unary chains, and independent ambiguous children. Include long NA-term runs, free-modifier runs, and nested parentheses. Include aligned queries over lists whose items each choose one of two omissions.
+
+For ranked admission, record chart facts, admission groups, and retained edges. Measure loader cost separately from recognition. Include stored-value comparison work when interpreting admission costs.
+
+The cases in `without-elision-growth.json` bound the measured close-summary fixtures. Their bounds do not establish a grammar-wide bound on summaries. A passing language corpus alone does not establish sharing and termination properties. The growth sections below define the fixture counters and bounds.
+
 ## Growth cases: `growth.json`
 
 ```
@@ -363,6 +375,8 @@ So the four runners hold the same invariants, and no library keeps a list of its
 The corpus format cannot express `feature-conflict`, which has no input position. Shared engine cases pin this error for bundled dialects.
 
 Corpus identifiers stay stable when grammar rules change.
+
+Dialect and grammar documents define dialect behavior. Corpus cases pin their texts, verdicts, and images. Shared engine cases also test stage values, recipes, attachment ownership, and source gaps. Image equality alone does not establish equal structure or ownership. Structural comparisons use each stage's input coordinates and map positions when token counts differ between stages.
 
 `corpus/literary.jsonl` contains longer story bodies, songs, and paired repair cases for cll-ebnf and bpfk. [Literary text sources](text-sources/README.md) records their source snapshots, extraction boundaries, and transformations.
 

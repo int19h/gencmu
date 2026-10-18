@@ -1,0 +1,91 @@
+{
+  "description": "The split-diphthong case pins the phoneme and normalization contracts in their grammar documents.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ą́",
+  "options": {
+    "until": "normalize"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "ą́",
+              "value": "A",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                0,
+                3
+              ],
+              "source": [
+                0,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                3,
+                3
+              ],
+              "source": [
+                2,
+                2
+              ],
+              "insertedBy": "latin-diphthong-i"
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "text": "ą́",
+              "value": "a",
+              "image": "A",
+              "tags": [
+                "Stressed"
+              ],
+              "span": [
+                0,
+                1
+              ],
+              "source": [
+                0,
+                2
+              ]
+            },
+            {
+              "text": "",
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "span": [
+                1,
+                2
+              ],
+              "source": [
+                2,
+                2
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

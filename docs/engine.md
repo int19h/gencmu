@@ -4,6 +4,8 @@ This document is the specification that every gencmu library implements. It says
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
+Grammar identifiers and tags in examples illustrate generic rules. They impose no dialect contract.
+
 ## 1. Tokens
 
 A pipeline runs grammar stages in sequence (§13). A stage is one step with its own grammar. A token is one unit of input or output. Everything a stage reads and writes is a sequence of tokens. A token has these fields:
@@ -647,7 +649,7 @@ A boundary that an item reads past lies before the witness's end `c`. So its acc
 
 A dead summary never removes an item, its advances or its conditions. The item still blocks omissions as §4 says. The summary only decides whether a completed item can be a witness.
 
-The number of summaries of one raw item depends on the candidate's group sizes at the item's ends. It does not depend on the witness's own groups. The grammar alone does not bound it, because a larger candidate group can need more summaries. The growth cases of `tests/without-elision-growth.json` bound the measured fixtures. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
+The number of summaries of one raw item depends on the candidate's group sizes at the item's ends. It does not depend on the witness's own groups. The grammar alone does not bound it, because a larger candidate group can need more summaries. Different close observations never merge into one captured value. Equal observations can share proof states, while their derivation edges remain distinct.
 
 A caller consumes a constituent in a rule occurrence. An observed caller retains its item's closes for either restoration method. A capture or an enclosing observed caller can demand those closes. The recognizer separates ordinary and observed caller modes. Prediction and completion keys retain that mode. A demanded capture can observe a rule without splitting unrelated callers of that rule.
 
@@ -662,8 +664,6 @@ An aligned witness must carry that same block through the same written group occ
 Candidates and aligned witnesses use finite noncyclic observation proofs. Named-rule cycle exclusion uses original positions, including during restoration. A repeated named rule over one original span supplies no additional aligned observation. Synthetic positions and different observations cannot excuse that cycle. Ordinary unmarked queries keep their proof policy.
 
 The engine shares candidate and witness proof states with their relevant cycle contexts. It cannot enumerate every complete tree before evaluating a captured condition. It cannot impose an arbitrary limit on restoration length. Nullable recursive omission lists, such as `r → r [+T] | X`, must reach a finite shared construction.
-
-Measure chart items, proof edges, observation states, cycle contexts, elapsed time, and peak memory on growing inputs. Include nested omissions, repeated wrappers, recursive queries, and ambiguous ranked groups. A passing language corpus alone does not establish these sharing and termination properties.
 
 ### 4.2 Boundary obligations
 
@@ -731,7 +731,7 @@ The records are finite, because they hold sets of targets and literals. Let K be
 
 The structural states and close observations of §4.1 keep their own growth, which can be exponential in the input.
 
-An implementation must not limit the number of records. It measures them apart from those observations, as §4.1 says for structural states. The growth inputs include long NA-term runs, free-modifier runs and nested parentheses. They also include an aligned query over a list whose items each choose one of two omissions.
+An implementation must not limit the number of records.
 
 Offers resemble the first-path and last-path observations of §4.1. They differ in two ways: they skip nodes that read no token, and they do not stop at seals.
 
@@ -925,7 +925,7 @@ A vector has N + 1 components. So a sparse vector, or a shared sequence of elisi
 
 Structural state forms part of each summary's item identity. Ranked admission keeps eligibility and same-span cycle contexts separate (§6.1). A summary cannot substitute an edge from another structural state. Count admitted eligible noncyclic derivations before ranking, capped at two. Equal observations do not reduce that count. Rule profiles and elision vectors compose within each full state and context.
 
-For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use. Measurements must record states, items, packed edges, summary contexts, elapsed time and peak memory. Use increasingly long lists, unary chains, nested omissions and independent ambiguous children.
+For k independent Boolean observations, a product can contain up to `2^k` states. Sequence prefixes and captures add further factors. Finite sharing does not imply constant memory use.
 
 ### 6.1 Ranked admission before ranking
 
@@ -976,7 +976,7 @@ Let F count stored prefix facts, completion facts, proof edges, eligibility cont
 
 Admission composes over packed facts without complete derivation enumeration.
 
-The tag closure uses linear work in productions and inheritance edges. Measure chart facts, groups, retained edges, elapsed time, and peak memory. Measure loader cost separately.
+The tag closure uses linear work in productions and inheritance edges.
 
 ## 7. Elision-only
 
@@ -2197,7 +2197,7 @@ A token combining an attached input token with any other counted input token cau
 
 Two emitted covering items cannot claim the same nonempty input span. A whole carrier also cannot overlap a consuming attachment capture of another item (§9.3). Together, these restrictions prevent duplicate attachment ownership. Multiple whole items require a structurally always-empty production under §9.3's conservative overlap analysis. Such items cover no counted input token or inherited attachments.
 
-A covering token cannot identify attachment ownership across several counted input tokens. The stage tests this independently of tag and string overrides. No bundled dialect combines such parts. Source overlap alone does not establish shared input ownership.
+A covering token cannot identify attachment ownership across several counted input tokens. The stage tests this independently of tag and string overrides. Source overlap alone does not establish shared input ownership.
 
 The attachment lists follow the order of the derivation and of the emission. That is the order of the text when the sources lie in order. The engine does not promise that order for sources out of order.
 
@@ -2312,78 +2312,3 @@ Each name is a gate, if a guard uses it as `f?` or `¬f?`, or a warning, if a gu
 Mistakes of the caller are errors of kind `usage`. Two examples are an `until` that names no stage and a text that is not a sequence of scalar values (§1). A token that the caller supplies with attachments is a third (`docs/api.md`). They are raised or returned as a load error is, and they are not results.
 
 A grammar error found while parsing is a result. Examples are a nested parse asked about its own span as the same rule, and a `split` with an empty delimiter. Its error has kind `grammar`, the `stage` that it arose in and a message, and no position. The check of §7 can also end with an error of kind `grammar` and the code `elision-witness-lost` (§7.9). That error also has `chosen` and `completion`. It ends the run.
-
-## 14. Bundled dialect contracts
-
-In experimental syntax, an initial connective never immediately follows a leading free modifier in the same derivation.
-
-In experimental syntax, a bare NA or tag term can omit KU before a written closing word or the input's end. The term includes its own free modifiers before this test. Closing words are I, NIhO, CU, GI, BEI, ZOhU, CEhE, PEhE, a gihek, and a written terminator of a surrounding construction. A bare NA term can also omit KU before any term in the same derivation. JA, A, JOI, and VUhU alone permit no KU omission. Plain and BO term links use the sumti checks of `grammars/syntax/experimental.md`.
-
-Experimental `term-link` and `term-bo-link` have no rule flag. Zantufa marks its plain `term-link` rule with `fewest`.
-
-Universal character matching uses the wildcard `_`. This includes two terminals in `grammars/phonemes/latin.md`, one in `grammars/phonemes/latin-strict.md`, and two in `grammars/notation/lexical.md`. No stored universal engine tag is required.
-
-The Lojban stages run in the order `phonemes`, `normalize`, `forms`, `words`, `indicators`, and `syntax`. Read the [normalization grammar](../grammars/phonemes/normalize.md) for its mappings and §1 for the token contract.
-
-A phoneme pause has value and image `" "` and tag `PAUSE`. A stressed vowel before normalization has uppercase value and image with `Stressed`. After normalization, its value is lowercase and its image remains uppercase. In `cll-ebnf`, a syllable comma has image `,`, empty normalized value, and `Syllable-Break`. A comma run emits one comma token in this dialect.
-
-A digit or split diphthong emits one covering first token and inserted following tokens. Inserted tokens have empty source and text and retain `insertedBy` in the phoneme-stage output. Only the stressed first diphthong token carries `Stressed`. Neither overlapping covering spans nor tag-derived strings are part of this contract.
-
-A covering emission is not an inserted token. A phoneme-stage inserted token loses `insertedBy` at its first covering stage. The normalization stage is that first covering stage. For `digit-0`, the inserted `o` retains `insertedBy: "digit-0"` in phonemes, then loses it when normalization covers that token.
-
-The phoneme rules `non-lojban-char`, `chars-with-non-lojban-char`, and `non-lojban-char-run` recognize characters outside the orthography. Forms uses `foreign-token`, `unsegmentable-run`, `word-run`, and `phoneme-sequence`. FOREIGN is their shared unreadable-run class. A FOREIGN token of the phoneme stage holds the decomposed characters of its run as its value, and the original spelling as its image. The forms stage passes such a token on unchanged. The forms stage makes a FOREIGN token of a run of phonemes that it cannot divide into words.
-
-Its value is the decomposed source text, and its image concatenates the phoneme images.
-
-Quoted bodies compare by their ordinary values. Each finished quote emits one token. Delimited quotes use their whole source text as their images. Undelimited quotes join the opener's source text, original gap, and verbatim payload. `zohoi-payload` supplies its verbatim recipe through `.emitted.image`. Queries and erased post-fa'o bodies run no body recipes.
-
-`empty-zoi-body` uses empty concatenation for its value. The foreign character run takes its image from its original source text.
-
-Y delimiter keys are fixed `Y-Key` or Zantufa's `Ieho`. An opening key uses the last y separated from preceding hesitation. A raw closing run retains every y value. A longer raw key carries neither fixed tag. No input string constructs a tag name.
-
-Quote spacing groups each surviving pause run into one gap. Compound spacing classifies erasure-aware derivations with Gap-Pause. SU survivor recipes use Trailing-Pause to avoid duplicating a gap across constituent boundaries. These structural rules preserve attachment ownership independently of their images. The dialect guide states each tag's origin and end.
-
-Parse-result format 14 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
-
-The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with no caller features. The words stage enables `sa-su` through its own condition. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
-
-| Text | Dialects | Verdict of the words stage | Required observation |
-| --- | --- | --- | --- |
-| `zoi nu,iork. foo .nuiork.` | Four | `unique` | The comma-insensitive delimiter comparison succeeds |
-| `zoi mai. x .ma,i.` | Four | `unique` | The comma-insensitive closing delimiter succeeds |
-| `zoi .y. bu. foo .y. bu.` | Four | `unique` | The matching fixed y key closes the quote |
-| `zoi ybu foo ybu` | Four | `unique` | The unspaced fixed y keys match |
-| `zoi .yy. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. foo .yy. bu.` | Four | `rejected` | A longer raw closing key does not match |
-| `zoi .y. bu. "Hello!" .y. bu.` | Four | `unique` | The quote image is `zoi .y. bu. "Hello!" .y. bu` |
-| `zo'oi "Hello!"` | `experimental` | `unique` | The quote image is `zo'oi "Hello!"` |
-| `mi,zo'oi foo` | `experimental` | `unique` | The images are `mi` and `zo'oi foo`, without the comma before the opener |
-| `la'oi クリボー` | `experimental` | `unique` | The quote image is `la'oi クリボー`, including the uncovered final character |
-| `zo SINdarin` | Four | `unique` | The quote image keeps `zo SINdarin`, with its written capitals |
-| `zo .y. coi` | Four | `unique` | The quote image is `zo .y. coi`, and its value is `zo coi` |
-| `zoi klama. abc .Ｋlama.` | Four | `rejected` | A fullwidth-K closing value does not equal `klama` |
-| `zoi klama. abc .Klama.` | Four | `unique` | The Kelvin sign decomposes to `K`, so the closing delimiter matches |
-| `zoi klama. Ｋlama .klama.` | Four | `unique` | The fullwidth-K body value does not equal the delimiter |
-| `zoi klama. Klama .klama.` | Four | `unique` | The Kelvin-sign word equals the delimiter, so it closes an empty quote |
-| `abu` | Four | `unique` | The word image is `abu` |
-| `broda brode si bu` | Four | `unique` | The word image is `broda bu` |
-| `lo'u broda ybrode le'u bu` | Four | `unique` | The letteral image is `lo'u broda ybrode le'u bu` |
-| `lo'u broda .y. brode le'u bu` | Four | `unique` | The letteral image is `lo'u broda .y. brode le'u bu` |
-| `lo'u .y. broda le'u bu` | Four | `unique` | The letteral image is `lo'u .y. broda le'u bu` |
-| `lo'u broda .y. le'u bu` | Four | `unique` | The letteral image is `lo'u broda .y. le'u bu` |
-| `lo'u y le'u bu` | Four | `unique` | The letteral image is `lo'u y le'u bu`, and its value is `lo'u le'u bu` |
-| `lo'ai broda .y. brode le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. brode le'ai bu` |
-| `lo'ai .y. broda le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai .y. broda le'ai bu` |
-| `lo'ai broda .y. le'ai bu` | `experimental`, `zantufa` | `unique` | The letteral image is `lo'ai broda .y. le'ai bu` |
-| `mi lo'ai do` | `experimental`, `zantufa` | `rejected` | The error points to the input end and names LEhAI |
-| `mi lo'ai si klama` | `experimental`, `zantufa` | `unique` | The images are `mi` and `klama` |
-| `ni'o su bu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
-| `ni'o su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o mi si su bu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | One token has image `ni'o bu` |
-| `ni'o mi si su bu` | `zantufa` | `unique` | Two tokens have images `ni'o` and `su bu` |
-| `ni'o subu` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | The image `ni'o bu` retains the earlier surviving space |
-| `ni'o .su mi` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `ni'o su .y. mi` | `cll-ebnf`, `bpfk`, `experimental` | `unique` | A standalone survivor's image is `ni'o` |
-| `zoi gy. MI   DO .gy. bu` | Four | `unique` | The image is `zoi gy. MI   DO .gy bu`, also after indicators |
-
-These cases supplement stage-zero, recipe, ownership, and source-gap tests. Image equality alone does not prove equal selected structure or erasure ownership. The proof compares spans within each stage's input coordinates and maps them where input token counts differ between stages.

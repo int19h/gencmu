@@ -8,7 +8,7 @@ Every gencmu library offers the same operations on the same data. An API is the 
 
 A dialect defines a parsing pipeline. A pipeline runs grammar stages in sequence. A stage is one step with its own grammar. A pipeline document and the grammar documents that it includes define a dialect. The pipeline document names the stages of the dialect. A library loads a dialect in three ways:
 
-- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. The names are `cll-ebnf`, `kihei`, `bpfk`, `experimental`, `zantufa` and `notation`.
+- It loads a dialect by name, from the grammars bundled in the package. The name is the file name of a pipeline document under `grammars/dialects/` without `.md`. The [dialect documents](../grammars/dialects/) define the bundled names.
 - It loads a pipeline document from disk. The library finds its grammar documents relative to it. Its `unicode.txt` and `notation/bootstrap.json` come from the bundled grammars. Each document is known by its absolute path, so an error names the same file from any working directory.
 - It loads documents held in memory: a map from `/`-separated path to text, and the path of the pipeline document in the map. The map can supply its own `unicode.txt`, `notation/bootstrap.json` and `compiled.json`. Any of these that the map lacks come from the bundled grammars. The exception is the portable JavaScript entry point, which has no bundle to read. There, the map must hold the first two (see "JavaScript").
 
@@ -125,6 +125,8 @@ Every library runs each case of these tests that its API can express (`tests/REA
 - `tests/notation/`
 - The fixpoint of the bootstrap, where a reading of `grammars/notation/*.md` with the bootstrap reproduces the bootstrap
 - A comparison of `compiled.json` with a fresh reading, with the cache both used and bypassed
+
+The language examples below use the bundled `cll-ebnf` dialect and its features. Their texts, stage names, and feature names illustrate API calls.
 
 ## JavaScript
 
