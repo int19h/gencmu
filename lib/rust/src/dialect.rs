@@ -12,15 +12,15 @@ use crate::lower::{lower, Lowered, Prod, Sym, SymbolTest, TestOp};
 use crate::rank::{compare_profiles, tree_profile, Act, Ranker, Verdict as RankVerdict};
 use crate::recent::Recent;
 use crate::result::{
-    Action, AmbiguityReason, ErrorCode, Expected, Node, NodeKind, ParseError, ParseErrorKind, ParseResult, Restoration,
-    Stage, Tags, Token, Verdict, Warning,
+    Action, AmbiguityReason, ErrorCode, Expected, Node, ParseError, ParseErrorKind, ParseResult, Restoration, Stage,
+    Tags, Token, Verdict, Warning,
 };
 use crate::tree::{build, emit, public_tree, warnings_of, IKind, ITree, ReadingMap, TreeContext};
 use crate::unicode::Unicode;
 use crate::witness::{self, CheckForest};
 
 /// The options of [`Dialect::parse`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseOptions {
     /// Features to turn on for every stage, besides those the pipeline's
     /// `%features` turns on.
@@ -28,27 +28,11 @@ pub struct ParseOptions {
     /// Features to turn off for every stage, among them any that the
     /// pipeline turns on. A name also in `features` is a usage error.
     pub without_features: Vec<String>,
-    /// Add `sa-su` only where the text needs it (engine §13), unless
-    /// `without_features` names it. On by default; ignored for a dialect
-    /// with no stage named `words`, or one where `sa-su` is not a gate.
-    pub auto_features: bool,
     /// The name of the last stage to run; all of them when `None`.
     pub until: Option<String>,
     /// Switch the `elision-only` check (engine §7) on or off for every
     /// stage, overriding the grammars' own directives; `None` follows them.
     pub elision_only: Option<bool>,
-}
-
-impl Default for ParseOptions {
-    fn default() -> ParseOptions {
-        ParseOptions {
-            features: Vec::new(),
-            without_features: Vec::new(),
-            auto_features: true,
-            until: None,
-            elision_only: None,
-        }
-    }
 }
 
 /// One of a dialect's features (engine §13), as [`Dialect::features`]
@@ -217,9 +201,43 @@ fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<
     for name in declared {
         kinds.entry(name).or_insert(FeatureKind::Gate);
     }
+    let mut tested = BTreeSet::new();
+    let mut defaults: BTreeSet<&str> = declared.iter().map(String::as_str).collect();
+    for stage in stages {
+        for (document, directive) in &stage.features {
+            for name in &directive.args {
+                if tested.contains(name) {
+                    return Err(Error::grammar(format!("an earlier stage tests local feature {name}"))
+                        .in_document(document.as_ref())
+                        .at(directive.at.0, directive.at.1)
+                        .in_stage(&stage.name));
+                }
+                kinds.entry(name).or_insert(FeatureKind::Gate);
+                if directive.conditions.is_none() {
+                    defaults.insert(name);
+                }
+            }
+        }
+        tested.extend(
+            stage
+                .rules
+                .iter()
+                .flat_map(|rule| &rule.alternatives)
+                .flat_map(|alt| &alt.alternative.guards)
+                .map(|guard| guard.feature.clone()),
+        );
+        tested.extend(
+            stage
+                .classifiers
+                .iter()
+                .flat_map(|(_, classifier)| &classifier.entries)
+                .flat_map(|entry| &entry.guards)
+                .map(|guard| guard.feature.clone()),
+        );
+    }
     Ok(kinds
         .into_iter()
-        .map(|(name, kind)| Feature { name: name.to_string(), kind, default: declared.iter().any(|on| on == name) })
+        .map(|(name, kind)| Feature { name: name.to_string(), kind, default: defaults.contains(name) })
         .collect())
 }
 
@@ -431,49 +449,8 @@ impl Dialect {
         let (mut input, public_input) = first(&mut shared.tags, &chars);
         crate::earley::mark_quiet(&mut input, &self.unicode);
         let fresh = Run { stages: Vec::new(), input, public_input, tree: None, error: None, warnings: Vec::new() };
-        let words = self.stages.iter().position(|stage| stage.name == "words");
-        // Auto features add `sa-su` only in a dialect where it is a gate,
-        // and never once the caller has turned it off (engine §13).
-        let gated = self.features.iter().any(|feature| feature.name == "sa-su" && feature.kind == FeatureKind::Gate);
-        let probe = options.auto_features
-            && gated
-            && !features.contains("sa-su")
-            && !off.iter().any(|name| name == "sa-su")
-            && words.is_some_and(|words| words <= last);
-        let run = if let (true, Some(words)) = (probe, words) {
-            let checkpoint = (fresh.input.clone(), fresh.public_input.clone());
-            let mut run = fresh;
-            self.stages_between(&mut shared, &mut run, &features, 0, words, options.elision_only);
-            let reached = run.stages.len() == words + 1;
-            // Unless `words` accepted, for whatever reason, and read no
-            // word of SA or SU, the parse is run again with `sa-su`.
-            let needs = !reached || run.error.is_some() || run.tree.as_ref().is_some_and(has_sa_su);
-            if needs {
-                // From the first stage again, the first run's stages and
-                // warnings discarded.
-                features.insert("sa-su".to_string());
-                let mut again = Run {
-                    stages: Vec::new(),
-                    input: checkpoint.0,
-                    public_input: checkpoint.1,
-                    tree: None,
-                    error: None,
-                    warnings: Vec::new(),
-                };
-                shared.next_stage();
-                self.stages_between(&mut shared, &mut again, &features, 0, last, options.elision_only);
-                again
-            } else {
-                if run.error.is_none() && words < last {
-                    self.stages_between(&mut shared, &mut run, &features, words + 1, last, options.elision_only);
-                }
-                run
-            }
-        } else {
-            let mut run = fresh;
-            self.stages_between(&mut shared, &mut run, &features, 0, last, options.elision_only);
-            run
-        };
+        let mut run = fresh;
+        self.stages_between(&mut shared, &mut run, &mut features, off, last, options.elision_only);
         let ok = run.error.is_none();
         Ok(ParseResult {
             ok,
@@ -488,15 +465,67 @@ impl Dialect {
         &self,
         shared: &mut Shared,
         run: &mut Run,
-        features: &BTreeSet<String>,
-        from: usize,
+        features: &mut BTreeSet<String>,
+        off: &[String],
         to: usize,
         elision: Option<bool>,
     ) {
-        for index in from..=to {
+        for index in 0..=to {
             shared.next_stage();
-            let outcome = self.stage(index, shared, run, features, elision);
-            if let Err(error) = outcome {
+            let mut failure = None;
+            for (_, directive) in &self.stages[index].features {
+                let held = match &directive.conditions {
+                    Some(conditions) => {
+                        crate::features::holds(conditions, &run.public_input, shared.text, &self.unicode)
+                    }
+                    None => Ok(true),
+                };
+                match held {
+                    Err(message) => {
+                        failure = Some(self.grammar_error(index, EngineError { message, rule: None }));
+                        break;
+                    }
+                    Ok(false) => continue,
+                    Ok(true) => {}
+                }
+                for feature in &directive.args {
+                    if off.contains(feature) {
+                        if directive.conditions.is_some() {
+                            let mut error = self.grammar_error(
+                                index,
+                                EngineError {
+                                    message: format!(
+                                        "the {} stage requires disabled feature {feature}",
+                                        self.stages[index].name
+                                    ),
+                                    rule: None,
+                                },
+                            );
+                            error.kind = ParseErrorKind::FeatureConflict;
+                            error.feature = Some(feature.clone());
+                            failure = Some(error);
+                            break;
+                        }
+                    } else {
+                        features.insert(feature.clone());
+                    }
+                }
+                if failure.is_some() {
+                    break;
+                }
+            }
+            if let Some(error) = failure {
+                run.stages.push(Stage {
+                    name: self.stages[index].name.clone(),
+                    input: std::mem::take(&mut run.public_input),
+                    output: None,
+                    verdict: None,
+                    witness: None,
+                });
+                run.error = Some(error);
+                return;
+            }
+            if let Err(error) = self.stage(index, shared, run, features, elision) {
                 run.error = Some(*error);
                 return;
             }
@@ -513,6 +542,7 @@ impl Dialect {
             None => error.message,
         };
         ParseError {
+            feature: None,
             boundary: None,
             kind: ParseErrorKind::Grammar,
             stage: Some(stage.name.clone()),
@@ -676,6 +706,7 @@ impl Dialect {
                 Ok(Check::Lost(completion)) => {
                     let name = &grammar.name;
                     let error = ParseError {
+                        feature: None,
                         boundary: None,
                         kind: ParseErrorKind::Grammar,
                         stage: Some(name.clone()),
@@ -726,6 +757,7 @@ impl Dialect {
     fn tie(&self, index: usize, readings: Vec<Node>) -> ParseError {
         let stage = &self.stages[index].name;
         ParseError {
+            feature: None,
             boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
@@ -766,6 +798,7 @@ impl Dialect {
             format!("stage {stage} cannot read {found}; it expected {}", wanted.join(", "))
         };
         ParseError {
+            feature: None,
             boundary: None,
             kind: ParseErrorKind::Rejected,
             stage: Some(stage.clone()),
@@ -1020,7 +1053,7 @@ impl Dialect {
         let readings = trees.iter().map(|t| public_tree(t, &context)).collect();
         let stage = &self.stages[index].name;
         Ok(Check::Ambiguous(Box::new(ParseError {
-            boundary: None,
+            feature: None, boundary: None,
             kind: ParseErrorKind::Ambiguous,
             stage: Some(stage.clone()),
             code: None,
@@ -1119,22 +1152,6 @@ fn action(g: &Lowered, act: Act) -> Action {
     }
 }
 
-/// Whether a tree has a constituent of the rule `word` whose tag set has
-/// `SA` or `SU` (engine §13).
-fn has_sa_su(tree: &Node) -> bool {
-    let mut stack = vec![tree];
-    while let Some(node) = stack.pop() {
-        if node.kind == NodeKind::Rule
-            && node.rule.as_deref() == Some("word")
-            && (node.tags.contains("SA") || node.tags.contains("SU"))
-        {
-            return true;
-        }
-        stack.extend(node.children.iter());
-    }
-    false
-}
-
 /// Stage zero keeps original source text beside decomposed values and images.
 fn character_tokens(unicode: &Unicode, tags: &mut crate::tags::Tags, chars: &[char]) -> (Vec<Tok>, Vec<Token>) {
     crate::work::count(crate::work::Work::StageZero, 1);
@@ -1200,37 +1217,16 @@ mod tests {
     }
 
     #[test]
-    fn automatic_feature_probe_reuses_stage_zero_and_saved_words() {
+    fn stage_zero_runs_once() {
         use crate::work::{counted, reset, Work};
         let dialect = crate::load_dialect("experimental").unwrap();
-        assert!(dialect.features.iter().any(|feature| feature.name == "sa-su" && !feature.default));
-        let retry_control = ParseOptions { auto_features: false, ..Default::default() };
-        assert!(!dialect.parse("mi su do", &retry_control).unwrap().ok);
-        let mut ordinary = Vec::new();
-        for (text, auto_features, until) in [
-            ("mi klama", false, None),
-            ("mi klama", true, None),
-            ("mi klama", true, Some("words")),
-            ("mi su do", true, None),
-        ] {
-            let options = ParseOptions { auto_features, until: until.map(str::to_string), ..Default::default() };
+        for until in [None, Some("words")] {
             reset();
-            let result = dialect.parse(text, &options).unwrap();
-            assert!(result.ok, "{text}: {:?}", result.error);
-            assert_eq!(counted(Work::StageZero), 1, "{text}, {auto_features}, {until:?}");
-            assert_eq!(counted(Work::Decompositions), 1, "{text}, {auto_features}, {until:?}");
-            let words = result.stages.iter().position(|stage| stage.name == "words").unwrap();
-            if let Some(next) = result.stages.get(words + 1) {
-                assert_eq!(result.stages[words].output.as_ref(), Some(&next.input));
-            } else {
-                assert_eq!(until, Some("words"));
-            }
-            if text == "mi klama" && until.is_none() {
-                ordinary.push(crate::to_json(&result));
-            }
+            let options = ParseOptions { until: until.map(str::to_string), ..Default::default() };
+            assert!(dialect.parse("mi klama", &options).unwrap().ok);
+            assert_eq!(counted(Work::StageZero), 1);
+            assert_eq!(counted(Work::Decompositions), 1);
         }
-        assert_eq!(ordinary[0], ordinary[1]);
-        reset();
     }
 
     #[test]
@@ -1267,11 +1263,7 @@ mod tests {
     fn unused_names_share_one_lowering() {
         let dialect = dialect("%rule text f? \"x\" | \"y\"");
         for index in 0..50 {
-            let options = ParseOptions {
-                features: vec![format!("unused-{index}")],
-                auto_features: false,
-                ..ParseOptions::default()
-            };
+            let options = ParseOptions { features: vec![format!("unused-{index}")], ..ParseOptions::default() };
             assert!(dialect.parse("y", &options).unwrap().ok);
         }
         assert_eq!(cached(&dialect), (1, 1));
@@ -1298,7 +1290,7 @@ mod tests {
                 let mut want: Vec<String> = features.iter().map(|name| name.to_uppercase()).collect();
                 want.push("X".to_string());
                 want.sort();
-                let options = ParseOptions { features, auto_features: false, ..ParseOptions::default() };
+                let options = ParseOptions { features, ..ParseOptions::default() };
                 let result = dialect.parse("x", &options).unwrap();
                 let tags: Vec<String> = result.tree.as_ref().expect("a tree").tags.iter().cloned().collect();
                 assert_eq!(tags, want);
@@ -1322,7 +1314,7 @@ mod tests {
             // The stage accepts its input whenever a feature is on, and ties
             // when two are.
             let count = features.len();
-            let options = ParseOptions { features, auto_features: false, ..ParseOptions::default() };
+            let options = ParseOptions { features, ..ParseOptions::default() };
             let result = dialect.parse("x", &options).unwrap();
             assert_eq!(result.stages[0].verdict.is_some(), count > 0);
             assert_eq!(result.ok, count == 1);

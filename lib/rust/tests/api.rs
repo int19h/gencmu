@@ -38,10 +38,6 @@ fn changed_dom(rules: &str, from: &str, to: &str) -> String {
     dom.replacen(from, to, 1)
 }
 
-fn no_auto() -> ParseOptions {
-    ParseOptions { auto_features: false, ..ParseOptions::default() }
-}
-
 #[test]
 fn replacements_record_flag_changes() {
     let dialect = gencmu::load_dialect_sources(
@@ -148,14 +144,14 @@ fn sources_may_bring_their_own_tables() {
     let table = "unicode 0.0.0\nwhite-space 0009 000D\nwhite-space 0020 0020\n";
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-    assert!(!dialect.parse("a", &no_auto()).unwrap().ok);
+    assert!(!dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     let dialect = gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text _L"), "p.md").unwrap();
-    assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
     // A scalar value that the caller's table omits is Cn (engine §1).
     let mut sources = single("%ambiguity-resolution greedy\n%rule text _Cn");
     sources.insert("unicode.txt".to_string(), table.to_string());
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-    assert!(dialect.parse("a", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok);
 }
 
 #[test]
@@ -174,20 +170,24 @@ fn until_features_and_elision_only() {
     let gate = |name: &str, default| Feature { name: name.to_string(), kind: FeatureKind::Gate, default };
     assert_eq!(dialect.features(), [gate("f", true), gate("g", false)]);
 
-    let result = dialect.parse("xx", &ParseOptions { until: Some("one".into()), ..no_auto() }).unwrap();
+    let result = dialect.parse("xx", &ParseOptions { until: Some("one".into()), ..ParseOptions::default() }).unwrap();
     assert!(result.ok);
     assert_eq!(result.stages.len(), 1);
     assert_eq!(result.stages[0].output.as_ref().map(Vec::len), Some(2));
 
-    assert!(!dialect.parse("xx", &no_auto()).unwrap().ok);
-    assert!(dialect.parse("x", &no_auto()).unwrap().ok);
-    let with_g = ParseOptions { features: vec!["g".into()], ..no_auto() };
+    assert!(!dialect.parse("xx", &ParseOptions::default()).unwrap().ok);
+    assert!(dialect.parse("x", &ParseOptions::default()).unwrap().ok);
+    let with_g = ParseOptions { features: vec!["g".into()], ..ParseOptions::default() };
     assert!(dialect.parse("xx", &with_g).unwrap().ok);
 
-    let error = dialect.parse("x", &ParseOptions { until: Some("three".into()), ..no_auto() }).expect_err("no stage");
+    let error = dialect
+        .parse("x", &ParseOptions { until: Some("three".into()), ..ParseOptions::default() })
+        .expect_err("no stage");
     assert_eq!(error.kind, ErrorKind::Usage);
     // An empty name names no stage either (docs/api.md).
-    let error = dialect.parse("x", &ParseOptions { until: Some(String::new()), ..no_auto() }).expect_err("no stage");
+    let error = dialect
+        .parse("x", &ParseOptions { until: Some(String::new()), ..ParseOptions::default() })
+        .expect_err("no stage");
     assert_eq!(error.kind, ErrorKind::Usage);
 
     let ambiguous = gencmu::load_dialect_sources(
@@ -195,14 +195,14 @@ fn until_features_and_elision_only() {
         "p.md",
     )
     .unwrap();
-    let result = ambiguous.parse("ab", &no_auto()).unwrap();
+    let result = ambiguous.parse("ab", &ParseOptions::default()).unwrap();
     assert!(!result.ok);
     let error = result.error.as_ref().unwrap();
     assert_eq!(error.kind, ParseErrorKind::Ambiguous);
     assert_eq!(error.reason, Some(gencmu::AmbiguityReason::ElisionOnly));
     assert_eq!(error.readings.len(), 2);
     assert!(result.tree.is_none());
-    let off = ambiguous.parse("ab", &ParseOptions { elision_only: Some(false), ..no_auto() }).unwrap();
+    let off = ambiguous.parse("ab", &ParseOptions { elision_only: Some(false), ..ParseOptions::default() }).unwrap();
     assert!(off.ok);
     assert_eq!(off.stages[0].verdict, Some(Verdict::Resolved));
     let on = gencmu::load_dialect_sources(
@@ -210,54 +210,13 @@ fn until_features_and_elision_only() {
         "p.md",
     )
     .unwrap()
-    .parse("ab", &ParseOptions { elision_only: Some(true), ..no_auto() })
+    .parse("ab", &ParseOptions { elision_only: Some(true), ..ParseOptions::default() })
     .unwrap();
     assert!(!on.ok);
 }
 
 /// A dialect with a `words` stage, where `sa` and `su` are words only
 /// under the feature `sa-su`.
-fn words_dialect() -> gencmu::Dialect {
-    let mut sources = BTreeMap::new();
-    sources.insert(
-        "p.md".to_string(),
-        "```jbogenbau\n%stage sounds\n%include \"s.md\"\n%stage words\n%include \"w.md\"\n```\n".to_string(),
-    );
-    sources.insert(
-        "s.md".to_string(),
-        grammar("%ambiguity-resolution greedy\n%rule text [{c}]\n%rule c \"s\" :: Sound-s | \"a\" :: Sound-a | \"u\" :: Sound-u | \"m\" :: Sound-m | \"i\" :: Sound-i | _White_Space :: Pause := \".\" :- \" \" %emits $"),
-    );
-    sources.insert(
-        "w.md".to_string(),
-        grammar(
-            "%ambiguity-resolution lazy\n%rule text ε | text piece\n%rule piece word | Pause\n%rule word Sound-m Sound-i | sa-su? Sound-s Sound-a | sa-su? Sound-s Sound-u",
-        ),
-    );
-    gencmu::load_dialect_sources(sources, "p.md").unwrap()
-}
-
-#[test]
-fn auto_features_add_sa_su_only_where_needed() {
-    let dialect = words_dialect();
-    let plain = dialect.parse("mi mi", &ParseOptions::default()).unwrap();
-    assert!(plain.ok);
-    let needs = dialect.parse("mi sa", &ParseOptions::default()).unwrap();
-    assert!(needs.ok, "{}", gencmu::to_json(&needs));
-    let off = dialect.parse("mi sa", &no_auto()).unwrap();
-    assert!(!off.ok);
-    assert_eq!(off.error.as_ref().unwrap().kind, ParseErrorKind::Rejected);
-    let explicit = dialect.parse("mi su", &ParseOptions { features: vec!["sa-su".into()], ..no_auto() }).unwrap();
-    assert!(explicit.ok);
-    // Auto features never add `sa-su` once the caller has turned it off.
-    let without = ParseOptions { without_features: vec!["sa-su".into()], ..ParseOptions::default() };
-    assert!(!dialect.parse("mi sa", &without).unwrap().ok);
-    // `until` before `words` skips the probe.
-    let early =
-        dialect.parse("mi sa", &ParseOptions { until: Some("sounds".into()), ..ParseOptions::default() }).unwrap();
-    assert!(early.ok);
-    assert_eq!(early.stages.len(), 1);
-}
-
 #[test]
 fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     let mut sources = BTreeMap::new();
@@ -274,8 +233,8 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
             Feature { name: "w".to_string(), kind: FeatureKind::Warning, default: false },
         ]
     );
-    assert!(!dialect.parse("bcb", &no_auto()).unwrap().ok);
-    let off = ParseOptions { without_features: vec!["f".into()], ..no_auto() };
+    assert!(!dialect.parse("bcb", &ParseOptions::default()).unwrap().ok);
+    let off = ParseOptions { without_features: vec!["f".into()], ..ParseOptions::default() };
     let quiet = dialect.parse("bcb", &off).unwrap();
     assert!(quiet.ok);
     assert!(quiet.warnings.is_empty());
@@ -297,7 +256,8 @@ fn gates_turn_off_and_warnings_follow_the_chosen_tree() {
     assert!(gencmu::to_json(&warned).contains(
         ",\"error\":null,\"warnings\":[{\"stage\":\"main\",\"feature\":\"w\",\"rule\":\"text\",\"span\":[0,3],\"source\":[0,3]},"
     ));
-    let both = ParseOptions { features: vec!["w".into()], without_features: vec!["w".into()], ..no_auto() };
+    let both =
+        ParseOptions { features: vec!["w".into()], without_features: vec!["w".into()], ..ParseOptions::default() };
     assert_eq!(dialect.parse("bcb", &both).expect_err("w both on and off").kind, ErrorKind::Usage);
 
     // A name is a gate or a warning across every stage of a dialect.
@@ -336,7 +296,7 @@ fn erased_parts_are_neither_emitted_nor_counted() {
     );
     sources.insert("h.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text [{U | Pause}]"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-    let result = dialect.parse("ab ba", &no_auto()).unwrap();
+    let result = dialect.parse("ab ba", &ParseOptions::default()).unwrap();
     assert!(result.ok, "{}", gencmu::to_json(&result));
     let output = result.stages[1].output.as_ref().unwrap();
     let heard: Vec<_> = output.iter().map(|token| token.value.as_str()).collect();
@@ -353,7 +313,7 @@ fn erased_parts_are_neither_emitted_nor_counted() {
 fn rejections_say_where_and_what() {
     let dialect =
         gencmu::load_dialect_sources(single("%ambiguity-resolution greedy\n%rule text \"a\" \"b\""), "p.md").unwrap();
-    let result = dialect.parse("a\nc", &no_auto()).unwrap();
+    let result = dialect.parse("a\nc", &ParseOptions::default()).unwrap();
     assert!(!result.ok);
     assert!(result.tree.is_none());
     let error = result.error.unwrap();
@@ -406,11 +366,11 @@ fn a_rejection_writes_a_tested_terminal_with_its_test() {
     );
     sources.insert("g.md".to_string(), block("%rule text LE=\"la\" D D | LE=\"lai\" C | LE<D C> | LE<Tag-x>"));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
-    let error = dialect.parse("lai d", &no_auto()).unwrap().error.expect("a rejection");
+    let error = dialect.parse("lai d", &ParseOptions::default()).unwrap().error.expect("a rejection");
     let expected: Vec<(&str, Vec<String>)> =
         error.expected.iter().map(|expected| (expected.terminal.as_str(), expected.rules.clone())).collect();
     assert_eq!(expected, [("C", vec!["text".to_string()])]);
-    let error = dialect.parse("d", &no_auto()).unwrap().error.expect("a rejection");
+    let error = dialect.parse("d", &ParseOptions::default()).unwrap().error.expect("a rejection");
     let expected: Vec<&str> = error.expected.iter().map(|expected| expected.terminal.as_str()).collect();
     assert_eq!(expected, ["LE<C D>", "LE<Tag-x>", "LE=\"la\"", "LE=\"lai\""]);
     assert!(error.message.ends_with("it expected LE<C D>, LE<Tag-x>, LE=\"la\", LE=\"lai\""), "{}", error.message);
@@ -423,7 +383,7 @@ fn positions_are_code_points() {
         "p.md",
     )
     .unwrap();
-    let result = dialect.parse("😀é\u{10348}", &no_auto()).unwrap();
+    let result = dialect.parse("😀é\u{10348}", &ParseOptions::default()).unwrap();
     assert!(result.ok);
     let output = result.stages[0].output.as_ref().unwrap();
     let sources: Vec<_> = output.iter().map(|token| token.source.clone()).collect();
@@ -444,7 +404,7 @@ fn results_outlive_the_dialect_and_cross_threads() {
         dialect.parse(&text, &ParseOptions::default()).unwrap()
     };
     let json = std::thread::spawn(move || gencmu::to_json(&result)).join().unwrap();
-    assert!(json.starts_with("{\"format\":13,\"ok\":true"));
+    assert!(json.starts_with("{\"format\":14,\"ok\":true"));
 
     let dialect = std::sync::Arc::new(gencmu::load_dialect("notation").unwrap());
     let threads: Vec<_> = (0..4)
@@ -476,7 +436,7 @@ fn a_deep_include_chain_loads_on_an_ordinary_stack() {
         })
         .collect();
     let check = |dialect: gencmu::Dialect| {
-        let result = dialect.parse("aaa", &no_auto()).unwrap();
+        let result = dialect.parse("aaa", &ParseOptions::default()).unwrap();
         assert!(result.ok);
         assert_eq!(gencmu::to_brackets(&result, false), "(a a a)");
     };
@@ -513,7 +473,7 @@ fn a_deep_chain_of_nested_parses_does_not_overflow() {
         let text = "a".repeat(20_000);
         for rules in [recognized, emitted] {
             let dialect = gencmu::load_dialect_sources(single(&rules), "p.md").unwrap();
-            let result = dialect.parse(&text, &no_auto()).unwrap();
+            let result = dialect.parse(&text, &ParseOptions::default()).unwrap();
             assert!(result.ok, "{rules}: {:?}", result.error);
         }
     });
@@ -527,7 +487,7 @@ fn deep_left_recursion_does_not_overflow() {
                 .unwrap();
         let text = "a".repeat(20_000);
         let started = std::time::Instant::now();
-        let result = dialect.parse(&text, &no_auto()).unwrap();
+        let result = dialect.parse(&text, &ParseOptions::default()).unwrap();
         eprintln!("20000 characters through a left-recursive rule in {:?}", started.elapsed());
         assert!(result.ok);
         assert_eq!(result.stages[0].verdict, Some(Verdict::Unique));
@@ -568,7 +528,7 @@ fn deep_tokens_and_ties_do_not_overflow() {
             })
             .collect();
         let started = std::time::Instant::now();
-        let result = dialect.parse_tokens(&tokens, &no_auto()).unwrap();
+        let result = dialect.parse_tokens(&tokens, &ParseOptions::default()).unwrap();
         eprintln!("6000 tokens with 3000 independent ties in {:?}", started.elapsed());
         // A tie is an ambiguous error, whose readings are the two trees.
         assert!(!result.ok);
@@ -599,7 +559,7 @@ fn deep_attachments_do_not_overflow() {
         sources.insert("b.md".to_string(), grammar("%ambiguity-resolution greedy\n%rule text W"));
         let dialect = gencmu::load_dialect_sources(sources, "p.md").unwrap();
         let count = 1500;
-        let result = dialect.parse(&"w".repeat(count), &no_auto()).unwrap();
+        let result = dialect.parse(&"w".repeat(count), &ParseOptions::default()).unwrap();
         assert!(result.ok, "{:?}", result.error);
         let output = result.stages[0].output.as_ref().unwrap();
         assert_eq!(output.len(), 1);
@@ -663,15 +623,16 @@ fn an_and_of_more_than_sixteen_items_is_an_error() {
         gencmu::load_dialect_sources(sources, "p.md").expect("a dialect")
     };
     // The & reads "B" in sixteen ways, a tie, but the stage accepts it.
-    let accepts =
-        |dialect: &gencmu::Dialect, text: &str| dialect.parse(text, &no_auto()).unwrap().stages[0].verdict.is_some();
+    let accepts = |dialect: &gencmu::Dialect, text: &str| {
+        dialect.parse(text, &ParseOptions::default()).unwrap().stages[0].verdict.is_some()
+    };
     let dialect = and(16);
     assert!(accepts(&dialect, "B"), "the cache is used");
     assert!(!accepts(&dialect, "A"), "the cache is used");
     // An & of 17 items is not a DOM the reader could give, so it is a
     // cache miss, and the document itself is read.
     let dialect = and(17);
-    assert!(dialect.parse("A", &no_auto()).unwrap().ok, "the document read instead");
+    assert!(dialect.parse("A", &ParseOptions::default()).unwrap().ok, "the document read instead");
 }
 
 #[test]
@@ -688,7 +649,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
         // 'a', the cache is used.
         let terminal = r#"{"literal":{"string":"a"}}"#;
         let dialect = load(compiled(text, &changed_dom(text, terminal, r#"{"literal":{"string":"b"}}"#)));
-        assert!(dialect.parse("b", &no_auto()).unwrap().ok, "the cache is used");
+        assert!(dialect.parse("b", &ParseOptions::default()).unwrap().ok, "the cache is used");
         // Deeper than a DOM can nest (engine §9), and nearly as deep as the
         // JSON reader allows, but not so deep that the JSON does not parse,
         // as the first entry below is.
@@ -702,7 +663,7 @@ fn a_corrupt_cache_is_a_miss_not_an_abort() {
             "not JSON".to_string(),
         ] {
             let dialect = load(cache);
-            assert!(dialect.parse("a", &no_auto()).unwrap().ok, "read through the notation instead");
+            assert!(dialect.parse("a", &ParseOptions::default()).unwrap().ok, "read through the notation instead");
         }
     });
 }
@@ -726,16 +687,25 @@ fn positions_past_u16_keep_conditions_in_place() {
         // every symbol, not at prediction over an empty span.
         let input = "a".repeat(count);
         let empty = long_production("%rule text \"a\" \"a\" %conditions $.source-text = \"\"", count);
-        assert!(!empty.parse(&input, &no_auto()).unwrap().ok, "{count} symbols: the whole text is not empty");
+        assert!(
+            !empty.parse(&input, &ParseOptions::default()).unwrap().ok,
+            "{count} symbols: the whole text is not empty"
+        );
         let full = long_production("%rule text \"a\" \"a\" %conditions $.source-text ≠ \"\"", count);
-        assert!(full.parse(&input, &no_auto()).unwrap().ok, "{count} symbols: the whole text is the input");
+        assert!(
+            full.parse(&input, &ParseOptions::default()).unwrap().ok,
+            "{count} symbols: the whole text is the input"
+        );
         // A capture after them stands at position `count`, and its
         // condition runs once the capture is read.
         let captured = long_production("%rule text \"a\" \"a\" $c:\"b\" %conditions $c.source-text = \"b\"", count);
-        let result = captured.parse(&format!("{input}b"), &no_auto()).unwrap();
+        let result = captured.parse(&format!("{input}b"), &ParseOptions::default()).unwrap();
         assert!(result.ok, "{count} symbols before the capture");
         let wrong = long_production("%rule text \"a\" \"a\" $c:\"b\" %conditions $c.source-text = \"a\"", count);
-        assert!(!wrong.parse(&format!("{input}b"), &no_auto()).unwrap().ok, "{count} symbols before the capture");
+        assert!(
+            !wrong.parse(&format!("{input}b"), &ParseOptions::default()).unwrap().ok,
+            "{count} symbols before the capture"
+        );
     }
 }
 
@@ -773,7 +743,7 @@ fn input_tokens_get_sources_within_the_text() {
             value: None,
         })
         .collect();
-    let result = dialect.parse_tokens(&tokens, &no_auto()).expect("a parse");
+    let result = dialect.parse_tokens(&tokens, &ParseOptions::default()).expect("a parse");
     assert!(result.ok);
     let input = &result.stages[0].input;
     let ranges: Vec<_> = input.iter().map(|token| (token.span.clone(), token.source.clone())).collect();
@@ -794,8 +764,8 @@ fn a_classifier_error_names_its_entry() {
         tags: ["W".to_string()].into(),
         value: Some("mi".to_string()),
     }];
-    assert!(dialect.parse_tokens(&tokens, &no_auto()).expect("a parse").ok);
-    let on = ParseOptions { features: vec!["f".to_string()], ..no_auto() };
+    assert!(dialect.parse_tokens(&tokens, &ParseOptions::default()).expect("a parse").ok);
+    let on = ParseOptions { features: vec!["f".to_string()], ..ParseOptions::default() };
     let result = dialect.parse_tokens(&tokens, &on).expect("a parse");
     let error = result.error.expect("an error of the grammar");
     assert_eq!(error.kind, ParseErrorKind::Grammar);
@@ -973,7 +943,7 @@ fn exponentially_long_derivations_keep_exact_counts() {
     for depth in [32, 100] {
         // Under late-elision, the empty reading elides nothing and wins.
         let dialect = doubling("late-elision", depth, &format!("ε | r{depth}"));
-        let result = dialect.parse_tokens(&[], &no_auto()).unwrap();
+        let result = dialect.parse_tokens(&[], &ParseOptions::default()).unwrap();
         assert!(result.ok, "{depth}");
         assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
         // Under greedy, the reading that reads A at once beats the one that
@@ -985,7 +955,7 @@ fn exponentially_long_derivations_keep_exact_counts() {
             tags: ["A".to_string()].into_iter().collect(),
             value: None,
         };
-        let result = dialect.parse_tokens(&[a], &no_auto()).unwrap();
+        let result = dialect.parse_tokens(&[a], &ParseOptions::default()).unwrap();
         assert!(result.ok, "{depth}");
         assert_eq!(result.stages[0].verdict, Some(Verdict::Resolved), "{depth}");
         assert_eq!(gencmu::to_brackets(&result, false), "a", "{depth}");
@@ -1009,6 +979,7 @@ fn the_witness_lost_error_writes_its_members_in_order() {
         children: Vec::new(),
     };
     let error = ParseError {
+        feature: None,
         boundary: None,
         kind: ParseErrorKind::Grammar,
         stage: Some("syntax".to_string()),
@@ -1034,13 +1005,20 @@ fn the_witness_lost_error_writes_its_members_in_order() {
     assert_eq!(
         gencmu::to_json(&result),
         concat!(
-            r#"{"format":13,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
+            r#"{"format":14,"ok":false,"stages":[],"tree":null,"error":{"kind":"grammar","stage":"syntax","code":"elision-witness-lost","#,
             r#""message":"the syntax stage could not reconstruct its chosen derivation for elision-only","#,
             r#""chosen":{"kind":"rule","rule":"text","span":[0,0],"source":[0,0],"tags":[],"children":[]},"#,
             r#""completion":[{"terminal":"KU","at":3,"source":[9,9]},{"terminal":"VAU","at":5,"source":[16,16],"value":"vau"}]}}"#
         )
     );
-    let plain = ParseError { code: None, chosen: None, completion: Vec::new(), message: "m".to_string(), ..error };
+    let plain = ParseError {
+        feature: None,
+        code: None,
+        chosen: None,
+        completion: Vec::new(),
+        message: "m".to_string(),
+        ..error
+    };
     let result = ParseResult { error: Some(plain), ..result };
     assert!(gencmu::to_json(&result).ends_with(r#""error":{"kind":"grammar","stage":"syntax","message":"m"}}"#));
 }
@@ -1062,7 +1040,7 @@ fn ranked_groups_grow_with_forest_positions() {
             })
             .collect();
         let (result, stats) =
-            gencmu::tools::with_slot_statistics(|| dialect.parse_tokens(&tokens, &no_auto()).unwrap());
+            gencmu::tools::with_slot_statistics(|| dialect.parse_tokens(&tokens, &ParseOptions::default()).unwrap());
         assert_eq!(result.stages[0].verdict, Some(Verdict::Unique));
         assert_eq!(stats[0].groups, length);
         assert_eq!(stats[0].candidate_edges, length * 2);
@@ -1281,8 +1259,8 @@ fn a_compiled_dom_requires_the_exact_unicode_table_fingerprint() {
         sources.insert("unicode.txt".into(), table.into());
         sources.insert("compiled.json".into(), cache);
         let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("a dialect");
-        assert_eq!(dialect.parse("b", &no_auto()).unwrap().ok, hit);
-        assert_eq!(dialect.parse("a", &no_auto()).unwrap().ok, !hit);
+        assert_eq!(dialect.parse("b", &ParseOptions::default()).unwrap().ok, hit);
+        assert_eq!(dialect.parse("a", &ParseOptions::default()).unwrap().ok, !hit);
     }
 }
 
@@ -1293,6 +1271,6 @@ fn an_include_keeps_its_original_precomposed_path() {
     sources.insert("café.md".into(), document);
     sources.insert("p.md".into(), grammar("%stage main\n%include \"café.md\""));
     let dialect = gencmu::load_dialect_sources(sources, "p.md").expect("the exact include path");
-    assert!(dialect.parse("é", &no_auto()).unwrap().ok);
-    assert!(dialect.parse("e\u{301}", &no_auto()).unwrap().ok);
+    assert!(dialect.parse("é", &ParseOptions::default()).unwrap().ok);
+    assert!(dialect.parse("e\u{301}", &ParseOptions::default()).unwrap().ok);
 }

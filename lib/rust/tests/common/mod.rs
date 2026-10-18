@@ -543,7 +543,6 @@ pub fn case_options(case: &Value) -> gencmu::ParseOptions {
     gencmu::ParseOptions {
         features: feature_names(get("features")),
         without_features: feature_names(get("withoutFeatures")),
-        auto_features: matches!(get("autoFeatures"), Some(Value::Bool(true))),
         until: get("until").and_then(Value::str).map(str::to_string),
         elision_only: match get("elisionOnly") {
             Some(Value::Bool(value)) => Some(*value),
@@ -631,6 +630,7 @@ pub fn error_kind(kind: gencmu::ParseErrorKind) -> &'static str {
         gencmu::ParseErrorKind::Rejected => "rejected",
         gencmu::ParseErrorKind::Ambiguous => "ambiguous",
         gencmu::ParseErrorKind::Grammar => "grammar",
+        gencmu::ParseErrorKind::FeatureConflict => "feature-conflict",
     }
 }
 

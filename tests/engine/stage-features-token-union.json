@@ -1,0 +1,28 @@
+{
+  "description": "Feature conditions union the classes of every input token (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage only\n%features f\n%conditions $.classes = A ∪ B\n%ambiguity-resolution greedy\n%rule text f? A B\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Mixed"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B",
+        "_L"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

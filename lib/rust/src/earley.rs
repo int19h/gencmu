@@ -3760,7 +3760,7 @@ mod tests {
             let (name, grammar) = (string("name"), string("grammar"));
             let dialect = single_document(&grammar);
             let text = format!("{}{}", string("link").repeat(count), string("suffix"));
-            let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+            let options = crate::ParseOptions::default();
             let result = dialect.parse(&text, &options).expect("a result");
             assert!(result.ok, "{name}: {:?}", result.error);
         }
@@ -3791,7 +3791,7 @@ mod tests {
                 each("rule").concat()
             );
             let dialect = single_document(&grammar);
-            let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+            let options = crate::ParseOptions::default();
             reset();
             budget(Work::Visits, most * count);
             let result = dialect.parse(&string("text"), &options).expect("a result");

@@ -92,6 +92,7 @@ pub struct Change {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StageGrammar {
+    pub features: Vec<(Arc<str>, crate::dom::Directive)>,
     pub unicode: Arc<Unicode>,
     pub name: String,
     pub rules: Vec<StitchedRule>,
@@ -226,6 +227,7 @@ pub(crate) fn stitch(
         ranked: Arc::new(crate::ranked::RankedGroups::default()),
         changes: Vec::new(),
         classifiers: Vec::new(),
+        features: Vec::new(),
         implications: Arc::from(Vec::new()),
     };
     let mut implications: Vec<(&Arc<str>, &ImplicationDef)> = Vec::new();
@@ -343,6 +345,7 @@ pub(crate) fn stitch(
         for directive in &dom.directives {
             let here = |message: String| located(message, document, directive.at);
             match directive.name.as_str() {
+                "features" => grammar.features.push((document.clone(), directive.clone())),
                 "ambiguity-resolution" => {
                     if resolution.is_some() {
                         return Err(here(format!("stage {stage} has two %ambiguity-resolution directives")));
@@ -378,6 +381,26 @@ pub(crate) fn stitch(
         implications.extend(dom.implications.iter().map(|implication| (document, implication)));
     }
     constants.bind()?;
+    for (document, directive) in &mut grammar.features {
+        if let Some(conditions) = &mut directive.conditions {
+            for condition in conditions {
+                let mut references = Vec::new();
+                crate::dom::constants_in_cond(condition, &mut references);
+                for (name, at) in references {
+                    if crate::dom::engine_scalar(name).is_none() && !constants.values.contains_key(name) {
+                        return Err(located(format!("${name} is not defined in stage {stage}"), document, at));
+                    }
+                }
+                if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| constants.ty(name)) {
+                    return Err(fault_error(fault, document, directive.at));
+                }
+                constants.substitute_cond(condition);
+                if let Some(fault) = crate::dom::cond_type_fault(condition, &|_| Type::Any) {
+                    return Err(fault_error(fault, document, directive.at));
+                }
+            }
+        }
+    }
     constants.resolve(&mut grammar, &users, &mut deferred)?;
     constants.evaluate_tests(&mut grammar)?;
     grammar.implications = implications
@@ -1813,7 +1836,12 @@ mod tests {
                 erased: false,
                 at: (0, 0),
             };
-            let directive = Directive { name: "ambiguity-resolution".into(), args: vec!["greedy".into()], at: (0, 0) };
+            let directive = Directive {
+                conditions: None,
+                name: "ambiguity-resolution".into(),
+                args: vec!["greedy".into()],
+                at: (0, 0),
+            };
             let dom = Dom {
                 rules: vec![rule],
                 directives: vec![directive],
@@ -1855,6 +1883,7 @@ mod tests {
             let entries =
                 (0..n).map(|index| entry(index, true)).chain((0..n).map(|index| entry(index, false))).collect();
             StageGrammar {
+                features: Vec::new(),
                 unicode: std::sync::Arc::new(
                     crate::unicode::Unicode::parse(crate::loader::bundled("unicode.txt").unwrap()).unwrap(),
                 ),

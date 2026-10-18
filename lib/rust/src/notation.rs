@@ -309,7 +309,22 @@ impl<'a> Reader<'a> {
         if !valid {
             return Err(self.error(node, "directive has the wrong operands"));
         }
-        Ok(Directive { name: name.into(), args, at: self.at(token) })
+        let conditions = match Self::rules(node, "conditions-clause").next() {
+            Some(clause) => {
+                if name != "features" {
+                    return Err(self.error(node, "only %features accepts conditions"));
+                }
+                let conditions = self
+                    .some(clause, "implication", 1)?
+                    .into_iter()
+                    .map(|item| self.implication(item))
+                    .collect::<R<Vec<_>>>()?;
+                crate::features::problem(&conditions).map_err(|message| self.error(node, &message))?;
+                Some(conditions)
+            }
+            None => None,
+        };
+        Ok(Directive { name: name.into(), args, conditions, at: self.at(token) })
     }
 
     fn rule(&self, node: &'a Node) -> R<RuleDef> {

@@ -276,6 +276,7 @@ impl Attachments {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Directive {
+    pub conditions: Option<Vec<Cond>>,
     pub name: String,
     pub args: Vec<String>,
     pub at: (usize, usize),
@@ -319,6 +320,10 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
         .iter()
         .map(|directive| {
             Ok(Directive {
+                conditions: directive
+                    .get("conditions")
+                    .map(|_| array(directive, "conditions")?.iter().map(cond_from_json).collect::<R<Vec<_>>>())
+                    .transpose()?,
                 name: string(directive, "name")?,
                 args: array(directive, "args")?
                     .iter()
@@ -328,6 +333,11 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
             })
         })
         .collect::<R<Vec<_>>>()?;
+    for directive in &directives {
+        if let Some(conditions) = &directive.conditions {
+            crate::features::problem(conditions)?;
+        }
+    }
     let constants = array(value, "constants")?
         .iter()
         .map(|constant| {
@@ -917,6 +927,16 @@ pub(crate) fn dom_to_json(dom: &Dom) -> String {
             write_str(&mut out, arg);
         }
         out.push(']');
+        if let Some(conditions) = &directive.conditions {
+            out.push_str(",\"conditions\":[");
+            for (index, condition) in conditions.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                write_cond(&mut out, condition);
+            }
+            out.push(']');
+        }
         out.push_str(&format!(",\"at\":[{},{}]}}", directive.at.0, directive.at.1));
     }
     out.push_str("],\"constants\":[");

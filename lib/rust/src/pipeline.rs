@@ -188,7 +188,10 @@ impl Splicer<'_> {
                     self.open_run = false;
                     frames.push(Frame::new(Arc::from(target.as_str()), included));
                 }
-                Item::Directive(directive) if directive.name == "features" => {
+                Item::Directive(directive) if directive.name == "features" && self.selected.is_none() => {
+                    if directive.conditions.is_some() {
+                        return Err(here("global features cannot have conditions".into()));
+                    }
                     for name in &directive.args {
                         work::count(Work::Spliced, 1);
                         if self.feature_set.insert(name.clone()) {
@@ -318,7 +321,8 @@ mod tests {
     /// and the features are checked by sets, not scans.
     #[test]
     fn a_long_include_chain_splices_in_linear_work() {
-        let directive = |name: &str, args: Vec<String>| Directive { name: name.into(), args, at: (1, 1) };
+        let directive =
+            |name: &str, args: Vec<String>| Directive { conditions: None, name: name.into(), args, at: (1, 1) };
         let held = move |n: usize| {
             let mut documents: HashMap<String, Arc<Dom>> = (0..n - 1)
                 .map(|index| {

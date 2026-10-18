@@ -959,7 +959,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             ("p.md".to_string(), "```jbogenbau\n%stage main\n%include \"main.md\"\n```\n".to_string()),
         ];
         let dialect = gencmu::load_dialect_sources(sources, "p.md").map_err(|error| format!("load: {error}"))?;
-        let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+        let options = gencmu::ParseOptions::default();
         let result = dialect.parse_tokens(&[], &options).map_err(|error| format!("parse: {error}"))?;
         return match result.error {
             Some(error) if error.kind == gencmu::ParseErrorKind::Grammar => Ok(false),
@@ -1048,7 +1048,7 @@ fn check(seed: u64, findings: &mut BTreeMap<&'static str, usize>) -> Result<bool
             value: Some(if sounds[index] { "x" } else { "y" }.to_string()),
         })
         .collect();
-    let options = gencmu::ParseOptions { auto_features: false, ..Default::default() };
+    let options = gencmu::ParseOptions::default();
     let result = dialect.parse_tokens(&input, &options).map_err(|error| format!("parse: {error}"))?;
     let json = gencmu::to_json(&result);
     let actual = parse_json(&json).map_err(|error| format!("not JSON: {error}"))?;

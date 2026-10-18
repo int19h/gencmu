@@ -1145,7 +1145,7 @@ mod tests {
             .chain((0..n).map(|_| token("b", vec!["B".to_string()])))
             .chain([token("c", vec!["C".to_string()])])
             .collect();
-        let options = crate::ParseOptions { auto_features: false, ..crate::ParseOptions::default() };
+        let options = crate::ParseOptions::default();
         // The token a reads as any of the n starts, so the stage ends in a
         // tie. The query runs before that, which is the work counted here.
         let result = dialect.parse_tokens(&tokens, &options).expect("a result");

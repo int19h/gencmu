@@ -217,8 +217,7 @@ impl Context {
             #[cfg(test)]
             LOCATION_RECOVERIES.with(|count| count.set(count.get() + 1));
             let grammar = grammar_text(text)?;
-            let options =
-                ParseOptions { until: Some("lexical".into()), auto_features: false, ..ParseOptions::default() };
+            let options = ParseOptions { until: Some("lexical".into()), ..ParseOptions::default() };
             let result = self.notation.parse_chars(grammar.chars.clone(), &options)?;
             if let Some(tokens) = result.stages.last().and_then(|stage| stage.output.as_ref()) {
                 crate::ranked::restore_locations(&mut dom, tokens, &|at| grammar.position(at));
@@ -235,7 +234,7 @@ pub(crate) fn read_document(notation: &Dialect, text: &str) -> Result<Dom, Error
 }
 fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom, Error> {
     let grammar = grammar_text(text)?;
-    let options = ParseOptions { auto_features: false, ..ParseOptions::default() };
+    let options = ParseOptions::default();
     let result = notation.parse_chars(grammar.chars.clone(), &options)?;
     let syntax_input = result.stages.iter().find(|stage| stage.name == "syntax").map(|stage| stage.input.as_slice());
     if let Some(token) = syntax_input.and_then(|tokens| tokens.iter().find(|token| token.value == "%prefer")) {

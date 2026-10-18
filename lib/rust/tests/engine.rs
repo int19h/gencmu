@@ -349,7 +349,6 @@ fn lowering_error(sources: &[(&str, &str)], features: &[&str]) -> String {
     };
     let options = gencmu::ParseOptions {
         features: features.iter().map(|feature| feature.to_string()).collect(),
-        auto_features: false,
         ..Default::default()
     };
     let result = dialect.parse_tokens(&[token], &options).expect("a result");

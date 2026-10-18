@@ -346,6 +346,8 @@ pub struct Stage {
 /// Why a text did not parse.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParseErrorKind {
+    /// A conditional declaration requires a caller-disabled feature.
+    FeatureConflict,
     /// A stage's grammar does not accept its input.
     Rejected,
     /// A stage has two or more best readings, or the `elision-only` check
@@ -417,6 +419,8 @@ pub struct BoundaryFailure {
 /// The error of a result whose `ok` is false.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// The required conditional feature, for FeatureConflict.
+    pub feature: Option<String>,
     /// The failed neighbor condition, when one explains this rejection.
     pub boundary: Option<BoundaryFailure>,
     /// Why the text did not parse.
