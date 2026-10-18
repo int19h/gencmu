@@ -5890,3 +5890,10 @@ i216.syntax.family-4.jacu
 i216.syntax.family-4.no-outer
 i216.syntax.family-4.forced-inner
 i216.syntax.twin-terminated
+i216.syntax.term-fe
+i216.syntax.term-pu
+i216.syntax.term-na-ku
+i216.syntax.term-fe-mi
+i216.syntax.term-main-cu
+i216.syntax.free-span
+i216.syntax.free-span-toi

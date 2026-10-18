@@ -663,9 +663,11 @@ The experimental dialect redefines `selbri-4` and `operator`, with the same rank
 
 The dialect also states three conventions as rules:
 
-- A complete sumti connection takes priority over a term or bridi-tail connection.
+- A sumti connection takes priority over a term connection. After span ranking, sumti and term connections take priority over bridi-tail connections. This includes terms marked with `fe` or `pu`, and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
+
+A free modifier's span is settled before the connection preference, as in camxes-exp. Its terminator can be omitted. The [experimental syntax document](../grammars/syntax/experimental.md) gives examples with omitted and written `toi`.
 
 The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
 

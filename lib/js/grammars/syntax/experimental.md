@@ -47,16 +47,19 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 `free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
 
-The `bridi-tail-connective` rule carries `fewest`, which prefers fewer nonempty occurrences. A sumti connection avoids a bridi-tail link, so it wins before late elision when both readings complete. A bridi-tail link remains available where no sumti connection completes.
+The `bridi-tail-connective` rule carries `fewest`, which prefers fewer nonempty occurrences. After span ranking, this favors sumti and term connections over readings with more bridi-tail links. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. A bridi-tail link remains available where no preferred reading completes.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
+- A free modifier's span is settled before the connection preference. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). A complete sumti connection also takes priority over a bridi-tail connection.
+- A connection that can be a sumti connection is one ("Terms"). After span ranking, sumti and term connections take priority over bridi-tail connections.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
+
+The span preference follows camxes-exp. In `mi nelci le nu broda to brodi .e le nu brode melbi`, the parenthesis contains `brodi .e le nu brode melbi`. The `.e` connects bridi-tails inside that parenthesis. Written TOI ends it in `mi nelci le nu broda to brodi toi .e le nu brode melbi`, so `.e` joins the two outer descriptions.
 
 The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
@@ -966,7 +969,9 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-The `fewest` flag compares complete readings and prefers fewer bridi-tail links before elision ranking. Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+The `fewest` flag compares complete readings after span ranking and prefers fewer bridi-tail links before elision ranking. It favors sumti and term connections, including terms marked with `fe` or `pu`, and bare `na ku` terms. Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+
+In `lo ka smuni .e fe lo ka pemci cu melbi`, this layer connects terms before the main selbri `melbi`. camxes-exp keeps the connection inside the first abstraction and reads the whole text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading instead puts `cu` inside an abstraction.
 
 The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
 

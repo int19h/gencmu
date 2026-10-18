@@ -158,15 +158,17 @@ camxes-exp is the baseline of this dialect, not its limit. gencmu considers ever
 
 A PEG has ordered choice. Ordered choice keeps the first matching alternative. The alternatives have a fixed order.
 
-The syntax layer preserves these camxes-exp preferences among complete readings:
+The syntax layer preserves these camxes-exp preferences among complete readings, except where the departures below apply:
 
-- A free modifier or a tense takes the earliest and longest span (`leftmost-longest`, [parse preferences](../syntax/experimental.md#choosing-among-parses)).
+- A free modifier or a tense takes the earliest and longest span before connection ranking (`leftmost-longest`, [parse preferences](../syntax/experimental.md#choosing-among-parses)).
 - A connective directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
-- A sumti connection takes priority over a term or bridi-tail connection ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
+- After span ranking, sumti and term connections take priority over bridi-tail connections ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)). A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
 - A `ke` group directly after a final `gi'e`, or after `gi'e` and a tag such as `ba`, belongs to the bridi-tail connective ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - Without written BOI, a number consumes every following number part, and a letter string consumes every following letter ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
 - A subscript after another subscript nests ([free modifiers](../syntax/experimental.md#free-modifiers-vocatives-and-indicators)).
+
+A free modifier's span is settled before the connection preference, as in camxes-exp. Its terminator can be omitted. In `mi nelci le nu broda to brodi .e le nu brode melbi`, the parenthesis contains `brodi .e le nu brode melbi`. The `.e` connects bridi-tails inside that parenthesis. With written `toi`, `mi nelci le nu broda to brodi toi .e le nu brode melbi` instead joins the two outer descriptions.
 
 Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection. This layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`.
 
@@ -199,6 +201,8 @@ The examples below compare this layer's explicit preferences with camxes-exp. So
 `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
 In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
+
+In `lo ka smuni .e fe lo ka pemci cu melbi`, `.e` joins terms before the main selbri `melbi`. camxes-exp instead keeps the connection inside the first abstraction and reads the text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading puts `cu` inside an abstraction.
 
 Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one, as in `mi nelci lo nu mi djica gy ku .e lo nu do klama`. Only the meaning separates the two readings, so the grammar does not choose by meaning.
 
