@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 32
+FORMAT = 33
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -486,9 +486,13 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 return "split has an empty delimiter"
             pending.append(("recipe-method" if recipe else "term", node["receiver"], below, False, False))
             for arg in node["args"]:
-                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}):
+                if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}, {"integer"}):
                     key = next(iter(arg))
-                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
+                    if key == "integer":
+                        if node["method"] != "ngrams" or not isinstance(arg[key], str) or re.fullmatch(r"[1-9][0-9]*", arg[key]) is None:
+                            return "a malformed integer argument"
+                        continue
+                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("matches", "begins", "followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))
@@ -554,14 +558,14 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if keys != {"if", "then"}:
                 return "a malformed guarded term"
             pending.append(("condition", node["if"], below, False, False))
-            pending.append(("tags", node["then"], below, False, False))
+            pending.append(("term", node["then"], below, False, False))
         elif not (keys == {"emptySet"} and node["emptySet"] is True):
             return "a malformed term"
     return None
 
 
 def input_conditions_problem(conditions):
-    allowed = {"tags", "classes", "value", "image", "source-text", "decomposed-source-text", "first-token", "tokens-after-first", "last-token", "split"}
+    allowed = {"tags", "classes", "value", "image", "source-text", "decomposed-source-text", "first-token", "tokens-after-first", "last-token", "split", "ngrams"}
     pending = list(conditions)
     while pending:
         node = pending.pop()

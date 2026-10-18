@@ -18,6 +18,7 @@ from ._tags import (
     difference,
     intersection,
     split_string,
+    ngrams,
 )
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
@@ -463,6 +464,9 @@ class _Constants:
         if "difference" in term:
             left = _set((yield self._closed(path, term["difference"][0], item)))
             return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
+        if term.get("method") == "ngrams":
+            text = yield self._closed(path, term["receiver"], item)
+            return ngrams(text, term["args"][0]["integer"])
         if term.get("method") == "split":
             # Left to right, as a parse evaluates a term (engine §10).
             text, delimiter = term["receiver"], term["args"][0]
@@ -647,7 +651,7 @@ class _Constants:
 
 
 def _set(value: Any) -> Any:
-    return value if isinstance(value, frozenset) else EMPTY
+    return value if isinstance(value, frozenset) else frozenset((value,)) if isinstance(value, str) else EMPTY
 
 
 def _string(value: Any) -> str:
@@ -1569,6 +1573,23 @@ class _Lowerer:
                     self.add(lhs, expansion, alt)
                 self.flush(expansions)
             self.current_alt = None
+        terminals = set()
+        pending = [p for rule in self.grammar.rules.values() for alt in rule.alternatives for p in (alt.conditions, alt.tags, alt.rule_tags, alt.emit)]
+        while pending:
+            part = pending.pop()
+            if isinstance(part, (list, tuple)):
+                pending.extend(part)
+            elif isinstance(part, dict):
+                if part.get("method") in ("matches", "begins"):
+                    terminals.update(arg["terminal"] for arg in part["args"] if "terminal" in arg)
+                pending.extend(part.values())
+        for terminal in sorted(terminals):
+            name = "\0query:" + terminal
+            lhs = len(self.rule_names)
+            self.rule_names.append(name)
+            self.rule_display.append(name)
+            self.rule_ids[name] = lhs
+            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(-1,), logical=(("symbol", 0),)))
         if not self.validation:
             self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]

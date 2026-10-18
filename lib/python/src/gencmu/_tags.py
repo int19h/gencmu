@@ -66,6 +66,13 @@ def sorted_tags(tags: Iterable[str]) -> list[str]:
     return sorted(tags)
 
 
+def ngrams(text: str, digits: str) -> frozenset[str]:
+    if len(digits) > len(str(len(text))):
+        return frozenset()
+    n = int(digits)
+    return frozenset(text[i:i+n] for i in range(len(text) - n + 1))
+
+
 def split_string(string: str, delimiter: str) -> Tags:
     """The value of string.split(delimiter) (engine §10): the pieces
     between the occurrences of the delimiter, found from the left without

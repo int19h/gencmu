@@ -40,13 +40,13 @@ _MAPPED = frozenset("""directive argument-word argument-string argument-tag argu
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
-union intersection term-atom tag-run empty-set capture-reference range constant-definition constant-definer
+union intersection term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
-_ATOMS = frozenset(("string", "tag", "tag-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal"))
+_ATOMS = frozenset(("string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal"))
 _ITEMS = frozenset(("directive", "rule", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
@@ -847,26 +847,33 @@ class DomBuilder:
         receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"), True)
         for selector in self.some(node, "method-selector"):
             name = self.token_value(self.token(self.only(selector, "method-name")))
-            if self.closed_for and name != "split":
+            if self.closed_for and name not in ("split", "ngrams"):
                 raise self.fail(node, f"{self.closed_for} requires a closed term")
             if not self.recipe_context and name in ("verbatim-text", "emitted"):
                 raise self.fail(node, "this method is legal only in recipes")
             arguments = self.one(selector, "arguments")
             args = []
             for part in self.some(arguments, "argument") if arguments else []:
-                arg = yield self._term(self.only(part, "term"), True)
+                integer = self.one(part, "integer")
+                if integer is not None:
+                    digits = self.token_value(self.token(integer))
+                    if re.fullmatch(r"[1-9][0-9]*", digits) is None:
+                        raise self.fail(integer, "an integer argument is positive without leading zeros")
+                    arg = {"integer": digits}
+                else:
+                    arg = yield self._term(self.only(part, "term"), True)
                 if name == "classify" and "rule" in arg:
                     if CLASSIFIER_NAME.fullmatch(arg["rule"]) is None:
                         raise self.fail(node, "a classifier name must start with a lowercase letter")
                     arg = {"classifier": arg["rule"]}
-                if name in ("followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
+                if name in ("matches", "begins", "followed-by", "preceded-by") and "tag" in arg and not arg["tag"].startswith("_"):
                     arg = {"terminal": arg["tag"]}
                 from ._boundary import Located
                 arg = Located(arg, self.position(part))
                 args.append(arg)
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
-                if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
+                if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             if self.feature_context:
                 problem = method_shape_problem(name, receiver, args, self.recipe_context)
@@ -887,7 +894,7 @@ class DomBuilder:
             self.boundary_nodes[id(receiver)] = node
             if arguments is not None:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
-                if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
+                if any(separator != ("|" if name in ("matches", "begins", "followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
             kind, problem = term_type(receiver, memo=self.types)
             if problem and not self.feature_context:
@@ -1055,7 +1062,9 @@ class DomBuilder:
             guarded = yield self._term(last)
             kind, problem = term_type(guarded, memo=self.types)
             if problem is None:
-                problem = expected_problem(kind, "tags")  # type: ignore[arg-type]
+                _, problem = joined_type([kind], "⟹")
+                if kind == "pattern":
+                    problem = "a guarded term requires a set"
             if problem is not None and not self.feature_context:
                 raise self.fail(guards[-1], problem)
             for condition in reversed(conditions):
@@ -1115,9 +1124,9 @@ class DomBuilder:
             raise self.fail(node, "a lowercase name is legal only as a rule or classifier argument")
         if rule == "range":
             raise self.fail(node, "a range is a terminal, not a term")
-        if rule == "tag-run":
+        if rule in ("tag-run", "string-run"):
             self.tag_run_placement(node)
-            return {"union": [self.value(tag) for tag in self.some(node, "tag", 2)]}
+            return {"union": [self.value(tag) for tag in self.some(node, "string" if rule == "string-run" else "tag", 2)]}
         if rule == "empty-set":
             return {"emptySet": True}
         if rule == "capture-reference":
