@@ -4,6 +4,7 @@
 
 use crate::patterns::{Machine, Pattern};
 use std::cell::{Cell, RefCell};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -666,7 +667,82 @@ type Place = (u32, usize, usize);
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
-type ObservedToken = (SetId, String, String, String, usize, usize);
+type ObservedToken = (SetId, Box<str>, Box<str>, Box<str>, usize, usize);
+
+/// The contents of short spans, each numbered once, so that a memo key
+/// holds a number and a lookup copies no text (§4). A content is the
+/// original text over the source of the span's tokens, and what a nested
+/// parse can observe of each token, its source counted from that text.
+#[derive(Debug, Default)]
+struct Contents {
+    /// The newest content with each hash.
+    heads: FxMap<u64, u32>,
+    /// For each content, the one before it with the same hash, or
+    /// `u32::MAX`.
+    next: Vec<u32>,
+    texts: Vec<Box<[char]>>,
+    tokens: Vec<Box<[ObservedToken]>>,
+}
+
+impl Contents {
+    /// The number of the content of `span`, whose sources lie in `text`,
+    /// which starts at `low` in the original text.
+    fn number(&mut self, text: &[char], span: &[Tok], low: usize) -> u32 {
+        let mut hasher = crate::fxhash::FxHasher::default();
+        text.hash(&mut hasher);
+        for token in span {
+            (token.tags, &token.text, &token.value, &token.image, token.source.0 - low, token.source.1 - low)
+                .hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+        let head = self.heads.get(&hash).copied().unwrap_or(u32::MAX);
+        let mut at = head;
+        while at != u32::MAX {
+            let observed = &self.tokens[at as usize];
+            if *self.texts[at as usize] == *text
+                && observed.len() == span.len()
+                && observed.iter().zip(span).all(|(seen, token)| {
+                    seen.0 == token.tags
+                        && *seen.1 == *token.text
+                        && *seen.2 == *token.value
+                        && *seen.3 == *token.image
+                        && seen.4 == token.source.0 - low
+                        && seen.5 == token.source.1 - low
+                })
+            {
+                return at;
+            }
+            at = self.next[at as usize];
+        }
+        let number = self.texts.len() as u32;
+        self.texts.push(text.into());
+        self.tokens.push(
+            span.iter()
+                .map(|token| {
+                    let (from, to) = token.source;
+                    (
+                        token.tags,
+                        token.text.as_str().into(),
+                        token.value.as_str().into(),
+                        token.image.as_str().into(),
+                        from - low,
+                        to - low,
+                    )
+                })
+                .collect(),
+        );
+        self.next.push(head);
+        self.heads.insert(hash, number);
+        number
+    }
+
+    fn clear(&mut self) {
+        self.heads.clear();
+        self.next.clear();
+        self.texts.clear();
+        self.tokens.clear();
+    }
+}
 
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -675,7 +751,8 @@ enum NestedKey {
     /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
     /// `text` of a part of the span reads: everything its parse can observe.
-    Content(u32, String, Vec<ObservedToken>),
+    /// The content is a number of the parse's `Contents`.
+    Content(u32, u32),
     /// A long span: its place.
     Place(Place),
     Aligned {
@@ -704,6 +781,8 @@ pub(crate) struct Shared<'a> {
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, (bool, SetId)>,
+    /// The contents that the keys of the memo and of `begins` number.
+    contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
     qualified: FxMap<(Place, Vec<Place>, Option<u32>), Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
@@ -727,6 +806,7 @@ impl<'a> Shared<'a> {
             unicode,
             text,
             memo: FxMap::default(),
+            contents: Contents::default(),
             qualified: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
@@ -741,6 +821,7 @@ impl<'a> Shared<'a> {
         self.emission_boundaries.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
+        self.contents.clear();
         self.qualified.clear();
         self.begins.clear();
         self.running.clear();
@@ -2813,7 +2894,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The key a nested parse of `tokens[start..end]` as `rule` is
     /// remembered by: its content if the span is short, else its place.
-    fn nested_key(&self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
+    fn nested_key(&mut self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
@@ -2821,14 +2902,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let span = &tokens[start..end];
         let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
         let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
-        let observed = span
-            .iter()
-            .map(|token| {
-                let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.value.clone(), token.image.clone(), from - low, to - low)
-            })
-            .collect();
-        NestedKey::Content(rule, self.shared.source_text(low, high), observed)
+        let shared = &mut *self.shared;
+        NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
     }
 
     /// The proof trees of a nested parse's chart over `tokens`, its span.
@@ -2995,11 +3070,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        let mut active: Vec<_> = self.shared.running.iter().copied().collect();
-        active.sort_unstable();
         let key = match aligned {
             Some(a) => NestedKey::Aligned {
-                active,
+                active: {
+                    let mut active: Vec<_> = self.shared.running.iter().copied().collect();
+                    active.sort_unstable();
+                    active
+                },
                 place: (rule, base + start, base + end),
                 match_end: a.match_end,
                 fixed_end: a.fixed_end,
