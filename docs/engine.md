@@ -2151,7 +2151,7 @@ An implied image evaluates the selected value recipe as a string for image use. 
 
 A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
 
-Recipes are the one exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
+Recipes are also an exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
 
 Input methods read the original projected span. `.emitted` reads the string walk with constituent recipes, before any override on the current item. It can read a captured constituent that has no `%emits`. An erased part's `.emitted` gives empty strings on both channels.
 

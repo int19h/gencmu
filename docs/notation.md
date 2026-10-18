@@ -933,7 +933,7 @@ At an inner constituent, only the alternative, rule, and concatenation rows appl
 
 Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
-Recipes are the one exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
+Recipes are also an exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 
