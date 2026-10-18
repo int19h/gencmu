@@ -212,7 +212,7 @@ Each finished quote emits one token of its opening class. A delimited quote take
 
 An ordinary word can have a normalized image, such as `sIndarin` for `SINdarin`. Its quoted spelling remains `zo SINdarin`.
 
-The Magic Words model treats ordinary hesitation as whitespace. It contributes no word or normalized value. A quote image preserves that whitespace's written spelling, such as `.y.`.
+The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. Ordinary hesitation contributes no word or normalized value. A quote image preserves that whitespace's written spelling, such as `.y.`.
 
 An empty zoi body uses empty concatenation.
 
@@ -506,7 +506,9 @@ The count composes by addition over the packed forest, the shared graph of all p
 
 The syntax grammars declare `late-elision` ("Syntax conventions" below).
 
-The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages use `lazy`. The word forms divide a run in one way only, so the choice matters only in the words stage. In that stage, a magic word acts on what exists when it is read.
+The forms stage divides the text into words. The words stage applies the magic words, such as `si`, which act on other words. Both stages use `lazy`. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below. In the words stage, a magic word acts on what exists when it is read.
+
+A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
 
 ### Rule flags
 

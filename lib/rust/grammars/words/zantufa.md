@@ -15,14 +15,14 @@ Zantufa 1.9999 reads the working word forms of the BPFK, the Lojban language pla
 - It reads `ie'o` as hesitation, as it reads `y`.
 - It divides the letters after `ra'oi` into the rafsi or gismu form that `ra'oi` quotes.
 
-The rule `m` has the name of the Zantufa rule that it translates, and its comment gives that rule, as in bpfk.md. Where another rule states a Zantufa rule, its comment gives that rule. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
+The rule names follow Zantufa, while their comments state its morphology constraints, as in bpfk.md. The rest are rules of [forms.md](forms.md) that this document changes, or rules that support them. [The notation document](../../docs/notation.md) explains the notation.
 
 ## The pair mz
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus. The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m              (* m <- [mM] !h !glide !m *)
+%redefine-rule m              (* The consonant m forbids an apostrophe, glide, and another m. It permits z. *)
   $c:"m"
 %conditions
   ¬$c.following-tokens.begins(h),
@@ -40,7 +40,8 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 ```jbogenbau
 %redefine-rule source-word
-  (* spaces <- !Y initial_spaces;  initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF;  Y <- &cmavo ( y+ / i e h o ) &post_word *)
+  (* The lexicon classifies Y forms as hesitation, including ie'o. Other particles remain words.
+     *)
   | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
   | $y:cmavo-shape :: Hesitation ∪ $y.tags
   | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
@@ -57,7 +58,9 @@ Zantufa's Y is `y` and `ie'o`, and its `spaces` read both as space. So `ie'o` is
 
 ## The ra'oi quote
 
-`ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The stage tries the forms in the order of Zantufa: `y_rafsi / long_rafsi / y_less_rafsi / gismu`. The forms decide with their stress. So `ra'oi broda` quotes the gismu `broda`, because its `o` is stressed before the pause, but `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
+`ra'oi` quotes a rafsi or gismu form from the letters after it, and the stage reads the rest of the run as words. The quote takes the longest rafsi or gismu form that permits a complete reading. The `leftmost-longest` flag states this preference. Stress separates a complete gismu from a rafsi of the same letters.
+
+The text `ra'oi broda` quotes the gismu `broda` because its `o` is stressed before the pause. The text `ra'oi brodami` quotes the rafsi `brod` and leaves `a` and `mi`. The form can follow `ra'oi` directly, as in `ra'oibroda`, or after a pause and any hesitation, as in `ra'oi .y. broda`. A run can hold several such quotes, as `ra'oi brodyra'oibroda` does.
 
 The stage hands the form on as one token, tagged `Rafsi-Form`, and the words stage makes the quote. A token is one unit that a stage reads or emits. A tag marks a token by an identifier. Where no such form follows, `ra'oi` is an ordinary word, as in Zantufa's `si_word`, so `ra'oi bu` is a letter word. The words stage rejects `ra'oi do`.
 
@@ -70,10 +73,12 @@ A word of LU, TO or LUhEI opens a text of its own. The hesitation after such a w
 
 This document extends the rule `word-run` of forms.md to read a run in which a form follows `ra'oi`, as in `mira'oibroda`. So `unsegmentable-run` of forms.md never takes such a run.
 
-The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join. The first of them follows from the second, but it lets the parser drop a join early, as forms.md explains.
+The redefined `run-words` keeps the join conditions of [forms.md](forms.md). The condition that requires a joining tag follows from the condition that lists permitted tag combinations. The separate tag test lets the parser drop a join early, as forms.md explains.
 
 ```jbogenbau
 %redefine-rule runs
+  (* Preserve quote state across pauses and hesitation. A quoted form belongs to rahoi-rest, not
+     an ordinary run. *)
   | $r:run :: $r.tags
   | $p:runs pause-token $r:run :: $r.tags ∪ (RAhOI ⊆ $p.tags ∧ $r.matches(only-hesitation) ⟹ RAhOI)
   | $q:runs pause-token $s:rahoi-rest :: $s.tags
@@ -85,6 +90,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   run-words<RAhOI> $s:rahoi-rest :: $s.tags
 
 %redefine-rule run-words
+  (* Keep the inherited word joins, stress boundaries, and hesitation spacing. A pending ra'oi
+     reserves its quoted form. *)
   | $f:first-word :: $f.tags ∪ (Hesitation ⊆ $f.tags ⟹ Spacing)
   | $r:run-words $v:later-word
       :: $v.tags ∪ (Uncounted ⊆ $v.tags ⟹ Open-Stress ∩ $r.tags)
@@ -112,6 +119,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   Open-Stress ⊈ $r.tags ∨ Uncounted ⊆ $v.tags
 
 %rule rahoi-rest
+  (* Read a quoted form and its continuation. Pass quote state through pure hesitation and
+     repeated quotes. *)
   | $p:rahoi-form :: ∅
   | rahoi-form $w:rahoi-tail :: $w.tags
   | rahoi-form $v:rahoi-tail $s:rahoi-rest :: $s.tags
@@ -121,7 +130,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $h.matches(only-hesitation)
 
 %rule rahoi-tail
-  (* the words after a ra'oi form in its run: the first of them does not begin the run *)
+  (* The first word after a quoted form is not run-initial. Keep quote state, opener spacing,
+     and the existing word joins. *)
   | $v:later-word :: $v.tags
   | $r:rahoi-tail $v:later-word :: $v.tags
   | $s:rahoi-tail $y:joined-hesitation :: $y.tags
@@ -135,13 +145,13 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   Opener-Space ⊆ $o.tags ∨ $o.classes ∩ $TEXT-OPENERS ≠ ∅
 
 %rule space-hesitation
-  (* initial_spaces <- (space_char / !ybu Y)+ EOF? / EOF: after space, every Y word is space *)
+  (* A hesitation after space counts as space. Before BU, the split rules reserve the final y for its letter word. *)
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule opener-space
-  (* a hesitation after a text opener, or after such a hesitation: space if that word opens a text *)
+  (* A hesitation after a text opener counts as space where that opener opens a text. The tag carries through following hesitation. *)
   $w:source-word<Hesitation>
 %emits
   $ :: $w.tags ∪ Opener-Space ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
@@ -150,7 +160,8 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   ordinary-space-piece | split-later-y
 
 %rule ordinary-space-piece
-  (* the next piece of one run of y letters inside space *)
+  (* Reserve the final y before BU for the letter word, rather than emitting the whole run as
+     space. *)
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)
@@ -158,21 +169,13 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
   $ :: $w.tags ∪ Spacing ∪ (¬$w.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 
 %rule only-hesitation
-  (* spaces? after RAhOI: a run that is only hesitation, which passes RAhOI on to the run after it *)
+  (* A run of hesitation or silent text preserves a pending quote opener for the next run. *)
   first-word<Hesitation> | only-hesitation later-word<Hesitation> | only-hesitation joined-hesitation | silent-token
 
-%rule rahoi-form
-  (* RAhOI_pre <- pre_clause RAhOI spaces? (y_rafsi / long_rafsi / y_less_rafsi / gismu) spaces? *)
-  | y-rafsi
-  | $l:long-rafsi
-  | $s:y-less-rafsi
-  | $g:gismu
-%conditions
-  ¬$l.onward.begins(y-rafsi),
-  ¬$s.onward.begins(long-rafsi),
-  ¬$g.onward.begins(y-rafsi),
-  ¬$g.onward.begins(long-rafsi),
-  ¬$g.onward.begins(y-less-rafsi)
+%rule(leftmost-longest) rahoi-form
+  (* The quote takes the longest rafsi or gismu form in a complete reading. Stress separates
+     equal-letter forms. *)
+  y-rafsi | long-rafsi | y-less-rafsi | gismu
 %emits
   $ :: Rafsi-Form ∪ (¬$.following-tokens.begins(nonpause-phoneme) ⟹ Run-Final)
 ```
@@ -191,13 +194,13 @@ The redefined `run-words` keeps the conditions of [forms.md](forms.md) on a join
 <p><img src="../../docs/diagrams/words/zantufa/rahoi-form.svg" alt="Railroad diagram of the rule rahoi-form"></p>
 </details>
 
-## Divided hesitation
+## Hesitation in the word stream
 
-The BPFK word forms divide an odd run of three or more `y` into `y` and the remainder.
+A whole run of `y` is one hesitation token, whatever its length. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace.
 
 The words stage derives space behavior from `Spacing` and its `Y-Letters` test.
 
-Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, two such runs attached to a word are two Y words, as Zantufa's `cmavo_form` reads them. An `ie'o` is a Y word of its own, and it never joins one.
+Before BU, the forms stage separates the final y from the hesitation prefix. The shared word reader joins that final y with BU. Elsewhere, one attached run stays one hesitation token. An `ie'o` is a Y word of its own, and it never joins one.
 
 A hesitation that begins a run is space. Each hesitation that directly follows a space continues it, up to the next other word, as `initial_spaces` reads it. The stage tags these `Spacing` ([zantufa-stream.md](zantufa-stream.md)).
 
@@ -208,7 +211,8 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
   ordinary-joined-hesitation | split-later-y
 
 %rule ordinary-joined-hesitation
-  (* Y <- &cmavo ( y+ / ie'o ) &post_word *)
+  (* Reserve the final y before BU for the letter word, rather than emitting the whole attached
+     run. *)
   $w:source-word<Y-Letters>
 %conditions
   ¬$w.onward.begins(split-later-y)
@@ -223,10 +227,18 @@ The stage gives `Opener-Space` to a hesitation directly after a text opener, and
 
 ## Differences from CLL and BPFK
 
-*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The working morphology, the word-form grammar that bpfk.md translates, forbids it too: its letter rule for `m` refuses a following `z`. Zantufa's letter rule for `m` refuses only another `m` among the consonants. camxes-exp, the experimental grammar of the camxes parser, does the same. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
+*The Complete Lojban Language* (CLL) forbids the consonant pair `mz`.[^cll-s3-6] The BPFK working morphology also forbids it. Its letter rule for `m` refuses a following `z`.
+
+Zantufa's letter rule for `m` refuses only another `m` among the consonants. camxes-exp, the experimental grammar of the camxes parser, does the same. So Zantufa accepts `mz` wherever a permissible pair can stand. Examples are the gismu `kamzi`, the lujvo `bamzda` and the name `.djeimz.`.
 
 The other changes that camxes-exp makes to the word forms, in [experimental.md](experimental.md), are not Zantufa's.
 
-Zantufa's `Y` reads a whole run of `y` as one token (`y+`), so its `spaces` treats the whole run as space. This translation inherits divided y-runs. The words stage uses `Spacing` and `Y-Letters` to preserve that space behavior.
+Zantufa 1.9999's [`initial_spaces`](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg#L1336) reads a whole y run. Its [`cmavo_form`](https://github.com/guskant/gerna_cipra/blob/d5a5065c924304cf5e9067ee6d41b584fbe1c099/zantufa-1.9999.js.peg#L1110) onset alternative instead divides an attached odd run into one y and the even remainder. This grammar reads the attached run whole, so it departs from that particle reading. The [Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) says that `y` is not a word and counts as whitespace. The whole-run rule follows this treatment.
+
+Erasure can observe this division. In `ra'oi brodyyyy si si`, the quoted `brody` leaves one hesitation token. The first `si` erases the hesitation, and the second erases the quote. The Zantufa 1.9999 parser leaves two hesitation tokens, so two erasures retain the quote. Without those erasures, that parser rejects the attached hesitation after the quote.
+
+The split before BU still separates the final y from its prefix. The words stage forms the letter word from that y and BU. The `Spacing` and `Y-Letters` tags preserve the existing space behavior.
+
+The quote after `ra'oi` takes the longest form within a complete reading. This replaces the reference's local commitment to its first matching form. If a longer form leaves no valid continuation, a shorter form can complete the text. This policy uses the existing `leftmost-longest` flag and introduces no ordered choice.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).

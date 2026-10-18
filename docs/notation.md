@@ -644,7 +644,7 @@ A lookahead tests a rule without reading the input. A PEG is a grammar that trie
 
 `$f.following-tokens.begins(post-word)` says that what follows `$f` begins with a `post-word`. That `post-word` can lie in the words after the constituent. `¬$f.onward.begins(cmevla)` says that no `cmevla` begins where `$f` begins, as a PEG's `!cmevla` before `$f` does.
 
-The word forms of the BPFK (a Lojban committee for language definitions), the `bpfk` word grammar, use these to translate their PEG rule by rule. The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
+The [BPFK word grammar](../grammars/words/bpfk.md) derives from a PEG and states the morphology's rules directly. BPFK is a Lojban committee for language definitions. That grammar retains lookaheads that state morphology rules and [lists its departures](../grammars/words/bpfk.md#differences-from-cll-and-the-reference-peg). The nested parse of `begins` reads only as far as the rule can read. So a lookahead costs what reading the rule costs, however long the rest of the input is.
 
 `.starts-input` lets a rule begin only at the start of the input. The rule below matches nothing, and its condition holds only where the input begins. So an alternative that starts with `text-start` is read there and nowhere else. The parser evaluates the condition before it looks further, so such an alternative costs nothing at the other positions. In a nested parse, the input is the span being parsed, so `.starts-input` holds at the span's start.
 
@@ -1087,7 +1087,11 @@ For example, the experimental grammar can read `to mi klama` in two ways. One en
 
 The syntax stages of the bundled Lojban grammars use `late-elision`. Each grammar settles with rules of its own the choices that `late-elision` leaves tied, such as where a free modifier attaches.
 
-The forms and words stages are lazy. The word forms divide a run in one way only, so in the forms stage the choice never decides where a word ends. A magic word, such as `si`, acts on other words. In the words stage, the choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
+The forms and words stages are lazy. Ordinary word forms divide a run in one way only, so `lazy` decides nothing in the forms stage outside the `ra'oi` exception below.
+
+A rafsi is a form used inside compounds. A gismu is a root word. Zantufa's `ra'oi` quote is the exception to unique word division. Its `leftmost-longest` flag selects the longest rafsi or gismu form within a complete reading.
+
+A magic word, such as `si`, acts on other words. In the words stage, the lazy choice makes a magic word act on what exists when it is read. So `mi si si` erases `mi` and then nothing.
 
 ## Elided terminators
 

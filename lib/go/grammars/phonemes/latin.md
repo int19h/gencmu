@@ -4,7 +4,7 @@ This document adds to [latin-strict.md](latin-strict.md) the conventions that Lo
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and a silent run between pauses. A capital run has multiple vowel groups with only capital vowels. A silent run preserves ignored text in its own token. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) translates. The conventions are these:
+Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and a silent run between pauses. A capital run has multiple vowel groups with only capital vowels. A silent run preserves ignored text in its own token. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) states directly, with [listed departures](../words/bpfk.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
