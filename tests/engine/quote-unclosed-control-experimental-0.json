@@ -1,5 +1,5 @@
 {
-  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior.",
+  "description": "Bare replacement markers keep their erasure, compound, and quoted-word behavior. The word stream gives one unique words-stage reading (grammars/words/stream.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
@@ -46,7 +46,8 @@
                 "Word"
               ]
             }
-          ]
+          ],
+          "verdict": "unique"
         },
         {
           "name": "indicators"

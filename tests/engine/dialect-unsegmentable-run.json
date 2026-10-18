@@ -1,5 +1,5 @@
 {
-  "description": "The unsegmentable-run case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "Forms makes one FOREIGN token of a phoneme run that divides into no words (grammars/words/forms.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },

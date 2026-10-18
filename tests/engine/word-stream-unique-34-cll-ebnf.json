@@ -1,0 +1,31 @@
+{
+  "description": "The word stream gives one unique words-stage reading (grammars/words/stream.md).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ni'o .su mi",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "verdict": "unique"
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "description": "The split-diphthong case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "A diphthong inserts its second token, and normalization lowers the stressed value (grammars/phonemes/latin-experimental.md and grammars/phonemes/normalize.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },

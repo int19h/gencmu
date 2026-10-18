@@ -1,5 +1,5 @@
 {
-  "description": "The stress-pause case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "Pauses emit one space, and normalization lowers stressed vowel values without changing images (grammars/phonemes/latin-strict.md and grammars/phonemes/normalize.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },

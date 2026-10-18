@@ -1,6 +1,8 @@
 # The gencmu engine
 
-This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right. The cases in `tests/engine/` and `tests/notation/` are part of the specification. An implementation that disagrees with one of them is wrong.
+This document is the specification that every gencmu library implements. It says what a result is, not how to compute it. It says how only where the only reasonable way to compute a result is part of what the result is. Where two implementations can differ, this document says which one is right.
+
+The cases in `tests/engine/` and `tests/notation/` are part of the specification unless they load a bundled pipeline. A case that loads a bundled pipeline tests that pipeline's documents, not this specification. An implementation that disagrees with a case violates this specification or the pipeline's documents.
 
 `docs/notation.md` explains the notation to grammar authors, and `grammars/notation/` defines it. `docs/output.md` defines the result's JSON and the renderings.
 
@@ -765,7 +767,7 @@ Every emitted token stores a value and image, including empty strings. Stage-zer
 
 `span.value` in a condition concatenates original input values without normalization. `span.image` concatenates original images. Both include erased input and ignore the chosen current-stage derivation. A dialect normalizes through an ordinary stage. The engine supplies no lowercase mapping or comma removal.
 
-The input value keeps every character that its tokens store. For example, a grammar can give `lA` value `la` and image `lA`. It can give `ma,i` value `mai` and image `ma,i`. Its tags can retain stress and syllable-break information. These are grammar mappings, not comparison behavior.
+The input value keeps every character that its tokens store. For example, a grammar can give `lA` value `la` and image `lA`. It can give `nu,iork` value `nuiork` and image `nu,iork`. Its tags can retain stress and syllable-break information. These are grammar mappings, not comparison behavior.
 
 Every comparison is exact.
 
@@ -972,7 +974,7 @@ Every proof that admission excludes has an eligible same-context replacement at 
 
 [Ambiguity](notation.md#ambiguity) defines how filtering and seals affect results.
 
-Let F count stored prefix facts, completion facts, proof edges, eligibility contexts, and their values. Sorting admission groups costs `O(F log F)` key comparisons. A group with g qualified proofs needs at most g² dominance tests. Each test compares literal bit sets and offer sets. Records bound the number of distinct open facts per group by the grammar's K (§4.2). Include stored-value comparison work.
+Let F count stored prefix facts, completion facts, proof edges, eligibility contexts, and their values. Sorting admission groups costs `O(F log F)` key comparisons. A group with g qualified proofs needs at most g² dominance tests. Each test compares literal bit sets and offer sets. Records bound the number of distinct open facts per group by the grammar's K (§4.2).
 
 Admission composes over packed facts without complete derivation enumeration.
 

@@ -23,13 +23,15 @@ Tests must not depend on execution order. Go tests with process-wide controls or
 
 ## Engine cases: `engine/*.json`
 
-The bundled grammars use the current notation. The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
+The bundled grammars use the current notation. A case that loads a bundled pipeline tests that pipeline's documents, not the engine specification. The JavaScript runner executes every engine and notation case and the complete corpus when `GENCMU_CORPUS=full`.
+
+The corpus records full outcomes. These shared fixtures also express stage cutoffs and token metadata that the corpus cannot record. A description names the grammar documents when a case tests their rules.
 
 Each file is one case:
 
 ```
 {
-  "description": "what the case pins down, and which section of docs/engine.md",
+  "description": "what the case pins down, and which engine or grammar section defines it",
   "grammar": "%rule text A B",
   "documents": {"path.md": "Markdown text"},
   "pipeline": "path.md",

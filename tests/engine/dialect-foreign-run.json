@@ -1,5 +1,5 @@
 {
-  "description": "The foreign-run case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "A foreign run keeps its decomposed value and original image through forms (grammars/phonemes/latin-strict.md, grammars/phonemes/normalize.md, and grammars/words/forms.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },

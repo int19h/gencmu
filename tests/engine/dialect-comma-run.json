@@ -1,5 +1,5 @@
 {
-  "description": "The comma-run case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "One comma token keeps Syllable-Break while normalization empties its value (grammars/phonemes/latin-strict.md and grammars/phonemes/normalize.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "The digit-zero case pins the phoneme and normalization contracts in their grammar documents.",
+  "description": "A digit emits a covering token and an inserted token that normalization covers (grammars/phonemes/latin.md and grammars/phonemes/normalize.md).",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
