@@ -386,6 +386,10 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		}
 		return nil
 	case tmCall:
+		if isSpanFunction(t.Str) {
+			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
+			return nil
+		}
 		switch t.Str {
 		case "value":
 			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t.Items[0]))})
