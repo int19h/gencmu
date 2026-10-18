@@ -1,5 +1,5 @@
 {
-  "description": "A condition runtime error stops declaration evaluation before a later declaration can produce a feature conflict.",
+  "description": "A condition runtime error stops declaration evaluation before a later declaration can produce a feature conflict (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%features g\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

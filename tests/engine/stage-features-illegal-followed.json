@@ -1,5 +1,5 @@
 {
-  "description": "A followed-by query in a feature condition fails during loading.",
+  "description": "A followed-by query in a feature condition fails during loading (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.followed-by(A)\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "A global default cannot permit an earlier stage to test a locally declared feature.",
+  "description": "A global default cannot permit an earlier stage to test a locally declared feature (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%features f\n%stage first\n%ambiguity-resolution greedy\n%rule text f? A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

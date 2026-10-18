@@ -1,5 +1,5 @@
 {
-  "description": "An empty constant delimiter in a feature condition fails during loading.",
+  "description": "An empty constant delimiter in a feature condition fails during loading (engine §§9, 10, 13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value.split($E) = ∅\n%ambiguity-resolution greedy\n%const $E \"\"\n%rule text f? A\n```\n"
   },

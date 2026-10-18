@@ -1,5 +1,5 @@
 {
-  "description": "A stage extension retains earlier feature declarations and appends its own declarations.",
+  "description": "A stage extension retains earlier feature declarations and appends its own declarations (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n%extend-stage second\n%features g\n%conditions $.value = \"a\"\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "A feature conflict stops declaration evaluation before a later condition can raise a runtime error.",
+  "description": "A feature conflict stops declaration evaluation before a later condition can raise a runtime error (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features g\n%conditions $.classes = A\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

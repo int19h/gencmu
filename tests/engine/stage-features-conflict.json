@@ -1,5 +1,5 @@
 {
-  "description": "A holding conditional declaration for a disabled feature fails its stage and retains earlier output.",
+  "description": "A holding conditional declaration for a disabled feature fails its stage and retains earlier output (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

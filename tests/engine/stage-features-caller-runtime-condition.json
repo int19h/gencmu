@@ -1,5 +1,5 @@
 {
-  "description": "A feature condition still evaluates and reports runtime errors when the caller already enables its feature.",
+  "description": "A feature condition still evaluates and reports runtime errors when the caller already enables its feature (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "A conditional declaration that does not hold leaves its feature disabled.",
+  "description": "A conditional declaration that does not hold leaves its feature disabled (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ B ≠ ∅\n%ambiguity-resolution greedy\n%rule text ¬f? A\n\n```\n"
   },

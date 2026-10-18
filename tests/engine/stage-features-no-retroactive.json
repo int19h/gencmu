@@ -1,5 +1,5 @@
 {
-  "description": "Every operand of a local feature declaration prohibits earlier stages from testing that feature.",
+  "description": "Every operand of a local feature declaration prohibits earlier stages from testing that feature (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text ¬g? A\n%emits\n%stage second\n%features f g\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

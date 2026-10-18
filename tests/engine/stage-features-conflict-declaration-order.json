@@ -1,5 +1,5 @@
 {
-  "description": "The first holding declaration with a disabled feature decides the conflict, regardless of caller list order.",
+  "description": "The first holding declaration with a disabled feature decides the conflict, regardless of caller list order (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features g\n%conditions $.classes = A\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

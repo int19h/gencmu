@@ -1,5 +1,5 @@
 {
-  "description": "A conditional declaration that holds enables its feature for its own stage.",
+  "description": "A conditional declaration that holds enables its feature for its own stage (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ A ≠ ∅\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "For empty stage input, $ is present, its tags are empty, and its first token value is empty.",
+  "description": "For empty stage input, $ is present, its tags are empty, and its first token value is empty (engine §13).",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%features f\n%conditions $, $.tags = ∅, $.first-token.value = \"\"\n%ambiguity-resolution greedy\n%rule text f? ε\n```\n"
   },
