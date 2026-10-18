@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="716" height="88" viewBox="0 0 716 88" role="img" aria-label="Railroad diagram of the rule cgv-cluster-form">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="134.4" lengthAdjust="spacingAndGlyphs">cgv-cluster-form</text>
+<path d="M10 48v16m4 -16v16M14 56h6"/>
+<path d="M20 56h20"/>
+<path d="M40 56h20"/>
+<g class="rule"><rect x="60" y="44" width="151" height="24" rx="0"/><text x="135.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">nonpause-phoneme</text></g>
+<path d="M211 56H231"/>
+<path d="M211 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H60a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M231 56H251"/>
+<path d="M20 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H231a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M251 56h10"/>
+<g class="rule"><rect x="261" y="44" width="92" height="24" rx="0"/><text x="307" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M353 56h10"/>
+<g class="rule"><rect x="363" y="44" width="92" height="24" rx="0"/><text x="409" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">consonant</text></g>
+<path d="M455 56h10"/>
+<path d="M465 56h20"/>
+<path d="M485 56h20"/>
+<g class="rule"><rect x="505" y="44" width="151" height="24" rx="0"/><text x="580.5" y="61" textLength="134.4" lengthAdjust="spacingAndGlyphs">nonpause-phoneme</text></g>
+<path d="M656 56H676"/>
+<path d="M656 56a10 10 0 0 1 10 10V68a10 10 0 0 1 -10 10H505a10 10 0 0 1 -10 -10V66a10 10 0 0 1 10 -10"/>
+<path d="M676 56H696"/>
+<path d="M465 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H676a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
+<path d="M696 56h6m0 -8v16m4 -16v16"/>
+</svg>
