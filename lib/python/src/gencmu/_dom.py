@@ -14,6 +14,7 @@ from ._trampoline import Walk, run
 from ._patterns import pattern_problem
 from ._types import (
     comparison_problem,
+    method_shape_problem,
     method_type,
     Memo as TypeMemo,
     constant_value_type,
@@ -867,6 +868,10 @@ class DomBuilder:
                 separators = [self.token_value(child) for child in arguments.children if child.kind == "token"]
                 if any(separator != ("|" if name in ("followed-by", "preceded-by") else ",") for separator in separators):
                     raise self.fail(arguments, "invalid method argument separator")
+            if self.feature_context:
+                problem = method_shape_problem(name, receiver, args, self.recipe_context)
+                if problem:
+                    raise self.fail(node, problem)
             kind, problem = term_type(receiver, memo=self.types)
             if problem is None:
                 _, problem = method_type(name, kind, args, set(receiver) == {"capture"}, self.recipe_context)

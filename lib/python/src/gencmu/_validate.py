@@ -8,7 +8,7 @@ from typing import Any, Protocol
 from ._clauses import definition_problem, duplicate_captures, deferred_emission_problem, rule_has_ranked
 from ._patterns import pattern_problem, walk_pattern
 from ._strings import ENGINE_TAGS, USER_NAME, is_constant, literal_string, lit
-from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem
+from ._types import constant_value_problem, open_part, rule_type_problem, term_type, tag_term_problem, condition_type_problem, method_shape_problem
 
 
 class Marks(Protocol):
@@ -466,6 +466,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             if keys != {"method", "receiver", "args"} or not isinstance(node["method"], str) or not isinstance(node["args"], list):
                 return "a malformed method"
             recipe = kind == "recipe-method"
+            problem = method_shape_problem(node["method"], node.get("receiver"), node["args"], recipe)
+            if problem:
+                return problem
+            if kind != "condition" and node["method"] in ("matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"):
+                return "a predicate method cannot supply a value"
             if not recipe and (
                 node["method"] in ("verbatim-text", "emitted")
                 or isinstance(node["receiver"], dict)
@@ -483,7 +488,7 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
             for arg in node["args"]:
                 if isinstance(arg, dict) and set(arg) in ({"rule"}, {"classifier"}, {"terminal"}):
                     key = next(iter(arg))
-                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and node["method"] in ("followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
+                    if not isinstance(arg[key], str) or not (key == "rule" and arg[key] == "#" or key == "terminal" and USER_NAME.fullmatch(arg[key]) and arg[key][:1].isupper() and node["method"] in ("followed-by", "preceded-by") or key != "terminal" and CLASSIFIER_NAME.fullmatch(arg[key])):
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))

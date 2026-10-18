@@ -64,6 +64,45 @@ def _unknown_constants(name: str) -> TermType:
 _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "following-tokens"}
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
 _PREDICATES = {"matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"}
+_SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
+_METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "classify", "emitted"}
+
+
+def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = False) -> str | None:
+    """Read structural signatures without operand types or stage bindings."""
+    if not isinstance(name, str) or name not in _METHODS:
+        return "unknown method name"
+    if not isinstance(receiver, dict) or not isinstance(args, list):
+        return "a malformed method"
+    bare = set(receiver) == {"capture"} and isinstance(receiver["capture"], str)
+    receiver_method = receiver.get("method")
+    span = bare or isinstance(receiver_method, str) and receiver_method in _SPAN_SHAPES
+
+    def named(arg, key):
+        return isinstance(arg, dict) and set(arg) == {key} and isinstance(arg[key], str)
+
+    def term(arg):
+        return isinstance(arg, dict) and not ({"rule", "classifier", "terminal"} & arg.keys())
+
+    if name == "split":
+        valid = len(args) == 1 and term(args[0])
+    elif name == "classify":
+        valid = len(args) == 1 and named(args[0], "classifier")
+    elif name == "tags":
+        valid = span and (not args or len(args) == 1 and named(args[0], "rule"))
+    elif name in ("matches", "begins"):
+        valid = span and len(args) == 1 and named(args[0], "rule")
+    elif name in ("followed-by", "preceded-by"):
+        valid = bare and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
+    elif name == "without-elision-except":
+        valid = bare and len(args) == 1 and named(args[0], "rule")
+    elif name == "without-elision":
+        valid = bare and not args
+    elif name in ("verbatim-text", "emitted"):
+        valid = recipe and bare and not args
+    else:
+        valid = not args and (span or recipe and receiver_method == "emitted" and name in ("value", "image"))
+    return None if valid else "a method has the wrong receiver or arguments"
 
 
 def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = False, recipe: bool = False) -> Found:
