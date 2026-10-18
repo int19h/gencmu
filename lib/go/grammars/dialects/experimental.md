@@ -195,6 +195,8 @@ First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes
 
 In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
 
+Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one, as in `mi nelci lo nu mi djica gy ku .e lo nu do klama`. Only the meaning separates the two readings, so the grammar does not guess.
+
 A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 
 In `ge nai abu gi no drata`, a forethought connective can connect two sumti or make a quantifier. The dialect connects the sumti `abu` and `no drata`, as CLL does. A CLL quantifier is a number or a `vei ... ve'o` group. camxes-exp reads the quantifier `ge nai abu gi no` with the selbri `drata`. Where no sumti reading remains, the dialect rejects the text, as CLL does. So it rejects `ge abu gi by broda cu klama`, which camxes-exp reads with the quantifier `ge abu gi by`.
