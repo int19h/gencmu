@@ -298,7 +298,7 @@ These rules emit nothing. Their contents therefore never reach syntax recognitio
 %rule comment-part
   $c:_ | stars $d:_
 %conditions
-  $c.value ≠ "*", $d.value ≠ ")", $d.value ≠ "*"
+  $c.value ≠ "*", $d.value ∉ (")" "*")
 
 %rule stars
   "*" | stars "*"
@@ -323,7 +323,11 @@ The `%include` alternative applies only when no quoted path follows. A complete 
 Value tests select known keywords. `$KEYWORDS` holds their exact names. The fallback excludes that set with one membership condition.
 
 ```jbogenbau
-%const $KEYWORDS "rule redefine-rule extend-rule conditions emits erased ambiguity-resolution stage extend-stage redefine-stage include features const redefine-const classifier implies".split(" ")
+%const $KEYWORDS
+  "rule" "redefine-rule" "extend-rule" "conditions"
+  "emits" "erased" "ambiguity-resolution" "stage"
+  "extend-stage" "redefine-stage" "include" "features"
+  "const" "redefine-const" "classifier" "implies"
 
 %rule keyword
   | "%" whole-name="rule" :: KW-RULE
