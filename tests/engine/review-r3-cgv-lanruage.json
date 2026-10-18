@@ -1,0 +1,91 @@
+{
+  "description": "The separate r branch permits this borrowing with a CgV warning.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lanruage",
+  "parses": [
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {
+              "name": "forms",
+              "output": [
+                {
+                  "value": "lanruage",
+                  "image": "lanruage",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "brivla-shape",
+            "source": [
+              0,
+              8
+            ],
+            "span": [
+              0,
+              8
+            ],
+            "stage": "forms"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "forms",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {
+              "name": "forms",
+              "output": [
+                {
+                  "value": "lanruage",
+                  "image": "lanruage",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

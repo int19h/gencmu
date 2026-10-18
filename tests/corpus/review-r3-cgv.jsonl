@@ -1,0 +1,7 @@
+{"id":"review-r3.astra1.lanruage","dialect":"experimental","text":"lanruage","reason":"The separate r branch permits this borrowing with a CgV warning.","expect":"accept","verdict":"unique","brackets":"lanruage","words":["lanruage"]}
+{"id":"review-r3.astra1.lanriago","dialect":"experimental","text":"lanriago","reason":"The separate r branch permits this borrowing with a CgV warning.","expect":"accept","verdict":"unique","brackets":"lanriago","words":["lanriago"]}
+{"id":"review-r3.astra1.blaruage","dialect":"experimental","text":"blaruage","reason":"The separate r branch permits this borrowing with a CgV warning.","expect":"accept","verdict":"unique","brackets":"blaruage","words":["blaruage"]}
+{"id":"review-r3.astra1.language","dialect":"experimental","text":"language","reason":"A non-r consonant and glide after a short rafsi remain an invalid compound-like prefix.","expect":"reject","stage":"words","at":0}
+{"id":"review-r3.astra1.mlaxua","dialect":"experimental","text":"mlaxua","reason":"A non-r consonant and glide after a short rafsi remain an invalid compound-like prefix.","expect":"reject","stage":"words","at":0}
+{"id":"review-r3.astra1.lanluage","dialect":"experimental","text":"lanluage","reason":"A non-r consonant and glide after a short rafsi remain an invalid compound-like prefix.","expect":"reject","stage":"words","at":0}
+{"id":"review-r3.astra1.blaluage","dialect":"experimental","text":"blaluage","reason":"A non-r consonant and glide after a short rafsi remain an invalid compound-like prefix.","expect":"reject","stage":"words","at":0}

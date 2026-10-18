@@ -36,11 +36,11 @@ Experimental accepts a consonant before a glide in names and borrowings, as CLL 
 
 The consonant rules retain every restriction except the glide ban. A borrowing onset can add a glide after a nonempty legal initial. Particles exclude that new onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
-A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV.
+A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV whose consonant differs from `r`.
 
 CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-letter limit for borrowings.[^cll-a3-3] The word must resolve as one brivla. Thus `puamamakla` is legal despite its late cluster.
 
-Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. Borrowing rafsi retain their separate head exclusion.
+Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows jbotci’s separate treatment of `r`, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion.
 
 The `experimental-cgv` warning is on by default. It covers each complete name or predicate word that contains CgV. Disabling the warning changes no reading. The span test reads only that word, so it cannot warn about CgV in a later word.
 
@@ -109,7 +109,9 @@ The `experimental-cgv` warning is on by default. It covers each complete name or
   [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
 
 %rule cgv-rafsi-continuation
-  (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) consonant glide
+  (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) $c:consonant glide
+%conditions
+  $c.value ≠ "r"
 
 %redefine-rule l  (* This consonant forbids an apostrophe and a repeated letter. *)
   $c:"l"
