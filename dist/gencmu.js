@@ -3199,6 +3199,36 @@
   const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
 
   /**
+   * Structural signatures do not read operand types or stage bindings (engine §9).
+   * @param {unknown} name
+   * @param {any} receiver
+   * @param {any} args
+   * @param {boolean} [recipe]
+   * @returns {string | null}
+   */
+  function methodShapeProblem(name, receiver, args, recipe = false) {
+    if (typeof name !== "string") return "unknown method name";
+    if (!METHODS.has(name)) return `unknown method ${name}`;
+    const object = (/** @type {any} */ value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (!object(receiver) || !Array.isArray(args)) return "a malformed method";
+    const bare = typeof receiver.capture === "string" && Object.keys(receiver).length === 1;
+    const span = bare || SPAN_METHODS.has(receiver.method);
+    const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
+    const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal"].some(key => key in arg);
+    let valid;
+    if (name === "split") valid = args.length === 1 && term(args[0]);
+    else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
+    else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && named(args[0], "rule"));
+    else if (name === "matches" || name === "begins") valid = span && args.length === 1 && named(args[0], "rule");
+    else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => named(arg, "rule") || named(arg, "terminal"));
+    else if (name === "without-elision-except") valid = bare && args.length === 1 && named(args[0], "rule");
+    else if (name === "without-elision") valid = bare && args.length === 0;
+    else if (name === "verbatim-text" || name === "emitted") valid = recipe && bare && args.length === 0;
+    else valid = args.length === 0 && (span || recipe && receiver.method === "emitted" && (name === "value" || name === "image"));
+    return valid ? null : "a method has the wrong receiver or arguments";
+  }
+
+  /**
    * @param {string} name
    * @param {any} receiver
    * @param {any[]} args
@@ -3980,7 +4010,10 @@
       /** @type {(kind: string, value: any, context?: any) => void} */
       const child = (kind, value, context = {}) => push(kind, value, depth + 1, context);
       const fields = Object.keys(value);
-      if (kind === "expr") {
+      if (kind === "method-shape") {
+        const problem = methodShapeProblem(value.method, value.receiver, value.args, task.recipe);
+        if (problem) return problem;
+      } else if (kind === "expr") {
         if (value.test) {
           if (!TEST_OPS.has(value.test) || !exact(value, value.test === "tags" ? ["test", "requirements", "expr"] : ["test", "value", "expr"]) || !(value.test === "tags" ? base(value.expr) : target(value.expr))) return "a malformed test";
           child("expr", value.expr, { sealed: task.sealed });
@@ -4042,7 +4075,7 @@
         }
       } else if (kind === "condition") {
         if (!hasOneForm(value, [["method", "receiver", "args"], ["op", "left", "right"], ["not"], ["any"], ["all"], ["captured"], ["if", "then"]])) return "a malformed condition";
-        if (value.method) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
+        if ("method" in value) { if (!QUERY_METHODS.has(value.method)) return "a malformed query"; push("term", value, depth, { query: true }); }
         else if (value.op) {
           if (!DOM_COMPARATORS.has(value.op) || ["≅", "≇"].includes(value.op) && !(typeof value.left?.capture === "string" && Object.keys(value.left).length === 1)) return "a malformed comparison";
           child("term", value.left); child("term", value.right);
@@ -4070,8 +4103,9 @@
         else if (value.const) { if (!constant(value.const) || !position(value.at)) return "a malformed constant reference"; }
         else if ("emptySet" in value) { if (value.emptySet !== true) return "a malformed empty set"; }
         else if ("capture" in value) { if (typeof value.capture !== "string" || value.capture !== "" && !CAPTURE_NAME.test(value.capture)) return "a malformed capture reference"; }
-        else if (value.method) {
+        else if ("method" in value) {
           if (!Array.isArray(value.args) || !object(value.receiver) || (!task.recipe && ["emitted", "verbatim-text"].includes(value.method)) || (!task.query && QUERY_METHODS.has(value.method))) return "a malformed method";
+          push("method-shape", value, depth, { recipe: task.recipe });
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
             if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
@@ -16267,6 +16301,10 @@
         if (argumentsNode) {
           const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
           if (separators.some(separator => separator !== (BOUNDARY_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
+        }
+        if (featureContext) {
+          const problem = methodShapeProblem(name, receiver, args, recipeContext);
+          if (problem) fail(problem, node);
         }
         const found = featureContext ? {type:"any"} : termType(receiver);
         if ("problem" in found) fail(found.problem, node);
