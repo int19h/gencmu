@@ -31,7 +31,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 <p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
-`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them.
+`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The gap cannot skip punctuation or ignored material.
 
 ```jbogenbau
 %extend-rule quote
@@ -40,6 +40,8 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 %rule rahoi-quote
   $m:rahoi-marker $g:word-gap $f:Rafsi-Form
     :: $m.tags :- $m.source-text $g.source-text $f.verbatim-text
+%conditions
+  Quote-Material ⊈ $g.tags
 %emits
   $
 
@@ -234,6 +236,8 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 </details>
 
 ## Differences from the shared word stream
+
+The rafsi quote refuses material in its gap, as the shared one-word quote does. Its body must be the next rafsi or gismu form.
 
 The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 

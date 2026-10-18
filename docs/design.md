@@ -470,7 +470,7 @@ A one-word foreign quote takes the next raw stretch between whitespace or period
 
 The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its value keeps the decomposed punctuation.
 
-Ordinary spacing still reads these tokens as pauses. Quote gaps read only plain pauses, so punctuation cannot move the quote to a later word.
+Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip material. Other quote bodies keep their own spacing rules.
 
 ZO also takes literal punctuation as its next word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 

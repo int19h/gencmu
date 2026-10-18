@@ -129,7 +129,7 @@ A quiet pause token has value `" "`, and `$PAUSE` names that string. Material pa
 %rule pause-run
   | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
   | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
-  | $s:pause-run Silent PAUSE :: $s.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
+  | $s:pause-run Silent $q:PAUSE :: ($s.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
@@ -369,7 +369,7 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 
 The ZOI words, `zoi` and `la'o`, skip hesitation and read the next real word as their opening delimiter. Hesitation never serves as a delimiter.
 
-`delimiter-gap` partitions quiet and paused gaps. The quiet route contributes no string. The paused route contributes one space for the whole gap.
+`delimiter-gap` partitions quiet and paused gaps. The quiet route contributes no string. The paused route contributes one space for the whole gap. Each pause in these gaps must be quiet, so the opening delimiter cannot skip material.
 
 Both routes use `delimiter-hesitation`, which refuses the opening y letteral. This rule stays separate because Zantufa's ordinary hesitation also requires a spacing boundary.
 
@@ -417,13 +417,13 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
 
 %rule delimiter-gap
   | [delimiter-quiet-gap]
-  | [delimiter-quiet-gap] pause-run [delimiter-hesitations [pause-run]] := $PAUSE
+  | [delimiter-quiet-gap] pause-run<¬Quote-Material> [delimiter-hesitations [pause-run<¬Quote-Material>]] := $PAUSE
 
 %rule delimiter-quiet-gap
   delimiter-hesitation | delimiter-quiet-gap delimiter-hesitation
 
 %rule delimiter-hesitations
-  delimiter-hesitation | delimiter-hesitations [pause-run] delimiter-hesitation
+  delimiter-hesitation | delimiter-hesitations [pause-run<¬Quote-Material>] delimiter-hesitation
 
 %rule delimiter-hesitation
   $h:y-run
@@ -450,7 +450,7 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   | silent-body PAUSE Silent
 
 %rule quiet-pause
-  PAUSE := ""
+  PAUSE<¬Quote-Material> := ""
 ```
 
 <details><summary>Railroad diagrams of the 14 rules from <code>zoi-y-quote</code> to <code>quiet-pause</code></summary>
@@ -592,6 +592,8 @@ A LOhU quote ends at the first LEhU. Its body reads Lojban words through the sha
 ### Raw payloads
 
 `raw-tokens` and `zohoi-payload` concatenate input token values, including FOREIGN values from decomposed source text. Delimited quotes take their images from their whole source intervals.
+
+The legacy `Silent` routes also require quiet pauses at their boundaries.
 
 Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves raw spelling and adjacent uncovered characters. The single-run quote reads that recipe through `.emitted.image`. Queries and erased post-FAhO bodies run no body recipes.
 
@@ -934,6 +936,8 @@ Zantufa retains its reference parser's quote-first fallback and SU-before-BU let
 The raw one-word quotes retain punctuation and ignored characters instead of skipping them as spacing. This follows camxes-exp for `:)`, `#` and attached brackets.
 
 Unlike camxes-exp's `non_space`, raw quotes here also keep `?` and `!` inside a raw stretch. Both are punctuation material under the shared Latin conventions.
+
+An opening delimiter also cannot skip material. This keeps its boundary consistent with one-word quotes.
 
 A decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. This keeps numeric spellings intact.
 
