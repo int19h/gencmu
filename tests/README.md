@@ -266,7 +266,7 @@ The cases in `without-elision-growth.json` bound the measured close-summary fixt
 
 Each item says that a bundled dialect's work on a long text grows in proportion to its length. A condition that reparses each whole prefix makes work grow faster than text length. No other case exposes this cost. The library builds two texts from `text`. It replaces `{links}` with `small` copies of `link`, joined by spaces, and then with `large` copies.
 
-Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the dialect. The count for `large` copies must be at most `most` times the count for `small` copies.
+Both texts must parse. The library counts recognizer items for each text in the main parse and every nested parse. It excludes items made while loading the dialect. A library with a shared memo (engine §4.3) counts with the memo off, so that answers from the small text never shorten the large one. The count for `large` copies must be at most `most` times the count for `small` copies.
 
 ## Notation growth cases: `notation-growth.json`
 
@@ -313,6 +313,29 @@ Each item bounds how often a step or term evaluates its parts when it starts man
 The library joins `item` for each i from 0 to `count` − 1 with `joiner`. It puts `head` before them and `tail` after them. It then appends `rule` once per i. In `item` and `rule`, `{i}` stands for i.
 
 It loads the grammar as the one stage of a dialect and parses `text`, and the parse must succeed. The library counts every visit of a node of a condition or a term, before it evaluates the node, also in an evaluation that halts. The count has a budget of `most` times `count`, and the parse stops at the first visit past it.
+
+## Shared memo runs: `shared-memo.json`
+
+```
+{"description": "...", "runs": [{"dialect": "bpfk", "texts": ["klama"], "options": [{}, {"until": "forms"}]},
+  {"grammar": "%rule text X", "inputs": [[{"text": "x", "tags": ["X"]}]], "options": [{}]}]}
+```
+
+Each run tests that parses on one dialect do not depend on each other, which the shared memo of engine §4.3 must not change. A run names a bundled dialect, or gives `grammar` as an engine case does. Its inputs are `texts`, or `inputs`, which are token lists in the form of engine cases. Its options are option sets in the form of engine cases.
+
+The parses of a run are each input under each option set, input by input. A library first makes each parse on a dialect whose shared memo holds nothing. These results are the reference. A library without a shared memo makes each reference parse on a fresh dialect.
+
+It then makes the parses on one dialect, in order, then in reverse order, then in order again. A library with a shared memo uses its default bound there. It repeats the parses on one dialect whose bound is one entry for each generation, so that eviction happens during each parse. Each result must equal its reference as canonical JSON. A parse that ends in an error must give the same error.
+
+Where dialects can serve several threads, a library also makes the parses from several threads at once on one dialect. Each thread makes every parse of the run, from its own starting place, and the test checks that each parse runs. It compares each result in the same way. The Go library runs this threaded test under the race detector in continuous integration.
+
+Some runs pin one field of the shared key each: a token's value, image, tags or source offsets, or the source text. The runs for the value, tags, offsets and source text ask one query in each parse. So the memo of one parse cannot hide a missing field there. The run for the image asks two queries in each parse, over spans that differ only in an image. No run pins a token's text, since no condition reads it.
+
+Other runs keep `begins` apart from `matches`, and serve `tags` and `matches` from one entry. Others turn on a gate of a classifier entry, or a conditional feature, over the same span content. One run asks a query that is an error of the grammar. One asks about a span longer than 64 tokens, and one puts separator characters in token values.
+
+The runs with `without-elision` hold answers that read an aligned query, directly or through the memo of the parse. A library with a shared memo checks that the rules `driver` and `wrap` never enter it. Its test hooks see each served answer, and the start and end of each aligned nested parse. The shared memo must serve no answer while an aligned query is active, and the test must see some ordinary shared hits. The test also checks that aligned queries start, and that its own count agrees with the library's at each served answer.
+
+The bound is a setting inside each library, for its own tests. It is not part of the API.
 
 ## Close growth cases: `without-elision-growth.json`
 
