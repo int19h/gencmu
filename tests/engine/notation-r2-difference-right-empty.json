@@ -1,0 +1,23 @@
+{
+  "description": "difference right empty follows the receiver types in engine section 10.",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions (\"a\" ∖ (∅)) = \"a\"\n%rule unit A\n%rule family unit\n%rule want A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -241,7 +241,10 @@
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
-          if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule || arg.terminal) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+          const query = ["matches","begins","tags"].includes(part?.method);
+          if (query || BOUNDARY_METHODS.has(part?.method)) for (const arg of part.args) {
+            if (arg.terminal || query && arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+          }
           for (const child of clauseChildren(part)) pending.push(child);
         }
         continue;
@@ -251,7 +254,10 @@
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
-        if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule || arg.terminal) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+        const query = ["matches","begins","tags"].includes(part?.method);
+        if (query || BOUNDARY_METHODS.has(part?.method)) for (const arg of part.args) {
+          if (arg.terminal || query && arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+        }
         for (const child of clauseChildren(part)) pending.push(child);
       }
     }
@@ -5252,6 +5258,7 @@
       if (left !== "span") return "a tree comparison requires a bare capture";
       return expectedProblem(right, "pattern");
     }
+    if ((op === "⊆" || op === "⊈") && (left === "span" || right === "span")) return "a span cannot convert to a set";
     if ((op === "∈" || op === "∉") && right === "span") return "a span cannot convert to a set";
     if (left === "pattern" || right === "pattern") return `${op} cannot compare pattern values`;
     if (!["∈", "∉"].includes(op) && (left === "span" || right === "span") && (["strings", "tags", "set"].includes(left) || ["strings", "tags", "set"].includes(right))) return "a span cannot convert to a set";
