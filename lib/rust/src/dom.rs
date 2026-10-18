@@ -1629,6 +1629,11 @@ pub(crate) fn rule_too_deep(rule: &RuleDef) -> bool {
     too_deep(roots)
 }
 
+/// Whether any condition holds a node below more than 256 compound nodes.
+pub(crate) fn conditions_too_deep(conditions: &[Cond]) -> bool {
+    too_deep(conditions.iter().map(Nested::Cond).collect())
+}
+
 /// Whether a term holds a node below more than 256 compound nodes.
 pub(crate) fn term_too_deep(term: &Term) -> bool {
     too_deep(vec![Nested::Term(term)])

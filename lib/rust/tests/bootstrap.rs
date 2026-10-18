@@ -4,7 +4,7 @@ mod common;
 
 use std::collections::BTreeMap;
 
-use common::{find_places, parse_json, position_of, repository, substitute, Value};
+use common::{find_places, parse_json, position_of, repository, same, substitute, Value};
 use gencmu::tools::DOM_FORMAT;
 
 fn grammars() -> std::path::PathBuf {
@@ -28,10 +28,8 @@ fn bootstrap_is_a_fixpoint() {
     let spliced = parse_json(&json).expect("the spliced pipeline");
     assert_eq!(spliced.get("format"), bootstrap.get("format"));
     let stages = spliced.get("stages").expect("stages");
-    assert!(
-        stages == bootstrap.get("stages").expect("stages"),
-        "the notation does not reproduce the bootstrap:\n{json}"
-    );
+    same(bootstrap.get("stages").expect("stages"), stages, "stages")
+        .unwrap_or_else(|problem| panic!("the notation does not reproduce the bootstrap: {problem}\n{json}"));
     let documents: usize =
         stages.array().iter().map(|stage| stage.get("documents").expect("documents").array().len()).sum();
     assert_eq!(documents, 2);
@@ -110,7 +108,8 @@ fn compiled_doms_match_a_fresh_reading() {
                     "{path}"
                 );
                 let fresh = parse_json(&gencmu::tools::read_grammar_document(&text).expect("a DOM")).expect("JSON");
-                assert!(&fresh == entry.get("dom").expect("a DOM"), "{path} differs from its compiled DOM");
+                same(entry.get("dom").expect("a DOM"), &fresh, &path)
+                    .unwrap_or_else(|problem| panic!("{path} differs from its compiled DOM: {problem}"));
             })
         })
         .collect();

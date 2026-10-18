@@ -321,6 +321,20 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
                 })
                 .map(|implication| implication.at),
         )
+        .chain(
+            dom.directives
+                .iter()
+                .filter(|directive| directive.conditions.as_deref().is_some_and(crate::dom::conditions_too_deep))
+                .map(|directive| directive.at),
+        )
+        .chain(
+            dom.classifiers
+                .iter()
+                .filter(|classifier| {
+                    classifier.entries.iter().any(|entry| entry.keys.iter().any(crate::dom::term_too_deep))
+                })
+                .map(|classifier| classifier.at),
+        )
         .collect();
     deep.sort();
     if let Some(&(line, column)) = deep.first() {
@@ -344,8 +358,8 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
     let Some(problem) = problem_of(dom) else {
         return Ok(());
     };
-    // Each item alone, a rule, a constant's definition or an implication,
-    // in the order of the document.
+    // Each declaration alone, including feature directives and
+    // classifiers, in the order of the document.
     let mut singles: Vec<(Dom, (usize, usize))> = dom
         .rules
         .iter()
@@ -359,6 +373,16 @@ fn check_read(dom: &Dom, unicode: &Unicode) -> Result<(), Error> {
             dom.implications
                 .iter()
                 .map(|implication| (Dom { implications: vec![implication.clone()], ..Dom::default() }, implication.at)),
+        )
+        .chain(
+            dom.directives
+                .iter()
+                .map(|directive| (Dom { directives: vec![directive.clone()], ..Dom::default() }, directive.at)),
+        )
+        .chain(
+            dom.classifiers
+                .iter()
+                .map(|classifier| (Dom { classifiers: vec![classifier.clone()], ..Dom::default() }, classifier.at)),
         )
         .collect();
     singles.sort_by_key(|(_, at)| *at);
