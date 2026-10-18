@@ -217,6 +217,7 @@
       const rules = new Set(), terminals = new Set(), pending = [...roots];
       while (pending.length) {
         const name = pending.pop();
+        if (/^[A-Z]/.test(name)) { terminals.add(name); continue; }
         if (rules.has(name)) continue;
         rules.add(name);
         for (const alternative of grammar.rules.get(name)?.alternatives ?? []) {
@@ -240,7 +241,7 @@
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
-          if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule});
+          if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule || arg.terminal) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
           for (const child of clauseChildren(part)) pending.push(child);
         }
         continue;
@@ -250,7 +251,7 @@
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
-        if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule});
+        if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule || arg.terminal) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
         for (const child of clauseChildren(part)) pending.push(child);
       }
     }

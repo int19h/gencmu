@@ -90,7 +90,7 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 				walkClause(p, func(q clausePart) bool {
 					if q.c != nil && (q.c.Kind == cdMatches || q.c.Kind == cdBegins) {
 						for _, t := range q.c.queryTargets() {
-							if t.Kind == tmRule {
+							if t.Kind == tmRule || t.Kind == tmTerminal {
 								roots = append(roots, t.Str)
 							}
 						}
@@ -110,6 +110,10 @@ func (g *stageGrammar) validateBoundaryTargets() *Error {
 	for len(roots) > 0 {
 		name := roots[len(roots)-1]
 		roots = roots[:len(roots)-1]
+		if isCapital(name) {
+			terminals[name] = true
+			continue
+		}
 		if rules[name] {
 			continue
 		}

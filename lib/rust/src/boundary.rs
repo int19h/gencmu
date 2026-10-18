@@ -446,6 +446,10 @@ fn reach(g: &crate::grammar::StageGrammar, roots: Vec<String>) -> (FxSet<String>
     let mut terminals = FxSet::default();
     let mut pending = roots;
     while let Some(name) = pending.pop() {
+        if crate::grammar::is_terminal_name(&name) {
+            terminals.insert(name);
+            continue;
+        }
         if !rules.insert(name.clone()) {
             continue;
         }
@@ -495,9 +499,7 @@ pub(crate) fn reachable(g: &crate::grammar::StageGrammar) -> Result<(), crate::e
                 match part {
                     Part::C(c) => match c {
                         Cond::Boundary(_, _, targets, location) => atoms.push((alt, targets, location)),
-                        Cond::Matches(_, r) | Cond::Begins(_, r) => {
-                            roots.extend(r.iter().filter(|t| !crate::grammar::is_terminal_name(t)).cloned())
-                        }
+                        Cond::Matches(_, r) | Cond::Begins(_, r) => roots.extend(r.iter().cloned()),
                         Cond::Not(c) => stack.push(Part::C(c)),
                         Cond::All(cs) | Cond::Any(cs) => stack.extend(cs.iter().map(Part::C)),
                         Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),

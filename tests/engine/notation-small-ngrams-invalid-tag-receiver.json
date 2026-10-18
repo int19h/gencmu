@@ -1,0 +1,8 @@
+{
+  "description": "The ngrams method rejects a set receiver.",
+  "grammar": "%rule text ε %conditions A.ngrams(1) = ∅",
+  "input": "",
+  "expect": {
+    "error": "grammar"
+  }
+}

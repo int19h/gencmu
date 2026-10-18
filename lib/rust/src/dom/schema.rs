@@ -544,7 +544,9 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                             exact(arg, &["integer"], &[])
                                 && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
                         }
-                        ("split", [arg]) => !is_rule_arg(arg) && !is_classifier_arg(arg) && arg.get("integer").is_none(),
+                        ("split", [arg]) => {
+                            !is_rule_arg(arg) && !is_classifier_arg(arg) && arg.get("integer").is_none()
+                        }
                         ("classify", [arg]) => {
                             exact(arg, &["classifier"], &[])
                                 && arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)

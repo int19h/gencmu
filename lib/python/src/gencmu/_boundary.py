@@ -265,11 +265,14 @@ def validate_targets(rules, stage):
                     pending.extend(part)
                 else:
                     if part.get('method') in ('matches', 'begins', 'tags'):
-                        queries.extend(arg['rule'] for arg in part.get('args', []) if 'rule' in arg)
+                        queries.extend(arg.get('rule', arg.get('terminal')) for arg in part.get('args', []) if 'rule' in arg or 'terminal' in arg)
                     pending.extend(part.values())
     reached, terminals, pending = set(), set(), ['text', *queries]
     while pending:
         name = pending.pop()
+        if name[:1].isupper():
+            terminals.add(name)
+            continue
         if name in reached:
             continue
         reached.add(name)

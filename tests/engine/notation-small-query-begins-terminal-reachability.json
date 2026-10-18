@@ -1,0 +1,18 @@
+{
+  "description": "A queried terminal is reachable for a boundary target, including later query alternatives.",
+  "grammar": "%rule text $x:A %conditions $x.begins(no | T), ¬$.followed-by(T)\n%rule no B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
