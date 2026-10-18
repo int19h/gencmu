@@ -118,17 +118,13 @@ A word of LU, TO or LUhEI, the classes of `$TEXT-OPENERS`, that this stage reads
   LU ∪ TO ∪ LUhEI
 
 %redefine-rule word
-  | sa-su? $c:read-word :: $c.tags
-  | ¬sa-su? $e:read-word :: $e.tags
+  | $c:read-word :: $c.tags
   | $o:text-opener $p:opener-spaces :: $o.tags
 %conditions
   ¬$p.following-tokens.begins(opener-space-token),
   $c.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$c.following-tokens.begins(opener-space-token),
-  $e.classes ∩ $TEXT-OPENERS = ∅ ∨ ¬$e.following-tokens.begins(opener-space-token),
   $c.classes ∩ $MAGIC-WORDS = ∅,
-  $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬$c.onward.begins(quote),
-  ¬$e.onward.begins(quote)
+  ¬$c.onward.begins(quote)
 %emits
   $
 

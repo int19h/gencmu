@@ -18,15 +18,11 @@ In the experimental dialect, an unfinished marker carries `Fault` unless BU or Z
 
 ```jbogenbau
 %redefine-rule word
-  | sa-su? $c:read-word
-      :: $c.tags ∪ (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
-  | ¬sa-su? $e:read-word
-      :: $e.tags ∪ (LOhAI ⊆ $e.classes ∧ ¬$e.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
+  $c:read-word
+    :: $c.tags ∪ (LOhAI ⊆ $c.classes ∧ ¬$c.following-tokens.begins(lohai-constructor-tail) ⟹ Fault)
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
-  $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬$c.onward.begins(quote),
-  ¬$e.onward.begins(quote)
+  ¬$c.onward.begins(quote)
 %emits
   $
 

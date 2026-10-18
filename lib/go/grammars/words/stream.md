@@ -175,7 +175,15 @@ A failed words stage publishes no warnings from that stage. A successful stage k
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
-The feature `sa-su` enables the two long-range erasers. Without that feature, SA and SU are ordinary words. The libraries turn on `sa-su` for a text that needs it ([engine §13](../../docs/engine.md#13-the-pipeline)). The rule `word` identifies such texts by tagging SA and SU only when that feature is off.
+The feature `sa-su` enables the two long-range erasers. The stage enables it when any input token has class SA or SU. A caller that disables this required feature gets a `feature-conflict` result ([engine §13](../../docs/engine.md#13-the-pipeline)).
+
+```jbogenbau
+%features sa-su
+%conditions
+  $.classes ∩ (SA SU) ≠ ∅
+```
+
+Without SA or SU input, both feature states admit the same plain words. The rule `word` therefore excludes every magic-word class in either state.
 
 `$MAGIC-WORDS` lists the operation classes that an ordinary word cannot carry.
 
@@ -197,13 +205,10 @@ The feature `sa-su` enables the two long-range erasers. Without that feature, SA
   $
 
 %rule word
-  | sa-su? $c:read-word :: $c.tags
-  | ¬sa-su? $e:read-word :: $e.tags
+  $c:read-word :: $c.tags
 %conditions
   $c.classes ∩ $MAGIC-WORDS = ∅,
-  $e.classes ∩ ($MAGIC-WORDS ∖ (SA ∪ SU)) = ∅,
-  ¬$c.onward.begins(quote),
-  ¬$e.onward.begins(quote)
+  ¬$c.onward.begins(quote)
 %emits
   $
 
