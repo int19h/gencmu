@@ -10,6 +10,11 @@
     }
   ],
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 44
+    }
   }
 }

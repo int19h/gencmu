@@ -3,6 +3,11 @@
   "grammar": "%rule text ε %conditions A.ngrams(1) = ∅",
   "input": "",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 26
+    }
   }
 }

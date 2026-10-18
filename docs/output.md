@@ -180,7 +180,7 @@ Its envelope is `{"format":33,"rules":[RULE...],"directives":[DIRECTIVE...],"con
 
 DOM format 33 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 33 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-DOM format 33 adds integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values. The change from parse-result format 13 to 14 adds the `feature-conflict` error kind and its `feature` member.
+DOM format 33 adds integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
 Format 33 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":33,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
