@@ -663,7 +663,7 @@ The experimental dialect redefines `selbri-4` and `operator`, with the same rank
 
 The dialect also states three conventions as rules:
 
-- A connection that can be a sumti connection is a sumti connection, and not a connection of terms.
+- A complete sumti connection takes priority over a term or bridi-tail connection.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 

@@ -140,7 +140,9 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   %include "../syntax/experimental.md"
   ```
 
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `late-elision` ranks the remaining readings.
+A bridi-tail is a predicate with its following terms.
+
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer bridi-tail connections. `late-elision` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
@@ -159,7 +161,7 @@ A PEG has ordered choice. Ordered choice keeps the first matching alternative. T
 The syntax layer preserves these camxes-exp preferences among complete readings:
 
 - A connective directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
-- A sumti connection takes priority over a term connection ([terms](../syntax/experimental.md#terms)).
+- A sumti connection takes priority over a term or bridi-tail connection ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
 - A final `gi'e ke` group belongs to the bridi-tail connective ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - A number or letter string consumes every continuation without written BOI ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
@@ -191,7 +193,7 @@ The examples below compare this layer's explicit preferences with camxes-exp. So
 
 First, `la djonz. cu na'e pamoi cusku` has `na'e` on the selbri `pa moi`. camxes-exp reads the number `na'e pa` before `moi`, since its `mex MOI` form comes first.
 
-Second, in `mi nelci le su'u delno .enai le su'u stero delno`, the elided terminators fall as late as the grammar allows. So `.enai` joins two bridi-tails (selbri with their terms) inside the first abstraction. camxes-exp joins the two descriptions.
+In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
 
 A free modifier after a subscript can belong to the subscript or to the word that the subscript marks. The dialect gives it to the word, as CLL's grammar does. So in `mi broda xi pa boi to do toi`, the parenthesis belongs to `broda`. camxes-exp gives it to the subscript.
 

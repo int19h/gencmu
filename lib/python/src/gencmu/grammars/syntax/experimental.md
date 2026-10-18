@@ -43,16 +43,18 @@ The number and letter-string rules prevent a run from ending before a part that 
 
 A span is a range between input token boundaries. A ranked choice filters alternatives at one written position. An option qualifies when its complete reading passes the grammar's conditions. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs.
 
-A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+A derivation is one complete grammatical reading. An admitted derivation survives ranked filtering. The stage ranks admitted derivations by `leftmost-longest`, then `fewest`, then `late-elision`. After the flags tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 `free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
+
+The `bridi-tail-connective` rule carries `fewest`, which prefers fewer nonempty occurrences. A sumti connection avoids a bridi-tail link, so it wins before late elision when both readings complete. A bridi-tail link remains available where no sumti connection completes.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
 The layer permits ambiguity beyond omitted terminators. It uses these rules to select a reading:
 
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms").
+- A connection that can be a sumti connection is one ("Terms"). A complete sumti connection also takes priority over a bridi-tail connection.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
@@ -242,7 +244,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 %redefine-rule gek-sentence
   gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [+KEhE] # | NA # gek-sentence
 
-%rule bridi-tail-connective
+%rule(fewest) bridi-tail-connective
   gihek # | connective
 
 %redefine-rule tail-terms
@@ -893,7 +895,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
 
 ## Choosing among parses
 
-Where a text has more than one parse, the stage follows [the notation document](../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest`, then `late-elision`. `late-elision` counts the omitted terminators of each admitted derivation at each boundary. Fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
+Where a text has more than one parse, the stage follows [the notation document](../../docs/notation.md), under "Ranked choices", "Ambiguity", and "Elided terminators". A ranked choice filters alternatives at one written position. The stage ranks admitted derivations by `leftmost-longest`, then `fewest`, then `late-elision`. `late-elision` counts the omitted terminators of each admitted derivation at each boundary. After the flags tie, fewer omitted terminators win at the first differing boundary. Two best derivations with equal counts at every boundary tie, and a tie is an error.
 
 For example, `le sutra tavla` has two parses. One is a statement with the description `le sutra`, whose `ku` is elided before `tavla`, and the selbri `tavla`. The other is a fragment, the single description `le sutra tavla`, whose `ku` is elided at the end. `late-elision` takes the fragment.
 
@@ -958,6 +960,8 @@ A bare forethought termset can close with NUhU here. camxes-exp gives that form 
 Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, NIhE can close before `brode`, which becomes the quantified sumti's predicate. camxes-exp greedily keeps `broda brode` inside NIhE and takes the plain body. This layer revisits inner choices when a whole construction needs them.
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
+
+The `fewest` flag compares complete readings and prefers fewer bridi-tail links before elision ranking. Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
 
 The description's possessor can be any unquantified sumti. camxes-exp also reads an initial quantifier as `quantifier` followed by `sumti`. Thus `lo re mi broda` contains `lo re mi` followed by the selbri `broda`. Forethought sentences in descriptions follow camxes-exp's `sumti_tail` and `sumti_5`.
 
