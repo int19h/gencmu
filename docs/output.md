@@ -174,15 +174,15 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":32,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":33,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 32 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 32 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+DOM format 33 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 33 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-The change from DOM format 31 to 32 adds `conditions` to feature directives. The change from parse-result format 13 to 14 adds the `feature-conflict` error kind and its `feature` member.
+DOM format 33 adds integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
 
-Format 32 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":32,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+Format 33 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":33,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -270,7 +270,9 @@ Terms have these forms:
 {"pattern":PATTERN}
 ```
 
-A run of bare tag names produces one `union` of singleton `tag` terms in written order. Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
+In a term, a run of bare tag names or string literals produces one `union` of its terms in written order. Set operations treat scalar strings as singleton sets. A lone string keeps its scalar type.
+
+Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
 
 For example, `A ∪ (B ∪ C)` gives this term:
 
@@ -286,9 +288,15 @@ Engine constants resolve directly as scalar strings outside the user constant ve
 
 A method node always has `method`, `receiver`, and `args`, in that order. Its method name, receiver type, arity, and result type follow engine §10. A receiver can be a capture, span method, string term, or the recipe-only emitted pair. Zero-argument methods have an empty argument array.
 
-Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags`, `.matches`, `.begins` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
+Rule arguments use `{"rule":"r"}`, including `{"rule":"#"}`. `.tags` and `.without-elision-except` take one. Classifier arguments use `{"classifier":"lexicon"}`. These are legal only in their method's argument position. String arguments are terms. A classifier name starts with a lowercase letter, so `#` cannot name a classifier.
 
-`.followed-by` and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice. Their receiver is `{"capture":"x"}`, or `{"capture":""}` for `$`.
+`.matches`, `.begins`, `.followed-by`, and `.preceded-by` take one or more arguments, each `{"rule":"r"}` or `{"terminal":"T"}`, in written order. Two or more arguments form a choice.
+
+Repeated targets are accepted in source and supplied DOM, and change nothing. `terminal` names only a user tag, never an engine tag. Boundary targets identify grammar-built token classes, while engine tags describe stored character properties. All four methods share this restriction.
+
+Boundary receivers are `{"capture":"x"}`, or `{"capture":""}` for `$`. Query receivers accept any span.
+
+`.ngrams` takes exactly one `{"integer":"2"}` argument. Its digits match `[1-9][0-9]*`, without a size limit. This argument is not a value term and occurs only in `.ngrams`.
 
 `.without-elision` requires a bare capture receiver, including `{"capture":""}` for `$`. `.onward` can wrap its restored result. The DOM contains no runtime restoration records or ranked seals. Readers reject `$x.onward.without-elision` and direct the author to `$x.without-elision.onward`.
 
@@ -320,8 +328,8 @@ Conditions have these forms:
 
 ```text
 {"op":"=","left":TERM,"right":TERM}
-{"method":"matches","receiver":SPAN,"args":[{"rule":"r"}]}
-{"method":"begins","receiver":SPAN,"args":[{"rule":"r"}]}
+{"method":"matches","receiver":SPAN,"args":[TARGET,TARGET...]}
+{"method":"begins","receiver":SPAN,"args":[TARGET,TARGET...]}
 {"method":"starts-input","receiver":SPAN,"args":[]}
 {"method":"ends-input","receiver":SPAN,"args":[]}
 {"method":"followed-by","receiver":CAPTURE,"args":[TARGET,TARGET...]}
@@ -460,7 +468,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":32,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":33,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 

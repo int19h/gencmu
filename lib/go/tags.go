@@ -280,3 +280,16 @@ type charClass struct {
 	literal  *string
 	wildcard bool
 }
+
+func ngrams(s, digits string) []string {
+	points := []rune(s)
+	n, err := strconv.Atoi(digits)
+	if err != nil || n > len(points) {
+		return nil
+	}
+	var result []string
+	for i := 0; i+n <= len(points); i++ {
+		result = append(result, string(points[i:i+n]))
+	}
+	return result
+}

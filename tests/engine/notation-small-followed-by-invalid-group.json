@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects grouped target choices in `.followed-by`.",
+  "grammar": "%const $A A\n%rule text $x:A %conditions $x.followed-by((a | b))\n%rule a A\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 47
+    }
+  }
+}

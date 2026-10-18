@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 removes the right string-set members from the left string set.",
+  "grammar": "%const $SET (\"a\" \"b\") ∖ \"a\"\n%rule text ε %conditions $SET = \"b\", \"b\" ⊆ $SET, ∅ ⊆ $SET",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

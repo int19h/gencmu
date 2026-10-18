@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 evaluates a guarded string set from its input-dependent condition.",
+  "grammar": "%rule text $x:_ %conditions (($x.value = \"a\") ⟹ (\"a\" \"b\")) = (\"a\" \"b\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 requires parentheses around a string run adjacent to difference.",
+  "grammar": "%const $A \"a\"\n%rule text $x:A %conditions \"a\" \"b\" ∖ \"b\" = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 29
+    }
+  }
+}

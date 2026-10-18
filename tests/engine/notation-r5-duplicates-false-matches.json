@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 gives repeated failing targets the same false query result.",
+  "grammar": "%rule text $x:A %conditions ¬$x.matches(r | r | B | B)\n%rule r B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

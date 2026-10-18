@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4 tests alternatives in written order for `.begins`.",
+  "grammar": "%rule text $x:A B %conditions $x.begins(no | yes | C)\n%rule no B\n%rule yes A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

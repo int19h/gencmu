@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.2 reports a range after a string run at the range separator.",
+  "document": "```jbogenbau\n%const $S \"a\" \"b\"..\"c\"\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

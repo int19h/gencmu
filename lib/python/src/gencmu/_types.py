@@ -12,6 +12,8 @@ type but a span; the loader checks it again once the stage is stitched
 
 from __future__ import annotations
 
+import re
+
 from typing import Any, Callable, Optional, Union
 
 from ._trampoline import Walk, run
@@ -65,7 +67,7 @@ _SPAN_METHODS = {"first-token", "tokens-after-first", "last-token", "onward", "f
 _STRING_METHODS = {"value", "image", "source-text", "decomposed-source-text", "verbatim-text"}
 _PREDICATES = {"matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"}
 _SPAN_SHAPES = _SPAN_METHODS | {"without-elision", "without-elision-except"}
-_METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "classify", "emitted"}
+_METHODS = _SPAN_SHAPES | _STRING_METHODS | _PREDICATES | {"tags", "classes", "split", "ngrams", "classify", "emitted"}
 
 
 def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = False) -> str | None:
@@ -84,14 +86,16 @@ def method_shape_problem(name: Any, receiver: Any, args: Any, recipe: bool = Fal
     def term(arg):
         return isinstance(arg, dict) and not ({"rule", "classifier", "terminal"} & arg.keys())
 
-    if name == "split":
+    if name == "ngrams":
+        valid = len(args) == 1 and named(args[0], "integer") and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
+    elif name == "split":
         valid = len(args) == 1 and term(args[0])
     elif name == "classify":
         valid = len(args) == 1 and named(args[0], "classifier")
     elif name == "tags":
         valid = span and (not args or len(args) == 1 and named(args[0], "rule"))
     elif name in ("matches", "begins"):
-        valid = span and len(args) == 1 and named(args[0], "rule")
+        valid = span and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
     elif name in ("followed-by", "preceded-by"):
         valid = bare and bool(args) and all(named(arg, "rule") or named(arg, "terminal") for arg in args)
     elif name == "without-elision-except":
@@ -130,10 +134,16 @@ def method_type(name: str, receiver: TermType, args: list[Any], bare: bool = Fal
     elif name in ("followed-by", "preceded-by"):
         valid = bare and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
         result, arity = "predicate", None
+    elif name in ("matches", "begins"):
+        valid = receiver in spans and bool(args) and all(set(arg) == {"rule"} or set(arg) == {"terminal"} and isinstance(arg["terminal"], str) and arg["terminal"][:1].isupper() and not arg["terminal"].startswith("_") for arg in args)
+        result, arity = "predicate", None
     elif name in _PREDICATES:
         valid, result, arity = receiver in spans, "predicate", 0 if name in ("starts-input", "ends-input") else 1
         if arity and (len(args) != 1 or set(args[0]) != {"rule"}):
             valid = False
+    elif name == "ngrams":
+        valid = receiver in spans | {"string", "any"} and len(args) == 1 and set(args[0]) == {"integer"} and isinstance(args[0]["integer"], str) and re.fullmatch(r"[1-9][0-9]*", args[0]["integer"]) is not None
+        result, arity = "strings", 1
     elif name in ("split", "classify"):
         valid, result, arity = receiver in spans | {"string", "any"}, "strings" if name == "split" else "tags", 1
         if name == "classify" and (len(args) != 1 or set(args[0]) != {"classifier"}):
@@ -151,7 +161,7 @@ def joined_type(types: list[TermType], operator: str) -> Found:
     whose type is not known yet fits any set."""
     if any(kind in ("capture", "span", "restored") for kind in types):
         return None, SPAN_NOT_VALUE
-    known = [kind for kind in types if kind != "any"]
+    known = ["strings" if kind == "string" else kind for kind in types if kind != "any"]
     for kind in known:
         if kind not in _SET_KINDS:
             return None, f"{operator} joins sets, not {_NAMES[kind]}"
@@ -172,6 +182,9 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
         if right not in ("pattern", "set", "any"):
             return "a tree comparison requires a tree pattern on its right"
         return None
+    spans = {"capture", "span", "restored"}
+    if (op not in ("∈", "∉") and (left in spans or right in spans) and (left in {"strings", "tags", "set"} or right in {"strings", "tags", "set"})) or (op in ("∈", "∉") and right in spans):
+        return SPAN_NOT_VALUE
     if "pattern" in (left, right):
         return "tree patterns use ≅ or ≇"
     if op in ("=", "≠", "∈", "∉"):
@@ -182,13 +195,13 @@ def comparison_problem(op: str, left: TermType, right: TermType) -> str | None:
     if op in ("∈", "∉"):
         if left not in ("string", "any"):
             return f"{op} tests a string, not {_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets"
-        if right not in ("strings", "set", "any"):
+        if right not in ("string", "strings", "set", "any"):
             return f"{op} tests a string in a set of strings, not in {_NAMES[right]}"
         return None
     if op in ("=", "≠"):
         if left == "any" or right == "any":
             return None
-        if left == "string" or right == "string":
+        if left == "string" and right == "string":
             # = and ≠ compare two values of one type.
             return None if left == right else f"{op} compares two values of one type, not {_NAMES[left]} and {_NAMES[right]}"
     kind, problem = joined_type([left, right], op)
@@ -333,8 +346,11 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         kind, fault = yield _term_typing(term["then"], constants, memo)
         if fault is not None:
             return None, fault
-        problem = expected_problem(kind, "tags")
-        return (None, (problem, term)) if problem is not None else ("tags", None)
+        kind = "strings" if kind == "string" else kind
+        if kind not in ("tags", "strings", "set", "any"):
+            problem = SPAN_NOT_VALUE if kind in ("capture", "span", "restored") else "a guarded term requires a tag set or string set"
+            return None, (problem, term)
+        return kind, None
     name = term.get("method")
     if isinstance(name, str):
         kind, fault = yield _term_typing(term["receiver"], constants, memo)
@@ -549,7 +565,7 @@ def open_part(term: Any) -> Any:
             continue
         items: Any = []
         if isinstance(current.get("method"), str):
-            if current["method"] != "split":
+            if current["method"] not in ("split", "ngrams"):
                 return current
             items = [current["receiver"], *current["args"]]
         else:

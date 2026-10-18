@@ -1,0 +1,20 @@
+{
+  "description": "Engine §10 forbids implicit span-to-set conversion in a set operation.",
+  "grammar": "%rule text $x:A %conditions $x ⊆ (\"a\" \"b\")",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 29
+    }
+  }
+}

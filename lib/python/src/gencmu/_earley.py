@@ -16,7 +16,7 @@ from ._eligible import eligible
 from ._errors import _GrammarFault
 from ._grammar import Lowered, Production, SymbolTest, written_symbol
 from ._model import Range, Tags, Token
-from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string
+from ._tags import EMPTY, Gathered, TagTable, difference, intersection, is_class, split_string, ngrams
 from ._trampoline import Walk, run
 from ._patterns import PatternMachine, observation_machine
 from ._unicode import UnicodeTable
@@ -602,8 +602,9 @@ class StageContext:
 
 def _as_set(value: Any) -> Tags:
     """A value where a set is needed (engine §10). The reader has made sure
-    that the types agree, so a set's kind needs no mark here, and no value
-    turns into another."""
+    that the types agree. A scalar string supplies its singleton set."""
+    if isinstance(value, str):
+        return frozenset((value,))
     if not isinstance(value, (frozenset, set)):
         raise _GrammarFault("a set is needed here")
     return value
@@ -742,6 +743,9 @@ class Evaluator:
         if name is not None:
             args = dom["args"]
             receiver = dom["receiver"]
+            if name == "ngrams":
+                text = _as_string((yield self.walk_value(dom["receiver"], bound)))
+                return ngrams(text, dom["args"][0]["integer"])
             if name in ("split", "classify"):
                 text = _as_string((yield self.walk_value(receiver, bound)))
                 if name == "split":
@@ -795,7 +799,7 @@ class Evaluator:
             right = yield self.walk_value(dom["right"], bound)
             if op in ("=", "≠"):
                 # Two strings, or two sets of one kind (engine §10).
-                equal = left == right
+                equal = left == right if isinstance(left, str) and isinstance(right, str) else _as_set(left) == _as_set(right)
                 return equal if op == "=" else not equal
             if op in ("∈", "∉"):
                 if not isinstance(left, str):
@@ -815,7 +819,13 @@ class Evaluator:
                 return span[1] == self.end
             if name == "starts-input":
                 return span[0] == self.base
-            rule = dom["args"][0]["rule"]
+            if len(dom["args"]) > 1:
+                for arg in dom["args"]:
+                    if (yield self.walk_condition({**dom, "args": [arg]}, bound)):
+                        return True
+                return False
+            arg = dom["args"][0]
+            rule = arg.get("rule", "\0query:" + arg.get("terminal", ""))
             if isinstance(span, RestoredSpan):
                 return (yield self.context.aligned(rule, span, name == "begins")).accepted
             start, end, _ = span

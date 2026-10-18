@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.2 reports a range after a string run at the range separator.",
+  "document": "```jbogenbau\n%rule r A %conditions \"a\" ∈ (\"a\" \"b\"..\"c\")\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 37
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "description": "Engine §9.3 includes every terminal alternative when it finds buildable boundary targets for `.matches`.",
+  "grammar": "%rule text $x:A %conditions $x.matches(no | T), ¬$.followed-by(T)\n%rule no B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

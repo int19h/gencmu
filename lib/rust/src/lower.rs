@@ -62,6 +62,7 @@ pub(crate) enum LTerm {
     /// `split(a, d)`: the set of the pieces of `a` between the occurrences
     /// of `d` (§10).
     Split(Box<LTerm>, Box<LTerm>),
+    Ngrams(Box<LTerm>, String),
     Tags(Span),
     TagsRule(Span, u32),
     Classes(Span),
@@ -888,9 +889,16 @@ impl<'a> Scope<'a> {
             Term::Union(items) => LTerm::Union(list(self, items)?),
             Term::Intersection(items) => LTerm::Inter(list(self, items)?),
             Term::Difference(left, right) => LTerm::Diff(Box::new(self.term(left)?), Box::new(self.term(right)?)),
-            // A span is never a value (§10); the reader refuses one. And
-            // stitching gives every constant its value (§2).
+            // String contexts project captures and derived spans to input values (§10).
             Term::Capture(_) => LTerm::Value(self.span(term)?),
+            Term::Call(name, _)
+                if matches!(
+                    name.as_str(),
+                    "head" | "tail" | "last" | "from" | "after" | "without-elision" | "without-elision-except"
+                ) =>
+            {
+                LTerm::Value(self.span(term)?)
+            }
             Term::Pattern(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
@@ -901,6 +909,9 @@ impl<'a> Scope<'a> {
                 ("classes", [Arg::Term(span)]) => LTerm::Classes(self.span(span)?),
                 ("tags", [Arg::Term(span)]) => LTerm::Tags(self.span(span)?),
                 ("tags", [Arg::Term(span), Arg::Rule(rule)]) => LTerm::TagsRule(self.span(span)?, self.rule(rule)?),
+                ("ngrams", [Arg::Term(string), Arg::Integer(n)]) => {
+                    LTerm::Ngrams(Box::new(self.term(string)?), n.clone())
+                }
                 ("split", [Arg::Term(string), Arg::Term(delimiter)]) => {
                     LTerm::Split(Box::new(self.term(string)?), Box::new(self.term(delimiter)?))
                 }
@@ -929,8 +940,21 @@ impl<'a> Scope<'a> {
                 };
                 LCond::Cmp(op, self.term(left)?, self.term(right)?)
             }
-            Cond::Matches(span, rule) => LCond::Matches(self.span(span)?, self.rule(rule)?),
-            Cond::Begins(span, rule) => LCond::Begins(self.span(span)?, self.rule(rule)?),
+            Cond::Matches(span, targets) | Cond::Begins(span, targets) => {
+                let mut choices = Vec::new();
+                for rule in targets {
+                    choices.push(if matches!(cond, Cond::Matches(..)) {
+                        LCond::Matches(self.span(span)?, self.rule(rule)?)
+                    } else {
+                        LCond::Begins(self.span(span)?, self.rule(rule)?)
+                    })
+                }
+                if choices.len() == 1 {
+                    choices.pop().unwrap()
+                } else {
+                    LCond::Any(choices)
+                }
+            }
             Cond::Initial(span) => LCond::Initial(self.span(span)?),
             Cond::Final(span) => LCond::Final(self.span(span)?),
             Cond::Boundary(forward, span, targets, _) => {
@@ -999,6 +1023,14 @@ fn lower_mode(
     classifiers: Arc<ClassifierTables>,
     validation: bool,
 ) -> Result<Lowered, LowerError> {
+    let query_grammar;
+    let targets = query_terminals(grammar);
+    let grammar = if targets.is_empty() {
+        grammar
+    } else {
+        query_grammar = with_query_rules(grammar, targets);
+        &query_grammar
+    };
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut lowerer = Lowerer {
         grammar,
@@ -1716,6 +1748,14 @@ fn ranked_runtime(grammar: &StageGrammar, lowered: &Lowered) -> RankedRuntime {
         return RankedRuntime::default();
     }
     let mut runtime = RankedRuntime::default();
+    let query_grammar;
+    let targets = query_terminals(grammar);
+    let grammar = if targets.is_empty() {
+        grammar
+    } else {
+        query_grammar = with_query_rules(grammar, targets);
+        &query_grammar
+    };
     let condition_offsets = crate::boundary::condition_offsets(grammar);
     let mut source_private: FxMap<(usize, usize), BTreeSet<String>> = FxMap::default();
     for group in &grammar.ranked.groups {
@@ -2167,6 +2207,90 @@ fn close_families(grammar: &StageGrammar) -> Vec<FxSet<u32>> {
             members
         })
         .collect()
+}
+
+fn query_terminals(grammar: &StageGrammar) -> BTreeSet<String> {
+    enum Part<'a> {
+        T(&'a Term),
+        C(&'a Cond),
+    }
+    let mut stack = Vec::new();
+    let mut result = BTreeSet::new();
+    let mut seen = FxSet::default();
+    for rule in &grammar.rules {
+        for a in &rule.alternatives {
+            stack.extend(a.alternative.tags.iter().map(Part::T));
+            if !seen.insert(Arc::as_ptr(&a.clauses)) {
+                continue;
+            }
+            stack.extend(a.clauses.conditions.iter().map(Part::C));
+            stack.extend(a.clauses.tags.iter().map(Part::T));
+            for item in a.clauses.emit.iter().flatten() {
+                match item {
+                    EmitItem::Capture(_, t, _) | EmitItem::Insert(t, _) => stack.extend(t.iter().map(Part::T)),
+                }
+            }
+        }
+    }
+    while let Some(p) = stack.pop() {
+        match p {
+            Part::C(c) => match c {
+                Cond::Matches(_, targets) | Cond::Begins(_, targets) => {
+                    result.extend(targets.iter().filter(|s| is_terminal_name(s)).cloned())
+                }
+                Cond::Compare(_, a, b) => stack.extend([Part::T(a), Part::T(b)]),
+                Cond::Not(c) => stack.push(Part::C(c)),
+                Cond::Any(cs) | Cond::All(cs) => stack.extend(cs.iter().map(Part::C)),
+                Cond::If(a, b) => stack.extend([Part::C(a), Part::C(b)]),
+                _ => {}
+            },
+            Part::T(t) => match t {
+                Term::If(c, t) => stack.extend([Part::C(c), Part::T(t)]),
+                Term::Union(ts) | Term::Intersection(ts) => stack.extend(ts.iter().map(Part::T)),
+                Term::Difference(a, b) => stack.extend([Part::T(a), Part::T(b)]),
+                Term::Call(_, args) => {
+                    for a in args {
+                        if let Arg::Term(t) = a {
+                            stack.push(Part::T(t))
+                        }
+                    }
+                }
+                _ => {}
+            },
+        }
+    }
+    result
+}
+fn with_query_rules(grammar: &StageGrammar, targets: BTreeSet<String>) -> StageGrammar {
+    use crate::grammar::{RuleClauses, StitchedRule};
+    let mut grammar = grammar.clone();
+    for name in targets {
+        let document: Arc<str> = Arc::from("<query>");
+        let alternative = StitchedAlternative {
+            alternative: crate::dom::Alternative {
+                guards: Vec::new(),
+                expr: Expr::Terminal(name.clone()),
+                tags: None,
+                strings: Default::default(),
+                ranked_locations: Default::default(),
+            },
+            written: None,
+            written_alternative: 0,
+            text_order: usize::MAX,
+            clauses: Arc::new(RuleClauses {
+                tags: None,
+                strings: Default::default(),
+                emit: None,
+                conditions: Vec::new(),
+            }),
+            erased: false,
+            document: document.clone(),
+            at: (1, 1),
+        };
+        grammar.index.insert(name.clone(), grammar.rules.len());
+        grammar.rules.push(StitchedRule { flags: Vec::new(), name, alternatives: vec![alternative], document });
+    }
+    grammar
 }
 
 #[cfg(test)]

@@ -1,0 +1,21 @@
+{
+  "description": "Engine §4 propagates a recursive error before trying a later successful alternative for `.matches`.",
+  "grammar": "%rule text $x:A %conditions $x.matches(loop | A)\n%rule loop A %conditions $.matches(loop)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "result": {
+      "error": {
+        "kind": "grammar",
+        "stage": "main"
+      }
+    }
+  }
+}

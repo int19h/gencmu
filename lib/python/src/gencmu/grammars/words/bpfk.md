@@ -99,8 +99,7 @@ The PEG's `lojban_word` is what `post_word` looks for after a word.
 %rule lujvo  (* A compound is a predicate word that is neither a root nor a borrowing. *)
   $b:brivla
 %conditions
-  ¬$b.onward.begins(gismu),
-  ¬$b.onward.begins(fuhivla)
+  ¬$b.onward.begins(gismu | fuhivla)
 
 %rule post-word  (* A word ends before a pause or a legal next word. Without a pause, the next word cannot start with a nucleus. *)
   | pause
@@ -172,8 +171,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 %rule cmavo  (* A particle excludes a name start and a CVCy compound start. It ends at a complete word boundary. *)
   $f:cmavo-form
 %conditions
-  ¬$f.onward.begins(cmevla),
-  ¬$f.onward.begins(cvcy-lujvo),
+  ¬$f.onward.begins(cmevla | cvcy-lujvo),
   $f.following-tokens.begins(post-word)
 
 %rule cvcy-lujvo  (* Detect a CVC rafsi with a y-hyphen before the compound core. Stress separates the two forms. Unhyphenated initial rafsi cannot start where the core starts, because of stress and their own exclusions. Only a lookahead. *)
@@ -189,8 +187,7 @@ A cmavo is not the start of a name, and not the start of a lujvo that begins wit
 %rule cmavo-form-with-onset  (* A particle forbids an apostrophe or cluster at its start. Each inner nucleus needs its apostrophe. The final nucleus cannot consume that apostrophe. *)
   $o:onset [{nucleus h}] cmavo-last-nucleus
 %conditions
-  ¬$o.onward.begins(h),
-  ¬$o.onward.begins(cluster)
+  ¬$o.onward.begins(h | cluster)
 
 ```
 
@@ -334,9 +331,7 @@ An extended rafsi lets a brivla or a borrowing, whole or cut short, stand before
 %rule brivla-head  (* An unstressed head requires an onset and excludes particles, slinku'i forms, and apostrophe starts. The following stress or hyphen fixes its length. *)
   [{unstressed-syllable}]
 %conditions
-  ¬$.onward.begins(cmavo),
-  ¬$.onward.begins(slinkuhi),
-  ¬$.onward.begins(h),
+  ¬$.onward.begins(cmavo | slinkuhi | h),
   $.onward.begins(onset)
 
 %rule slinkuhi  (* A slinku'i form starts with a consonant plus a rafsi string, but the whole start is not itself a rafsi string. Only a lookahead. *)
@@ -446,10 +441,7 @@ The core of a brivla ends it, and a pause or another word follows it. Its final 
 %rule y-less-rafsi  (* An unhyphenated rafsi excludes y-rafsi, hy-rafsi, and their stressed forms at its start. It cannot end directly before an apostrophe. *)
   $r:y-less-rafsi-body
 %conditions
-  ¬$r.onward.begins(y-rafsi),
-  ¬$r.onward.begins(stressed-y-rafsi),
-  ¬$r.onward.begins(hy-rafsi),
-  ¬$r.onward.begins(stressed-hy-rafsi),
+  ¬$r.onward.begins(y-rafsi | stressed-y-rafsi | hy-rafsi | stressed-hy-rafsi),
   ¬$r.following-tokens.begins(h)
 
 %rule y-less-rafsi-body       (* `CVC_rafsi / CCV_rafsi / CVV_rafsi`. CVC and CCV differ in their second letter. CVC and CVV differ in their third letter. CCV and CVV differ in their second letter. *)
@@ -548,8 +540,7 @@ So an unmarked brivla is stressed on its penultimate syllable, and a pause must 
 %rule final-syllable  (* The final counted syllable forbids y and marked stress. It excludes a following name and ends at a complete word boundary. *)
   $o:onset $n:nucleus
 %conditions
-  ¬$o.following-tokens.begins(y),
-  ¬$o.following-tokens.begins(stressed),
+  ¬$o.following-tokens.begins(y | stressed),
   ¬$n.following-tokens.begins(cmevla),
   $n.following-tokens.begins(post-word)
 
@@ -784,10 +775,8 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   | $a:affricate
   | $p:initial-parts
 %conditions
-  ¬$a.following-tokens.begins(consonant),
-  ¬$a.following-tokens.begins(glide),
-  ¬$p.following-tokens.begins(consonant),
-  ¬$p.following-tokens.begins(glide)
+  ¬$a.following-tokens.begins(consonant | glide),
+  ¬$p.following-tokens.begins(consonant | glide)
 
 %rule initial-parts  (* Each initial part is optional. Leaving any available consonant unread fails the final consonant exclusion of initial. *)
   [sibilant] [other] [liquid]
@@ -811,8 +800,7 @@ An initial pair is two consonants that can begin a word. `initial` says which: a
   | $j:j-or-z
 %conditions
   ¬$s.following-tokens.begins(x),
-  ¬$j.following-tokens.begins(n),
-  ¬$j.following-tokens.begins(liquid)
+  ¬$j.following-tokens.begins(n | liquid)
 
 %rule j-or-z                  (* j / z *)
   j | z
@@ -854,144 +842,87 @@ Each consonant letter refuses a following apostrophe that begins a syllable, a g
 %rule l  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
   $c:"l"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(l)
+  ¬$c.following-tokens.begins(h | glide | l)
 
 %rule m  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids z. *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(m),
-  ¬$c.following-tokens.begins(z)
+  ¬$c.following-tokens.begins(h | glide | m | z)
 
 %rule n  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It forbids an affricate. *)
   $c:"n"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(n),
-  ¬$c.following-tokens.begins(affricate)
+  ¬$c.following-tokens.begins(h | glide | n | affricate)
 
 %rule r  (* This consonant forbids an apostrophe, a glide, and a repeated letter. *)
   $c:"r"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(r)
+  ¬$c.following-tokens.begins(h | glide | r)
 
 %rule b  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"b"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(b),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | b | unvoiced)
 
 %rule d  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"d"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(d),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | d | unvoiced)
 
 %rule g  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"g"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(g),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | g | unvoiced)
 
 %rule v  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. *)
   $c:"v"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(v),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | v | unvoiced)
 
 %rule j  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
   $c:"j"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(j),
-  ¬$c.following-tokens.begins(z),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | j | z | unvoiced)
 
 %rule z  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
   $c:"z"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(z),
-  ¬$c.following-tokens.begins(j),
-  ¬$c.following-tokens.begins(unvoiced)
+  ¬$c.following-tokens.begins(h | glide | z | j | unvoiced)
 
 %rule s  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
   $c:"s"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(s),
-  ¬$c.following-tokens.begins(c),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | s | c | voiced)
 
 %rule c  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
   $c:"c"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(c),
-  ¬$c.following-tokens.begins(s),
-  ¬$c.following-tokens.begins(x),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | c | s | x | voiced)
 
 %rule x  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
   $c:"x"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(x),
-  ¬$c.following-tokens.begins(c),
-  ¬$c.following-tokens.begins(k),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | x | c | k | voiced)
 
 %rule k  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
   $c:"k"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(k),
-  ¬$c.following-tokens.begins(x),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | k | x | voiced)
 
 %rule f  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
   $c:"f"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(f),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | f | voiced)
 
 %rule p  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
   $c:"p"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(p),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | p | voiced)
 
 %rule t  (* This consonant forbids an apostrophe, a glide, and a repeated letter. It also forbids a voiced consonant. *)
   $c:"t"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(t),
-  ¬$c.following-tokens.begins(voiced)
+  ¬$c.following-tokens.begins(h | glide | t | voiced)
 ```
 
 <details><summary>Railroad diagrams of the 17 rules from <code>l</code> to <code>t</code></summary>

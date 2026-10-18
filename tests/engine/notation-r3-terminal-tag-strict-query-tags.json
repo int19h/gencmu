@@ -1,0 +1,24 @@
+{
+  "description": "Engine §10 unions eligible aligned witness tags for a tag terminal under strict restoration.",
+  "grammar": "%rule text $x:A B %conditions $x.without-elision.tags(probe) = Probe\n%rule family A\n%rule probe A ::Probe",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

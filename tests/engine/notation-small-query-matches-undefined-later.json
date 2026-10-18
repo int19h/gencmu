@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects an undefined target even after an earlier successful alternative for `.matches`.",
+  "grammar": "%rule text $x:A %conditions $x.matches(A | missing)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

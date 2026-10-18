@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 requires parentheses around a string run after a leading intersection token.",
+  "grammar": "%const $A \"a\"\n%rule text $x:A %conditions ∩ \"a\" \"b\" = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 31
+    }
+  }
+}

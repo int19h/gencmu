@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 counts code points inside joined emoji sequences when it builds n-grams.",
+  "grammar": "%const $S \"👩$(_200D)💻\".ngrams(2)\n%rule text ε %conditions $S = (\"👩$(_200D)\" \"$(_200D)💻\")",
+  "tokens": [],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

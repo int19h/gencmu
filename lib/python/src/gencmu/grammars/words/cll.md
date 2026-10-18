@@ -211,6 +211,8 @@ The rules below build the letters of a lujvo from the left, and they place each 
 
 A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
 
+`pair-across-y` applies the permissible-pair restrictions to the consonants on each side of a hyphen. The shared sets in [shapes.md](shapes.md#consonants) give their voicing and sibilant groups.
+
 ```jbogenbau
 %rule hyphen-y
   "y"<¬Stressed>
@@ -275,23 +277,15 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
   "t" "c" | "t" "s" | "d" "j" | "d" "z"
 
 %rule pair-across-y
-  | "b" hyphen-y after-b
-  | "c" hyphen-y after-c
-  | "d" hyphen-y after-d
-  | "f" hyphen-y after-f
-  | "g" hyphen-y after-g
-  | "j" hyphen-y after-j
-  | "k" hyphen-y after-k
-  | "l" hyphen-y after-l
-  | "m" hyphen-y after-m
-  | "n" hyphen-y after-n
-  | "p" hyphen-y after-p
-  | "r" hyphen-y after-r
-  | "s" hyphen-y after-s
-  | "t" hyphen-y after-t
-  | "v" hyphen-y after-v
-  | "x" hyphen-y after-x
-  | "z" hyphen-y after-z
+  $l:consonant hyphen-y $r:consonant
+%conditions
+  $l.value ≠ $r.value,
+  ¬($l.value ∈ $VOICED ∧ $r.value ∈ $UNVOICED),
+  ¬($l.value ∈ $UNVOICED ∧ $r.value ∈ $VOICED),
+  ¬($l.value ∈ $SIBILANTS ∧ $r.value ∈ $SIBILANTS),
+  ¬($l.value = "x" ∧ $r.value ∈ ("c" "k")),
+  ¬($l.value ∈ ("c" "k") ∧ $r.value = "x"),
+  ¬($l.value = "m" ∧ $r.value = "z")
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>hyphen-y</code> to <code>pair-across-y</code></summary>
@@ -425,13 +419,9 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   $f:fuhivla-form
 %conditions
   $f.matches(clustered-start),
-  ¬$f.matches(gismu-form),
-  ¬$f.matches(lujvo-form),
-  ¬$f.matches(lujvo-after-cv),
-  ¬$f.matches(lujvo-after-cvv),
+  ¬$f.matches(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
   (N2 ∪ N3) ∩ $f.tags(brivla-scan) ≠ ∅,
-  ¬$f.matches(one-syllable),
-  ¬$f.matches(combination)
+  ¬$f.matches(one-syllable | combination)
 
 %rule fuhivla-form
   | fuhivla-body

@@ -1,0 +1,24 @@
+{
+  "description": "Engine §10 reads the original value of a range terminal under strict restoration.",
+  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.value = \"a\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

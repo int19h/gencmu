@@ -146,6 +146,12 @@ function lex(text, originalPositions) {
       if (j < n) found.push([j + 2, null]);
       reach = Math.max(reach, Math.min(j + 2, n));
     }
+    if (/^[0-9]$/.test(c)) {
+      let end = i + 1;
+      while (/^[0-9]$/.test(chars[end])) end++;
+      found.push([end, "integer"]);
+      reach = Math.max(reach, end);
+    }
     if (isLetter(c)) {
       // A whole name, or the whole run and `?` or `!`, a guard.
       const end = runEnds[i];
@@ -743,7 +749,12 @@ class Parser {
     if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
     else switch (this.kindAt()) {
       case "@": base = yield this.patternLiteral(); break;
-      case "string": base = this.leaf("string"); break;
+      case "string": {
+        const strings = [this.leaf("string")];
+        if (runs) while (this.is("string")) strings.push(this.leaf("string"));
+        base = strings.length === 1 ? strings[0] : this.node("string-run", start, strings);
+        break;
+      }
       case "#":
         if (!runs) return this.fail("expected a term");
         base = this.leaf("name"); break;
@@ -851,7 +862,7 @@ class Parser {
 
   *argument() {
     const start = this.index;
-    return this.node("argument", start, [(yield this.term())]);
+    return this.node("argument", start, [this.is("integer") ? this.leaf("integer") : (yield this.term())]);
   }
 }
 

@@ -1,0 +1,24 @@
+{
+  "description": "Engine §10 decomposes the original source text of a range terminal under strict restoration.",
+  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.decomposed-source-text = \"a\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

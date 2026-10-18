@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects string targets in `.followed-by`.",
+  "grammar": "%const $A A\n%rule text $x:A %conditions $x.followed-by(\"a\")\n%rule a A\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 29
+    }
+  }
+}

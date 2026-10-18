@@ -1,0 +1,18 @@
+{
+  "description": "Engine §9.3 includes every terminal alternative when it finds buildable boundary targets for `.begins`.",
+  "grammar": "%rule text $x:A %conditions $x.begins(no | T), ¬$.followed-by(T)\n%rule no B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

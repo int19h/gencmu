@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 32
+const domFormat = 33
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -156,6 +156,7 @@ const (
 	tmRule         = "rule"
 	tmClassifier   = "classifier"
 	tmTerminal     = "terminal"
+	tmInteger      = "integer"
 	tmIf           = "if"
 	tmConst        = "const"
 	tmPattern      = "pattern"
@@ -516,7 +517,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw(`{"pattern":`)
 		w.pattern(t.Pattern)
 		w.raw("}")
-	case tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal:
+	case tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":")
@@ -583,7 +584,7 @@ func (c *domCond) writeJSON(w *jsonWriter) {
 			t.Str = c.Op
 			t.Items = append(t.Items, c.Targets...)
 		} else if c.Kind != cdInitial && c.Kind != cdEnd {
-			t.Items = append(t.Items, &domTerm{Kind: tmRule, Str: c.Rule})
+			t.Items = append(t.Items, c.queryTargets()...)
 		}
 		t.writeJSON(w)
 	case cdNot:
@@ -1153,7 +1154,7 @@ var exprForms = [][]string{
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
-	{tmString}, {tmTag}, {tmTerminal}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
+	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
 var condForms = [][]string{
@@ -1197,7 +1198,7 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 	if !hasOneForm(o, termForms) {
 		return nil, fmt.Errorf("a malformed term")
 	}
-	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal} {
+	for _, k := range []string{tmString, tmTag, tmCapture, tmRule, tmClassifier, tmTerminal, tmInteger} {
 		if v, ok := o[k]; ok {
 			s, err := decodeString(v)
 			return &domTerm{Kind: k, Str: s}, err
@@ -1289,8 +1290,8 @@ func decodeCondAt(raw json.RawMessage, depth int) (*domCond, error) {
 		if t.Str == "starts-input" && len(t.Items) == 1 {
 			return &domCond{Kind: cdInitial, Span: t.Items[0]}, nil
 		}
-		if (t.Str == "matches" || t.Str == "begins") && len(t.Items) == 2 && t.Items[1].Kind == tmRule {
-			return &domCond{Kind: t.Str, Span: t.Items[0], Rule: t.Items[1].Str}, nil
+		if (t.Str == "matches" || t.Str == "begins") && len(t.Items) >= 2 {
+			return &domCond{Kind: t.Str, Span: t.Items[0], Targets: t.Items[1:]}, nil
 		}
 		return nil, fmt.Errorf("a malformed predicate method")
 	}
@@ -1373,4 +1374,28 @@ func decodeEmit(raw json.RawMessage) (*domEmit, error) {
 		return it, err
 	})
 	return &domEmit{Items: items}, err
+}
+
+func (c *domCond) queryTargets() []*domTerm {
+	if len(c.Targets) > 0 {
+		return c.Targets
+	}
+	return []*domTerm{{Kind: tmRule, Str: c.Rule}}
+}
+func queryName(t *domTerm) string {
+	if t.Kind == tmTerminal {
+		return "\x00query:" + t.Str
+	}
+	return t.Str
+}
+func validInteger(s string) bool {
+	if len(s) == 0 || s[0] < '1' || s[0] > '9' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }

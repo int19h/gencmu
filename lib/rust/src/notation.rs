@@ -982,11 +982,7 @@ impl<'a> Reader<'a> {
             } else {
                 let comparator = self.operator(self.token(self.one(test, "test")?)?).to_string();
                 let operand = self.one(test, "test-operand")?;
-                let part = self.inner(operand, ATOMS)?;
-                if !matches!(rule_name(part), "string" | "constant-reference") {
-                    return Err(self.error(operand, "a value test requires a string literal or constant"));
-                }
-                (comparator, self.string_operand(part)?)
+                (comparator, self.value_test_operand(operand)?)
             };
             expr = Expr::Tested(op, operand, Box::new(expr));
         }
@@ -1039,14 +1035,20 @@ impl<'a> Reader<'a> {
                 // The reader has checked each comparison of a condition, so
                 // a condition's terms agree; the term guarded last must be a
                 // tag set, an error at its guard.
-                if let Some(problem) = expected_problem(ty, Type::Tags).filter(|_| !self.feature_context.get()) {
-                    return Err(self.error(last, problem));
-                }
+                let kind = if self.feature_context.get() {
+                    Type::Any
+                } else {
+                    let kind = crate::dom::joined_type(&[ty], "⟹").map_err(|p| self.error(last, p))?;
+                    if kind == Type::Pattern {
+                        return Err(self.error(last, "a guarded term requires a set"));
+                    }
+                    kind
+                };
                 let mut guarded = term;
                 while let Some(cond) = frame.conds.pop() {
                     guarded = Term::If(Box::new(cond), Box::new(guarded));
                 }
-                Ok(Step::Done(Val::Term(guarded, Type::Tags)))
+                Ok(Step::Done(Val::Term(guarded, kind)))
             }
             _ => unreachable!("a guarded term reads conditions and a term"),
         }
@@ -1074,7 +1076,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::String | Type::Span) && !self.feature_context.get() {
+            if matches!(ty, Type::Span) && !self.feature_context.get() {
                 return Err(self.error(frame.node, "set operators require sets or patterns"));
             }
         }
@@ -1135,7 +1137,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::String | Type::Span) && !self.feature_context.get() {
+            if matches!(ty, Type::Span) && !self.feature_context.get() {
                 return Err(self.error(frame.node, "set operators require sets or patterns"));
             }
         }
@@ -1179,17 +1181,22 @@ impl<'a> Reader<'a> {
                 let tag = self.tag_of(token)?;
                 typed(Term::Tag(tag), Type::Tags)
             }
-            "tag-run" => {
+            "tag-run" | "string-run" => {
                 let before = node.span.start.checked_sub(1).and_then(|i| self.tokens.get(i));
                 let after = self.tokens.get(node.span.end);
                 if before.into_iter().chain(after).any(|t| matches!(t.value.as_str(), "∩" | "∖")) {
                     return Err(self.error(inner, "a tag run beside intersection or difference requires parentheses"));
                 }
                 let mut items = Vec::new();
-                for tag in self.some(inner, "tag", 2)? {
-                    items.push(Term::Tag(self.tag_of(self.token(tag)?)?));
+                let strings = inner.rule.as_deref() == Some("string-run");
+                for tag in self.some(inner, if strings { "string" } else { "tag" }, 2)? {
+                    items.push(if strings {
+                        self.string_term(self.token(tag)?)?
+                    } else {
+                        Term::Tag(self.tag_of(self.token(tag)?)?)
+                    })
                 }
-                typed(Term::Union(items), Type::Tags)
+                typed(Term::Union(items), if strings { Type::Strings } else { Type::Tags })
             }
             "range" => Err(self.error(inner, "a range is a terminal, not a value term")),
             // A bare name is a tag literal if it begins with a capital, and
@@ -1519,7 +1526,7 @@ impl<'a> Reader<'a> {
             } else {
                 let op = self.operator(self.token(self.one(test, "test")?)?).into();
                 let operand = self.one(test, "test-operand")?;
-                (op, self.string_operand(self.inner(operand, ATOMS)?)?)
+                (op, self.value_test_operand(operand)?)
             };
             pattern = crate::patterns::Pattern::Test(op, operand, Box::new(pattern));
         }
@@ -1556,7 +1563,7 @@ impl<'a> Reader<'a> {
             return Ok(Step::Call(Frame::Argument(ArgumentFrame { node: argument })));
         }
         if let Some(arguments) = Self::rules(selector, "arguments").next() {
-            let expected = if matches!(name, "followed-by" | "preceded-by") { "|" } else { "," };
+            let expected = if matches!(name, "matches" | "begins" | "followed-by" | "preceded-by") { "|" } else { "," };
             if Self::parts(arguments).iter().any(|part| part.kind == NodeKind::Token && self.value(part) != expected) {
                 return Err(self.error(arguments, "invalid method argument separator"));
             }
@@ -1588,7 +1595,14 @@ impl<'a> Reader<'a> {
                     [],
                 ) => span,
                 ("without-elision" | "verbatim-text" | "emitted", []) => bare,
-                ("matches" | "begins" | "tags", [Arg::Rule(_)]) => span,
+                ("tags", [Arg::Rule(_)]) => span,
+                ("matches" | "begins", args) => {
+                    span && !args.is_empty()
+                        && args
+                            .iter()
+                            .all(|a| matches!(a, Arg::Rule(_)) || matches!(a,Arg::Term(Term::Tag(n)) if is_capital(n)))
+                }
+                ("ngrams", [Arg::Integer(n)]) => string && crate::dom::valid_integer(n),
                 ("without-elision-except", [Arg::Rule(_)]) => bare,
                 ("followed-by" | "preceded-by", args) => {
                     bare && !args.is_empty()
@@ -1620,7 +1634,7 @@ impl<'a> Reader<'a> {
         if !self.in_recipe.get() && matches!(name, "verbatim-text" | "emitted") {
             return Err(self.error(frame.node, format!(".{name} is allowed only in a recipe")));
         }
-        if let Some(closed) = self.closed_for.get().filter(|_| name != "split") {
+        if let Some(closed) = self.closed_for.get().filter(|_| name != "split" && name != "ngrams") {
             return Err(self.error(frame.node, format!("{closed} cannot read .{name}")));
         }
         let mut args = vec![Arg::Term(receiver)];
@@ -1657,11 +1671,16 @@ impl<'a> Reader<'a> {
                         },
                     ),
                     _ => {
-                        let Some(Arg::Rule(rule)) = args.next() else { unreachable!() };
+                        let targets = args
+                            .map(|a| match &a {
+                                Arg::Rule(n) | Arg::Term(Term::Tag(n)) => n.clone(),
+                                _ => unreachable!(),
+                            })
+                            .collect();
                         if name == "matches" {
-                            Cond::Matches(receiver, rule)
+                            Cond::Matches(receiver, targets)
                         } else {
-                            Cond::Begins(receiver, rule)
+                            Cond::Begins(receiver, targets)
                         }
                     }
                 })
@@ -1689,6 +1708,13 @@ impl<'a> Reader<'a> {
     fn resume_argument(&self, frame: &mut ArgumentFrame<'a>, input: Option<Val>) -> R<Step<'a>> {
         if let Some(Val::Term(term, ty)) = input {
             return Ok(Step::Done(Val::Arg(Arg::Term(term), Some(ty))));
+        }
+        if let Some(integer) = Self::rules(frame.node, "integer").next() {
+            let digits = self.value(self.token(integer)?);
+            if !crate::dom::valid_integer(digits) {
+                return Err(self.error(integer, "an integer argument is positive without leading zeros"));
+            }
+            return Ok(Step::Done(Val::Arg(Arg::Integer(digits.into()), None)));
         }
         let union = first_of_rule(frame.node, "union").ok_or_else(|| self.shape_error(frame.node, "term"))?;
         if let Some(rule) = self.rule_name_in(union) {
@@ -1876,6 +1902,14 @@ impl<'a> Reader<'a> {
         }
     }
 
+    fn value_test_operand(&self, operand: &'a Node) -> R<Term> {
+        let part = self.inner(operand, ATOMS)?;
+        if !matches!(rule_name(part), "string" | "constant-reference") {
+            return Err(self.error(operand, "a value test requires a string literal or constant"));
+        }
+        self.string_operand(part)
+    }
+
     fn string_operand(&self, node: &'a Node) -> R<Term> {
         let token = self.token(node)?;
         match rule_name(node) {
@@ -1959,6 +1993,21 @@ impl<'a> Reader<'a> {
         }
     }
 
+    fn recipe_string_run(mut node: &Node) -> Option<&Node> {
+        for wrapper in ["term", "union", "intersection", "term-atom"] {
+            if rule_name(node) != wrapper {
+                return None;
+            }
+            let children = Self::parts(node);
+            let [child] = children.as_slice() else { return None };
+            if child.kind != NodeKind::Rule {
+                return None;
+            }
+            node = child;
+        }
+        (rule_name(node) == "string-run").then_some(node)
+    }
+
     fn channels(&self, node: &'a Node) -> R<Channels> {
         let mut channels = Channels::default();
         for (name, target, at) in [
@@ -1978,6 +2027,12 @@ impl<'a> Reader<'a> {
                             .any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹"))
                     {
                         return Err(self.error(atom, "a recipe atom has no grouping or operators"));
+                    }
+                    if let Some(run) = Self::recipe_string_run(self.one(atom, "term")?) {
+                        for string in self.some(run, "string", 2)? {
+                            atoms.push(Arg::Term(self.string_term(self.token(string)?)?));
+                        }
+                        continue;
                     }
                     let (term, _) = self.term(self.one(atom, "term")?, true)?;
                     let valid = match &term {
@@ -2381,6 +2436,8 @@ const KNOWN: &[&str] = &[
     "method-name",
     "arguments",
     "tag-run",
+    "string-run",
+    "integer",
     "argument-term",
     "tree-comparison",
     "tree-comparator",
@@ -2482,6 +2539,8 @@ const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
     "method",
     "tag-run",
+    "string-run",
+    "integer",
     "pattern-literal",
     "string",
     "tag",

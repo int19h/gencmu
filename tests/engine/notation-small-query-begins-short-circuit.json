@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 stops before a recursive later alternative after an earlier success for `.begins`.",
+  "grammar": "%rule text $x:A %conditions $x.begins(A | loop)\n%rule loop A %conditions $.begins(loop)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

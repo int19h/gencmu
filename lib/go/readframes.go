@@ -383,7 +383,10 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 		// set, an error at its guard.
 		ty, problem := b.typeOf(t)
 		if problem == "" {
-			problem = expectedProblem(ty, tyTags)
+			_, problem = joinedType([]termType{ty}, "⟹")
+			if ty == tyPattern {
+				problem = "a guarded term requires a set"
+			}
 		}
 		if problem != "" {
 			b.fail(f.guards[len(f.guards)-1], "%s", problem)
@@ -451,7 +454,7 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		// A test's operand is one term, as a term-atom reads it (§9).
 		f.pass = true
 		return ask(&termFrame{n: b.knownOf(n, atomRules), argument: f.argument})
-	case "tag-run":
+	case "tag-run", "string-run":
 		return give(b.tagRun(n))
 	case "guarded-term":
 		// A ⟹ t: its any-ofs, each guarding the rest, and then its union,
@@ -713,5 +716,5 @@ func (f *conditionFrame) resume(b *domBuilder, in any) readStep {
 	if t.Str == "begins" {
 		kind = cdBegins
 	}
-	return give(&domCond{Kind: kind, Span: t.Items[0], Rule: t.Items[1].Str})
+	return give(&domCond{Kind: kind, Span: t.Items[0], Targets: t.Items[1:]})
 }

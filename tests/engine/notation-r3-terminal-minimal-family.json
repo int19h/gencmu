@@ -1,0 +1,15 @@
+{
+  "description": "Engine §4 supplies an empty restoration observation for a string terminal under family restoration without another query demand.",
+  "grammar": "%rule text $x:\"a\" %conditions $x.without-elision-except(family).ngrams(1) = \"a\"\n%rule family \"a\"",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": []
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

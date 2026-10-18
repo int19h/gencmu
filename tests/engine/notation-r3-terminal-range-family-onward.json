@@ -1,0 +1,24 @@
+{
+  "description": "Engine §10 extends the original span of a range terminal under family restoration.",
+  "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision-except(family).onward.value = \"ab\"\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

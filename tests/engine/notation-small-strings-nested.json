@@ -1,0 +1,10 @@
+{
+  "description": "Engine §9.3 flattens nested string unions in written order.",
+  "grammar": "%const $SET \"a\" ∪ (\"b\" \"a\")\n%rule text ε %conditions $SET = \"a b\".split(\" \"), \"a b\".split(\" \") ⊆ $SET, ∅ ⊆ $SET",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

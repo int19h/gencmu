@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 rejects a terminal witness without the restored span's required close observation for `.matches`.",
+  "grammar": "%rule text $x:yes %conditions ¬$x.without-elision.matches(A)\n%rule yes A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

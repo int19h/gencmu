@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 promotes a guarded scalar string to a singleton when its capture is present.",
+  "grammar": "%rule text $x:\"a\" %conditions ($x ⟹ \"a\") = (\"a\" ∪ ∅)",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

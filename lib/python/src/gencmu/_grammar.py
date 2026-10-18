@@ -18,6 +18,7 @@ from ._tags import (
     difference,
     intersection,
     split_string,
+    ngrams,
 )
 from ._trampoline import Walk, run
 from ._patterns import empty_pattern, walk_pattern
@@ -151,6 +152,7 @@ class Grammar:
     # values (engine §2, §11).
     implications: list[tuple[frozenset[str], frozenset[str]]] = field(default_factory=list)
     families: dict[str, frozenset[str]] = field(default_factory=dict, repr=False, compare=False)
+    query_terminals: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
     # The features that gate an entry of a classifier. Only these change
     # the classifiers.
     classifier_gates: frozenset[str] = field(init=False, repr=False, compare=False)
@@ -463,6 +465,9 @@ class _Constants:
         if "difference" in term:
             left = _set((yield self._closed(path, term["difference"][0], item)))
             return difference(left, _set((yield self._closed(path, term["difference"][1], item))))
+        if term.get("method") == "ngrams":
+            text = yield self._closed(path, term["receiver"], item)
+            return ngrams(text, term["args"][0]["integer"])
         if term.get("method") == "split":
             # Left to right, as a parse evaluates a term (engine §10).
             text, delimiter = term["receiver"], term["args"][0]
@@ -647,7 +652,7 @@ class _Constants:
 
 
 def _set(value: Any) -> Any:
-    return value if isinstance(value, frozenset) else EMPTY
+    return value if isinstance(value, frozenset) else frozenset((value,)) if isinstance(value, str) else EMPTY
 
 
 def _string(value: Any) -> str:
@@ -815,6 +820,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
     # same document and place.
     checked: set[int] = set()
     family_names: list[str] = []
+    query_terminals: set[str] = set()
 
     def unchecked(clause: Any) -> Any:
         if clause is None or id(clause) in checked:
@@ -848,6 +854,8 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                             stage,
                         )
                     if "method" in value:
+                        if value["method"] in ("matches", "begins"):
+                            query_terminals.update(arg["terminal"] for arg in value["args"] if "terminal" in arg)
                         # DOM object order does not change the written
                         # order: the receiver precedes every argument.
                         stack.extend(reversed([value["receiver"], *value["args"]]))
@@ -871,6 +879,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
         feature_items=resolved_features,
         implications=implications,
         families=members(rules, family_names),
+        query_terminals=frozenset(query_terminals),
     )
 
     grammar.ranked = RankedGroups(stage, rules)
@@ -1569,6 +1578,13 @@ class _Lowerer:
                     self.add(lhs, expansion, alt)
                 self.flush(expansions)
             self.current_alt = None
+        for terminal in sorted(self.grammar.query_terminals):
+            name = "\0query:" + terminal
+            lhs = len(self.rule_names)
+            self.rule_names.append(name)
+            self.rule_display.append(name)
+            self.rule_ids[name] = lhs
+            self.productions.append(Production(id=len(self.productions), lhs=lhs, rhs=(terminal,), terminal=(True,), rule_name=name, helper=True, slots=(-1,), logical=(("symbol", 0),)))
         if not self.validation:
             self.check_brace_items()
         rule_productions: list[list[int]] = [[] for _ in self.rule_names]

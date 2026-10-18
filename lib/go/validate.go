@@ -1039,6 +1039,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
+		valueOperand := func(a *domTerm) bool {
+			return a != nil && a.Kind != tmRule && a.Kind != tmClassifier && a.Kind != tmInteger && a.Kind != tmTerminal
+		}
 		var ok bool
 		switch t.Str {
 		case "without-elision-except":
@@ -1049,16 +1052,18 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			ok = len(args) == 1 && isSpanShape(args[0])
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
+		case "ngrams":
+			ok = len(args) == 2 && valueOperand(args[0]) && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
 		case "split":
 			// Its arguments are values, whose types are checked with the
 			// rule's (engine §10).
 			ok = len(args) == 2
 			for _, a := range args {
-				ok = ok && a != nil && !isRule(a) && !isClassifier(a)
+				ok = ok && valueOperand(a)
 			}
 		case "classify":
 			// A string, and the name of a classifier (engine §9).
-			ok = len(args) == 2 && args[0] != nil && !isRule(args[0]) && !isClassifier(args[0]) && isClassifier(args[1])
+			ok = len(args) == 2 && valueOperand(args[0]) && isClassifier(args[1])
 		}
 		if !ok {
 			c.fail("a malformed call of %q", t.Str)
@@ -1069,7 +1074,7 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			return
 		}
 		for _, a := range args {
-			if isRule(a) || isClassifier(a) {
+			if isRule(a) || isClassifier(a) || a.Kind == tmInteger {
 				c.deep(depth + 1) // a rule's or a classifier's name is a node below the call
 			} else {
 				c.term(a, depth+1, true)
@@ -1115,7 +1120,14 @@ func (c *domChecker) condition(d *domCond, depth int) {
 		c.term(d.Left, depth+1, d.Op == "≅" || d.Op == "≇")
 		c.term(d.Right, depth+1, false)
 	case cdMatches, cdBegins:
-		if !isSpanShape(d.Span) || !isRuleName(d.Rule) {
+		for _, t := range d.queryTargets() {
+			if t == nil || (t.Kind != tmRule && t.Kind != tmTerminal) || (t.Kind == tmRule && !isRuleName(t.Str)) || (t.Kind == tmTerminal && (!isCapital(t.Str) || engineTag(t.Str) || !isTag(t.Str, c.uni))) {
+				c.fail("a malformed query target")
+				return
+			}
+			c.deep(depth + 1)
+		}
+		if !isSpanShape(d.Span) {
 			c.fail("a malformed %s()", d.Kind)
 			return
 		}
@@ -1328,14 +1340,14 @@ type typeFault struct {
 func isSetType(t termType) bool { return t == tyStrings || t == tyTags || t == tySet }
 
 // callStrings says what the functions that take strings take.
-var callStrings = map[string]string{"split": "two strings", "classify": "a string and a classifier's name"}
+var callStrings = map[string]string{"split": "two strings", "classify": "a string and a classifier's name", "ngrams": "a string and a positive integer"}
 
 // callType is the type of the value a function gives.
 func callType(name string) termType {
 	switch name {
 	case "value", "image", "source-text", "decomposed-source-text", "verbatim-text":
 		return tyString
-	case "split":
+	case "split", "ngrams":
 		return tyStrings
 	case "tags", "classes", "classify":
 		return tyTags
@@ -1353,12 +1365,18 @@ func joinedType(types []termType, op string) (termType, string) {
 		}
 	}
 	for _, t := range types {
+		if t == tyString {
+			t = tyStrings
+		}
 		if t != tyAny && t != tyPattern && !isSetType(t) {
 			return 0, fmt.Sprintf("%s joins sets, not %s", op, typeNames[t])
 		}
 	}
 	kind, unknown := tySet, false
 	for _, t := range types {
+		if t == tyString {
+			t = tyStrings
+		}
 		if t == tyAny {
 			unknown = true
 			continue
@@ -1390,6 +1408,9 @@ func comparisonProblem(op string, left, right termType) string {
 		}
 		return ""
 	}
+	if op != "∈" && op != "∉" && (left == tySpan || right == tySpan) && (isSetType(left) || isSetType(right)) || (op == "∈" || op == "∉") && right == tySpan {
+		return spanNotValue
+	}
 	if left == tyPattern || right == tyPattern {
 		return "tree patterns use ≅ or ≇"
 	}
@@ -1409,7 +1430,7 @@ func comparisonProblem(op string, left, right termType) string {
 		if left != tyString && left != tyAny {
 			return fmt.Sprintf("%s tests a string, not %s, in a set of strings; ⊆ and ⊈ compare two sets", op, typeNames[left])
 		}
-		if right != tyStrings && right != tySet && right != tyAny {
+		if right != tyString && right != tyStrings && right != tySet && right != tyAny {
 			return fmt.Sprintf("%s tests a string in a set of strings, not in %s", op, typeNames[right])
 		}
 		return ""
@@ -1418,7 +1439,7 @@ func comparisonProblem(op string, left, right termType) string {
 		if left == tyAny || right == tyAny {
 			return ""
 		}
-		if left == tyString || right == tyString {
+		if left == tyString && right == tyString {
 			if left == right {
 				return ""
 			}
@@ -1600,20 +1621,24 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 		if f != nil {
 			return 0, f
 		}
-		if problem := expectedProblem(ty, tyTags); problem != "" {
+		kind, problem := joinedType([]termType{ty}, "⟹")
+		if kind == tyPattern {
+			problem = "a guarded term requires a set"
+		}
+		if problem != "" {
 			return 0, &typeFault{problem, t}
 		}
-		return tyTags, nil
+		return kind, nil
 	case tmCall:
 		for _, a := range t.Items {
-			if a.Kind == tmRule || a.Kind == tmClassifier {
+			if a.Kind == tmRule || a.Kind == tmClassifier || a.Kind == tmInteger {
 				continue
 			}
 			ty, f := termTypeMemo(a, ct, memo)
 			if f != nil {
 				return 0, f
 			}
-			if t.Str == "split" || t.Str == "classify" {
+			if t.Str == "split" || t.Str == "classify" || t.Str == "ngrams" {
 				if problem := expectedProblem(ty, tyString); problem != "" {
 					return 0, &typeFault{t.Str + " takes " + callStrings[t.Str] + ": " + problem, t}
 				}
@@ -1805,7 +1830,7 @@ func openPart(t *domTerm) *domTerm {
 	case tmCapture, tmIf:
 		return t
 	case tmCall:
-		if t.Str != "split" {
+		if t.Str != "split" && t.Str != "ngrams" {
 			return t
 		}
 	case tmPattern:
@@ -1911,7 +1936,7 @@ func constRefs(nodes ...any) []*domTerm {
 }
 
 func inputConditionsProblem(conditions []*domCond) string {
-	allowed := map[string]bool{"tags": true, "classes": true, "value": true, "image": true, "source-text": true, "decomposed-source-text": true, "first-token": true, "tokens-after-first": true, "last-token": true, "split": true}
+	allowed := map[string]bool{"tags": true, "classes": true, "value": true, "image": true, "source-text": true, "decomposed-source-text": true, "first-token": true, "tokens-after-first": true, "last-token": true, "split": true, "ngrams": true}
 	problem := ""
 	for _, condition := range conditions {
 		walkClause(clausePart{c: condition}, func(p clausePart) bool {

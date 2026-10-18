@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects a fractional argument in `.ngrams`.",
+  "grammar": "%const $N \"2\"\n%rule text $x:A %conditions $x.ngrams(1.5) = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 40
+    }
+  }
+}

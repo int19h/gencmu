@@ -1055,6 +1055,7 @@ enum Task<'n> {
     DiffRight(Arc<TagList>),
     /// `split` with its delimiter to evaluate next.
     Split(&'n LTerm),
+    Ngrams(&'n str),
     /// `split` with the string's value.
     SplitBy(String),
     Classify(&'n str),
@@ -1352,7 +1353,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     term(a, out);
                     term(b, out);
                 }
-                LTerm::Classify(t, _) => term(t, out),
+                LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => term(t, out),
                 _ => {}
             }
         }
@@ -3045,12 +3046,11 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         }
     }
 
-    /// A set's value. The reader has made sure that the types agree
-    /// (§10), so a string never stands where a set is needed.
-    fn as_set(value: Value) -> Result<Arc<TagList>, EngineError> {
+    /// A set value, with scalar strings converted to singleton sets (§10).
+    fn as_set(&mut self, value: Value) -> Result<Arc<TagList>, EngineError> {
         match value {
             Value::Set(list) => Ok(list),
-            Value::Str(_) => Err(EngineError { message: "a string where a set is needed".to_string(), rule: None }),
+            Value::Str(s) => Ok(Arc::new(vec![self.shared.tags.tag(&s)])),
         }
     }
 
@@ -3064,13 +3064,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     }
 
     /// A comparison of two values (§10).
-    fn compare(&self, op: CmpOp, left: Value, right: Value) -> Result<bool, EngineError> {
+    fn compare(&mut self, op: CmpOp, left: Value, right: Value) -> Result<bool, EngineError> {
         Ok(match op {
             // Two strings, or two sets of one kind (§10).
             CmpOp::Eq | CmpOp::Ne => {
                 let equal = match (left, right) {
                     (Value::Str(a), Value::Str(b)) => a == b,
-                    (a, b) => Self::as_set(a)? == Self::as_set(b)?,
+                    (a, b) => self.as_set(a)? == self.as_set(b)?,
                 };
                 equal == (op == CmpOp::Eq)
             }
@@ -3081,12 +3081,12 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         message: "the left side of ∈ or ∉ is a string".to_string(), rule: None
                     });
                 };
-                let set = Self::as_set(right)?;
+                let set = self.as_set(right)?;
                 let inside = self.shared.tags.lookup(&needle).is_some_and(|id| set.binary_search(&id).is_ok());
                 inside == (op == CmpOp::In)
             }
             CmpOp::Subset | CmpOp::NotSubset => {
-                is_subset(&*Self::as_set(left)?, &*Self::as_set(right)?) == (op == CmpOp::Subset)
+                is_subset(&*self.as_set(left)?, &*self.as_set(right)?) == (op == CmpOp::Subset)
             }
         })
     }
@@ -3232,6 +3232,10 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                                 text
                             })
                         }
+                        LTerm::Ngrams(string, n) => {
+                            eval.push(Task::Ngrams(n), Task::Term(string));
+                            continue;
+                        }
                         LTerm::Split(string, delimiter) => {
                             eval.push(Task::Split(delimiter), Task::Term(string));
                             continue;
@@ -3334,7 +3338,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 }
                 Task::Right(op, left) => Out::Bool(self.compare(op, left, took(&mut last).value())?),
                 Task::Union(items, mut parts) => {
-                    parts.push(Self::as_set(took(&mut last).value())?);
+                    parts.push(self.as_set(took(&mut last).value())?);
                     match items.get(parts.len()) {
                         Some(item) => {
                             eval.push(Task::Union(items, parts), Task::Term(item));
@@ -3344,7 +3348,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                 }
                 Task::Inter(items, next, list) => {
-                    let set = Self::as_set(took(&mut last).value())?;
+                    let set = self.as_set(took(&mut last).value())?;
                     let list = match list {
                         None => set,
                         Some(list) => Arc::new(intersection(&list, &set)),
@@ -3358,13 +3362,21 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                 }
                 Task::DiffLeft(right) => {
-                    let left = Self::as_set(took(&mut last).value())?;
+                    let left = self.as_set(took(&mut last).value())?;
                     eval.push(Task::DiffRight(left), Task::Term(right));
                     continue;
                 }
                 Task::DiffRight(left) => {
-                    let right = Self::as_set(took(&mut last).value())?;
+                    let right = self.as_set(took(&mut last).value())?;
                     Out::Value(Value::set(difference(&left, &right)))
+                }
+                Task::Ngrams(n) => {
+                    let string = Self::as_string(took(&mut last).value())?;
+                    let mut list: TagList =
+                        crate::dom::ngrams(&string, n).iter().map(|s| self.shared.tags.tag(s)).collect();
+                    list.sort_unstable();
+                    list.dedup();
+                    Out::Value(Value::set(list))
                 }
                 Task::Split(delimiter) => {
                     let string = Self::as_string(took(&mut last).value())?;
@@ -3410,9 +3422,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     }
                     Out::Value(Value::set(TagList::new()))
                 }
-                Task::AsSet => Out::Value(Value::Set(Self::as_set(took(&mut last).value())?)),
+                Task::AsSet => Out::Value(Value::Set(self.as_set(took(&mut last).value())?)),
                 Task::Whole(wanted) => {
-                    let list = Self::as_set(took(&mut last).value())?;
+                    let list = self.as_set(took(&mut last).value())?;
                     eval.hidden = false;
                     let set = self.shared.tags.set_shared(list);
                     match wanted {
@@ -3458,7 +3470,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let mut eval = Eval::term(term);
         loop {
             match self.evaluate(&mut eval, frame, tokens, base) {
-                Ok(out) => return Self::as_set(out.value()),
+                Ok(out) => return self.as_set(out.value()),
                 Err(Halt::Invalid) => {
                     return Err(EngineError {
                         message: "a reached span has a cyclic restoration observation".into(),

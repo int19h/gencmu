@@ -219,6 +219,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 		if err != nil {
 			return nil, err
 		}
+		if v.ty == tyString {
+			return &tagset{names: []string{v.s}}, nil
+		}
 		return &tagset{names: v.names}, nil
 	}
 	str := func(part *domTerm) (string, *Error) {
@@ -304,6 +307,12 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 		return &constValue{ty: tySet, names: in.unionAll(sets).names}, nil
 	case tmCall:
 		switch t.Str {
+		case "ngrams":
+			s, err := str(t.Items[0])
+			if err != nil {
+				return nil, err
+			}
+			return &constValue{ty: tyStrings, names: in.fromList(ngrams(s, t.Items[1].Str)).names}, nil
 		case "split":
 			// Left to right, as a parse evaluates a term (§10).
 			s, err := str(t.Items[0])

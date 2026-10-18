@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 excludes string sets from tag positions.",
+  "grammar": "%implies (\"a\" \"b\") ⟹ A\n%rule text A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 10
+    }
+  }
+}

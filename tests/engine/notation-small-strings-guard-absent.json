@@ -1,0 +1,10 @@
+{
+  "description": "Engine §3.6 simplifies a guarded string set whose capture is absent.",
+  "grammar": "%rule text [$x:\"a\"] %conditions ($x ⟹ (\"a\" \"b\")) = ∅",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

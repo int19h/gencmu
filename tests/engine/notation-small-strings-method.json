@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 intersects a string method's set result with a promoted scalar string.",
+  "grammar": "%const $SET \"ab\".ngrams(1) ∩ \"a\"\n%rule text ε %conditions $SET = \"a\", \"a\" ⊆ $SET, ∅ ⊆ $SET",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

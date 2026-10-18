@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 excludes string sets from scalar value tests.",
+  "grammar": "%const $S \"a\" \"b\"\n%rule text A=$S",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 14
+    }
+  }
+}

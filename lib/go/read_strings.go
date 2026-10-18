@@ -24,8 +24,12 @@ func (b *domBuilder) tagRun(n *Node) *domTerm {
 		}
 	}
 	t := &domTerm{Kind: tmUnion}
-	for _, tag := range b.some(n, "tag", 2) {
-		t.Items = append(t.Items, &domTerm{Kind: tmTag, Str: b.tagOf(b.token(tag)), At: b.at(tag)})
+	kind := "tag"
+	if n.Rule == "string-run" {
+		kind = "string"
+	}
+	for _, tag := range b.some(n, kind, 2) {
+		t.Items = append(t.Items, b.value(tag))
 	}
 	return t
 }
@@ -378,6 +382,23 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 	return
 }
 
+func recipeStringRun(n *Node) *Node {
+	for _, wrapper := range []string{"term", "union", "intersection", "term-atom"} {
+		if n.Rule != wrapper {
+			return nil
+		}
+		children := parts(n)
+		if len(children) != 1 || children[0].Kind != KindRule {
+			return nil
+		}
+		n = children[0]
+	}
+	if n.Rule == "string-run" {
+		return n
+	}
+	return nil
+}
+
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
@@ -390,6 +411,12 @@ func (b *domBuilder) recipe(n *Node) *domTerm {
 			case "∪", "∩", "∖", "⟹":
 				b.fail(atom, "a recipe atom uses no operator")
 			}
+		}
+		if run := recipeStringRun(b.only(atom, "term")); run != nil {
+			for _, str := range b.some(run, "string", 2) {
+				r.Items = append(r.Items, b.term(str))
+			}
+			continue
 		}
 		b.inRecipe = true
 		t := b.term(b.only(atom, "term"))
@@ -441,15 +468,25 @@ func (f *methodFrame) resume(b *domBuilder, in any) readStep {
 		}
 	}
 	if len(f.args) < len(f.arguments) {
-		return ask(&termFrame{n: b.only(f.arguments[len(f.args)], "term"), argument: true})
+		arg := f.arguments[len(f.args)]
+		if integer := one(arg, "integer"); integer != nil {
+			digits := b.tokenValue(b.token(integer))
+			if !validInteger(digits) {
+				b.fail(integer, "an integer argument is positive without leading zeros")
+			}
+			f.args = append(f.args, &domTerm{Kind: tmInteger, Str: digits})
+			return f.resume(b, nil)
+		}
+		return ask(&termFrame{n: b.only(arg, "term"), argument: true})
 	}
 	if arguments := one(selector, "arguments"); arguments != nil {
 		for _, p := range parts(arguments) {
-			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name)] {
+			if p.Kind == KindToken && b.tokenValue(p) != map[bool]string{true: "|", false: ","}[boundaryMethod(name) || name == "matches" || name == "begins"] {
 				b.fail(arguments, "invalid method argument separator")
 			}
 		}
 		for i, a := range f.args {
+
 			a.At = b.at(f.arguments[i])
 		}
 	}
@@ -493,7 +530,15 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal) && !engineTag(a.Str)
 		}
 	case "matches", "begins":
-		valid = span && len(args) == 1 && args[0].Kind == tmRule
+		valid = span && len(args) > 0
+		for _, a := range args {
+			if a.Kind == tmTag && isCapital(a.Str) {
+				a.Kind = tmTerminal
+			}
+			valid = valid && (a.Kind == tmRule || a.Kind == tmTerminal) && !engineTag(a.Str)
+		}
+	case "ngrams":
+		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver)) && args[0].Kind == tmInteger && validInteger(args[0].Str)
 	case "split":
 		valid = len(args) == 1 && (b.featureContext || b.isStringTerm(receiver) && b.isStringTerm(args[0]))
 	case "classify":
@@ -507,7 +552,7 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 	if !valid {
 		fail()
 	}
-	if b.closedFor != "" && name != "split" {
+	if b.closedFor != "" && name != "split" && name != "ngrams" {
 		b.fail(n, "%s requires a closed term", b.closedFor)
 	}
 	isPredicate := name == "starts-input" || name == "ends-input" || boundaryMethod(name) || name == "matches" || name == "begins"

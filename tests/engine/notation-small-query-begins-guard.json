@@ -1,0 +1,22 @@
+{
+  "description": "Engine §4 permits a target choice inside a guarded tag term for `.begins`.",
+  "grammar": "%rule text A :: ($.begins(B | A) ⟹ Good) %emits $",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "tree": {
+        "tags": [
+          "Good"
+        ]
+      }
+    }
+  }
+}

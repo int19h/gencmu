@@ -12,86 +12,67 @@ Images spell phonemes in Latin letters. Only stressed vowels are capitals, and t
 
 ## Consonants
 
-CLL[^cll-s3-6] lists the permissible consonant pairs. A pair is never the same consonant twice, never a voiced and an unvoiced consonant together, and never two of `c j s z`. CLL[^cll-s3-6] also forbids the pairs `cx`, `kx`, `xc`, `xk` and `mz`. The voiced consonants are `b d g v j z`, and the unvoiced ones are `p t k f c s x`. `l m n r` are neither. For each consonant C, the rule `after-C` lists the consonants that can follow C, 179 pairs in all.
+CLL[^cll-s3-6] gives the restrictions on permissible consonant pairs. A pair cannot repeat a consonant. It cannot mix a voiced and an unvoiced consonant. It cannot contain two consonants from `c j s z`. CLL[^cll-s3-6] also forbids `cx`, `kx`, `xc`, `xk` and `mz`. `$PERMISSIBLE` lists all 179 pairs that satisfy these restrictions.
 
-CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
+Each consonant token has one lowercase Latin letter as its value, in both the Latin and Cyrillic scripts. Thus adjacent code points in a consonant run are exactly its adjacent token values.
+
+`$VOICED` and `$UNVOICED` name the consonants subject to the voicing restriction. The restriction exempts `l m n r`. `$SIBILANTS` names the four consonants that cannot pair with each other.
+
+CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
 
 ```jbogenbau
 %rule consonant
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 
+%const $VOICED "b" "d" "g" "v" "j" "z"
+%const $UNVOICED "p" "t" "k" "f" "c" "s" "x"
+%const $SIBILANTS "c" "j" "s" "z"
+
+%const $INITIAL
+  "bl" "br"
+  "cf" "ck" "cl" "cm" "cn" "cp" "cr" "ct"
+  "dj" "dr" "dz"
+  "fl" "fr"
+  "gl" "gr"
+  "jb" "jd" "jg" "jm" "jv"
+  "kl" "kr"
+  "ml" "mr"
+  "pl" "pr"
+  "sf" "sk" "sl" "sm" "sn" "sp" "sr" "st"
+  "tc" "tr" "ts"
+  "vl" "vr"
+  "xl" "xr"
+  "zb" "zd" "zg" "zm" "zv"
+
+%const $PERMISSIBLE
+  "bd" "bg" "bj" "bv" "bz" "bl" "bm" "bn" "br"
+  "cf" "ck" "cp" "ct" "cl" "cm" "cn" "cr"
+  "db" "dg" "dj" "dv" "dz" "dl" "dm" "dn" "dr"
+  "fc" "fk" "fp" "fs" "ft" "fx" "fl" "fm" "fn" "fr"
+  "gb" "gd" "gj" "gv" "gz" "gl" "gm" "gn" "gr"
+  "jb" "jd" "jg" "jv" "jl" "jm" "jn" "jr"
+  "kc" "kf" "kp" "ks" "kt" "kl" "km" "kn" "kr"
+  "lb" "lc" "ld" "lf" "lg" "lj" "lk" "lm" "ln" "lp" "lr" "ls" "lt" "lv" "lx" "lz"
+  "mb" "mc" "md" "mf" "mg" "mj" "mk" "ml" "mn" "mp" "mr" "ms" "mt" "mv" "mx"
+  "nb" "nc" "nd" "nf" "ng" "nj" "nk" "nl" "nm" "np" "nr" "ns" "nt" "nv" "nx" "nz"
+  "pc" "pf" "pk" "ps" "pt" "px" "pl" "pm" "pn" "pr"
+  "rb" "rc" "rd" "rf" "rg" "rj" "rk" "rl" "rm" "rn" "rp" "rs" "rt" "rv" "rx" "rz"
+  "sf" "sk" "sp" "st" "sx" "sl" "sm" "sn" "sr"
+  "tc" "tf" "tk" "tp" "ts" "tx" "tl" "tm" "tn" "tr"
+  "vb" "vd" "vg" "vj" "vz" "vl" "vm" "vn" "vr"
+  "xf" "xp" "xs" "xt" "xl" "xm" "xn" "xr"
+  "zb" "zd" "zg" "zv" "zl" "zm" "zn" "zr"
+
 %rule initial-pair
-  | "b" "l" | "b" "r"
-  | "c" "f" | "c" "k" | "c" "l" | "c" "m" | "c" "n" | "c" "p" | "c" "r" | "c" "t"
-  | "d" "j" | "d" "r" | "d" "z"
-  | "f" "l" | "f" "r"
-  | "g" "l" | "g" "r"
-  | "j" "b" | "j" "d" | "j" "g" | "j" "m" | "j" "v"
-  | "k" "l" | "k" "r"
-  | "m" "l" | "m" "r"
-  | "p" "l" | "p" "r"
-  | "s" "f" | "s" "k" | "s" "l" | "s" "m" | "s" "n" | "s" "p" | "s" "r" | "s" "t"
-  | "t" "c" | "t" "r" | "t" "s"
-  | "v" "l" | "v" "r"
-  | "x" "l" | "x" "r"
-  | "z" "b" | "z" "d" | "z" "g" | "z" "m" | "z" "v"
+  consonant consonant
+%conditions
+  $.value ∈ $INITIAL
 
 %rule consonant-pair
-  | "b" after-b | "c" after-c | "d" after-d | "f" after-f | "g" after-g | "j" after-j
-  | "k" after-k | "l" after-l | "m" after-m | "n" after-n | "p" after-p | "r" after-r
-  | "s" after-s | "t" after-t | "v" after-v | "x" after-x | "z" after-z
-
-%rule after-b
-  "d" | "g" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
-
-%rule after-d
-  "b" | "g" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
-
-%rule after-g
-  "b" | "d" | "j" | "v" | "z" | "l" | "m" | "n" | "r"
-
-%rule after-v
-  "b" | "d" | "g" | "j" | "z" | "l" | "m" | "n" | "r"
-
-%rule after-j
-  "b" | "d" | "g" | "v" | "l" | "m" | "n" | "r"
-
-%rule after-z
-  "b" | "d" | "g" | "v" | "l" | "m" | "n" | "r"
-
-%rule after-c
-  "f" | "k" | "p" | "t" | "l" | "m" | "n" | "r"
-
-%rule after-s
-  "f" | "k" | "p" | "t" | "x" | "l" | "m" | "n" | "r"
-
-%rule after-x
-  "f" | "p" | "s" | "t" | "l" | "m" | "n" | "r"
-
-%rule after-k
-  "c" | "f" | "p" | "s" | "t" | "l" | "m" | "n" | "r"
-
-%rule after-f
-  "c" | "k" | "p" | "s" | "t" | "x" | "l" | "m" | "n" | "r"
-
-%rule after-p
-  "c" | "f" | "k" | "s" | "t" | "x" | "l" | "m" | "n" | "r"
-
-%rule after-t
-  "c" | "f" | "k" | "p" | "s" | "x" | "l" | "m" | "n" | "r"
-
-%rule after-l
-  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "m" | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
-
-%rule after-r
-  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m" | "n" | "p" | "s" | "t" | "v" | "x" | "z"
-
-%rule after-m
-  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "n" | "p" | "r" | "s" | "t" | "v" | "x"
-
-%rule after-n
-  "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
+  consonant consonant
+%conditions
+  $.value ∈ $PERMISSIBLE
 
 %rule initial-cluster
   initial-pair | long-initial-run
@@ -106,27 +87,10 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
   [consonants] n-affricate [consonants]
 ```
 
-<details><summary>Railroad diagrams of the 24 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>consonant</code> to <code>has-n-affricate</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/consonant.svg" alt="Railroad diagram of the rule consonant"></p>
 <p><img src="../../docs/diagrams/words/shapes/initial-pair.svg" alt="Railroad diagram of the rule initial-pair"></p>
 <p><img src="../../docs/diagrams/words/shapes/consonant-pair.svg" alt="Railroad diagram of the rule consonant-pair"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-b.svg" alt="Railroad diagram of the rule after-b"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-d.svg" alt="Railroad diagram of the rule after-d"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-g.svg" alt="Railroad diagram of the rule after-g"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-v.svg" alt="Railroad diagram of the rule after-v"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-j.svg" alt="Railroad diagram of the rule after-j"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-z.svg" alt="Railroad diagram of the rule after-z"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-c.svg" alt="Railroad diagram of the rule after-c"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-s.svg" alt="Railroad diagram of the rule after-s"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-x.svg" alt="Railroad diagram of the rule after-x"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-k.svg" alt="Railroad diagram of the rule after-k"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-f.svg" alt="Railroad diagram of the rule after-f"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-p.svg" alt="Railroad diagram of the rule after-p"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-t.svg" alt="Railroad diagram of the rule after-t"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-l.svg" alt="Railroad diagram of the rule after-l"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-r.svg" alt="Railroad diagram of the rule after-r"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-m.svg" alt="Railroad diagram of the rule after-m"></p>
-<p><img src="../../docs/diagrams/words/shapes/after-n.svg" alt="Railroad diagram of the rule after-n"></p>
 <p><img src="../../docs/diagrams/words/shapes/initial-cluster.svg" alt="Railroad diagram of the rule initial-cluster"></p>
 <p><img src="../../docs/diagrams/words/shapes/n-affricate.svg" alt="Railroad diagram of the rule n-affricate"></p>
 <p><img src="../../docs/diagrams/words/shapes/consonants.svg" alt="Railroad diagram of the rule consonants"></p>
@@ -137,13 +101,13 @@ CLL[^cll-s3-7] lists the 48 pairs that can begin a word. A borrowing is a word t
 
 A permissible run is a run of consonants whose adjacent pairs are all permissible. A name can have such a run anywhere (CLL[^cll-s3-7]). A borrowing can have one in its middle, with no `n` triple in it (CLL[^cll-s4-7]). The borrowing rules in [cll.md](cll.md#borrowings) use `has-n-affricate` to exclude those triples.
 
-`permissible-run` reads one consonant, or extends a permissible run by one consonant. The condition starts a `consonant-pair` lookahead at the preceding run's last token, so each extension tests its new adjacent pair. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
+`permissible-run` reads a nonempty consonant run. Every two adjacent values must form a pair in `$PERMISSIBLE`. A single consonant has no pair and satisfies the condition. So `.tlaiv.` and `.ekstcat.` are names, but `.djeimz.` and `.bobb.` are not.
 
 ```jbogenbau
 %rule permissible-run
-  consonant | $r:permissible-run consonant
+  consonants
 %conditions
-  $r.last-token.onward.begins(consonant-pair)
+  $.value.ngrams(2) ⊆ $PERMISSIBLE
 ```
 
 <details><summary>Railroad diagram of <code>permissible-run</code></summary>
@@ -152,13 +116,13 @@ A permissible run is a run of consonants whose adjacent pairs are all permissibl
 
 
 
-`long-initial-run` extends an `initial-cluster` by one consonant. `initial-cluster` starts with an `initial-pair`, so the result has at least three consonants. The condition starts an `initial-pair` lookahead at the cluster's last token. Because `initial-cluster` also reads `long-initial-run`, repeated extensions form longer clusters.
+`long-initial-run` reads at least three consonants. Every two adjacent values must form a pair in `$INITIAL`.
 
 ```jbogenbau
 %rule long-initial-run
-  $r:initial-cluster consonant
+  consonant consonant consonant [consonants]
 %conditions
-  $r.last-token.onward.begins(initial-pair)
+  $.value.ngrams(2) ⊆ $INITIAL
 ```
 
 <details><summary>Railroad diagram of <code>long-initial-run</code></summary>
@@ -292,7 +256,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 
 A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none.
 
-`name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. `name-diphthong` also admits `iy` and `uy`. Its tags are:
+`name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. The choice `brivla-diphthong | y-diphthong` also admits `iy` and `uy`. The scan has these tags:
 
 - `N0` to `N3` and `Single-End`, as above
 - `V0` before the scan reads a nucleus, and `V1` after the first nucleus
@@ -323,7 +287,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
        ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
        ∪ Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(name-diphthong)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
 
 %rule name-item
   | consonant | "'" | Syllable-Break
@@ -334,16 +298,12 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 
 %rule name-vowel
   vowel | "y"
-
-%rule name-diphthong
-  brivla-diphthong | y-diphthong
 ```
 
-<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code>, <code>name-vowel</code> and <code>name-diphthong</code></summary>
+<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code> and <code>name-vowel</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/name-scan.svg" alt="Railroad diagram of the rule name-scan"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-item.svg" alt="Railroad diagram of the rule name-item"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-vowel.svg" alt="Railroad diagram of the rule name-vowel"></p>
-<p><img src="../../docs/diagrams/words/shapes/name-diphthong.svg" alt="Railroad diagram of the rule name-diphthong"></p>
 </details>
 
 

@@ -1,0 +1,24 @@
+{
+  "description": "Engine §10 tests the original end of a tag terminal under family restoration.",
+  "grammar": "%rule text $x:A B %conditions ¬$x.without-elision-except(family).ends-input\n%rule family A",
+  "tokens": [
+    {
+      "text": "a",
+      "image": "I",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

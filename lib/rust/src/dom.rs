@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 32;
+pub const DOM_FORMAT: i64 = 33;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -210,6 +210,8 @@ pub(crate) enum Arg {
     Rule(String),
     /// The second argument of `classify`, a classifier's name (engine §9).
     Classifier(String),
+    /// A positive decimal literal without a machine size limit.
+    Integer(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -221,10 +223,10 @@ pub(crate) struct BoundaryLocation {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Cond {
     Compare(String, Term, Term),
-    Matches(Term, String),
+    Matches(Term, Vec<String>),
     /// `begins(s, R)`: whether a prefix of the span, possibly empty, parses
     /// as `R`.
-    Begins(Term, String),
+    Begins(Term, Vec<String>),
     /// `initial(s)`: whether the span begins where the parse's input does.
     Initial(Term),
     Final(Term),
@@ -683,7 +685,11 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     children.extend(
                         array(value, "args")?
                             .iter()
-                            .filter(|arg| arg.get("rule").is_none() && arg.get("classifier").is_none())
+                            .filter(|arg| {
+                                arg.get("rule").is_none()
+                                    && arg.get("classifier").is_none()
+                                    && arg.get("integer").is_none()
+                            })
                             .map(|arg| (arg, false)),
                     );
                 }
@@ -718,8 +724,17 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                                 .collect::<R<Vec<_>>>()?,
                             BoundaryLocation::default(),
                         ),
-                        ("matches", [arg]) => Cond::Matches(receiver, string(arg, "rule")?),
-                        ("begins", [arg]) => Cond::Begins(receiver, string(arg, "rule")?),
+                        ("matches" | "begins", args) => {
+                            let targets = args
+                                .iter()
+                                .map(|arg| string(arg, if arg.get("rule").is_some() { "rule" } else { "terminal" }))
+                                .collect::<R<Vec<_>>>()?;
+                            if name == "matches" {
+                                Cond::Matches(receiver, targets)
+                            } else {
+                                Cond::Begins(receiver, targets)
+                            }
+                        }
                         _ => return Err("a malformed predicate method".into()),
                     }
                 }
@@ -752,6 +767,10 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                 "method" => {
                     let mut args = vec![Arg::Term(operands.next().unwrap().term())];
                     for arg in array(value, "args")? {
+                        if let Some(Json::Str(digits)) = arg.get("integer") {
+                            args.push(Arg::Integer(digits.clone()));
+                            continue;
+                        }
                         args.push(match (arg.get("rule"), arg.get("classifier")) {
                             (Some(Json::Str(name)), _) => Arg::Rule(name.clone()),
                             (_, Some(Json::Str(name))) => Arg::Classifier(name.clone()),
@@ -1275,6 +1294,11 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
 fn write_argument(out: &mut String, arg: &Arg) {
     match arg {
         Arg::Term(term) => write_term(out, term),
+        Arg::Integer(digits) => {
+            out.push_str("{\"integer\":");
+            write_str(out, digits);
+            out.push('}');
+        }
         Arg::Rule(name) | Arg::Classifier(name) => {
             out.push_str(if matches!(arg, Arg::Rule(_)) { "{\"rule\":" } else { "{\"classifier\":" });
             write_str(out, name);
@@ -1318,7 +1342,24 @@ pub(crate) fn write_cond(out: &mut String, cond: &Cond) {
         }
         Cond::Matches(span, rule) | Cond::Begins(span, rule) => {
             let name = if matches!(cond, Cond::Matches(..)) { "matches" } else { "begins" };
-            write_term(out, &Term::Call(name.into(), vec![Arg::Term(span.clone()), Arg::Rule(rule.clone())]));
+            out.push_str("{\"method\":");
+            write_str(out, name);
+            out.push_str(",\"receiver\":");
+            write_term(out, span);
+            out.push_str(",\"args\":[");
+            for (i, target) in rule.iter().enumerate() {
+                if i > 0 {
+                    out.push(',')
+                };
+                out.push_str(if target.starts_with(|c: char| c.is_ascii_uppercase()) {
+                    "{\"terminal\":"
+                } else {
+                    "{\"rule\":"
+                });
+                write_str(out, target);
+                out.push('}')
+            }
+            out.push_str("]}");
         }
         Cond::Initial(span) => write_term(out, &Term::Call("initial".into(), vec![Arg::Term(span.clone())])),
         Cond::Final(span) => write_term(out, &Term::Call("ends-input".into(), vec![Arg::Term(span.clone())])),
@@ -1534,7 +1575,7 @@ fn too_deep<'d>(roots: Vec<Nested<'d>>) -> bool {
                     let child_depth = if matches!(name.as_str(), "requirements" | "forbid") { depth } else { below };
                     stack.extend(args.iter().filter_map(|arg| match arg {
                         Arg::Term(term) => Some((Nested::Term(term), child_depth)),
-                        Arg::Rule(_) | Arg::Classifier(_) => None,
+                        Arg::Rule(_) | Arg::Classifier(_) | Arg::Integer(_) => None,
                     }));
                 }
                 Term::Pattern(pattern) => stack.push((Nested::Pattern(pattern), below)),
@@ -1737,7 +1778,7 @@ pub(crate) fn call_type(call: &str) -> Type {
         "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" | "interpolate" => {
             Type::String
         }
-        "split" => Type::Strings,
+        "split" | "ngrams" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
     }
@@ -1750,9 +1791,7 @@ pub(crate) fn joined_type(types: &[Type], operator: &str) -> Result<Type, String
     if types.contains(&Type::Span) {
         return Err(SPAN_NOT_VALUE.to_string());
     }
-    if let Some(bad) = types.iter().find(|&&ty| ty == Type::String) {
-        return Err(format!("{operator} joins sets, not {}", bad.name()));
-    }
+    let types = types.iter().map(|t| if *t == Type::String { Type::Strings } else { *t }).collect::<Vec<_>>();
     let patterns = types.contains(&Type::Pattern);
     if patterns {
         if types.iter().any(|t| !matches!(t, Type::Pattern | Type::Set | Type::Any)) {
@@ -1781,6 +1820,14 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
             expected_problem(right, Type::Pattern)
         };
     }
+    if !matches!(op, "∈" | "∉")
+        && (left == Type::Span || right == Type::Span)
+        && (matches!(left, Type::Strings | Type::Tags | Type::Set)
+            || matches!(right, Type::Strings | Type::Tags | Type::Set))
+        || matches!(op, "∈" | "∉") && right == Type::Span
+    {
+        return Some(SPAN_NOT_VALUE.into());
+    }
     if left == Type::Pattern || right == Type::Pattern {
         return Some("patterns use ≅ or ≇ for tree comparisons".into());
     }
@@ -1796,7 +1843,7 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
                 left.name()
             ));
         }
-        if !matches!(right, Type::Strings | Type::Set | Type::Any) {
+        if !matches!(right, Type::String | Type::Strings | Type::Set | Type::Any) {
             return Some(format!("{op} tests a string in a set of strings, not in {}", right.name()));
         }
         return None;
@@ -1806,7 +1853,7 @@ pub(crate) fn comparison_problem(op: &str, left: Type, right: Type) -> Option<St
         if left == Type::Any || right == Type::Any {
             return None;
         }
-        if left == Type::String || right == Type::String {
+        if left == Type::String && right == Type::String {
             return (left != right)
                 .then(|| format!("{op} compares two values of one type, not {} and {}", left.name(), right.name()));
         }
@@ -1872,9 +1919,11 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
             if let Some(fault) = cond_type_fault(cond, constants) {
                 return Err(fault);
             }
-            match expected_problem(term_type_in(then, constants)?, Type::Tags) {
-                Some(problem) => Err(Fault::in_term(problem, term)),
-                None => Ok(Type::Tags),
+            let kind = joined_type(&[term_type_in(then, constants)?], "⟹").map_err(|p| Fault::in_term(p, term))?;
+            if kind == Type::Pattern {
+                Err(Fault::in_term("a guarded term requires a set".into(), term))
+            } else {
+                Ok(kind)
             }
         }
         Term::Call(call, args) => {
@@ -1882,7 +1931,7 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                 if let Arg::Term(arg) = arg {
                     let ty = term_type_in(arg, constants)?;
                     let expected = match call.as_str() {
-                        "split" | "classify" | "concat" | "interpolate" => Type::String,
+                        "split" | "ngrams" | "classify" | "concat" | "interpolate" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
                         _ if index == 0 => Type::Span,
                         _ => continue,
@@ -2195,4 +2244,17 @@ pub(crate) fn deferred_emission_problem(s: &str) -> bool {
         || s.starts_with("an item recipe of ")
         || s.starts_with("a tag term of ")
         || s.starts_with("a condition of ") && s.ends_with("applies to no production")
+}
+
+pub(crate) fn valid_integer(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    !bytes.is_empty() && (b'1'..=b'9').contains(&bytes[0]) && bytes[1..].iter().all(u8::is_ascii_digit)
+}
+pub(crate) fn ngrams(s: &str, digits: &str) -> Vec<String> {
+    let points = s.chars().collect::<Vec<_>>();
+    let n = digits.parse::<usize>().unwrap_or(usize::MAX);
+    if n > points.len() {
+        return Vec::new();
+    }
+    points.windows(n).map(|run| run.iter().collect()).collect()
 }

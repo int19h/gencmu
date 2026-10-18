@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects adjacent string constants without an explicit operator.",
+  "grammar": "%const $A \"a\"\n%rule text $x:A %conditions $A $A = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 32
+    }
+  }
+}

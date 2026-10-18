@@ -6,7 +6,7 @@ This stage reads the decomposed character tokens of stage zero. A token's value 
 
 A tag is a named mark on a token. The rules read characters by string terminals, ranges, or engine tags such as `_White_Space`.
 
-The stage passes names, strings, captures, constants, guards, keywords, and punctuation to [syntax.md](syntax.md). It discards whitespace and comments. Each emitted token covers the exact source characters that form it.
+The stage passes names, strings, integers, captures, constants, guards, keywords, and punctuation to [syntax.md](syntax.md). It discards whitespace and comments. Each emitted token covers the exact source characters that form it.
 
 [The notation guide](../../docs/notation.md) explains these forms. This document defines their lexical recognition under [engine §9.1](../../docs/engine.md#91-lexical-forms).
 
@@ -32,7 +32,7 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
 
 %rule piece
   | word | string | engine-tag | capture-token | constant-token | guard
-  | include | keyword | symbol | negation | layout
+  | include | keyword | integer | symbol | negation | layout
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
@@ -47,6 +47,8 @@ An ordinary name starts with an ASCII letter. Letters, digits, hyphens, and unde
 `word` distinguishes lowercase and uppercase names while marking both as `Identifier`. The first letter later distinguishes rule names from user tags.
 
 `whole-name` refuses a following name character. Keywords use it so that a keyword cannot stop inside a longer name.
+
+An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
 An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
@@ -76,6 +78,11 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule digit
   "0".."9"
 
+%rule integer
+  digit | integer digit
+%emits
+  $ :: Integer
+
 %rule lower-name
   "a".."z" | lower-name name-character
 
@@ -96,13 +103,14 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   letter | digit | "_"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>word</code> to <code>engine-name-character</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>word</code> to <code>engine-name-character</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name-character.svg" alt="Railroad diagram of the rule name-character"></p>
 <p><img src="../../docs/diagrams/notation/lexical/letter.svg" alt="Railroad diagram of the rule letter"></p>
 <p><img src="../../docs/diagrams/notation/lexical/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../docs/diagrams/notation/lexical/integer.svg" alt="Railroad diagram of the rule integer"></p>
 <p><img src="../../docs/diagrams/notation/lexical/lower-name.svg" alt="Railroad diagram of the rule lower-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>
@@ -290,7 +298,7 @@ These rules emit nothing. Their contents therefore never reach syntax recognitio
 %rule comment-part
   $c:_ | stars $d:_
 %conditions
-  $c.value ≠ "*", $d.value ≠ ")", $d.value ≠ "*"
+  $c.value ≠ "*", $d.value ∉ (")" "*")
 
 %rule stars
   "*" | stars "*"
@@ -315,7 +323,11 @@ The `%include` alternative applies only when no quoted path follows. A complete 
 Value tests select known keywords. `$KEYWORDS` holds their exact names. The fallback excludes that set with one membership condition.
 
 ```jbogenbau
-%const $KEYWORDS "rule redefine-rule extend-rule conditions emits erased ambiguity-resolution stage extend-stage redefine-stage include features const redefine-const classifier implies".split(" ")
+%const $KEYWORDS
+  "rule" "redefine-rule" "extend-rule" "conditions"
+  "emits" "erased" "ambiguity-resolution" "stage"
+  "extend-stage" "redefine-stage" "include" "features"
+  "const" "redefine-const" "classifier" "implies"
 
 %rule keyword
   | "%" whole-name="rule" :: KW-RULE

@@ -252,6 +252,57 @@ func lowerMode(g *stageGrammar, features map[string]bool, validation bool) *lowe
 			return l
 		}
 	}
+	terminals := map[string]bool{}
+	visited := map[clausePart]bool{}
+	conditions := map[condListKey]bool{}
+	emissions := map[*domEmit]bool{}
+	scanQuery := func(p clausePart) bool {
+		if visited[p] {
+			return false
+		}
+		visited[p] = true
+		if p.c != nil && (p.c.Kind == cdMatches || p.c.Kind == cdBegins) {
+			for _, t := range p.c.queryTargets() {
+				if t.Kind == tmTerminal {
+					terminals[t.Str] = true
+				}
+			}
+		}
+		return true
+	}
+	for _, r := range g.rules {
+		for _, a := range r.alts {
+			walkClause(clausePart{t: a.alt.Tags}, scanQuery)
+			if len(a.conds) > 0 {
+				key := condListKey{&a.conds[0], len(a.conds)}
+				if !conditions[key] {
+					conditions[key] = true
+					for _, c := range a.conds {
+						walkClause(clausePart{c: c}, scanQuery)
+					}
+				}
+			}
+			walkClause(clausePart{t: a.ruleTags}, scanQuery)
+			if a.emit != nil && !emissions[a.emit] {
+				emissions[a.emit] = true
+				for _, it := range a.emit.Items {
+					walkClause(clausePart{t: it.Tags}, scanQuery)
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(terminals))
+	for name := range terminals {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, terminal := range names {
+		name := "\x00query:" + terminal
+		lhs := int32(len(l.rules))
+		l.byName[name] = lhs
+		l.rules = append(l.rules, &lrule{name: name, owner: name, helper: true, scc: -1})
+		lw.newProduction(lhs, []slot{{sym: lw.terminal(terminal)}})
+	}
 	// An item of braces that can match no tokens comes last, once every
 	// rule is lowered (§3.3).
 	if !validation {

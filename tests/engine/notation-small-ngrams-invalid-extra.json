@@ -1,0 +1,20 @@
+{
+  "description": "Engine §9.3 rejects extra arguments in `.ngrams`.",
+  "grammar": "%const $N \"2\"\n%rule text $x:A %conditions $x.ngrams(2, 3) = ∅",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 29
+    }
+  }
+}

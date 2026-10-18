@@ -540,7 +540,13 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                                 && exact(arg, &["rule"], &[])
                                 && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
                         }
-                        ("split", [arg]) => !is_rule_arg(arg) && !is_classifier_arg(arg),
+                        ("ngrams", [arg]) => {
+                            exact(arg, &["integer"], &[])
+                                && arg.get("integer").and_then(Json::as_str).is_some_and(crate::dom::valid_integer)
+                        }
+                        ("split", [arg]) => {
+                            !is_rule_arg(arg) && !is_classifier_arg(arg) && arg.get("integer").is_none()
+                        }
                         ("classify", [arg]) => {
                             exact(arg, &["classifier"], &[])
                                 && arg.get("classifier").and_then(Json::as_str).is_some_and(is_classifier_name)
@@ -552,7 +558,8 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     }
                     pending.push((kind, receiver, next));
                     for arg in args {
-                        if arg.get("rule").is_none() && arg.get("classifier").is_none() {
+                        if arg.get("rule").is_none() && arg.get("classifier").is_none() && arg.get("integer").is_none()
+                        {
                             pending.push((Part::Term, arg, next));
                         }
                     }
@@ -614,8 +621,16 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                                                 })
                                     })
                             }
-                            (Some("matches" | "begins"), Some([arg])) => {
-                                exact(arg, &["rule"], &[]) && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                            (Some("matches" | "begins"), Some(args)) => {
+                                !args.is_empty()
+                                    && args.iter().all(|arg| {
+                                        exact(arg, &["rule"], &[])
+                                            && arg.get("rule").and_then(Json::as_str).is_some_and(rule)
+                                            || exact(arg, &["terminal"], &[])
+                                                && arg.get("terminal").and_then(Json::as_str).is_some_and(|s| {
+                                                    s.starts_with(|c: char| c.is_ascii_uppercase()) && tag(s)
+                                                })
+                                    })
                             }
                             _ => false,
                         }
@@ -800,13 +815,13 @@ fn closed(root: &Term) -> bool {
         match term {
             Term::Capture(_) | Term::If(..) => return false,
             Term::Call(name, args) => {
-                if !matches!(name.as_str(), "split" | "interpolate") {
+                if !matches!(name.as_str(), "split" | "ngrams" | "interpolate") {
                     return false;
                 }
                 for arg in args {
                     if let Arg::Term(term) = arg {
                         pending.push(term);
-                    } else {
+                    } else if !matches!(arg, crate::dom::Arg::Integer(_)) {
                         return false;
                     }
                 }

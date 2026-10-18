@@ -1,0 +1,13 @@
+{
+  "description": "Engine §9.3 rejects a tag set as its receiver in `.ngrams`.",
+  "grammar": "%rule text ε %conditions A.ngrams(1) = ∅",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 26
+    }
+  }
+}

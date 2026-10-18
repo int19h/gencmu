@@ -1,0 +1,14 @@
+{
+  "description": "The cll-ebnf dialect accepts cyx under pair-across-y in words/cll.md (Lujvo).",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "pacyxrani",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "brackets": "pacyxrani"
+  }
+}

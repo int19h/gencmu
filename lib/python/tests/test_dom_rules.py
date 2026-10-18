@@ -1346,7 +1346,7 @@ class Constants(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(dom_problem(text([constant(value)])), "a constant requires a closed term without engine-tag literals")
         self.assertIn("not given", str(dom_problem(text([constant({"emptySet": True})]))))
-        self.assertIn("joins sets", str(dom_problem(text([constant({"union": [{"string": "a"}, {"tag": "B"}]})]))))
+        self.assertIn("joins two sets of one kind", str(dom_problem(text([constant({"union": [{"string": "a"}, {"tag": "B"}]})]))))
         empty = {"method": "split", "args": [{"string": ""}], "receiver": {"string": "a"}}
         self.assertEqual(dom_problem(text([constant(empty)])), "split has an empty delimiter")
         # Two items at one position, a constant among them.

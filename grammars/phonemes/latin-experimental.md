@@ -190,8 +190,7 @@ A silent mark beside a quotation mark is skipped by the neighbor test of "Quotat
 %redefine-rule non-lojban-char-run
   $r:chars-with-non-lojban-char
 %conditions
-  ¬$r.matches(letters),
-  ¬$r.matches(misplaced-quote),
+  ¬$r.matches(letters | misplaced-quote),
   ¬$r.first-token.matches(comma),
   ¬$r.last-token.matches(comma)
 %emits

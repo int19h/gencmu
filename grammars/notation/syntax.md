@@ -6,7 +6,7 @@ A token's value is the string that exact comparisons read. Its image is the stri
 
 The stage recognizes a complete grammar document before the reader converts its tree. A syntax error anywhere therefore precedes every reader error.
 
-A tag is a named mark on a token. Lexical tags distinguish names, strings, prefixed names, guards, engine tags, and keywords. String terminals read punctuation by its value.
+A tag is a named mark on a token. Lexical tags distinguish names, strings, integers, prefixed names, guards, engine tags, and keywords. String terminals read punctuation by its value.
 
 These rules implement the recognition productions of [engine §9.2](../../docs/engine.md#92-syntax-forms). They admit forms that the reader rejects under [§9.3](../../docs/engine.md#93-conversion-and-validation).
 
@@ -314,7 +314,7 @@ Attachments are named captures in parentheses around a named carrier. The reader
 
 `::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe concatenates its atoms in written order.
 
-Recognition reads each recipe atom as a term. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
+Recognition reads each recipe atom as a term. In recipes, the reader expands adjacent string literals into separate concatenated atoms. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
 
 This wider recognition lets the reader reject a written operator or forbidden method at its atom. It does not make those atoms valid recipes.
 
@@ -347,7 +347,7 @@ This wider recognition lets the reader reject a written operator or forbidden me
 
 A term can be a string, a set, a pattern, a capture, a span, or a method result. Its context determines the type of `∅`.
 
-`∩` binds tighter than `∪` and `∖`. Union and difference group from the left. Adjacent tags form one union.
+`∩` binds tighter than `∪` and `∖`. Union and difference group from the left. Outside a recipe, adjacent tags or strings form one union.
 
 A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A guard binds less tightly than set operators.
 
@@ -355,7 +355,7 @@ The reader groups repeated guards to the right. Flat lists retain their written 
 
 A method chain starts with a receiver and follows it with selectors. Each selector names a method and can supply nonempty parenthesized arguments.
 
-A boundary method separates target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
+The methods `.begins`, `.matches`, `.followed-by`, and `.preceded-by` separate target names with `|`. Other methods separate arguments with `,`. The reader enforces this distinction.
 
 The reader folds selectors from left to right. It retains the receiver's actual type and applies the signature rules in engine §10.
 
@@ -379,11 +379,14 @@ The rule name `#` is also a method argument. A classifier name starts with a low
 %rule tag-run
   tag tag [{tag}]
 
+%rule string-run
+  string string [{string}]
+
 %rule term-atom
   plain-term-atom | method
 
 %rule plain-term-atom
-  tag-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
+  tag-run | string-run | tag | name | string | constant-reference | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule method
   method-receiver {method-selector}
@@ -401,7 +404,10 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   {argument / ("," | "|")}
 
 %rule argument
-  term
+  term | integer
+
+%rule integer
+  Integer
 
 %rule name
   Lowercase-Name | "#"
@@ -419,12 +425,13 @@ The rule name `#` is also a method argument. A classifier name starts with a low
   String
 ```
 
-<details><summary>Railroad diagrams of the 18 rules from <code>term</code> to <code>string</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>term</code> to <code>string</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/notation/syntax/guarded-term.svg" alt="Railroad diagram of the rule guarded-term"></p>
 <p><img src="../../docs/diagrams/notation/syntax/union.svg" alt="Railroad diagram of the rule union"></p>
 <p><img src="../../docs/diagrams/notation/syntax/intersection.svg" alt="Railroad diagram of the rule intersection"></p>
 <p><img src="../../docs/diagrams/notation/syntax/tag-run.svg" alt="Railroad diagram of the rule tag-run"></p>
+<p><img src="../../docs/diagrams/notation/syntax/string-run.svg" alt="Railroad diagram of the rule string-run"></p>
 <p><img src="../../docs/diagrams/notation/syntax/term-atom.svg" alt="Railroad diagram of the rule term-atom"></p>
 <p><img src="../../docs/diagrams/notation/syntax/plain-term-atom.svg" alt="Railroad diagram of the rule plain-term-atom"></p>
 <p><img src="../../docs/diagrams/notation/syntax/method.svg" alt="Railroad diagram of the rule method"></p>
@@ -433,6 +440,7 @@ The rule name `#` is also a method argument. A classifier name starts with a low
 <p><img src="../../docs/diagrams/notation/syntax/method-name.svg" alt="Railroad diagram of the rule method-name"></p>
 <p><img src="../../docs/diagrams/notation/syntax/arguments.svg" alt="Railroad diagram of the rule arguments"></p>
 <p><img src="../../docs/diagrams/notation/syntax/argument.svg" alt="Railroad diagram of the rule argument"></p>
+<p><img src="../../docs/diagrams/notation/syntax/integer.svg" alt="Railroad diagram of the rule integer"></p>
 <p><img src="../../docs/diagrams/notation/syntax/name.svg" alt="Railroad diagram of the rule name"></p>
 <p><img src="../../docs/diagrams/notation/syntax/empty-set.svg" alt="Railroad diagram of the rule empty-set"></p>
 <p><img src="../../docs/diagrams/notation/syntax/capture-reference.svg" alt="Railroad diagram of the rule capture-reference"></p>

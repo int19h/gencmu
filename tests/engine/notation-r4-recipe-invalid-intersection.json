@@ -1,0 +1,13 @@
+{
+  "description": "Engine §9.3 rejects intersection at its atom in the closed recipe language.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\" := \"a\" ∩ \"b\"\n%emits",
+  "input": "x",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 22
+    }
+  }
+}

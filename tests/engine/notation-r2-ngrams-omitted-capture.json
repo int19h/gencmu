@@ -1,0 +1,23 @@
+{
+  "description": "Engine §10 accepts `($x)` as a string receiver for `.ngrams`.",
+  "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions ($x).ngrams(1) = \"a\"\n%rule unit A [+Z]\n%rule family unit\n%rule want A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

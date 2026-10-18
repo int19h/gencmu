@@ -1020,6 +1020,9 @@ func resolverHasPattern(r *resolver, t *domTerm) bool {
 		return true
 	}
 	if t.Kind == tmConst {
+		if _, scalar := engineScalar(t.Str); scalar {
+			return false
+		}
 		return r.constants[t.Str].value.ty == tyPattern
 	}
 	for _, n := range t.Items {

@@ -455,33 +455,33 @@
                                                             "children": [
                                                               {
                                                                 "kind": "rule",
-                                                                "rule": "permissible-run",
+                                                                "rule": "consonants",
                                                                 "span": [
                                                                   3,
-                                                                  5
+                                                                  6
                                                                 ],
                                                                 "source": [
                                                                   3,
-                                                                  5
+                                                                  6
                                                                 ],
                                                                 "tags": [],
                                                                 "children": [
                                                                   {
                                                                     "kind": "rule",
-                                                                    "rule": "permissible-run",
+                                                                    "rule": "consonants",
                                                                     "span": [
                                                                       3,
-                                                                      4
+                                                                      5
                                                                     ],
                                                                     "source": [
                                                                       3,
-                                                                      4
+                                                                      5
                                                                     ],
                                                                     "tags": [],
                                                                     "children": [
                                                                       {
                                                                         "kind": "rule",
-                                                                        "rule": "consonant",
+                                                                        "rule": "consonants",
                                                                         "span": [
                                                                           3,
                                                                           4
@@ -493,9 +493,8 @@
                                                                         "tags": [],
                                                                         "children": [
                                                                           {
-                                                                            "kind": "token",
-                                                                            "terminal": "\"r\"",
-                                                                            "token": 3,
+                                                                            "kind": "rule",
+                                                                            "rule": "consonant",
                                                                             "span": [
                                                                               3,
                                                                               4
@@ -503,6 +502,50 @@
                                                                             "source": [
                                                                               3,
                                                                               4
+                                                                            ],
+                                                                            "tags": [],
+                                                                            "children": [
+                                                                              {
+                                                                                "kind": "token",
+                                                                                "terminal": "\"r\"",
+                                                                                "token": 3,
+                                                                                "span": [
+                                                                                  3,
+                                                                                  4
+                                                                                ],
+                                                                                "source": [
+                                                                                  3,
+                                                                                  4
+                                                                                ]
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        ]
+                                                                      },
+                                                                      {
+                                                                        "kind": "rule",
+                                                                        "rule": "consonant",
+                                                                        "span": [
+                                                                          4,
+                                                                          5
+                                                                        ],
+                                                                        "source": [
+                                                                          4,
+                                                                          5
+                                                                        ],
+                                                                        "tags": [],
+                                                                        "children": [
+                                                                          {
+                                                                            "kind": "token",
+                                                                            "terminal": "\"c\"",
+                                                                            "token": 4,
+                                                                            "span": [
+                                                                              4,
+                                                                              5
+                                                                            ],
+                                                                            "source": [
+                                                                              4,
+                                                                              5
                                                                             ]
                                                                           }
                                                                         ]
@@ -513,56 +556,28 @@
                                                                     "kind": "rule",
                                                                     "rule": "consonant",
                                                                     "span": [
-                                                                      4,
-                                                                      5
+                                                                      5,
+                                                                      6
                                                                     ],
                                                                     "source": [
-                                                                      4,
-                                                                      5
+                                                                      5,
+                                                                      6
                                                                     ],
                                                                     "tags": [],
                                                                     "children": [
                                                                       {
                                                                         "kind": "token",
-                                                                        "terminal": "\"c\"",
-                                                                        "token": 4,
+                                                                        "terminal": "\"l\"",
+                                                                        "token": 5,
                                                                         "span": [
-                                                                          4,
-                                                                          5
+                                                                          5,
+                                                                          6
                                                                         ],
                                                                         "source": [
-                                                                          4,
-                                                                          5
+                                                                          5,
+                                                                          6
                                                                         ]
                                                                       }
-                                                                    ]
-                                                                  }
-                                                                ]
-                                                              },
-                                                              {
-                                                                "kind": "rule",
-                                                                "rule": "consonant",
-                                                                "span": [
-                                                                  5,
-                                                                  6
-                                                                ],
-                                                                "source": [
-                                                                  5,
-                                                                  6
-                                                                ],
-                                                                "tags": [],
-                                                                "children": [
-                                                                  {
-                                                                    "kind": "token",
-                                                                    "terminal": "\"l\"",
-                                                                    "token": 5,
-                                                                    "span": [
-                                                                      5,
-                                                                      6
-                                                                    ],
-                                                                    "source": [
-                                                                      5,
-                                                                      6
                                                                     ]
                                                                   }
                                                                 ]

@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 gives a restored terminal target a witness over one original token without closes.",
+  "grammar": "%rule text $x:A %conditions $x.without-elision.begins(A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

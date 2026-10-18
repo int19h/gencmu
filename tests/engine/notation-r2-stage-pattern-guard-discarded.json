@@ -1,0 +1,14 @@
+{
+  "description": "Engine §13 discards a guarded pattern with its replaced feature declaration before semantic type tests.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions ($ ⟹ @(text)) = ∅\n%rule text ε\n%redefine-stage main\n%ambiguity-resolution greedy\n%rule text ε\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": []
+  }
+}

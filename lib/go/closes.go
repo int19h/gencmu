@@ -436,7 +436,15 @@ func demandedCloses(g *lowered) map[int32]bool {
 				var span *domTerm
 				var target string
 				if n.c != nil && (n.c.Kind == cdMatches || n.c.Kind == cdBegins) {
-					span, target = n.c.Span, n.c.Rule
+					span = n.c.Span
+					for _, t := range n.c.queryTargets() {
+						if id, ok := g.byName[queryName(t)]; ok {
+							pending = append(pending, id)
+							if uses(span) {
+								wanted[id] = true
+							}
+						}
+					}
 				}
 				if n.t != nil && n.t.Kind == tmCall && n.t.Str == "tags" && len(n.t.Items) == 2 {
 					span, target = n.t.Items[0], n.t.Items[1].Str
@@ -529,7 +537,9 @@ func (r *recognizer) localCloseDemand(p *production) closeDemand {
 						d.queries[at] = map[int32]bool{}
 					}
 					if d.queries[at] != nil {
-						d.queries[at][r.g.byName[n.c.Rule]] = true
+						for _, t := range n.c.queryTargets() {
+							d.queries[at][r.g.byName[queryName(t)]] = true
+						}
 					}
 					return false
 				}

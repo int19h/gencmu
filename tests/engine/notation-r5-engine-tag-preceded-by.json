@@ -1,0 +1,20 @@
+{
+  "description": "Engine §10 excludes stored engine tags from the shared target language.",
+  "grammar": "%rule text A %conditions $.preceded-by(_L)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 26
+    }
+  }
+}

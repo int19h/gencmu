@@ -22,9 +22,9 @@ The error is an exception in JavaScript and Python, and a returned error in Go a
 
 Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`, and `inheritance` where available. `docs/output.md` defines their schema and canonical member order. These members remain outside parse-result warnings and document caches.
 
-Grammar DOM format 32 supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
+Grammar DOM format 33 supports token strings, recipes, stored engine tags, method expressions, and the `conditions` member of feature directives. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-32 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-33 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 

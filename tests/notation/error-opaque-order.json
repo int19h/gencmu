@@ -3,7 +3,7 @@
   "document": "# A document\n\nSome prose.\n\n```jbogenbau\n%rule g A\n:- $.verbatim-text\n%emits $\n```\n",
   "expect": {
     "dom": {
-      "format": 32,
+      "format": 33,
       "rules": [
         {
           "name": "g",

@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 forms one-character n-grams and removes duplicate members.",
+  "grammar": "%const $S \"a😀a\".ngrams(1)\n%rule text ε %conditions $S = (\"a\" \"😀\")",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

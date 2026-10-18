@@ -1,0 +1,20 @@
+{
+  "description": "Engine §10 rejects a string set where a tag clause requires tags.",
+  "grammar": "%rule text $x:A %conditions \"a\" ⊆ A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 29
+    }
+  }
+}

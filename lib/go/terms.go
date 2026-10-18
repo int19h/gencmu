@@ -80,6 +80,13 @@ func toSet(v value) *tagset {
 }
 
 // toStr is a value that must be a string.
+func setValue(v value, in *interner) *tagset {
+	if v.kind == vString {
+		return in.single(v.s)
+	}
+	return toSet(v)
+}
+
 func toStr(v value) string {
 	if v.kind != vString {
 		panic(&parseFailure{message: "expected a string"})
@@ -343,7 +350,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 		if f.at == 0 {
 			f.sets = make([]*tagset, 0, len(t.Items))
 		} else {
-			f.sets = append(f.sets, toSet(w.v))
+			f.sets = append(f.sets, setValue(w.v, ev.in()))
 		}
 		if f.at == len(t.Items) {
 			w.endSet(in.unionAll(f.sets))
@@ -355,9 +362,9 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	case tmIntersection:
 		switch {
 		case f.at == 1:
-			f.v = value{kind: vSet, set: toSet(w.v)}
+			f.v = value{kind: vSet, set: setValue(w.v, ev.in())}
 		case f.at > 1:
-			f.v.set = in.intersection(f.v.set, toSet(w.v))
+			f.v.set = in.intersection(f.v.set, setValue(w.v, ev.in()))
 		}
 		if f.at == len(t.Items) {
 			w.endTerm(f.v)
@@ -372,13 +379,17 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			f.at = 1
 			w.push(ev, nil, t.Items[0])
 		case 1:
-			f.v, f.at = value{kind: vSet, set: toSet(w.v)}, 2
+			f.v, f.at = value{kind: vSet, set: setValue(w.v, ev.in())}, 2
 			w.push(ev, nil, t.Items[1])
 		default:
-			w.endSet(in.difference(f.v.set, toSet(w.v)))
+			w.endSet(in.difference(f.v.set, setValue(w.v, ev.in())))
 		}
 		return nil
 	case tmCall:
+		if isSpanFunction(t.Str) {
+			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})
+			return nil
+		}
 		switch t.Str {
 		case "value":
 			w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t.Items[0]))})
@@ -392,6 +403,14 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 				text = ev.run.ps.uni.decompose(text)
 			}
 			w.endTerm(value{kind: vString, s: text})
+			return nil
+		case "ngrams":
+			if f.at == 0 {
+				f.at = 1
+				w.push(ev, nil, t.Items[0])
+				return nil
+			}
+			w.endSet(in.fromList(ngrams(toStr(w.v), t.Items[1].Str)))
 			return nil
 		case "split":
 			// A set of strings (§10); an empty delimiter that only a parse
@@ -481,7 +500,7 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 			f.at = 2
 			w.push(ev, nil, t.Items[0])
 		default:
-			w.endSet(toSet(w.v))
+			w.endSet(setValue(w.v, ev.in()))
 		}
 		return nil
 	}
@@ -520,7 +539,7 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			case l.kind == vString && r.kind == vString:
 				eq = l.s == r.s
 			default:
-				eq = toSet(l).key == toSet(r).key
+				eq = setValue(l, ev.in()).key == setValue(r, ev.in()).key
 			}
 			w.endCond(eq == (c.Op == "="))
 			return nil
@@ -530,10 +549,10 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 			if l.kind != vString {
 				panic(&parseFailure{message: "the left side of " + c.Op + " is a string"})
 			}
-			w.endCond(toSet(r).has(l.s) == (c.Op == "∈"))
+			w.endCond(setValue(r, ev.in()).has(l.s) == (c.Op == "∈"))
 			return nil
 		case "⊆", "⊈":
-			w.endCond(subset(toSet(l), toSet(r)) == (c.Op == "⊆"))
+			w.endCond(subset(setValue(l, ev.in()), setValue(r, ev.in())) == (c.Op == "⊆"))
 			return nil
 		}
 	case cdMatches, cdBegins:
@@ -541,11 +560,19 @@ func (w *walk) condStep(f *frame) *nestedQuery {
 		if f.at == 0 {
 			f.s, f.at = w.span(ev, c.Span), 1
 		}
-		ok, _, q := ev.run.nested(ev.g, c.Kind, c.Rule, f.s)
-		if q != nil {
-			return q
+		targets := c.queryTargets()
+		for f.at <= len(targets) {
+			ok, _, q := ev.run.nested(ev.g, c.Kind, queryName(targets[f.at-1]), f.s)
+			if q != nil {
+				return q
+			}
+			if ok {
+				w.endCond(true)
+				return nil
+			}
+			f.at++
 		}
-		w.endCond(ok)
+		w.endCond(false)
 		return nil
 	case cdBoundary:
 		if ev.hasBoundaryValue {

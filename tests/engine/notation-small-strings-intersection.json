@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 retains only shared members in a string-set intersection.",
+  "grammar": "%const $SET (\"a\" \"b\") ∩ (\"b\" \"c\")\n%rule text ε %conditions $SET = \"b\", \"b\" ⊆ $SET, ∅ ⊆ $SET",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

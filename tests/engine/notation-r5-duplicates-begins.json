@@ -1,0 +1,17 @@
+{
+  "description": "Engine §4 accepts repeated rule and terminal targets without changing a query choice.",
+  "grammar": "%rule text $x:A %conditions $x.begins(r | r | A | A)\n%rule r B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

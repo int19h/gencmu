@@ -1,0 +1,23 @@
+{
+  "description": "Engine §4.2 accepts repeated rule and terminal targets without changing a boundary choice.",
+  "grammar": "%rule text r $x:A %conditions $x.preceded-by(r | r | B | B)\n%rule r B",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
