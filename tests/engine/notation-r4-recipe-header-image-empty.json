@@ -1,0 +1,21 @@
+{
+  "description": "Engine §11.3 concatenates empty and nonempty adjacent literals in a header image recipe.",
+  "grammar": "%const $S \"b\"\n%rule text :- \"\" \"\" \"a\"\n  | $a:\"x\"\n%emits",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "x",
+              "image": "a"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

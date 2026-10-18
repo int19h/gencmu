@@ -242,8 +242,8 @@
         while (pending.length) {
           const part = pending.pop();
           const query = ["matches","begins","tags"].includes(part?.method);
-          if (query || BOUNDARY_METHODS.has(part?.method)) for (const arg of part.args) {
-            if (arg.terminal || query && arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+          if (query) for (const arg of part.args) {
+            if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
           }
           for (const child of clauseChildren(part)) pending.push(child);
         }
@@ -255,8 +255,8 @@
       while (pending.length) {
         const part = pending.pop();
         const query = ["matches","begins","tags"].includes(part?.method);
-        if (query || BOUNDARY_METHODS.has(part?.method)) for (const arg of part.args) {
-          if (arg.terminal || query && arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
+        if (query) for (const arg of part.args) {
+          if (arg.terminal || arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule ?? arg.terminal});
         }
         for (const child of clauseChildren(part)) pending.push(child);
       }
@@ -15936,6 +15936,12 @@
           const nodes = children.filter(child => child.kind === "rule");
           if (nodes.length !== 1) fail("a recipe requires one string atom", atom);
           current = nodes[0];
+        }
+        if (ruleOf(current) === "string-run") {
+          const strings = some(current, "string");
+          if (strings.length < 2) fail("a string run requires at least two strings", current);
+          for (const string of strings) concat.push(yield readTerm(string));
+          continue;
         }
         if (!["string", "constant-reference", "method"].includes(ruleOf(current))) fail("a recipe requires a string or captured string method", atom);
         recipeContext = true;

@@ -1,6 +1,6 @@
 {
-  "description": "Grouped earlier targets preserve the location of an unreachable followed-by target in an emission.",
-  "grammar": "%rule text a\n%rule a A\n%emits $ :: ($.followed-by(((a)) | (A) | z) ⟹ X)\n%rule z B",
+  "description": "Engine §9.3 locates an unreachable followed-by terminal after grouped emission targets.",
+  "grammar": "%rule text a\n%rule a A\n%emits $ :: ($.followed-by(((a)) | (A) | Z) ⟹ X)",
   "tokens": [],
   "expect": {
     "error": "grammar",

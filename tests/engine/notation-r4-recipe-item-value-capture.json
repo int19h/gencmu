@@ -1,0 +1,21 @@
+{
+  "description": "Engine §11.3 concatenates captured values and adjacent literals in an item value recipe.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\"\n%emits $a := $a.value \"-\" \"x\"",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "x-x",
+              "image": "x-x"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

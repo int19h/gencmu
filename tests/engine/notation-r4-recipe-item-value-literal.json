@@ -1,0 +1,21 @@
+{
+  "description": "Engine §11.3 concatenates adjacent literals in an item value recipe.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\"\n%emits $a := \"a\" \"b\"",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "ab",
+              "image": "ab"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

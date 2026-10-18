@@ -1,0 +1,13 @@
+{
+  "description": "Engine §9.3 rejects grouped literals at the atom in a header image recipe.",
+  "grammar": "%const $S \"b\"\n%rule text :- (\"a\" \"b\")\n  | $a:\"x\"\n%emits",
+  "input": "x",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 15
+    }
+  }
+}
