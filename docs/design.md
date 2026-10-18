@@ -304,9 +304,15 @@ Only requested selected recipes run. `.emitted` reads a constituent before the c
 
 ## Pauses and spacing
 
-A Lojban phoneme grammar gives a pause value and image `" "` and tag `PAUSE`. The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
+A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text.
+
+A quiet pause has value and image `" "`. Material pauses keep decomposed source values and original source images in the phoneme stage. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
+
+The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
 
 A gap is a run between lexical parts. A quote gap excludes erasures because quoted `si`, `sa`, and `su` are words. A compound gap retains erasure-aware recognition. These two contexts share a spacing policy but require separate recognizers.
+
+Quiet pauses preserve the period classification of the phoneme grammar through normalization and forms. `Period-Initial` marks a core that starts with a period. `Period-Only` marks a core of periods without whitespace or ignored characters. Quote boundaries read these tags instead of punctuation spellings.
 
 The gap-tag invariant states how recipes receive decisions. A fact that a recipe cannot branch on travels upward as a tag. Grammar prose names where that internal tag starts, which rules forward it, and where it ends.
 
@@ -466,13 +472,27 @@ A document can be included in several stages. An included document can hold stag
 
 `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.
 
+In dialects with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
+
+The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
+
+Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip standalone material. Attached marks remain formatting. Other quote bodies keep their own spacing rules.
+
+In BPFK, experimental and Zantufa, ZO also takes a standalone material stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
+
+Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The CLL family retains its strict punctuation rules.
+
 ## Gates and warnings
 
 A dialect that extends another makes two kinds of change. Most are additions, which the base grammar rejects and the dialect accepts, such as `cu` before a bare selbri (a predicate) in the experimental dialect. Some change how the dialect reads a text that the base grammar accepts. An example is the cmevla-brivla merger, which lets a name word (cmevla) also act as a predicate word (brivla). Under the merger, `la .alis. klama` is one description. The notation has a kind of feature guard for each kind of change.
 
-An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text. The dialect turns none of its warnings on, so its texts parse without warnings by default. A reader who wants to know which additions a text relies on turns them on.
+An addition is a warning, `name!`. Its alternative is there whether the feature is on or off, so turning the feature on changes no verdict and no tree. It only adds a warning to the result for each place where the chosen tree uses the alternative. The warning names the feature and the text.
 
-A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf.
+The experimental dialect enables `experimental-cgv` by default for consonants before glides in names and borrowings. Forms marks those words with `Cgv-Warning`. The words stage warns when its chosen derivation reads a marked word.
+
+Other bundled warnings require the caller to enable them.
+
+A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its syntax additions do not carry warnings. The bundled warnings are `y-cmavo` in cll-ebnf and `experimental-cgv` in experimental.
 
 A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 

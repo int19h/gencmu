@@ -1,0 +1,45 @@
+{
+  "description": "The foreign qqq run makes the words stage fail. That stage publishes no warning from its incomplete derivation.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mariam qqq",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "rejected",
+            "stage": "words"
+          }
+        },
+        "error": "rejected",
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "rejected",
+            "stage": "words"
+          }
+        },
+        "error": "rejected",
+        "warnings": []
+      }
+    }
+  ]
+}

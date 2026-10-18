@@ -17,22 +17,52 @@
         ],
         "expected": [
           {
-            "terminal": "BRIVLA"
+            "terminal": "BRIVLA<Cgv-Warning>",
+            "rules": [
+              "brivla-token"
+            ]
           },
           {
-            "terminal": "CMEVLA"
+            "terminal": "BRIVLA<¬Cgv-Warning>",
+            "rules": [
+              "brivla-token"
+            ]
           },
           {
-            "terminal": "Cmavo"
+            "terminal": "CMEVLA<Cgv-Warning>",
+            "rules": [
+              "cmevla-token"
+            ]
           },
           {
-            "terminal": "Hesitation"
+            "terminal": "CMEVLA<¬Cgv-Warning>",
+            "rules": [
+              "cmevla-token"
+            ]
           },
           {
-            "terminal": "LEhAI"
+            "terminal": "Cmavo",
+            "rules": [
+              "cmavo-token"
+            ]
           },
           {
-            "terminal": "PAUSE"
+            "terminal": "Hesitation",
+            "rules": [
+              "y-run"
+            ]
+          },
+          {
+            "terminal": "LEhAI",
+            "rules": [
+              "lehai-marker"
+            ]
+          },
+          {
+            "terminal": "PAUSE",
+            "rules": [
+              "pause-run"
+            ]
           }
         ]
       }

@@ -1,0 +1,221 @@
+{
+  "description": "The comma prevents a decimal-point match. The period separates re and ci.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "2,.3",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "source": [
+                1,
+                1
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "e",
+              "image": "e",
+              "tags": [],
+              "source": [
+                1,
+                1
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "c",
+              "image": "c",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "re",
+              "image": "re",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "ci",
+              "image": "ci",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "re",
+              "image": "re",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "ci",
+              "image": "ci",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                3,
+                4
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "description": "Forms marks the CgV borrowing. Disabling the later warning preserves the same marked form.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lanriago",
+  "parses": [
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {
+              "name": "forms",
+              "output": [
+                {
+                  "value": "lanriago",
+                  "image": "lanriago",
+                  "tags": [
+                    "BRIVLA",
+                    "Cgv-Warning",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {
+              "name": "forms",
+              "output": [
+                {
+                  "value": "lanriago",
+                  "image": "lanriago",
+                  "tags": [
+                    "BRIVLA",
+                    "Cgv-Warning",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

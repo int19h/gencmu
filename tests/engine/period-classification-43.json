@@ -1,0 +1,359 @@
+{
+  "description": "The period leaves the mark as ZOhOI's whole raw target. Broda remains outside that one-word quote.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'oi\" broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                8
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                8
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo'oi",
+              "image": "zo'oi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                0,
+                5
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                6,
+                8
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                8,
+                13
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo'oi\"",
+              "image": "zo'oi\"",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ],
+              "source": [
+                0,
+                6
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                8,
+                13
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "description": "An ignored stretch between pause cores emits a Silent token.",
+  "description": "An ignored stretch between quiet pause cores emits a pause token that preserves raw material.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```"
   },
@@ -27,10 +27,11 @@
               ]
             },
             {
-              "value": "",
+              "value": ",",
               "image": ",",
               "tags": [
-                "Silent"
+                "PAUSE",
+                "Quote-Material"
               ],
               "source": [
                 3,

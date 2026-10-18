@@ -17,17 +17,210 @@ The prose uses these Lojban terms for words:
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
 
-The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
+The rule for `m` rejects a following apostrophe or `m`, but permits `z` and a glide. Thus `kamzi`, `bamzda` and `.djeimz.` have permissible consonant pairs.
 
 ```jbogenbau
-%redefine-rule m              (* The consonant m forbids an apostrophe, glide, and another m. It permits z. *)
+%redefine-rule m              (* The consonant m forbids an apostrophe and another m. It permits z and a glide. *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins(h | glide | m)
+  ¬$c.following-tokens.begins(h | m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
 <p><img src="../../docs/diagrams/words/experimental/m.svg" alt="Railroad diagram of the rule m"></p>
+</details>
+
+## Consonants before glides
+
+Experimental accepts a consonant before a glide in names and borrowings, as CLL 1.1 section 3.4 permits.[^cll-s3-4] BPFK and Zantufa keep their source ban. The CLL family already accepts these forms. A CgV sequence is a consonant, a glide and its nucleus.
+
+The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
+
+A coda is a syllable's ending consonant group. `brivla-onset` serves borrowing syllables, their stress tests and their head test. The coda lookahead uses it too. Thus a preceding syllable cannot take the consonant before `iy` or `uy` as its coda. The rafsi slot still uses ordinary `onset`.
+
+A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV whose consonant differs from `r`.
+
+CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-letter limit for borrowings.[^cll-a3-3] The word must resolve as one brivla. Thus `puamamakla` is legal despite its late cluster.
+
+Thus `atkuila` and `zgiaca'a` are borrowings, while `language` remains foreign. Its initial `lan` is a CVC rafsi directly before `gua`. The guard follows the separate treatment of `r` in jbotci, so `lanruage` and `blaruage` remain borrowings. Borrowing rafsi retain their separate head exclusion. Their final onset before `y` remains ordinary, so `spagetiybroda` and `spagekuykla` stay foreign.
+
+The forms stage marks each CgV name or predicate word with `Cgv-Warning`. The span test reads only that word, so it cannot mark CgV in a later word. [The experimental word stream](experimental-stream.md) reads this tag and supplies the warning. Disabling the warning changes no reading.
+
+```jbogenbau
+%redefine-rule cmevla-shape
+  $n:cmevla :: Continued ∪ (¬$n.onward.begins(nucleus) ⟹ Onset) ∪ ($n.matches(cgv-form) ⟹ Cgv-Warning)
+
+%redefine-rule brivla-shape
+  $b:brivla-word :: Continued ∪ (¬$b.onward.begins(nucleus) ⟹ Onset) ∪ ($b.matches(cgv-form) ⟹ Cgv-Warning)
+
+%rule cgv-form
+  [{nonpause-phoneme}] consonant glide [{nonpause-phoneme}]
+
+%rule brivla-onset
+  onset | cgv-onset
+
+%redefine-rule onset-nucleus-coda
+  brivla-onset nucleus [coda]
+
+%redefine-rule syllable
+  $o:brivla-onset nucleus [coda]
+%conditions
+  ¬$o.following-tokens.begins(y)
+
+%redefine-rule final-syllable
+  $o:brivla-onset $n:nucleus
+%conditions
+  ¬$o.following-tokens.begins(y | stressed),
+  ¬$n.following-tokens.begins(cmevla),
+  $n.following-tokens.begins(post-word)
+
+%redefine-rule stressed
+  brivla-onset stress-mark
+
+%redefine-rule brivla-head
+  [{unstressed-syllable}]
+%conditions
+  ¬$.onward.begins(cmavo | slinkuhi | h),
+  $.onward.begins(brivla-onset)
+
+%rule cgv-onset
+  cgv-initial glide
+
+%rule cgv-initial
+  | $a:affricate
+  | $p:initial-parts
+%conditions
+  ¬$a.following-tokens.begins(consonant),
+  ¬$p.following-tokens.begins(consonant),
+  $p.value ≠ ""
+
+%redefine-rule fuhivla
+  $b:brivla-head stressed-syllable [{consonantal-syllable}] final-syllable
+%conditions
+  ¬$b.onward.begins(rafsi-string) ∨ $.matches(cgv-form),
+  ¬$.onward.begins(cgv-rafsi-continuation),
+  $.matches(cgv-cluster-form)
+
+%rule cgv-cluster-form
+  [{nonpause-phoneme}] consonant consonant [{nonpause-phoneme}]
+
+%rule cgv-rafsi-continuation
+  (cvc-rafsi | ccv-rafsi | stressed-cvc-rafsi | stressed-ccv-rafsi) $c:consonant glide
+%conditions
+  $c.value ≠ "r"
+
+%redefine-rule l  (* This consonant forbids an apostrophe and a repeated letter. *)
+  $c:"l"
+%conditions
+  ¬$c.following-tokens.begins(h | l)
+
+%redefine-rule n  (* This consonant forbids an apostrophe and a repeated letter. It forbids an affricate. *)
+  $c:"n"
+%conditions
+  ¬$c.following-tokens.begins(h | n | affricate)
+
+%redefine-rule r  (* This consonant forbids an apostrophe and a repeated letter. *)
+  $c:"r"
+%conditions
+  ¬$c.following-tokens.begins(h | r)
+
+%redefine-rule b  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
+  $c:"b"
+%conditions
+  ¬$c.following-tokens.begins(h | b | unvoiced)
+
+%redefine-rule d  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
+  $c:"d"
+%conditions
+  ¬$c.following-tokens.begins(h | d | unvoiced)
+
+%redefine-rule g  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
+  $c:"g"
+%conditions
+  ¬$c.following-tokens.begins(h | g | unvoiced)
+
+%redefine-rule v  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. *)
+  $c:"v"
+%conditions
+  ¬$c.following-tokens.begins(h | v | unvoiced)
+
+%redefine-rule j  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. It forbids z. *)
+  $c:"j"
+%conditions
+  ¬$c.following-tokens.begins(h | j | z | unvoiced)
+
+%redefine-rule z  (* This consonant forbids an apostrophe and a repeated letter. It also forbids an unvoiced consonant. It forbids j. *)
+  $c:"z"
+%conditions
+  ¬$c.following-tokens.begins(h | z | j | unvoiced)
+
+%redefine-rule s  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids c. *)
+  $c:"s"
+%conditions
+  ¬$c.following-tokens.begins(h | s | c | voiced)
+
+%redefine-rule c  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids s and x. *)
+  $c:"c"
+%conditions
+  ¬$c.following-tokens.begins(h | c | s | x | voiced)
+
+%redefine-rule x  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids c and k. *)
+  $c:"x"
+%conditions
+  ¬$c.following-tokens.begins(h | x | c | k | voiced)
+
+%redefine-rule k  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. It forbids x. *)
+  $c:"k"
+%conditions
+  ¬$c.following-tokens.begins(h | k | x | voiced)
+
+%redefine-rule f  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
+  $c:"f"
+%conditions
+  ¬$c.following-tokens.begins(h | f | voiced)
+
+%redefine-rule p  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
+  $c:"p"
+%conditions
+  ¬$c.following-tokens.begins(h | p | voiced)
+
+%redefine-rule t  (* This consonant forbids an apostrophe and a repeated letter. It also forbids a voiced consonant. *)
+  $c:"t"
+%conditions
+  ¬$c.following-tokens.begins(h | t | voiced)
+```
+
+<details><summary>Railroad diagrams of the 30 rules from <code>cmevla-shape</code> to <code>t</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/cmevla-shape.svg" alt="Railroad diagram of the rule cmevla-shape"></p>
+<p><img src="../../docs/diagrams/words/experimental/brivla-shape.svg" alt="Railroad diagram of the rule brivla-shape"></p>
+<p><img src="../../docs/diagrams/words/experimental/cgv-form.svg" alt="Railroad diagram of the rule cgv-form"></p>
+<p><img src="../../docs/diagrams/words/experimental/brivla-onset.svg" alt="Railroad diagram of the rule brivla-onset"></p>
+<p><img src="../../docs/diagrams/words/experimental/onset-nucleus-coda.svg" alt="Railroad diagram of the rule onset-nucleus-coda"></p>
+<p><img src="../../docs/diagrams/words/experimental/syllable.svg" alt="Railroad diagram of the rule syllable"></p>
+<p><img src="../../docs/diagrams/words/experimental/final-syllable.svg" alt="Railroad diagram of the rule final-syllable"></p>
+<p><img src="../../docs/diagrams/words/experimental/stressed.svg" alt="Railroad diagram of the rule stressed"></p>
+<p><img src="../../docs/diagrams/words/experimental/brivla-head.svg" alt="Railroad diagram of the rule brivla-head"></p>
+<p><img src="../../docs/diagrams/words/experimental/cgv-onset.svg" alt="Railroad diagram of the rule cgv-onset"></p>
+<p><img src="../../docs/diagrams/words/experimental/cgv-initial.svg" alt="Railroad diagram of the rule cgv-initial"></p>
+<p><img src="../../docs/diagrams/words/experimental/fuhivla.svg" alt="Railroad diagram of the rule fuhivla"></p>
+<p><img src="../../docs/diagrams/words/experimental/cgv-cluster-form.svg" alt="Railroad diagram of the rule cgv-cluster-form"></p>
+<p><img src="../../docs/diagrams/words/experimental/cgv-rafsi-continuation.svg" alt="Railroad diagram of the rule cgv-rafsi-continuation"></p>
+<p><img src="../../docs/diagrams/words/experimental/l.svg" alt="Railroad diagram of the rule l"></p>
+<p><img src="../../docs/diagrams/words/experimental/n.svg" alt="Railroad diagram of the rule n"></p>
+<p><img src="../../docs/diagrams/words/experimental/r.svg" alt="Railroad diagram of the rule r"></p>
+<p><img src="../../docs/diagrams/words/experimental/b.svg" alt="Railroad diagram of the rule b"></p>
+<p><img src="../../docs/diagrams/words/experimental/d.svg" alt="Railroad diagram of the rule d"></p>
+<p><img src="../../docs/diagrams/words/experimental/g.svg" alt="Railroad diagram of the rule g"></p>
+<p><img src="../../docs/diagrams/words/experimental/v.svg" alt="Railroad diagram of the rule v"></p>
+<p><img src="../../docs/diagrams/words/experimental/j.svg" alt="Railroad diagram of the rule j"></p>
+<p><img src="../../docs/diagrams/words/experimental/z.svg" alt="Railroad diagram of the rule z"></p>
+<p><img src="../../docs/diagrams/words/experimental/s.svg" alt="Railroad diagram of the rule s"></p>
+<p><img src="../../docs/diagrams/words/experimental/c.svg" alt="Railroad diagram of the rule c"></p>
+<p><img src="../../docs/diagrams/words/experimental/x.svg" alt="Railroad diagram of the rule x"></p>
+<p><img src="../../docs/diagrams/words/experimental/k.svg" alt="Railroad diagram of the rule k"></p>
+<p><img src="../../docs/diagrams/words/experimental/f.svg" alt="Railroad diagram of the rule f"></p>
+<p><img src="../../docs/diagrams/words/experimental/p.svg" alt="Railroad diagram of the rule p"></p>
+<p><img src="../../docs/diagrams/words/experimental/t.svg" alt="Railroad diagram of the rule t"></p>
 </details>
 
 ## Extended rafsi
@@ -180,6 +373,12 @@ This layer inherits whole hesitation runs from [bpfk.md](bpfk.md#whole-hesitatio
 
 The alternatives and repetitions state morphology constraints without PEG order. Merged stress tests and name forms remove duplicate proofs without changing the word classes.
 
+This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The words stage identifies this extension by default when it reads a marked word. Opaque raw bodies and text after active FAhO contain no such word reads. The full borrowing shape still rejects invalid compound-like forms. Only borrowing syllables receive the added onset, so a rafsi slot cannot use it.
+
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
+
+[^cll-s3-4]: [CLL 1.1, section 3.4](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-diphthongs.html).
+
+[^cll-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L208).

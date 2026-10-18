@@ -1,0 +1,451 @@
+{
+  "description": "MUhOI keeps the opening gy delimiter's mark attached across the script period. The quote body stays empty.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mu'oi \"gy\" gy",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "m",
+              "image": "m",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                13,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "m",
+              "image": "m",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "u",
+              "image": "u",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "'",
+              "image": "'",
+              "tags": [],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                3,
+                4
+              ]
+            },
+            {
+              "value": "i",
+              "image": "i",
+              "tags": [],
+              "source": [
+                4,
+                5
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "g",
+              "image": "g",
+              "tags": [],
+              "source": [
+                12,
+                13
+              ]
+            },
+            {
+              "value": "y",
+              "image": "y",
+              "tags": [],
+              "source": [
+                13,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "mu'oi",
+              "image": "mu'oi",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "MUhOI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                0,
+                5
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                5,
+                6
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                7,
+                9
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
+              ],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                10,
+                11
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE"
+              ],
+              "source": [
+                11,
+                12
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                12,
+                14
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "mu'oi gy gy",
+              "image": "mu'oi \"gy\" gy",
+              "tags": [
+                "Cmavo",
+                "MUhOI",
+                "Word"
+              ],
+              "source": [
+                0,
+                14
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

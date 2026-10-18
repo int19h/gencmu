@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The comma and silent tildes do not break the neighboring letters. The interior mark keeps its apostrophe reading.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo la,~´~o",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,

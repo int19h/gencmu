@@ -1,0 +1,49 @@
+{
+  "description": "The issue 210 apostrophe target ends at a period.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo'. xu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "zo'",
+              "value": "zo'",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "image": "xu",
+              "value": "xu",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Indicator",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "UI",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

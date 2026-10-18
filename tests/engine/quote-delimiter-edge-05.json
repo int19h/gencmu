@@ -1,0 +1,21 @@
+{
+  "description": "A standalone mark cannot disappear into the opening delimiter gap.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi \" gy. foo .gy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

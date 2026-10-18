@@ -8,7 +8,7 @@ The review labels 95 words CONSISTENT, twelve INCONSISTENT, 27 UNCLEAR and six N
 
 ## Consistent use
 
-CONSISTENT records the reviewer's judgment that use matches the selected definition. Ninety-four words keep that definition's base class. The maintainer assigns `ni'au` COI from its greeting meaning and vocative use, despite its CAI filing. The baseline includes `ku'au`, so the 95 words add 94 spellings.
+CONSISTENT records the reviewer's judgment that use matches the selected definition. The 95 words comprise 94 words with the selected base class and `ni'au` with a corrected class. The maintainer assigns `ni'au` COI from its greeting meaning and vocative use, despite its CAI filing. The baseline already includes `ku'au`. Thus 95 qualifying words minus one baseline word add 94 spellings.
 
 | Word | Class in judgment | Definition | Lines examined |
 |---|---|---|---:|

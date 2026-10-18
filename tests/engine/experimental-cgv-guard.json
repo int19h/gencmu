@@ -1,0 +1,322 @@
+{
+  "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "language",
+  "parses": [
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "language",
+                  "tags": [
+                    "FOREIGN",
+                    "Run-Final",
+                    "Run-Initial"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "language",
+                  "tags": [
+                    "FOREIGN",
+                    "Run-Final",
+                    "Run-Initial"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "n",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "u",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "g",
+                  "tags": []
+                },
+                {
+                  "value": "e",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "language",
+                  "tags": [
+                    "FOREIGN",
+                    "Run-Final",
+                    "Run-Initial"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

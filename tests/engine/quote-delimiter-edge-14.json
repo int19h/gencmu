@@ -1,0 +1,35 @@
+{
+  "description": "An interword mark remains spacing before BU.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. foo gy\"bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi gy foo gy bu",
+              "image": "zoi gy. foo gy bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

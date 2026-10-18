@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "zoi gy. l´amour .gy",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -78,7 +77,8 @@
                 8
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ]
             },
             {

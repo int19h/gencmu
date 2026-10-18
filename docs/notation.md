@@ -327,11 +327,11 @@ An alternative with several guards exists when all its gates hold. A name is a g
   | y-cmavo! Cmavo<Cmavo-Warning>
 ```
 
-A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
+A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The experimental dialect enables `experimental-cgv` by default. Callers enable other bundled warnings when they need them.
 
 A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
-The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in `cll-ebnf`, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
+The bundled dialects do not guard every change. The bundled warnings are `y-cmavo` in `cll-ebnf` and `experimental-cgv` in `experimental`. The experimental syntax additions carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
 ## Stitching documents
 
@@ -372,7 +372,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 %redefine-const $MAGIC-WORDS $MAGIC-WORDS ∪ RAhOI ∪ GOhOI ∪ MUhOI ∪ LOhAI ∪ LEhAI
 ```
 
-The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the phoneme pause value.
+The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
 The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 

@@ -1,0 +1,21 @@
+{
+  "description": "The first close leaves a foreign word outside the quote. A later close cannot hide it.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. \"gy\" foo gy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

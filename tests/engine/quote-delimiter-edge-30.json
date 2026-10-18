@@ -1,0 +1,36 @@
+{
+  "description": "A separate mark after the opening delimiter remains in the raw body.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi gy. \" foo gy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi gy \" foo gy",
+              "image": "zoi gy. \" foo gy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

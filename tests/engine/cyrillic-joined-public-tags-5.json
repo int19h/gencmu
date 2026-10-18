@@ -1,0 +1,78 @@
+{
+  "description": "Experimental joined Cyrillic vowels retain their public stress and syllable tags. Both orthography choices keep their values and source ranges.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "БАИ́БА",
+  "options": {
+    "until": "phonemes",
+    "features": [
+      "cll-cyrillic"
+    ]
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "b",
+              "image": "b",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "value": "A",
+              "image": "A",
+              "source": [
+                1,
+                2
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            },
+            {
+              "value": "I",
+              "image": "I",
+              "source": [
+                2,
+                4
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "source": [
+                4,
+                5
+              ],
+              "tags": []
+            },
+            {
+              "value": "A",
+              "image": "A",
+              "source": [
+                5,
+                6
+              ],
+              "tags": [
+                "Stressed"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

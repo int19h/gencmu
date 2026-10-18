@@ -97,20 +97,26 @@
                           },
                           {
                             "kind": "rule",
-                            "rule": "word-gap",
+                            "rule": "word-quote-gap",
                             "children": [
                               {
                                 "kind": "rule",
-                                "rule": "pause-gap",
+                                "rule": "word-gap",
                                 "children": [
                                   {
                                     "kind": "rule",
-                                    "rule": "pause-run",
+                                    "rule": "pause-gap",
                                     "children": [
                                       {
-                                        "kind": "token",
-                                        "terminal": "PAUSE",
-                                        "token": 1
+                                        "kind": "rule",
+                                        "rule": "pause-run",
+                                        "children": [
+                                          {
+                                            "kind": "token",
+                                            "terminal": "PAUSE",
+                                            "token": 1
+                                          }
+                                        ]
                                       }
                                     ]
                                   }
@@ -120,16 +126,22 @@
                           },
                           {
                             "kind": "rule",
-                            "rule": "read-word",
+                            "rule": "word-quote-target",
                             "children": [
                               {
                                 "kind": "rule",
-                                "rule": "cmavo-token",
+                                "rule": "read-word",
                                 "children": [
                                   {
-                                    "kind": "token",
-                                    "terminal": "Cmavo",
-                                    "token": 2
+                                    "kind": "rule",
+                                    "rule": "cmavo-token",
+                                    "children": [
+                                      {
+                                        "kind": "token",
+                                        "terminal": "Cmavo",
+                                        "token": 2
+                                      }
+                                    ]
                                   }
                                 ]
                               }

@@ -1,0 +1,36 @@
+{
+  "description": "Attached delimiter marks act as formatting at the delimiter boundaries. Raw body material retains its source spelling.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la'o \"dy.\" djan .dy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "la'o dy djan dy",
+              "image": "la'o \"dy.\" djan .dy",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

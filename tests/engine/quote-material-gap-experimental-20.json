@@ -1,0 +1,94 @@
+{
+  "description": "One-word quote and opening delimiter gaps cannot skip raw material. Body spacing and quiet boundaries retain their readings.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mu'oi @ gy. broda .gy.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "mu'oi",
+              "image": "mu'oi",
+              "source": [
+                0,
+                5
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "MUhOI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "source": [
+                8,
+                10
+              ],
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "source": [
+                12,
+                17
+              ],
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "gy",
+              "image": "gy",
+              "source": [
+                19,
+                21
+              ],
+              "tags": [
+                "BY",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -18,8 +18,8 @@
         {
           "output": [
             {
-              "text": "zo'oi ~\"你好é",
-              "value": "zo'oi 你好é",
+              "text": "zo'oi ~\"你好é!\"~",
+              "value": "zo'oi ~\"你好é!\"~",
               "image": "zo'oi ~\"你好é!\"~",
               "tags": [
                 "Cmavo",
@@ -28,7 +28,7 @@
               ],
               "source": [
                 0,
-                11
+                14
               ]
             }
           ]

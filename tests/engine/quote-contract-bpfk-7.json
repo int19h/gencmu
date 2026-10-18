@@ -19,7 +19,7 @@
           "output": [
             {
               "image": "zoi .y. bu. \"Hello!\" .y. bu",
-              "value": "zoi y bu Hello y bu",
+              "value": "zoi y bu \"Hello!\" y bu",
               "tags": [
                 "Cmavo",
                 "Word",

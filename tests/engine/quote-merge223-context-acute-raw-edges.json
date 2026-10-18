@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The marks bound a foreign raw stretch and have no exterior letter neighbors. The quote keeps both marks in its body.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo'oi ´你好´",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -16,70 +15,141 @@
           "output": [
             {
               "image": "z",
-              "value": "z",
               "source": [
                 0,
                 1
               ],
-              "tags": []
+              "span": [
+                0,
+                1
+              ],
+              "tags": [],
+              "text": "z",
+              "value": "z"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 1,
                 2
               ],
-              "tags": []
+              "span": [
+                1,
+                2
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "'",
-              "value": "'",
               "source": [
                 2,
                 3
               ],
-              "tags": []
+              "span": [
+                2,
+                3
+              ],
+              "tags": [],
+              "text": "'",
+              "value": "'"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 3,
                 4
               ],
-              "tags": []
+              "span": [
+                3,
+                4
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "i",
-              "value": "i",
               "source": [
                 4,
                 5
               ],
-              "tags": []
+              "span": [
+                4,
+                5
+              ],
+              "tags": [],
+              "text": "i",
+              "value": "i"
             },
             {
               "image": " ",
-              "value": " ",
               "source": [
+                5,
+                6
+              ],
+              "span": [
                 5,
                 6
               ],
               "tags": [
                 "PAUSE"
-              ]
+              ],
+              "text": " ",
+              "value": " "
+            },
+            {
+              "image": "´",
+              "source": [
+                6,
+                7
+              ],
+              "span": [
+                6,
+                7
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "´",
+              "value": "´"
             },
             {
               "image": "你好",
-              "value": "你好",
               "source": [
+                7,
+                9
+              ],
+              "span": [
                 7,
                 9
               ],
               "tags": [
                 "FOREIGN"
-              ]
+              ],
+              "text": "你好",
+              "value": "你好"
+            },
+            {
+              "image": "´",
+              "source": [
+                9,
+                10
+              ],
+              "span": [
+                9,
+                10
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "´",
+              "value": "´"
             }
           ]
         },
@@ -94,10 +164,10 @@
           "output": [
             {
               "image": "zo'oi ´你好´",
-              "value": "zo'oi 你好",
+              "value": "zo'oi ´你好´",
               "source": [
                 0,
-                9
+                10
               ],
               "tags": [
                 "Cmavo",

@@ -1,0 +1,35 @@
+{
+  "description": "Every ZO or GOhOI alias uses the same target boundary.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ze'oi \"klama\"",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "ze'oi \"klama\"",
+              "value": "ze'oi klama",
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

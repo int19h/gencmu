@@ -1,0 +1,21 @@
+{
+  "description": "The dialect keeps its consonant-before-glide ban. The iy name therefore remains foreign.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la .niys.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

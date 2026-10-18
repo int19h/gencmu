@@ -1,0 +1,48 @@
+{
+  "description": "The standalone zero-width joiner is preserved quote material. ZO quotes that ignored character rather than skipping to coi.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo ‍ coi",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "zo ‍",
+              "image": "zo ‍",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "value": "coi",
+              "image": "coi",
+              "tags": [
+                "COI",
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "description": "CLL permits iy in names. The CLL family therefore accepts the name with its existing rules.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la .niys.",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "la",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "LA",
+                "Name-Intro",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "niys",
+              "tags": [
+                "CMEVLA",
+                "Name-Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

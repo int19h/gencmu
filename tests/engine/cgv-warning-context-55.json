@@ -1,0 +1,122 @@
+{
+  "description": "The first matching delimiter closes the quote. The opening delimiter and the later CgV word outside the quote both warn.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi mariam. mariam .mariam.",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi mariam mariam",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                },
+                {
+                  "value": "mariam",
+                  "tags": [
+                    "CMEVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "cmevla-token",
+            "source": [
+              4,
+              10
+            ],
+            "span": [
+              2,
+              3
+            ],
+            "stage": "words"
+          },
+          {
+            "feature": "experimental-cgv",
+            "rule": "cmevla-token",
+            "source": [
+              20,
+              26
+            ],
+            "span": [
+              6,
+              7
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi mariam mariam",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                },
+                {
+                  "value": "mariam",
+                  "tags": [
+                    "CMEVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

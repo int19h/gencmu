@@ -1,0 +1,36 @@
+{
+  "description": "Y letteral delimiters use the same attached edges.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi \"ybu.\" foo .\"ybu.\"",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zoi ybu foo ybu",
+              "image": "zoi \"ybu.\" foo .\"ybu",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

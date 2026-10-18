@@ -1,0 +1,34 @@
+{
+  "description": "The rafsi quote leaves an interword mark in spacing, so BU keeps its separating space.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ra'oi klama\"bu",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "ra'oi klama bu",
+              "image": "ra'oi klama bu",
+              "tags": [
+                "BY",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

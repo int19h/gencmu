@@ -1,0 +1,21 @@
+{
+  "description": "One-word quote and opening delimiter gaps cannot skip raw material. Body spacing and quiet boundaries retain their readings.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/cll-ebnf.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ra'oi y @ broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words"
+      }
+    },
+    "error": "rejected"
+  }
+}

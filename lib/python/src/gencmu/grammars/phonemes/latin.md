@@ -4,7 +4,7 @@ This document adds to [latin-strict.md](latin-strict.md) the conventions that Lo
 
 A token is one unit that a stage reads or emits. A token's value is the string that exact comparisons read. Its image is the string that people see.
 
-Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and a silent run between pauses. A capital run has multiple vowel groups with only capital vowels. A silent run preserves ignored text in its own token. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) states directly, with [listed departures](../words/bpfk.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
+Most conventions here admit spellings that latin-strict.md rejects. Three change existing readings: a comma between vowels, a capital run, and material preserved between pauses. A capital run has multiple vowel groups with only capital vowels. A material token preserves punctuation or ignored text within a pause. The working morphology is the word-form grammar that [bpfk.md](../words/bpfk.md) states directly, with [listed departures](../words/bpfk.md#differences-from-cll-and-the-reference-peg) from its PEG source. The conventions are these:
 
 - Punctuation other than the period and the comma is a pause.
 - A comma between two vowels is nothing, as it is elsewhere.
@@ -19,52 +19,71 @@ A punctuation character is a pause when no letter, vowel or apostrophe rule read
 
 Stage-zero tokens store Unicode category and whitespace tags. The rule `other-char` uses `_` and excludes letters, marks, digits and whitespace. A letter is a character of the Unicode property `L`. A mark is a combining mark of category M, or the stress mark or the shorthand of [zbalermorna.md](zbalermorna.md). A digit is `0` to `9`, and whitespace is a character of the property White_Space. A punctuation character is such a character that no rule of `any-lojban-char` or `core-char` reads by itself.
 
-A pause token covers its core, from its first to its last whitespace character or period, with any punctuation inside it. Other punctuation at either end of a pause belongs to no token. So a `zoi` body keeps the quotation marks in `zoi gy. "Hello!" .gy.`. The body takes in the text next to it that no token covers, as [the notation](../../docs/notation.md#verbatim-text) defines for verbatim images.
+A quiet pause contains only whitespace characters and periods. It emits one `PAUSE` token with value `" "`. The core keeps the period tags of [latin-strict.md](latin-strict.md). Quote boundaries can therefore read the period classification of each script.
 
-Punctuation between two letters, with no whitespace, is a pause token of its own, as in `klama!do`. So is a text of nothing but punctuation. Commas can stand inside such a pause and at its edges. The token runs from the first punctuation character of the pause to the last. A comma at an edge belongs to no token, as next to a pause of whitespace. So `jy?,sai` is `jy` and `sai`.
+Punctuation beside a quiet pause emits a separate token tagged `PAUSE` and `Quote-Material`. Separate ignored stretches use these tags too. `Punctuation-Material` marks a stretch with visible punctuation rather than ignored characters. Their images keep their source spelling. Their values keep their decomposed source text.
 
-Punctuation next to the first or the last word of the text belongs to no token.
+Punctuation between letters also emits such a token, as in `klama!do`. Outside quotes, all these tokens still act as pauses.
 
-The phoneme stage cannot know that a pause stands in a quote. So punctuation between two whitespace characters is part of a pause even there, and `zoi gy. !!! .gy.` quotes nothing.
+Quotes read `Quote-Material` as body text. Thus `zo'oi :)` quotes `:)`, and `zoi gy. !!! .gy.` keeps `!!!`.
 
 A format character, of Unicode category Cf, is nothing, as a comma is. It is invisible, so a soft hyphen or a joiner inside a word does not split it. There are two exceptions, which are pauses. The zero-width space U+200B stands between words. The number signs of Arabic, Syriac and Kaithi are visible, as other punctuation is. Their code points are those of the Unicode property Prepended_Concatenation_Mark.
 
-An ignored character at a pause edge is a comma or a non-breaking format character. A pause core can hold punctuation, but not a stretch that holds such a character. Such a stretch between two cores is a silent run. It emits a `Silent` token between two pause tokens, so that a quote body keeps its text.
+An ignored character at a pause edge is a comma or a non-breaking format character. Beside a word, an ignored-only edge stays uncovered. A quoted word can therefore keep that edge through its verbatim image. Between quiet cores, or after the final quiet core, a material token keeps an ignored-only stretch.
 
 ```jbogenbau
 %redefine-rule pause
   spaced-pause | punctuation-pause
 
+%redefine-rule edge-pause
+  pause | commas
+
 %redefine-rule spaced-pause
-  [pause-edge] pause-cores [pause-edge]
+  [left-pause-edge] pause-cores [right-pause-edge]
 
 %rule pause-cores
   | pause-core
-  | pause-cores silent-run pause-core
+  | pause-cores pause-material pause-core
 
-%rule silent-run
+%rule left-pause-edge
+  punctuation-edge | commas
+
+%rule right-pause-edge
+  punctuation-edge | final-ignored-edge | medial-ignored-edge
+
+%rule punctuation-edge
   $e:pause-edge
 %conditions
-  $e.matches(edge-with-comma)
+  ¬$e.matches(commas)
 %emits
-  $ :: Silent := "" :- $.source-text
+  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
 
-%rule edge-with-comma
-  [pause-edge] comma [pause-edge]
+%rule final-ignored-edge
+  commas
+%conditions
+  $.ends-input
+%emits
+  $ :: PAUSE ∪ Quote-Material := $.decomposed-source-text :- $.source-text
+
+%rule medial-ignored-edge
+  commas
+%conditions
+  ¬$.ends-input
+
+%rule pause-material
+  pause-edge
+%emits
+  $ :: PAUSE ∪ Quote-Material ∪ (¬$.matches(commas) ⟹ Punctuation-Material) := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-core
-  | core-char
-  | pause-core core-char
-  | pause-core $e:pause-edge core-char
-%conditions
-  ¬$e.matches(edge-with-comma)
+  {core-char}
 %emits
-  $ :: PAUSE := " "
+  $ :: PAUSE ∪ ($.first-token.matches(period-char) ⟹ Period-Initial) ∪ ($.matches(period-core) ⟹ Period-Only) := " "
 
 %rule punctuation-pause
-  [commas] $c:punctuation [commas]
+  [commas] punctuation [commas]
 %emits
-  $c :: PAUSE := " "
+  $ :: PAUSE ∪ Quote-Material ∪ Punctuation-Material := $.decomposed-source-text :- $.source-text
 
 %redefine-rule pause-edge
   edge-char | pause-edge edge-char
@@ -117,12 +136,17 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
   ¬$c.matches(core-char | punctuation-char)
 ```
 
-<details><summary>Railroad diagrams of the 20 rules from <code>pause</code> to <code>run-char</code></summary>
+<details><summary>Railroad diagrams of the 25 rules from <code>pause</code> to <code>run-char</code></summary>
 <p><img src="../../docs/diagrams/phonemes/latin/pause.svg" alt="Railroad diagram of the rule pause"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/edge-pause.svg" alt="Railroad diagram of the rule edge-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/spaced-pause.svg" alt="Railroad diagram of the rule spaced-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/pause-cores.svg" alt="Railroad diagram of the rule pause-cores"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/silent-run.svg" alt="Railroad diagram of the rule silent-run"></p>
-<p><img src="../../docs/diagrams/phonemes/latin/edge-with-comma.svg" alt="Railroad diagram of the rule edge-with-comma"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/left-pause-edge.svg" alt="Railroad diagram of the rule left-pause-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/right-pause-edge.svg" alt="Railroad diagram of the rule right-pause-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/punctuation-edge.svg" alt="Railroad diagram of the rule punctuation-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/final-ignored-edge.svg" alt="Railroad diagram of the rule final-ignored-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/medial-ignored-edge.svg" alt="Railroad diagram of the rule medial-ignored-edge"></p>
+<p><img src="../../docs/diagrams/phonemes/latin/pause-material.svg" alt="Railroad diagram of the rule pause-material"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/pause-core.svg" alt="Railroad diagram of the rule pause-core"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/punctuation-pause.svg" alt="Railroad diagram of the rule punctuation-pause"></p>
 <p><img src="../../docs/diagrams/phonemes/latin/pause-edge.svg" alt="Railroad diagram of the rule pause-edge"></p>
@@ -312,7 +336,7 @@ Each digit emits the letters of its number word, so `2` is `re`. The first emiss
 
 A single period between two digits is the decimal point, `pi`. The decimal point needs a digit before it, so `la .djan.2mei` has a pause after `djan`.
 
-The `items` condition compares the pause span's original source text with `.`. Commas remain in that text, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
+The `items` condition tests the pause span with `decimal-point`. Commas prevent that match, so `2,.3`, `2.,3` and `2,.,3` each contain a pause between the digit words.
 
 A period between two digits is the decimal point in a foreign run too, so it belongs to the run. So `zoi gy. 3.0w .gy.` quotes the run `3.0w`. A period with something else beside it is still a pause, so `3.w` holds a pause.
 
@@ -321,7 +345,7 @@ A period between two digits is the decimal point in a foreign run too, so it bel
   | run
   | $i:items $p:pause $r:run
 %conditions
-  ¬$i.last-token.matches(digit) ∨ $p.source-text ≠ "." ∨ ¬$r.first-token.matches(digit)
+  ¬$i.last-token.matches(digit) ∨ ¬$p.matches(decimal-point) ∨ ¬$r.first-token.matches(digit)
 
 %extend-rule non-vowel
   digit
@@ -432,7 +456,7 @@ These conventions extend CLL's Latin orthography. Most admit spellings that CLL 
 
 The working morphology's pauses are the space, tab, line feed and carriage return, and the characters `.`, `?` and `!` (its rule `space_char`). This document reads every Unicode `White_Space` character and other punctuation as a pause too. So it reads a no-break space between two words as a pause, which the working morphology rejects. It also accepts `mi "klama"`, which the working morphology rejects. Both read `jy?,sai` as `jy` and `sai`.
 
-camxes-std, the standard grammar of the camxes parser, also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. The phoneme stage cannot know whether a pause stands inside a quote.
+camxes-std, the standard grammar of the camxes parser, also reads `zoi gy. !!! .gy.` as an empty quote because `!` is space. This stage preserves the punctuation as material, so the words stage can keep it inside a quote.
 
 The working morphology ignores commas through `comma*` in each letter rule. This document follows that treatment even between vowels. Strict CLL instead uses a comma there as a syllable break.
 

@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The comma is ignored before the mark. The mark remains an interior apostrophe and joins the surrounding letters.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "mi,`zo'oi foo",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,

@@ -1,0 +1,40 @@
+{
+  "description": "The spelling zei restricts punctuation in active gaps. Ordinary si and quoted contents retain their readings.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "lo'u mi @ zei mlauca le'u",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "lo'u mi zei mlauca le'u",
+              "image": "lo'u mi @ zei mlauca le'u",
+              "tags": [
+                "Cmavo",
+                "LOhU",
+                "Word"
+              ],
+              "source": [
+                0,
+                25
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

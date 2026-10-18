@@ -1,0 +1,42 @@
+{
+  "description": "The experimental phoneme rows distinguish the conflicting marks on a from ignored carons on e and o. Cyrillic readings follow the selected orthography.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "kǒ",
+  "options": {
+    "until": "phonemes"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "k",
+              "image": "k",
+              "source": [
+                0,
+                1
+              ],
+              "tags": []
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "source": [
+                1,
+                3
+              ],
+              "tags": []
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

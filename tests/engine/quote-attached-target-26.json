@@ -1,0 +1,47 @@
+{
+  "description": "Every ZO or GOhOI alias uses the same target boundary.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ma'oi :) broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "image": "ma'oi :)",
+              "value": "ma'oi :)",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "image": "broda",
+              "value": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

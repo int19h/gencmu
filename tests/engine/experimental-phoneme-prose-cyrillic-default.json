@@ -1,0 +1,69 @@
+{
+  "description": "The experimental phoneme rows distinguish the conflicting marks on a from ignored carons on e and o. Cyrillic readings follow the selected orthography.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "'мои'",
+  "options": {
+    "until": "forms"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": " ",
+              "image": "'",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ]
+            },
+            {
+              "value": "mo'i",
+              "image": "mo'i",
+              "source": [
+                1,
+                4
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "MOhI",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": " ",
+              "image": "'",
+              "source": [
+                4,
+                5
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

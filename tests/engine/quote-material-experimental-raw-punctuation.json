@@ -18,8 +18,8 @@
         {
           "output": [
             {
-              "text": "zo'oi \"Hello",
-              "value": "zo'oi Hello",
+              "text": "zo'oi \"Hello!\"",
+              "value": "zo'oi \"Hello!\"",
               "image": "zo'oi \"Hello!\"",
               "tags": [
                 "Cmavo",
@@ -28,7 +28,7 @@
               ],
               "source": [
                 0,
-                12
+                14
               ]
             }
           ],

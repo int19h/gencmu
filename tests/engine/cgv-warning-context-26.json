@@ -1,0 +1,87 @@
+{
+  "description": "The opening delimiter reads as a CgV word and warns. The different CgV body and raw closing delimiter add no warning.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zoi atkuila. zgiaca'a .atkuila.",
+  "parses": [
+    {
+      "options": {
+        "until": "words"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi atkuila zgiaca'a atkuila",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": [
+          {
+            "feature": "experimental-cgv",
+            "rule": "brivla-token",
+            "source": [
+              4,
+              11
+            ],
+            "span": [
+              2,
+              3
+            ],
+            "stage": "words"
+          }
+        ]
+      }
+    },
+    {
+      "options": {
+        "until": "words",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {},
+            {},
+            {},
+            {
+              "name": "words",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "zoi atkuila zgiaca'a atkuila",
+                  "tags": [
+                    "Cmavo",
+                    "Word",
+                    "ZOI"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

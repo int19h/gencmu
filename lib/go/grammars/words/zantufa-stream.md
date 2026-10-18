@@ -17,41 +17,51 @@ The prose uses these Lojban terms for words:
 
 Magic words act on other words. Examples are quotes and erasers. Most of Zantufa's magic words follow from its lexicon. SI is `si`, `zei`, `ze'ei` and `si'u'i`, so each erases the word before it, and no word joins two words into a lujvo. `sa` is an attitudinal. ZO is `zo`, `ma'oi` and `ra'ai`, LOhU is `lo'u` and `la'ai`, and ZOI is `zoi` and `la'o`.
 
+As in [stream.md](stream.md), the word `zei` rejects visible punctuation on either side.
+
 A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban word, as `zo` does. It does not quote the rest of a run (a stretch with no internal pause), so `go'oi mido` quotes `mi` and leaves `do`. The Zantufa lexicon has no word of ZOhOI or MEhOI. So no Zantufa word quotes the rest of a run.
 
 ```jbogenbau
 %redefine-rule word-quote-marker
   (* ZO_pre <- pre_clause ZO spaces? any_word spaces?;  GOhOI_pre <- pre_clause GOhOI spaces? any_word spaces? *)
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅
+  $q.classes ∩ (ZO ∪ GOhOI) ≠ ∅,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
 <details><summary>Railroad diagram of <code>word-quote-marker</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa-stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
-`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them.
+`ra'oi` quotes the rafsi or gismu form that the forms stage read after it ([zantufa.md](zantufa.md)), with or without a pause between them. The shared quote gap permits attached punctuation, as in `ra'oi "klama"`. It cannot skip standalone punctuation or ignored material. A mark before another word stays in spacing, as in the shared quote.
 
 ```jbogenbau
 %extend-rule quote
   rahoi-quote
 
 %rule rahoi-quote
-  $m:rahoi-marker $g:word-gap $f:Rafsi-Form
+  $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
     :: $m.tags :- $m.source-text $g.source-text $f.verbatim-text
 %emits
   $
 
-%rule rahoi-marker
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+%rule rafsi-quote-target
+  $f:Rafsi-Form [quote-end-mark] :: $f.tags :- $.verbatim-text
 %conditions
-  RAhOI ⊆ $q.classes
+  ¬$.following-tokens.begins(quote-end-mark)
+
+%rule rahoi-marker
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
+%conditions
+  RAhOI ⊆ $q.classes,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
-<details><summary>Railroad diagrams of <code>quote</code>, <code>rahoi-quote</code> and <code>rahoi-marker</code></summary>
+<details><summary>Railroad diagrams of the 4 rules from <code>quote</code> to <code>rahoi-marker</code></summary>
 <p><img src="../../docs/diagrams/words/zantufa-stream/quote.svg" alt="Railroad diagram of the rule quote"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-quote.svg" alt="Railroad diagram of the rule rahoi-quote"></p>
+<p><img src="../../docs/diagrams/words/zantufa-stream/rafsi-quote-target.svg" alt="Railroad diagram of the rule rafsi-quote-target"></p>
 <p><img src="../../docs/diagrams/words/zantufa-stream/rahoi-marker.svg" alt="Railroad diagram of the rule rahoi-marker"></p>
 </details>
 
@@ -60,9 +70,10 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 ```jbogenbau
 %redefine-rule zoi-marker
   (* ZOI_pre <- pre_clause ZOI spaces? zoi_open spaces? zoi_word* zoi_close spaces?;  MUhOI_pre likewise *)
-  $q:read-word :: $q.classes ∪ Word ∪ Cmavo
+  $q:read-word [quote-marker-end] :: $q.classes ∪ Word ∪ Cmavo
 %conditions
-  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅
+  $q.classes ∩ (ZOI ∪ MUhOI) ≠ ∅,
+  ¬$.following-tokens.begins(quote-marker-end)
 ```
 
 <details><summary>Railroad diagram of <code>zoi-marker</code></summary>
@@ -234,5 +245,9 @@ The lookahead skips erased regions before BU. Thus `su mi si bu` forms the lette
 </details>
 
 ## Differences from the shared word stream
+
+The rafsi quote refuses standalone material in its gap, as the shared one-word quote does. Its body must be the next rafsi or gismu form.
+
+The word `zei` acts as SI but retains the shared spelling-based punctuation restriction. Other SI words retain their ordinary spacing.
 
 The shared list lacks RAhOI, GOhOI and MUhOI, which only Zantufa uses. It also omits LOhAI and LEhAI because the experimental dialect permits their bare markers as plain words. Zantufa does not read a bare LOhAI or LEhAI as a plain word. Its SI/BU fallback applies only to `bare-marker`. Its own `word` rule replaces the shared one, so the shared Fault test for a bare LOhAI, and with it `lohai-constructor-tail`, never applies.

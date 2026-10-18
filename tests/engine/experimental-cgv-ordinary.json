@@ -1,0 +1,259 @@
+{
+  "description": "Issue #214 warns by default about experimental CgV in complete words. Disabling the warning preserves the output.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "broda",
+  "parses": [
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "broda",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "broda",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "b",
+                  "tags": []
+                },
+                {
+                  "value": "r",
+                  "tags": []
+                },
+                {
+                  "value": "o",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "broda",
+                  "tags": [
+                    "BRIVLA",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

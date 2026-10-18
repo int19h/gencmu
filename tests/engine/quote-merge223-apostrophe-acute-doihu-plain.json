@@ -1,12 +1,11 @@
 {
-  "description": "Contextual apostrophes retain main’s phoneme reading. One complete quote keeps the written marks and whole-quote attachments.",
+  "description": "The phoneme grammar reads an interior mark between eligible letters as an apostrophe. The complete quote keeps its written marks and whole-quote attachments.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "doi´u la´o",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,

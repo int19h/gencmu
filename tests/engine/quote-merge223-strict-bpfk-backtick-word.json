@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "zo la`o",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,
@@ -62,14 +61,16 @@
               "tags": []
             },
             {
-              "image": " ",
-              "value": " ",
+              "image": "`",
+              "value": "`",
               "source": [
                 5,
                 6
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
               ]
             },
             {

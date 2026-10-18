@@ -101,6 +101,10 @@ The Latin phoneme rules discard commas, so this dialect supplies no syllable com
   ```jbogenbau
   %include "../words/stream.md"
   ```
+- [Experimental word warnings](../words/experimental-stream.md)
+  ```jbogenbau
+  %include "../words/experimental-stream.md"
+  ```
 - [Replacement quotes](../words/lohai.md): `lo'ai ... le'ai` as one unit of raw words
   ```jbogenbau
   %include "../words/lohai.md"

@@ -1,0 +1,41 @@
+{
+  "description": "Issue #210 keeps source spelling in quote bodies and rejects punctuation beside ZEI. Plain pauses retain their behavior.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la'oi James_Joyce",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "la'oi james_Joyce",
+              "image": "la'oi James_Joyce",
+              "text": "la'oi James_Joyce",
+              "source": [
+                0,
+                17
+              ],
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZOhOI"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

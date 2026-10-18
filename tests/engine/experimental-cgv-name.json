@@ -1,0 +1,496 @@
+{
+  "description": "Forms marks the CgV name. Its warning belongs to a later word read.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "la .lidias.",
+  "parses": [
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "la",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LE",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "lidias",
+                  "tags": [
+                    "CMEVLA",
+                    "Cgv-Warning",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms",
+        "withoutFeatures": [
+          "experimental-cgv"
+        ]
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "la",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LE",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "lidias",
+                  "tags": [
+                    "CMEVLA",
+                    "Cgv-Warning",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    },
+    {
+      "options": {
+        "until": "forms"
+      },
+      "expect": {
+        "result": {
+          "ok": true,
+          "stages": [
+            {
+              "name": "phonemes",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "normalize",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "l",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "d",
+                  "tags": []
+                },
+                {
+                  "value": "i",
+                  "tags": []
+                },
+                {
+                  "value": "a",
+                  "tags": []
+                },
+                {
+                  "value": "s",
+                  "tags": []
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "forms",
+              "verdict": "unique",
+              "output": [
+                {
+                  "value": "la",
+                  "tags": [
+                    "Cmavo",
+                    "Continued",
+                    "LE",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE"
+                  ]
+                },
+                {
+                  "value": "lidias",
+                  "tags": [
+                    "CMEVLA",
+                    "Cgv-Warning",
+                    "Continued",
+                    "Onset",
+                    "Run-Final",
+                    "Run-Initial",
+                    "Word"
+                  ]
+                },
+                {
+                  "value": " ",
+                  "tags": [
+                    "PAUSE",
+                    "Period-Initial",
+                    "Period-Only"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "warnings": []
+      }
+    }
+  ]
+}

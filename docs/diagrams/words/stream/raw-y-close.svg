@@ -7,7 +7,7 @@
 <g class="rule"><rect x="20" y="44" width="92" height="24" rx="0"/><text x="66" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-y-key</text></g>
 <path d="M112 56h10"/>
 <path d="M122 56h20"/>
-<g class="rule"><rect x="142" y="44" width="92" height="24" rx="0"/><text x="188" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">pause-run</text></g>
+<g class="rule"><rect x="142" y="44" width="92" height="24" rx="0"/><text x="188" y="61" textLength="75.6" lengthAdjust="spacingAndGlyphs">raw-y-gap</text></g>
 <path d="M234 56H254"/>
 <path d="M122 56a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H234a10 10 0 0 1 10 10V46a10 10 0 0 0 10 10"/>
 <path d="M254 56h10"/>

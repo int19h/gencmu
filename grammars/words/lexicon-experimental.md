@@ -357,7 +357,7 @@ The threshold does not remove existing camxes-exp words. Thirteen of those words
 
 ### Additions from real text
 
-Corpus evidence qualifies 95 words whose highest English scores are below three. A review of 140 words finds uses that match 94 words' top English definitions in meaning and selma'o. The maintainers separately correct the class of `ni'au` from its meaning and attested use. One of these words, `ku'au`, already belongs to the baseline. The other 94 add spellings to the lexicon. These additions use the same September 13, 2026 dictionary snapshot.
+Corpus evidence qualifies the 95 words in the CONSISTENT set of the [evidence summary](../../docs/experimental-cmavo-evidence.md#consistent-use). Their highest English scores are below three. The summary states the class correction and the arithmetic for new spellings. These additions use the same September 13, 2026 dictionary snapshot.
 
 The [judgments' summary](../../docs/experimental-cmavo-evidence.md) records each reviewed word, its definition, the evidence count and the verdict. These are the 95 corpus-evidence words, grouped by their classes here:
 

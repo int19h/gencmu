@@ -1,0 +1,305 @@
+{
+  "description": "The script period immediately follows the mark after ZO. ZO quotes the standalone mark, and broda remains outside.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo\" broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                3,
+                6
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            }
+          ]
+        },
+        {
+          "name": "normalize",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "z",
+              "image": "z",
+              "tags": [],
+              "source": [
+                0,
+                1
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                1,
+                2
+              ]
+            },
+            {
+              "value": "\"",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                3,
+                6
+              ]
+            },
+            {
+              "value": "b",
+              "image": "b",
+              "tags": [],
+              "source": [
+                6,
+                7
+              ]
+            },
+            {
+              "value": "r",
+              "image": "r",
+              "tags": [],
+              "source": [
+                7,
+                8
+              ]
+            },
+            {
+              "value": "o",
+              "image": "o",
+              "tags": [],
+              "source": [
+                8,
+                9
+              ]
+            },
+            {
+              "value": "d",
+              "image": "d",
+              "tags": [],
+              "source": [
+                9,
+                10
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "tags": [],
+              "source": [
+                10,
+                11
+              ]
+            }
+          ]
+        },
+        {
+          "name": "forms",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo",
+              "image": "zo",
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word",
+                "ZO"
+              ],
+              "source": [
+                0,
+                2
+              ]
+            },
+            {
+              "value": " ",
+              "image": "\"",
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "source": [
+                2,
+                3
+              ]
+            },
+            {
+              "value": " ",
+              "image": " ",
+              "tags": [
+                "PAUSE",
+                "Period-Initial"
+              ],
+              "source": [
+                3,
+                6
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                6,
+                11
+              ]
+            }
+          ]
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "zo\"",
+              "image": "zo\"",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ],
+              "source": [
+                0,
+                3
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ],
+              "source": [
+                6,
+                11
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

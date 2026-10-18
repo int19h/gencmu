@@ -107,7 +107,8 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ],
               "span": [
                 6,
@@ -183,7 +184,9 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
               ],
               "span": [
                 15,
@@ -291,7 +294,8 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ],
               "span": [
                 6,
@@ -367,7 +371,9 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
               ],
               "span": [
                 11,
@@ -449,7 +455,8 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial"
               ],
               "span": [
                 6,
@@ -521,7 +528,9 @@
               "value": " ",
               "image": " ",
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Period-Initial",
+                "Period-Only"
               ],
               "span": [
                 11,

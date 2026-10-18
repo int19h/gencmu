@@ -22,8 +22,8 @@
 <g class="terminal"><rect x="40" y="204" width="42" height="24" rx="12"/><text x="61" y="221" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;y&quot;</text></g>
 <path d="M82 216H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V240a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="40" y="238" width="42" height="24" rx="12"/><text x="61" y="255" textLength="25.2" lengthAdjust="spacingAndGlyphs">&quot;'&quot;</text></g>
-<path d="M82 250H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
+<g class="terminal"><rect x="40" y="238" width="109" height="24" rx="12"/><text x="94.5" y="255" textLength="92.4" lengthAdjust="spacingAndGlyphs">&quot;'&quot;&lt;¬PAUSE&gt;</text></g>
+<path d="M149 250H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>
 <path d="M20 46a10 10 0 0 1 10 10V274a10 10 0 0 0 10 10"/>
 <g class="terminal"><rect x="40" y="272" width="134" height="24" rx="12"/><text x="107" y="289" textLength="117.6" lengthAdjust="spacingAndGlyphs">Syllable-Break</text></g>
 <path d="M174 284H174a10 10 0 0 0 10 -10V56a10 10 0 0 1 10 -10"/>

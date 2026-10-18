@@ -1,0 +1,21 @@
+{
+  "description": "The spelling zei rejects surviving punctuation on either side, including when its class is SI.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mi @ zo broda si zei mlauca",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "stage": "words",
+        "kind": "rejected"
+      }
+    },
+    "error": "rejected"
+  }
+}

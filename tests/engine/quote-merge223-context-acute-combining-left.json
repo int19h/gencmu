@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The accented left vowel remains an eligible neighbor for the interior apostrophe. The quote image keeps the written accent and mark.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo lá´o",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
