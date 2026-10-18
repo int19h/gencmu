@@ -78,8 +78,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %rule punctuation-char
   $c:other-char [{combining-mark}]
 %conditions
-  ¬$c.matches(any-lojban-char),
-  ¬$c.matches(core-char),
+  ¬$c.matches(any-lojban-char | core-char),
   ¬$.following-tokens.begins(combining-mark)
 
 %rule other-char
@@ -115,8 +114,7 @@ An ignored character at a pause edge is a comma or a non-breaking format charact
 %redefine-rule run-char
   $c:_
 %conditions
-  ¬$c.matches(core-char),
-  ¬$c.matches(punctuation-char)
+  ¬$c.matches(core-char | punctuation-char)
 ```
 
 <details><summary>Railroad diagrams of the 20 rules from <code>pause</code> to <code>run-char</code></summary>

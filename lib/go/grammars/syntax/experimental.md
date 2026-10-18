@@ -679,9 +679,7 @@ A number is followed by `free-after-number`, and a lerfu string by `free-after-l
   (* quantifier <- !selbri !sumti_6 mex *)
   $m:mex
 %conditions
-  ¬$m.without-elision.onward.begins(sumti-6),
-  ¬$m.without-elision.onward.begins(gek-barrier),
-  ¬$m.without-elision.onward.begins(selbri)
+  ¬$m.without-elision.onward.begins(sumti-6 | gek-barrier | selbri)
 
 %rule gek-barrier
   gek (sumti-6 | gek-barrier)

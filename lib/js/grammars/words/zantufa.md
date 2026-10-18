@@ -25,9 +25,7 @@ A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel
 %redefine-rule m              (* The consonant m forbids an apostrophe, glide, and another m. It permits z. *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(m)
+  ¬$c.following-tokens.begins(h | glide | m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>

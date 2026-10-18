@@ -419,13 +419,9 @@ The slinku'i test of CLL[^cll-s4-7] says that a CV cmavo joined to the front of 
   $f:fuhivla-form
 %conditions
   $f.matches(clustered-start),
-  ¬$f.matches(gismu-form),
-  ¬$f.matches(lujvo-form),
-  ¬$f.matches(lujvo-after-cv),
-  ¬$f.matches(lujvo-after-cvv),
+  ¬$f.matches(gismu-form | lujvo-form | lujvo-after-cv | lujvo-after-cvv),
   (N2 ∪ N3) ∩ $f.tags(brivla-scan) ≠ ∅,
-  ¬$f.matches(one-syllable),
-  ¬$f.matches(combination)
+  ¬$f.matches(one-syllable | combination)
 
 %rule fuhivla-form
   | fuhivla-body

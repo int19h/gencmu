@@ -212,8 +212,7 @@ A structural pattern describes constructed nodes. Suppose every earlier branch i
   KU ⊈ $n.following-tokens.first-token.tags,
   ¬$t.following-tokens.begins(mex),
   $t ≇ $BARE-NA-FRAGMENT,
-  ¬$m.following-tokens.begins(sumti-5),
-  ¬$m.following-tokens.begins(selbri),
+  ¬$m.following-tokens.begins(sumti-5 | selbri),
   ¬$m.without-elision.matches(fragment-terms)
 
 %rule fragment-terms
@@ -415,8 +414,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   | POIhA # selbri [+KU #]
   | $n:na-clause [+KU #]
 %conditions
-  ¬$n.following-tokens.begins(bridi-tail),
-  ¬$n.following-tokens.begins(joik-gihek)
+  ¬$n.following-tokens.begins(bridi-tail | joik-gihek)
 
 %rule tag-term
   (* tag_term <- !gek (tag !(!tag selbri) !gek_bridi_tail !BO
@@ -429,10 +427,7 @@ The KE patterns inspect the actual body and closer. A written `ke'e` around one 
   GI ⊈ $a.following-tokens.first-token.tags,
   ¬$s.without-elision-except(math).onward.begins(tcita-selci),
   GI ⊈ $t.following-tokens.first-token.tags,
-  ¬$t.following-tokens.begins(free),
-  ¬$t.following-tokens.begins(tcita-selci),
-  ¬$t.following-tokens.begins(selbri),
-  ¬$t.following-tokens.begins(gek-bridi-tail),
+  ¬$t.following-tokens.begins(free | tcita-selci | selbri | gek-bridi-tail),
   BO ⊈ $t.following-tokens.first-token.tags,
   ¬$f.following-tokens.begins(tanru-unit-1)
 
@@ -523,8 +518,7 @@ The plain `term-link` rule carries `fewest`, so a sumti connection wins over a t
   | LI # mex [+LOhO #]
   | NAhE # sumti-3
 %conditions
-  ¬$l.following-tokens.begins(lerfu-operator),
-  ¬$l.following-tokens.begins(operand-kehe)
+  ¬$l.following-tokens.begins(lerfu-operator | operand-kehe)
 
 %rule lerfu-boi
   lerfu-string [+BOI #]
@@ -703,8 +697,7 @@ A run of `cei` nests to the right. The selbri after the first `cei` already read
   | {NU # / joik} statement [+KEI #]
 %conditions
   ¬$g.following-tokens.begins(gik-term-or-cu),
-  ¬$m.following-tokens.begins(sumti-5),
-  ¬$m.following-tokens.begins(selbri),
+  ¬$m.following-tokens.begins(sumti-5 | selbri),
   $m ≇ @(operator ⋰),
   $t ≇ @(operator ⋰),
   $k ≇ @(NAhE ⋰),
@@ -774,8 +767,7 @@ The condition removes a connective operator whose first word is SE. The alternat
   (* quantifier <- !sumti_5 !selbri mex relative_clauses? *)
   $m:mex [relative-clauses]
 %conditions
-  ¬$m.without-elision.onward.begins(sumti-5),
-  ¬$m.without-elision.onward.begins(selbri),
+  ¬$m.without-elision.onward.begins(sumti-5 | selbri),
   ¬$m.following-tokens.begins(roi-word)
 
 %rule mex

@@ -23,9 +23,7 @@ The rule for `m` rejects a following apostrophe, glide or `m`, but permits `z`. 
 %redefine-rule m              (* The consonant m forbids an apostrophe, glide, and another m. It permits z. *)
   $c:"m"
 %conditions
-  ¬$c.following-tokens.begins(h),
-  ¬$c.following-tokens.begins(glide),
-  ¬$c.following-tokens.begins(m)
+  ¬$c.following-tokens.begins(h | glide | m)
 ```
 
 <details><summary>Railroad diagram of <code>m</code></summary>
@@ -61,8 +59,7 @@ A CCV `hy-rafsi` can otherwise begin a brivla, as in `bla'ykla`. `brivla` reject
 %redefine-rule brivla  (* A predicate word excludes a particle start and the CCV-apostrophe-y start that slihykru detects. Its unstressed rafsi precede the stressed core. *)
   [{initial-rafsi}] brivla-core
 %conditions
-  ¬$.onward.begins(cmavo),
-  ¬$.onward.begins(slihykru)
+  ¬$.onward.begins(cmavo | slihykru)
 
 %rule slihykru                (* `slihykru <- (CCV_rafsi / stressed_CCV_rafsi) h y onset`. The forbidden start is a CCV rafsi, apostrophe-y, and an onset. Vowel stress separates the CCV forms. *)
   (ccv-rafsi | stressed-ccv-rafsi) h y onset
