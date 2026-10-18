@@ -333,11 +333,6 @@ pub(crate) fn dom_from_json_mode(value: &Json, unicode: &Unicode, defer: bool) -
             })
         })
         .collect::<R<Vec<_>>>()?;
-    for directive in &directives {
-        if let Some(conditions) = &directive.conditions {
-            crate::features::problem(conditions)?;
-        }
-    }
     let constants = array(value, "constants")?
         .iter()
         .map(|constant| {

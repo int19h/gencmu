@@ -716,7 +716,7 @@ fn run_engine_case_inner(case: &Value) -> Result<(), String> {
 }
 
 /// The members of `expect` that only a loaded dialect can meet.
-const AFTER_LOAD: [&str; 4] = ["result", "brackets", "warnings", "features"];
+const AFTER_LOAD: [&str; 5] = ["result", "brackets", "warnings", "features", "enabledFeatures"];
 
 /// Holds the error of a dialect that did not load to `expect`. The error is
 /// the whole outcome, so a case that expects anything that only a loaded
@@ -902,6 +902,12 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
             return if problems.is_empty() { Ok(()) } else { Err(problems) };
         }
     };
+    if let Some(expected) = expect.get("enabledFeatures") {
+        let found = Value::Array(result.features.iter().cloned().map(Value::String).collect());
+        if let Err(problem) = same(expected, &found, "enabledFeatures") {
+            let _ = writeln!(problems, "{problem}");
+        }
+    }
     let json = gencmu::to_json(&result);
     if let Some(problem) = witness_problem(&result, &checks) {
         return Err(format!("{problem}\nresult: {json}"));
@@ -912,6 +918,9 @@ fn check_parse(dialect: &gencmu::Dialect, case: &Value, run: &Value, expect: &Va
         return Ok(());
     }
     let actual = parse_json(&json).map_err(|error| format!("the result is not JSON ({error}): {json}"))?;
+    if actual.get("features").is_some() {
+        return Err("canonical JSON contains enabled features".into());
+    }
     problems.push_str(&check_json(expect, &actual).map_err(|problem| format!("{problem}result: {json}"))?);
     if let Some(expected) = expect.get("brackets").and_then(Value::str) {
         let found = gencmu::to_brackets(&result, false);

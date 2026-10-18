@@ -115,7 +115,16 @@ pub(crate) trait Documents {
     fn resolve(&self, base: &str, target: &str) -> Option<String>;
 }
 
+struct LocalDeclaration {
+    stage: usize,
+    generation: usize,
+    document: Arc<str>,
+    directive: Directive,
+}
+
 struct Splicer<'d> {
+    generations: Vec<usize>,
+    declarations: Vec<LocalDeclaration>,
     documents: &'d mut dyn Documents,
     stages: Vec<SplicedStage>,
     features: Vec<String>,
@@ -210,6 +219,7 @@ impl Splicer<'_> {
                     }
                     self.selected = Some(self.stages.len());
                     self.stage_index.insert(name.clone(), self.stages.len());
+                    self.generations.push(0);
                     self.stages.push(SplicedStage {
                         name,
                         document: path.clone(),
@@ -227,10 +237,21 @@ impl Splicer<'_> {
                     self.selected = Some(index);
                     if directive.name == "redefine-stage" {
                         self.stages[index].documents.clear();
+                        self.generations[index] += 1;
                     }
                     self.open_run = false;
                 }
                 _ => {
+                    if let (Some(index), Item::Directive(directive)) = (self.selected, item) {
+                        if directive.name == "features" {
+                            self.declarations.push(LocalDeclaration {
+                                stage: index,
+                                generation: self.generations[index],
+                                document: path.clone(),
+                                directive: directive.clone(),
+                            });
+                        }
+                    }
                     let Some(stage) = self.selected.map(|index| &mut self.stages[index]) else {
                         let what = match item {
                             Item::Rule(rule) => format!("the rule {}", rule.name),
@@ -267,6 +288,8 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         return Err(Error::grammar(format!("the pipeline document {path} was not found")).in_document(path));
     };
     let mut splicer = Splicer {
+        generations: Vec::new(),
+        declarations: Vec::new(),
         documents,
         stages: Vec::new(),
         features: Vec::new(),
@@ -277,6 +300,24 @@ pub(crate) fn splice(path: &str, documents: &mut dyn Documents) -> Result<Splice
         selected: None,
     };
     splicer.splice(Arc::from(path), top)?;
+    let mut owners = FxMap::default();
+    for item in &splicer.declarations {
+        if item.generation != splicer.generations[item.stage] {
+            continue;
+        }
+        for name in &item.directive.args {
+            let owner = *owners.entry(name.clone()).or_insert(item.stage);
+            if owner != item.stage {
+                return Err(Error::grammar(format!(
+                    "feature {name} is local to both {} and {}",
+                    splicer.stages[owner].name, splicer.stages[item.stage].name
+                ))
+                .in_document(&item.document)
+                .at(item.directive.at.0, item.directive.at.1)
+                .in_stage(&splicer.stages[item.stage].name));
+            }
+        }
+    }
     let Splicer { stages, mut features, .. } = splicer;
     if stages.is_empty() {
         return Err(Error::grammar("a pipeline needs at least one %stage").in_document(path));

@@ -279,6 +279,7 @@ fn read_document_mode(notation: &Dialect, text: &str, defer: bool) -> Result<Dom
     let position = |index: usize| grammar.position(index);
     let reader = Reader {
         defer_emission: defer,
+        feature_context: Default::default(),
         tokens: &stage.input,
         captures: Default::default(),
         braces: Default::default(),

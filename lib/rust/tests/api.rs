@@ -1000,8 +1000,14 @@ fn the_witness_lost_error_writes_its_members_in_order() {
             Restoration { terminal: "VAU".to_string(), at: 5, source: 16..16, value: Some("vau".to_string()) },
         ],
     };
-    let result =
-        ParseResult { ok: false, stages: Vec::new(), tree: None, error: Some(error.clone()), warnings: Vec::new() };
+    let result = ParseResult {
+        features: Vec::new(),
+        ok: false,
+        stages: Vec::new(),
+        tree: None,
+        error: Some(error.clone()),
+        warnings: Vec::new(),
+    };
     assert_eq!(
         gencmu::to_json(&result),
         concat!(

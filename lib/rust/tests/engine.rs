@@ -314,6 +314,7 @@ fn an_ordinary_grammar_error_in_the_check_has_no_code() {
     assert!(error.completion.is_empty());
     assert_ne!(error.message, "the main stage could not reconstruct its chosen derivation for elision-only");
     let json = gencmu::to_json(&gencmu::ParseResult {
+        features: Vec::new(),
         ok: false,
         stages: Vec::new(),
         tree: None,
@@ -327,7 +328,14 @@ fn an_ordinary_grammar_error_in_the_check_has_no_code() {
 /// witness, even where the result itself passes (tests/README.md).
 #[test]
 fn the_runner_refuses_a_check_that_lost_its_witness() {
-    let result = gencmu::ParseResult { ok: true, stages: Vec::new(), tree: None, error: None, warnings: Vec::new() };
+    let result = gencmu::ParseResult {
+        features: Vec::new(),
+        ok: true,
+        stages: Vec::new(),
+        tree: None,
+        error: None,
+        warnings: Vec::new(),
+    };
     let kept = gencmu::tools::ElisionCheckRun { stage: "main".to_string(), keeps_witness: true };
     let lost = gencmu::tools::ElisionCheckRun { stage: "main".to_string(), keeps_witness: false };
     assert_eq!(common::witness_problem(&result, std::slice::from_ref(&kept)), None);

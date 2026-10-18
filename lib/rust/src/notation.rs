@@ -12,6 +12,7 @@ use crate::work::{self, Work};
 
 pub(crate) struct Reader<'a> {
     pub defer_emission: bool,
+    pub feature_context: std::cell::Cell<bool>,
     pub tokens: &'a [Token],
     /// The captures of the alternative being read, in the order written,
     /// where an error about one is reported.
@@ -314,13 +315,20 @@ impl<'a> Reader<'a> {
                 if name != "features" {
                     return Err(self.error(node, "only %features accepts conditions"));
                 }
-                let conditions = self
-                    .some(clause, "implication", 1)?
-                    .into_iter()
-                    .map(|item| self.implication(item))
-                    .collect::<R<Vec<_>>>()?;
-                crate::features::problem(&conditions).map_err(|message| self.error(node, &message))?;
-                Some(conditions)
+                self.feature_context.set(true);
+                let conditions = (|| {
+                    self.some(clause, "implication", 1)?
+                        .into_iter()
+                        .map(|item| self.implication(item))
+                        .collect::<R<Vec<_>>>()
+                })();
+                self.feature_context.set(false);
+                let (line, column) = self.first(node);
+                Some(conditions.map_err(|mut error| {
+                    error.line = Some(line);
+                    error.column = Some(column);
+                    error
+                })?)
             }
             None => None,
         };
@@ -1031,7 +1039,7 @@ impl<'a> Reader<'a> {
                 // The reader has checked each comparison of a condition, so
                 // a condition's terms agree; the term guarded last must be a
                 // tag set, an error at its guard.
-                if let Some(problem) = expected_problem(ty, Type::Tags) {
+                if let Some(problem) = expected_problem(ty, Type::Tags).filter(|_| !self.feature_context.get()) {
                     return Err(self.error(last, problem));
                 }
                 let mut guarded = term;
@@ -1066,7 +1074,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::String | Type::Span) {
+            if matches!(ty, Type::String | Type::Span) && !self.feature_context.get() {
                 return Err(self.error(frame.node, "set operators require sets or patterns"));
             }
         }
@@ -1083,7 +1091,11 @@ impl<'a> Reader<'a> {
             operators.remove(0);
         }
         let operator = if operators.contains(&"∖") { "∖" } else { "∪" };
-        let ty = joined_type(&frame.types, operator).map_err(|problem| self.error(frame.node, problem))?;
+        let ty = if self.feature_context.get() {
+            Type::Any
+        } else {
+            joined_type(&frame.types, operator).map_err(|problem| self.error(frame.node, problem))?
+        };
         let mut items = std::mem::take(&mut frame.items).into_iter();
         let Some(mut result) = items.next() else {
             return Err(self.shape_error(frame.node, "part"));
@@ -1123,7 +1135,7 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::String | Type::Span) {
+            if matches!(ty, Type::String | Type::Span) && !self.feature_context.get() {
                 return Err(self.error(frame.node, "set operators require sets or patterns"));
             }
         }
@@ -1131,7 +1143,11 @@ impl<'a> Reader<'a> {
         if let Some(&atom) = atoms.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, false))));
         }
-        let ty = joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?;
+        let ty = if self.feature_context.get() {
+            Type::Any
+        } else {
+            joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?
+        };
         Ok(Step::Done(Val::Term(Term::Intersection(std::mem::take(&mut frame.items)), ty)))
     }
 
@@ -1546,9 +1562,9 @@ impl<'a> Reader<'a> {
             }
         }
         let (receiver, ty) = frame.receiver.take().unwrap();
-        let span = ty == Type::Span;
-        let string = matches!(ty, Type::Span | Type::String | Type::Any);
-        let bare = matches!(&receiver, Term::Capture(_));
+        let span = self.feature_context.get() || ty == Type::Span;
+        let string = self.feature_context.get() || matches!(ty, Type::Span | Type::String | Type::Any);
+        let bare = self.feature_context.get() || matches!(&receiver, Term::Capture(_));
         let arguments = &frame.args[..];
         let emitted_receiver = matches!(&receiver, Term::Call(name, _) if name == "emitted");
         let valid = if emitted_receiver {
@@ -1581,7 +1597,9 @@ impl<'a> Reader<'a> {
                         })
                 }
                 ("split", [Arg::Term(_)]) => {
-                    string && matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any)))
+                    string
+                        && (self.feature_context.get()
+                            || matches!(frame.types.first(), Some(Some(Type::String | Type::Span | Type::Any))))
                 }
                 ("classify", [Arg::Rule(classifier)]) => string && is_classifier_name(classifier),
                 _ => false,
@@ -1611,7 +1629,7 @@ impl<'a> Reader<'a> {
             let name = std::mem::take(name);
             args[1] = Arg::Classifier(name);
         }
-        if let Some(problem) = literal_call_problem(name, &args) {
+        if let Some(problem) = literal_call_problem(name, &args).filter(|_| !self.feature_context.get()) {
             return Err(self.error(frame.node, problem));
         }
         let last = frame.index + 1 == selectors.len();
@@ -1786,7 +1804,9 @@ impl<'a> Reader<'a> {
                 }
                 let (left, left_type) = frame.left.take().expect("the left side");
                 // The two sides fit the comparator (engine §10).
-                if let Some(problem) = comparison_problem(&frame.op, left_type, ty) {
+                if let Some(problem) =
+                    comparison_problem(&frame.op, left_type, ty).filter(|_| !self.feature_context.get())
+                {
                     return Err(self.error(inner, problem));
                 }
                 Ok(Step::Done(Val::Cond(Cond::Compare(std::mem::take(&mut frame.op), left, term))))

@@ -43,7 +43,7 @@ pub struct Feature {
     pub name: String,
     /// Whether it is a gate or a warning.
     pub kind: FeatureKind,
-    /// Whether the pipeline's `%features` turns it on.
+    /// Whether an unconditional global or local `%features` declares a default.
     pub default: bool,
 }
 
@@ -201,13 +201,13 @@ fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<
     for name in declared {
         kinds.entry(name).or_insert(FeatureKind::Gate);
     }
-    let mut tested = BTreeSet::new();
+    let mut tested = BTreeMap::new();
     let mut defaults: BTreeSet<&str> = declared.iter().map(String::as_str).collect();
     for stage in stages {
         for (document, directive) in &stage.features {
             for name in &directive.args {
-                if tested.contains(name) {
-                    return Err(Error::grammar(format!("an earlier stage tests local feature {name}"))
+                if let Some(earlier) = tested.get(name) {
+                    return Err(Error::grammar(format!("stage {earlier} tests local feature {name}"))
                         .in_document(document.as_ref())
                         .at(directive.at.0, directive.at.1)
                         .in_stage(&stage.name));
@@ -218,22 +218,14 @@ fn dialect_features(stages: &[StageGrammar], declared: &[String]) -> Result<Vec<
                 }
             }
         }
-        tested.extend(
-            stage
-                .rules
-                .iter()
-                .flat_map(|rule| &rule.alternatives)
-                .flat_map(|alt| &alt.alternative.guards)
-                .map(|guard| guard.feature.clone()),
-        );
-        tested.extend(
-            stage
-                .classifiers
-                .iter()
-                .flat_map(|(_, classifier)| &classifier.entries)
-                .flat_map(|entry| &entry.guards)
-                .map(|guard| guard.feature.clone()),
-        );
+        for guard in stage.rules.iter().flat_map(|rule| &rule.alternatives).flat_map(|alt| &alt.alternative.guards) {
+            tested.entry(guard.feature.clone()).or_insert_with(|| stage.name.clone());
+        }
+        for guard in
+            stage.classifiers.iter().flat_map(|(_, classifier)| &classifier.entries).flat_map(|entry| &entry.guards)
+        {
+            tested.entry(guard.feature.clone()).or_insert_with(|| stage.name.clone());
+        }
     }
     Ok(kinds
         .into_iter()
@@ -458,6 +450,7 @@ impl Dialect {
             tree: if ok { run.tree } else { None },
             error: run.error,
             warnings: run.warnings,
+            features: features.into_iter().collect(),
         })
     }
 

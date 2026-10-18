@@ -383,20 +383,25 @@ pub(crate) fn stitch(
     constants.bind()?;
     for (document, directive) in &mut grammar.features {
         if let Some(conditions) = &mut directive.conditions {
-            for condition in conditions {
+            crate::features::problem(conditions).map_err(|message| located(message, document, directive.at))?;
+            for condition in conditions.iter_mut() {
                 let mut references = Vec::new();
                 crate::dom::constants_in_cond(condition, &mut references);
-                for (name, at) in references {
+                for (name, _) in references {
                     if crate::dom::engine_scalar(name).is_none() && !constants.values.contains_key(name) {
-                        return Err(located(format!("${name} is not defined in stage {stage}"), document, at));
+                        return Err(located(
+                            format!("${name} is not defined in stage {stage}"),
+                            document,
+                            directive.at,
+                        ));
                     }
                 }
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| constants.ty(name)) {
-                    return Err(fault_error(fault, document, directive.at));
+                    return Err(located(fault.problem, document, directive.at));
                 }
                 constants.substitute_cond(condition);
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|_| Type::Any) {
-                    return Err(fault_error(fault, document, directive.at));
+                    return Err(located(fault.problem, document, directive.at));
                 }
             }
         }

@@ -494,6 +494,8 @@ pub struct Warning {
 /// The result of parsing a text (`docs/output.md`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseResult {
+    /// Enabled feature names when the run ends, outside canonical JSON.
+    pub features: Vec<String>,
     /// Whether every stage run accepted its input without an error.
     pub ok: bool,
     /// The stages run, in order.
