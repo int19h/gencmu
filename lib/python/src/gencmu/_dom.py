@@ -844,7 +844,7 @@ class DomBuilder:
         return run(self._term(node))  # type: ignore[no-any-return]
 
     def _method(self, node: Node) -> Walk:
-        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"), True)
+        receiver = yield self._term(self.only(self.only(node, "method-receiver"), "term-atom"))
         for selector in self.some(node, "method-selector"):
             name = self.token_value(self.token(self.only(selector, "method-name")))
             if self.closed_for and name not in ("split", "ngrams"):
