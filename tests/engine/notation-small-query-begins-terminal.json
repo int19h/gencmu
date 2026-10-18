@@ -1,0 +1,17 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:A %conditions $x.begins(B | A)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

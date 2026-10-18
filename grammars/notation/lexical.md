@@ -32,7 +32,7 @@ The left-recursive `text` gives each shorter text its own constituent. Greedy ra
 
 %rule piece
   | word | string | engine-tag | capture-token | constant-token | guard
-  | include | keyword | symbol | negation | layout
+  | include | keyword | integer | symbol | negation | layout
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>piece</code></summary>
@@ -47,6 +47,8 @@ An ordinary name starts with an ASCII letter. Letters, digits, hyphens, and unde
 `word` distinguishes lowercase and uppercase names while marking both as `Identifier`. The first letter later distinguishes rule names from user tags.
 
 `whole-name` refuses a following name character. Keywords use it so that a keyword cannot stop inside a longer name.
+
+An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
 
 An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
@@ -76,6 +78,11 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
 %rule digit
   "0".."9"
 
+%rule integer
+  digit | integer digit
+%emits
+  $ :: Integer
+
 %rule lower-name
   "a".."z" | lower-name name-character
 
@@ -96,13 +103,14 @@ An engine tag starts with `_` and continues with letters, digits, or underscores
   letter | digit | "_"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>word</code> to <code>engine-name-character</code></summary>
+<details><summary>Railroad diagrams of the 12 rules from <code>word</code> to <code>engine-name-character</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/word.svg" alt="Railroad diagram of the rule word"></p>
 <p><img src="../../docs/diagrams/notation/lexical/whole-name.svg" alt="Railroad diagram of the rule whole-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name.svg" alt="Railroad diagram of the rule name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/name-character.svg" alt="Railroad diagram of the rule name-character"></p>
 <p><img src="../../docs/diagrams/notation/lexical/letter.svg" alt="Railroad diagram of the rule letter"></p>
 <p><img src="../../docs/diagrams/notation/lexical/digit.svg" alt="Railroad diagram of the rule digit"></p>
+<p><img src="../../docs/diagrams/notation/lexical/integer.svg" alt="Railroad diagram of the rule integer"></p>
 <p><img src="../../docs/diagrams/notation/lexical/lower-name.svg" alt="Railroad diagram of the rule lower-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/upper-name.svg" alt="Railroad diagram of the rule upper-name"></p>
 <p><img src="../../docs/diagrams/notation/lexical/engine-tag.svg" alt="Railroad diagram of the rule engine-tag"></p>

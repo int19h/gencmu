@@ -374,7 +374,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 
 The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the phoneme pause value.
 
-The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` on closed strings is closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
+The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. A pattern constant can read engine tags as terminal atoms or tag requirements.
 
@@ -622,6 +622,14 @@ Every tag name is written in grammar text. No method constructs tags from an inp
 
 `∪`, `∩` and `∖` are union, intersection and difference. Each applies to two sets of one kind: two sets of strings, or two tag sets. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `A ∖ B ∪ C` is `(A ∖ B) ∪ C`. `∅` is the empty set, and its context gives its kind. An expression whose kind nothing gives, such as `∅ = ∅`, is an error.
 
+A string in a set operation denotes its singleton set, including the empty string. A lone string remains scalar. Set equality also permits this conversion when the other side is a set. Captures and spans never convert directly to sets.
+
+`string.ngrams(n)` returns the set of runs of `n` adjacent code points. Overlapping runs count, and duplicate runs give one member. A string shorter than `n` gives `∅`. The argument is a positive decimal integer literal without leading zeros. It cannot be a constant because constants have no integer type.
+
+String sets support the same grouping, set operators, guarded terms, empty sets, constants, and closed terms as tag sets. A guarded string set gives `∅` when its condition fails.
+
+Tag-specific positions still require tags because tokens and constituents carry named marks. String sets cannot supply tag clauses, tag tests, or implication sides. Membership `∈` tests a scalar string because tag literals already denote singleton sets. Tag membership therefore uses `⊆`. Ranges remain terminals for both kinds because they describe token recognition.
+
 The predicates are:
 
 - `=` and `≠` compare two strings, two sets of strings or two tag sets. Any other pair is an error.
@@ -629,12 +637,16 @@ The predicates are:
 - `⊆` and `⊈` test whether one set is in another of the same kind. So `Indicator ⊆ $i.tags` says that `$i` carries the mark `Indicator`, and `Indicator ⊈ $i.tags` says that it does not.
 - `≅` holds when a bare capture, or `$`, matches a tree pattern (see "Tree patterns"). `≇` holds when it does not. Any other pair is an error.
 - `$x` holds when the production has the capture `x`.
-- `span.matches(rule)` holds when the span parses as the named rule.
-- `span.begins(rule)` holds when some prefix of the span parses as the rule. The empty prefix counts.
+- `span.matches(S)` holds when the span parses as any target in `S`.
+- `span.begins(S)` holds when some prefix parses as any target in `S`. The empty prefix counts for rule targets.
 - `span.starts-input` holds when the span begins where the parser's input begins.
 - `span.ends-input` holds when the span ends where the parser's input ends.
 - `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbours in the parse" below explains it.
 - `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
+
+The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name. Strings, constants, grouped targets, and comma separators are errors.
+
+Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens. Restored queries retain their alignment rules for every alternative.
 
 For an ordinary span, `matches` and `span.tags(rule)` parse the captured span alone, as the named rule, with the same grammar. This is how gencmu states CLL's slinku'i test for fu'ivla. A CV cmavo is a particle of one consonant and one vowel. The test says that such a cmavo before a fu'ivla must not make a lujvo. That is `¬$f.matches(lujvo-after-cv)`, because the rule is the part of a lujvo after its first two letters.
 
@@ -739,7 +751,7 @@ The receiver and composition rules of `.without-elision` apply unchanged. `$x.on
 
 ### Neighbours in the parse
 
-`$x.followed-by(S)` and `$x.preceded-by(S)` test the parse that the condition belongs to. They parse nothing again. The receiver is `$` or one capture. `S` is a rule name or a tag that names a terminal, or a choice of these, as in `selbri | gek-sentence`. `#` is a rule name, so `S` can name it. Its node is a nonempty free-modifier slot.
+`$x.followed-by(S)` and `$x.preceded-by(S)` test the parse that the condition belongs to. They parse nothing again. The receiver is `$` or one capture. `S` uses the shared target choice defined above. Its node is a nonempty free-modifier slot.
 
 `$x.followed-by(S)` holds when the parse has a node of a name in `S` whose first token is the token right after `$x`. `$x.preceded-by(S)` holds when the parse has such a node whose last token is the token right before `$x`. A node of a rule is its constituent, including each level of a chain. A node of a tag is one token that the terminal read. Optionals, braces and ranked groups make no node.
 
@@ -793,17 +805,17 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | A classifier entry | Separate keys | `"mi" "do" ∈ KOhA` |
 | Directive operands | A list | `%features cbm su-boundary` |
 | Other tag-set atoms | Error | `:: $m.tags Word` |
-| Strings in conditions or constants | Error | `%const $X "a" "b"` |
+| A string-set term | One union atom of string literals | `%const $X "a" "b"` |
 | String sets | Error | `$S $T` |
 | Patterns outside a literal | Error | `%const $P @(A) @(B)` |
 
-A run of bare tag names can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
+A run of bare tag names or string literals can stand alone or beside `∪`. It requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. `(Word BY) ∩ $l.tags` is legal. `Word BY ∩ $l.tags` and `:: ∩ Word BY` are errors at `Word`.
 
 `A ∪ B C ∖ D` is an error at `B`. Any union operand that is itself a union flattens into its enclosing union in written order. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Intersection and difference retain their operands. Other atoms require explicit operators.
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
-Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. A string is not a string set, so `"a" ∪ "b"` is an error.
+Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Interpolated literals can join a string run. Constant references and method calls require explicit operators.
 
 ## Tags
 
@@ -1032,7 +1044,7 @@ A conditional declaration reads its stage input once, before that stage parses:
 
 Here `$` denotes all input tokens as one span, without a constituent or a position query.
 
-Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, and `.split`.
+Legal methods are `.tags` without an argument, `.classes`, `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.first-token`, `.tokens-after-first`, `.last-token`, `.split`, and `.ngrams`.
 
 Apart from the ban on a rule argument to `.tags`, these methods keep their usual operand types and arities. They can form chains within those types. Bare `$` reads the concatenated token values.
 

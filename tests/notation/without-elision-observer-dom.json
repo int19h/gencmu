@@ -3,7 +3,7 @@
   "document": "```jbogenbau\n%rule a $x:B %conditions $x.without-elision.first-token.source-text = \"b\"\n```\n",
   "expect": {
     "dom": {
-      "format": 32,
+      "format": 33,
       "rules": [
         {
           "conditions": [

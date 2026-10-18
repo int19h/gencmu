@@ -1578,12 +1578,13 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `method-selector` | `method-name`, then optional `arguments` | Method name, prior receiver, ordered argument terms |
 | `method-name` | One method-name token | Exact method identifier |
 | `arguments` | One or more `argument` parts | Ordered argument array. Absent arguments gives `args:[]`. |
-| `argument` | One `term` | Term, or rule/classifier name in the signature's name position |
+| `argument` | One `term` or `integer` | Term, integer argument, or rule/classifier name in the signature's name position |
+| `integer` | One Integer token | `integer`, retaining its positive decimal digits without leading zeros |
 | `string` | String token | Decode its value left to right, with decomposed written segments and exact constant scalars |
 | `name` | One name token | Capitalized tag, or rule/classifier name in its method argument position |
 | `term` | One `union` or `guarded-term` | Child term |
-| `tag-run` | At least two `tag` parts, in written order | One `union` of singleton `tag` terms. Flatten into an enclosing union, regardless of grouping. |
-| `term-atom` | One string, tag, tag run, name, constant, capture, method, range, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
+| `tag-run`, `string-run` | At least two `tag` or `string` parts respectively, in written order | One `union` of singleton operands. Flatten into an enclosing union, regardless of grouping. |
+| `term-atom` | One string, tag, tag run, string run, name, constant, capture, method, range, empty set, pattern literal, or grouped `term`, `guarded-term`, or `union` | Delegate to that constructor. Preserve its term and type. Parentheses make no DOM node. |
 | `guarded-term` | One or more `any-of`, then a `union` or `term` | Right-nested `if` terms around the final value |
 | `union` | One or more `intersection` parts and their operators | Fold union and difference left. Flatten every union operand that is itself a union. A sole part stays unchanged. |
 | `intersection` | One or more `term-atom` parts | `intersection`, or sole part |
@@ -1643,6 +1644,8 @@ The following compact examples show the additional conversions. Positions illust
 | `%rule r f? A ≻ B :: ∅` | ALT has gate `f`, ranked refs `A`,`B`, and `tags:{"emptySet":true}`. |
 
 The full ranked alternative is `{"guards":[{"feature":"f","kind":"gate","negated":false}],"expr":{"ranked":[{"ref":"A"},{"ref":"B"}]},"tags":{"emptySet":true}}`. Its common clause belongs to the whole alternative and never to an individual option.
+
+An Integer token contains one or more ASCII decimal digits. It is legal only as a method argument whose signature accepts an integer. The reader requires positive digits without leading zeros.
 
 The lexical stage reads the longest punctuation token. `...` is one chain marker, never `..` followed by `.`. A range joins two scalar string endpoints with `..`. `.` selects a method. Header clauses use `::`, `:=`, and `:-`, while `:` binds a capture. Both readers follow the lexical forms above.
 
@@ -1713,7 +1716,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
 - A rule flag other than `leftmost-longest` or `fewest` is an error at the flag. Two different flags on one rule are an error at the second flag. A repeated flag is an error at the repeated flag. Parentheses on `%extend-rule` are an error at their opening parenthesis. These examples start at column 1. So `%rule(lazy)`, `%rule(leftmost-longest,leftmost-longest)` and `%extend-rule(leftmost-longest)` report columns 7, 24 and 13, respectively.
 
-  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the lexical stage at `1`, column 24. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
+  Empty parentheses and arguments fail before the reader reads a tree. Empty parentheses report the closing `)`, column 7 in `%rule()` and column 16 in `%redefine-rule()`. `%rule(leftmost-longest(1))` fails the syntax stage at `(`, column 23. A parenthesized argument made of valid tokens fails the syntax stage at its opening `(`. A supplied notation tree with no `rule-flag` reports its missing part at `rule-flags`, after the extension check.
 - A rule name other than `#` that does not begin with `a` to `z` is an error at the name. Thus `%rule Foo A` fails at `Foo`, column 7.
 - A capture that wraps anything but one symbol is an error, `$x:(B)`, `$x:(A | B)` and `$x:[B]` included. A symbol is a rule reference, tag terminal, string terminal, range, wildcard, or a tested form with one of these bases. For this capture check, a rule reference includes `#`. The capture check ignores the target's test count and order. The `tested` constructor reports any test-order error.
 
@@ -1927,10 +1930,11 @@ Terms include strings, string sets, tag sets, patterns, captures, and ordinary o
 | `∅` | a set or pattern of the kind its context gives | the empty set or always-false pattern |
 | `@(BODY)` | pattern | the structural predicate in `docs/notation.md` |
 | `a ∪ b`, `a ∩ b`, `a ∖ b` | the type of `a` and `b`, two sets of one kind or two patterns | union, intersection, difference |
-| `A ⟹ t` | tag set | `t` where the condition `A` holds, else `∅` |
+| `A ⟹ t` | the set type of `t` | `t` where the condition `A` holds, else `∅` |
 | `s.value`, `s.source-text`, `s.decomposed-source-text` | string | §5 |
 | `a.split(d)` | set of strings | the pieces of the string `a` between the occurrences of the string `d` (below) |
 | `$x.emitted.value`, `$x.emitted.image` | string, recipes only | The selected string walk before the current item override (§11) |
+| `s.ngrams(n)` | set of strings | runs of `n` adjacent code points in string `s`, including overlapping runs |
 | `$NAME` | the type of its value | the value of the constant (§2) |
 | `s.tags` | tag set | the captured part's constituent tags if `s` is a whole capture, else the union of the span's tokens' tags |
 | `s.tags(R)` | tag set | the union of the tag sets of the completed items of `R` over `s` with an eligible proof tree (§4), or empty |
@@ -1946,21 +1950,29 @@ An empty delimiter is an error. It is an error of the document when the delimite
 
 Every tag name is written in the grammar. No method constructs a tag from a string. Values remain available for input-dependent comparisons.
 
-A closed term reads no capture, span, query, classifier, or guarded term. It can contain strings, tags, constants, patterns, contextual `∅`, set operators, and `.split` on closed strings. Ranges are terminals only. `.classify` is not closed because its classifier depends on features.
+`s.ngrams(n)` takes one positive decimal integer literal without leading zeros. An n-gram is a run of adjacent code points. Its value is the set of all length-`n` substrings, with duplicates removed. A string shorter than `n` gives `∅`, including when `n` exceeds any machine integer. Constants cannot supply `n` because the term language has no integer type. Noninteger, zero, negative, missing, and extra arguments are document errors.
+
+A closed term reads no capture, span, query, classifier, or guarded term. It can contain strings, tags, constants, patterns, contextual `∅`, set operators, and `.split` or `.ngrams` on closed strings. Ranges are terminals only. `.classify` is not closed because its classifier depends on features.
 
 A constant value is a closed term with string, string-set, tag-set or pattern type. So is the value of a test (§2), whose type is a string or a tag set. So is each side of an implication, whose type is a tag set. The loader evaluates constants after resolving the stage's version graph (§2).
 
 `..` joins range endpoints only in terminal syntax. It cannot construct a set in a condition. Stored property tests use tags, as in `_L ⊆ $c.tags`. Recipes use only the closed string language of §11.
 
+In a set operation, a scalar string converts to its singleton string set. This includes empty strings, interpolated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
+
 `∪`, `∩`, and `∖` combine tag sets, string sets, or patterns of one type. Plain parentheses preserve type. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
-`∅` takes its kind from the other side of its operator or comparison. A tag term, guarded term, emission item or tag test also gives it the required tag-set type. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
+`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
-`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. In these comparisons, a capture or span converts to its input value after method selection, on either or both sides. Thus `$open = $close` compares their values, as does `$open.value = $close.value`. A capture compared with a tag set or string set remains a document error. Any other pair is an error of the document.
+`a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. In these comparisons, a capture or span converts to its input value after method selection, on either or both sides. Thus `$open = $close` compares their values, as does `$open.value = $close.value`. When one side is a string set or contextual empty set, a scalar string on the other side converts to a singleton. Captures and spans compared with any set remain errors. Any other pair is an error of the document.
 
-`a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind.
+`a ∈ b` and `a ∉ b` test a string in a set of strings. `a ⊆ b` tests that every member of `a` is in `b`, and `a ⊈ b` that one is not. Both sides are sets of one kind, with scalar strings converted to singletons. Membership also accepts a scalar string as the singleton right operand.
 
-`s.matches(R)` holds when the span parses as `R`, and `s.begins(R)` when a prefix of it does, the empty prefix included. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
+`.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share a nonempty target choice. Each target is a rule name, including `#`, or an identifier terminal tag. Targets use `|` separators, without grouping, constants, strings, or commas.
+
+`s.matches(S)` holds when the span parses as any target, and `s.begins(S)` when a prefix does. Each rule target includes the empty prefix if that rule reads nothing. A terminal target reads exactly one token carrying its tag. Query alternatives evaluate left to right and stop at the first success or grammar error. Every target must resolve, including alternatives that evaluation never reaches.
+
+Each alternative keeps the ordinary query bounds, recursion checks, and cache identity of a single-target query. Both read only eligible proof trees (§4). A restored span adds the aligned witness constraint and preserves its separate context bound.
 
 `s.starts-input` holds when the span begins where the input of the parse that evaluates the condition begins. That is the start of the stage's input, or, in a nested parse (§4), the start of the span that the parse reads. `$x`, as a condition, holds when the production has the capture `x` (§3.6), and `$` always holds. `¬c` negates. Conditions joined by `∨` hold when any does, and those joined by `∧` when all do.
 
@@ -1976,7 +1988,7 @@ The engine evaluates conditions joined by `∧` or `∨` from left to right. Eva
 
 Within a term, the engine evaluates operands, method receivers, and arguments from left to right. Comparison operands use that order too. If both operands fail, the left error wins. Constant evaluation follows the same order. For two failing `.split` calls in a set difference, the left call's error wins.
 
-`A ⟹ t`, where `A` is a condition and `t` a tag set, is `t` where `A` holds. Where `A` does not hold, it is the empty tag set. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it.
+`A ⟹ t`, where `A` is a condition and `t` a tag set or string set, is `t` where `A` holds. Where `A` does not hold, it is the empty set of the same kind. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it. A scalar string consequent converts to a singleton. An untyped `∅` consequent retains its context's set kind.
 
 A tree comparison has operator `≅` or `≇`, a bare capture on the left and a pattern term on the right. Missing-capture simplification follows §3.6. After simplification, `≇` negates the same candidate's `≅` answer. A pattern literal is closed, and its terminal-test operands remain closed strings or tag sets.
 
@@ -1995,11 +2007,12 @@ For a bare name after either tree comparator, report at that name: `tree compari
 | `.starts-input` | Capture or span | Predicate on original start |
 | `.ends-input` | Capture or span | Predicate on original end |
 | `.followed-by(S)`, `.preceded-by(S)` | `$` or a bare capture | Boundary atom on the parse itself (§4.2) |
-| `.matches(R)`, `.begins(R)` | Capture or span | Query predicate (§4) |
+| `.matches(S)`, `.begins(S)` | Capture or span | Query predicate over a target choice (§4) |
 | `.tags`, `.classes` | Capture or span | Tag set |
 | `.tags(R)` | Capture or span | Union over eligible whole-query readings |
 | `.classify(classifier)` | String, or converted capture or span | Tag set from `classifier` |
 | `.split(d)` | String, or converted capture or span | String set |
+| `.ngrams(n)` | String, or converted capture or span | String set, with a positive integer literal argument |
 | `.without-elision` | Bare capture only | Restored span |
 | `.without-elision-except(F)` | Bare capture only, with one rule name | Restored span with a close family |
 | `.verbatim-text` | Bare capture only, in a recipe | String (§11) |
@@ -2013,7 +2026,7 @@ A whole capture's `.tags` reads constituent tags. Other spans union their origin
 
 The context is the stage's input or the nested query's bounds (§4). `.onward` and `.following-tokens` end at that context boundary. `.starts-input` compares the projected start with that context's start. Recipe methods never start queries or use restored spans.
 
-A tag literal denotes a singleton tag set. Juxtaposed bare tag names form one union atom. Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside `@(…)`, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
+A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Interpolated literals count as strings. Constant references and method calls require explicit operators. Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside `@(…)`, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
 
 ## 11. Emission
 
@@ -2267,7 +2280,7 @@ Here `$` is the whole input span, with token tags unioned and no constituent tag
 
 Bare `$` reads token values. Legal methods are `tags` without arguments, `classes`, `value`, `image`, `source-text`, and `decomposed-source-text`.
 
-The methods `first-token`, `tokens-after-first`, `last-token`, and `split` are also legal. Apart from the ban on a rule argument to `tags`, each method keeps its usual types and arities.
+The methods `first-token`, `tokens-after-first`, `last-token`, `split`, and `ngrams` are also legal. Apart from the ban on a rule argument to `tags`, each method keeps its usual types and arities.
 
 All other methods, named captures, and tree comparisons are loading errors there, even in unreachable branches. The loader reports every feature-condition error at its `%features` directive. This includes type errors, unknown constants, and closed delimiter errors.
 

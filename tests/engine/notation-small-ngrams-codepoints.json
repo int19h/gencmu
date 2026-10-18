@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $S \"a😀b\".ngrams(2)\n%rule text ε %conditions $S = (\"a😀\" \"😀b\")",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

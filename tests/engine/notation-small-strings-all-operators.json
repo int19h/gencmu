@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $A \"a\" \"b\"\n%const $B \"b\" ∪ \"c\"\n%redefine-const $A $A ∪ \"c\"\n%rule text ε %conditions \"a\" ∈ $A, \"z\" ∉ $A, $B ⊆ $A, $A ⊈ $B, $A ≠ $B, ($A ∩ $B) = $B, ($A ∖ $B) = \"a\", \"a\" ∈ \"a\", \"\" ∈ (\"\" \"x\"), \"\" ∉ ∅",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:pair %conditions $x.begins(C | A), ¬$x.matches(C | A)\n%rule pair A B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

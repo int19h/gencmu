@@ -1,0 +1,18 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:_ %conditions $x.ngrams(2) = (\"ab\" \"bc\"), $x.value.ngrams(2) ⊆ (\"ab\" \"bc\" \"cd\")",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "abc",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

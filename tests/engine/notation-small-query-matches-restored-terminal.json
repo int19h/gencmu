@@ -1,0 +1,17 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:yes %conditions ¬$x.without-elision.matches(A)\n%rule yes A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

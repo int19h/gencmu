@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $SET \"a\" ∪ \"b\"\n%rule text ε %conditions $SET = \"a b\".split(\" \"), \"a b\".split(\" \") ⊆ $SET, ∅ ⊆ $SET",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

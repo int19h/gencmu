@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:_ %conditions (($x.value = \"a\") ⟹ (\"a\" \"b\")) = (\"a\" \"b\")",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

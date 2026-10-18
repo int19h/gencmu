@@ -1,0 +1,15 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%rule text $x:A %conditions $x.matches(loop | A)\n%rule loop A %conditions $.matches(loop)",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}

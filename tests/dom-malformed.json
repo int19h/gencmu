@@ -4124,5 +4124,319 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: 2.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: 9999999999999999999999999999999999999.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "9999999999999999999999999999999999999"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: 0.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "0"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: 02.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "02"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: -1.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "-1"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An ngrams integer argument is canonical positive decimal text: 2.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": 2
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "matches accepts a target choice.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "matches",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "begins accepts a target choice.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "method": "begins",
+          "receiver": {
+            "capture": ""
+          },
+          "args": [
+            {
+              "rule": "r"
+            },
+            {
+              "terminal": "A"
+            }
+          ]
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
   }
 ]

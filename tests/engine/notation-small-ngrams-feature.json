@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%features f\n%conditions \"ab\".ngrams(2) = (\"ab\" ∪ ∅)\n%rule text ε",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $S $A ∪ $B\n%redefine-const $S ∅\n%rule text ε %conditions $S = ∅, ($A ∪ $B) = (\"a\" \"b\")",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

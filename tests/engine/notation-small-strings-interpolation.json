@@ -1,0 +1,10 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $A \"b\"\n%const $S \"a$(A)\" \"c\"\n%rule text ε %conditions \"ab\" ∈ $S, $S = (\"ab\" \"c\")",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

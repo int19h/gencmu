@@ -1,0 +1,15 @@
+{
+  "description": "Small notation forms follow engine section 10.",
+  "grammar": "%const $A A\n%rule text $x:A %conditions $x.begins(\"a\")\n%rule a A\n%rule b B",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar"
+  }
+}
