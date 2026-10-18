@@ -28,6 +28,7 @@ from ._types import (
     constants_in,
     expected_problem,
     is_value_test,
+    open_part,
     rule_type_fault,
     term_type_fault,
     tests_in,
@@ -524,10 +525,14 @@ class _Constants:
                     self.deferred_emissions.append(_error(problem,path,rule["at"],self.stage))
                 else:
                     raise _error(problem, path, rule["at"], self.stage)
-            for call in _calls_in(rule):
-                argument = call["args"][0]
-                if call["method"] == "split" and literal_string(argument) == "":
-                    raise self.fault_error(path, argument, rule["at"], "split has an empty delimiter")
+            self.check_delimiters(path, rule, rule["at"])
+
+    def check_delimiters(self, path: str, clauses: Any, at: Any) -> None:
+        """Reject empty closed delimiters in rule and feature conditions."""
+        for call in _calls_in(clauses):
+            delimiter = call["args"][0]
+            if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
+                raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
 
     def test(self, path: str, test: Dom, at: Any) -> SymbolTest:
         """A test of a body with its value, from the constants' final
@@ -767,6 +772,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
             fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
             if fault:
                 raise _error(fault[0], path, directive["at"], stage)
+        constants.check_delimiters(path, directive["conditions"], directive["at"])
         resolved_features.append((path, {**directive, "conditions": conditions}))
     from ._boundary import validate_targets
     validate_targets(rules, stage)
