@@ -1,5 +1,5 @@
 {
-  "description": "Feature conditions union the classes of every input token (engine §13).",
+  "description": "The classes of the whole stage input unite the classes of all its tokens.",
   "documents": {
     "p.md": "```jbogenbau\n%stage only\n%features f\n%conditions $.classes = A ∪ B\n%ambiguity-resolution greedy\n%rule text f? A B\n```\n"
   },

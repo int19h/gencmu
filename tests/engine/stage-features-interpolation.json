@@ -1,5 +1,5 @@
 {
-  "description": "Feature conditions bind interpolated string constants (engine §13).",
+  "description": "String interpolation in a feature condition uses constants from the selected stage.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value = \"$(S)\"\n%ambiguity-resolution greedy\n%const $S \"a\"\n%rule text f? A\n\n```\n"
   },

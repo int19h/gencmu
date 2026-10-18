@@ -175,7 +175,7 @@ A failed words stage publishes no warnings from that stage. A successful stage k
 
 The lexicon gives each cmavo its classes. Operators use these classes rather than spelling. The experimental syntax can treat names as predicates without changing their lexical class.
 
-The feature `sa-su` enables the two long-range erasers. The stage enables it when any input token has class SA or SU. A caller that disables this required feature gets a `feature-conflict` result ([engine §13](../../docs/engine.md#13-the-pipeline)).
+The feature `sa-su` enables the two long-range erasers. The stage enables it when any input token has class SA or SU. If the condition holds and the caller disables `sa-su`, the parse gives a `feature-conflict` result ([engine §13](../../docs/engine.md#13-the-pipeline)).
 
 ```jbogenbau
 %features sa-su

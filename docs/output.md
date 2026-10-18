@@ -92,7 +92,7 @@ An error has one of these forms:
 {"kind":"ambiguous","stage":"syntax","reason":"elision-only","readings":[NODE,NODE],"witness":[ACTION,ACTION],"message":"..."}
 ```
 
-A required conditional feature that the caller disables produces this error:
+If a conditional declaration holds for a feature that the caller disables, the result contains this error:
 
 ```json
 {"kind":"feature-conflict","stage":"words","feature":"sa-su","message":"..."}
@@ -121,7 +121,7 @@ A rejection can also name a failed boundary condition:
     The readings hold the written-back terminators as elided nodes (engine §7.10). One can be a restored optional's terminator. One can also be a terminator that a reading reads on the written route of an optional, or as a bare terminal. So the two readings can be equal as `NODE` values, as a tie's can.
 
     The error also has `"witness":[ACTION,ACTION]` after its readings. It holds the actions at the first difference between the two derivations, visible if there is one, mapped to the stage's input (engine §7.10). Over that input, the two actions can be equal too. The stage itself has no witness.
-- `feature-conflict`: A conditional declaration requires a caller-disabled feature. The error has `stage`, `feature`, and `message`, without a position.
+- `feature-conflict`: A conditional declaration holds for a feature that the caller disables. The error has `stage`, `feature`, and `message`, without a position.
 - `grammar`: A grammar failed to load, or the parser found a defect while parsing. For a grammar that failed to load, the error has `document`, `line` and `column` where known. A tie in a stage of the notation dialect has the `document` and no `line` or `column` (engine §8).
 
   For a defect found while parsing, the error has `stage` and no position. An example of such a defect is a nested parse asked about its own span as the same rule. An error that lowering finds for the features of the parse is one too (engine §3). An item of braces that can match no tokens is such an error. Its message begins with the document, line and column of the definition at fault, since the error's position members are for the stage's input.

@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: illegal-named-presence (engine §13).",
+  "description": "A named capture presence predicate in a feature condition fails during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $x\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: illegal-begins (engine §13).",
+  "description": "A begins query in a feature condition fails during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.begins(text)\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

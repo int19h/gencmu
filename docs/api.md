@@ -41,7 +41,7 @@ A loaded dialect parses a text with these configuration arguments. Each argument
 | Argument | Default | Meaning |
 | --- | --- | --- |
 | features | none | feature names to turn on for every stage, besides those the pipeline's `%features` turns on |
-| without features | none | feature names to turn off for every stage, including defaults. A required conditional feature returns `feature-conflict` with its feature and stage. A name in both lists is a usage error. |
+| without features | none | feature names to turn off for every stage, including defaults. If a conditional declaration holds for a disabled feature, the result is `feature-conflict` with its feature and stage. A name in both lists is a usage error. |
 | until | the last stage | the name of the last stage to run. An unknown name is an error, and so is an empty name. Go is the exception, as its section says. |
 | elision-only | the grammar's own | On or off for every stage that runs. This overrides `%ambiguity-resolution ... elision-only`. |
 
@@ -51,7 +51,7 @@ A text that does not parse gives a failed result. Its `ok` is false, and its `er
 
 An `ambiguous` error has a reason. It is `tie` where a stage has two or more best readings (engine §6). It is `elision-only` where the check of engine §7 fails.
 
-A `feature-conflict` error names the disabled required feature and its stage. The failed stage has a null verdict and no output. Earlier stages retain their output and warnings.
+A `feature-conflict` error names a disabled feature whose conditional declaration holds for the stage input. It also names the stage. The failed stage has a null verdict and no output. Earlier stages retain their output and warnings.
 
 An `elision-only` error also has a witness, the pair of actions where its two readings first differ, visible if there is one (engine §7.10). Such an action can be a read of a written-back terminator, with its position and terminal. A `tie` error has no witness of its own. The tied stage holds it (`docs/output.md`).
 

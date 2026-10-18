@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: bad-type (engine §13).",
+  "description": "Feature conditions with incompatible operand types fail during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value = A\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

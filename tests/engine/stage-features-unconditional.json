@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: unconditional (engine §13).",
+  "description": "An unconditional local feature declaration enables its feature in its own stage.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

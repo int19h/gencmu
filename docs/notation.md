@@ -307,7 +307,9 @@ After admission, rule flags take precedence over the stage directive. With no fl
 
 ## Feature guards
 
-A feature is a name that is on or off for a parse. It has the same value in every stage of that parse. The pipeline of the dialect turns some features on (see "Pipelines"). The caller, the program or person that asks for the parse, can turn other features on, and can turn any of the dialect's features off. An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
+A feature is a name that is on or off at each stage of a parse. The pipeline can enable a feature from a selected stage onward (see "Pipelines"). The caller, the program or person that asks for the parse, can turn features on for every stage. The caller can also disable features. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
+
+An alternative can begin with guards, which make it depend on features. There are two kinds of guard, gates and warnings.
 
 A gate, `name?`, keeps the alternative only while the feature `name` is on, and `¬name?` keeps it only while the feature is off. A gate changes what the grammar accepts. A gate can also stand before an entry of a classifier (see "Classifiers"). `?` and `!` have no other use in the notation.
 
@@ -327,7 +329,7 @@ An alternative with several guards exists when all its gates hold. A name is a g
 
 A dialect that extends another dialect can use the two kinds for two kinds of change. An addition is a text that the base grammar rejects and the dialect accepts. A warning can mark an addition, so that a reader can learn which additions a text relies on. The bundled dialects turn none of their warnings on, so their texts parse without warnings unless the caller asks for them.
 
-A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect then turns the gate on, and a caller who wants the base reading turns it off.
+A change to how the dialect reads a text of the base cannot be a warning. The change removes the base reading, and a warning changes nothing that the grammar accepts or chooses. So a gate can guard such a change, with the base form under `¬name?` beside it. The dialect can declare the gate as an unconditional default. A caller who wants the base reading can disable that default.
 
 The bundled dialects do not guard every change. The only bundled warning is `y-cmavo`, in `cll-ebnf`, so the additions of the experimental dialect carry no warning. A dialect also makes a change without a guard where a feature needs a convoluted grammar to keep the change separate. The documents of the dialect then say so.
 
@@ -1048,7 +1050,9 @@ The loader examines surviving rules and declarations before feature filtering. S
 
 A caller-enabled feature is on everywhere. A local declaration never removes an enabled feature.
 
-If conditional features conflict with `without_features`, the parse returns `feature-conflict` with the feature and stage names.
+If a conditional declaration holds for a feature in `without_features`, the parse returns `feature-conflict` with the feature and stage names.
+
+The engine evaluates the declarations in order. It stops at the first declaration that holds and names a disabled feature, or whose condition raises a runtime error. That declaration decides the result. Within one declaration, the error names the first disabled feature in operand order.
 
 An unconditional declaration respects `without_features`. An `until` before the stage never evaluates its declarations.
 

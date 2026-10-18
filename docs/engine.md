@@ -1773,7 +1773,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 - An `&` of more than 16 items is an error.
 - A DOM node at depth greater than 256 is an error. Depth counts compound ancestors, from zero at each root. The following rules cover every form in `docs/output.md`.
 
-  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. `concat` occurs only at a recipe root.
+  Each alternative expression, condition, tag term, recipe, constant value, classifier key, and implication side starts at depth zero. Feature conditions also start at depth zero. An emission item's tag term and recipes also start at zero. Declarations, alternatives, emission lists, items, arrays, positions, guards, and signed requirement records add no depth. `concat` occurs only at a recipe root.
 
   | Form | Depth of its children |
   | --- | --- |
@@ -1789,7 +1789,7 @@ The grammar does not state the restrictions below. Each of these is an error of 
 
   Expression `ref`, `wildcard`, and `empty` are leaves. Term `string`, `tag`, `const`, `capture`, and `emptySet` are leaves. Condition `captured` is a leaf. Pattern `name`, `terminal`, `constant`, and `wildcard`, and children `siblings`, are leaves. A literal's string term can still contain an `interpolate` constructor, which adds depth under the term rule.
 
-  Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, or implication.
+  Parentheses make no DOM node and add no depth. Thus 256 optional wrappers around a reference or a plain string literal are allowed, and 257 are not. The reader reports the first offending declaration in document order. That declaration is a rule, constant, classifier, implication, or `%features` directive.
 - A whole `$` carrier conflicts with a captured carrier or attachment capture that can consume input. Multiple `$` items require a structurally always-empty constituent under the overlap analysis below. Inserted items do not overlap carrier input. The loader reports an overlap error at the emitting definition after stitching, as the analysis below specifies.
 - An inserted `ε` item can carry tags, value, and image clauses. Its defaults are empty, and empty output tag sets are legal.
 - A bare name is not an inserted item. Use `ε` with explicit tag and string clauses.
@@ -2281,7 +2281,9 @@ Unconditional declarations respect the caller's disabled features. An enabled fe
 
 If a conditional declaration holds and names a caller-disabled feature, the parse ends with a `feature-conflict` result.
 
-The error names the stage and feature, without a position. For several conflicts, declaration order wins, then operand order.
+The error names the stage and feature, without a position.
+
+The engine evaluates the declarations in order. It stops at the first declaration that holds and names a disabled feature, or whose condition raises a runtime error. That declaration decides the result. Within one declaration, the error names the first disabled feature in operand order.
 
 The failed stage has a null verdict, no tree, and no output. Earlier stages retain their outputs and warnings.
 
@@ -2341,7 +2343,7 @@ Quote spacing groups each surviving pause run into one gap. Compound spacing cla
 
 Parse-result format 14 includes the saved `value` on equality-tested elided nodes, even for an explicit empty operand. Canonical tree comparisons include this member. Omitted pattern leaves still observe empty value and image (§12).
 
-The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with default features. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
+The following texts pin value, image, and recognition boundaries. `Four` names `bpfk`, `cll-ebnf`, `experimental` and `zantufa`. The verdict column describes the words stage, with no caller features. The words stage enables `sa-su` through its own condition. `rejected` means `verdict:null` with a `rejected` error. Other listed verdicts emit the required images.
 
 | Text | Dialects | Verdict of the words stage | Required observation |
 | --- | --- | --- | --- |

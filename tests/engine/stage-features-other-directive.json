@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: other-directive (engine §13).",
+  "description": "Conditions on a directive other than %features fail during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%conditions $.value = \"a\"\n%rule text A\n%emits\n\n```\n"
   },

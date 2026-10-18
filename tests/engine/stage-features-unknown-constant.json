@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: unknown-constant (engine §13).",
+  "description": "An unknown constant in a feature condition fails during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = $Missing\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

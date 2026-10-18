@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: illegal-nested-tags (engine §13).",
+  "description": "A tags query with a rule argument in a feature condition fails during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.tags(text) = A\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

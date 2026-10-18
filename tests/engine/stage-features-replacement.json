@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: replacement (engine §13).",
+  "description": "Stage replacement discards the replaced stage’s local feature declarations.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%ambiguity-resolution greedy\n%rule text f? A\n%redefine-stage second\n%ambiguity-resolution greedy\n%rule text ¬f? A\n```\n"
   },

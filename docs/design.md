@@ -452,7 +452,7 @@ The basic declarations are these:
 
 - `%stage NAME` starts a stage. `NAME` is what the API, the CLI's `--until` and diagnostics call the stage, whatever the heading says. Two stages with one name are an error.
 - `%include "PATH"` stands for the rules and directives of another document, as if the text of its blocks stood there. `PATH` is its include path.
-- `%features NAME…` before the first stage declares global defaults. After a stage selector, it enables features for that stage and later stages. A caller (the program or person that asks for a parse) can turn further features on, and can turn any of them off. So a feature that is on by default is a choice that the caller can undo.
+- `%features NAME…` before the first stage declares global defaults. After a stage selector, it enables features for that stage and later stages. A caller can turn further features on and can turn features off. If a conditional declaration holds for a feature that the caller turns off, the parse gives a `feature-conflict` result.
 
 The link to each included document stays in the prose, so the pipeline reads as hyperlinked prose on GitHub. The bundled grammars keep a style for this. The block of each `%include` stands under a list item, indented to the item's text. The item's line has an inline link `[text](PATH)` to the same path. The style is not part of jbogenbau, which accepts an `%include` in any block. Only `tools/sync.js --check` enforces it, and only for the bundled grammars.
 
@@ -474,7 +474,7 @@ An addition is a warning, `name!`. Its alternative is there whether the feature 
 
 A warning is on the chosen tree only. An addition that only a losing reading uses is not reported. A tie has no chosen tree, so it reports no warnings. The experimental syntax is a layer over the CLL grammar. Its additions do not carry warnings. The one bundled warning is `y-cmavo`, in the words stage of cll-ebnf.
 
-A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change turns its gate on by default, and a caller who wants the base reading turns it off. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
+A change of reading is a gate, `name?`, with the base form under `¬name?`, so that exactly one of the two is live. A warning cannot express it, because a warning keeps its alternative even with the feature off. The base reading is then gone either way. A dialect that makes such a change can declare its gate as an unconditional default. A caller who wants the base reading can disable that default. Gates are also how a grammar keeps an expensive construct out of the parses that do not need it (see below).
 
 A name is one kind or the other in a dialect. It is an error to load a dialect in which one guard uses a name as a gate and another uses it as a warning. Turning the feature on then means two things.
 
@@ -488,7 +488,7 @@ The cost then grows in proportion to the text, but each word costs more. In Java
 
 SA and SU tokens require the feature, including tokens inside quotations or erased spans. The input classes determine activation before word reading.
 
-The words stage declares `sa-su` with conditions on its input classes. It enables the feature when any input token carries SA or SU. Each stage parses once. A caller that disables a required conditional feature gets a `feature-conflict` result.
+The words stage declares `sa-su` with conditions on its input classes. It enables the feature when any input token carries SA or SU. Each stage parses once. A caller that disables a feature whose conditional declaration holds for the stage input gets a `feature-conflict` result.
 
 ## Ambiguity
 
@@ -747,7 +747,7 @@ to_json(result); to_brackets(result)
 
 The bundled grammars are embedded in each package, so a library works with no files beside it. A caller can also supply any grammar from disk or from memory. In-memory sources are a map from path to text. The paths are `/`-separated and relative to a virtual root. The loader resolves the document paths of a pipeline against the pipeline's own path, and normalizes `.` and `..`, exactly as on disk. The bundled dialects are that same map.
 
-Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`.
+Parsing is synchronous everywhere, and the browser runs it in a worker (a background thread). If `elision_only` is left unset, the parse follows the grammar's directive. Stage-local features follow the declarations and conditions of the grammar. A caller can disable features with `without_features`. If a conditional declaration holds for a disabled feature, the parse gives a `feature-conflict` result.
 
 The distributable artifacts are exactly these:
 

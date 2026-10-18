@@ -1,0 +1,47 @@
+{
+  "description": "A feature conflict stops declaration evaluation before a later condition can raise a runtime error.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features g\n%conditions $.classes = A\n%features f\n%conditions $.value.split($.tokens-after-first.value) = ∅\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A",
+        "Mixed"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "feature-conflict",
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "feature-conflict",
+        "stage": "second",
+        "feature": "g"
+      },
+      "stages": [
+        {
+          "name": "first",
+          "output": [
+            {
+              "value": "a"
+            }
+          ]
+        },
+        {
+          "name": "second",
+          "verdict": null
+        }
+      ]
+    }
+  },
+  "options": {
+    "withoutFeatures": [
+      "f",
+      "g"
+    ]
+  }
+}

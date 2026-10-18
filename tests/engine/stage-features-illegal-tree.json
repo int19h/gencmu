@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: illegal-tree (engine §13).",
+  "description": "A tree comparison in a feature condition fails during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $ ≅ @text\n%ambiguity-resolution greedy\n%rule text f? A\n\n```\n"
   },

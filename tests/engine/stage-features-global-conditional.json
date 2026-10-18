@@ -1,5 +1,5 @@
 {
-  "description": "Stage-local features: global-conditional (engine §13).",
+  "description": "Conditions on a global feature declaration fail during loading.",
   "documents": {
     "p.md": "```jbogenbau\n%features f\n%conditions $.value = \"a\"\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n\n```\n"
   },

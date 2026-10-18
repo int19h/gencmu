@@ -535,7 +535,7 @@ Set `%ambiguity-resolution` in the replacement stage. That directive specifies h
 
 ### Add a feature
 
-If your change needs a switch, guard its alternative with `name?`. Add `%features name` to enable it by default.
+If your change needs a switch, guard its alternative with `name?`. Add `%features name` before the first `%stage` to enable it by default in every stage.
 
 Use `--feature name` to enable a feature. Use `--no-feature name` to disable it.
 

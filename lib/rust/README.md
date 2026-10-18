@@ -25,10 +25,10 @@ println!("{}", gencmu::to_json(&result));
 ## Parsing
 
 - `Dialect::parse(&self, text, &ParseOptions) -> Result<ParseResult, Error>` parses a text. A text that does not parse is a result whose `ok` is false. The same holds for a grammar defect found while parsing, such as an entry that adds a class twice under the selected features. The `Error` is for a mistake of the caller. Examples are an unknown stage in `until`, and a feature named both to turn on and to turn off.
-- `ParseOptions` has `features`, `without_features`, `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names the features to turn off, the pipeline's own included.
+- `ParseOptions` has `features`, `without_features`, `until` and `elision_only`. `features` names the features to turn on, besides the pipeline's own. `without_features` names features to disable, including unconditional defaults.
 - `Dialect::features()` lists the features of the dialect in code point order, the gates of its classifiers' entries included. Each is a `Feature` with its `name`, its `kind` (`FeatureKind::Gate` or `FeatureKind::Warning`), and whether the pipeline turns it on by `default`.
 
-A `FeatureConflict` result names a required conditional feature that the caller disables. Its `stage` and `feature` fields identify the conflict.
+A `FeatureConflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `stage` and `feature` fields identify the conflict.
 
 ## Results
 

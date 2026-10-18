@@ -34,7 +34,7 @@ data, _ := gencmu.MarshalResult(result) // canonical JSON, docs/output.md
 
 `(*Dialect).Parse(text, ParseOptions{Features, WithoutFeatures, Until, ElisionOnly})` parses a text. A text that is not valid UTF-8 is a usage error. The `Warnings` of a result are those of the enabled warning features.
 
-A `feature-conflict` result names a required conditional feature that the caller disables. Its `Stage` and `Feature` fields identify the conflict.
+A `feature-conflict` result names a disabled feature whose conditional declaration holds for the stage input. Its `Stage` and `Feature` fields identify the conflict.
 
 `(*Dialect).Features()` lists the features of the dialect, the gates of its classifiers' entries included. Each is a `Feature` with `Name`, `Kind` (`gate` or `warning`) and `Default`. `Default` says whether the pipeline turns the feature on.
 
