@@ -1,5 +1,5 @@
 {
-  "description": "The decimal-point grammar test preserves the decimal rule. Zbalermorna periods remain pauses between digits.",
+  "description": "The zbalermorna period separates the digits. It does not match the ASCII decimal-point rule.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

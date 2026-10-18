@@ -1,0 +1,47 @@
+{
+  "description": "The standalone comma is preserved quote material. ZO quotes it rather than skipping to broda.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "zo , broda",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "zo ,",
+              "image": "zo ,",
+              "tags": [
+                "Cmavo",
+                "Word",
+                "ZO"
+              ]
+            },
+            {
+              "value": "broda",
+              "image": "broda",
+              "tags": [
+                "BRIVLA",
+                "Continued",
+                "Onset",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

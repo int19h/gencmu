@@ -1,5 +1,5 @@
 {
-  "description": "The decimal-point grammar test preserves the decimal rule. Zbalermorna periods remain pauses between digits.",
+  "description": "The ASCII period between digits is the decimal point. The number reads re pi ci.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },

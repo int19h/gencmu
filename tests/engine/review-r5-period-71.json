@@ -1,5 +1,5 @@
 {
-  "description": "MUhOI shares the period-aware delimiter boundary.",
+  "description": "MUhOI keeps the opening gy delimiter's mark attached across the script period. The quote body stays empty.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

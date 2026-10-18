@@ -1,5 +1,5 @@
 {
-  "description": "The decimal-point grammar test preserves the decimal rule. Zbalermorna periods remain pauses between digits.",
+  "description": "The comma prevents a decimal-point match. The period separates re and ci.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

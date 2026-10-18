@@ -1,5 +1,5 @@
 {
-  "description": "Cyrillic palochka follows the same period boundary as ASCII and zbalermorna.",
+  "description": "The palochka period immediately follows the mark after ZO. ZO quotes the standalone mark, and broda remains outside.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

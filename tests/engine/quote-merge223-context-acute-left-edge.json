@@ -1,5 +1,5 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The leading mark has no letter before it and acts as punctuation. The raw one-word body keeps the trailing mark.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },

@@ -121,7 +121,7 @@ Spacing and skipped regions reject surviving punctuation before the word `zei`, 
 
 `Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
 
-A quiet pause token has value `" "`, and `$PAUSE` names that string. The forms stage also gives material pauses this value. Their source text retains the raw punctuation. Gap recipes contribute one space for surviving pauses.
+A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text. The forms stage gives both kinds the value `" "`, and `$PAUSE` names that string. Their source text retains raw material. Gap recipes contribute one space for surviving pauses.
 
 ```jbogenbau
 %const $PAUSE " "
@@ -289,11 +289,11 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ### One-word quotes
 
-ZO quotes one word from the shared reader or one standalone punctuation stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
+ZO quotes one word from the shared reader or one standalone material stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A punctuation target must fill its stretch between whitespace or periods.
+`word-quote-gap` reads a clean `word-gap` and any punctuation attached to the target word. Standalone punctuation or ignored material cannot disappear into that gap. `word-quote-target` keeps attached closing punctuation in the quote image. A material target must fill its stretch between whitespace or periods. `zo-punctuation` also reads ignored material, including a comma or a format character.
 
-An attached opening mark supplies one gap space, even without whitespace. `quote-marker-end` also keeps a mark attached to the marker before whitespace. A period after that mark keeps it available as a literal punctuation target. `Period-Initial` identifies that boundary through the phoneme grammar’s classification.
+An attached opening mark supplies one gap space, even without whitespace. `quote-marker-end` also keeps a mark attached to the marker before whitespace. A period after that mark leaves it available as a standalone material target. `Period-Initial` identifies that boundary through the phoneme classification.
 
 `quote-attachment` contributes no value at a closing edge. `quote-end-mark` keeps a closing mark only before another pause or the text end. A mark before a following word stays in the gap, so BU keeps its separating space.
 
@@ -1019,15 +1019,17 @@ The raw one-word quotes retain punctuation and ignored characters instead of ski
 
 Unlike camxes-exp's `non_space`, raw quotes here also keep `?` and `!` inside a raw stretch. Both are punctuation material under the shared Latin conventions.
 
+camxes-exp keeps quotation marks inside a raw delimiter run. Thus `"gy"` cannot close an opening `gy` there. This stage instead closes at the first matching nonpause run, including beside punctuation. Every pause bounds that run, so a later delimiter cannot absorb following text.
+
 Period tags keep these boundaries independent of script spelling. Zbalermorna and Cyrillic periods therefore follow the same quote rules as Latin periods.
 
-An opening delimiter cannot skip standalone material. Marks attached to its marker or delimiter remain formatting, as they do around ordinary one-word quotes. Raw body material retains its spelling. This preserves the punctuation bodies required by the one-word quote policy.
+Unlike camxes-exp, this stage accepts formatting marks attached to a quote marker or delimiter. Their source images keep the marks, which add no value. Whitespace ends an opening formatting edge, so standalone material cannot disappear. Raw body material retains its spelling.
 
 Unlike camxes-exp, a decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. Thus `zo'oi 3.14 broda` quotes `3.14`, while camxes-exp quotes `3`. This keeps numeric spellings intact.
 
 Unlike camxes-exp, a raw one-word quote takes a standalone comma instead of skipping it. Thus `zo'oi , broda` and `la'oi , klama` quote the comma here. camxes-exp quotes the following word. This follows the decision that ignored characters can form the quote body.
 
-ZO can quote standalone punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words. A mark between the target and a following word remains spacing. BU therefore keeps its separating space after a quoted word.
+ZO can quote standalone punctuation or ignored material instead of moving to a later word. This extends the shared reader because material has no ordinary word class. Attached punctuation stays with the target word, as in `zo "la"`. This preserves the Latin convention for marks around words. A mark between the target and a following word remains spacing. BU therefore keeps its separating space after a quoted word.
 
 The word `zei` rejects surviving punctuation on either side, even when its class is SI. Other SI words retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI. This preserves the punctuation restriction across dialect lexicons.
 

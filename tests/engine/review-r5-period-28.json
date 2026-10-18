@@ -1,5 +1,5 @@
 {
-  "description": "A period-only opening edge keeps its attached mark. Whitespace ends that edge, so a separate mark remains in the body.",
+  "description": "Whitespace ends the opening gy delimiter's formatting edge. The separate mark remains raw body text.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

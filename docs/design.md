@@ -304,7 +304,9 @@ Only requested selected recipes run. `.emitted` reads a constituent before the c
 
 ## Pauses and spacing
 
-A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause has value and image `" "`. Material pauses keep decomposed source values and original source images in the phoneme stage. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
+A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause carries only a spacing boundary. A material pause preserves punctuation or ignored text.
+
+A quiet pause has value and image `" "`. Material pauses keep decomposed source values and original source images in the phoneme stage. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
 
 The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
 
@@ -470,13 +472,13 @@ A document can be included in several stages. An included document can hold stag
 
 `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.
 
-A one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
+In dialects with punctuation pauses, a one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
 
-The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The forms stage gives every pause the value of one space. Raw quotes recover punctuation from source text.
+The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its phoneme-stage value keeps the decomposed punctuation. The [pause rules](#pauses-and-spacing) define its later normalized value.
 
 Ordinary spacing still reads these tokens as pauses. One-word quote gaps and opening delimiter gaps cannot skip standalone material. Attached marks remain formatting. Other quote bodies keep their own spacing rules.
 
-ZO also takes a standalone punctuation stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
+In BPFK, experimental and Zantufa, ZO also takes a standalone material stretch as its next word. Marks attached to a word stay with that word. The word `zei` rejects surviving punctuation on either side, whatever class its lexicon assigns. Other words of SI retain their punctuation spacing. Ignored comma-like characters remain spacing for ZEI.
 
 Delimited foreign quotes also keep bodies that contain only punctuation. A pause separates the body from the closing delimiter. The first matching nonpause run closes the quote, including beside punctuation. The CLL family retains its strict punctuation rules.
 

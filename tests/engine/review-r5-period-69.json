@@ -1,5 +1,5 @@
 {
-  "description": "The quote marker uses the script period classification. Standalone material cannot disappear into its gap.",
+  "description": "RAhOI cannot skip the standalone mark before the period. Its rafsi quote therefore fails in the words stage.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

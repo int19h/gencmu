@@ -23,7 +23,7 @@ The phoneme values are the letters of CLL[^cll-c3]:
 
 In cll-ebnf, a comma run emits one comma token. Normalization empties its value and keeps its image and boundary tag. Forms tests syllable boundaries through that tag. The other Lojban dialects discard commas through [latin.md](latin.md#the-comma). Every Lojban dialect retains stress tags for forms.
 
-`PAUSE` marks a pause of any length, with value and image `" "`. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
+In this strict reading, `PAUSE` marks a pause of any length, with value and image `" "`. The [Latin conventions](latin.md) replace this pause representation. `FOREIGN` marks a run that the pipeline cannot read as words. Here, that run contains a character outside the orthography. The forms stage passes it on, and the words stage admits it only inside a foreign quote or after `fa'o`.
 
 ## The text and its runs
 
@@ -56,7 +56,7 @@ A run is what stands between two pauses. It is an ordinary run of letters, or a 
 <p><img src="../../docs/diagrams/phonemes/latin-strict/run.svg" alt="Railroad diagram of the rule run"></p>
 </details>
 
-A pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
+In this strict reading, a pause is one token. Its core is a run of whitespace characters and periods, with any commas inside it. A whitespace character is one with the Unicode property White_Space. A comma next to the core is part of the pause, but it belongs to no token. So `mi , klama` has one pause between its two words, and a quote body next to such a comma takes it in.
 
 `period-char` reads a core character that is not whitespace. Script extensions of `core-char` therefore supply their own periods. `Period-Initial` marks a core that starts with a period. `Period-Only` marks a core of periods without whitespace or ignored characters. Later stages preserve these tags for quote boundaries.
 

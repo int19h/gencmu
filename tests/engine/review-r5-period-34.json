@@ -1,5 +1,5 @@
 {
-  "description": "An ASCII period retains the existing empty quote value.",
+  "description": "The ASCII period keeps the opening gy delimiter's mark attached. The quote body stays empty.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

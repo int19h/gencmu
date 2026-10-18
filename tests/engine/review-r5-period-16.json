@@ -1,5 +1,5 @@
 {
-  "description": "Cyrillic palochka follows the same attached delimiter edge as the other periods.",
+  "description": "The palochka period keeps the opening gy delimiter's mark attached. The quote body stays empty.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },

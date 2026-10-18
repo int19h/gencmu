@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The interior mark connects eligible capital letters. The quote keeps the written capital spelling and its apostrophe reading.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo LA`O",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,

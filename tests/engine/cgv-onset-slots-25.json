@@ -1,5 +1,5 @@
 {
-  "description": "Names permit iy and uy sequences. Experimental relaxes the consonant-before-glide ban only for names and borrowing syllables.",
+  "description": "The dialect keeps its consonant-before-glide ban. The iy name therefore remains foreign.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

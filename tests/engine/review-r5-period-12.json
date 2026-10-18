@@ -1,5 +1,5 @@
 {
-  "description": "Y letteral delimiters use the same period classification and attached formatting edge.",
+  "description": "A period-only core keeps the opening ybu delimiter's mark attached. The quote body stays empty.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },

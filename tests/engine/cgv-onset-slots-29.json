@@ -1,5 +1,5 @@
 {
-  "description": "Names permit iy and uy sequences. Experimental relaxes the consonant-before-glide ban only for names and borrowing syllables.",
+  "description": "CLL permits iy in names. The CLL family therefore accepts the name with its existing rules.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/kihei.md\"\n```\n"
   },

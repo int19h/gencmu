@@ -36,6 +36,8 @@ Experimental accepts a consonant before a glide in names and borrowings, as CLL 
 
 The consonant rules retain every restriction except the glide ban. A borrowing syllable onset can add a glide after a nonempty legal initial. Particles and rafsi slots keep the ordinary onset. Classical rafsi still require their original vowel positions, so CgV creates no new classical compound shape.
 
+A coda is a syllable's ending consonant group. `brivla-onset` serves borrowing syllables, their stress tests and their head test. The coda lookahead uses it too. Thus a preceding syllable cannot take the consonant before `iy` or `uy` as its coda. The rafsi slot still uses ordinary `onset`.
+
 A borrowing retains its head, stress, final syllable and slinku'i restrictions. It must contain a consonant cluster. The cluster can occur beyond the first five letters. Only a complete borrowing with CgV can bypass the head's rafsi-string exclusion. A short classical rafsi cannot directly precede CgV whose consonant differs from `r`.
 
 CLL 1.3.4 appendix A3.3 records that the working morphology drops the five-letter limit for borrowings.[^cll-a3-3] The word must resolve as one brivla. Thus `puamamakla` is legal despite its late cluster.

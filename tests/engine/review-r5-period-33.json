@@ -1,5 +1,5 @@
 {
-  "description": "An ASCII period retains the existing standalone punctuation target.",
+  "description": "The ASCII period immediately follows the mark after ZO. ZO quotes the standalone mark, and broda remains outside.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "The quote marker uses the script period classification. Standalone material cannot disappear into its gap.",
+  "description": "Whitespace attaches the mark to ZO. The following period separates broda as its target.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },

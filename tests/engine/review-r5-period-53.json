@@ -1,5 +1,5 @@
 {
-  "description": "A period starts the standalone target boundary. Whitespace before that period instead attaches the mark to the marker.",
+  "description": "Whitespace attaches the mark to the ZO marker. The following period separates broda as the target.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

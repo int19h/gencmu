@@ -1,5 +1,5 @@
 {
-  "description": "A period starts the standalone target boundary. Whitespace before that period instead attaches the mark to the marker.",
+  "description": "The script period immediately follows the mark after ZO. ZO quotes the standalone mark, and broda remains outside.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

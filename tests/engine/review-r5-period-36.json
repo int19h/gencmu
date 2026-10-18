@@ -1,5 +1,5 @@
 {
-  "description": "Whitespace ends the y delimiter’s formatting edge. A separate mark remains in the raw body.",
+  "description": "Whitespace ends the opening ybu delimiter's formatting edge. The separate mark remains raw body text.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

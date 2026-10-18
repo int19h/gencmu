@@ -1,12 +1,11 @@
 {
-  "description": "The phoneme stage keeps main’s neighbor, foreign, capital, and ignored-character rules. Quote images preserve the original written material.",
+  "description": "The foreign raw stretch contains the interior mark. The one-word quote keeps that source spelling.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo'oi 你´好",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,

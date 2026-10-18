@@ -1,5 +1,5 @@
 {
-  "description": "Names permit iy and uy sequences. Experimental relaxes the consonant-before-glide ban only for names and borrowing syllables.",
+  "description": "The experimental name rules permit the iy sequence after a consonant. The accepted name uses the CgV extension.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "Attached delimiter marks restore the delimiter reading on main. Raw body material retains its source spelling.",
+  "description": "Attached delimiter marks act as formatting at the delimiter boundaries. Raw body material retains its source spelling.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/bpfk.md\"\n```\n"
   },

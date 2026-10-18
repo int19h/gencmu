@@ -1,5 +1,5 @@
 {
-  "description": "A ZO alias uses the same standalone punctuation boundary as ZO.",
+  "description": "The ZO alias quotes the standalone mark before the script period. Broda remains outside the quote.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },

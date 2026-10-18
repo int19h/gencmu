@@ -1,5 +1,5 @@
 {
-  "description": "LAhO shares the period-aware delimiter boundary.",
+  "description": "LAhO keeps the opening dy delimiter's mark attached across the script period. The quote body stays empty.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/zantufa.md\"\n```\n"
   },
