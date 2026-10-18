@@ -1,0 +1,37 @@
+{
+  "description": "The key under which a nested parse's answer is remembered must hold each token's image, since a condition of the nested parse can read it: the two pairs here differ only in the image of their first token (engine §4, nested parses).",
+  "grammar": "%rule text ($x:pair $y:pair) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "W"
+      ],
+      "image": "x"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "W"
+      ]
+    },
+    {
+      "text": "a",
+      "tags": [
+        "W"
+      ],
+      "image": "y"
+    },
+    {
+      "text": "b",
+      "tags": [
+        "W"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -441,9 +441,9 @@ class StageContext:
         holds numbers where the other holds text."""
         if end - start > CONTENT_KEY_LIMIT:
             return (rule, start, end)
-        # The text over the span's source (engine §1), and where each token
-        # begins and ends in that text, which text() of a part of the span
-        # reads.
+        # The text over the span's source (engine §1), each token's tags,
+        # text, value and image, and where each token begins and ends in that
+        # text, which text() of a part of the span reads.
         low, high = self.sources.of(start, end) if start < end else (0, 0)
         return (
             rule,
@@ -453,6 +453,7 @@ class StageContext:
                     self.token_tags[index],
                     self.tokens[index].text,
                     self.tokens[index].value,
+                    self.tokens[index].image,
                     self.tokens[index].source[0] - low,
                     self.tokens[index].source[1] - low,
                 )
