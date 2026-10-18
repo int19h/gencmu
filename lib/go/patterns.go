@@ -901,11 +901,21 @@ func (r *resolver) pattern(p *domPattern) *domPattern {
 	return n
 }
 
-func (r *recognizer) preparePatterns() {
-	run := r.run
-	if m, ok := run.patternMachines[r.g]; ok {
-		r.machine = m
-	} else {
+// preparation is what every recognition of a lowered grammar prepares from
+// the grammar alone: the tree patterns that its conditions demand, whether
+// it observes closes and its query prefixes, and the elidable heads. A
+// lowered grammar makes it once, at its first recognition, and it does not
+// change after. Each run still makes its own pattern machine and close
+// arena, since both gain states as a parse runs.
+type preparation struct {
+	patternRoots   []*domPattern
+	observesCloses bool
+	queryPrefixes  []closePrefix
+	elidableHeads  map[int32]string
+}
+
+func (g *lowered) prepared() *preparation {
+	g.prepareOnce.Do(func() {
 		var roots []*domPattern
 		scan := func(p clausePart) bool {
 			if p.c != nil && (p.c.Op == "≅" || p.c.Op == "≇") {
@@ -913,7 +923,7 @@ func (r *recognizer) preparePatterns() {
 			}
 			return true
 		}
-		for _, p := range r.g.prods {
+		for _, p := range g.prods {
 			for _, c := range p.conds {
 				walkClause(clausePart{c: c.cond}, scan)
 			}
@@ -927,7 +937,7 @@ func (r *recognizer) preparePatterns() {
 				}
 			}
 		}
-		for _, p := range r.g.prods {
+		for _, p := range g.prods {
 			if p.ranked != nil {
 				for _, c := range p.slot.source.conds {
 					walkClause(clausePart{c: c}, scan)
@@ -939,8 +949,28 @@ func (r *recognizer) preparePatterns() {
 				}
 			}
 		}
-		if len(r.g.rankedHelpers) > 0 || len(roots) > 0 {
-			r.machine = newPatternMachine(roots)
+		p := &preparation{patternRoots: roots, observesCloses: len(demandedCloses(g)) > 0, elidableHeads: map[int32]string{}}
+		if p.observesCloses {
+			p.queryPrefixes = queryPrefixes(g)
+		}
+		for _, prod := range g.prods {
+			if prod.restoration() {
+				p.elidableHeads[prod.lhs] = prod.elided
+			}
+		}
+		g.preparation = p
+	})
+	return g.preparation
+}
+
+func (r *recognizer) preparePatterns() {
+	run := r.run
+	prepared := r.g.prepared()
+	if m, ok := run.patternMachines[r.g]; ok {
+		r.machine = m
+	} else {
+		if len(r.g.rankedHelpers) > 0 || len(prepared.patternRoots) > 0 {
+			r.machine = newPatternMachine(prepared.patternRoots)
 		}
 		if run.patternMachines == nil {
 			run.patternMachines = map[*lowered]*patternMachine{}
@@ -950,12 +980,7 @@ func (r *recognizer) preparePatterns() {
 	if r.machine == nil {
 		return
 	}
-	r.elidableHeads = map[int32]string{}
-	for _, p := range r.g.prods {
-		if p.restoration() {
-			r.elidableHeads[p.lhs] = p.elided
-		}
-	}
+	r.elidableHeads = prepared.elidableHeads
 }
 func (r *recognizer) finishStructure(key *itemKey) {
 	if r.machine == nil {
