@@ -76,7 +76,7 @@ A pattern matches a result that has members beyond its own. So the invariants, a
 
 `expect.diagnostic` pins the code of a ranked-choice loading error. The API supplies that code directly. Loading diagnostics also expose their written group, option, expression, and inheritance witness where available.
 
-`expect.enabledFeatures` compares the result’s enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
+`expect.enabledFeatures` compares the result's enabled feature names as a complete list, outside canonical JSON (`docs/api.md`).
 
 `expect.brackets` is the bracket rendering, with elided terminators hidden. `expect.warnings` is the list of warnings of the result, compared whole. So `[]` says that there are no warnings. `expect.features` is the list of features of the dialect (`docs/api.md`), compared whole. Each feature is written as `{"name":..., "kind":..., "default":...}`.
 
@@ -383,7 +383,7 @@ Each line is one case: a Lojban text, with the result that gencmu must give for 
 - `error` is present exactly when the result's error is of kind `ambiguous`. It is `{"kind": "ambiguous", "reason": "tie"}`, or the same with the reason `elision-only` (engine §6, §7). A case with any other result has no `error`, a rejection or an error of the grammar included. A case expects an ambiguity with `expect` set to `reject`, its `stage`, and this `error`. A third value of `expect` is not needed.
 - The `reason` inside `error` is the reason of the ambiguous error. It is a field of `error`, and it is not the case's own `reason`, which explains the expected verdict (below). A case can have both.
 - `ties`, when present, names the stage whose verdict is `tie`. A tie ends the run, so at most one stage has it, and that stage can come before the last.
-- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect’s grammar recipes supply pause spaces and verbatim text.
+- `words` records the words stage's output when that output is present. The case writes each token as its image (engine §5). The dialect's grammar recipes supply pause spaces and verbatim text.
 
 A runner also tests tie invariants (above) for each corpus result. It fails a case whose result has the error code `elision-witness-lost`. Some corpus texts tie in their dialect, and those cases expect the tie. Each library also tests that its runner refuses the result mutants above. A case uses its pipeline declarations and the caller configuration. The case matches when every one of those fields that the case or the result of the library has is equal.
 
@@ -455,7 +455,7 @@ Each entry of `quoted-allow.txt` covers one quoted text in one document: every l
 
 - ` = ` and cases, each as its id after its role. A role applies to the ids after it, and a role with no id after it is an error. A role is the name of a rule, `words` or `reject`. The check parses each case.
 
-  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect’s grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
+  With a rule, the tree of some stage has a node of that rule whose words are exactly the quoted text. With `words`, some stage gives the text's words as the images of tokens in a row, one image for each word. The dialect's grammar recipes define these strings. For example, `la djim.bu` has the images `la` and `djim bu`.
 
   These tokens, with their attachments, also stand together in the case's text: no letter between them is outside them. So `mi ui klama` shows `mi klama`, and `mi do si klama` does not. With `reject`, the dialect rejects the case. Both `at` and the parsed error's source start lie within the quoted text or its following word. The cases include each required dialect, even when a whole-text case contains the fragment's words. Such a whole-text case does not pin the fragment's claim.
 

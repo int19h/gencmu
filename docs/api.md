@@ -32,7 +32,7 @@ The Python loaders also take `use_cache=False`. With it, the loader reads every 
 
 A feature is a named switch that the grammars of the dialect test (engine §13).
 
-A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller’s last stage. Conditional declarations contribute feature names without defaults.
+A loaded dialect lists its features (engine §13), in code point order of the names. The list includes the gates of the entries of its classifiers. Each feature in the list has its name, its kind (`gate` or `warning`), and whether the pipeline turns it on by default. The CLI and the playground use the list to offer the features by name. Unconditional declarations, global or stage-local, set `default:true`. The inventory does not depend on the caller's last stage. Conditional declarations contribute feature names without defaults.
 
 ### Parsing
 
