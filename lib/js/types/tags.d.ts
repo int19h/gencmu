@@ -93,6 +93,8 @@ export declare function sortedTags(tags: TagSet): string[];
  * @returns {boolean}
  */
 export declare function isName(tag: string): boolean;
+/** @param {string} string @param {string} digits @returns {Set<string>} */
+export declare function ngrams(string: string, digits: string): Set<string>;
 /**
  * The value of split(string, delimiter) (engine §10): the pieces between
  * the occurrences of the delimiter, found from the left without overlap,

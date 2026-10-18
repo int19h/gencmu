@@ -1,0 +1,17 @@
+{
+  "description": "A target choice can name the free modifier rule.",
+  "grammar": "%rule text $x:A %conditions $x.matches(no | #)\n%rule no B\n%rule # A",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

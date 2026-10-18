@@ -4,7 +4,7 @@
   "expect": {
     "error": {
       "line": 2,
-      "column": 28
+      "column": 26
     }
   }
 }

@@ -644,7 +644,7 @@ The predicates are:
 - `$x.followed-by(S)` holds when the parse has an `S` node that starts at the token right after `$x`. "Neighbours in the parse" below explains it.
 - `$x.preceded-by(S)` holds when the parse has an `S` node that ends at the token right before `$x`.
 
-The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name. Strings, constants, grouped targets, and comma separators are errors.
+The four methods `.matches(S)`, `.begins(S)`, `.followed-by(S)`, and `.preceded-by(S)` share one argument form. `S` is a nonempty choice of rule names and terminal tags, separated by `|`. For example, `selbri | gek-sentence | KOhA` names three alternatives. `#` is a rule name. Strings, constants, grouped choices, and comma separators are errors. Parentheses around one target preserve that target.
 
 Query alternatives run from left to right until one holds. An error from an evaluated query ends the parse. A tag query reads one token that carries that tag. `matches` requires exactly that token, while `begins` permits later tokens. Restored queries retain their alignment rules for every alternative.
 

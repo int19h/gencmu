@@ -527,6 +527,8 @@ export type Argument = Term | {
     terminal: string;
 } | {
     classifier: string;
+} | {
+    integer: string;
 };
 export type GrammarSymbol = {
     slot?: import("./ranked.js").RankedGroup;
@@ -1187,7 +1189,7 @@ export type ParseContext = import("./earley.js").ParseContext;
 /**
  * A function's argument: a term, the name of a rule, or the name of a
  * classifier.
- * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string}} Argument
+ * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
  */
 /**
  * @typedef {object} GrammarSymbol

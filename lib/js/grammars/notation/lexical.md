@@ -48,6 +48,8 @@ An ordinary name starts with an ASCII letter. Letters, digits, hyphens, and unde
 
 `whole-name` refuses a following name character. Keywords use it so that a keyword cannot stop inside a longer name.
 
+An integer token is a run of decimal digits. The reader permits it only as a positive `.ngrams` argument without leading zeros.
+
 An engine tag starts with `_` and continues with letters, digits, or underscores. A bare `_` is the wildcard. Later recognition rules exclude it where they require a tag.
 
 ```jbogenbau

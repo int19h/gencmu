@@ -240,7 +240,7 @@
         const pending = [alternative.tags];
         while (pending.length) {
           const part = pending.pop();
-          if (part?.method && ["matches","begins","tags"].includes(part.method) && part.args[0]?.rule) queries.push({rule:rule.name,alternative,target:part.args[0].rule});
+          if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule});
           for (const child of clauseChildren(part)) pending.push(child);
         }
         continue;
@@ -250,7 +250,7 @@
       const pending = [clauses,alternative.tags];
       while (pending.length) {
         const part = pending.pop();
-        if (part?.method && ["matches","begins","tags"].includes(part.method) && part.args[0]?.rule) queries.push({rule:rule.name,alternative,target:part.args[0].rule});
+        if (part?.method && ["matches","begins","tags"].includes(part.method) ) for (const arg of part.args) if (arg.rule) queries.push({rule:rule.name,alternative,target:arg.rule});
         for (const child of clauseChildren(part)) pending.push(child);
       }
     }
@@ -1037,6 +1037,14 @@
    */
   function isName(tag) {
     return NAME.test(tag);
+  }
+
+  /** @param {string} string @param {string} digits @returns {Set<string>} */
+  function ngrams(string, digits) {
+    const points = [...string], n = Number(digits);
+    const result = new Set();
+    for (let i = 0; i + n <= points.length; i++) result.add(points.slice(i, i + n).join(""));
+    return result;
   }
 
   /**
@@ -2312,9 +2320,11 @@
           const node = /** @type {any} */ (stack.pop());
           if (!node || typeof node !== "object" || seen.has(node)) continue;
           seen.add(node);
-          if (["matches","begins","tags"].includes(node.method) && node.args?.[0]?.rule) {
-            pending.push(node.args[0].rule);
-            if (needsCloseObservations(node.receiver)) wanted.add(node.args[0].rule);
+          if (["matches","begins","tags"].includes(node.method) ) for (const arg of node.args ?? []) {
+            const name = arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null);
+            if (!name) continue;
+            pending.push(name);
+            if (needsCloseObservations(node.receiver)) wanted.add(name);
           }
           if (node.method === "without-elision" || node.method === "without-elision-except") {
             const capture = node.receiver.capture;
@@ -2370,13 +2380,13 @@
       seen.add(node);
       const value = ["matches","begins","tags"].includes(node.method) ? node.receiver : undefined;
       const aligned = value?.method === "onward" ? value.receiver : value;
-      const queryRule = node.args?.[0]?.rule;
-      if (["without-elision", "without-elision-except"].includes(aligned?.method) && typeof queryRule === "string") {
+      const queryRules = (node.args ?? []).map((/** @type {any} */ arg) => arg.rule ?? (arg.terminal ? "\u0000query:" + arg.terminal : null)).filter((/** @type {any} */ name) => typeof name === "string");
+      if (["without-elision", "without-elision-except"].includes(aligned?.method) && queryRules.length) {
         const part = base.captures.find(capture => capture.name === aligned.receiver.capture);
         if (part) {
           result.parts.add(part.index);
           if (!result.queries.has(part.index)) result.queries.set(part.index,new Set());
-          result.queries.get(part.index)?.add(queryRule);
+          for (const queryRule of queryRules) result.queries.get(part.index)?.add(queryRule);
           continue;
         }
       }
@@ -3196,7 +3206,8 @@
   const SPAN_METHODS = new Set(["first-token", "tokens-after-first", "last-token", "onward", "following-tokens", "without-elision", "without-elision-except"]);
   const QUERY_METHODS = new Set(["matches", "begins", "starts-input", "ends-input", "followed-by", "preceded-by"]);
   const INPUT_STRINGS = new Set(["value", "image", "source-text", "decomposed-source-text"]);
-  const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "classify", "verbatim-text", "emitted"]);
+  const TARGET_METHODS = new Set(["matches", "begins", "followed-by", "preceded-by"]);
+  const METHODS = new Set([...SPAN_METHODS, ...QUERY_METHODS, ...INPUT_STRINGS, "tags", "classes", "split", "ngrams", "classify", "verbatim-text", "emitted"]);
 
   /**
    * Structural signatures do not read operand types or stage bindings (engine §9).
@@ -3216,10 +3227,11 @@
     const named = (/** @type {any} */ arg, /** @type {string} */ key) => object(arg) && Object.keys(arg).length === 1 && typeof arg[key] === "string";
     const term = (/** @type {any} */ arg) => object(arg) && !["rule", "classifier", "terminal"].some(key => key in arg);
     let valid;
-    if (name === "split") valid = args.length === 1 && term(args[0]);
+    if (name === "ngrams") valid = args.length === 1 && named(args[0], "integer") && /^[1-9][0-9]*$/.test(args[0].integer);
+    else if (name === "split") valid = args.length === 1 && term(args[0]);
     else if (name === "classify") valid = args.length === 1 && named(args[0], "classifier");
     else if (name === "tags") valid = span && (args.length === 0 || args.length === 1 && named(args[0], "rule"));
-    else if (name === "matches" || name === "begins") valid = span && args.length === 1 && named(args[0], "rule");
+    else if (name === "matches" || name === "begins") valid = span && args.length > 0 && args.every(arg => named(arg, "rule") || named(arg, "terminal"));
     else if (name === "followed-by" || name === "preceded-by") valid = bare && args.length > 0 && args.every(arg => named(arg, "rule") || named(arg, "terminal"));
     else if (name === "without-elision-except") valid = bare && args.length === 1 && named(args[0], "rule");
     else if (name === "without-elision") valid = bare && args.length === 0;
@@ -3254,7 +3266,7 @@
     } else if (SPAN_METHODS.has(name)) {
       if (!span || args.length) return `${name} requires a span and no arguments`;
     } else if (name === "matches" || name === "begins") {
-      if (!span || args.length !== 1 || !rule(0)) return `${name} requires a span and one rule name`;
+      if (!span || !args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return `${name} requires a span and rule names or tag terminals`;
     } else if (name === "followed-by" || name === "preceded-by") {
       if (typeof receiver.capture !== "string" || Object.keys(receiver).length !== 1) return `${name} requires a bare capture`;
       if (!args.length || args.some(arg => !(typeof arg.rule === "string" || typeof arg.terminal === "string" && /^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)))) return `${name} requires rule names or tag terminals`;
@@ -3264,6 +3276,8 @@
       if (!span || args.length > 1 || (args.length === 1 && !rule(0))) return "tags requires a span and optionally one rule name";
     } else if (name === "classes") {
       if (!span || args.length) return "classes requires a span and no arguments";
+    } else if (name === "ngrams") {
+      if (!string || args.length !== 1 || typeof args[0].integer !== "string" || !/^[1-9][0-9]*$/.test(args[0].integer)) return "ngrams requires a string and one positive integer literal";
     } else if (name === "split") {
       if (!string || args.length !== 1 || !["string", "span", "any"].includes(argumentTypes[0])) return "split requires a string and one string delimiter";
       if (args[0].string === "") return "split has an empty delimiter";
@@ -3284,7 +3298,7 @@
     if (SPAN_METHODS.has(name)) return "span";
     if (QUERY_METHODS.has(name)) return "condition";
     if (name === "emitted") return "emitted";
-    if (name === "split") return "strings";
+    if (name === "split" || name === "ngrams") return "strings";
     if (name === "tags" || name === "classes" || name === "classify") return "tags";
     return "string";
   }
@@ -3811,7 +3825,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 32;
+  const DOM_FORMAT = 33;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -4109,7 +4123,8 @@
           child("term", value.receiver, { recipe: task.recipe });
           for (const arg of value.args) {
             if (object(arg) && typeof arg.rule === "string") { if (Object.keys(arg).length !== 1 || !["tags", "matches", "begins", "without-elision-except", "followed-by", "preceded-by"].includes(value.method) || !RULE_NAME.test(arg.rule)) return "a malformed rule argument"; }
-            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !BOUNDARY_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
+            else if (object(arg) && typeof arg.terminal === "string") { if (Object.keys(arg).length !== 1 || !TARGET_METHODS.has(value.method) || !/^[A-Z][A-Za-z0-9_-]*$/.test(arg.terminal)) return "a malformed boundary target"; }
+            else if (object(arg) && "integer" in arg) { if (Object.keys(arg).length !== 1 || value.method !== "ngrams" || typeof arg.integer !== "string" || !/^[1-9][0-9]*$/.test(arg.integer)) return "a malformed integer argument"; }
             else if (object(arg) && typeof arg.classifier === "string") { if (Object.keys(arg).length !== 1 || value.method !== "classify" || !CLASSIFIER_NAME.test(arg.classifier)) return "a malformed classifier argument"; }
             else child("term", arg);
           }
@@ -5214,7 +5229,7 @@
    */
   function joinedType(types, operator) {
     if (types.includes("span")) return { problem: "a span is not a value: tags($x) is the tag set of $x" };
-    const known = types.filter((type) => type !== "any");
+    const known = types.filter((type) => type !== "any").map(type => type === "string" ? "strings" : type);
     const bad = known.find((type) => !SET_KINDS.has(type));
     if (bad) return { problem: `${operator} joins sets, not ${TYPE_NAMES[bad]}` };
     const kinds = new Set(known.filter((type) => type !== "set"));
@@ -5236,12 +5251,14 @@
       if (left !== "span") return "a tree comparison requires a bare capture";
       return expectedProblem(right, "pattern");
     }
+    if ((op === "∈" || op === "∉") && right === "span") return "a span cannot convert to a set";
     if (left === "pattern" || right === "pattern") return `${op} cannot compare pattern values`;
+    if (!["∈", "∉"].includes(op) && (left === "span" || right === "span") && (["strings", "tags", "set"].includes(left) || ["strings", "tags", "set"].includes(right))) return "a span cannot convert to a set";
     if (left === "span") left = "string";
     if (right === "span") right = "string";
     if (op === "∈" || op === "∉") {
       if (left !== "string" && left !== "any") return `${op} tests a string, not ${TYPE_NAMES[left]}, in a set of strings; ⊆ and ⊈ compare two sets`;
-      if (right !== "strings" && right !== "set" && right !== "any") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
+      if (right !== "string" && right !== "strings" && right !== "set" && right !== "any") return `${op} tests a string in a set of strings, not in ${TYPE_NAMES[right]}`;
       return null;
     }
     if (op === "⊆" || op === "⊈") {
@@ -5251,7 +5268,7 @@
     }
     // = and ≠ compare two values of one type.
     if (left === "any" || right === "any") return null;
-    if (left === "string" || right === "string") return left === right ? null : `${op} compares two values of one type, not ${TYPE_NAMES[left]} and ${TYPE_NAMES[right]}`;
+    if (left === "string" && right === "string") return null;
     const joined = joinedType([left, right], op);
     if ("problem" in joined) return joined.problem;
     return joined.type === "set" ? `the kind of the sets that ${op} compares is not given` : null;
@@ -5379,7 +5396,7 @@
       if ("problem" in receiver) return receiver;
       const types = [];
       for (const arg of term.args) {
-        if (arg.rule || arg.classifier || arg.terminal) types.push("name");
+        if (arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
         else {
           const found = yield typing(arg, constants);
           if ("problem" in found) return found;
@@ -5410,8 +5427,9 @@
       if (fault) return fault;
       const then = /** @type {{type: TermType} | TypeFault} */ (yield typing(term.then, constants));
       if ("problem" in then) return then;
-      const wrong = expectedProblem(then.type, "tags");
-      return wrong ? { problem: wrong, node: term } : { type: "tags" };
+      const joined = joinedType([then.type], "⟹");
+      if ("problem" in joined) return {problem:joined.problem,node:term};
+      return joined.type === "pattern" ? {problem:"a guarded term requires a tag set or string set",node:term} : joined;
     }
     return { problem: "a malformed term", node: term };
   }
@@ -5646,7 +5664,7 @@
       /** @type {unknown[]} */
       let items = [];
       if (typeof current.method === "string") {
-        if (current.method !== "split") return current;
+        if (!["split", "ngrams"].includes(current.method)) return current;
         items = [current.receiver, .../** @type {any} */ (current).args];
       } else {
         const key = ["union", "intersection", "difference", "interpolate"].find((name) => Array.isArray(current[name]));
@@ -5687,7 +5705,7 @@
   // Feature conditions read tokens before any grammar is lowered.
   /** @param {any[]} conditions @returns {string|null} */
   function inputConditionsProblem(conditions) {
-    const allowed = new Set(["tags", "classes", "value", "image", "source-text", "decomposed-source-text", "first-token", "tokens-after-first", "last-token", "split"]);
+    const allowed = new Set(["tags", "classes", "value", "image", "source-text", "decomposed-source-text", "first-token", "tokens-after-first", "last-token", "split", "ngrams"]);
     const pending = [...conditions];
     while (pending.length) {
       const node = pending.pop();
@@ -6836,7 +6854,7 @@
       /** @type {(term: Term) => Set<string>} */
       const set = (part) => {
         const value = this.evaluateClosed(path, part, item, lookup);
-        return "set" in value ? value.set : tagSet();
+        return "set" in value ? value.set : "string" in value ? tagSet([value.string]) : tagSet();
       };
       /** @type {(term: Term) => string} */
       const string = (part) => {
@@ -6882,6 +6900,7 @@
         return { set: rest.reduce(tagIntersection, first) };
       }
       if ("difference" in term) return { set: tagDifference(set(term.difference[0]), set(term.difference[1])) };
+      if ("method" in term && term.method === "ngrams") return {set:ngrams(string(term.receiver), /** @type {{integer:string}} */ (term.args[0]).integer)};
       if ("method" in term && term.method === "split") {
         const pieces = string(term.receiver);
         const delimiter = /** @type {Term} */ (term.args[0]);
@@ -7268,6 +7287,25 @@
           throw loweringError(chain.at, `${rule.name} is a chain, which is the whole of its rule, but another alternative stands beside it`);
         }
         for (const alternative of enabled) this.lowerAlternative(rule, alternative);
+      }
+      const terminals = new Set();
+      /** @type {any[]} */
+      const pending = [...this.grammar.rules.values()].flatMap(rule => rule.alternatives.flatMap(alt => [alt.clauses, alt.tags]));
+      const seen = new Set();
+      while (pending.length) {
+        const part = pending.pop();
+        if (!part || typeof part !== "object" || seen.has(part)) continue;
+        seen.add(part);
+        if (["matches", "begins"].includes(part.method)) for (const arg of part.args) if (arg.terminal) terminals.add(arg.terminal);
+        for (const child of clauseChildren(part)) pending.push(child);
+      }
+      for (const terminal of terminals) {
+        const name = "\u0000query:" + terminal;
+        this.addProduction({
+          lhs: name, rhs: [{name: terminal, terminal: true}], helper: true,
+          flags: [], owner: name, elided: null, elidedTest: null,
+          captures: [], conditions: [], tags: null, emit: null, erased: false, warnings: [],
+        });
       }
       this.checkBraceItems();
       prepareRankedFrames(this,this.grammar.ranked);
@@ -10430,6 +10468,11 @@
           const text = textOf(where.context, where.start, where.end);
           return { string: term.method === "decomposed-source-text" ? where.context.unicode.decompose(text) : text };
         }
+        case "ngrams": {
+          const value = evaluate(context, receiver, scope);
+          const digits = /** @type {{integer:string}} */ (args[0]).integer;
+          return value === HALT ? pause(found => ({set:ngrams(asString(found), digits)})) : {set:ngrams(asString(value), digits)};
+        }
         case "split": {
           const value = evaluate(context, receiver, scope);
           if (value === HALT) return pause(found => splitBy(context, asString(found), args[0], scope));
@@ -10618,6 +10661,7 @@
    */
   function asSet(value) {
     if ("set" in value) return value.set;
+    if ("string" in value) return tagSet([value.string]);
     throw new GencmuError("grammar", "expected a set");
   }
 
@@ -10670,8 +10714,10 @@
         const where = observe(context, span, scope, "starts-input");
         return where.start === where.context.inputStart;
       }
+      if (condition.args.length > 1) return anyFrom(context, condition.args.map(arg => ({...condition,args:[arg]})), 0, scope);
       const target = queryTarget(context, span, scope);
-      const rule = ruleName(condition.args[0]);
+      const argument = condition.args[0];
+      const rule = "terminal" in argument ? "\u0000query:" + argument.terminal : ruleName(argument);
       if (condition.method === "matches") return nestedMatches(target.context, rule, target.start, target.end, target);
       return nestedBegins(target.context, rule, target.start, target.end, target);
     }
@@ -11474,10 +11520,11 @@
       const items = term.intersection;
       return { parts: items.map(asTerm), combine: (texts) => texts.map((text, index) => grouped(items[index], text)).join(" ∩ ") };
     }
-    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(BOUNDARY_METHODS.has(term.method) ? " | " : ", ")})` : ""}` };
+    if ("method" in term) return { parts: [asTerm(term.receiver), ...term.args.map(asTerm)], combine: ([receiver, ...args]) => `${receiver}.${term.method}${args.length ? `(${args.join(["matches","begins","followed-by","preceded-by"].includes(term.method) ? " | " : ", ")})` : ""}` };
     if ("interpolate" in term) return leaf(quoted(term.interpolate.map(part => "string" in part ? part.string.replaceAll("$", "$$") : `$(${part.const})`).join("")));
     if ("if" in term) return { parts: [asCondition(term.if), asTerm(term.then)], combine: ([guard, value]) => `(${guard} ⟹ ${value})` };
     if ("terminal" in term) return leaf(term.terminal);
+    if ("integer" in term) return leaf(term.integer);
     return leaf(`$${term.capture}`);
   }
 
@@ -16090,7 +16137,8 @@
         /** @type {Term} */
         let guarded = yield readTerm(last);
         const found = termType(guarded);
-        const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
+        const joined = "problem" in found ? found : joinedType([found.type], "⟹");
+        const problem = "problem" in joined ? joined.problem : joined.type === "pattern" ? "a guarded term requires a set" : null;
         if (problem && !featureContext) fail(problem, guards[guards.length - 1]);
         for (let index = conditions.length - 1; index >= 0; index--) guarded = { if: conditions[index], then: guarded };
         return guarded;
@@ -16172,12 +16220,13 @@
           tagSources.set(term, node);
           return term;
         }
+        case "string-run":
         case "tag-run": {
           const start = node.span[0];
           const end = node.span[1];
           if (["∩", "∖"].includes(tokens[start - 1]?.value) || ["∩", "∖"].includes(tokens[end]?.value)) fail("a tag run beside ∩ or ∖ requires parentheses", node);
           const union = [];
-          for (const tag of some(node, "tag", 2)) union.push(yield readTerm(tag));
+          for (const tag of some(node, ruleOf(node) === "string-run" ? "string" : "tag", 2)) union.push(yield readTerm(tag));
           return { union };
         }
         case "range": return fail("a range is a terminal, not a term", node);
@@ -16293,14 +16342,21 @@
         /** @type {any[]} */
         const args = [];
         const argumentsNode = one(selector, "arguments");
-        if (argumentsNode) for (const argument of some(argumentsNode, "argument")) args.push(yield readTerm(only(argument, "term"), true));
+        if (argumentsNode) for (const argument of some(argumentsNode, "argument")) {
+          const integer = one(argument, "integer");
+          if (integer) {
+            const digits = valueOf(token(integer));
+            if (!/^[1-9][0-9]*$/.test(digits)) fail("an integer argument is positive and has no leading zeros", integer);
+            args.push({integer:digits});
+          } else args.push(yield readTerm(only(argument, "term"), true));
+        }
         if (name === "classify" && args.length === 1 && args[0].rule && CLASSIFIER_NAME.test(args[0].rule)) args[0] = { classifier: args[0].rule };
-        if (BOUNDARY_METHODS.has(name)) {
+        if (TARGET_METHODS.has(name)) {
           for (let index = 0; index < args.length; index++) if (args[index].tag && !args[index].tag.startsWith("_")) args[index] = {terminal:args[index].tag};
         }
         if (argumentsNode) {
           const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
-          if (separators.some(separator => separator !== (BOUNDARY_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
+          if (separators.some(separator => separator !== (TARGET_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
         if (featureContext) {
           const problem = methodShapeProblem(name, receiver, args, recipeContext);
@@ -16310,7 +16366,7 @@
         if ("problem" in found) fail(found.problem, node);
         const types = [];
         for (const arg of args) {
-          if (arg.rule || arg.classifier || arg.terminal) types.push("name");
+          if (arg.rule || arg.classifier || arg.terminal || arg.integer) types.push("name");
           else {
             const type = featureContext ? {type:"any"} : termType(arg);
             if ("problem" in type) fail(type.problem, node);
@@ -16319,7 +16375,7 @@
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
         if (problem && !featureContext) fail(problem, node);
-        if (closedFor && (name !== "split" || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
+        if (closedFor && (!["split", "ngrams"].includes(name) || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});
         if (argumentsNode) ofRule(argumentsNode,"argument").forEach((argument,index) => boundaryLocations.set(args[index],{tree:argument,at:at(argument)}));
@@ -16482,14 +16538,14 @@
   const PRIMARIES = new Set(["reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
-  const ATOMS = new Set(["pattern-literal", "string", "tag", "tag-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
+  const ATOMS = new Set(["pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
   const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
   const NAMED = new Set([
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,
     "argument-word", "argument-string", "argument-tag", "argument-term", "classifier-name", "classifier-class", "classifier-key", "classifier-operator", "classifier-entry",
     "constant-definer", "definer", "rule-name", "rule-flags", "rule-flag", "body", "headed-body", "alternative", "ranked-alternative", "guard", "ranked-choice", "choice", "conjunction", "sequence", "primary",
     "tag-test", "tag-requirement", "value-test", "test", "test-operand", "tags-clause", "alternative-tags", "emit-tags", "value-clause", "image-clause", "conditions-clause", "emits-clause", "erased-clause",
-    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "intersection", "any-of", "all-of", "condition", "comparator", "tree-comparator",
+    "emit-item", "emit-target", "emit-before", "emit-after", "recipe", "recipe-atom", "method-receiver", "method-selector", "method-name", "arguments", "argument", "integer", "intersection", "any-of", "all-of", "condition", "comparator", "tree-comparator",
     "pattern-literal", "pattern-union", "pattern-intersection", "pattern-sequence", "pattern-item", "pattern-atom", "pattern-brackets", "pattern-repeat", "pattern-path",
   ]);
 
@@ -17994,7 +18050,7 @@
   /**
    * A function's argument: a term, the name of a rule, or the name of a
    * classifier.
-   * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string}} Argument
+   * @typedef {Term | {rule: string} | {terminal:string} | {classifier: string} | {integer: string}} Argument
    */
 
   // ---- The engine ---------------------------------------------------------

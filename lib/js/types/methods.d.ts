@@ -1,6 +1,7 @@
 export declare const SPAN_METHODS: Set<string>;
 export declare const QUERY_METHODS: Set<string>;
 export declare const INPUT_STRINGS: Set<string>;
+export declare const TARGET_METHODS: Set<string>;
 export declare const METHODS: Set<string>;
 /**
  * Structural signatures do not read operand types or stage bindings (engine §9).

@@ -1,6 +1,6 @@
 {
   "description": "The condition's incompatible subset operands fail before emission overlap analysis. The error stands at the comparison's first token (engine §9.3, §10).",
-  "document": "```jbogenbau\n%rule a $x:A\n%conditions $x.source-text⊆ \"a\"\n%emits $, $x\n```\n",
+  "document": "```jbogenbau\n%rule a $x:A\n%conditions $x.source-text⊆ A\n%emits $, $x\n```\n",
   "expect": {
     "error": {
       "line": 3,

@@ -2631,7 +2631,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects excess arguments for matches (engine §§9, 13).",
+    "description": "A feature condition admits a target choice structurally for matches (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -2658,7 +2658,7 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "A feature condition retains the structural signature of begins (engine §§9, 13).",
@@ -2711,7 +2711,7 @@
     "malformed": true
   },
   {
-    "description": "A feature condition rejects excess arguments for begins (engine §§9, 13).",
+    "description": "A feature condition admits a target choice structurally for begins (engine §§9, 13).",
     "directive": {
       "name": "features",
       "args": [
@@ -2738,7 +2738,7 @@
         }
       ]
     },
-    "malformed": true
+    "malformed": false
   },
   {
     "description": "A feature condition retains the structural signature of followed-by (engine §§9, 13).",
@@ -4438,5 +4438,125 @@
       ]
     },
     "malformed": false
+  },
+  {
+    "description": "An integer argument cannot occur in split.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An integer argument cannot occur in tags.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "tags",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An integer argument cannot occur in classify.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "string": "ab"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]
