@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 includes overlapping n-grams and removes duplicate members.",
   "grammar": "%const $S \"ababa\".ngrams(2)\n%rule text ε %conditions $S = (\"ab\" \"ba\")",
   "input": "",
   "expect": {

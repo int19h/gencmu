@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for onward.",
+  "description": "Engine §10 extends the original span of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.onward.value = \"ab\"\n%rule family A",
   "tokens": [
     {

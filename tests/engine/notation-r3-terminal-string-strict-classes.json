@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for classes.",
+  "description": "Engine §10 filters original token tags into classes for a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.classes = A\n%rule family A",
   "tokens": [
     {

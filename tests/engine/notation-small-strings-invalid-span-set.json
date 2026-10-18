@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 forbids implicit span-to-set conversion in a set operation.",
   "grammar": "%rule text $x:A %conditions $x ⊆ (\"a\" \"b\")",
   "tokens": [
     {

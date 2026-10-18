@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for tags.",
+  "description": "Engine §10 reads original token tags from a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.tags = A\n%rule family A",
   "tokens": [
     {

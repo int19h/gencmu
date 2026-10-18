@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 gives an empty set when an n-gram length exceeds any machine integer.",
   "grammar": "%const $S \"a\".ngrams(999999999999999999999999999999999999999999999)\n%rule text ε %conditions $S = ∅",
   "input": "",
   "expect": {

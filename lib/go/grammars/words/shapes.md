@@ -254,7 +254,7 @@ So a brivla with marked stress has `S2`, and one without any capital vowel has `
 
 A cmavo or a name can have capital vowels on any of its syllables, `Y` included (CLL[^cll-s3-9] lets their stress fall anywhere). A name with no capital vowel is stressed on its penultimate counted syllable if it has two or more. It is stressed on its only counted syllable if it has one, and nowhere if it has none.
 
-`name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. `name-diphthong` also admits `iy` and `uy`. Its tags are:
+`name-scan` reads a name as `brivla-scan` reads a brivla, with the diphthongs a name allows. A `y` is a nucleus of its own, and never the first letter of a diphthong. The choice `brivla-diphthong | y-diphthong` also admits `iy` and `uy`. The scan has these tags:
 
 - `N0` to `N3` and `Single-End`, as above
 - `V0` before the scan reads a nucleus, and `V1` after the first nucleus
@@ -285,7 +285,7 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
        ∪ (Counted ⊆ $j.tags ∧ (N2 ∪ N3) ∩ $s.tags ≠ ∅ ⟹ N3)
        ∪ Single-End ∩ $j.tags
 %conditions
-  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(name-diphthong)
+  Single-End ⊈ $s.tags ∨ ¬$s.last-token.onward.begins(brivla-diphthong | y-diphthong)
 
 %rule name-item
   | consonant | "'" | Syllable-Break
@@ -296,16 +296,12 @@ The forms stage uses the stress on the first syllable of a name, for the pause r
 
 %rule name-vowel
   vowel | "y"
-
-%rule name-diphthong
-  brivla-diphthong | y-diphthong
 ```
 
-<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code>, <code>name-vowel</code> and <code>name-diphthong</code></summary>
+<details><summary>Railroad diagrams of <code>name-scan</code>, <code>name-item</code> and <code>name-vowel</code></summary>
 <p><img src="../../docs/diagrams/words/shapes/name-scan.svg" alt="Railroad diagram of the rule name-scan"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-item.svg" alt="Railroad diagram of the rule name-item"></p>
 <p><img src="../../docs/diagrams/words/shapes/name-vowel.svg" alt="Railroad diagram of the rule name-vowel"></p>
-<p><img src="../../docs/diagrams/words/shapes/name-diphthong.svg" alt="Railroad diagram of the rule name-diphthong"></p>
 </details>
 
 

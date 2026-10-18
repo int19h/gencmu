@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 propagates a recursive error before trying a later successful alternative for `.begins`.",
   "grammar": "%rule text $x:A %conditions $x.begins(loop | A)\n%rule loop A %conditions $.begins(loop)",
   "tokens": [
     {

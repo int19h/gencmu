@@ -1,5 +1,5 @@
 {
-  "description": "Stage replacement discards the ngram tag feature declaration (engine section 13).",
+  "description": "Engine §13 discards a tag receiver of `.ngrams` with its replaced feature declaration before semantic type tests.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions A.ngrams(1) = ∅\n%rule text ε\n%redefine-stage main\n%ambiguity-resolution greedy\n%rule text ε\n```\n"
   },

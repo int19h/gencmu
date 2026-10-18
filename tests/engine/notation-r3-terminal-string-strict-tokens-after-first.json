@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for tokens-after-first.",
+  "description": "Engine §10 returns an empty span after the only original token of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.tokens-after-first.value = \"\"\n%rule family A",
   "tokens": [
     {

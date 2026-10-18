@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for image.",
+  "description": "Engine §10 reads the original image of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.image = \"I\"\n%rule family A",
   "tokens": [
     {

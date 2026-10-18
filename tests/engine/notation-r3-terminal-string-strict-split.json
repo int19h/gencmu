@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for split.",
+  "description": "Engine §10 splits the original value of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.split(\"z\") = \"a\"\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for image.",
+  "description": "Engine §10 reads the original image of a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).image = \"I\"\n%rule family A",
   "tokens": [
     {

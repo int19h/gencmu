@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured tag terminal for last-token.",
+  "description": "Engine §10 projects the last original token of a tag terminal under family restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision-except(family).last-token.value = \"a\"\n%rule family A",
   "tokens": [
     {

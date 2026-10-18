@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for following-tokens.",
+  "description": "Engine §10 reads the raw suffix after a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.following-tokens.value = \"b\"\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for nested query.",
+  "description": "Engine §4 retains the empty restoration observation of a tag terminal under strict restoration inside a nested query.",
   "grammar": "%rule text $c:unit %conditions $c.matches(probe)\n%rule unit A\n%rule probe $x:A %conditions $x.without-elision.value = \"a\"\n%rule family A",
   "tokens": [
     {

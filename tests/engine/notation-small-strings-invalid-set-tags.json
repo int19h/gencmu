@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 rejects a string set where a tag clause requires tags.",
   "grammar": "%rule text $x:A %conditions \"a\" ⊆ A",
   "tokens": [
     {

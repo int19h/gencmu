@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 gives an empty n-gram set when the string is shorter than the requested length.",
   "grammar": "%const $S \"a\".ngrams(2)\n%rule text ε %conditions $S = ∅",
   "input": "",
   "expect": {

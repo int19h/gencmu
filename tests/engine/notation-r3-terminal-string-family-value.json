@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for value.",
+  "description": "Engine §10 reads the original value of a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).value = \"a\"\n%rule family A",
   "tokens": [
     {

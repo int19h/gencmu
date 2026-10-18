@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured wildcard terminal for implicit-value.",
+  "description": "Engine §10 converts to its original value in a scalar comparison of a wildcard terminal under family restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision-except(family) = \"a\"\n%rule family A",
   "tokens": [
     {

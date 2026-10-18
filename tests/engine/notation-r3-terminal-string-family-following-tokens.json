@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for following-tokens.",
+  "description": "Engine §10 reads the raw suffix after a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).following-tokens.value = \"b\"\n%rule family A",
   "tokens": [
     {

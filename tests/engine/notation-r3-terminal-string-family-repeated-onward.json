@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for repeated-onward.",
+  "description": "Engine §10 retains the original capture through repeated onward calls on a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).onward.onward.value = \"ab\"\n%rule family A",
   "tokens": [
     {

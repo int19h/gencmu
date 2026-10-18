@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured wildcard terminal for emission.",
+  "description": "Engine §11 evaluates the original value of a wildcard terminal under family restoration in an emission tag clause.",
   "grammar": "%rule text $x:_\n%emits $x ::($x.without-elision-except(family).value = \"a\" ⟹ Out)\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for classes.",
+  "description": "Engine §10 filters original token tags into classes for a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.classes = A\n%rule family A",
   "tokens": [
     {

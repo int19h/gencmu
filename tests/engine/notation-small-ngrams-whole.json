@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 returns the whole string as one n-gram when its length equals the requested length.",
   "grammar": "%const $S \"ab\".ngrams(2)\n%rule text ε %conditions $S = (\"ab\" ∪ ∅)",
   "input": "",
   "expect": {

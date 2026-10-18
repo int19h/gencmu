@@ -1,6 +1,6 @@
 {
-  "description": "Query target choices also work inside guarded tag terms.",
-  "grammar": "%rule text A :: ($.begins(B | A) \u27f9 Good) %emits $",
+  "description": "Engine §4 permits a target choice inside a guarded tag term for `.begins`.",
+  "grammar": "%rule text A :: ($.begins(B | A) ⟹ Good) %emits $",
   "tokens": [
     {
       "text": "a",

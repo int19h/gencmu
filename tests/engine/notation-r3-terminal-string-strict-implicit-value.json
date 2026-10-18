@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for implicit-value.",
+  "description": "Engine §10 converts to its original value in a scalar comparison of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision = \"a\"\n%rule family A",
   "tokens": [
     {

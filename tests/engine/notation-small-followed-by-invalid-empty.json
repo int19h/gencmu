@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §9.3 rejects empty arguments in `.followed-by`.",
   "grammar": "%const $A A\n%rule text $x:A %conditions $x.followed-by()\n%rule a A\n%rule b B",
   "tokens": [
     {

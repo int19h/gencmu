@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 treats adjacent string literals as a string set in term contexts.",
   "grammar": "%const $SET (\"a\" \"b\")\n%rule text ε %conditions $SET = \"a b\".split(\" \"), \"a b\".split(\" \") ⊆ $SET, ∅ ⊆ $SET",
   "input": "",
   "expect": {

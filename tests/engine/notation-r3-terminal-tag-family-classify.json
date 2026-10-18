@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured tag terminal for classify.",
+  "description": "Engine §10 classifies the original value of a tag terminal under family restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision-except(family).classify(chars) = X\n%rule family A\n%classifier chars \"a\" ∈ X",
   "tokens": [
     {

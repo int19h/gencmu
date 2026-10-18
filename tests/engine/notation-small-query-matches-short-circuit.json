@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 stops before a recursive later alternative after an earlier success for `.matches`.",
   "grammar": "%rule text $x:A %conditions $x.matches(A | loop)\n%rule loop A %conditions $.matches(loop)",
   "tokens": [
     {

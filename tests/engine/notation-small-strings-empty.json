@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 preserves the empty string as a singleton member when it combines it with a contextual empty set.",
   "grammar": "%const $SET \"\" ∪ ∅\n%rule text ε %conditions $SET = \"\", \"\" ⊆ $SET, ∅ ⊆ $SET",
   "input": "",
   "expect": {

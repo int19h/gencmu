@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for begins.",
+  "description": "Engine §10 runs an aligned prefix query on a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.begins(probe)\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {

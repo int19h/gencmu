@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for short-ngrams.",
+  "description": "Engine §10 gives an empty n-gram set for the short value of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.ngrams(2) = ∅\n%rule family A",
   "tokens": [
     {

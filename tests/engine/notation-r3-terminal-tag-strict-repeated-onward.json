@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for repeated-onward.",
+  "description": "Engine §10 retains the original capture through repeated onward calls on a tag terminal under strict restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision.onward.onward.value = \"ab\"\n%rule family A",
   "tokens": [
     {

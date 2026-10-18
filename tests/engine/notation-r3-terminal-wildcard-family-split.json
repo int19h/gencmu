@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured wildcard terminal for split.",
+  "description": "Engine §10 splits the original value of a wildcard terminal under family restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision-except(family).split(\"z\") = \"a\"\n%rule family A",
   "tokens": [
     {

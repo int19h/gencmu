@@ -1,5 +1,5 @@
 {
-  "description": "Stage replacement retains the false span guard feature declaration (engine section 13).",
+  "description": "Engine §13 rejects a span consequent under a false guard at the surviving feature directive.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions (¬$ ⟹ $) = ∅\n%rule text ε\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "Stage replacement retains the span guard feature declaration (engine section 13).",
+  "description": "Engine §13 rejects a guarded span at the surviving feature directive.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions ($ ⟹ $) = ∅\n%rule text ε\n```\n"
   },

@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured range terminal for tags.",
+  "description": "Engine §10 reads original token tags from a range terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.tags = A\n%rule family A",
   "tokens": [
     {

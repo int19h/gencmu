@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for query-tags.",
+  "description": "Engine §10 unions eligible aligned witness tags for a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.tags(probe) = Probe\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {

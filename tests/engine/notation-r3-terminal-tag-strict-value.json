@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for value.",
+  "description": "Engine §10 reads the original value of a tag terminal under strict restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision.value = \"a\"\n%rule family A",
   "tokens": [
     {

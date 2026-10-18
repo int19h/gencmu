@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §9.3 requires parentheses around a string run adjacent to difference.",
   "grammar": "%const $A \"a\"\n%rule text $x:A %conditions \"a\" \"b\" ∖ \"b\" = ∅",
   "tokens": [
     {

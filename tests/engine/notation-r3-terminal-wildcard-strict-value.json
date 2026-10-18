@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for value.",
+  "description": "Engine §10 reads the original value of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.value = \"a\"\n%rule family A",
   "tokens": [
     {

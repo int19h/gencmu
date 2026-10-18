@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for tags.",
+  "description": "Engine §10 reads original token tags from a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).tags = A\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for last-token.",
+  "description": "Engine §10 projects the last original token of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.last-token.value = \"a\"\n%rule family A",
   "tokens": [
     {

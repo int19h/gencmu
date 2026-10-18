@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §9.3 rejects constant targets in `.begins`.",
   "grammar": "%const $A A\n%rule text $x:A %conditions $x.begins($A)\n%rule a A\n%rule b B",
   "tokens": [
     {

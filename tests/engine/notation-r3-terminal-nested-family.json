@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured tag terminal for nested query.",
+  "description": "Engine §4 retains the empty restoration observation of a tag terminal under family restoration inside a nested query.",
   "grammar": "%rule text $c:unit %conditions $c.matches(probe)\n%rule unit A\n%rule probe $x:A %conditions $x.without-elision-except(family).value = \"a\"\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 rejects a union of tag and string sets.",
   "grammar": "%const $A \"a\"\n%rule text $x:A %conditions \"a\" ∪ A = ∅",
   "tokens": [
     {

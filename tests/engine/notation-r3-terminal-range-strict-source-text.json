@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured range terminal for source-text.",
+  "description": "Engine §10 reads the original source text of a range terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.source-text = \"a\"\n%rule family A",
   "tokens": [
     {

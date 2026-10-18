@@ -1,5 +1,5 @@
 {
-  "description": "A queried terminal is reachable for a boundary target, including later query alternatives.",
+  "description": "Engine §9.3 includes every terminal alternative when it finds buildable boundary targets for `.matches`.",
   "grammar": "%rule text $x:A %conditions $x.matches(no | T), ¬$.followed-by(T)\n%rule no B",
   "tokens": [
     {

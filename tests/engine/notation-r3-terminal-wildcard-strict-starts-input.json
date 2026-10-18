@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for starts-input.",
+  "description": "Engine §10 tests the original start of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.starts-input\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "subset right restored following follows the receiver types in engine section 10.",
+  "description": "Engine §10 rejects incompatible subset comparison operands in `\"a\" ⊆ ($x.without-elision.following-tokens)`.",
   "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ⊆ ($x.without-elision.following-tokens)\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {

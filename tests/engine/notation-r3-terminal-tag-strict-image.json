@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for image.",
+  "description": "Engine §10 reads the original image of a tag terminal under strict restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision.image = \"I\"\n%rule family A",
   "tokens": [
     {

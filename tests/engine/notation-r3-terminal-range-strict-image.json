@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured range terminal for image.",
+  "description": "Engine §10 reads the original image of a range terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\"..\"z\" B %conditions $x.without-elision.image = \"I\"\n%rule family A",
   "tokens": [
     {

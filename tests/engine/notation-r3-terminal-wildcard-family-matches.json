@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured wildcard terminal for matches.",
+  "description": "Engine §10 runs an aligned whole query on a wildcard terminal under family restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision-except(family).matches(probe)\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {

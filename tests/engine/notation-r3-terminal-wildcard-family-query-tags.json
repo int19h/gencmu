@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured wildcard terminal for query-tags.",
+  "description": "Engine §10 unions eligible aligned witness tags for a wildcard terminal under family restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision-except(family).tags(probe) = Probe\n%rule family A\n%rule probe A ::Probe",
   "tokens": [
     {

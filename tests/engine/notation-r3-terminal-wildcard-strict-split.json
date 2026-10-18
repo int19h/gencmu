@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured wildcard terminal for split.",
+  "description": "Engine §10 splits the original value of a wildcard terminal under strict restoration.",
   "grammar": "%rule text $x:_ B %conditions $x.without-elision.split(\"z\") = \"a\"\n%rule family A",
   "tokens": [
     {

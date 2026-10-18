@@ -1,5 +1,5 @@
 {
-  "description": "not subset right string follows the receiver types in engine section 10.",
+  "description": "Engine §10 accepts compatible nonsubset comparison operands in `\"a\" ⊈ (\"ab\")`.",
   "grammar": "%const $S \"ab\"\n%const $Q (\"a\" \"b\")\n%const $TAG (A B)\n%const $P @(A)\n%const $E \"a\" ∖ \"a\"\n%rule text $x:unit B %conditions \"a\" ⊈ (\"ab\")\n%rule unit A\n%rule family unit\n%rule want A",
   "tokens": [
     {

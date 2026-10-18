@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §13 permits a closed n-gram comparison in a feature condition.",
   "grammar": "%features f\n%conditions \"ab\".ngrams(2) = (\"ab\" ∪ ∅)\n%rule text ε",
   "input": "",
   "expect": {

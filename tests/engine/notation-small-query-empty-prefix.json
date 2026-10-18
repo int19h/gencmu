@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 permits an empty prefix when a begins alternative recognizes no tokens.",
   "grammar": "%rule text ε %conditions $.begins(A | empty), $.matches(A | empty)\n%rule empty ε",
   "input": "",
   "expect": {

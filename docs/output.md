@@ -270,7 +270,9 @@ Terms have these forms:
 {"pattern":PATTERN}
 ```
 
-A run of bare tag names or string literals produces one `union` of its terms in written order. Set operations treat scalar strings as singleton sets. A lone string keeps its scalar type. Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
+In a term, a run of bare tag names or string literals produces one `union` of its terms in written order. Set operations treat scalar strings as singleton sets. A lone string keeps its scalar type.
+
+Any `union` operand that is itself a `union` flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. Thus `:: $f.tags ∪ Run-Initial Run-Final` has three union operands. Intersection and difference retain their operands, so `(Word BY) ∩ $l.tags` keeps the run's union as the intersection's first operand.
 
 For example, `A ∪ (B ∪ C)` gives this term:
 

@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §10 interpolates each literal before string-set membership and equality.",
   "grammar": "%const $A \"b\"\n%const $S \"a$(A)\" \"c\"\n%rule text ε %conditions \"ab\" ∈ $S, $S = (\"ab\" \"c\")",
   "input": "",
   "expect": {

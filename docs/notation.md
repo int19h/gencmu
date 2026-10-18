@@ -624,6 +624,8 @@ Every tag name is written in grammar text. No method constructs tags from an inp
 
 A string in a set operation denotes its singleton set, including the empty string. A lone string remains scalar. Set equality also permits this conversion when the other side is a set. Captures and spans never convert directly to sets.
 
+`⊆` and `⊈` also convert scalar strings. `∈` and `∉` accept a scalar string on the right as a singleton.
+
 `string.ngrams(n)` returns the set of runs of `n` adjacent code points. Overlapping runs count, and duplicate runs give one member. A string shorter than `n` gives `∅`. The argument is a positive decimal integer literal without leading zeros. It cannot be a constant because constants have no integer type.
 
 String sets support the same grouping, set operators, guarded terms, empty sets, constants, and closed terms as tag sets. A guarded string set gives `∅` when its condition fails.
@@ -815,7 +817,9 @@ A run of bare tag names or string literals can stand alone or beside `∪`. It r
 
 `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. `(A ∪ B) ∩ C` keeps the union as one intersection operand. A leading `∪` inside a parenthesized run does not change its DOM.
 
-Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors. String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Interpolated literals can join a string run. Constant references and method calls require explicit operators.
+Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
+
+String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Interpolated literals can join a string run. Constant references and method calls require explicit operators.
 
 ## Tags
 
@@ -928,6 +932,8 @@ Recipe priority follows this table, from strongest to weakest. A capture item's 
 At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
 
 Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
+
+Recipes are the one exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 

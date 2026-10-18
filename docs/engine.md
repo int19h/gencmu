@@ -1281,6 +1281,8 @@ A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must matc
 
 An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must consist of four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. Interpolated engine names meet the same validity rules.
 
+An Integer token is a nonempty run of ASCII decimal digits. Section 9.3 defines its validity as a method argument.
+
 String delimiters are straight double quotes. `$$` decodes to `$`. `$(NAME)` refers to a string constant without its leading `$`. The reference retains a source position. Interpolation happens after stage constant binding, not while the document DOM is cached.
 
 In a string outside an include path, a dollar sign starting neither interpolation nor `$$` is a lexical document error. Backslash has no escape meaning and is a lexical error. A quote within a string uses `$(_0022)`. A backslash value uses `$(_005C)`.
@@ -1362,13 +1364,16 @@ guarded-term = any-of "⟹" {any-of "⟹"} union
 union = ["∪"] intersection {("∪" | "∖") intersection}
 intersection = ["∩"] term-atom {"∩" term-atom}
 tag-run = tag tag {tag}
+string-run = string-literal string-literal {string-literal}
 term-atom = plain-term-atom | method-chain
-plain-term-atom = tag-run | tag | lowercase-name | "#" | string-literal | constant-reference | range
+plain-term-atom = tag-run | string-run | tag | lowercase-name | "#" | string-literal | constant-reference | range
                 | capture-reference | "∅" | pattern-literal | "(" term ")"
 method-chain = method-receiver method-selector {method-selector}
 method-receiver = term-atom
 method-selector = "." method-name ["(" arguments ")"]
-arguments = term {("," | "|") term}
+arguments = argument {("," | "|") argument}
+argument = term | integer
+integer = Integer
 implication = any-of {"⟹" any-of}
 any-of = ["∨"] all-of {"∨" all-of}
 all-of = ["∧"] condition {"∧" condition}
@@ -1453,7 +1458,7 @@ Recognition admits captures of groups, optionals, repeats, empty expressions, an
 
 Recognition admits arbitrary test operands, grouped terms included, so the reader can report an invalid operand at that operand. Pattern names can carry repeated or reversed tests too. Recognition also admits ranges in terms, nonclosed constant values and implications, and methods with invalid names, receivers, or arguments. Section 9.3 imposes their type and position rules.
 
-Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment.
+Recipe recognition admits terms beyond the closed recipe language. Each recipe atom consumes a maximal term, including any adjacent tag or string run. Emission recognition admits names and ranges as targets, attachments on any target, and `$` inside an attachment.
 
 Directive recognition reads each name as its own operand. It admits methods, references, grouped terms, patterns, ranges, include paths, `#`, and `_`. It admits no bare tag run as one operand or method receiver. A grouped term can still be a receiver.
 
@@ -1500,7 +1505,9 @@ Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immedia
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token in the atom, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension.
 
-Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, or `.classify` is a document error. A recipe cannot branch on a condition.
+In recipes, the reader expands an unparenthesized `string-run` node into consecutive string atoms before term conversion. Interpolated literals retain their order. The run never becomes a string set.
+
+Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, `.ngrams`, or `.classify` is a document error. A recipe cannot branch on a condition.
 
 Pattern productions use the grouping and binding rules of `docs/notation.md`. `@A<B>` converts exactly as `@(A<B>)`. A pattern constant denotes a predicate. A string constant denotes a terminal. A tag-set or string-set constant cannot serve as a pattern atom. A tested user constant atom must resolve to a string, otherwise loading reports a document error at the constant reference.
 
@@ -1572,7 +1579,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `emit-target` | One capture, `ε`, name, tag, or range | Require a capture or `ε`. Produce capture name, empty name, or `insert:true`. |
 | `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order |
 | `recipe` | One or more `recipe-atom` parts | Ordered `concat` |
-| `recipe-atom` | One recognized term | Check its written form before conversion. Require a closed string atom, with methods restricted by §11. |
+| `recipe-atom` | One recognized term | Check its written form before conversion. Expand an unparenthesized string run into string atoms. Otherwise require a closed string atom, with methods restricted by §11. |
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
 | `method-selector` | `method-name`, then optional `arguments` | Method name, prior receiver, ordered argument terms |
@@ -1622,7 +1629,9 @@ For example, `%rule r := "v" :- "i" | "a"` supplies distinct header recipes. Its
 
 A tag run or string run forms one union in written order. Any union operand that is itself a union flattens into its enclosing union. This applies to runs and explicit `∪`, including either form inside grouping parentheses. Parentheses make no DOM node. `A ∪ (B ∪ C)`, `A ∪ (B C)`, `A ∪ B ∪ C`, and `A B C` give one union with three operands in written order. Intersection and difference retain their operands, so `(A ∪ B) ∩ C` keeps the union as one intersection operand.
 
-A run requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. Without parentheses, the reader reports a document error at the run's first tag name or string token. It tests placement before reading the parts. A tag run requires at least two `tag` parts, and a string run requires at least two `string` parts. Thus `:: ∩ Word BY` fails at `Word`, and `A ∪ B C ∖ D` fails at `B`.
+A run requires parentheses when the operator token immediately before or after it is `∩` or `∖`. A leading `∩` counts. Spaces and comments do not affect this adjacency. Without parentheses, the reader reports a document error at the run's first tag name or string token. It tests placement before reading the parts.
+
+A tag run requires at least two `tag` parts, and a string run requires at least two `string` parts. Thus `:: ∩ Word BY` fails at `Word`, and `A ∪ B C ∖ D` fails at `B`.
 
 An engine scalar atom in a pattern uses `literal` with an unresolved STRINGTERM reference and the atom's source position. A user constant atom uses `constant` and its source position, whatever its eventual type. Binding interprets it as a string terminal or a pattern predicate without changing the cached DOM. Tag then value tests wrap either constant form. Tested user atoms must resolve to strings.
 
@@ -1820,7 +1829,9 @@ Each of the following is an error of the document too, and the reader reports it
 
 A condition item holds at most one boundary atom. If the receiver of its atom is a capture, the item reads no other capture and no `$`. A boundary atom stands only in `%conditions` and in an emission item's tag clause.
 
-Its target is one name or a choice of names, each a rule of the stage or a tag terminal. `#` counts as a rule name. A name must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal. A terminal argument of `.matches`, `.begins`, `.followed-by`, or `.preceded-by` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
+Its target is one name or a choice of names, each a rule of the stage or a tag terminal. `#` counts as a rule name. A name must be one that some recognition can build. It is a rule reachable through body references from `text` or from the rule argument of a nested query. Or it is a tag that such a rule reads as a terminal.
+
+A terminal argument of `.matches` or `.begins` also makes that tag buildable. Every alternative counts, even when evaluation never reaches it. Gates do not count.
 
 A receiver cannot be a list capture or a method of one. Each violation is a document error at the atom, at the name, or at the second atom. The limit of one atom per item and the receiver limit bind `%conditions` only. An emission tag clause can hold several atoms, because it reads the chosen derivation.
 
@@ -1966,7 +1977,9 @@ In a set operation, a scalar string converts to its singleton string set. This i
 
 `∪`, `∩`, and `∖` combine tag sets, string sets, or patterns of one type. Plain parentheses preserve type. `∩` binds tighter than `∪` and `∖`. Those two bind equally and group from the left, so `a ∖ b ∪ c` is `(a ∖ b) ∪ c`.
 
-`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent. In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
+`∅` takes its kind from the other side of its operator or comparison. A tag term, emission item or tag test also gives it the required tag-set type. A guarded term supplies the set kind of its consequent.
+
+In a `%redefine-const`, the type that the constant keeps (§2) gives the value its kind in the same way. So after `%const $A A`, `%redefine-const $A ∅` makes `$A` the empty tag set. An expression whose kind nothing gives is an error of the document. So `%const $E ∅` is an error.
 
 `a = b` and `a ≠ b` compare two strings, two sets of strings or two tag sets. In these comparisons, a capture or span converts to its input value after method selection, on either or both sides. Thus `$open = $close` compares their values, as does `$open.value = $close.value`. When one side is a string set or contextual empty set, a scalar string on the other side converts to a singleton. Captures and spans compared with any set remain errors. Any other pair is an error of the document.
 
@@ -2030,7 +2043,9 @@ A whole capture's `.tags` reads constituent tags. Other spans union their origin
 
 The context is the stage's input or the nested query's bounds (§4). `.onward` and `.following-tokens` end at that context boundary. `.starts-input` compares the projected start with that context's start. Recipe methods never start queries or use restored spans.
 
-A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Interpolated literals count as strings. Constant references and method calls require explicit operators. Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside `@(…)`, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
+A tag literal denotes a singleton tag set. Juxtaposed bare tag names or string literals form one union atom. Both runs share grouping, flattening, and adjacency restrictions. Interpolated literals count as strings. Constant references and method calls require explicit operators.
+
+Other tag atoms need operators. Adjacent multi-name atoms beside `∩` or `∖` require parentheses. Inside `@(…)`, juxtaposition instead constructs child sequences. A pattern constant supplies no implicit surrounding pattern literal.
 
 ## 11. Emission
 
@@ -2135,6 +2150,8 @@ An implied image evaluates the selected value recipe as a string for image use. 
 ### 11.3 Recipe evaluation and cycles
 
 A recipe contains only string literals, string constants, and seven captured string methods. They are `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Its atoms concatenate left to right without a separator. Every other atom is a document error.
+
+Recipes are the one exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
 
 Input methods read the original projected span. `.emitted` reads the string walk with constituent recipes, before any override on the current item. It can read a captured constituent that has no `%emits`. An erased part's `.emitted` gives empty strings on both channels.
 

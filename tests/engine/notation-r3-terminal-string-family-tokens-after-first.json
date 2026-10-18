@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured string terminal for tokens-after-first.",
+  "description": "Engine §10 returns an empty span after the only original token of a string terminal under family restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision-except(family).tokens-after-first.value = \"\"\n%rule family A",
   "tokens": [
     {

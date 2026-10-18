@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for ends-input.",
+  "description": "Engine §10 tests the original end of a tag terminal under strict restoration.",
   "grammar": "%rule text $x:A B %conditions ¬$x.without-elision.ends-input\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §9.3 rejects extra arguments in `.ngrams`.",
   "grammar": "%const $N \"2\"\n%rule text $x:A %conditions $x.ngrams(2, 3) = ∅",
   "tokens": [
     {

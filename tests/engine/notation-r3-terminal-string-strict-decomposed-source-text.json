@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for decomposed-source-text.",
+  "description": "Engine §10 decomposes the original source text of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.decomposed-source-text = \"a\"\n%rule family A",
   "tokens": [
     {

@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 distinguishes a terminal prefix match from a whole-span terminal match.",
   "grammar": "%rule text $x:pair %conditions $x.begins(C | A), ¬$x.matches(C | A)\n%rule pair A B",
   "tokens": [
     {

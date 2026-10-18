@@ -1,5 +1,5 @@
 {
-  "description": "Stage replacement discards the mixed union feature declaration (engine section 13).",
+  "description": "Engine §13 discards a mixed string and tag union with its replaced feature declaration before semantic type tests.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%stage main\n%ambiguity-resolution greedy\n%features f\n%conditions (\"a\" ∪ A) = ∅\n%rule text ε\n%redefine-stage main\n%ambiguity-resolution greedy\n%rule text ε\n```\n"
   },

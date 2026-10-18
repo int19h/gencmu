@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured string terminal for first-token.",
+  "description": "Engine §10 projects the first original token of a string terminal under strict restoration.",
   "grammar": "%rule text $x:\"a\" B %conditions $x.without-elision.first-token.value = \"a\"\n%rule family A",
   "tokens": [
     {

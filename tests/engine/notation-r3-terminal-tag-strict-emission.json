@@ -1,5 +1,5 @@
 {
-  "description": "Strict restoration preserves a captured tag terminal for emission.",
+  "description": "Engine §11 evaluates the original value of a tag terminal under strict restoration in an emission tag clause.",
   "grammar": "%rule text $x:A\n%emits $x ::($x.without-elision.value = \"a\" ⟹ Out)\n%rule family A",
   "tokens": [
     {

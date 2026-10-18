@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §9.3 rejects comma-separated targets in `.matches`.",
   "grammar": "%const $A A\n%rule text $x:A %conditions $x.matches(a, b)\n%rule a A\n%rule b B",
   "tokens": [
     {

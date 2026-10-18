@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 accepts rule and terminal alternatives in one target choice for `.begins`.",
   "grammar": "%rule text $x:A %conditions $x.begins(B | A)",
   "tokens": [
     {

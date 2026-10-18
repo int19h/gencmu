@@ -1,5 +1,5 @@
 {
-  "description": "Family restoration preserves a captured tag terminal for decomposed-source-text.",
+  "description": "Engine §10 decomposes the original source text of a tag terminal under family restoration.",
   "grammar": "%rule text $x:A B %conditions $x.without-elision-except(family).decomposed-source-text = \"a\"\n%rule family A",
   "tokens": [
     {

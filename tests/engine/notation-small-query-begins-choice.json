@@ -1,5 +1,5 @@
 {
-  "description": "Small notation forms follow engine section 10.",
+  "description": "Engine §4 tests alternatives in written order for `.begins`.",
   "grammar": "%rule text $x:A B %conditions $x.begins(no | yes | C)\n%rule no B\n%rule yes A",
   "tokens": [
     {
