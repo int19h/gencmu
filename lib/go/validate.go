@@ -1039,6 +1039,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		isClassifier := func(a *domTerm) bool {
 			return a != nil && a.Kind == tmClassifier && classifierName.MatchString(a.Str)
 		}
+		valueOperand := func(a *domTerm) bool {
+			return a != nil && a.Kind != tmRule && a.Kind != tmClassifier && a.Kind != tmInteger && a.Kind != tmTerminal
+		}
 		var ok bool
 		switch t.Str {
 		case "without-elision-except":
@@ -1050,17 +1053,17 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		case "tags":
 			ok = (len(args) == 1 && isSpanShape(args[0])) || (len(args) == 2 && isSpanShape(args[0]) && isRule(args[1]))
 		case "ngrams":
-			ok = len(args) == 2 && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
+			ok = len(args) == 2 && valueOperand(args[0]) && args[1] != nil && args[1].Kind == tmInteger && validInteger(args[1].Str)
 		case "split":
 			// Its arguments are values, whose types are checked with the
 			// rule's (engine §10).
 			ok = len(args) == 2
 			for _, a := range args {
-				ok = ok && a != nil && !isRule(a) && !isClassifier(a)
+				ok = ok && valueOperand(a)
 			}
 		case "classify":
 			// A string, and the name of a classifier (engine §9).
-			ok = len(args) == 2 && args[0] != nil && !isRule(args[0]) && !isClassifier(args[0]) && isClassifier(args[1])
+			ok = len(args) == 2 && valueOperand(args[0]) && isClassifier(args[1])
 		}
 		if !ok {
 			c.fail("a malformed call of %q", t.Str)

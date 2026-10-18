@@ -4558,5 +4558,205 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "ngrams rejects metadata as a value receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "integer": "2"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "ngrams rejects metadata as a value receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "rule": "r"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "ngrams rejects metadata as a value receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "ngrams",
+            "receiver": {
+              "classifier": "lex"
+            },
+            "args": [
+              {
+                "integer": "2"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "split rejects metadata as a value receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "split",
+            "receiver": {
+              "integer": "2"
+            },
+            "args": [
+              {
+                "string": ","
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "classify rejects metadata as a value receiver.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "method": "classify",
+            "receiver": {
+              "integer": "2"
+            },
+            "args": [
+              {
+                "classifier": "lex"
+              }
+            ]
+          },
+          "right": {
+            "emptySet": true
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]
