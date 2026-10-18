@@ -4,6 +4,7 @@
 
 use crate::patterns::{Machine, Pattern};
 use std::cell::{Cell, RefCell};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -267,6 +268,46 @@ impl ESet {
     /// records.
     pub(crate) fn is_strict(&self, index: usize) -> bool {
         self.strict.get(index).copied().unwrap_or(false)
+    }
+
+    /// Empties the set and keeps its room, so that a later set of the same
+    /// parse reuses it. The lists of its tables go to `lists`, emptied.
+    /// Every field is named, so that a new one cannot be left out.
+    fn clear(&mut self, lists: &mut Vec<Vec<u32>>) {
+        let ESet {
+            items,
+            strict,
+            queue,
+            processed,
+            tagset,
+            index,
+            failed,
+            waiting,
+            completed,
+            origins,
+            done,
+            empty,
+            predicted,
+            skipped,
+        } = self;
+        items.clear();
+        strict.clear();
+        queue.clear();
+        processed.clear();
+        tagset.clear();
+        index.clear();
+        failed.clear();
+        let mut keep = |mut list: Vec<u32>| {
+            list.clear();
+            lists.push(list);
+        };
+        waiting.drain().for_each(|(_, list)| keep(list));
+        completed.drain().for_each(|(_, list)| keep(list));
+        origins.drain().for_each(|(_, list)| keep(list));
+        done.clear();
+        empty.clear();
+        predicted.clear();
+        skipped.clear();
     }
 
     /// Queues a new item, and in the reconstruction mode records its
@@ -666,7 +707,82 @@ type Place = (u32, usize, usize);
 const CONTENT_KEY_LIMIT: usize = 64;
 
 /// What a nested parse can observe of one token of its span.
-type ObservedToken = (SetId, String, String, String, usize, usize);
+type ObservedToken = (SetId, Box<str>, Box<str>, Box<str>, usize, usize);
+
+/// The contents of short spans, each numbered once, so that a memo key
+/// holds a number and a lookup copies no text (§4). A content is the
+/// original text over the source of the span's tokens, and what a nested
+/// parse can observe of each token, its source counted from that text.
+#[derive(Debug, Default)]
+struct Contents {
+    /// The newest content with each hash.
+    heads: FxMap<u64, u32>,
+    /// For each content, the one before it with the same hash, or
+    /// `u32::MAX`.
+    next: Vec<u32>,
+    texts: Vec<Box<[char]>>,
+    tokens: Vec<Box<[ObservedToken]>>,
+}
+
+impl Contents {
+    /// The number of the content of `span`, whose sources lie in `text`,
+    /// which starts at `low` in the original text.
+    fn number(&mut self, text: &[char], span: &[Tok], low: usize) -> u32 {
+        let mut hasher = crate::fxhash::FxHasher::default();
+        text.hash(&mut hasher);
+        for token in span {
+            (token.tags, &token.text, &token.value, &token.image, token.source.0 - low, token.source.1 - low)
+                .hash(&mut hasher);
+        }
+        let hash = hasher.finish();
+        let head = self.heads.get(&hash).copied().unwrap_or(u32::MAX);
+        let mut at = head;
+        while at != u32::MAX {
+            let observed = &self.tokens[at as usize];
+            if *self.texts[at as usize] == *text
+                && observed.len() == span.len()
+                && observed.iter().zip(span).all(|(seen, token)| {
+                    seen.0 == token.tags
+                        && *seen.1 == *token.text
+                        && *seen.2 == *token.value
+                        && *seen.3 == *token.image
+                        && seen.4 == token.source.0 - low
+                        && seen.5 == token.source.1 - low
+                })
+            {
+                return at;
+            }
+            at = self.next[at as usize];
+        }
+        let number = self.texts.len() as u32;
+        self.texts.push(text.into());
+        self.tokens.push(
+            span.iter()
+                .map(|token| {
+                    let (from, to) = token.source;
+                    (
+                        token.tags,
+                        token.text.as_str().into(),
+                        token.value.as_str().into(),
+                        token.image.as_str().into(),
+                        from - low,
+                        to - low,
+                    )
+                })
+                .collect(),
+        );
+        self.next.push(head);
+        self.heads.insert(hash, number);
+        number
+    }
+
+    fn clear(&mut self) {
+        self.heads.clear();
+        self.next.clear();
+        self.texts.clear();
+        self.tokens.clear();
+    }
+}
 
 /// What a nested parse's answer is remembered by (§4).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -675,7 +791,8 @@ enum NestedKey {
     /// sources, and each token's tags, text, value, and where its
     /// source begins and ends in that text, which
     /// `text` of a part of the span reads: everything its parse can observe.
-    Content(u32, String, Vec<ObservedToken>),
+    /// The content is a number of the parse's `Contents`.
+    Content(u32, u32),
     /// A long span: its place.
     Place(Place),
     Aligned {
@@ -695,8 +812,8 @@ pub(crate) struct Shared<'a> {
     pub emission_boundaries: FxMap<(bool, u32), FxSet<String>>,
     pub boundaries: Option<Rc<RefCell<crate::boundary::Records>>>,
     pub machine: Option<Rc<RefCell<Machine>>>,
-    close_demands: Vec<crate::restoration::LocalDemand>,
-    close_prefixes: Vec<crate::restoration::QueryPrefix>,
+    close_demands: Arc<[crate::restoration::LocalDemand]>,
+    close_prefixes: Arc<[crate::restoration::QueryPrefix]>,
     pattern_grammar: usize,
     pub tags: Tags,
     pub unicode: &'a Unicode,
@@ -704,6 +821,8 @@ pub(crate) struct Shared<'a> {
     /// Whether a span parses as a rule, and its tags as it: what `matches`
     /// and `tags` read of one nested parse.
     memo: FxMap<NestedKey, (bool, SetId)>,
+    /// The contents that the keys of the memo and of `begins` number.
+    contents: Contents,
     /// Original qualified witnesses, shared by alignment constraints and endpoints.
     qualified: FxMap<(Place, Vec<Place>, Option<u32>), Vec<QualifiedWitness>>,
     /// What `begins` reads, apart, since it can hold where `matches` does
@@ -712,6 +831,11 @@ pub(crate) struct Shared<'a> {
     /// The nested parses running, by place, whatever the kind of query that
     /// started each.
     running: FxSet<Place>,
+    /// Empty sets with room, kept from the charts of nested parses that
+    /// finished, which later charts reuse.
+    spare: Vec<ESet>,
+    /// Empty lists with room, kept from the tables of those sets.
+    lists: Vec<Vec<u32>>,
 }
 
 impl<'a> Shared<'a> {
@@ -720,17 +844,38 @@ impl<'a> Shared<'a> {
             boundaries: None,
             emission_boundaries: FxMap::default(),
             machine: None,
-            close_demands: Vec::new(),
-            close_prefixes: Vec::new(),
+            close_demands: Arc::new([]),
+            close_prefixes: Arc::new([]),
             pattern_grammar: 0,
             tags: Tags::new(),
             unicode,
             text,
             memo: FxMap::default(),
+            contents: Contents::default(),
             qualified: FxMap::default(),
             begins: FxMap::default(),
             running: FxSet::default(),
+            spare: Vec::new(),
+            lists: Vec::new(),
         }
+    }
+
+    /// An empty set, with room kept from an earlier chart if one has it.
+    fn fresh_set(&mut self) -> ESet {
+        self.spare.pop().unwrap_or_default()
+    }
+
+    /// Keeps the sets of a chart that is done with, for later charts.
+    fn recycle(&mut self, chart: Chart) {
+        for mut set in chart.sets {
+            set.clear(&mut self.lists);
+            self.spare.push(set);
+        }
+    }
+
+    /// An empty list, with room kept from an earlier set if one has it.
+    fn fresh_list(&mut self) -> Vec<u32> {
+        self.lists.pop().unwrap_or_default()
     }
 
     /// Forgets the nested parses of the previous parse, whose rules and
@@ -741,6 +886,7 @@ impl<'a> Shared<'a> {
         self.emission_boundaries.clear();
         self.pattern_grammar = 0;
         self.memo.clear();
+        self.contents.clear();
         self.qualified.clear();
         self.begins.clear();
         self.running.clear();
@@ -1269,7 +1415,8 @@ struct Run<'t, 'g> {
 }
 
 impl<'t, 'g> Run<'t, 'g> {
-    fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>) -> Run<'t, 'g> {
+    /// A run that starts with `first`, an empty set, as its set 0.
+    fn new(tokens: &'t [Tok], base: usize, start: u32, recon: Option<&'g Recon<'g>>, first: ESet) -> Run<'t, 'g> {
         let mut chart = Chart { boundary_root: Some(start), ..Default::default() };
         chart.caps.push(CapEntry {
             parent: 0,
@@ -1277,7 +1424,7 @@ impl<'t, 'g> Run<'t, 'g> {
             depth: 0,
             cap: Cap { boundary: 0, close_requested: false, start: 0, end: 0, tags: 0, structure: u32::MAX },
         });
-        chart.sets.push(ESet::default());
+        chart.sets.push(first);
         // The first step predicts the start rule in a set that holds
         // nothing yet, as `begin_predict` would begin it.
         chart.sets[0].predicted.insert(u64::from(start), false);
@@ -1296,9 +1443,9 @@ impl<'t, 'g> Run<'t, 'g> {
 
     /// The recognition that answers `request`: its span alone, with its
     /// rule as the start rule, in the ordinary mode (§7.6).
-    fn answering(request: Request<'t>) -> Run<'t, 'g> {
+    fn answering(request: Request<'t>, first: ESet) -> Run<'t, 'g> {
         let tokens = &request.tokens[request.start..request.end];
-        let mut run = Run::new(tokens, request.base + request.start, request.rule, None);
+        let mut run = Run::new(tokens, request.base + request.start, request.rule, None, first);
         run.chart.boundary_root = None;
         run.chart.close_requested = request.aligned.is_some();
         run.chart.family = request.aligned.and_then(|a| a.family);
@@ -1312,12 +1459,26 @@ impl<'t, 'g> Run<'t, 'g> {
     }
 }
 
-impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
-    fn prepare_patterns(&mut self) {
-        let key = self.g as *const Lowered as usize;
-        if self.shared.pattern_grammar == key {
-            return;
-        }
+/// What every recognition of one lowered grammar prepares from the grammar
+/// alone: the tree patterns that its conditions and terms demand, its
+/// restoration demands and query prefixes, and its boundary records before
+/// any parse adds to them. A lowered grammar prepares it once, at its first
+/// recognition, and every parse of it then starts from it.
+#[derive(Debug)]
+pub(crate) struct Preparation {
+    roots: Vec<Pattern>,
+    /// Whether a recognition needs a pattern machine.
+    machine: bool,
+    /// Whether a rule observes closes, so that the machine records
+    /// observations.
+    observes: bool,
+    close_demands: Arc<[crate::restoration::LocalDemand]>,
+    close_prefixes: Arc<[crate::restoration::QueryPrefix]>,
+    boundaries: Option<crate::boundary::Records>,
+}
+
+impl Preparation {
+    fn new(g: &Lowered) -> Preparation {
         fn cond(c: &LCond, out: &mut Vec<Pattern>) {
             match c {
                 LCond::Tree(_, _, p) => out.push(p.clone()),
@@ -1358,7 +1519,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             }
         }
         let mut roots = vec![];
-        for p in &self.g.prods {
+        for p in &g.prods {
             for (c, _) in &p.conds {
                 cond(c, &mut roots);
             }
@@ -1383,7 +1544,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 _ => {}
             }
         }
-        for plan in self.g.ranked.plans.values() {
+        for plan in g.ranked.plans.values() {
             for group in &plan.conditions {
                 for (c, _) in group {
                     cond(c, &mut roots);
@@ -1393,22 +1554,35 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 term(t, &mut roots);
             }
         }
-        self.shared.close_demands = crate::restoration::local_demands(self.g);
-        let close_rules = crate::restoration::demanded(self.g);
-        let observes = !close_rules.is_empty();
-        self.shared.close_prefixes = if observes { crate::restoration::query_prefixes(self.g) } else { Vec::new() };
-        self.shared.machine = if roots.is_empty() && self.g.ranked.slots.is_empty() && !observes {
-            None
-        } else {
-            {
-                let mut machine = Machine::new(&roots);
-                if observes {
-                    machine.observations = Some(crate::restoration::Observations::new());
-                }
-                Some(Rc::new(RefCell::new(machine)))
+        let observes = !crate::restoration::demanded(g).is_empty();
+        Preparation {
+            machine: !(roots.is_empty() && g.ranked.slots.is_empty() && !observes),
+            roots,
+            observes,
+            close_demands: crate::restoration::local_demands(g).into(),
+            close_prefixes: if observes { crate::restoration::query_prefixes(g) } else { Vec::new() }.into(),
+            boundaries: crate::boundary::Records::new(g),
+        }
+    }
+}
+
+impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
+    fn prepare_patterns(&mut self) {
+        let key = self.g as *const Lowered as usize;
+        if self.shared.pattern_grammar == key {
+            return;
+        }
+        let prepared = self.g.prepared.get_or_init(|| Arc::new(Preparation::new(self.g)));
+        self.shared.close_demands = prepared.close_demands.clone();
+        self.shared.close_prefixes = prepared.close_prefixes.clone();
+        self.shared.machine = prepared.machine.then(|| {
+            let mut machine = Machine::new(&prepared.roots);
+            if prepared.observes {
+                machine.observations = Some(crate::restoration::Observations::new());
             }
-        };
-        self.shared.boundaries = crate::boundary::Records::new(self.g).map(|m| Rc::new(RefCell::new(m)));
+            Rc::new(RefCell::new(machine))
+        });
+        self.shared.boundaries = prepared.boundaries.clone().map(|m| Rc::new(RefCell::new(m)));
         self.shared.pattern_grammar = key;
     }
     fn observes_closes(&self, item: Item) -> bool {
@@ -1615,7 +1789,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// reaches.
     pub(crate) fn recognize(&mut self, tokens: &[Tok], base: usize, start: u32) -> Result<Chart, EngineError> {
         self.prepare_patterns();
-        let mut run = Run::new(tokens, base, start, self.recon);
+        let first = self.shared.fresh_set();
+        let mut run = Run::new(tokens, base, start, self.recon, first);
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.0)
@@ -1644,6 +1819,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     match runs.last_mut() {
                         None => break Ok((chart, answer)),
                         Some(waiting) => {
+                            self.shared.recycle(chart);
                             let held = waiting.evals.held.as_mut().expect("the evaluation that asked");
                             held.eval.answer = answer;
                         }
@@ -1653,7 +1829,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                 Err(Halt::Error(error)) => break Err(error),
                 Err(Halt::Pending(request)) => match self.start_query(&request) {
                     Ok(()) => {
-                        let mut run = Run::answering(*request);
+                        let first = self.shared.fresh_set();
+                        let mut run = Run::answering(*request, first);
                         run.chart.machine = self.shared.machine.clone();
                         run.chart.boundaries = self.shared.boundaries.clone();
                         runs.push(run);
@@ -1695,7 +1872,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     fn answer(&mut self, request: Request) -> Result<Answer, EngineError> {
         self.start_query(&request)?;
         self.prepare_patterns();
-        let mut run = Run::answering(request);
+        let first = self.shared.fresh_set();
+        let mut run = Run::answering(request, first);
         run.chart.machine = self.shared.machine.clone();
         run.chart.boundaries = self.shared.boundaries.clone();
         Ok(self.drive(run)?.1.expect("an answer"))
@@ -1982,7 +2160,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     let requested = self.requests_child(item, run.tokens, e);
                     let key = lexical_rule(rule, lexical, requested);
                     if !again {
-                        chart.sets[e].waiting.entry(key).or_default().push(k as u32);
+                        chart.sets[e].waiting.entry(key).or_insert_with(|| self.shared.fresh_list()).push(k as u32);
                     }
                     let strict = chart.sets[e].is_strict(k);
                     // A strict item predicts its next symbol strictly where
@@ -2037,7 +2215,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             return Ok(());
         }
         if set >= chart.sets.len() {
-            chart.sets.resize_with(set + 1, ESet::default);
+            while chart.sets.len() <= set {
+                chart.sets.push(self.shared.fresh_set());
+            }
         }
         let target = &mut chart.sets[set];
         work::count(Work::Found, 1);
@@ -2548,7 +2728,9 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         };
         self.finish_structure(chart.family, &mut item, e + 1, 0, tokens);
         if e + 1 >= chart.sets.len() {
-            chart.sets.resize_with(e + 2, ESet::default);
+            while chart.sets.len() < e + 2 {
+                chart.sets.push(self.shared.fresh_set());
+            }
         }
         let target = &mut chart.sets[e + 1];
         work::count(Work::Found, 1);
@@ -2742,13 +2924,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
     /// Records the completed item `k` of set `e`, whose constituent has
     /// `tags`, and gives the step that advances the items waiting for it,
     /// if a constituent of its rule, origin and tags is new here.
-    fn complete(&self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
+    fn complete(&mut self, chart: &mut Chart, e: usize, k: usize, tags: SetId) -> Step {
         let item = chart.sets[e].items[k];
         let rule = self.g.prods[item.prod as usize].rule;
         chart.sets[e].tagset[k] = tags;
-        let completed = chart.sets[e].completed.entry((rule, item.origin)).or_default();
+        let completed = chart.sets[e].completed.entry((rule, item.origin)).or_insert_with(|| self.shared.fresh_list());
         if completed.is_empty() {
-            chart.sets[e].origins.entry(rule).or_default().push(item.origin);
+            chart.sets[e].origins.entry(rule).or_insert_with(|| self.shared.fresh_list()).push(item.origin);
             chart.sets[e].completed.get_mut(&(rule, item.origin)).expect("just made").push(k as u32);
         } else {
             completed.push(k as u32);
@@ -2813,7 +2995,7 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
 
     /// The key a nested parse of `tokens[start..end]` as `rule` is
     /// remembered by: its content if the span is short, else its place.
-    fn nested_key(&self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
+    fn nested_key(&mut self, tokens: &[Tok], base: usize, start: usize, end: usize, rule: u32) -> NestedKey {
         if end - start > CONTENT_KEY_LIMIT {
             return NestedKey::Place((rule, base + start, base + end));
         }
@@ -2821,14 +3003,8 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
         let span = &tokens[start..end];
         let low = span.iter().map(|token| token.source.0).min().unwrap_or(0);
         let high = span.iter().map(|token| token.source.1).max().unwrap_or(0);
-        let observed = span
-            .iter()
-            .map(|token| {
-                let (from, to) = token.source;
-                (token.tags, token.text.clone(), token.value.clone(), token.image.clone(), from - low, to - low)
-            })
-            .collect();
-        NestedKey::Content(rule, self.shared.source_text(low, high), observed)
+        let shared = &mut *self.shared;
+        NestedKey::Content(rule, shared.contents.number(&shared.text[low..high], span, low))
     }
 
     /// The proof trees of a nested parse's chart over `tokens`, its span.
@@ -2995,11 +3171,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
             None
         };
         let end = if aligned.is_some() { tokens.len() } else { match_end };
-        let mut active: Vec<_> = self.shared.running.iter().copied().collect();
-        active.sort_unstable();
         let key = match aligned {
             Some(a) => NestedKey::Aligned {
-                active,
+                active: {
+                    let mut active: Vec<_> = self.shared.running.iter().copied().collect();
+                    active.sort_unstable();
+                    active
+                },
                 place: (rule, base + start, base + end),
                 match_end: a.match_end,
                 fixed_end: a.fixed_end,

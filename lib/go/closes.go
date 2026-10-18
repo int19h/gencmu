@@ -266,11 +266,10 @@ func (run *stageRun) closeArena(g *lowered) *closeArena {
 	if m, known := run.closeArenas[g]; known {
 		return m
 	}
-	rules := demandedCloses(g)
 	var m *closeArena
-	if len(rules) > 0 {
+	if prepared := g.prepared(); prepared.observesCloses {
 		m = newCloseArena()
-		m.queryPrefixes = queryPrefixes(g)
+		m.queryPrefixes = prepared.queryPrefixes
 	}
 	run.closeArenas[g] = m
 	return m

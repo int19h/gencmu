@@ -3,6 +3,7 @@ package gencmu
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Terms and conditions (engine §10).
@@ -863,6 +864,7 @@ func (run *stageRun) drive(root *recognizer) {
 			// can reuse.
 			run.walks = append(run.walks, r.w)
 			r.w = walk{}
+			run.recycle(r)
 		}
 	}
 }
@@ -939,17 +941,26 @@ func (run *stageRun) settle(rec *recognizer) {
 	ps.nested[q.key] = res
 }
 
-// spanContent is everything a nested parse of a span can observe: the
-// original text that holds its tokens' sources, and each token's text,
-// values, images, tags, and source.
-func (run *stageRun) spanContent(s spanVal) string {
-	var key strings.Builder
+// spanContent is the number of everything a nested parse of a span can
+// observe: the original text that holds its tokens' sources, and each
+// token's text, values, images, tags, and source. The parse numbers each
+// distinct content once, so that a memo lookup copies no text.
+func (run *stageRun) spanContent(s spanVal) int {
+	ps := run.ps
+	key := ps.contentKey[:0]
 	// Each field is written with its length before it, so that no two
 	// contents give the same key, whatever characters the fields hold.
 	field := func(v string) {
-		key.WriteString(strconv.Itoa(len(v)))
-		key.WriteByte(':')
-		key.WriteString(v)
+		key = strconv.AppendInt(key, int64(len(v)), 10)
+		key = append(key, ':')
+		key = append(key, v...)
+	}
+	number := func(n int) {
+		var digits [20]byte
+		d := strconv.AppendInt(digits[:0], int64(n), 10)
+		key = strconv.AppendInt(key, int64(len(d)), 10)
+		key = append(key, ':')
+		key = append(key, d...)
 	}
 	// The text over the source of the span's tokens (§1).
 	low, high := 0, 0
@@ -957,7 +968,14 @@ func (run *stageRun) spanContent(s spanVal) string {
 		src := run.spanSource(s.a, s.b)
 		low, high = src[0], src[1]
 	}
-	field(string(run.ps.text[low:high]))
+	text := ps.contentText[:0]
+	for _, c := range ps.text[low:high] {
+		text = utf8.AppendRune(text, c)
+	}
+	ps.contentText = text
+	key = strconv.AppendInt(key, int64(len(text)), 10)
+	key = append(key, ':')
+	key = append(key, text...)
 	// Each token counts as it is written into the key, so that a key of
 	// a span longer than contentKeyLimit passes the budget.
 	w := work.Load()
@@ -972,10 +990,16 @@ func (run *stageRun) spanContent(s spanVal) string {
 		field(run.tagsets[i].key)
 		// Where the token begins and ends in that text, which .source-text of a
 		// part of the span reads.
-		field(strconv.Itoa(t.Source[0] - low))
-		field(strconv.Itoa(t.Source[1] - low))
+		number(t.Source[0] - low)
+		number(t.Source[1] - low)
 	}
-	return key.String()
+	ps.contentKey = key
+	if n, ok := ps.contents[string(key)]; ok {
+		return n
+	}
+	n := len(ps.contents) + 1
+	ps.contents[string(key)] = n
+	return n
 }
 
 // spanKey is a parse of tokens [a, b) as a rule, by position. The tokens of
@@ -995,8 +1019,8 @@ type nestedKey struct {
 	g                                 *lowered
 	kind                              string
 	rule                              int32
-	content                           string // a short span's content, or ""
-	a, b                              int    // a long span's position, or -1 where content keys it
+	content                           int // the number of a short span's content, or 0
+	a, b                              int // a long span's position, or -1 where content keys it
 	family                            string
 	aligned                           bool
 	observation, fixedEnd, contextEnd int

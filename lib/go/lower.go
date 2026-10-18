@@ -102,6 +102,8 @@ type lrule struct {
 type lowered struct {
 	boundaryOnce   sync.Once
 	boundary       *boundaryMachine
+	prepareOnce    sync.Once
+	preparation    *preparation
 	rankedHelpers  map[int32]*rankedGroup
 	writtenHelpers map[int32]string
 	stage          *stageGrammar
