@@ -19,6 +19,7 @@
   "options": {
     "features": [
       "f"
-    ]
+    ],
+    "until": "first"
   }
 }

@@ -17691,8 +17691,8 @@
    * @property {ParseError | null} error
    * @property {string} text
    * @property {ParseWarning[]} warnings every stage's warnings, in stage order
-   * @property {string[]} features the features the parse ran with, those auto
-   *   features added included; not part of the canonical JSON
+   * @property {string[]} features the features enabled for this parse,
+   *   including those the grammar enables. Not part of the canonical JSON.
    */
 
   /**

@@ -2271,6 +2271,8 @@ All other methods, named captures, and tree comparisons are loading errors there
 
 Constants bind in the selected stage (§2). Conditions use the usual Boolean type rules (§10).
 
+Feature conditions undergo every applicable loading check of rule conditions, including closed delimiter checks after constant binding.
+
 A global declaration with conditions, or conditions on another directive, is a loading error at that directive.
 
 If all conditions hold, the declaration enables its features from this stage onward. An unconditional declaration enables its features at the same point.

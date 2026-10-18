@@ -58,6 +58,8 @@ A usage case can supply an invalid field. The runner passes that field to the li
 
 Each case follows the global and stage-local feature declarations of its pipeline (engine §13).
 
+The paired condition-loading cases stop before the condition's stage, so a runtime failure cannot satisfy their expectation.
+
 `options.features` and `options.withoutFeatures` are the features the caller turns on and off (engine §13).
 
 `options.until`, when present, names the last stage to run (engine §13). A name that is not a stage of the dialect is a `usage` error. No case gives an empty name, because Go cannot tell an empty name from no name (`docs/api.md`). Each library tests an empty name in its own tests.

@@ -15,5 +15,8 @@
   ],
   "expect": {
     "error": "grammar"
+  },
+  "options": {
+    "until": "first"
   }
 }

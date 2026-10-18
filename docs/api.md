@@ -24,7 +24,7 @@ Ranked-choice loading errors also carry `code`, `group`, `option`, `expression`,
 
 Grammar DOM format 32 supports token strings, recipes, stored engine tags, and method expressions. Its strings use decomposed written segments and exact constant scalars. Parse-result format 14 exposes `value` and `image`. Libraries reject a bootstrap with another format and skip a cached DOM with another format. A format match alone never excuses invalid schema data.
 
-The compatibility boundary is the format number and the notation contract. Callers supply format-31 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
+The compatibility boundary is the format number and the notation contract. Callers supply format-32 DOMs or grammar text in the specified notation. `docs/notation.md` and `docs/output.md` define accepted forms.
 
 The Python loaders also take `use_cache=False`. With it, the loader reads every document through the notation.
 
