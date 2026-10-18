@@ -311,10 +311,12 @@ class NotationReader:
         problem = dom_problem(dom, self.unicode, defer_emission)
         if problem is None:
             return dom
-        # Each rule, constant definition and implication alone, in the
-        # order of the document.
+        # Each declaration alone, including feature directives and
+        # classifiers, in the order of the document.
         items = (
             [("rules", rule) for rule in dom["rules"]]
+            + [("directives", directive) for directive in dom["directives"]]
+            + [("classifiers", classifier) for classifier in dom["classifiers"]]
             + [("constants", constant) for constant in dom["constants"]]
             + [("implications", implication) for implication in dom["implications"]]
         )
