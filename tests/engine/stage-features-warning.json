@@ -13,24 +13,52 @@
       ]
     }
   ],
-  "expect": {
-    "result": {
-      "ok": true
-    },
-    "warnings": [
-      {
-        "stage": "second",
-        "feature": "f",
-        "rule": "text",
-        "span": [
-          0,
-          1
+  "parses": [
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "warnings": [
+          {
+            "stage": "second",
+            "feature": "f",
+            "rule": "text",
+            "span": [
+              0,
+              1
+            ],
+            "source": [
+              0,
+              1
+            ]
+          }
         ],
-        "source": [
-          0,
-          1
+        "enabledFeatures": [
+          "f"
         ]
       }
-    ]
-  }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "f"
+        ]
+      },
+      "expect": {
+        "error": "feature-conflict",
+        "result": {
+          "ok": false,
+          "error": {
+            "kind": "feature-conflict",
+            "stage": "second",
+            "feature": "f"
+          }
+        },
+        "warnings": [],
+        "enabledFeatures": []
+      }
+    }
+  ]
 }

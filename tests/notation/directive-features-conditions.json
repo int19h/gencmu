@@ -1,0 +1,45 @@
+{
+  "description": "A stage feature directive stores its condition list in the DOM (engine §9, §13).",
+  "document": "```jbogenbau\n%stage main\n%features f\n%conditions $.classes = A\n```\n",
+  "expect": {
+    "dom": {
+      "directives": [
+        {
+          "name": "stage",
+          "args": [
+            "main"
+          ],
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "features",
+          "args": [
+            "f"
+          ],
+          "at": [
+            3,
+            1
+          ],
+          "conditions": [
+            {
+              "op": "=",
+              "left": {
+                "method": "classes",
+                "receiver": {
+                  "capture": ""
+                },
+                "args": []
+              },
+              "right": {
+                "tag": "A"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

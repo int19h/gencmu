@@ -1,0 +1,23 @@
+{
+  "description": "Repeated conditional declarations of one feature in a stage remain legal (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%features f\n%conditions $.classes = A\n%features f\n%conditions $.value = \"a\"\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": [
+      "f"
+    ]
+  }
+}

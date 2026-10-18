@@ -4091,10 +4091,6 @@
         }
       }
     }
-    for (const directive of dom.directives) if (directive.conditions) {
-      const problem = inputConditionsProblem(directive.conditions);
-      if (problem) return problem;
-    }
     for (const rule of dom.rules) {
       if (rule.alternatives.some((/** @type {any} */ alternative) => duplicateCaptures(alternative.expr).length)) return "a duplicate capture";
       const problem = boundaryProblem(rule)?.problem || definitionProblem(rule, deferEmission) || ruleTypeProblem(rule); if (problem) return problem;
@@ -6394,28 +6390,36 @@
       this.bindConstants();
       this.resolveConstants();
       this.featureItems = this.featureItems.map(({path,directive}) => {
-        if (!directive.conditions) return {path,directive};
-        for (const reference of constantsIn(directive.conditions)) {
-          if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
-        }
-        const conditions = /** @type {Condition[]} */ (resolveNode(directive.conditions,this.constants));
-        const problem = inputConditionsProblem(conditions);
-        if (problem) throw this.documentError(path,directive.at,problem);
-        for (const condition of conditions) {
-          const fault = conditionTypeFault(condition,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
-          if (fault) throw this.documentError(path,directive.at,fault.problem);
-        }
-        /** @type {unknown[]} */
-        const pending = [...conditions];
-        while (pending.length) {
-          const part = /** @type {any} */ (pending.pop());
-          if (part.method === "split" && !openPart(part.args[0])) {
-            const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],directive.at));
-            if (delimiter.string === "") throw this.documentError(path,directive.at,"split has an empty delimiter");
+        try {
+          if (!directive.conditions) return {path,directive};
+          for (const reference of constantsIn(directive.conditions)) {
+            if (!reference.const.startsWith("_") && !this.constants.has(reference.const)) throw this.documentError(path,directive.at,`$${reference.const} is not defined in stage ${this.stageName}`);
           }
-          for (const child of clauseChildren(part)) pending.push(child);
+          const conditions = /** @type {Condition[]} */ (resolveNode(directive.conditions,this.constants));
+          const problem = inputConditionsProblem(conditions);
+          if (problem) throw this.documentError(path,directive.at,problem);
+          for (const condition of conditions) {
+            const fault = conditionTypeFault(condition,name => /** @type {StageConstant} */ (this.constants.get(name)).type);
+            if (fault) throw this.documentError(path,directive.at,fault.problem);
+          }
+          /** @type {unknown[]} */
+          const pending = [...conditions];
+          while (pending.length) {
+            const part = /** @type {any} */ (pending.pop());
+            if (part.method === "split" && !openPart(part.args[0])) {
+              const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],directive.at));
+              if (delimiter.string === "") throw this.documentError(path,directive.at,"split has an empty delimiter");
+            }
+            for (const child of clauseChildren(part)) pending.push(child);
+          }
+          return {path,directive:{...directive,conditions}};
+        } catch (error) {
+          if (!(error instanceof GencmuError)) throw error;
+          if (error.where.document === path && error.where.line === directive.at[0] && error.where.column === directive.at[1]) throw error;
+          const prefix = `${error.where.document}:${error.where.line}:${error.where.column}: `;
+          const message = error.message.startsWith(prefix) ? error.message.slice(prefix.length) : error.message;
+          throw this.documentError(path,directive.at,message);
         }
-        return {path,directive:{...directive,conditions}};
       });
       /** @type {WeakMap<DomEntry,string[]>} */
       this.classifierKeys = new WeakMap();
@@ -15385,6 +15389,7 @@
     let braces = 0;
     let marked = 0;
     let recipeContext = false;
+    let featureContext = false;
     const tagSources = new Map();
     for (const item of parts(tree)) {
       if (item.kind === "rule" && !ITEMS.has(item.rule)) fail(`the notation gives a ${item.rule} where an item stands`, item);
@@ -15409,7 +15414,17 @@
           fail("%ambiguity-resolution takes a ranking name and optionally elision-only", item);
         }
         const clause = one(item, "conditions-clause");
-        const conditions = clause ? some(clause, "implication").map(condition => run(readImplication(condition))) : undefined;
+        let conditions;
+        featureContext = name === "features";
+        try {
+          conditions = clause ? some(clause, "implication").map(condition => run(readImplication(condition))) : undefined;
+        } catch (error) {
+          if (!featureContext || !(error instanceof GencmuError)) throw error;
+          const [line,column] = at(item);
+          throw new GencmuError("grammar",error.message,{document:path,line,column});
+        } finally {
+          featureContext = false;
+        }
         if (conditions && name !== "features") fail("only %features accepts conditions", item);
         directives.push({
           ...(conditions ? { conditions } : {}),
@@ -15991,7 +16006,7 @@
           const right = /** @type {Term} */ (yield readTerm(rightNode));
           const found = termType(right);
           const problem = "problem" in found ? found.problem : expectedProblem(found.type,"pattern");
-          if (problem) fail(problem,rightNode);
+          if (problem && !featureContext) fail(problem,rightNode);
           return {op,left:{capture:valueOf(token(leftNode)).slice(1)},right};
         }
         case "comparison": {
@@ -16003,7 +16018,7 @@
           const rightType = termType(condition.right);
           const problem = "problem" in leftType ? leftType.problem : "problem" in rightType ? rightType.problem
             : comparisonProblem(op, leftType.type, rightType.type);
-          if (problem) fail(problem, inner);
+          if (problem && !featureContext) fail(problem, inner);
           return condition;
         }
         case "negation":
@@ -16042,7 +16057,7 @@
         let guarded = yield readTerm(last);
         const found = termType(guarded);
         const problem = "problem" in found ? found.problem : expectedProblem(found.type, "tags");
-        if (problem) fail(problem, guards[guards.length - 1]);
+        if (problem && !featureContext) fail(problem, guards[guards.length - 1]);
         for (let index = conditions.length - 1; index >= 0; index--) guarded = { if: conditions[index], then: guarded };
         return guarded;
       }
@@ -16063,9 +16078,9 @@
         for (const item of found) items.push(yield readTerm(item));
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
-          return "problem" in type ? fail(type.problem, node) : type.type;
+          return "problem" in type ? (featureContext ? "any" : fail(type.problem, node)) : type.type;
         }), operators.includes("∖") ? "∖" : "∪");
-        if ("problem" in joined) fail(joined.problem, node);
+        if ("problem" in joined && !featureContext) fail(joined.problem, node);
         /** @type {Term} */
         let result = items[0];
         let open = false;
@@ -16091,9 +16106,9 @@
         if (items.length === 1) return items[0];
         const joined = joinedType(items.map((item) => {
           const type = termType(item);
-          return "problem" in type ? fail(type.problem, node) : type.type;
+          return "problem" in type ? (featureContext ? "any" : fail(type.problem, node)) : type.type;
         }), "∩");
-        if ("problem" in joined) fail(joined.problem, node);
+        if ("problem" in joined && !featureContext) fail(joined.problem, node);
         return { intersection: items };
       }
       if (ruleOf(node) === "term-atom" || ruleOf(node) === "test-operand") {
@@ -16253,19 +16268,19 @@
           const separators = parts(argumentsNode).filter(child => child.kind === "token").map(valueOf);
           if (separators.some(separator => separator !== (BOUNDARY_METHODS.has(name) ? "|" : ","))) fail("invalid method argument separator", argumentsNode);
         }
-        const found = termType(receiver);
+        const found = featureContext ? {type:"any"} : termType(receiver);
         if ("problem" in found) fail(found.problem, node);
         const types = [];
         for (const arg of args) {
           if (arg.rule || arg.classifier || arg.terminal) types.push("name");
           else {
-            const type = termType(arg);
+            const type = featureContext ? {type:"any"} : termType(arg);
             if ("problem" in type) fail(type.problem, node);
             types.push(type.type);
           }
         }
         const problem = methodProblem(name, receiver, args, found.type, types, recipeContext);
-        if (problem) fail(problem, node);
+        if (problem && !featureContext) fail(problem, node);
         if (closedFor && (name !== "split" || found.type === "span")) fail(`${closedFor} cannot read an input method`, node);
         receiver = { method: name, receiver, args };
         boundaryLocations.set(receiver, {tree:node,at:at(node)});
@@ -16608,6 +16623,8 @@
     // Sets beside the lists, so that a check of a name costs one lookup and
     // not a scan of all that came before it.
     const featureNames = new Set();
+    /** @type {{stage: SplicedStage, run: {path:string, dom:GrammarDom}, directive: import("./types.js").DomDirective}[]} */
+    const declarations = [];
     /** @type {Map<string, SplicedStage>} */
     const stageNames = new Map();
     /** @type {{path: string, dom: GrammarDom} | null} the run being built */
@@ -16697,13 +16714,30 @@
         else if ("constant" in item) run.dom.constants.push(item.constant);
         else if ("classifier" in item) run.dom.classifiers.push(item.classifier);
         else if ("implication" in item) run.dom.implications.push(item.implication);
-        else run.dom.directives.push(item.directive);
+        else {
+          run.dom.directives.push(item.directive);
+          if (item.directive.name === "features") declarations.push({stage, run, directive:item.directive});
+        }
       }
     }
     if (stages.length === 0) throw new GencmuError("grammar", `${path}: a pipeline needs at least one %stage`, { document: path });
     for (const stage of stages) {
       if (!stage.documents.some((document) => document.dom.rules.length > 0)) {
         throw new GencmuError("grammar", `${stage.at.document}:${stage.at.line}:${stage.at.column}: stage ${stage.name} has no rules`, stage.at);
+      }
+    }
+    const surviving = new Set(stages.flatMap(stage => stage.documents));
+    const owners = new Map();
+    for (const {stage, run, directive} of declarations) {
+      if (!surviving.has(run)) continue;
+      for (const name of directive.args) {
+        const owner = owners.get(name);
+        if (owner !== undefined && owner !== stage.name) {
+          const [line,column] = directive.at;
+          throw new GencmuError("grammar", `${run.path}:${line}:${column}: feature ${name} is local to both ${owner} and ${stage.name}`,
+            {document:run.path,line,column,stage:stage.name});
+        }
+        owners.set(name,stage.name);
       }
     }
     return { stages, features: features.sort(compareCodePoints) };
@@ -17046,13 +17080,13 @@
       }
     }
     const local = stages.flatMap(stage => stage.grammar.featureItems.flatMap(({directive}) => directive.args));
-    const tested = new Set();
+    const tested = new Map();
     for (const stage of stages) {
       for (const {path:document,directive} of stage.grammar.featureItems) for (const name of directive.args) {
-        if (tested.has(name)) throw new GencmuError("grammar", `${document}:${directive.at[0]}: an earlier stage tests local feature ${name}`, {document,line:directive.at[0],column:directive.at[1],stage:stage.name});
+        if (tested.has(name)) throw new GencmuError("grammar", `${document}:${directive.at[0]}: stage ${tested.get(name)} tests local feature ${name}`, {document,line:directive.at[0],column:directive.at[1],stage:stage.name});
       }
-      for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) for (const guard of alternative.guards) tested.add(guard.feature);
-      for (const name of stage.grammar.classifierGates) tested.add(name);
+      for (const rule of stage.grammar.rules.values()) for (const alternative of rule.alternatives) for (const guard of alternative.guards) { if (!tested.has(guard.feature)) tested.set(guard.feature,stage.name); }
+      for (const name of stage.grammar.classifierGates) { if (!tested.has(name)) tested.set(name,stage.name); }
     }
     const names = [...new Set([...kinds.keys(), ...declared, ...local])].sort(compareCodePoints);
     const defaults = new Set([...declared,...stages.flatMap(stage => stage.grammar.featureItems.filter(({directive}) => !directive.conditions).flatMap(({directive}) => directive.args))]);
@@ -17202,7 +17236,7 @@
         error: error ? locate(/** @type {ParseError} */ (error.error), text) : null,
         warnings: stages.flatMap((stage) => stage.warnings || []),
         text,
-        features: [...options.features].sort(),
+        features: [...options.features].sort(compareCodePoints),
       };
       return result;
     }
@@ -17699,7 +17733,7 @@
    * @typedef {object} Feature
    * @property {string} name
    * @property {"gate" | "warning"} kind
-   * @property {boolean} default whether the pipeline's `%features` turns it on
+   * @property {boolean} default whether an unconditional global or local declaration enables it
    */
 
   /**
@@ -17712,7 +17746,8 @@
    * @property {string} text
    * @property {ParseWarning[]} warnings every stage's warnings, in stage order
    * @property {string[]} features the features enabled for this parse,
-   *   including those the grammar enables. Not part of the canonical JSON.
+   *   including activation before failure and only stages reached.
+   *   Unknown caller-enabled names are included. Not part of canonical JSON.
    */
 
   /**

@@ -1,0 +1,22 @@
+{
+  "description": "Stage replacement discards the feature declaration before its delimiter restriction is checked (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.value.split($E) = ∅\n%const $E \"\"\n%ambiguity-resolution greedy\n%rule text f? A\n%redefine-stage second\n%ambiguity-resolution greedy\n%rule text A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "features": [],
+    "enabledFeatures": []
+  }
+}

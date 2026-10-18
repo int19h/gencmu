@@ -1,0 +1,26 @@
+{
+  "description": "A false conditional declaration does not conflict with caller exclusion (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes ∩ B ≠ ∅\n%ambiguity-resolution greedy\n%rule text ¬f? A\n\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    },
+    "enabledFeatures": []
+  },
+  "options": {
+    "withoutFeatures": [
+      "f"
+    ]
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "description": "Result features include only activation that the run reaches, including activation before failure (engine §13).",
+  "documents": {
+    "p.md": "```jbogenbau\n%features g\n%stage first\n%features early\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%features f\n%conditions $.classes = A\n%features a z\n%conditions $.value = \"a\"\n%ambiguity-resolution greedy\n%rule text f? A\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "parses": [
+    {
+      "options": {
+        "until": "first"
+      },
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "enabledFeatures": [
+          "early",
+          "g"
+        ]
+      }
+    },
+    {
+      "options": {},
+      "expect": {
+        "result": {
+          "ok": true
+        },
+        "enabledFeatures": [
+          "a",
+          "early",
+          "f",
+          "g",
+          "z"
+        ]
+      }
+    },
+    {
+      "options": {
+        "withoutFeatures": [
+          "z"
+        ]
+      },
+      "expect": {
+        "error": "feature-conflict",
+        "result": {
+          "ok": false
+        },
+        "enabledFeatures": [
+          "a",
+          "early",
+          "f",
+          "g"
+        ]
+      }
+    },
+    {
+      "options": {
+        "features": [
+          "unknown"
+        ],
+        "withoutFeatures": [
+          "g",
+          "z"
+        ]
+      },
+      "expect": {
+        "error": "feature-conflict",
+        "result": {
+          "ok": false
+        },
+        "enabledFeatures": [
+          "a",
+          "early",
+          "f",
+          "unknown"
+        ]
+      }
+    }
+  ]
+}

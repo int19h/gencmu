@@ -203,7 +203,7 @@ export type Feature = {
     name: string;
     kind: "gate" | "warning";
     /**
-     * whether the pipeline's `%features` turns it on
+     * whether an unconditional global or local declaration enables it
      */
     default: boolean;
 };
@@ -222,7 +222,8 @@ export type ParseResult = {
     warnings: ParseWarning[];
     /**
      * the features enabled for this parse,
-     * including those the grammar enables. Not part of the canonical JSON.
+     * including activation before failure and only stages reached.
+     * Unknown caller-enabled names are included. Not part of canonical JSON.
      */
     features: string[];
 };
@@ -989,7 +990,7 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @typedef {object} Feature
  * @property {string} name
  * @property {"gate" | "warning"} kind
- * @property {boolean} default whether the pipeline's `%features` turns it on
+ * @property {boolean} default whether an unconditional global or local declaration enables it
  */
 /**
  * The result of parsing a text.
@@ -1001,7 +1002,8 @@ export type ParseContext = import("./earley.js").ParseContext;
  * @property {string} text
  * @property {ParseWarning[]} warnings every stage's warnings, in stage order
  * @property {string[]} features the features enabled for this parse,
- *   including those the grammar enables. Not part of the canonical JSON.
+ *   including activation before failure and only stages reached.
+ *   Unknown caller-enabled names are included. Not part of canonical JSON.
  */
 /**
  * A caller token with independently optional value and image strings.

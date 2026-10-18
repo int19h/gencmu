@@ -1300,5 +1300,77 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "An empty feature condition list is malformed.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": []
+    },
+    "malformed": true
+  },
+  {
+    "description": "A stage directive cannot hold conditions.",
+    "directive": {
+      "name": "stage",
+      "args": [
+        "main"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "captured": ""
+        }
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "Feature conditions must be an array.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": {}
+    },
+    "malformed": true
+  },
+  {
+    "description": "A feature condition uses the ordinary condition schema before stage validation.",
+    "directive": {
+      "name": "features",
+      "args": [
+        "f"
+      ],
+      "at": [
+        1,
+        1
+      ],
+      "conditions": [
+        {
+          "method": "starts-input",
+          "receiver": {
+            "capture": ""
+          },
+          "args": []
+        }
+      ]
+    },
+    "malformed": false
   }
 ]

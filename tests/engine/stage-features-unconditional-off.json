@@ -15,7 +15,15 @@
   "expect": {
     "result": {
       "ok": true
-    }
+    },
+    "features": [
+      {
+        "name": "f",
+        "kind": "gate",
+        "default": true
+      }
+    ],
+    "enabledFeatures": []
   },
   "options": {
     "withoutFeatures": [
