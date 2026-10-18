@@ -760,7 +760,7 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if raw, ok := o["conditions"]; ok {
 			conditions, err = decodeList(raw, decodeCond)
 			if err != nil {
-				return nil, fmt.Errorf("malformed feature conditions")
+				return nil, fmt.Errorf("malformed feature conditions: %w", err)
 			}
 		}
 		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})

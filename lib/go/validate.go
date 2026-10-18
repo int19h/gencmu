@@ -30,6 +30,7 @@ var captureName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 // domProblem is why a DOM is malformed; tooDeep marks the nesting limit,
 // the one problem a DOM the reader built can have.
 type domProblem struct {
+	at          [2]int
 	code        string
 	message     string
 	rule        *domRule
@@ -55,17 +56,18 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		}
 		if dir.Conditions != nil {
 			if dir.Name != "features" || len(dir.Conditions) == 0 {
-				return &domProblem{message: "malformed feature conditions"}
+				return &domProblem{message: "malformed feature conditions", at: dir.At}
 			}
 			checker := &domChecker{uni: uni}
 			for _, condition := range dir.Conditions {
 				checker.condition(condition, 0)
 				if checker.problem != nil {
+					checker.problem.at = dir.At
 					return checker.problem
 				}
 			}
 			if problem := inputConditionsProblem(dir.Conditions); problem != "" {
-				return &domProblem{message: problem}
+				return &domProblem{message: problem, at: dir.At}
 			}
 		}
 	}
@@ -121,8 +123,10 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 			return &domProblem{message: "a malformed classifier"}
 		}
 		for _, e := range c.Entries {
-			if p := entryProblem(e, uni); p != "" {
-				return &domProblem{message: fmt.Sprintf("classifier %s: %s", c.Name, p)}
+			if p := entryProblem(e, uni); p != nil {
+				p.message = fmt.Sprintf("classifier %s: %s", c.Name, p.message)
+				p.at = c.At
+				return p
 			}
 		}
 	}
@@ -242,36 +246,36 @@ var (
 )
 
 // entryProblem is what is wrong with an entry of a classifier (engine §9),
-// or "": its guards are gates, it has one or more keys, each a canonical
+// or nil: its guards are gates, it has one or more keys, each a canonical
 // string, its operator is ∈ or ∉, and its class starts and ends uppercase.
-func entryProblem(e *domEntry, uni *unicodeTable) string {
+func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
 	if e == nil || e.Guards == nil || (e.Op != "∈" && e.Op != "∉") || (!className.MatchString(e.Class) || !isClass(e.Class)) || len(e.KeyTerms) == 0 && len(e.Keys) == 0 {
-		return "a malformed entry of a classifier"
+		return &domProblem{message: "a malformed entry of a classifier"}
 	}
 	for _, g := range e.Guards {
 		if g.Kind != FeatureGate {
-			return "a malformed entry of a classifier: an entry takes gates only, not a warning"
+			return &domProblem{message: "a malformed entry of a classifier: an entry takes gates only, not a warning"}
 		}
 		if !nameSyntaxFeature.MatchString(g.Feature) {
-			return "a malformed entry of a classifier: a gate's feature is a name"
+			return &domProblem{message: "a malformed entry of a classifier: a gate's feature is a name"}
 		}
 	}
 	for _, key := range e.KeyTerms {
 		if !stringTermShape(key) {
-			return "a classifier key requires a string term"
+			return &domProblem{message: "a classifier key requires a string term"}
 		}
 		c := &domChecker{uni: uni}
 		c.term(key, 0, false)
 		if c.problem != nil {
-			return c.problem.message
+			return c.problem
 		}
 	}
 	for _, key := range e.Keys {
 		if !utf8.ValidString(key) {
-			return "a classifier key is not valid UTF-8"
+			return &domProblem{message: "a classifier key is not valid UTF-8"}
 		}
 	}
-	return ""
+	return nil
 }
 
 // implicationSideProblem is why a side of an implication is not a closed
@@ -332,7 +336,7 @@ type domChecker struct {
 	rule        *domRule        // the rule checked, or nil
 	constant    *domConst       // the constant checked, or nil
 	implication *domImplication // the implication checked, or nil
-	label       string          // what the problems name: rule r, constant $C or an implication
+	label       string          // what the diagnostic names
 	uni         *unicodeTable
 	tests       []*domExpr // the tested symbols seen, whose values are checked once the nesting is bounded
 	problem     *domProblem

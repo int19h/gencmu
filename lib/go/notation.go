@@ -198,15 +198,16 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 	}()
 	dom = b.document(out.tree)
 	// What the notation's grammar cannot state and the walk does not see:
-	// nesting deeper than 256 (§9), reported at the first item, a rule, a
-	// constant's definition or an implication, that nests too deeply, in
-	// the order of the document.
+	// nesting deeper than 256 (§9), reported at the first declaration
+	// that nests too deeply, including feature directives and classifiers.
 	if p := checkDOM(dom, nr.uni); p != nil {
 		if p.tooDeep {
 			p = firstTooDeep(dom, nr.uni, p)
 		}
 		e := &Error{Kind: ErrorGrammar, Document: docPath, Message: p.message, Code: p.code}
-		if p.rule != nil {
+		if p.at != [2]int{} {
+			e.Line, e.Column = p.at[0], p.at[1]
+		} else if p.rule != nil {
 			e.Line, e.Column = p.rule.At[0], p.rule.At[1]
 		} else if p.constant != nil {
 			e.Line, e.Column = p.constant.At[0], p.constant.At[1]
@@ -233,6 +234,12 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	for _, k := range dom.Constants {
 		items = append(items, item{k.At, &domDoc{Constants: []*domConst{k}}})
 	}
+	for _, dir := range dom.Directives {
+		items = append(items, item{dir.At, &domDoc{Directives: []*domDirective{dir}}})
+	}
+	for _, c := range dom.Classifiers {
+		items = append(items, item{c.At, &domDoc{Classifiers: []*domClassifier{c}}})
+	}
 	for _, m := range dom.Implications {
 		items = append(items, item{m.At, &domDoc{Implications: []*domImplication{m}}})
 	}
@@ -242,6 +249,7 @@ func firstTooDeep(dom *domDoc, uni *unicodeTable, found *domProblem) *domProblem
 	})
 	for _, it := range items {
 		if p := checkDOM(it.alone, uni); p != nil && p.tooDeep {
+			p.at = it.at
 			return p
 		}
 	}

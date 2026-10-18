@@ -452,8 +452,9 @@ type ParseOptions struct {
 	// Features to turn on for every stage, besides those the pipeline turns
 	// on.
 	Features []string
-	// WithoutFeatures to turn off for every stage, among them any the
-	// pipeline turns on; a name in both lists is a usage error.
+	// WithoutFeatures names features to disable in every stage, including
+	// defaults. A holding conditional declaration for a disabled feature
+	// gives a feature-conflict result. A name in both lists is a usage error.
 	WithoutFeatures []string
 	// Until names the last stage to run. The zero value, the empty string,
 	// runs every stage, so Go cannot ask for a stage with an empty name
