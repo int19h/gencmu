@@ -482,16 +482,6 @@ func (d *Dialect) Features() []Feature {
 	return append([]Feature{}, d.features...)
 }
 
-// kind is a feature's kind in the dialect, or "" for a name it does not have.
-func (d *Dialect) kind(name string) string {
-	for _, f := range d.features {
-		if f.Name == name {
-			return f.Kind
-		}
-	}
-	return ""
-}
-
 // lower is a stage's grammar lowered for a set of features. Only the guarded
 // features that are on change the productions. So two sets of features with
 // the same guarded features on share one lowered grammar.

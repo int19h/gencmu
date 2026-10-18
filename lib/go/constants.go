@@ -350,18 +350,8 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.faultError(item.doc, fault.node, directive.At, fault.problem)
 			}
 		}
-		for _, call := range closedCalls(&domRule{Conditions: directive.Conditions}) {
-			delimiter := call.Items[1]
-			if openPart(delimiter) != nil {
-				continue
-			}
-			value, err := g.evaluateClosed(item.doc, delimiter, directive.At)
-			if err != nil {
-				return err
-			}
-			if value.s == "" {
-				return g.faultError(item.doc, delimiter, directive.At, "split has an empty delimiter")
-			}
+		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}); err != nil {
+			return err
 		}
 		copied := *directive
 		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
@@ -409,23 +399,8 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, u.rule.At, "%s", msg)
 			}
 		}
-		for _, call := range closedCalls(u.rule) {
-			arg := call.Items[0]
-			if call.Str == "split" {
-				arg = call.Items[1]
-			}
-			if arg.Kind != tmConst {
-				continue
-			}
-			v, err := g.evaluateClosed(u.doc, arg, u.rule.At)
-			if err != nil {
-				return err
-			}
-			seen := v.s
-			if call.Str == "split" && seen == "" {
-				return g.constError(u.doc, arg.At, "split has an empty delimiter")
-			}
-
+		if err := g.checkDelimiters(u.doc, u.rule); err != nil {
+			return err
 		}
 	}
 
@@ -458,6 +433,24 @@ func (g *stageGrammar) resolveConstants() *Error {
 				copy.Image = r.term(copy.Image)
 				a.alt = &copy
 			}
+		}
+	}
+	return nil
+}
+
+// checkDelimiters applies the same closed-term validation to rules and features.
+func (g *stageGrammar) checkDelimiters(doc string, rule *domRule) *Error {
+	for _, call := range closedCalls(rule) {
+		delimiter := call.Items[1]
+		if openPart(delimiter) != nil {
+			continue
+		}
+		value, err := g.evaluateClosed(doc, delimiter, rule.At)
+		if err != nil {
+			return err
+		}
+		if value.s == "" {
+			return g.faultError(doc, delimiter, rule.At, "split has an empty delimiter")
 		}
 	}
 	return nil
