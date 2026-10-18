@@ -412,3 +412,48 @@ func elidedValue(t *symTest) string {
 func elidedTested(t *symTest) bool {
 	return t != nil && t.op == "="
 }
+
+func (run *stageRun) activateFeatures(items []stageFeature, features map[string]bool, disabled []string) (failure *ParseError) {
+	defer func() {
+		if value := recover(); value != nil {
+			if fault, ok := value.(*parseFailure); ok {
+				failure = run.failure(fault)
+			} else {
+				panic(value)
+			}
+		}
+	}()
+	off := map[string]bool{}
+	for _, name := range disabled {
+		off[name] = true
+	}
+	ev := run.evaluator(&lowered{stage: run.grammar}, func(name string) (spanVal, bool) { return spanVal{a: 0, b: len(run.toks)}, name == "" })
+	for _, item := range items {
+		directive := item.directive
+		held := true
+		for _, condition := range directive.Conditions {
+			var walk walk
+			walk.cond(ev, condition)
+			if walk.resume() != nil {
+				panic("feature condition requested a nested parse")
+			}
+			if !walk.b {
+				held = false
+				break
+			}
+		}
+		if !held {
+			continue
+		}
+		for _, name := range directive.Args {
+			if off[name] {
+				if directive.Conditions != nil {
+					return &ParseError{Kind: ErrorFeatureConflict, Stage: run.name, Feature: name, Message: "the " + run.name + " stage requires disabled feature " + name}
+				}
+			} else {
+				features[name] = true
+			}
+		}
+	}
+	return nil
+}

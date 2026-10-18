@@ -255,9 +255,10 @@ func (e *domEmit) nothing() bool {
 }
 
 type domDirective struct {
-	Name string
-	Args []string
-	At   [2]int
+	Conditions []*domCond
+	Name       string
+	Args       []string
+	At         [2]int
 }
 
 // ---- writing
@@ -289,6 +290,16 @@ func (d *domDoc) writeJSON(w *jsonWriter) {
 		w.raw("]")
 		w.raw(`,"at":`)
 		w.pair(dir.At)
+		if dir.Conditions != nil {
+			w.raw(`,"conditions":[`)
+			for i, condition := range dir.Conditions {
+				if i > 0 {
+					w.raw(",")
+				}
+				condition.writeJSON(w)
+			}
+			w.raw("]")
+		}
 		w.raw("}")
 	}
 	w.raw(`],"constants":[`)
@@ -745,7 +756,14 @@ func decodeDOM(raw json.RawMessage, uni *unicodeTable) (*domDoc, error) {
 		if err != nil {
 			return nil, fmt.Errorf("a malformed directive")
 		}
-		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at})
+		var conditions []*domCond
+		if raw, ok := o["conditions"]; ok {
+			conditions, err = decodeList(raw, decodeCond)
+			if err != nil {
+				return nil, fmt.Errorf("malformed feature conditions")
+			}
+		}
+		d.Directives = append(d.Directives, &domDirective{Name: name, Args: args, At: at, Conditions: conditions})
 	}
 	if err := validateDOM(d, uni); err != nil {
 		return nil, err

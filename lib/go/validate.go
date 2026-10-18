@@ -53,6 +53,21 @@ func checkDOM(d *domDoc, uni *unicodeTable) *domProblem {
 		if dir == nil || dir.Args == nil || !directiveOperandsOK(dir) {
 			return &domProblem{message: "a malformed directive"}
 		}
+		if dir.Conditions != nil {
+			if dir.Name != "features" || len(dir.Conditions) == 0 {
+				return &domProblem{message: "malformed feature conditions"}
+			}
+			checker := &domChecker{uni: uni}
+			for _, condition := range dir.Conditions {
+				checker.condition(condition, 0)
+				if checker.problem != nil {
+					return checker.problem
+				}
+			}
+			if problem := inputConditionsProblem(dir.Conditions); problem != "" {
+				return &domProblem{message: problem}
+			}
+		}
 	}
 	// The order of a document's items is the order of their positions, so
 	// no two items share one (engine §9).
@@ -1887,4 +1902,47 @@ func constRefs(nodes ...any) []*domTerm {
 		}
 	}
 	return found
+}
+
+func inputConditionsProblem(conditions []*domCond) string {
+	allowed := map[string]bool{"tags": true, "classes": true, "value": true, "image": true, "source-text": true, "decomposed-source-text": true, "first-token": true, "tokens-after-first": true, "last-token": true, "split": true}
+	problem := ""
+	for _, condition := range conditions {
+		walkClause(clausePart{c: condition}, func(p clausePart) bool {
+			if problem != "" {
+				return false
+			}
+			if t := p.t; t != nil {
+				if t.Kind == tmCapture && t.Str != "" {
+					problem = "feature conditions can read only $"
+				}
+				if t.Kind == tmCall && (!allowed[t.Str] || t.Str == "tags" && len(t.Items) != 1) {
+					problem = "feature conditions can read only tokens"
+				}
+			}
+			if c := p.c; c != nil {
+				switch c.Kind {
+				case cdCompare:
+					if c.Op == "≅" || c.Op == "≇" {
+						problem = "feature conditions can read only tokens"
+					}
+				case cdCaptured:
+					if c.Rule != "" {
+						problem = "feature conditions can read only $"
+					}
+				case cdNot, cdAny, cdAll, cdIf:
+				default:
+					problem = "feature conditions can read only tokens"
+				}
+			}
+			return true
+		})
+		if problem != "" {
+			return problem
+		}
+		if problem = condTypeProblem(condition); problem != "" {
+			return problem
+		}
+	}
+	return ""
 }

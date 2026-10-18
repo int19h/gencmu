@@ -334,6 +334,39 @@ func (g *stageGrammar) resolveConstants() *Error {
 		return err
 	}
 	types := g.constantTypes()
+	resolvedFeatures := newResolver(g.constants, g.uni)
+	for index, item := range g.features {
+		directive := item.directive
+		if directive.Conditions == nil {
+			continue
+		}
+		for _, ref := range constRefs(directive.Conditions) {
+			if _, scalar := engineScalar(ref.Str); !scalar && g.constants[ref.Str] == nil {
+				return g.constError(item.doc, directive.At, "$%s is not defined in stage %s", ref.Str, g.name)
+			}
+		}
+		for _, condition := range directive.Conditions {
+			if fault := condTypeFault(condition, types); fault != nil {
+				return g.faultError(item.doc, fault.node, directive.At, fault.problem)
+			}
+		}
+		for _, call := range closedCalls(&domRule{Conditions: directive.Conditions}) {
+			delimiter := call.Items[1]
+			if openPart(delimiter) != nil {
+				continue
+			}
+			value, err := g.evaluateClosed(item.doc, delimiter, directive.At)
+			if err != nil {
+				return err
+			}
+			if value.s == "" {
+				return g.faultError(item.doc, delimiter, directive.At, "split has an empty delimiter")
+			}
+		}
+		copied := *directive
+		copied.Conditions = resolvedFeatures.condList(directive.Conditions)
+		g.features[index].directive = &copied
+	}
 	for _, u := range g.constUsers {
 		for _, ref := range constRefs(u.rule) {
 			if _, scalar := engineScalar(ref.Str); g.constants[ref.Str] == nil && !scalar {

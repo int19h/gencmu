@@ -149,7 +149,10 @@ func splicePipeline(pipelinePath string, domOf func(p string) (*domDoc, *Error))
 				}
 				run = nil
 				enter(target, included)
-			case item.dir != nil && item.dir.Name == "features":
+			case item.dir != nil && item.dir.Name == "features" && selected == nil:
+				if item.dir.Conditions != nil {
+					return grammarError(docPath, at, "global features cannot have conditions")
+				}
 				for _, name := range item.dir.Args {
 					if !features[name] {
 						features[name] = true

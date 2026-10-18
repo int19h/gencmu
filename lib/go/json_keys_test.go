@@ -143,10 +143,10 @@ func TestJSONStructKeysAreExact(t *testing.T) {
 	}
 	// All external runner structs require their explicit JSON names.
 	var engine engineCase
-	if err := unmarshalJSON([]byte(`{"grammar":"A","Grammar":"B","options":{"autoFeatures":false,"AutoFeatures":true}}`), &engine); err != nil {
+	if err := unmarshalJSON([]byte(`{"grammar":"A","Grammar":"B","options":{"elisionOnly":false,"ElisionOnly":true}}`), &engine); err != nil {
 		t.Fatal(err)
 	}
-	if engine.Grammar == nil || *engine.Grammar != "A" || engine.Options.AutoFeatures == nil || *engine.Options.AutoFeatures {
+	if engine.Grammar == nil || *engine.Grammar != "A" || engine.Options.ElisionOnly == nil || *engine.Options.ElisionOnly {
 		t.Fatalf("%#v", engine)
 	}
 	var corpus corpusCase

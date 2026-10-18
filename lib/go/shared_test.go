@@ -62,7 +62,6 @@ type caseOptions struct {
 	Features        []string `json:"features"`
 	WithoutFeatures []string `json:"withoutFeatures"`
 	ElisionOnly     *bool    `json:"elisionOnly"`
-	AutoFeatures    *bool    `json:"autoFeatures"`
 	Until           string   `json:"until"`
 }
 
@@ -218,14 +217,11 @@ func runCaseLogged(d *Dialect, c *engineCase, o *caseOptions, lose string) (*Par
 	if err := loadBundled(); err != nil {
 		return nil, nil, err
 	}
-	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until, NoAutoFeatures: true}
+	opts := ParseOptions{Features: o.Features, WithoutFeatures: o.WithoutFeatures, ElisionOnly: o.ElisionOnly, Until: o.Until}
 	log := withChecks(&opts)
 	opts.private.loseWitness = lose
 	opts.private.fault, opts.private.hits = c.fault, c.hits
 	opts.private.familyOracle = c.familyOracle
-	if o.AutoFeatures != nil && *o.AutoFeatures {
-		opts.NoAutoFeatures = false
-	}
 	var res *ParseResult
 	var err error
 	if c.Input != nil && c.Tokens == nil {

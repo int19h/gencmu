@@ -8,7 +8,13 @@ import (
 
 // A stage's grammar: its documents stitched into one set of rules,
 // directives, constants, classifiers and implications (engine §2).
+type stageFeature struct {
+	doc       string
+	directive *domDirective
+}
+
 type stageGrammar struct {
+	features          []stageFeature
 	families          map[string]map[string]bool
 	ranked            *rankedGroups
 	deferredEmissions []*Error
@@ -175,6 +181,8 @@ func stitch(stageName string, docs []docDOM, uni *unicodeTable) (*stageGrammar, 
 		}
 		for _, dir := range d.dom.Directives {
 			switch dir.Name {
+			case "features":
+				g.features = append(g.features, stageFeature{d.path, dir})
 			case "ambiguity-resolution":
 				ambiguity = append(ambiguity, dir)
 				if len(ambiguity) > 1 {

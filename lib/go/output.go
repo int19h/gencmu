@@ -278,6 +278,10 @@ func writeError(w *jsonWriter, e *ParseError) {
 		w.raw(`,"stage":`)
 		w.str(e.Stage)
 	}
+	if e.Feature != "" {
+		w.raw(`,"feature":`)
+		w.str(e.Feature)
+	}
 	if e.Code != "" {
 		w.raw(`,"code":`)
 		w.str(e.Code)

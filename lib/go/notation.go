@@ -137,6 +137,7 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 	ps := newParseState(nr.uni, gt.text)
 	toks := ps.characterTokens()
 	var out stageOutcome
+	features := map[string]bool{}
 	for i, g := range nr.stages {
 		if g.name == "syntax" {
 			for _, token := range toks {
@@ -148,7 +149,14 @@ func (nr *notationReader) readMode(text, docPath string, deferEmission bool) (do
 		run := ps.newRun(g.name, g, toks)
 		// Each notation stage runs the check of elision-only where its own
 		// directive declares it (§8).
-		out = run.run(nr.lowered[i], g.elisionOnly)
+		if failure := run.activateFeatures(g.features, features, nil); failure != nil {
+			return nil, &Error{Kind: ErrorGrammar, Document: docPath, Stage: g.name, Message: failure.Message}
+		}
+		lowered := nr.lowered[i]
+		if len(features) > 0 {
+			lowered = lower(g, features)
+		}
+		out = run.run(lowered, g.elisionOnly)
 		if out.err != nil && out.err.Kind == ErrorAmbiguous {
 			// A tie has no single position, so the error names the document
 			// alone, with no line or column (engine §8).
@@ -543,6 +551,15 @@ func (b *domBuilder) document(root *Node) *domDoc {
 			}
 			if !directiveOperandsOK(dir) {
 				b.fail(keyword, "invalid directive operands")
+			}
+			if clause := one(c, "conditions-clause"); clause != nil {
+				if dir.Name != "features" {
+					b.fail(keyword, "only %%features accepts conditions")
+				}
+				dir.Conditions = []*domCond{}
+				for _, condition := range b.some(clause, "implication", 1) {
+					dir.Conditions = append(dir.Conditions, b.implication(condition))
+				}
 			}
 			d.Directives = append(d.Directives, dir)
 		}
