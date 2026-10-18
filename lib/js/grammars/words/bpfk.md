@@ -361,7 +361,7 @@ The slinku'i test and a borrowing's head look for a string of rafsi. That is any
   | stressed-y-less-rafsi short-final-rafsi
   | y-rafsi
   | stressed-y-rafsi
-  | [stressed-y-less-rafsi] initial-pair y  (* A stressed CVC or CVV rafsi differs from initial-pair in its second letter, and a stressed CCV rafsi has a vowel where the following y is required, so the optional cannot consume the required pair. *)
+  | [stressed-y-less-rafsi] initial-pair y  (* A stressed CVC or CVV rafsi differs from initial-pair in its second letter. A stressed CCV rafsi has a vowel where the following y is required. So the optional cannot consume the required pair. *)
   | hy-rafsi
   | stressed-hy-rafsi
 
