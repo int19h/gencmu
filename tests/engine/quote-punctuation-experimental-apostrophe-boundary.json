@@ -1,0 +1,60 @@
+{
+  "description": "A punctuation apostrophe cannot join a digit expansion to the next vowel. The PAUSE tag keeps it outside word phonemes.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "2'a",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {},
+        {},
+        {},
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "re",
+              "image": "re",
+              "source": [
+                0,
+                1
+              ],
+              "tags": [
+                "Cmavo",
+                "Continued",
+                "Onset",
+                "PA",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "source": [
+                2,
+                3
+              ],
+              "tags": [
+                "A",
+                "Cmavo",
+                "Continued",
+                "Run-Final",
+                "Run-Initial",
+                "Word"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

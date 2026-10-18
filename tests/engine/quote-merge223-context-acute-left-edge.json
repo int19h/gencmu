@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi ´zo'oi foo´",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -16,115 +15,211 @@
           "output": [
             {
               "image": "m",
-              "value": "m",
               "source": [
                 0,
                 1
               ],
-              "tags": []
+              "span": [
+                0,
+                1
+              ],
+              "tags": [],
+              "text": "m",
+              "value": "m"
             },
             {
               "image": "i",
-              "value": "i",
               "source": [
                 1,
                 2
               ],
-              "tags": []
+              "span": [
+                1,
+                2
+              ],
+              "tags": [],
+              "text": "i",
+              "value": "i"
             },
             {
               "image": " ",
-              "value": " ",
               "source": [
+                2,
+                3
+              ],
+              "span": [
                 2,
                 3
               ],
               "tags": [
                 "PAUSE"
-              ]
+              ],
+              "text": " ",
+              "value": " "
+            },
+            {
+              "image": "´",
+              "source": [
+                3,
+                4
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "´",
+              "value": "´"
             },
             {
               "image": "z",
-              "value": "z",
               "source": [
                 4,
                 5
               ],
-              "tags": []
+              "span": [
+                4,
+                5
+              ],
+              "tags": [],
+              "text": "z",
+              "value": "z"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 5,
                 6
               ],
-              "tags": []
+              "span": [
+                5,
+                6
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "'",
-              "value": "'",
               "source": [
                 6,
                 7
               ],
-              "tags": []
+              "span": [
+                6,
+                7
+              ],
+              "tags": [],
+              "text": "'",
+              "value": "'"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 7,
                 8
               ],
-              "tags": []
+              "span": [
+                7,
+                8
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "i",
-              "value": "i",
               "source": [
                 8,
                 9
               ],
-              "tags": []
+              "span": [
+                8,
+                9
+              ],
+              "tags": [],
+              "text": "i",
+              "value": "i"
             },
             {
               "image": " ",
-              "value": " ",
               "source": [
+                9,
+                10
+              ],
+              "span": [
                 9,
                 10
               ],
               "tags": [
                 "PAUSE"
-              ]
+              ],
+              "text": " ",
+              "value": " "
             },
             {
               "image": "f",
-              "value": "f",
               "source": [
                 10,
                 11
               ],
-              "tags": []
+              "span": [
+                10,
+                11
+              ],
+              "tags": [],
+              "text": "f",
+              "value": "f"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 11,
                 12
               ],
-              "tags": []
+              "span": [
+                11,
+                12
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 12,
                 13
               ],
-              "tags": []
+              "span": [
+                12,
+                13
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
+            },
+            {
+              "image": "´",
+              "source": [
+                13,
+                14
+              ],
+              "span": [
+                13,
+                14
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "´",
+              "value": "´"
             }
           ]
         },
@@ -156,10 +251,10 @@
             },
             {
               "image": "zo'oi foo´",
-              "value": "zo'oi foo",
+              "value": "zo'oi foo´",
               "source": [
                 4,
-                13
+                14
               ],
               "tags": [
                 "Cmavo",

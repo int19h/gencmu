@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "zoi gy. l´amour .gy",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -91,14 +90,16 @@
               "tags": []
             },
             {
-              "image": " ",
-              "value": " ",
+              "image": "´",
+              "value": "´",
               "source": [
                 9,
                 10
               ],
               "tags": [
-                "PAUSE"
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
               ]
             },
             {
@@ -188,7 +189,7 @@
           "output": [
             {
               "image": "zoi gy. l´amour .gy",
-              "value": "zoi gy l amour gy",
+              "value": "zoi gy l´amour gy",
               "source": [
                 0,
                 19

@@ -5,8 +5,7 @@
   },
   "pipeline": "pipeline.md",
   "input": "mi `zo coi`",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -16,88 +15,169 @@
           "output": [
             {
               "image": "m",
-              "value": "m",
               "source": [
                 0,
                 1
               ],
-              "tags": []
+              "span": [
+                0,
+                1
+              ],
+              "tags": [],
+              "text": "m",
+              "value": "m"
             },
             {
               "image": "i",
-              "value": "i",
               "source": [
                 1,
                 2
               ],
-              "tags": []
+              "span": [
+                1,
+                2
+              ],
+              "tags": [],
+              "text": "i",
+              "value": "i"
             },
             {
               "image": " ",
-              "value": " ",
               "source": [
+                2,
+                3
+              ],
+              "span": [
                 2,
                 3
               ],
               "tags": [
                 "PAUSE"
-              ]
+              ],
+              "text": " ",
+              "value": " "
+            },
+            {
+              "image": "`",
+              "source": [
+                3,
+                4
+              ],
+              "span": [
+                3,
+                4
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "`",
+              "value": "`"
             },
             {
               "image": "z",
-              "value": "z",
               "source": [
                 4,
                 5
               ],
-              "tags": []
+              "span": [
+                4,
+                5
+              ],
+              "tags": [],
+              "text": "z",
+              "value": "z"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 5,
                 6
               ],
-              "tags": []
+              "span": [
+                5,
+                6
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": " ",
-              "value": " ",
               "source": [
+                6,
+                7
+              ],
+              "span": [
                 6,
                 7
               ],
               "tags": [
                 "PAUSE"
-              ]
+              ],
+              "text": " ",
+              "value": " "
             },
             {
               "image": "c",
-              "value": "c",
               "source": [
                 7,
                 8
               ],
-              "tags": []
+              "span": [
+                7,
+                8
+              ],
+              "tags": [],
+              "text": "c",
+              "value": "c"
             },
             {
               "image": "o",
-              "value": "o",
               "source": [
                 8,
                 9
               ],
-              "tags": []
+              "span": [
+                8,
+                9
+              ],
+              "tags": [],
+              "text": "o",
+              "value": "o"
             },
             {
               "image": "i",
-              "value": "i",
               "source": [
                 9,
                 10
               ],
-              "tags": []
+              "span": [
+                9,
+                10
+              ],
+              "tags": [],
+              "text": "i",
+              "value": "i"
+            },
+            {
+              "image": "`",
+              "source": [
+                10,
+                11
+              ],
+              "span": [
+                10,
+                11
+              ],
+              "tags": [
+                "PAUSE",
+                "Punctuation-Material",
+                "Quote-Material"
+              ],
+              "text": "`",
+              "value": "`"
             }
           ]
         },
@@ -128,7 +208,7 @@
               ]
             },
             {
-              "image": "zo coi`",
+              "image": "zo coi",
               "value": "zo coi",
               "source": [
                 4,
@@ -150,6 +230,6 @@
         }
       ]
     },
-    "brackets": "(mi zo coi`)"
+    "brackets": "(mi zo coi)"
   }
 }

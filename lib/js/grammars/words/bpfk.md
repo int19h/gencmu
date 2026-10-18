@@ -739,7 +739,7 @@ A vowel letter has a lowercase value with or without `Stressed`. The `a`, `e`, `
   ¬$n.onward.begins(y)
 
 %rule h  (* An apostrophe must precede a nucleus. *)
-  $h:"'"
+  $h:"'"<¬PAUSE>
 %conditions
   $h.following-tokens.begins(nucleus)
 ```
@@ -981,3 +981,5 @@ The consonant rules retain the ban on a consonant followed by a glide and a vowe
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 
 [^cll-later-a3-3]: [CLL 1.3.4, appendix A3.3](https://github.com/int19h/cll/blob/v1.3.4/chapters/a03.xml#L155-L243). This later approval record has no CLL 1.1 counterpart.
+
+A pause token can retain a punctuation apostrophe as its value. The apostrophe rule excludes that token so that raw punctuation never becomes a word phoneme.

@@ -168,7 +168,9 @@ Only U+00B7 is a silent mark among the dots. The Greek ano teleia U+0387 decompo
 
 The combining tilde U+0303 is a mark, so `letter-marks` already ignores it on a Latin letter.
 
-`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in latin.md, so `ja~i` is `jai`. At the edge of a word, it belongs to no token. Between two pauses, it is a silent run, which latin.md emits so that a quote body keeps it ([stream.md](../words/stream.md)). So `mi · klama` is `mi klama`, and `zoi gy. ~~ .gy.` quotes `~~`.
+`silent-mark` extends `comma`, so a silent mark reads wherever a comma reads. Between letters it is nothing, so `gen·cmu` is `gencmu` and `ke·lo·ri` is `kelori`, three cmavo. Between two vowels it joins them into one vowel group, as a comma does in latin.md, so `ja~i` is `jai`. Beside a quiet pause, a `Quote-Material` token keeps it. Elsewhere at a word edge, it belongs to no token. A raw quote body reads that material ([stream.md](../words/stream.md)).
+
+So `mi · klama` is `mi klama`, and `zoi gy. ~~ .gy.` quotes `~~`.
 
 A text of only silent marks is an empty text.
 

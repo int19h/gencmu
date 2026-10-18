@@ -304,7 +304,7 @@ Only requested selected recipes run. `.emitted` reads a constituent before the c
 
 ## Pauses and spacing
 
-A Lojban phoneme grammar gives a pause value and image `" "` and tag `PAUSE`. The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
+A Lojban phoneme grammar marks a pause with `PAUSE`. A quiet pause has value and image `" "`. Material pause tokens keep decomposed source values and original source images. The engine never trims edges or merges repeated spaces. Rules that form a covering token express each surviving gap's contribution.
 
 A gap is a run between lexical parts. A quote gap excludes erasures because quoted `si`, `sa`, and `su` are words. A compound gap retains erasure-aware recognition. These two contexts share a spacing policy but require separate recognizers.
 
@@ -465,6 +465,16 @@ The result is what textual inclusion gives. Stitching looks only at the order of
 A document can be included in several stages. An included document can hold stage selectors and `%features` too. So several pipelines can share a stage by including one document that holds it. A second `%stage` of one name is an error.
 
 `%extend-stage` selects an earlier stage and appends subsequent items. `%redefine-stage` clears that stage's accumulated items and selects it for replacement. Both keep the stage's original execution position. Selection continues across includes, and replacement leaves global features and other stages intact. The loader evaluates only the final stage definitions, but it still reads every source document.
+
+A one-word foreign quote takes the next raw stretch between whitespace or period boundaries. A decimal point between digits stays inside its run. Punctuation and ignored characters belong to that body.
+
+The Latin conventions expose punctuation as pause tokens tagged `Quote-Material`. Each token keeps the punctuation's source spelling as its image. Its value keeps the decomposed punctuation.
+
+Ordinary spacing still reads these tokens as pauses. Quote gaps read only plain pauses, so punctuation cannot move the quote to a later word.
+
+ZO also takes literal punctuation as its next word. ZEI rejects surviving punctuation between its operands and the operator. Ignored comma-like characters remain spacing for ZEI.
+
+Delimited foreign quotes also keep bodies that contain only punctuation. Quiet pauses delimit their bodies, and their closing delimiters occupy complete raw runs. The CLL family retains its strict punctuation rules.
 
 ## Gates and warnings
 

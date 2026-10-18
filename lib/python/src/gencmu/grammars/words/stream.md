@@ -111,32 +111,36 @@ The rule `empty` reads a prefix that leaves no units. Its alternatives use `text
 
 Hesitation emits nothing unless the word reader joins it with `bu`. The reader treats `yybu` as hesitation followed by the y letteral. The reader also forms the y letteral from `.yy. bu` and `.yyy. bu`.
 
-A silent run stands between two pauses and holds an ignored character. `pause-run` reads it with the pauses around it as one pause. A quote body keeps it.
+`pause-run` reads consecutive pause tokens as one pause. It also accepts a supplied `Silent` token between pauses. A raw quote body keeps punctuation and ignored characters.
 
 `spacing` reads pauses and ordinary hesitation. `skipped` also reads erased regions. These rules retain surviving pauses without emitting a token of their own.
 
+`Quote-Material` also marks a gap with surviving punctuation or ignored material. Erased quote contents supply no such mark. `Punctuation-Material` distinguishes visible punctuation from ignored characters in these gaps.
+
 `Gap-Pause` marks a gap with a surviving pause. `spacing` and `hesitations` introduce it. `skipped` and `erasures` carry it across erased children.
 
-A pause token has value `" "`, and `$PAUSE` names that string. Gap recipes use it to contribute one space for surviving pauses.
+A quiet pause token has value `" "`, and `$PAUSE` names that string. Material pause tokens retain raw punctuation values. Gap recipes still contribute one space for surviving pauses.
 
 ```jbogenbau
 %const $PAUSE " "
 
 %rule pause-run
-  | PAUSE
-  | pause-run Silent PAUSE := " " :- " "
+  | $p:PAUSE :: $p.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
+  | $r:pause-run $q:PAUSE :: ($r.tags ∪ $q.tags) ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
+  | $s:pause-run Silent PAUSE :: $s.tags ∩ (Quote-Material ∪ Punctuation-Material) := " " :- " "
 
 %rule spacing
   [$p:pause-run] [$h:hesitations [$q:pause-run]]
-    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ Gap-Pause)
+    :: ($p ⟹ Gap-Pause) ∪ ($q ⟹ Gap-Pause) ∪ ($h ⟹ $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material))
+     ∪ ($p ⟹ $p.tags ∩ (Quote-Material ∪ Punctuation-Material)) ∪ ($q ⟹ $q.tags ∩ (Quote-Material ∪ Punctuation-Material))
 
 %rule skipped
   $s:spacing [$e:erasures $t:spacing]
-    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ Gap-Pause
+    :: ($s.tags ∪ ($e ⟹ $e.tags) ∪ ($t ⟹ $t.tags)) ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
 
 %rule erasures
   | erasure :: ∅
-  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ Gap-Pause
+  | $e:erasures $s:spacing erasure :: ($e.tags ∪ $s.tags) ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
 
 %rule hesitation
   $h:y-run :: ∅
@@ -149,8 +153,8 @@ A pause token has value `" "`, and `$PAUSE` names that string. Gap recipes use i
 
 %rule hesitations
   | hesitation :: ∅
-  | $h:hesitations pause-run hesitation :: Gap-Pause
-  | $h:hesitations hesitation :: $h.tags ∩ Gap-Pause
+  | $h:hesitations $p:pause-run hesitation :: Gap-Pause ∪ (($h.tags ∪ $p.tags) ∩ (Quote-Material ∪ Punctuation-Material))
+  | $h:hesitations hesitation :: $h.tags ∩ (Gap-Pause ∪ Quote-Material ∪ Punctuation-Material)
 ```
 
 <details><summary>Railroad diagrams of the 7 rules from <code>pause-run</code> to <code>hesitations</code></summary>
@@ -256,7 +260,8 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
   | quiet-gap hesitation
 
 %rule pause-gap
-  [quiet-gap] pause-run [hesitations [pause-run]] := $PAUSE
+  [quiet-gap] $p:pause-run [$h:hesitations [$q:pause-run]]
+    :: ($p.tags ∪ ($h ⟹ $h.tags) ∪ ($q ⟹ $q.tags)) ∩ (Quote-Material ∪ Punctuation-Material) := $PAUSE
 
 %rule word-gap
   ε | quiet-gap | pause-gap
@@ -270,16 +275,23 @@ Quotes and the right operand of ZEI share this rule. It executes no erasure. Quo
 
 ### One-word quotes
 
-ZO quotes one word from the shared reader. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
+ZO quotes one word from the shared reader or one literal punctuation stretch. Inside that quote, an eraser, compounder, or quote marker executes no operation. The reader still forms the y letteral.
 
-`quoted-word` reads `word-gap` before its word. The gap supplies one space for surviving pauses, even when hesitation separates them.
+`quoted-word` reads `word-gap` before its word. The gap cannot skip punctuation or ignored material. The gap supplies one space for surviving pauses, even when hesitation separates them.
 
 ```jbogenbau
 %rule quoted-word
-  $m:word-quote-marker $g:word-gap $w:read-word
-    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+  | $m:word-quote-marker $g:word-gap $w:read-word
+      :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+  | $m:word-quote-marker $g:word-gap $w:zo-punctuation
+      :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+%conditions
+  Quote-Material ⊈ $g.tags
 %emits
   $
+
+%rule zo-punctuation
+  PAUSE<Quote-Material> := $.decomposed-source-text :- $.source-text
 
 %rule word-quote-marker
   $q:read-word :: $q.classes ∪ Word ∪ Cmavo
@@ -287,16 +299,17 @@ ZO quotes one word from the shared reader. Inside that quote, an eraser, compoun
   ZO ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of <code>quoted-word</code> and <code>word-quote-marker</code></summary>
+<details><summary>Railroad diagrams of <code>quoted-word</code>, <code>zo-punctuation</code> and <code>word-quote-marker</code></summary>
 <p><img src="../../docs/diagrams/words/stream/quoted-word.svg" alt="Railroad diagram of the rule quoted-word"></p>
+<p><img src="../../docs/diagrams/words/stream/zo-punctuation.svg" alt="Railroad diagram of the rule zo-punctuation"></p>
 <p><img src="../../docs/diagrams/words/stream/word-quote-marker.svg" alt="Railroad diagram of the rule word-quote-marker"></p>
 </details>
 
 ### Single-run quotes
 
-ZOhOI and MEhOI quote one raw run in the experimental dialect. The quote must finish at the end of its run.
+ZOhOI and MEhOI quote one raw stretch between whitespace or periods in the experimental dialect. A decimal point between digits stays inside its run. `zo'oi` and `la'oi` use ZOhOI, and `me'oi` uses MEhOI. Punctuation, ignored characters and attached brackets belong to the stretch. The body must end before a quiet pause or the input end.
 
-`zohoi-gap` starts with a pause and skips hesitation through `zohoi-hesitation`. It contributes one space, including pauses around erased hesitation.
+`zohoi-gap` starts with a quiet pause and skips hesitation through `zohoi-hesitation`. It contributes one space, including pauses around erased hesitation.
 
 The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote therefore takes the y run as its payload. BU then forms a letteral from the whole quote. The same rule keeps the prolonged run in `zo'oi .yyy. bu`.
 
@@ -306,8 +319,8 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
   | $m:single-marker $g:zohoi-gap $s:zohoi-payload
       :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
 %conditions
-  Run-Final ⊆ $r.last-token.tags,
-  Run-Final ⊆ $s.last-token.tags,
+  ¬$r.following-tokens.begins(quote-run-token),
+  ¬$s.following-tokens.begins(quote-run-token),
   Hesitation ⊈ $s.first-token.tags ∨ $s.first-token.onward.begins(raw-y-letter)
 %emits
   $
@@ -327,19 +340,23 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 %erased
 
 %rule zohoi-hesitations
-  zohoi-hesitation | zohoi-hesitations [pause-run] zohoi-hesitation
+  zohoi-hesitation | zohoi-hesitations [quote-gap-pauses] zohoi-hesitation
 
 %rule zohoi-gap
-  pause-run [zohoi-hesitations [pause-run]] := $PAUSE
+  quote-gap-pauses [zohoi-hesitations [quote-gap-pauses]] := $PAUSE
+
+%rule quote-gap-pauses
+  {PAUSE<¬Quote-Material>} := $PAUSE
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>single-word-quote</code> to <code>zohoi-gap</code></summary>
+<details><summary>Railroad diagrams of the 7 rules from <code>single-word-quote</code> to <code>quote-gap-pauses</code></summary>
 <p><img src="../../docs/diagrams/words/stream/single-word-quote.svg" alt="Railroad diagram of the rule single-word-quote"></p>
 <p><img src="../../docs/diagrams/words/stream/single-marker.svg" alt="Railroad diagram of the rule single-marker"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-letter.svg" alt="Railroad diagram of the rule raw-y-letter"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-hesitation.svg" alt="Railroad diagram of the rule zohoi-hesitation"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-hesitations.svg" alt="Railroad diagram of the rule zohoi-hesitations"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-gap.svg" alt="Railroad diagram of the rule zohoi-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-gap-pauses.svg" alt="Railroad diagram of the rule quote-gap-pauses"></p>
 </details>
 
 ### Delimited quotes
@@ -350,20 +367,20 @@ The ZOI words, `zoi` and `la'o`, skip hesitation and read the next real word as 
 
 Both routes use `delimiter-hesitation`, which refuses the opening y letteral. This rule stays separate because Zantufa's ordinary hesitation also requires a spacing boundary.
 
-The quotes close at the first matching whole run by exact value. ZOI compares foreign runs by their exact values too.
+The quotes close at the first matching whole raw run by exact value. Whitespace and periods bound these runs, except decimal points between digits. ZOI compares foreign runs by their exact values too.
 
 The rule `zoi-y-quote` reads letteral delimiters formed from hesitation. Zantufa also forms such a delimiter from `ie'o`, as [zantufa.md](zantufa.md) describes. The rule `zoi-quote` reads other delimiters. Each rule includes empty and nonempty bodies.
 
-Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. That body claims no adjacent punctuation. Pauses delimit the body and the closing run.
+Ordinary compounds cannot become delimiters because the marker reads the delimiter before a later compounder acts. An empty body contributes empty strings to the quote token. Punctuation tokens form a nonempty body and retain their source text. Quiet pauses delimit the body and the closing run.
 
 ```jbogenbau
 %const $Y-PROPERTIES
   Word ∪ BY ∪ Y-Letter ∪ Run-Initial ∪ Run-Final
 
 %rule zoi-y-quote :: $m.tags :- $.source-text
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:zoi-body PAUSE<¬Quote-Material> $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:empty-zoi-body $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:silent-body quiet-pause $close:raw-close
 %conditions
   Y-Letter ⊆ $open.tags,
   $open.tags ∖ $Y-PROPERTIES = $close.tags,
@@ -372,9 +389,9 @@ Ordinary compounds cannot become delimiters because the marker reads the delimit
   $
 
 %rule zoi-quote :: $m.tags :- $.source-text
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:zoi-body PAUSE $close:raw-close
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:empty-zoi-body $close:raw-close
-  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE $content:silent-body quiet-pause $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:zoi-body PAUSE<¬Quote-Material> $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:empty-zoi-body $close:raw-close
+  | $m:zoi-marker delimiter-gap $open:delimiter PAUSE<¬Quote-Material> $content:silent-body quiet-pause $close:raw-close
 %conditions
   Y-Letter ⊈ $open.tags,
   $open.value = $close.value,
@@ -459,7 +476,7 @@ The body remains raw and opaque. In `zoi bu. foo .y. bu.`, the final `bu` closes
 
 The opening `y-key` uses `Y-Key` for value `y` and `Ieho` for value `ie'o`. The forms stage separates the last opening y from preceding hesitation. `raw-y-key` applies the same tests but keeps every raw y value. A longer run gets neither key tag, so it cannot close the delimiter.
 
-The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation. `$Y-PROPERTIES` lists the word marks that the closing-key comparison excludes.
+The raw rule rejoins every piece of one y run. Its internal gap keeps ignored comma-like characters as spacing but excludes visible punctuation. Zantufa's [`ie'o` exception](zantufa.md) keeps each `ie'o` separate from adjacent hesitation. `$Y-PROPERTIES` lists the word marks that the closing-key comparison excludes.
 
 ```jbogenbau
 %rule y-key
@@ -471,7 +488,7 @@ The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zant
 %rule raw-run
   $r:raw-run-parts
 %conditions
-  Run-Final ⊆ $r.last-token.tags
+  ¬$r.following-tokens.begins(quote-run-token)
 
 %rule raw-run-parts
   matched-close-token | raw-run-parts matched-close-token
@@ -480,11 +497,14 @@ The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zant
   cmavo-token | payload-token<¬Cmavo>
 
 %rule raw-y-close
-  $y:raw-y-key [pause-run] $b:matched-close-token :: $y.tags
+  $y:raw-y-key [raw-y-gap] $b:matched-close-token :: $y.tags
 %conditions
   $b.value = "bu",
   Run-Initial ⊆ $y.first-token.tags,
-  Run-Final ⊆ $b.last-token.tags
+  ¬$b.following-tokens.begins(quote-run-token)
+
+%rule raw-y-gap
+  {PAUSE<¬Punctuation-Material>} := $PAUSE
 
 %rule raw-y-base
   | y-run
@@ -496,17 +516,19 @@ The raw rule rejoins every piece of one y run. Zantufa's [`ie'o` exception](zant
 %rule raw-y-key
   $y:raw-y-base :: ($y.value = "ie'o" ⟹ Ieho) ∪ ($y.value = "y" ⟹ Y-Key)
 
-%rule body-with-y-close
-  [raw-tokens] $c:raw-y-close [raw-tokens] :: $c.tags
+%rule body-with-y-close :: $c.tags
+  | $c:raw-y-close [raw-tokens]
+  | [raw-tokens] PAUSE<¬Quote-Material> $c:raw-y-close [raw-tokens]
 ```
 
-<details><summary>Railroad diagrams of the 9 rules from <code>y-key</code> to <code>body-with-y-close</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>y-key</code> to <code>body-with-y-close</code></summary>
 <p><img src="../../docs/diagrams/words/stream/y-key.svg" alt="Railroad diagram of the rule y-key"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-close.svg" alt="Railroad diagram of the rule raw-close"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-run.svg" alt="Railroad diagram of the rule raw-run"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-run-parts.svg" alt="Railroad diagram of the rule raw-run-parts"></p>
 <p><img src="../../docs/diagrams/words/stream/matched-close-token.svg" alt="Railroad diagram of the rule matched-close-token"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-close.svg" alt="Railroad diagram of the rule raw-y-close"></p>
+<p><img src="../../docs/diagrams/words/stream/raw-y-gap.svg" alt="Railroad diagram of the rule raw-y-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-base.svg" alt="Railroad diagram of the rule raw-y-base"></p>
 <p><img src="../../docs/diagrams/words/stream/raw-y-key.svg" alt="Railroad diagram of the rule raw-y-key"></p>
 <p><img src="../../docs/diagrams/words/stream/body-with-y-close.svg" alt="Railroad diagram of the rule body-with-y-close"></p>
@@ -573,19 +595,24 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
   | raw-tokens any-token
 
 %rule zohoi-payload :- $.verbatim-text
-  | payload-token
-  | zohoi-payload payload-token
+  | quote-run-token
+  | zohoi-payload quote-run-token
+
+%rule quote-run-token
+  payload-token | Silent
 
 %rule any-token
-  payload-token | pause-run
+  payload-token | PAUSE<¬Quote-Material> | Silent
 
 %rule payload-token
-  Word | Hesitation | FOREIGN
+  | Word | Hesitation | FOREIGN
+  | PAUSE<Quote-Material> := $.decomposed-source-text :- $.source-text
 ```
 
-<details><summary>Railroad diagrams of the 4 rules from <code>raw-tokens</code> to <code>payload-token</code></summary>
+<details><summary>Railroad diagrams of the 5 rules from <code>raw-tokens</code> to <code>payload-token</code></summary>
 <p><img src="../../docs/diagrams/words/stream/raw-tokens.svg" alt="Railroad diagram of the rule raw-tokens"></p>
 <p><img src="../../docs/diagrams/words/stream/zohoi-payload.svg" alt="Railroad diagram of the rule zohoi-payload"></p>
+<p><img src="../../docs/diagrams/words/stream/quote-run-token.svg" alt="Railroad diagram of the rule quote-run-token"></p>
 <p><img src="../../docs/diagrams/words/stream/any-token.svg" alt="Railroad diagram of the rule any-token"></p>
 <p><img src="../../docs/diagrams/words/stream/payload-token.svg" alt="Railroad diagram of the rule payload-token"></p>
 </details>
@@ -600,7 +627,7 @@ The constructors can repeat and combine without exposing their operands. Each re
 
 Erased regions and ordinary hesitation can separate an operand from its operator. The compound's value and image omit these regions. Its text retains the original source span, including erased words. Their warnings still belong to the chosen derivation.
 
-`compound-gap` reads erased regions through `skipped`. Complementary `Gap-Pause` tests contribute one space or no string. `word-gap` supplies the gap before ZEI's right word without executing erasure.
+`compound-gap` reads erased regions through `skipped`. Complementary `Gap-Pause` tests contribute one space or no string. `zei-right-gap` supplies the gap before ZEI's right word without executing erasure. ZEI rejects `Punctuation-Material` in both gaps. Ignored comma-like characters remain spacing.
 
 `Trailing-Pause` marks a surviving SU boundary whose strings already end with a space. BU and ZEI then use `suppressed-gap` to avoid a second contribution. [Erasure by `sa` and `su`](#erasure-by-sa-and-su) explains that boundary and its recipes.
 
@@ -626,10 +653,25 @@ cll-ebnf requires pauses around a direct name base of BU. It tests the source ru
   BU ⊆ $q.classes
 
 %rule zei-compound :: Word ∪ BRIVLA ∪ Fault ∩ $l.tags
-  | $l:unit<¬Trailing-Pause> compound-gap zei-word word-gap $r:read-word
-  | su-boundary? $l:unit<Trailing-Pause> suppressed-gap zei-word word-gap $r:read-word
+  | $l:unit<¬Trailing-Pause> zei-left-gap zei-word zei-right-gap $r:read-word
+  | su-boundary? $l:unit<Trailing-Pause> zei-suppressed-gap zei-word zei-right-gap $r:read-word
 %emits
   $
+
+%rule zei-right-gap
+  $g:word-gap
+%conditions
+  Punctuation-Material ⊈ $g.tags
+
+%rule zei-left-gap
+  $g:compound-gap
+%conditions
+  Punctuation-Material ⊈ $g.tags
+
+%rule zei-suppressed-gap
+  $g:suppressed-gap
+%conditions
+  Punctuation-Material ⊈ $g.tags
 
 %rule zei-word
   $q:cmavo-token
@@ -637,12 +679,15 @@ cll-ebnf requires pauses around a direct name base of BU. It tests the source ru
   ZEI ⊆ $q.classes
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
+<details><summary>Railroad diagrams of the 9 rules from <code>compound-gap</code> to <code>zei-word</code></summary>
 <p><img src="../../docs/diagrams/words/stream/compound-gap.svg" alt="Railroad diagram of the rule compound-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/suppressed-gap.svg" alt="Railroad diagram of the rule suppressed-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/lerfu-word.svg" alt="Railroad diagram of the rule lerfu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/bu-word.svg" alt="Railroad diagram of the rule bu-word"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-compound.svg" alt="Railroad diagram of the rule zei-compound"></p>
+<p><img src="../../docs/diagrams/words/stream/zei-right-gap.svg" alt="Railroad diagram of the rule zei-right-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/zei-left-gap.svg" alt="Railroad diagram of the rule zei-left-gap"></p>
+<p><img src="../../docs/diagrams/words/stream/zei-suppressed-gap.svg" alt="Railroad diagram of the rule zei-suppressed-gap"></p>
 <p><img src="../../docs/diagrams/words/stream/zei-word.svg" alt="Railroad diagram of the rule zei-word"></p>
 </details>
 
@@ -866,6 +911,16 @@ In cll-ebnf, bpfk, and experimental, SU erases back to the last surviving word o
 The dialects keep `mi ba'e fa'o` rejected. The stranded BAhE cannot mark a word after FAhO ends the text. Both camxes-std and camxes-exp, the standard and experimental camxes grammars, accept it. Their `FAhO_clause` absorbs BAhE through `pre_clause` ([standard](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes.peg#L620), [experimental](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722db7536ce3b123943ac/camxes-exp.peg)).
 
 Zantufa retains its reference parser's quote-first fallback and SU-before-BU letter-base exception. [The dialect document](../dialects/zantufa.md) defines both exceptions.
+
+The raw one-word quotes retain punctuation and ignored characters instead of skipping them as spacing. This follows camxes-exp for `:)`, `#` and attached brackets.
+
+Unlike camxes-exp's `non_space`, raw quotes here also keep `?` and `!` inside a raw stretch. Both are punctuation material under the shared Latin conventions.
+
+A decimal point between digits stays inside a raw run, as [latin.md](../phonemes/latin.md) specifies. This keeps numeric spellings intact.
+
+ZO can quote literal punctuation instead of moving to a later word. This extends the shared reader because punctuation has no ordinary word class.
+
+ZEI rejects surviving punctuation beside its operator. Ignored comma-like characters remain spacing for ZEI. This preserves its operands instead of silently combining words across that material.
 
 [^cll-s19-16]: [CLL 1.1, section 19.16](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-cmavo-interactions.html).
 

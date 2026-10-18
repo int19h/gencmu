@@ -18,8 +18,8 @@
         {
           "output": [
             {
-              "text": "zo'oi a",
-              "value": "zo'oi a",
+              "text": "zo'oi a'",
+              "value": "zo'oi a'",
               "image": "zo'oi a'",
               "tags": [
                 "Cmavo",
@@ -28,7 +28,7 @@
               ],
               "source": [
                 0,
-                7
+                8
               ]
             }
           ]

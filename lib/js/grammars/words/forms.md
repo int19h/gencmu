@@ -23,7 +23,7 @@ The `cll-ebnf` dialect stitches [shapes.md](shapes.md) and [cll.md](cll.md) as i
 
 ## Runs
 
-The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits each pause as one `PAUSE` token. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
+The text is runs and pauses. A run is a stretch of text with no pause inside. The phoneme stage emits a pause as one or more `PAUSE` tokens. The phoneme stage decides what counts as a pause. In the orthography of *The Complete Lojban Language* (CLL), a pause is a space or a period. In the conventions that the other dialects read, other punctuation is a pause too.
 
 The numbered pause rules of CLL[^cll-s4-9] and its stress rule[^cll-s4-2] hold within one run. A pause satisfies each of them, so two words with a pause between them never constrain each other.
 
@@ -35,7 +35,7 @@ In Zantufa, a second lookahead applies before a quoted form. There, a `ra'oi` be
 
 A run is a sequence of words or a foreign run. A foreign run is a stretch that the pipeline did not read as words. It carries the tag `FOREIGN`. The phoneme stage emits a foreign run when it contains a character that no script reads. The forms stage also emits a foreign run when its phonemes divide into no words.
 
-A `Silent` token from [latin.md](../phonemes/latin.md) preserves ignored source text between pauses. This stage preserves its strings and adds `Run-Initial` and `Run-Final`.
+A `Quote-Material` pause token preserves punctuation or ignored source text in [latin.md](../phonemes/latin.md). This stage preserves each pause token separately. A punctuation apostrophe tagged `PAUSE` is no word phoneme. A supplied `Silent` token also keeps its strings and receives `Run-Initial` and `Run-Final`.
 
 A foreign run is not an error here. The words stage decides whether a foreign run can stand where it is. The words stage takes it as the body of a quote, such as `zoi` or `zo'oi`, and after `fa'o`. Elsewhere it rejects a foreign run ([stream.md](stream.md)). So this stage never rejects a text.
 
@@ -56,6 +56,9 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   run | runs pause-token run
 
 %rule pause-token
+  {pause-part}
+
+%rule pause-part
   PAUSE
 %emits
   $
@@ -88,15 +91,16 @@ Ordinary word forms divide each run in one way only. Zantufa's `ra'oi` quote is 
   nonpause-phoneme | phoneme-sequence nonpause-phoneme
 
 %rule nonpause-phoneme
-  | "a" | "e" | "i" | "o" | "u" | "y" | "'" | Syllable-Break
+  | "a" | "e" | "i" | "o" | "u" | "y" | "'"<¬PAUSE> | Syllable-Break
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
+<details><summary>Railroad diagrams of the 11 rules from <code>text</code> to <code>nonpause-phoneme</code></summary>
 <p><img src="../../docs/diagrams/words/forms/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/words/forms/runs.svg" alt="Railroad diagram of the rule runs"></p>
 <p><img src="../../docs/diagrams/words/forms/pause-token.svg" alt="Railroad diagram of the rule pause-token"></p>
+<p><img src="../../docs/diagrams/words/forms/pause-part.svg" alt="Railroad diagram of the rule pause-part"></p>
 <p><img src="../../docs/diagrams/words/forms/run.svg" alt="Railroad diagram of the rule run"></p>
 <p><img src="../../docs/diagrams/words/forms/silent-token.svg" alt="Railroad diagram of the rule silent-token"></p>
 <p><img src="../../docs/diagrams/words/forms/word-run.svg" alt="Railroad diagram of the rule word-run"></p>
@@ -215,7 +219,7 @@ The words stage needs to know where a run begins and ends. A name that `bu` take
   [pause-run] bu-form
 
 %rule pause-run
-  PAUSE | pause-run Silent PAUSE
+  PAUSE | pause-run PAUSE | pause-run Silent PAUSE
 
 %rule bu-form
   cmavo-shape="bu"
