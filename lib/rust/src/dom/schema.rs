@@ -80,20 +80,6 @@ fn span(value: &Json) -> bool {
         )
 }
 
-fn closed_string(value: &Json) -> bool {
-    let mut pending = vec![value];
-    while let Some(part) = pending.pop() {
-        if string_atom(part) {
-            continue;
-        }
-        let Some(items) = part.get("concat").and_then(Json::as_array).filter(|items| items.len() >= 2) else {
-            return false;
-        };
-        pending.extend(items);
-    }
-    true
-}
-
 fn string_atom(value: &Json) -> bool {
     exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
 }
@@ -101,18 +87,11 @@ fn string_atom(value: &Json) -> bool {
 /// Literal endpoints must already form an ordered scalar interval.
 fn literal_range(left: &Json, right: &Json) -> bool {
     let text = |value: &Json| {
-        let mut pending = vec![value];
-        let mut text = String::new();
-        while let Some(part) = pending.pop() {
-            if let Some(value) = part.get("string").and_then(Json::as_str) {
-                text.push_str(value);
-            } else if let Some(items) = part.get("concat").and_then(Json::as_array) {
-                pending.extend(items.iter().rev());
-            } else {
-                text.push(part.get("const").and_then(Json::as_str).and_then(engine_scalar)?);
-            }
+        if let Some(text) = value.get("string").and_then(Json::as_str) {
+            Some(text.to_string())
+        } else {
+            value.get("const").and_then(Json::as_str).and_then(engine_scalar).map(|c| c.to_string())
         }
-        Some(text)
     };
     let ends = [text(left), text(right)];
     ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
@@ -485,7 +464,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                 }
             }
             Part::String => {
-                if !closed_string(value) {
+                if !string_atom(value) {
                     return Some("a string term is required");
                 }
                 pending.push((Part::Term, value, depth));

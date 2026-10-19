@@ -5491,7 +5491,7 @@
     "malformed": true
   },
   {
-    "description": "A body terminal accepts a closed concatenation.",
+    "description": "A body terminal rejects a closed concatenation.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5519,10 +5519,10 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
-    "description": "A range accepts closed scalar joins.",
+    "description": "A range rejects closed scalar joins.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5562,10 +5562,10 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
-    "description": "A value test accepts a closed concatenation.",
+    "description": "A value test rejects a closed concatenation.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5597,7 +5597,7 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
     "description": "A body terminal rejects a captured string inside its join.",
@@ -5671,7 +5671,7 @@
     "malformed": true
   },
   {
-    "description": "A pattern terminal accepts a closed concatenation.",
+    "description": "A pattern terminal rejects a closed concatenation.",
     "rule": {
       "name": "text",
       "op": "define",
@@ -5718,7 +5718,7 @@
         1
       ]
     },
-    "malformed": false
+    "malformed": true
   },
   {
     "description": "A pattern terminal rejects a captured string in its join.",
@@ -5763,6 +5763,60 @@
                 1,
                 1
               ]
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern value test rejects a closed concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "string": "b"
+                  }
+                ]
+              },
+              "expr": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
             }
           }
         }

@@ -1,6 +1,6 @@
 {
-  "description": "A range accepts closed endpoints that each resolve to one scalar.",
-  "grammar": "%rule text (\"\" ++ \"a\")..(\"\" ++ \"z\") %emits",
+  "description": "A string constant supplies the range endpoints.",
+  "grammar": "%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH %emits",
   "input": "b",
   "expect": {
     "result": {

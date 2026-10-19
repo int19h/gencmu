@@ -93,7 +93,7 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 		}
 	}
 	name := b.tokenValue(first)
-	terminal := first.Rule == "tag" || first.Rule == "string-join" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
+	terminal := first.Rule == "tag" || first.Rule == "string-terminal" || first.Rule == "string" || first.Rule == "range" || first.Rule == "wildcard" || first.Rule == "constant-reference" || first.Kind == KindToken && (isCapital(name) || engineTag(name))
 	tagSeen, valueSeen := false, false
 	for _, test := range tests {
 		if !terminal || test.Rule == "tag-test" && (tagSeen || valueSeen) || test.Rule == "value-test" && valueSeen {
@@ -109,15 +109,9 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 	switch first.Rule {
 	case "tag":
 		p.Kind, p.Name = "terminal", b.tagOf(b.token(first))
-	case "string-join":
-		p.Kind, p.Value = "literal", b.closedString(first)
 	case "string-terminal":
-		part := b.knownOf(first, []string{"string", "constant-reference", "string-join", "closed-string"})
+		part := b.knownOf(first, []string{"string", "constant-reference"})
 		p.Kind, p.Value = "literal", b.term(part)
-		if p.Value.Kind == tmConst && !strings.HasPrefix(p.Value.Str, "_") {
-			p.Kind, p.Name, p.At = "constant", p.Value.Str, p.Value.At
-			p.Value = nil
-		}
 	case "string":
 		p.Kind, p.Value = "literal", b.term(first)
 	case "wildcard":
@@ -146,13 +140,10 @@ func (b *domBuilder) patternAtom(n, first *Node) *domPattern {
 			next.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
-			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "string-join" && part.Rule != "term" {
+			if part.Rule != "string" && part.Rule != "constant-reference" {
 				b.fail(operand, "a pattern value test requires a string")
 			}
 			next.Value = b.term(part)
-			if !closedStringShape(next.Value) {
-				b.fail(operand, "a pattern value test requires a closed string")
-			}
 		}
 		p = next
 	}
@@ -209,7 +200,7 @@ func (b *domBuilder) stringTerm(n *Node) *domTerm {
 func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 	var ends []*domTerm
 	for _, p := range ruleParts(n) {
-		if p.Rule == "string" || p.Rule == "constant-reference" || p.Rule == "closed-string" {
+		if p.Rule == "string" || p.Rule == "constant-reference" {
 			ends = append(ends, b.term(p))
 			if len(ends) == 2 {
 				break
@@ -220,19 +211,6 @@ func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
 		b.lacks(n, "two string operands")
 	}
 	r := [2]*domTerm{ends[0], ends[1]}
-	if (r[0].Kind == tmConcat || r[1].Kind == tmConcat) && len(userConstRefs(r[0], r[1])) == 0 {
-		values := [2]string{}
-		for i, end := range r {
-			value, err := (&stageGrammar{}).evaluateClosed("", end, [2]int{})
-			if err != nil || len([]rune(value.s)) != 1 {
-				b.fail(n, "a range endpoint requires one scalar")
-			}
-			values[i] = value.s
-		}
-		if values[0] > values[1] {
-			b.fail(n, "a range starts above its end")
-		}
-	}
 	var scalars [2]rune
 	known := true
 	for i, end := range r {
@@ -300,13 +278,10 @@ func (b *domBuilder) tested(n *Node) *domExpr {
 			e.Op = b.operator(b.token(b.only(test, "test")))
 			operand := b.only(test, "test-operand")
 			part := b.knownOf(operand, atomRules)
-			if part.Rule != "string" && part.Rule != "constant-reference" && part.Rule != "string-join" && part.Rule != "term" {
+			if part.Rule != "string" && part.Rule != "constant-reference" {
 				b.fail(operand, "a value test requires a string or string constant")
 			}
 			e.Value = b.term(part)
-			if !closedStringShape(e.Value) {
-				b.fail(operand, "a value test requires a closed string")
-			}
 		}
 		expr = e
 	}
@@ -511,28 +486,4 @@ func (b *domBuilder) finishMethod(n *Node, name string, receiver *domTerm, args 
 		b.fail(n, "%s", msg)
 	}
 	return &domTerm{Kind: tmCall, Str: name, Items: items, At: b.at(n)}
-}
-
-func (b *domBuilder) closedString(n *Node) *domTerm {
-	pending := []*Node{n}
-	items := []*domTerm{}
-	for len(pending) > 0 {
-		part := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		if part.Rule == "string" || part.Rule == "constant-reference" {
-			items = append(items, b.value(part))
-		} else {
-			children := ruleParts(part)
-			for i := len(children) - 1; i >= 0; i-- {
-				pending = append(pending, children[i])
-			}
-		}
-	}
-	if len(items) == 0 {
-		b.fail(n, "a closed string is required")
-	}
-	if len(items) == 1 {
-		return items[0]
-	}
-	return &domTerm{Kind: tmConcat, Items: items}
 }

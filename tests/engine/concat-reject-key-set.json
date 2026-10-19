@@ -1,13 +1,13 @@
 {
-  "description": "A classifier key rejects a join with a string-set operand.",
-  "grammar": "%const $S \"a\" ∪ \"b\"\n%classifier c \"x\" ++ $S ∈ AB\n%rule text ε",
+  "description": "This string position rejects a constant whose value is a set.",
+  "grammar": "%const $S \"a\" ∪ \"b\"\n%classifier c $S ∈ AB\n%rule text ε",
   "input": "",
   "expect": {
     "error": "grammar",
     "where": {
       "document": "main.md",
       "line": 4,
-      "column": 22
+      "column": 15
     }
   }
 }

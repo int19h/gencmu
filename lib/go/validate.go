@@ -258,7 +258,7 @@ func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, key := range e.KeyTerms {
-		if !closedStringShape(key) {
+		if !stringTermShape(key) {
 			return &domProblem{message: "a classifier key requires a string term"}
 		}
 		c := &domChecker{uni: uni}
@@ -451,11 +451,15 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a missing value of a test")
 			return
 		}
+		if !stringTermShape(e.Value) {
+			c.fail("a value test requires a literal or constant string")
+			return
+		}
 		c.term(e.Value, depth+1, false)
 		c.tests = append(c.tests, e)
 	case exLiteral:
 		c.term(e.Value, depth, false)
-		if !closedStringShape(e.Value) {
+		if !stringTermShape(e.Value) {
 			c.fail("a literal requires a string term")
 		}
 	case exWildcard:
@@ -472,7 +476,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exRange:
 		for _, end := range e.Ends {
 			c.term(end, depth, false)
-			if !closedStringShape(end) {
+			if !stringTermShape(end) {
 				c.fail("a range requires string endpoints")
 			}
 		}
@@ -975,15 +979,15 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
 			case "literal":
-				if !closedStringShape(p.Value) {
-					return "a pattern literal requires a closed string"
+				if !stringTermShape(p.Value) {
+					return "a pattern literal requires a literal or constant string"
 				}
 				c.term(p.Value, d, false)
 				return ""
 			case "range":
 				for _, end := range p.Ends {
-					if !closedStringShape(end) {
-						return "a pattern range requires closed strings"
+					if !stringTermShape(end) {
+						return "a pattern range requires literal or constant strings"
 					}
 					c.term(end, d, false)
 				}
@@ -1000,6 +1004,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					c.term(r.Value, d+1, false)
 				}
 				return ""
+			}
+			if !stringTermShape(p.Value) {
+				return "a pattern value test requires a literal or constant string"
 			}
 			if openPart(p.Value) != nil {
 				return "a pattern test requires a closed operand"

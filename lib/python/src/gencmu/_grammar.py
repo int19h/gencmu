@@ -1233,27 +1233,12 @@ class _Lowerer:
             raise self.fail(f"an elidable optional in {self.current.name if self.current else '?'} does not begin with its terminator")
         return (name, test)
 
-    @staticmethod
-    def closed_terminal(term: Dom) -> str | None:
-        pending = [term]
-        pieces = []
-        while pending:
-            part = pending.pop()
-            value = literal_string(part)
-            if value is not None:
-                pieces.append(value)
-            elif "concat" in part:
-                pending.extend(reversed(part["concat"]))
-            else:
-                return None
-        return "".join(pieces)
-
     def character_class(self, expr: Dom) -> tuple[str, Any] | None:
         """A string, range, or wildcard terminal, whose name is its canonical
         form, and which matches by its characters rather than by a tag
         (engine §4); None for any other expression."""
         if "literal" in expr:
-            value = self.closed_terminal(expr["literal"])
+            value = literal_string(expr["literal"])
             if value is None:
                 raise self.fail("a string terminal requires a string constant")
             name = spelling(value, self.unicode)
@@ -1263,7 +1248,7 @@ class _Lowerer:
             self.characters["_"] = None
             return ("t", "_")
         if "range" in expr:
-            ends = [self.closed_terminal(end) for end in expr["range"]]
+            ends = [literal_string(end) for end in expr["range"]]
             if any(end is None or len(end) != 1 for end in ends) or ends[0] > ends[1]:
                 raise self.fail("invalid scalar range")
             name = "..".join(spelling(end, self.unicode) for end in ends)

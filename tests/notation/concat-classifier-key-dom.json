@@ -1,12 +1,53 @@
 {
-  "description": "A closed string join preserves its operands in the classifier key.",
-  "document": "```jbogenbau\n%classifier c $K \"a\" ++ $B (\"x\" ++ \"y\") ∈ AB\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $GROUP (\"x\" ++ \"y\")\n%classifier c $K $JOIN-1 $GROUP ∈ AB\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [],
       "directives": [],
-      "constants": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "B",
+                "at": [
+                  2,
+                  23
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "GROUP",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "x"
+              },
+              {
+                "string": "y"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
       "classifiers": [
         {
           "name": "c",
@@ -17,45 +58,35 @@
                 {
                   "const": "K",
                   "at": [
-                    2,
+                    4,
                     15
                   ]
                 },
                 {
-                  "concat": [
-                    {
-                      "string": "a"
-                    },
-                    {
-                      "const": "B",
-                      "at": [
-                        2,
-                        25
-                      ]
-                    }
+                  "const": "JOIN-1",
+                  "at": [
+                    4,
+                    18
                   ]
                 },
                 {
-                  "concat": [
-                    {
-                      "string": "x"
-                    },
-                    {
-                      "string": "y"
-                    }
+                  "const": "GROUP",
+                  "at": [
+                    4,
+                    26
                   ]
                 }
               ],
               "op": "∈",
               "class": "AB",
               "at": [
-                2,
+                4,
                 15
               ]
             }
           ],
           "at": [
-            2,
+            4,
             1
           ]
         }

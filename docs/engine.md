@@ -77,7 +77,7 @@ A table without `decompose` records decomposes only Hangul syllables, and one wi
 
 A tag set is a set of tags. A tag has no strength: a set holds it or not. The union holds every tag of either set. The intersection holds their shared tags. The difference holds the first set's tags that the second lacks.
 
-A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are closed string terms that resolve to one scalar. Surrogates are excluded, so `$_D7FF..$_E000` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
+A range, `"a".."z"`, reads an ordinary token with one scalar value inside its inclusive endpoints. Endpoints are string literals or constants that resolve to one scalar. Surrogates are excluded, so `$_D7FF..$_E000` has two possible values. A reversed range is a document error. Ranges cannot be tag sets or condition operands.
 
 Engine property names correspond to the configured Unicode table. A general category uses its short form with `_`, such as `_Lu`. A major category groups the general categories sharing its letter. These are the general and major names:
 
@@ -185,7 +185,7 @@ A stage has exactly one `%ambiguity-resolution L [elision-only]`, or it is an er
 
 No directive names elidable terminators. A rule marks each elidable optional in its body, as `[+T …]`. Whether an optional is elidable is a property of the optional itself. It is the same in every stage that includes its document.
 
-A lowercase name is a rule reference and must be defined in the stage. `#` is an ordinary rule name. A capital name or engine tag is a tag terminal. A closed string term is a value terminal. A range matches one scalar value, and `_` matches any ordinary token. Section 9 specifies lexical forms and terminal identity.
+A lowercase name is a rule reference and must be defined in the stage. `#` is an ordinary rule name. A capital name or engine tag is a tag terminal. A string literal or string constant is a value terminal. A range matches one scalar value, and `_` matches any ordinary token. Section 9 specifies lexical forms and terminal identity.
 
 A reference other than `#`, or a terminal, accepts one tag test and one value test, in that order. A value test uses `=` or `≠` with a string literal or string constant. A tag test lists signed tags or tag-set constants in `<…>`. All listed requirements hold together. An empty constant supplies no requirements.
 
@@ -1313,7 +1313,9 @@ A range's identity is its resolved pair of scalar endpoints. Its diagnostic spel
 
 The syntax stage recognizes forms that the reader rejects under §9.3. Recognition builds a notation tree for the whole document before reader validation starts. A syntax error anywhere therefore precedes every reader error. The productions below define recognition, not validity. They specify the syntax stage of `grammars/notation/syntax.md`.
 
-This metalanguage is descriptive EBNF, not an executable jbogenbau document. Quoted operators denote punctuation. Brackets denote optional syntax and braces denote zero or more syntax items. Lexical tokens follow §9.1. Constructor names and wrapper conversion follow §9.3. Body and pattern groups exclude a single closed string term. Its parentheses belong to that string terminal.
+This metalanguage is descriptive EBNF, not an executable jbogenbau document. Quoted operators denote punctuation. Brackets denote optional syntax and braces denote zero or more syntax items. Lexical tokens follow §9.1. Constructor names and wrapper conversion follow §9.3.
+
+Body and pattern parentheses group expressions. Value tests accept no grouped operand.
 
 Recognition productions:
 
@@ -1347,7 +1349,7 @@ untested-primary = reference | tag | string-terminal | range | "_"
                  | group | optional | repetition | "ε"
 reference = lowercase-name | "#"
 tag = uppercase-name | engine-tag-token
-string-terminal = closed-string
+string-terminal = string-literal | constant-reference
 group = "(" choice ")"
 optional = "[" ["+"] choice "]"
 repetition = "{" ["..."] choice ["/" choice] "}"
@@ -1357,12 +1359,10 @@ tag-test = "<" {requirement} ">"
 requirement = ["¬"] test-operand
 value-test = test test-operand
 test = "=" | "≠"
-test-operand = string-join | string-literal | constant-reference | lowercase-name | tag | range
+test-operand = string-literal | constant-reference | lowercase-name | tag | range
              | capture-reference | method-chain | "∅" | pattern-literal | "(" term ")"
-range = closed-string ".." closed-string
-string-operand = string-literal | constant-reference | "(" closed-string ")"
-closed-string = string-operand {"++" string-operand}
-string-join = string-operand "++" string-operand {"++" string-operand}
+range = string-operand ".." string-operand
+string-operand = string-literal | constant-reference
 conditions = "%conditions" [","] implication {"," implication}
 output = "%erased" | "%emits" [emission]
 emission = [","] item {"," item} | clauses
@@ -1403,10 +1403,9 @@ pattern-intersection = pattern-sequence {"∩" pattern-sequence}
 pattern-sequence = pattern-item {pattern-item}
 pattern-item = pattern-atom | pattern-brackets | pattern-repeat | pattern-path | "⋯"
 pattern-atom = (pattern-name | terminal) {symbol-test}
-             | pattern-literal | pattern-group
-pattern-group = "(" pattern-union ")"
+             | pattern-literal | "(" pattern-union ")"
 pattern-name = lowercase-name | "#"
-terminal = tag | closed-string | range | "_"
+terminal = tag | string-terminal | range | "_"
 pattern-brackets = "[" pattern-union "]"
 pattern-repeat = "{" pattern-union ["/" pattern-union] "}"
 pattern-path = ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
@@ -1425,7 +1424,7 @@ directive-receiver = tag | lowercase-name | string-literal | constant-reference 
 constant-definition = ("%const" | "%redefine-const") constant-reference term
 classifier = "%classifier" name {classifier-entry}
 classifier-entry = {guard} classifier-key {classifier-key} ("∈" | "∉") (name | engine-tag-token)
-classifier-key = closed-string
+classifier-key = string-literal | constant-reference
 implication-declaration = "%implies" union "⟹" union
 ```
 
@@ -1490,7 +1489,7 @@ tested-symbol = symbol [tag-test] [value-test]
 symbol = reference-other-than-# | tag | string-terminal | range | "_"
 tag-test = "<" {requirement} ">"
 requirement = ["¬"] (tag | tag-set-constant)
-value-test = ("=" | "≠") closed-string
+value-test = ("=" | "≠") (string-literal | string-constant)
 item = ("$" | named-capture | "ε") [clauses] | attached-item
 attached-item = {attachment} named-capture {attachment} [clauses]
 attachment = "(" named-capture ")"
@@ -1520,7 +1519,7 @@ Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immedia
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 
-A recipe contains exactly one recipe term, which can be a `++` chain. A second atom is an error at its first token. An unparenthesized `string-run` is an error at its first string. The message tells the author to use `++`. The reader does not convert the run into atoms or keep it as a string set.
+A recipe contains exactly one recipe term, which can be a `++` chain. A second term is an error at its first token. An unparenthesized `string-run` is an error at its first string. The message tells the author to use `++`. The reader does not convert the run into atoms or keep it as a string set.
 
 Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, `.ngrams`, or `.classify` is a document error. A recipe cannot branch on a condition.
 
@@ -1546,7 +1545,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `argument-term` | One directive method, reference, empty set, pattern, grouped term, `#`, or `_` | Invalid operand for validation at the directive |
 | `classifier` | `classifier-name`, then `classifier-entry` parts | `name`, then ordered `entries` |
 | `classifier-name`, `classifier-class` | One name token each | Name string |
-| `classifier-key` | One `closed-string` | Unresolved STRINGTERM |
+| `classifier-key` | One `string` or `constant-reference` | Unresolved STRINGTERM |
 | `classifier-operator` | One `∈` or `∉` token | Operator string |
 | `classifier-entry` | Guards, keys, operator, class. At least one key. | `guards`, `keys`, `op`, `class` |
 | `implication-declaration` | Two `union` parts | `if`, then `then` |
@@ -1570,7 +1569,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `primary` | One symbol, capture, tested, group, optional, repetition, or empty constructor | That expression. A constant symbol becomes `literal` of its unresolved term. |
 | `reference` | One rule or tag name token | `ref`, including untested `#` |
 | `tag` | One user or engine tag token | Body: `ref`. Term: singleton `tag`. Pattern: `terminal` with source position. |
-| `string-terminal` | One `closed-string` | Body: `literal` of the unresolved string term. Pattern: `constant` for a sole user reference, otherwise `literal`. |
+| `string-terminal` | One `string` or `constant-reference` | Body: `literal` of the unresolved string term. |
 | `wildcard` | One `_` token | `wildcard:true` |
 | `range` | Two string operands in order | `range` of unresolved STRINGTERMs |
 | `tested` | Tag tests if present, value tests if present, then one base constructor or `primary` | Require at least one test. Check the target and written test order. Wrap the base with tags first, then value. |
@@ -1578,7 +1577,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `tag-requirement` | Optional `¬` token, then one operand | Require a tag or tag-set constant. Produce `negated` and unresolved `value`. |
 | `value-test` | `test`, then `test-operand` | Comparator and string operand |
 | `test` | One `=` or `≠` token | Precomposed value comparator from the token value |
-| `test-operand` | One recognized operand | Require a closed string for a value test. Produce unresolved STRINGTERM. |
+| `test-operand` | One recognized operand | Require a string literal or string constant for a value test. Produce unresolved STRINGTERM. |
 | `capture` | Capture token, then `primary` | `capture` name without `$`, then `expr`. The base check accepts `#`. Its following tests fail at the test. |
 | `group` | One `choice` | Child expression |
 | `optional` | One `choice`, then `+` markers if present | `optional`, with `elidable:true` for one valid marker |
@@ -1593,9 +1592,8 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `emit-item` | Target, before attachments, after attachments, tags, value, image | Capture or inserted item, with ordered attachments and clauses |
 | `emit-target` | One capture, `ε`, name, tag, or range | Require a capture or `ε`. Produce capture name, empty name, or `insert:true`. |
 | `emit-before`, `emit-after` | One or more named `capture-reference` parts | Attachment names without `$`, in written order |
-| `recipe` | Exactly one valid `recipe-atom` | Ordered `concat`. Reject a second atom at its first token with an instruction to use `++`. |
+| `recipe` | Exactly one valid `recipe-atom` | Ordered `concat`. Reject a second term at its first token with an instruction to use `++`. |
 | `recipe-atom` | One recognized term | Check its written form before conversion. Require string atoms joined by `++`, with methods restricted by §11. Reject juxtaposed strings with an instruction to use `++`. |
-| `closed-string`, `string-join` | String operands separated by `++`, with optional grouping | Unresolved STRINGTERM. Flatten nested joins in written order without folding strings or resolving constants. |
 | `concatenation` | One or more `term-atom` parts separated by `++` | Sole child, or ordered `concat` of string operands. Require each known operand to be a string before reading the next. Defer unresolved constant types until binding. |
 | `method` | `method-receiver`, then one or more `method-selector` parts | Fold selectors left into receiver-first method nodes |
 | `method-receiver` | One `term-atom` | Initial receiver, retaining its actual type |
@@ -1994,11 +1992,17 @@ A constant value is a closed term with string, string-set, tag-set or pattern ty
 
 `++` requires scalar strings on both sides. It performs no capture, span, tag, pattern, or set conversion. Use an explicit string method for captures and spans.
 
-Adjacent string literals form a string set before `++` applies. A guarded term binds less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than intersection, union or difference, and comparisons, in that order. It associates left. Parentheses group terms outside recipes. The reader flattens nested concatenations in written order without folding their strings or resolving constants.
+In a term or constant, adjacent string literals form a string set before `++` applies. Thus `"a" "b" ++ "c"` means `("a" "b") ++ "c"`. Its set operand makes the join a type error.
+
+A guarded term binds less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than intersection, union or difference, and comparisons, in that order. It associates left. Parentheses group terms outside recipes.
+
+The reader flattens nested concatenations in written order without folding their strings or resolving constants.
 
 A concatenation is closed exactly when every operand is closed. Constant binding resolves each operand before joining its exact string. Written literal text already follows stage-zero decomposition. Concatenation performs no further normalization.
 
-A closed string term can stand in a body terminal, value test, pattern terminal, or classifier key. Parentheses group its operands. A parenthesized closed string remains one terminal, including as a capture target or tested atom. `"e" $_0301` reads two terminals. `"e" ++ $_0301` reads one terminal. Range endpoints also accept closed strings, but each must resolve to one scalar because a range orders scalar values.
+Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline concatenation is invalid in these positions. A constant can hold a joined string.
+
+Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. The joined value `"e" ++ $_0301` names one token with a similar spelling. A string constant makes that change explicit. This exception to string and string-set parity prevents confusion between terminals and token sequences.
 
 In a set operation, a scalar string converts to its singleton string set. This includes empty strings, concatenated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
 
@@ -2038,7 +2042,7 @@ Within a term, the engine evaluates operands, method receivers, and arguments fr
 
 `A ⟹ t`, where `A` is a condition and `t` a tag set or string set, is `t` where `A` holds. Where `A` does not hold, it is the empty set of the same kind. A guarded term binds looser than `∪`, `∩` and `∖`, so it stands in parentheses inside any of them. Its condition must be well typed even when presence simplification removes it. A scalar string consequent converts to a singleton. An untyped `∅` consequent retains its context's set kind.
 
-A tree comparison has operator `≅` or `≇`, a bare capture on the left and a pattern term on the right. Missing-capture simplification follows §3.6. After simplification, `≇` negates the same candidate's `≅` answer. A pattern literal is closed, and its terminal-test operands remain closed strings or tag sets.
+A tree comparison has operator `≅` or `≇`, a bare capture on the left and a pattern term on the right. Missing-capture simplification follows §3.6. After simplification, `≇` negates the same candidate's `≅` answer. A pattern literal is closed, and its value tests use string literals or constants, and its tag tests use tag sets.
 
 Pattern union, intersection and difference combine predicates. Contextual `∅` supplies the always-false predicate. Pattern values do not support ordinary equality or implicit string conversion.
 

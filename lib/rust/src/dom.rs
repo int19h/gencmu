@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 35;
+pub const DOM_FORMAT: i64 = 34;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {

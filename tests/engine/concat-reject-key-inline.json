@@ -1,0 +1,21 @@
+{
+  "description": "A classifier key rejects an inline string join.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%classifier c $A ++ $B ∈ AB\n%rule text _ :: $.value.classify(c) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 18
+    }
+  }
+}

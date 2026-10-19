@@ -2549,7 +2549,7 @@
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
         if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern position';
         if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
-        if ('literal' in n && (!n.literal || !['string', 'const', 'concat'].some(key => key in n.literal))) return 'a malformed pattern literal';
+        if ('literal' in n && (!n.literal || !['string', 'const'].some(key => key in n.literal))) return 'a malformed pattern literal';
         if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
       } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
         const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant'].some(key => key in value);
@@ -3835,7 +3835,7 @@
   const DOM_MAX_DEPTH = 256;
 
   // The version of the DOM's shape (docs/output.md), part of every cache key.
-  const DOM_FORMAT = 35;
+  const DOM_FORMAT = 34;
   // A constant's name, without its `$`, begins with a capital (engine §2).
   const CONSTANT_NAME = /^[A-Z][A-Za-z0-9_-]*$/;
   // A classifier's name begins with a lower-case letter, and a class with a
@@ -3891,21 +3891,6 @@
   function rangeProblem(range, unicode) {
     if (!Array.isArray(range) || range.length !== 2) return "a malformed range";
     const strings = range.map(end => {
-      if (isDomObject(end) && Array.isArray(end.concat)) {
-        const pending = [end], pieces = [];
-        while (pending.length) {
-          const part = pending.pop();
-          if (isDomObject(part) && Array.isArray(part.concat)) {
-            for (let i = part.concat.length - 1; i >= 0; i--) pending.push(part.concat[i]);
-          } else if (isDomObject(part) && typeof part.string === "string") pieces.push(part.string);
-          else if (isDomObject(part) && typeof part.const === "string" && /^_[0-9A-F]{4,6}$/.test(part.const)) {
-            const code = parseInt(part.const.slice(1), 16);
-            if (code > 0x10ffff || code >= 0xd800 && code <= 0xdfff) return null;
-            pieces.push(String.fromCodePoint(code));
-          } else return null;
-        }
-        return pieces.join("");
-      }
       if (isDomObject(end) && typeof end.string === "string") return end.string;
       if (isDomObject(end) && isDomObject(end.value) && typeof end.value.string === "string") return end.value.string;
       if (isDomObject(end) && typeof end.const === "string" && /^_[0-9A-F]{4,6}$/.test(end.const)) {
@@ -3980,16 +3965,7 @@
     /** @type {(value: any) => boolean} */
     const stringAtom = value => object(value) && ["string", "const"].some(key => key in value);
     /** @type {(value: any) => boolean} */
-    const stringTerm = value => {
-      const pending = [value];
-      while (pending.length) {
-        const part = pending.pop();
-        if (stringAtom(part)) continue;
-        if (!object(part) || !Array.isArray(part.concat) || part.concat.length < 2) return false;
-        for (const item of part.concat) pending.push(item);
-      }
-      return true;
-    };
+    const stringTerm = stringAtom;
     /** @type {(value: any) => boolean} */
     const tag = value => typeof value === "string" && (/^[A-Z][A-Za-z0-9_-]*$/.test(value) || (value.startsWith("_") && value !== "_" && PROPERTY_NAMES.has(value.slice(1))));
     /** @type {(value: any) => boolean} */
@@ -4142,7 +4118,7 @@
         push("pattern-part",value,depth);
       } else if (kind === "pattern-part") {
         if (value.test === "tags") for (const requirement of value.requirements) child("term", requirement.value);
-        else if (value.test) child("term", value.value);
+        else if (value.test) { if (!stringTerm(value.value)) return "a malformed pattern value test"; child("term", value.value); }
         if (value.literal) { if (!stringTerm(value.literal)) return "a malformed pattern literal"; push("term", value.literal, depth); }
         if (value.range) for (const endpoint of value.range) { if (!stringTerm(endpoint)) return "a malformed pattern range"; push("term", endpoint, depth); }
         for (const item of patternParts(value)) if (item !== value.value) child("pattern-part", item);
@@ -15590,7 +15566,7 @@
         return read;
       });
       const keys = some(node, "classifier-key").map((keyNode) => {
-        const key = readClosedString(only(keyNode, "closed-string"));
+        const key = run(readTerm(knownOf(keyNode, new Set(["string", "constant-reference"]))));
 
         return key;
       });
@@ -15855,7 +15831,7 @@
       switch (ruleOf(node)) {
         case "reference": return { ref: valueOf(token(node)) };
         case "tag": return { ref: tagOf(token(node)) };
-        case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference", "string-join", "closed-string"]))) };
+        case "string-terminal": return { literal: yield readTerm(knownOf(node, new Set(["string", "constant-reference"]))) };
         case "wildcard": token(node); return { wildcard: true };
         case "range": return { range: yield readRange(node) };
         case "tested": {
@@ -16007,15 +15983,8 @@
       const comparator = operator(token(only(node, "test")));
       const operand = only(node, "test-operand");
       const inner = knownOf(operand, ATOMS);
-      if (!["string", "constant-reference", "string-join", "term", "term-atom"].includes(ruleOf(inner))) fail("a value test requires a closed string", operand);
-      const value = yield readTerm(inner);
-      const pending = [value];
-      while (pending.length) {
-        const part = pending.pop();
-        if ("concat" in part) for (const item of part.concat) pending.push(item);
-        else if (!("string" in part || "const" in part)) fail("a value test requires a closed string", operand);
-      }
-      return { test: comparator, value };
+      if (!["string", "constant-reference"].includes(ruleOf(inner))) fail("a value test requires a string literal or string constant", operand);
+      return { test: comparator, value: yield readTerm(inner) };
     }
 
     /**
@@ -16220,7 +16189,6 @@
         });
         return result;
       }
-      if (["closed-string", "string-join"].includes(ruleOf(node))) return readClosedString(node);
       if (ruleOf(node) === "concatenation") {
         const nodes = some(node, "term-atom");
         const items = [];
@@ -16353,7 +16321,7 @@
         if (!first) return lacks(node, "pattern atom");
         const tests = inner.filter(child => ["tag-test", "value-test"].includes(ruleOf(child)));
         const testable = first.kind === "token" ? isCapital(valueOf(first)) || valueOf(first).startsWith("_")
-          : ["tag", "string", "string-terminal", "string-join", "range", "wildcard", "constant-reference"].includes(ruleOf(first));
+          : ["tag", "string", "string-terminal", "range", "wildcard", "constant-reference"].includes(ruleOf(first));
         const grouped = first.kind === "token" && valueOf(first) === "(";
         const nested = ruleOf(first) === "pattern-literal";
         checkTestOrder(tests, testable);
@@ -16364,12 +16332,8 @@
           const name = valueOf(first);
           expr = isCapital(name) || name.startsWith("_") ? { terminal: tagOf(first), at: at(first) } : { name, at: at(first) };
         } else if (ruleOf(first) === "tag") expr = { terminal: tagOf(token(first)), at: at(first) };
-        else if (ruleOf(first) === "string-join") expr = { literal: readClosedString(first), at: at(first) };
         else if (ruleOf(first) === "string") expr = { literal: decode(token(first)), at: at(first) };
-        else if (ruleOf(first) === "string-terminal") {
-          const value = yield readTerm(knownOf(first, new Set(["string", "constant-reference", "string-join", "closed-string"])));
-          expr = "const" in value && !value.const.startsWith("_") ? {constant: value.const, at: value.at} : {literal: value, at: at(first)};
-        }
+        else if (ruleOf(first) === "string-terminal") expr = { literal: yield readTerm(knownOf(first, new Set(["string", "constant-reference"]))), at: at(first) };
         else if (ruleOf(first) === "range") expr = { range: yield readRange(first), at: at(first) };
         else if (ruleOf(first) === "wildcard") expr = { wildcard: true, at: at(first) };
         else if (ruleOf(first) === "constant-reference") {
@@ -16458,30 +16422,12 @@
       return name;
     }
 
-    /** @param {ResultNode} node @returns {Term} */
-    function readClosedString(node) {
-      const pending = [node], items = [];
-      while (pending.length) {
-        const part = /** @type {ResultNode} */ (pending.pop());
-        if (ruleOf(part) === "string") items.push(decode(token(part)));
-        else if (ruleOf(part) === "constant-reference") items.push(run(readTerm(part)));
-        else {
-          const children = parts(part).filter(child => child.kind === "rule");
-          for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]);
-        }
-      }
-      if (!items.length) return lacks(node, "a closed string");
-      return items.length === 1 ? items[0] : { concat: items };
-    }
-
     /** @param {ResultNode} node @returns {Generator<Step, any, any>} */
     function* readRange(node) {
-      const found = parts(node).filter(child => ["closed-string", "string", "constant-reference"].includes(ruleOf(child)));
+      const found = parts(node).filter(child => ["string", "constant-reference"].includes(ruleOf(child)));
       if (found.length < 2) lacks(node, "two string operands");
       const range = [];
       for (const end of found.slice(0, 2)) range.push(yield readTerm(end));
-      const problem = rangeProblem(range, unicode);
-      if (problem) fail(problem, node);
       const scalars = range.map(term => typeof term.string === "string" ? term.string : term.const?.startsWith("_") ? String.fromCodePoint(parseInt(term.const.slice(1), 16)) : null);
       if (scalars.some(value => value !== null && [...value].length !== 1)) fail("a range endpoint is one scalar", node);
       if (scalars.every(value => value !== null) && scalars[0].codePointAt(0) > scalars[1].codePointAt(0)) fail("a range starts above its end", node);
@@ -16578,7 +16524,7 @@
   const PRIMARIES = new Set(["reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty"]);
   const CONDITIONS = new Set(["tree-comparison", "comparison", "method", "negation", "presence", "implication"]);
   const TERMS = new Set(["union", "guarded-term"]);
-  const ATOMS = new Set(["pattern-literal", "string-join", "closed-string", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
+  const ATOMS = new Set(["pattern-literal", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "guarded-term", "union", "term-atom", "method", "capture-reference", "constant-reference"]);
   const ITEMS = new Set(["directive", "rule", "constant-definition", "classifier", "implication-declaration"]);
   const NAMED = new Set([
     ...ITEMS, ...PRIMARIES, ...CONDITIONS, ...TERMS, ...ATOMS,

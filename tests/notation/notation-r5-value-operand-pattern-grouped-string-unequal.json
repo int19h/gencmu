@@ -1,55 +1,10 @@
 {
-  "description": "A value test accepts a grouped closed string in a tree pattern.",
+  "description": "Engine §9.3 reports a forbidden value-test operand at its start in bodies and patterns.",
   "document": "```jbogenbau\n%rule text A %conditions $ ≅ @A≠(\"a\")\n```",
   "expect": {
-    "dom": {
-      "format": 35,
-      "rules": [
-        {
-          "name": "text",
-          "op": "define",
-          "flags": [],
-          "alternatives": [
-            {
-              "guards": [],
-              "expr": {
-                "ref": "A"
-              }
-            }
-          ],
-          "conditions": [
-            {
-              "op": "≅",
-              "left": {
-                "capture": ""
-              },
-              "right": {
-                "pattern": {
-                  "test": "≠",
-                  "value": {
-                    "string": "a"
-                  },
-                  "expr": {
-                    "terminal": "A",
-                    "at": [
-                      2,
-                      31
-                    ]
-                  }
-                }
-              }
-            }
-          ],
-          "at": [
-            2,
-            1
-          ]
-        }
-      ],
-      "directives": [],
-      "constants": [],
-      "classifiers": [],
-      "implications": []
+    "error": {
+      "line": 2,
+      "column": 33
     }
   }
 }

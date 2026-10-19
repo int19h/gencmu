@@ -191,7 +191,7 @@ impl<'a> Reader<'a> {
         let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
-            let key = self.closed_string(self.one(key_node, "closed-string")?)?;
+            let key = self.string_operand(self.inner(key_node, &["string", "constant-reference"])?)?;
             keys.push(key);
         }
         let operator = self.one(node, "classifier-operator")?;
@@ -1217,7 +1217,6 @@ impl<'a> Reader<'a> {
                 }
                 typed(Term::Pattern(Box::new(p)), Type::Pattern)
             }
-            "closed-string" | "string-join" => typed(self.closed_string(node)?, Type::String),
             "string" => typed(self.string_term(token()?)?, Type::String),
             "tag" => {
                 let token = token()?;
@@ -1298,7 +1297,6 @@ impl<'a> Reader<'a> {
                         | "tag"
                         | "string"
                         | "string-terminal"
-                        | "string-join"
                         | "wildcard"
                         | "range"
                         | "constant-reference"
@@ -1335,7 +1333,7 @@ impl<'a> Reader<'a> {
                 };
                 let testable = matches!(
                     rule_name(base),
-                    "tag" | "string" | "string-join" | "string-terminal" | "wildcard" | "range" | "constant-reference"
+                    "tag" | "string" | "string-terminal" | "wildcard" | "range" | "constant-reference"
                 ) || name
                     .is_some_and(|name| is_capital(self.value(name)) || self.value(name).starts_with('_'));
                 self.pattern_test_nodes(node, testable)?;
@@ -1454,19 +1452,10 @@ impl<'a> Reader<'a> {
                         let (pattern, tested) = match rule_name(first) {
                             "tag" => (P::Terminal(self.tag_of(self.token(first)?)?, self.first(first)), true),
                             "string" => (P::Literal(self.string_term(self.token(first)?)?, self.first(first)), true),
-                            "string-join" => (P::Literal(self.closed_string(first)?, self.first(first)), true),
                             "string-terminal" => {
                                 let symbol = self.symbol(first)?;
                                 let Expr::Literal(term) = &symbol else { unreachable!() };
-                                if let Term::Const(name, at) = term {
-                                    if !name.starts_with('_') {
-                                        (P::Constant(name.clone(), *at), true)
-                                    } else {
-                                        (P::Literal(term.clone(), self.first(first)), true)
-                                    }
-                                } else {
-                                    (P::Literal(term.clone(), self.first(first)), true)
-                                }
+                                (P::Literal(term.clone(), self.first(first)), true)
                             }
                             "wildcard" => (P::Wildcard(self.first(first)), true),
                             "range" => {
@@ -1919,46 +1908,35 @@ impl<'a> Reader<'a> {
                 let parts = Self::parts(node);
                 let part = parts
                     .iter()
-                    .find(|p| matches!(rule_name(p), "string" | "constant-reference" | "string-join" | "closed-string"))
+                    .find(|p| matches!(rule_name(p), "string" | "constant-reference"))
                     .ok_or_else(|| self.shape_error(node, "string operand"))?;
                 Ok(Expr::Literal(self.string_operand(part)?))
             }
             "range" => {
                 let parts: Vec<_> = Self::parts(node)
                     .into_iter()
-                    .filter(|p| {
-                        matches!(rule_name(p), "string" | "constant-reference" | "string-join" | "closed-string")
-                    })
+                    .filter(|p| matches!(rule_name(p), "string" | "constant-reference"))
                     .collect();
                 if parts.len() < 2 {
                     return Err(self.shape_error(node, "two string operands"));
                 }
                 let left = self.string_operand(parts[0])?;
                 let right = self.string_operand(parts[1])?;
-                let text = |endpoint: &Term| {
-                    let mut pending = vec![endpoint];
-                    let mut text = String::new();
-                    while let Some(part) = pending.pop() {
-                        match part {
-                            Term::Str(s) => text.push_str(s),
-                            Term::Const(n, _) => text.push(crate::dom::engine_scalar(n)?),
-                            Term::Call(name, args) if name == "concat" => {
-                                for arg in args.iter().rev() {
-                                    if let Arg::Term(t) = arg {
-                                        pending.push(t);
-                                    }
-                                }
-                            }
-                            _ => return None,
-                        }
+                let scalar = |term: &Term| match term {
+                    Term::Str(s) => {
+                        let mut cs = s.chars();
+                        let c = cs.next()?;
+                        cs.next().is_none().then_some(c)
                     }
-                    Some(text)
+                    Term::Const(n, _) => crate::dom::engine_scalar(n),
+                    _ => None,
                 };
-                let ends = [text(&left), text(&right)];
-                if ends.iter().any(|end| end.as_ref().is_some_and(|s| s.chars().count() != 1)) {
+                if matches!(&left, Term::Str(_)) && scalar(&left).is_none()
+                    || matches!(&right, Term::Str(_)) && scalar(&right).is_none()
+                {
                     return Err(self.error(node, "range endpoints must be single scalars"));
                 }
-                if let [Some(a), Some(b)] = &ends {
+                if let (Some(a), Some(b)) = (scalar(&left), scalar(&right)) {
                     if a > b {
                         return Err(self.error(node, "range starts above its end"));
                     }
@@ -1971,49 +1949,13 @@ impl<'a> Reader<'a> {
 
     fn value_test_operand(&self, operand: &'a Node) -> R<Term> {
         let part = self.inner(operand, ATOMS)?;
-        if !matches!(rule_name(part), "string" | "constant-reference" | "string-join" | "closed-string" | "term") {
+        if !matches!(rule_name(part), "string" | "constant-reference") {
             return Err(self.error(operand, "a value test requires a string literal or constant"));
         }
-        let term = if rule_name(part) == "term" { self.term(part, false)?.0 } else { self.string_operand(part)? };
-        let mut pending = vec![&term];
-        while let Some(part) = pending.pop() {
-            match part {
-                Term::Str(_) | Term::Const(..) => {}
-                Term::Call(name, args) if name == "concat" => {
-                    for arg in args {
-                        if let Arg::Term(term) = arg {
-                            pending.push(term);
-                        }
-                    }
-                }
-                _ => return Err(self.error(operand, "a value test requires a closed string")),
-            }
-        }
-        Ok(term)
-    }
-
-    fn closed_string(&self, node: &'a Node) -> R<Term> {
-        let mut pending = vec![node];
-        let mut items = Vec::new();
-        while let Some(part) = pending.pop() {
-            match rule_name(part) {
-                "string" | "constant-reference" => items.push(self.string_operand(part)?),
-                _ => pending.extend(Self::parts(part).into_iter().filter(|child| child.kind == NodeKind::Rule).rev()),
-            }
-        }
-        if items.is_empty() {
-            return Err(self.shape_error(node, "a closed string"));
-        }
-        if items.len() == 1 {
-            return Ok(items.remove(0));
-        }
-        Ok(Term::Call("concat".into(), items.into_iter().map(Arg::Term).collect()))
+        self.string_operand(part)
     }
 
     fn string_operand(&self, node: &'a Node) -> R<Term> {
-        if matches!(rule_name(node), "closed-string" | "string-join") {
-            return self.closed_string(node);
-        }
         let token = self.token(node)?;
         match rule_name(node) {
             "string" => self.string_term(token),
@@ -2504,8 +2446,6 @@ const KNOWN: &[&str] = &[
     "classifier-name",
     "classifier-entry",
     "classifier-key",
-    "closed-string",
-    "string-join",
     "classifier-operator",
     "classifier-class",
     "implication-declaration",
@@ -2586,8 +2526,6 @@ const PRIMARIES: &[&str] = &[
 const CONDITIONS: &[&str] = &["tree-comparison", "comparison", "method", "negation", "presence", "implication"];
 const TERMS: [&str; 2] = ["union", "guarded-term"];
 const ATOMS: &[&str] = &[
-    "closed-string",
-    "string-join",
     "method",
     "tag-run",
     "string-run",

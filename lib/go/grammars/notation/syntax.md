@@ -121,7 +121,7 @@ A primary is a symbol, capture, tested primary, group, optional, repetition, or 
 
 Strings and string constants read exact values. A range reads one scalar between its endpoints. The wildcard `_` reads any token, so `tag` excludes it.
 
-Parentheses around a closed string belong to that terminal. Other parentheses group a choice. Brackets make it optional, and `+` marks an elidable optional. Braces repeat a choice, with an optional separator after `/`.
+Parentheses group a choice. Brackets make it optional, and `+` marks an elidable optional. Braces repeat a choice, with an optional separator after `/`.
 
 A chain has `...` before or after its item. The reader requires a chain to occupy its entire alternative.
 
@@ -155,15 +155,13 @@ Recognition also admits invalid capture targets and captures inside braces or ma
   Uppercase-Name | Engine-Tag≠"_"
 
 %rule string-terminal
-  closed-string
+  string | constant-reference
 
 %rule wildcard
   "_"
 
 %rule group
-  "(" $body:choice ")"
-%conditions
-  $body ≇ @(string-terminal)
+  "(" choice ")"
 
 %rule optional
   "[" ["+"] choice "]"
@@ -202,7 +200,7 @@ A `tested` primary holds its base and all following tests in written order. Test
 
 Valid symbols accept a tag test followed by a value test. Recognition admits extra tests, reversed tests, and wider operands so that the reader can name their errors.
 
-Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a closed string operand.
+Each tag requirement has an optional `¬`. An empty requirement list holds vacuously. A value test uses `=` or `≠` and requires a string literal or string constant.
 
 ```jbogenbau
 %rule tested
@@ -227,22 +225,16 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
   string | constant-reference | name≠"#" | tag | range | capture-reference | empty-set | pattern-literal | "(" term ")"
 
 %rule test-operand
-  operand-atom | method | string-join
+  operand-atom | method
 
 %rule range
-  closed-string ".." closed-string
+  string-operand ".." string-operand
 
 %rule string-operand
-  string | constant-reference | "(" closed-string ")"
-
-%rule closed-string
-  {string-operand / "++"}
-
-%rule string-join
-  string-operand "++" {string-operand / "++"}
+  string | constant-reference
 ```
 
-<details><summary>Railroad diagrams of the 12 rules from <code>tested</code> to <code>string-join</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>tested</code> to <code>string-operand</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/tested.svg" alt="Railroad diagram of the rule tested"></p>
 <p><img src="../../docs/diagrams/notation/syntax/symbol-test.svg" alt="Railroad diagram of the rule symbol-test"></p>
 <p><img src="../../docs/diagrams/notation/syntax/tag-test.svg" alt="Railroad diagram of the rule tag-test"></p>
@@ -253,8 +245,6 @@ Each tag requirement has an optional `¬`. An empty requirement list holds vacuo
 <p><img src="../../docs/diagrams/notation/syntax/test-operand.svg" alt="Railroad diagram of the rule test-operand"></p>
 <p><img src="../../docs/diagrams/notation/syntax/range.svg" alt="Railroad diagram of the rule range"></p>
 <p><img src="../../docs/diagrams/notation/syntax/string-operand.svg" alt="Railroad diagram of the rule string-operand"></p>
-<p><img src="../../docs/diagrams/notation/syntax/closed-string.svg" alt="Railroad diagram of the rule closed-string"></p>
-<p><img src="../../docs/diagrams/notation/syntax/string-join.svg" alt="Railroad diagram of the rule string-join"></p>
 </details>
 
 ## Conditions and output
@@ -324,7 +314,7 @@ Attachments are named captures in parentheses around a named carrier. The reader
 
 `::` supplies tags, `:=` supplies a value recipe, and `:-` supplies an image recipe. A recipe is exactly one term that joins its string atoms with `++` in written order.
 
-Recognition admits repeated terms for diagnostics, but a valid recipe contains exactly one term. The reader rejects a second atom at its first token and tells the author to use `++`. Adjacent string literals form a set, so the reader rejects them and tells the author to use `++`. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
+Recognition admits repeated terms for diagnostics, but a valid recipe contains exactly one term. The reader rejects a second term at its first token and tells the author to use `++`. Adjacent string literals form a set, so the reader rejects them and tells the author to use `++`. The reader permits only strings, string constants, and the seven capture string methods of engine §11.3.
 
 This wider recognition lets the reader reject a written operator or forbidden method at its atom. It does not make those atoms valid recipes.
 
@@ -357,7 +347,7 @@ This wider recognition lets the reader reject a written operator or forbidden me
 
 A term can be a string, a set, a pattern, a capture, a span, or a method result. Its context determines the type of `∅`.
 
-`++` binds tighter than `∩`, which binds tighter than `∪` and `∖`. These operators group from the left. Adjacent tags or strings form one union.
+`++` binds tighter than `∩`, which binds tighter than `∪` and `∖`. These operators group from the left. Adjacent tags or strings form one union. In terms and constants, string runs bind tighter than concatenation.
 
 A guarded term writes a condition before `⟹`. It supplies its value only where that condition holds. A guard binds less tightly than set operators.
 
@@ -521,7 +511,7 @@ A tree comparison has a bare capture on the left and a pattern term on the right
 
 A pattern literal starts with `@(` and ends with `)`. The shorthand `@A` reads one ungrouped atom. Its lookahead excludes a plain group from shorthand recognition.
 
-Parentheses around a closed string belong to its terminal atom. Other pattern groups exclude that form. Patterns combine with union, intersection, and difference. Sequences describe siblings, brackets make a sequence optional, and braces repeat it with an optional separator.
+Patterns combine with union, intersection, and difference. Sequences describe siblings, brackets make a sequence optional, and braces repeat it with an optional separator.
 
 `⋯` admits a sibling gap. `⋮` and `⋱` precede an atom for descendant and last-child paths. `⋰` follows an atom for a first-child path.
 
@@ -546,12 +536,7 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
   pattern-atom | pattern-brackets | pattern-repeat | pattern-path | "⋯"
 
 %rule pattern-atom
-  (pattern-name | tag | string-terminal | range | wildcard) [{symbol-test}] | pattern-literal | pattern-group
-
-%rule pattern-group
-  "(" $body:pattern-union ")"
-%conditions
-  $body ≇ @(string-terminal)
+  (pattern-name | tag | string | range | wildcard | constant-reference) [{symbol-test}] | pattern-literal | "(" pattern-union ")"
 
 %rule pattern-name
   Lowercase-Name | "#"
@@ -566,14 +551,13 @@ Recognition admits repeated or reversed tests on names, terminals, and constants
   ("⋮" | "⋱") pattern-atom | pattern-atom "⋰"
 ```
 
-<details><summary>Railroad diagrams of the 11 rules from <code>pattern-literal</code> to <code>pattern-path</code></summary>
+<details><summary>Railroad diagrams of the 10 rules from <code>pattern-literal</code> to <code>pattern-path</code></summary>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-literal.svg" alt="Railroad diagram of the rule pattern-literal"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-union.svg" alt="Railroad diagram of the rule pattern-union"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-intersection.svg" alt="Railroad diagram of the rule pattern-intersection"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-sequence.svg" alt="Railroad diagram of the rule pattern-sequence"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-item.svg" alt="Railroad diagram of the rule pattern-item"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-atom.svg" alt="Railroad diagram of the rule pattern-atom"></p>
-<p><img src="../../docs/diagrams/notation/syntax/pattern-group.svg" alt="Railroad diagram of the rule pattern-group"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-name.svg" alt="Railroad diagram of the rule pattern-name"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-brackets.svg" alt="Railroad diagram of the rule pattern-brackets"></p>
 <p><img src="../../docs/diagrams/notation/syntax/pattern-repeat.svg" alt="Railroad diagram of the rule pattern-repeat"></p>
@@ -653,7 +637,7 @@ A classifier has a name and entries. Each entry has guards, one or more string k
   [{guard}] {classifier-key} classifier-operator classifier-class
 
 %rule classifier-key
-  closed-string
+  string | constant-reference
 
 %rule classifier-operator
   "∈" | "∉"

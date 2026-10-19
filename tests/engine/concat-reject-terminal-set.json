@@ -1,13 +1,13 @@
 {
-  "description": "A body terminal rejects a join with a string-set operand.",
-  "grammar": "%const $S \"a\" ∪ \"b\"\n%rule text \"x\" ++ $S",
+  "description": "This string position rejects a constant whose value is a set.",
+  "grammar": "%const $S \"a\" ∪ \"b\"\n%rule text $S",
   "input": "",
   "expect": {
     "error": "grammar",
     "where": {
       "document": "main.md",
       "line": 4,
-      "column": 19
+      "column": 12
     }
   }
 }

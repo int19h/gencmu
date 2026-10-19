@@ -1,39 +1,48 @@
 {
-  "description": "A closed string join preserves its operands in the pattern.",
-  "document": "```jbogenbau\n%const $P @(\"a\" ++ $B)\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $P @($JOIN-1)\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [],
       "directives": [],
       "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "B",
+                "at": [
+                  2,
+                  23
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
         {
           "name": "P",
           "op": "define",
           "value": {
             "pattern": {
-              "literal": {
-                "concat": [
-                  {
-                    "string": "a"
-                  },
-                  {
-                    "const": "B",
-                    "at": [
-                      2,
-                      20
-                    ]
-                  }
-                ]
-              },
+              "constant": "JOIN-1",
               "at": [
-                2,
+                3,
                 13
               ]
             }
           },
           "at": [
-            2,
+            3,
             1
           ]
         }

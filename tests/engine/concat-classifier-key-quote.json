@@ -1,6 +1,6 @@
 {
-  "description": "A classifier key joins exact quotation-mark and backslash constants.",
-  "grammar": "%const $Q $_0022\n%classifier c $Q ++ $_005C \u2208 AB\n%rule text _ :: $.value.classify(c) %emits",
+  "description": "A string constant supplies the classifier key.",
+  "grammar": "%const $Q $_0022\n%const $K $Q ++ $_005C\n%classifier c $K ∈ AB\n%rule text _ :: $.value.classify(c) %emits",
   "tokens": [
     {
       "text": "x",

@@ -1060,3 +1060,30 @@ mod notation_cache_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod classifier_constant_errors {
+    use super::*;
+
+    #[test]
+    fn undefined_classifier_key_constants_report_their_positions() {
+        let context = Context::bundled().unwrap();
+        for key in ["$NOPE", "$MISSING"] {
+            let body = format!("%classifier c {key} ∈ K");
+            let column = body.find(key).unwrap() + 1;
+            let grammar = format!("```jbogenbau\n%ambiguity-resolution greedy\n{body}\n%rule text ε\n```\n");
+            let sources = MapSources {
+                map: [
+                    ("p.md".into(), "```jbogenbau\n%stage main\n%include \"g.md\"\n```\n".into()),
+                    ("g.md".into(), grammar),
+                ]
+                .into(),
+            };
+            let Err(error) = load(&context, &sources, "p.md") else {
+                panic!("an undefined classifier key must fail");
+            };
+            assert!(error.message.contains(&format!("{key} is not defined")), "{error}");
+            assert_eq!((error.line, error.column), (Some(3), Some(column)));
+        }
+    }
+}

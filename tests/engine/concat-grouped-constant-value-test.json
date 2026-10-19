@@ -1,6 +1,6 @@
 {
-  "description": "A value test accepts a grouped closed join.",
-  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text T=($A ++ $B) %emits",
+  "description": "A string constant supplies the captured or tested terminal.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 ($A ++ $B)\n%rule text T=$JOIN-1 %emits",
   "tokens": [
     {
       "text": "x",

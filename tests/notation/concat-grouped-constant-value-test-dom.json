@@ -1,0 +1,66 @@
+{
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ $B)\n%rule text A=$JOIN-1\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "=",
+                "value": {
+                  "const": "JOIN-1",
+                  "at": [
+                    3,
+                    14
+                  ]
+                },
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "B",
+                "at": [
+                  2,
+                  24
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

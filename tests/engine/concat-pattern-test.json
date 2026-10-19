@@ -1,6 +1,6 @@
 {
-  "description": "A closed string term supplies the pattern test.",
-  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text $x:_ %conditions $x ≅ @(_=$A ++ $B) %emits",
+  "description": "A string constant supplies the captured or tested terminal.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 $A ++ $B\n%rule text $x:_ %conditions $x ≅ @(_=$JOIN-1) %emits",
   "tokens": [
     {
       "text": "x",

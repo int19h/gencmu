@@ -1108,9 +1108,16 @@ impl Constants<'_> {
                 Term::Str(text) => Value::Str(text.clone()),
                 Term::Tag(tag) => Value::Set(BTreeSet::from([tag.clone()])),
                 Term::EmptySet => Value::Set(BTreeSet::new()),
-                Term::Const(name, _) => match crate::dom::engine_scalar(name) {
+                Term::Const(name, at) => match crate::dom::engine_scalar(name) {
                     Some(c) => Value::Str(c.to_string()),
-                    None => self.values.get(name).expect("a bound constant").value.clone(),
+                    None => self
+                        .values
+                        .get(name)
+                        .ok_or_else(|| {
+                            located(format!("${name} is not defined in stage {}", self.stage), document, *at)
+                        })?
+                        .value
+                        .clone(),
                 },
                 Term::Union(_) => Value::Set(operands.flat_map(|value| value.set()).collect()),
                 Term::Intersection(_) => {
@@ -1354,6 +1361,17 @@ impl Constants<'_> {
         for (document, classifier) in &mut grammar.classifiers {
             for entry in &mut classifier.entries {
                 for key in &mut entry.keys {
+                    let mut references = Vec::new();
+                    constants_in_term(key, &mut references);
+                    for (name, at) in references {
+                        if crate::dom::engine_scalar(name).is_none() && !self.values.contains_key(name) {
+                            return Err(located(
+                                format!("${name} is not defined in stage {}", self.stage),
+                                document,
+                                at,
+                            ));
+                        }
+                    }
                     let ty =
                         term_type_in(key, &|name| self.ty(name)).map_err(|f| fault_error(f, document, entry.at))?;
                     if let Some(problem) = expected_problem(ty, Type::String) {

@@ -1,6 +1,6 @@
 {
-  "description": "A closed string term supplies the pattern terminal.",
-  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text $x:$A ++ $B %conditions $x ≅ @($A ++ $B) %emits",
+  "description": "A string constant supplies the terminal.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 $A ++ $B\n%rule text $x:$JOIN-1 %conditions $x ≅ @($JOIN-1) %emits",
   "tokens": [
     {
       "text": "x",

@@ -1,9 +1,9 @@
 {
-  "description": "A closed string join preserves its operands in the range.",
-  "document": "```jbogenbau\n%rule text (\"\" ++ \"a\")..(\"\" ++ \"z\")\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [
         {
           "name": "text",
@@ -15,23 +15,17 @@
               "expr": {
                 "range": [
                   {
-                    "concat": [
-                      {
-                        "string": ""
-                      },
-                      {
-                        "string": "a"
-                      }
+                    "const": "LOW",
+                    "at": [
+                      4,
+                      12
                     ]
                   },
                   {
-                    "concat": [
-                      {
-                        "string": ""
-                      },
-                      {
-                        "string": "z"
-                      }
+                    "const": "HIGH",
+                    "at": [
+                      4,
+                      18
                     ]
                   }
                 ]
@@ -40,13 +34,50 @@
           ],
           "conditions": [],
           "at": [
-            2,
+            4,
             1
           ]
         }
       ],
       "directives": [],
-      "constants": [],
+      "constants": [
+        {
+          "name": "LOW",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "HIGH",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "z"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
       "classifiers": [],
       "implications": []
     }

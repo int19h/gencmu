@@ -1,12 +1,48 @@
 {
-  "description": "A closed string join preserves its operands in the pattern range.",
-  "document": "```jbogenbau\n%const $P @((\"\" ++ \"a\")..(\"\" ++ \"z\"))\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%const $P @($LOW..$HIGH)\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [],
       "directives": [],
       "constants": [
+        {
+          "name": "LOW",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "HIGH",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "z"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        },
         {
           "name": "P",
           "op": "define",
@@ -14,34 +50,28 @@
             "pattern": {
               "range": [
                 {
-                  "concat": [
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": "a"
-                    }
+                  "const": "LOW",
+                  "at": [
+                    4,
+                    13
                   ]
                 },
                 {
-                  "concat": [
-                    {
-                      "string": ""
-                    },
-                    {
-                      "string": "z"
-                    }
+                  "const": "HIGH",
+                  "at": [
+                    4,
+                    19
                   ]
                 }
               ],
               "at": [
-                2,
+                4,
                 13
               ]
             }
           },
           "at": [
-            2,
+            4,
             1
           ]
         }

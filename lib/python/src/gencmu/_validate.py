@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 35
+FORMAT = 34
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -116,20 +116,7 @@ def term_reads_own_tags(root: Any) -> bool:
 def range_problem(ends: Any, unicode: Marks) -> str | None:
     if not _items(ends, 2, 2):
         return "a range requires two string terms"
-    def endpoint_string(end):
-        pending = [end]
-        pieces = []
-        while pending:
-            part = pending.pop()
-            value = literal_string(part)
-            if value is not None:
-                pieces.append(value)
-            elif isinstance(part, dict) and isinstance(part.get("concat"), list):
-                pending.extend(reversed(part["concat"]))
-            else:
-                return None
-        return "".join(pieces)
-    values = [endpoint_string(end) for end in ends]
+    values = [literal_string(end) for end in ends]
     if any(value is not None and len(value) != 1 for value in values):
         return "a range endpoint requires one scalar"
     if all(value is not None for value in values) and values[0] > values[1]:
@@ -437,8 +424,6 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                         return "a recipe requires one of its seven captured string methods"
                     pending.append(("recipe-method", atom, below, False, False))
                 else:
-                    if "concat" in atom:
-                        return "a recipe contains only flat string atoms"
                     pending.append(("string", atom, below, False, False))
             continue
         if kind == "condition":
@@ -512,9 +497,11 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                 else:
                     pending.append(("term", arg, below, False, False))
         elif "concat" in node:
+            if kind == "string":
+                return "a string operand requires a literal or constant"
             if keys != {"concat"} or not _items(node["concat"], 2):
                 return "a malformed concatenation"
-            pending.extend(("string" if kind == "string" else "term", x, below, False, False) for x in node["concat"])
+            pending.extend(("term", x, below, False, False) for x in node["concat"])
         elif "string" in node:
             if keys != {"string"} or not isinstance(node["string"], str) or any(0xD800 <= ord(c) <= 0xDFFF for c in node["string"]):
                 return "a malformed scalar string"

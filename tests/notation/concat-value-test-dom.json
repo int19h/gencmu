@@ -1,9 +1,9 @@
 {
-  "description": "A closed string join preserves its operands in the value test.",
-  "document": "```jbogenbau\n%rule text A=\"a\" ++ $B\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%rule text A=$JOIN-1\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [
         {
           "name": "text",
@@ -15,17 +15,10 @@
               "expr": {
                 "test": "=",
                 "value": {
-                  "concat": [
-                    {
-                      "string": "a"
-                    },
-                    {
-                      "const": "B",
-                      "at": [
-                        2,
-                        21
-                      ]
-                    }
+                  "const": "JOIN-1",
+                  "at": [
+                    3,
+                    14
                   ]
                 },
                 "expr": {
@@ -36,13 +29,36 @@
           ],
           "conditions": [],
           "at": [
-            2,
+            3,
             1
           ]
         }
       ],
       "directives": [],
-      "constants": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "B",
+                "at": [
+                  2,
+                  23
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
       "classifiers": [],
       "implications": []
     }

@@ -1,0 +1,13 @@
+{
+  "description": "An undefined classifier key constant fails at its reference.",
+  "grammar": "%classifier c $NOPE ∈ K\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

@@ -175,7 +175,7 @@ func (f *exprFrame) start(b *domBuilder) readStep {
 	case "tag":
 		return give(&domExpr{Kind: exRef, Name: b.tagOf(b.token(n))})
 	case "string-terminal":
-		p := b.knownOf(n, []string{"string", "constant-reference", "string-join", "closed-string"})
+		p := b.knownOf(n, []string{"string", "constant-reference"})
 		return give(&domExpr{Kind: exLiteral, Value: b.term(p)})
 	case "wildcard":
 		b.token(n)
@@ -521,8 +521,6 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		}
 		c := b.readPattern(part)
 		return give(&domTerm{Kind: tmPattern, Pattern: patternNode(c)})
-	case "closed-string", "string-join":
-		return give(b.closedString(n))
 	case "string":
 		return give(b.stringTerm(b.token(n)))
 	case "tag":

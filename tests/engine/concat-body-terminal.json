@@ -1,6 +1,6 @@
 {
-  "description": "A closed string term supplies the body terminal.",
-  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text $A ++ $B %emits",
+  "description": "A string constant supplies the terminal.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 $A ++ $B\n%rule text $JOIN-1 %emits",
   "tokens": [
     {
       "text": "x",

@@ -1,0 +1,10 @@
+{
+  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "document": "```jbogenbau\n%const $P @(\"a\" ++ \"b\"..\"z\")\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

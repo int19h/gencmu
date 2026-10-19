@@ -100,7 +100,7 @@ A tag literal is a singleton tag set written as its capitalized name. `KOhA` den
 
 A bare lowercase name names a rule or classifier, never a tag. Capitalized user tags can contain underscores. A leading underscore belongs to the engine inventory of engine §1. `_` alone is a wildcard terminal, not a tag.
 
-A tag literal is a terminal in a body. A closed string term is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
+A tag literal is a terminal in a body. A string literal or string constant is also a terminal. It consumes one ordinary token whose value equals that string. `_` consumes any ordinary token. These terminals work at every stage. Tags never determine the token's value or image.
 
 A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
 
@@ -108,7 +108,7 @@ A grammar document also decomposes. Written `"é"` and `"e" ++ $_0301` both cont
 
 An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar signs inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
 
-A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a closed string term that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
+A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
 The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` completes the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
@@ -411,11 +411,15 @@ An include path is the first and only operand that `%include` takes, in straight
 
 `a ++ b` joins string `a` followed by string `b`, without a separator. Both operands must be strings. Sets, tags, patterns, captures, and spans are errors, so use `$x.value` to read a captured string.
 
-Adjacent string literals form a string set before `++` applies. Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than `∩`, then `∪` and `∖`, then comparisons. Concatenation groups from the left. Parentheses can group terms outside recipes.
+In a term or constant, adjacent string literals form a string set before `++` applies. Thus `"a" "b" ++ "c"` means `("a" "b") ++ "c"`. It fails because the left operand is a set.
+
+Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than `∩`, then `∪` and `∖`, then comparisons. Concatenation groups from the left. Parentheses can group terms outside recipes.
 
 A concatenation of closed strings is closed and can define a constant. For example, `%const $PAIR "b" ++ "r"` defines `"br"`. Conditions can test `$l.value ++ $r.value ∈ $INITIAL`.
 
-A closed string term can stand wherever one string literal can stand. This includes body terminals, value tests, pattern terminals, and classifier keys. Parentheses around a closed string remain part of that terminal. The terminal can take tests or a capture binder. `"e" $_0301` reads two terminals. `"e" ++ $_0301` reads one terminal.
+Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline `++` is invalid in these positions. A constant can hold any string concatenation.
+
+Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. The joined value `"e" ++ $_0301` names one token with a similar spelling. Requiring a string constant keeps that change explicit. This is the stated exception to string and string-set parity.
 
 A range endpoint must resolve to one scalar because a range orders scalar values.
 
@@ -461,9 +465,9 @@ Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, 
 | `@({P / S})` | One or more P children separated by S |
 | `@([P Q])` | An optional sequence of those two children |
 
-A capitalized or engine tag denotes its tag terminal. A closed string term, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
+A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
 
-A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals.
+A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals. The shorthand takes one atom, so `@"a" ++ "b"` attempts to concatenate a pattern and a string.
 
 Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
 
@@ -955,7 +959,7 @@ At an inner constituent, only the alternative, rule, and concatenation rows appl
 
 Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
-A recipe contains exactly one recipe term, which can be a `++` chain. A second atom is an error at its first token. Juxtaposition forms a string set in recipes too. A recipe requires a string, so the reader rejects adjacent strings and tells the author to use `++`. Recipe atoms cannot use parentheses or method arguments.
+A recipe contains exactly one recipe term, which can be a `++` chain. A second term is an error at its first token. Juxtaposition forms a string set in recipes too. A recipe requires a string, so the reader rejects adjacent strings and tells the author to use `++`. Recipe atoms cannot use parentheses or method arguments.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 

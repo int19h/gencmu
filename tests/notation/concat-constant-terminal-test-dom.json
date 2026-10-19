@@ -1,9 +1,9 @@
 {
-  "description": "Parentheses around a closed string retain its terminal form and reference positions.",
-  "document": "```jbogenbau\n%rule text (\"a\" ++ \"b\")<T>\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%rule text $JOIN-1<T>\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [
         {
           "name": "text",
@@ -24,13 +24,10 @@
                 ],
                 "expr": {
                   "literal": {
-                    "concat": [
-                      {
-                        "string": "a"
-                      },
-                      {
-                        "string": "b"
-                      }
+                    "const": "JOIN-1",
+                    "at": [
+                      3,
+                      12
                     ]
                   }
                 }
@@ -39,13 +36,32 @@
           ],
           "conditions": [],
           "at": [
-            2,
+            3,
             1
           ]
         }
       ],
       "directives": [],
-      "constants": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
       "classifiers": [],
       "implications": []
     }

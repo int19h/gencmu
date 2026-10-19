@@ -1,9 +1,9 @@
 {
-  "description": "A closed string join preserves its operands in the body group.",
-  "document": "```jbogenbau\n%rule text (\"a\" ++ \"b\") ++ (\"c\" ++ $D)\n```",
+  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\") ++ (\"c\" ++ $D)\n%rule text ($JOIN-1)\n```\n",
   "expect": {
     "dom": {
-      "format": 35,
+      "format": 34,
       "rules": [
         {
           "name": "text",
@@ -14,23 +14,10 @@
               "guards": [],
               "expr": {
                 "literal": {
-                  "concat": [
-                    {
-                      "string": "a"
-                    },
-                    {
-                      "string": "b"
-                    },
-                    {
-                      "string": "c"
-                    },
-                    {
-                      "const": "D",
-                      "at": [
-                        2,
-                        36
-                      ]
-                    }
+                  "const": "JOIN-1",
+                  "at": [
+                    3,
+                    13
                   ]
                 }
               }
@@ -38,13 +25,42 @@
           ],
           "conditions": [],
           "at": [
-            2,
+            3,
             1
           ]
         }
       ],
       "directives": [],
-      "constants": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              },
+              {
+                "string": "c"
+              },
+              {
+                "const": "D",
+                "at": [
+                  2,
+                  40
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
       "classifiers": [],
       "implications": []
     }
