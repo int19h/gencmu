@@ -1517,7 +1517,7 @@ Flat repetition is `{body}` or `{body / body}`. A chain places one `...` immedia
 
 The reader checks each recipe atom in its written form, before folding or removing operators. Any operator token except `++`, including a leading no-op `∪` or `∩`, is an error at the atom. Thus `%rule r A := ∪ "a"` fails at `∪`, column 14. Recipe atoms have no grouping or method-chain extension. The `++` operators join those atoms.
 
-In recipes, the reader expands an unparenthesized `string-run` node into consecutive string atoms before term conversion. Interpolated literals retain their order. The run never becomes a string set.
+An unparenthesized `string-run` in a recipe is an error at its first string. The message tells the author to use `++`. The reader does not convert the run into atoms or keep it as a string set.
 
 Only the methods listed above are legal. A bare capture, guarded term, set operation, span method, query, `.split`, `.ngrams`, or `.classify` is a document error. A recipe cannot branch on a condition.
 
