@@ -81,9 +81,7 @@ fn span(value: &Json) -> bool {
 }
 
 fn string_atom(value: &Json) -> bool {
-    exact(value, &["string"], &[]) && is_str(value.get("string"))
-        || exact(value, &["const", "at"], &[])
-        || exact(value, &["interpolate"], &[])
+    exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
 }
 
 /// Literal endpoints must already form an ordered scalar interval.
@@ -484,17 +482,13 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     {
                         return Some("a malformed constant reference");
                     }
-                } else if exact(value, &["interpolate"], &[]) {
-                    let Some(items) =
-                        value.get("interpolate").and_then(Json::as_array).filter(|items| !items.is_empty())
+                } else if exact(value, &["concat"], &[]) {
+                    let Some(items) = value.get("concat").and_then(Json::as_array).filter(|items| items.len() >= 2)
                     else {
-                        return Some("a malformed interpolation");
+                        return Some("a malformed concatenation");
                     };
                     for item in items {
-                        if !(item.get("string").is_some() || item.get("const").is_some()) {
-                            return Some("a malformed interpolation part");
-                        }
-                        pending.push((Part::String, item, next));
+                        pending.push((Part::Term, item, next));
                     }
                 } else if exact(value, &["pattern"], &[]) {
                     pending.push((Part::Pattern, value.get("pattern").unwrap(), next));
@@ -815,7 +809,7 @@ fn closed(root: &Term) -> bool {
         match term {
             Term::Capture(_) | Term::If(..) => return false,
             Term::Call(name, args) => {
-                if !matches!(name.as_str(), "split" | "ngrams" | "interpolate") {
+                if !matches!(name.as_str(), "split" | "ngrams" | "concat") {
                     return false;
                 }
                 for arg in args {

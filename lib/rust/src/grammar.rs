@@ -1117,7 +1117,7 @@ impl Constants<'_> {
                     Value::Set(left)
                 }
                 Term::Call(name, args) => match (name.as_str(), &args[..]) {
-                    ("interpolate", _) => Value::Str(operands.map(Value::string).collect()),
+                    ("concat", _) => Value::Str(operands.map(Value::string).collect()),
                     ("ngrams", [_, Arg::Integer(n)]) => {
                         Value::Set(crate::dom::ngrams(&operands.next().unwrap().string(), n).into_iter().collect())
                     }
@@ -1283,7 +1283,7 @@ impl Constants<'_> {
                     while let Some(term) = pending.pop() {
                         match term {
                             Term::Str(_) | Term::Const(..) => {}
-                            Term::Call(name, args) if name == "interpolate" => {
+                            Term::Call(name, args) if name == "concat" => {
                                 pending.extend(args.iter().filter_map(|arg| {
                                     if let Arg::Term(term) = arg {
                                         Some(term)
@@ -1502,14 +1502,11 @@ impl Constants<'_> {
                 self.substitute_cond(cond);
                 self.substitute_term(then);
             }
-            Term::Call(name, args) => {
+            Term::Call(_, args) => {
                 for arg in args.iter_mut() {
                     if let Arg::Term(term) = arg {
                         self.substitute_term(term);
                     }
-                }
-                if name == "interpolate" {
-                    *term = self.evaluate_plain(term, "", (0, 0)).expect("a checked interpolation").term();
                 }
             }
             Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) => {}
@@ -1740,7 +1737,7 @@ fn check_term(grammar: &StageGrammar, term: &Term) -> Result<(), String> {
                 check_term(grammar, string)?;
                 check_term(grammar, delimiter)
             }
-            ("concat" | "interpolate", args) => {
+            ("concat", args) => {
                 for arg in args {
                     if let Arg::Term(term) = arg {
                         check_term(grammar, term)?;

@@ -48,6 +48,7 @@ pub(crate) enum Span {
 pub(crate) enum LTerm {
     /// A string.
     Str(String),
+    Concat(Vec<LTerm>),
     /// The tag set of one tag.
     Tag(String),
     Empty,
@@ -922,6 +923,14 @@ impl<'a> Scope<'a> {
             Term::Pattern(_) | Term::Const(..) => return Err(Missing),
             Term::If(cond, then) => LTerm::If(Box::new(self.cond(cond)?), Box::new(self.term(then)?)),
             Term::Call(name, args) => match (name.as_str(), &args[..]) {
+                ("concat", args) => LTerm::Concat(
+                    args.iter()
+                        .map(|arg| match arg {
+                            Arg::Term(term) => self.term(term),
+                            _ => Err(Missing),
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
                 ("value", [Arg::Term(span)]) => LTerm::Value(self.span(span)?),
                 ("image", [Arg::Term(span)]) => LTerm::Image(self.span(span)?),
                 ("text", [Arg::Term(span)]) => LTerm::Text(self.span(span)?),

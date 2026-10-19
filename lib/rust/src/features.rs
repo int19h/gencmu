@@ -22,7 +22,7 @@ pub(crate) fn problem(conditions: &[Cond]) -> Result<(), String> {
                         | "last"
                         | "split"
                         | "ngrams"
-                        | "interpolate"
+                        | "concat"
                 ) || name == "tags" && args.len() != 1
                 {
                     return Err("feature conditions can read only tokens".into());
@@ -169,7 +169,7 @@ impl Input<'_> {
             Term::Call(name, args) => {
                 let receiver = self.argument(args, 0);
                 match name.as_str() {
-                    "interpolate" => {
+                    "concat" => {
                         let mut text = String::new();
                         for argument in args {
                             if let Arg::Term(term) = argument {

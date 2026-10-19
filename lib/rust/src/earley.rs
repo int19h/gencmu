@@ -1195,6 +1195,7 @@ enum Task<'n> {
     Right(CmpOp, Value),
     /// A union with the sets of its parts so far.
     Union(&'n [LTerm], Vec<Arc<TagList>>),
+    Concat(&'n [LTerm], Vec<String>),
     /// An intersection from `next` on, with the intersection so far.
     Inter(&'n [LTerm], usize, Option<Arc<TagList>>),
     DiffLeft(&'n LTerm),
@@ -1505,7 +1506,7 @@ impl Preparation {
                     cond(c, out);
                     term(t, out);
                 }
-                LTerm::Union(xs) | LTerm::Inter(xs) => {
+                LTerm::Union(xs) | LTerm::Inter(xs) | LTerm::Concat(xs) => {
                     for t in xs {
                         term(t, out);
                     }
@@ -3375,6 +3376,13 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                         LTerm::Str(text) => Value::Str(text.clone()),
                         LTerm::Tag(tag) => Value::set(vec![self.shared.tags.tag(tag)]),
                         LTerm::Empty => Value::set(TagList::new()),
+                        LTerm::Concat(items) => match items.first() {
+                            Some(first) => {
+                                eval.push(Task::Concat(items, Vec::with_capacity(items.len())), Task::Term(first));
+                                continue;
+                            }
+                            None => Value::Str(String::new()),
+                        },
                         LTerm::Union(items) => match items.first() {
                             Some(first) => {
                                 eval.push(Task::Union(items, Vec::with_capacity(items.len())), Task::Term(first));
@@ -3515,6 +3523,16 @@ impl<'g, 's, 'a> Recognizer<'g, 's, 'a> {
                     continue;
                 }
                 Task::Right(op, left) => Out::Bool(self.compare(op, left, took(&mut last).value())?),
+                Task::Concat(items, mut parts) => {
+                    parts.push(Self::as_string(took(&mut last).value())?);
+                    match items.get(parts.len()) {
+                        Some(item) => {
+                            eval.push(Task::Concat(items, parts), Task::Term(item));
+                            continue;
+                        }
+                        None => Out::Value(Value::Str(parts.concat())),
+                    }
+                }
                 Task::Union(items, mut parts) => {
                     parts.push(self.as_set(took(&mut last).value())?);
                     match items.get(parts.len()) {
