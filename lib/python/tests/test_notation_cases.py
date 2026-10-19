@@ -12,10 +12,28 @@ import gencmu
 from gencmu._dialect import DOM_FORMAT, _Loader, _Resources, _resources, read_document
 from gencmu._hash import fnv1a64
 
-from .shared import add_case_tests, cases, load_case, mismatch, write_json
+from .shared import REPOSITORY, add_case_tests, cases, load_case, mismatch, read_json, write_json
 
 
 class NotationCases(unittest.TestCase):
+    def test_every_recipe_position_instructs_the_author_to_use_concat(self) -> None:
+        data = read_json((REPOSITORY / "tests" / "recipe-diagnostics.json").read_text())
+        for position in data["positions"]:
+            for channel in (":=", ":-"):
+                for recipe in data["recipes"]:
+                    with self.subTest(position=position["name"], channel=channel, recipe=recipe["source"]):
+                        body = position["template"].replace("@CHANNEL@", channel).replace("@RECIPE@", recipe["source"])
+                        marker = body.index(recipe["source"]) + recipe["source"].index(recipe["at"])
+                        with self.assertRaises(gencmu.GencmuError) as caught:
+                            read_document("```jbogenbau\n" + body + "\n```", "recipe.md")
+                        self.assertIn("use ++", caught.exception.message.lower())
+                        self.assertEqual((caught.exception.line, caught.exception.column), (2, marker + 1))
+        for body in data["ordinary"]:
+            with self.subTest(ordinary=body), self.assertRaises(gencmu.GencmuError) as caught:
+                read_document("```jbogenbau\n" + body + "\n```", "recipe.md")
+            self.assertIn("++", caught.exception.message)
+            self.assertNotIn("use ++", caught.exception.message.lower())
+
     def test_cases_are_present(self) -> None:
         paths = cases("notation")
         self.assertTrue(paths, "no notation cases found")

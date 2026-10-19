@@ -1224,6 +1224,9 @@ impl<'a> Reader<'a> {
                 typed(Term::Tag(tag), Type::Tags)
             }
             "tag-run" | "string-run" => {
+                if self.in_recipe.get() && inner.rule.as_deref() == Some("string-run") {
+                    return Err(self.error(inner, "juxtaposed recipe strings require ++, use ++ between string atoms"));
+                }
                 let before = node.span.start.checked_sub(1).and_then(|i| self.tokens.get(i));
                 let after = self.tokens.get(node.span.end);
                 if before.into_iter().chain(after).any(|t| matches!(t.value.as_str(), "∩" | "∖")) {

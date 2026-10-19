@@ -181,6 +181,10 @@ Each case gives a document, lexical aliases, and a DOM pattern. Every library ad
 
 The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
 
+## Recipe diagnostics: `recipe-diagnostics.json`
+
+This file lists recipe fragments, diagnostic markers, and templates for every recipe position. Each library substitutes both channel operators and every fragment into each template. The reader reports the marked string and tells the author to use `++`. Ordinary controls require the concatenation type error without a recipe instruction. JavaScript also runs the handwritten bootstrap reader against the same cases.
+
 ## Bootstrap errors: `bootstrap-errors.json`
 
 Each case supplies bootstrap text or replaces the first place of `find` with `replace` in the bundled bootstrap, as "Places in fixtures" says. Each library loads a simple pipeline with that bootstrap and requires a grammar error. The error must name `notation/bootstrap.json`, including failures that arise when the loader constructs the stages. If a case supplies `line` and `column`, the error must keep that position. A case of the bundled bootstrap gives `at` instead, and the error must stand where `at` stands in the document `context`.

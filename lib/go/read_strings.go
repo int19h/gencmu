@@ -15,6 +15,9 @@ func unionTerm(a, b *domTerm) *domTerm {
 }
 
 func (b *domBuilder) tagRun(n *Node) *domTerm {
+	if b.inRecipe && n.Rule == "string-run" {
+		b.fail(n, "juxtaposed recipe strings require ++, use ++ between string atoms")
+	}
 	for _, index := range []int{n.Span[0] - 1, n.Span[1]} {
 		if index >= 0 && index < len(b.toks) {
 			t := b.toks[index].Value

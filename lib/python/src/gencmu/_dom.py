@@ -1096,6 +1096,8 @@ class DomBuilder:
         if rule == "range":
             raise self.fail(node, "a range is a terminal, not a term")
         if rule in ("tag-run", "string-run"):
+            if self.recipe_context and rule == "string-run":
+                raise self.fail(node, "juxtaposed recipe strings require ++, use ++ between string atoms")
             self.tag_run_placement(node)
             return {"union": [self.value(tag) for tag in self.some(node, "string" if rule == "string-run" else "tag", 2)]}
         if rule == "empty-set":

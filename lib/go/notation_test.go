@@ -620,3 +620,51 @@ func TestFormat17Refused(t *testing.T) {
 		}
 	}
 }
+
+func TestRecipeConcatenationDiagnostics(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	text, err := os.ReadFile("../../tests/recipe-diagnostics.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases struct {
+		Recipes []struct {
+			Source string `json:"source"`
+			At     string `json:"at"`
+		} `json:"recipes"`
+		Positions []struct {
+			Name     string `json:"name"`
+			Template string `json:"template"`
+		} `json:"positions"`
+		Ordinary []string `json:"ordinary"`
+	}
+	if err := unmarshalJSON(text, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, position := range cases.Positions {
+		for _, channel := range []string{":=", ":-"} {
+			for _, recipe := range cases.Recipes {
+				t.Run(position.Name+channel+recipe.Source, func(t *testing.T) {
+					body := strings.ReplaceAll(strings.ReplaceAll(position.Template, "@CHANNEL@", channel), "@RECIPE@", recipe.Source)
+					marker := strings.Index(body, recipe.Source) + strings.Index(recipe.Source, recipe.At)
+					_, failure := bundled.reader.read("```jbogenbau\n"+body+"\n```", "recipe.md")
+					if failure == nil || !strings.Contains(strings.ToLower(failure.Message), "use ++") {
+						t.Fatalf("expected a recipe instruction: %v", failure)
+					}
+					if failure.Line != 2 || failure.Column != len([]rune(body[:marker]))+1 {
+						t.Fatalf("expected the first juxtaposed string at column %d: %v", len([]rune(body[:marker]))+1, failure)
+					}
+				})
+			}
+		}
+	}
+	for _, body := range cases.Ordinary {
+		_, failure := bundled.reader.read("```jbogenbau\n"+body+"\n```", "ordinary.md")
+		if failure == nil || !strings.Contains(failure.Message, "++") || strings.Contains(strings.ToLower(failure.Message), "use ++") {
+			t.Fatalf("expected an ordinary type error: %v", failure)
+		}
+	}
+}
