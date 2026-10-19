@@ -3,6 +3,11 @@
   "grammar": "%rule text $x:\"a\" %conditions @\"a\" ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 31
+    }
   }
 }

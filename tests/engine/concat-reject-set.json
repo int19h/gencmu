@@ -1,8 +1,13 @@
 {
-  "description": "Concatenation requires scalar string operands.",
+  "description": "The reader rejects a string set as a concatenation operand.",
   "grammar": "%rule text $x:\"a\" %conditions (\"a\" \"b\") ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 31
+    }
   }
 }

@@ -323,7 +323,7 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
                 return None, fault
             problem = None if kind in ("string", "any") else "++ requires string operands"
             if problem:
-                return None, (problem, part)
+                return None, (problem, term)
         return "string", None
     if isinstance(term.get("const"), str):
         return constants(term["const"]), None

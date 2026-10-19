@@ -1,0 +1,13 @@
+{
+  "description": "A join inside a union reports its type error at the first constant of the join.",
+  "grammar": "%const $T \"a\"\n%const $S \"a\" ∪ \"b\"\n%const $C \"q\" ∪ ($T ++ $S)\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 18
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "A concatenation reports a known type error at its first operand.",
+  "document": "```jbogenbau\n%const $C \"q\" \u222a (\"a\" ++ A)\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

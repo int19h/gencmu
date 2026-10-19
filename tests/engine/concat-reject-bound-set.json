@@ -1,8 +1,13 @@
 {
-  "description": "The loader rejects an invalid string concatenation.",
+  "description": "The loader rejects a string-set constant as a concatenation operand.",
   "grammar": "%const $S \"a\" \"b\"\n%const $T $S ++ \"c\"\n%rule text ε",
   "input": "",
   "expect": {
-    "error": "grammar"
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 11
+    }
   }
 }
