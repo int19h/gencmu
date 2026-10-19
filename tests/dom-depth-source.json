@@ -54,13 +54,13 @@
     "atLimit": 255
   },
   {
-    "description": "Pattern interpolation path",
+    "description": "Pattern scalar constant path",
     "head": "%const $C @(",
     "prefix": "⋮ (",
-    "leaf": "\"a$(_0061)\"",
+    "leaf": "$_0061",
     "suffix": ")",
     "tail": ")",
-    "atLimit": 254
+    "atLimit": 255
   },
   {
     "description": "Pattern tag test path",

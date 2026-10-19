@@ -1,7 +1,7 @@
 {
-  "description": "Rule conditions require loading errors for empty-nested-interpolation, even when until skips the stage (engine §§9, 10, 13).",
+  "description": "Rule conditions require loading errors for empty-nested-concatenation, even when until skips the stage (engine §§9, 10, 13).",
   "documents": {
-    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n%const $E \"\"\n%rule text A\n%conditions $.value.split(\"$(E)$(E)\") = ∅\n```\n"
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n%const $E \"\"\n%rule text A\n%conditions $.value.split(($E ++ $E)) = ∅\n```\n"
   },
   "pipeline": "p.md",
   "tokens": [

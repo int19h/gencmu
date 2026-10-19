@@ -102,7 +102,7 @@ class GrammarReading(unittest.TestCase):
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text $_00E0..$_017A')
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         terminal = dialect.parse("").error.expected[0].terminal
-        self.assertEqual(terminal, '"$(_00E0)".."$(_017A)"')
+        self.assertEqual(terminal, '$_00E0..$_017A')
         texts["g.md"] = document('%ambiguity-resolution greedy\n%rule text ' + terminal)
         dialect = gencmu.load_dialect_sources(texts, "p.md")
         self.assertTrue(dialect.parse_tokens([gencmu.Token("é", frozenset(), (0, 1), (0, 1))], "é").ok)

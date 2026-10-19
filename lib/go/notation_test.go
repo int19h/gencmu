@@ -374,7 +374,7 @@ func TestNotationLexicalTags(t *testing.T) {
 	}
 	want := [][2]string{
 		{"%rule", "KW-RULE"}, {"a", "Identifier Lowercase-Name"}, {"::", ""}, {"X", "Identifier Uppercase-Name"}, {"|", "_S _Sm"},
-		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`"$(_005C)"`, "String"}, {"}", "_P _Pe"},
+		{"¬f?", "Guard"}, {"B", "Identifier Uppercase-Name"}, {`"c"`, "String"}, {"/", "_P _Po"}, {"{", "_P _Ps"}, {"E", "Identifier Uppercase-Name"}, {"...", ""}, {`$_005C`, "String"}, {"}", "_P _Pe"},
 		{"[", "_P _Ps"}, {"+", "_S _Sm"}, {"KU", "Identifier Uppercase-Name"}, {"]", "_P _Pe"}, {"[", "_P _Ps"}, {"+", "_S _Sm"}, {"TOI", "Identifier Uppercase-Name"}, {"]", "_P _Pe"},
 		{"|", "_S _Sm"}, {"g!", "Guard"}, {"%rulex", "Keyword"}, {"$e", "Capture"}, {"¬", "_S _Sm"}, {"h", "Identifier Lowercase-Name"},
 		{`"x"`, "String"}, {"..", ""}, {`"y"`, "String"}, {"_L", "Engine-Tag"}, {`"a"`, "String"}, {"...", ""},
@@ -441,7 +441,7 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"$(_00E9)"`, '각': `"$(_AC01)"`, 0x10FFFD: `"$(_10FFFD)"`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `$_0301`, 0xED80: `$_ED80`, '"': `$_0022`, '\\': `$_005C`, 0x7F: `$_007F`, 'é': `$_00E9`, '각': `$_AC01`, 0x10FFFD: `$_10FFFD`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
 		}

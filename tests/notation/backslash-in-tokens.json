@@ -1,13 +1,17 @@
 {
-  "description": "An engine scalar constant supplies a backslash terminal, and interpolation supplies a backslash inside a string. Ordinary brace strings and the stored _L terminal keep their distinct DOM forms (engine §9.1, docs/output.md).",
-  "document": "```jbogenbau\n%rule a ($x:$_005C \"{\" _L \"}\") %conditions $x.source-text = \"a$(_005C)b\"\n\n```\n",
+  "description": "An engine scalar constant supplies a backslash terminal, and constant reference supplies a backslash inside a string. Ordinary brace strings and the stored _L terminal keep their distinct DOM forms (engine §9.1, docs/output.md).",
+  "document": "```jbogenbau\n%rule a ($x:$_005C \"{\" _L \"}\") %conditions $x.source-text = (\"a\" ++ $_005C ++ \"b\")\n\n```\n",
   "expect": {
     "dom": {
+      "format": 34,
       "rules": [
         {
           "name": "a",
+          "op": "define",
+          "flags": [],
           "alternatives": [
             {
+              "guards": [],
               "expr": {
                 "seq": [
                   {
@@ -50,7 +54,7 @@
                 "args": []
               },
               "right": {
-                "interpolate": [
+                "concat": [
                   {
                     "string": "a"
                   },
@@ -58,7 +62,7 @@
                     "const": "_005C",
                     "at": [
                       2,
-                      63
+                      69
                     ]
                   },
                   {
@@ -67,9 +71,17 @@
                 ]
               }
             }
+          ],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

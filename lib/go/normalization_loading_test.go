@@ -59,7 +59,7 @@ func TestNormalizationCacheIdentity(t *testing.T) {
 	}
 }
 
-func TestNormalizationIncludePathAndInterpolationLocations(t *testing.T) {
+func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	t.Parallel()
 	sources := oneStage("%ambiguity-resolution greedy\n%rule text \"e\" $_0301")
 	sources["p.md"] = strings.ReplaceAll(sources["p.md"], "g.md", "café.md")
@@ -72,14 +72,14 @@ func TestNormalizationIncludePathAndInterpolationLocations(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	doc := "```jbogenbau\n%rule text \"é$$é$(_0301)é$(_0323)\"\n```"
+	doc := "```jbogenbau\n%const $S \"é$$é\" ++ $_0301 ++ \"é\" ++ $_0323\n%rule text $S\n```"
 	dom, failure := bundled.reader.read(doc, "g.md")
 	if failure != nil {
 		t.Fatal(failure)
 	}
-	parts := dom.Rules[0].Alternatives[0].Expr.Value.Items
-	if parts[1].At != [2]int{2, 17} || parts[3].At != [2]int{2, 26} {
-		t.Fatalf("interpolation locations: %#v %#v", parts[1], parts[3])
+	parts := dom.Constants[0].Value.Items
+	if parts[1].At != [2]int{2, 21} || parts[3].At != [2]int{2, 38} {
+		t.Fatalf("constant locations: %#v %#v", parts[1], parts[3])
 	}
 }
 
@@ -90,7 +90,7 @@ func TestNormalizationDiagnosticReadBack(t *testing.T) {
 	}
 	for _, value := range []string{"é", "각", "\u0340", "a\u0301\u0323", "$é", "𝅗𝅥"} {
 		spelling := stringTerminal(value, bundled.uni)
-		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%rule text "+spelling))
+		d := mustLoad(t, oneStage("%ambiguity-resolution greedy\n%const $S "+spelling+"\n%rule text $S"))
 		token := InputToken{Text: value, Value: &value, Image: &value, Source: [2]int{0, len([]rune(value))}}
 		if res, err := d.ParseTokens(value, []InputToken{token}, ParseOptions{}); err != nil || !res.OK {
 			t.Fatalf("read-back %q: %v %#v", spelling, err, res)

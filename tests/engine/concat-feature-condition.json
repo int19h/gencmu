@@ -1,0 +1,10 @@
+{
+  "grammar": "%const $A \"a\"\n%features f\n%conditions $A ++ \"b\" = \"ab\"\n%rule text f? \"x\"",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "Explicit joins and plain dollar strings retain their meaning in this position."
+}

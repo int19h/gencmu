@@ -211,9 +211,9 @@ fn a_well_formed_dom_is_used() {
     );
     assert!(!document_was_read(&tested(&optionals)));
     let deep_value = format!(
-        "{}{{\"test\":\"=\",\"value\":{{\"interpolate\":[{{\"string\":\"b\"}},{{\"string\":\"\"}}]}},\"expr\":{{\"literal\":{{\"string\":\"b\"}}}}}}{}",
-        "{\"optional\":".repeat(254),
-        "}".repeat(254)
+        "{}{{\"test\":\"=\",\"value\":{{\"string\":\"b\"}},\"expr\":{{\"literal\":{{\"string\":\"b\"}}}}}}{}",
+        "{\"optional\":".repeat(255),
+        "}".repeat(255)
     );
     assert!(!document_was_read(&tested(&deep_value)));
     // Four captures, and nodes below exactly 256 compound nodes, are allowed.

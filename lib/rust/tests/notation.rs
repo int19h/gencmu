@@ -192,7 +192,7 @@ fn pattern_test_order_precedes_invalid_bases() {
     for body in [
         r#"%rule text $c:A %conditions $c ≅ @(_Bogus<"bad"><A>)"#,
         r#"%rule text $c:A %conditions $c ≅ @($_D800<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @("$(_D800)"=UI<A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)"#,
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
         assert_eq!((error.line, error.column), (Some(2), Some(49)), "{body}: {error}");

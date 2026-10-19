@@ -1,6 +1,6 @@
 {
   "description": "The first value atom reads value, before an image read. Written atom order makes that direct cycle win over the image cycle (engine §11.3 and §9.3).",
-  "grammar": "%rule text := $.emitted.value $.emitted.image :- $.emitted.image | \"a\" %emits",
+  "grammar": "%rule text := $.emitted.value ++ $.emitted.image :- $.emitted.image | \"a\" %emits",
   "input": "a",
   "expect": {
     "error": "grammar",

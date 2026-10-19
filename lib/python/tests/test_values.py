@@ -73,7 +73,7 @@ class Values(unittest.TestCase):
             "%const $S A\n%rule text $S",
             "%const $S A\n%rule text A := $S",
             '%const $S "ab"\n%rule text gate? $S.."z" | A',
-            '%const $S A\n%classifier x\n "$(S)" ∈ A\n%rule text A',
+            '%const $S A\n%classifier x\n "a" ∈ A f! "b" ∈ A\n%rule text A',
         ):
             with self.subTest(grammar=grammar):
                 value, _, error, _ = run_case({"grammar": grammar})

@@ -819,7 +819,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Inside `@(…)` | Child sequence | `@(A B ∪ C)` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
-| A recipe | String set, rejected because a recipe requires a string | `:= "a" ++ "b"` |
+| A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
 | A classifier entry | Separate keys | `"mi" "do" ∈ KOhA` |
 | Directive operands | A list | `%features cbm su-boundary` |
 | Other tag-set atoms | Error | `:: $m.tags Word` |
@@ -835,7 +835,7 @@ A run of bare tag names or string literals can stand alone or beside `∪`. It r
 
 Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
 
-String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Interpolated literals can join a string run. Constant references and method calls require explicit operators.
+String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
 
 ## Tags
 

@@ -428,7 +428,7 @@
                                                                         "children": [
                                                                           {
                                                                             "kind": "token",
-                                                                            "terminal": "\"$(_0306)\"",
+                                                                            "terminal": "$_0306",
                                                                             "token": 3,
                                                                             "span": [
                                                                               3,

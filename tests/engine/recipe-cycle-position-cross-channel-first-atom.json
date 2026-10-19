@@ -1,6 +1,6 @@
 {
   "description": "The value recipe reads the image, and the image recipe reads the value after a literal prefix. The cycle reports that prefix (engine §11.3 and §9.3).",
-  "grammar": "%rule text := $.emitted.image :- \"prefix\" $.emitted.value | \"a\" %emits",
+  "grammar": "%rule text := $.emitted.image :- \"prefix\" ++ $.emitted.value | \"a\" %emits",
   "input": "a",
   "expect": {
     "error": "grammar",

@@ -1,10 +1,10 @@
 {
-  "description": "An invalid interpolation after decomposed names and text reports the original column.",
-  "document": "```jbogenbau\n%const $K \"x\"\n%rule rK \"é$(K)$(_110000)\"\n```",
+  "description": "An invalid constant reference after decomposed names and text reports the original column.",
+  "document": "```jbogenbau\n%const $JOIN-1 \"é\" ++ $K ++ $_110000\n%const $K \"x\"\n%rule rK $JOIN-1\n```",
   "expect": {
     "error": {
-      "line": 3,
-      "column": 16
+      "line": 2,
+      "column": 29
     }
   }
 }

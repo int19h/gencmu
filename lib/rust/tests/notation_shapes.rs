@@ -241,7 +241,7 @@ fn pattern_string_terminal_constructors_and_tests() {
     );
     let rules = "%const $S \"a\"\n%const $P @($S=\"a\")\n%rule text \"a\"\n%conditions $ ≅ $P";
     assert_eq!(pattern_probe(rules, &constants, &["a"]), pattern_probe(rules, &bundled, &["a"]));
-    for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "\"$(_D800)\"=\"a\"<A>"] {
+    for pattern in ["\"a\"=\"a\"<A>", "\"a\"<A><B>", "\"a\"=\"a\"=\"a\"", "$_D800=\"a\"<A>"] {
         let rules = format!("%const $P @({pattern})\n%rule text A");
         let ordinary = load_pattern_probe(&rules, &bundled).unwrap_err();
         let alternate = load_pattern_probe(&rules, &changed).unwrap_err();
@@ -311,7 +311,7 @@ fn pattern_constructors_read_their_declared_parts() {
             0,
             "[]",
             r#"{"seq":[{"literal":{"string":"{"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"/"}},{"ref":"pattern-union"},{"literal":{"string":"}"}}]}"#,
-            "@({A / S / \"$(_D800)\"})",
+            "@({A / S / $_D800})",
             "@({A / S})",
             "%rule text A S A",
             vec!["A", "S", "A"],
@@ -346,7 +346,7 @@ fn pattern_names_use_named_parts_or_tokens() {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-name", 0, "[]", &format!(r#"{{"ref":"{name}"}}"#));
         let rules = "%const $P @child\n%rule text child\n%conditions $ ≅ $P\n%rule child A";
         assert_eq!(pattern_probe(rules, &changed, &["A"]), pattern_probe(rules, &bundled, &["A"]), "{name}");
-        let rules = "%const $P @(child=\"$(_D800)\")\n%rule text A";
+        let rules = "%const $P @(child=$_D800)\n%rule text A";
         assert_eq!(load_pattern_probe(rules, &changed).unwrap_err(), load_pattern_probe(rules, &bundled).unwrap_err());
     }
 }
@@ -401,13 +401,9 @@ fn grouped_pattern_tests_fail_before_base_conversion() {
         (
             2,
             r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-union"},{"literal":{"string":")"}},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
-            "((\"$(_D800)\")<A>)",
+            "(($_D800)<A>)",
         ),
-        (
-            1,
-            r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
-            "(@(\"$(_D800)\")<A>)",
-        ),
+        (1, r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#, "(@($_D800)<A>)"),
     ] {
         let changed = pattern_bootstrap_expr(&bundled, "pattern-atom", alternative, "[]", expression);
         let rules = format!("%const $P @{pattern}\n%rule text A");

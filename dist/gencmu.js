@@ -2549,7 +2549,7 @@
       } else if (exact(['literal', 'at']) || exact(['range', 'at']) || exact(['wildcard', 'at'])) {
         if (!Array.isArray(n.at) || n.at.length !== 2 || !n.at.every((/** @type {number} */ part) => Number.isInteger(part) && part >= 1)) return 'a malformed pattern position';
         if ('wildcard' in n && n.wildcard !== true) return 'a malformed pattern wildcard';
-        if ('literal' in n && (!n.literal || !['string', 'const', 'concat'].some(key => key in n.literal))) return 'a malformed pattern literal';
+        if ('literal' in n && (!n.literal || !['string', 'const'].some(key => key in n.literal))) return 'a malformed pattern literal';
         if ('range' in n && (!Array.isArray(n.range) || n.range.length !== 2)) return 'a malformed pattern range';
       } else if (exact(['test','value','expr']) || exact(['test','requirements','expr'])) {
         const base = (/** @type {any} */ value) => value && ['terminal', 'literal', 'range', 'wildcard', 'constant'].some(key => key in value);
@@ -15935,7 +15935,7 @@
         const term = yield readTerm(only(atom, "term"));
         recipeContext = false;
         const items = "concat" in term ? term.concat : [term];
-        if (concat.length || items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++; use ++ between string atoms", atom);
+        if (concat.length || items.some((/** @type {Term} */ item) => "union" in item)) fail("juxtaposed recipe strings require ++. Use ++ between string atoms", atom);
         for (const item of items) {
           if ("method" in item) {
             const receiver = item.receiver;

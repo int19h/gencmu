@@ -1,0 +1,20 @@
+{
+  "grammar": "%rule text := \"$(UNKNOWN)$$\" | \"a\" %emits",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "$(UNKNOWN)$$",
+              "image": "$(UNKNOWN)$$"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "description": "Explicit joins and plain dollar strings retain their meaning in this position."
+}

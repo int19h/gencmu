@@ -1,0 +1,16 @@
+{
+  "grammar": "%rule text $x:_ %conditions $x.value.split(\"a\" ++ \"b\") = (\"c\" \"d\")",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [],
+      "value": "cabd"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "Explicit joins and plain dollar strings retain their meaning in this position."
+}

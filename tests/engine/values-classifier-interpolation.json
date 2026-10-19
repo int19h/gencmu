@@ -1,6 +1,6 @@
 {
-  "description": "Classifier keys interpolate resolved exact string constants (engine §§2 and 9).",
-  "grammar": "%const $K \"A,B\"\n%classifier words \"$(K)\" ∈ WORD\n%rule text _ :: $.value.classify(words) %emits",
+  "description": "Classifier keys contain plain literal strings.",
+  "grammar": "%const $K \"A,B\"\n%classifier words \"A,B\" ∈ WORD\n%rule text _ :: $.value.classify(words) %emits",
   "tokens": [
     {
       "text": "a",

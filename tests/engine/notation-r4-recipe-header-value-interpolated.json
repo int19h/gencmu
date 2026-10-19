@@ -1,6 +1,6 @@
 {
-  "description": "Engine §11.3 concatenates adjacent interpolated literals in a header value recipe.",
-  "grammar": "%const $S \"b\"\n%rule text := \"a$(S)\" \"$(_0063)\"\n  | $a:\"x\"\n%emits",
+  "description": "Engine §11.3 concatenates explicit string atoms with ++ in a header value recipe.",
+  "grammar": "%const $S \"b\"\n%rule text := \"a\" ++ $S ++ $_0063\n  | $a:\"x\"\n%emits",
   "input": "x",
   "expect": {
     "result": {

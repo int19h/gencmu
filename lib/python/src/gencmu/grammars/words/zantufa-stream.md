@@ -42,7 +42,7 @@ A word of GOhOI (`go'oi`, `ze'oi`, `ta'ai` and `bo'ei`) quotes the next Lojban w
 
 %rule rahoi-quote
   $m:rahoi-marker $g:word-quote-gap $f:rafsi-quote-target
-    :: $m.tags :- $m.source-text $g.source-text $f.verbatim-text
+    :: $m.tags :- $m.source-text ++ $g.source-text ++ $f.verbatim-text
 %emits
   $
 

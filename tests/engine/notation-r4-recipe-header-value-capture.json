@@ -1,6 +1,6 @@
 {
   "description": "Engine §11.3 concatenates captured values and adjacent literals in a header value recipe.",
-  "grammar": "%const $S \"b\"\n%rule text := $a.value \"-\" \"x\"\n  | $a:\"x\"\n%emits",
+  "grammar": "%const $S \"b\"\n%rule text := $a.value ++ \"-\" ++ \"x\"\n  | $a:\"x\"\n%emits",
   "input": "x",
   "expect": {
     "result": {

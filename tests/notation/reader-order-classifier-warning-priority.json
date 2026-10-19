@@ -1,5 +1,5 @@
 {
-  "description": "A classifier rejects a warning guard at that guard, before an invalid interpolation and class name (engine §9.3).",
+  "description": "A classifier rejects a warning guard at that guard, before an invalid constant reference and class name (engine §9.3).",
   "document": "```jbogenbau\n%classifier c f! \"$(_D800)\" ∈ bad\n%rule text _\n```\n",
   "expect": {
     "error": {

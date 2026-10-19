@@ -36,9 +36,9 @@ test("an inserted token accepts an empty tag set and a string recipe", () => {
   });
 });
 
-test("scalar references and interpolation remain unresolved with their positions", () => {
+test("scalar references retain their positions and dollars remain plain text", () => {
   assert.deepEqual(read('%rule r "a$(_0301)$$"').rules[0].alternatives[0].expr, {
-    literal: { interpolate: [{ string: "a" }, { const: "_0301", at: [2, 11] }, { string: "$" }] },
+    literal: { string: "a$(_0301)$$" },
   });
   assert.deepEqual(read('%rule r $_0041').rules[0].alternatives[0].expr, {
     literal: { const: "_0041", at: [2, 9] },
@@ -57,7 +57,7 @@ test("the coordinator's error examples retain their columns", () => {
     ["%rule r $x:A<B><C>", 16], ["%stage $X", 1], ["%rule Foo A", 7],
     ["%rule r ¬cbm! A", 14], ["%rule r ¬ cbm? A", 9],
     ['%const $_0041 "x"', 8], ['%rule r A := ∪ "a"', 14],
-    ['%include "a.md" "b$c.md"', 19],
+    ['%include "a.md" "b$c.md"', 1],
   ]) {
     assert.throws(() => read(source), (error) => {
       assert.equal(error.where.document, "case.md");
@@ -112,7 +112,7 @@ test("both readers admit every new family of written forms", () => {
     '%rule r $x:A %conditions $x ≅ @A<B>="x"',
     '%rule r $x:A %conditions $x ≅ @(A B)',
     '%rule r $x:A %conditions $x ≅ @(A @(B C))',
-    '%const $S "a$(_0301)$$"', '%const $S "x".split("y")',
+    '%const $S "a" ++ $_0301 ++ "$"', '%const $S "x".split("y")',
     '%const $S "ab" "bc"', '%const $S ("ab" "bc") ∩ ("bc" ∪ "cd")',
     '%const $S "ab".ngrams(2)', '%const $S "ab".ngrams(99999999999999999999)',
     '%rule r A %conditions $.begins(B | r), $.matches(r | A)',
@@ -142,7 +142,7 @@ test("both readers reject invalid forms at the same specified position", () => {
     "%stage Cbm Su", "%stage Cbm Su.value", "%rule r $x:#<A>", '%rule r $x:#="a"', "%rule r $x:#<A><B>", "%stage $x.value", '%rule r A %emits "a"', '%rule r A %emits ($x) B',
     '%include "a$b".value', '%rule r $x:A := ($x).value',
     '%rule r $x:A %conditions $x.unknown = "x"',
-    '%rule r "a$b"', '%rule r "a\\b"', "%bad A %prefer r A",
+    '%rule r "a\\b"', "%bad A %prefer r A",
     "%rule r A ≻", "%rule r A ≻ B | C", "%rule r A | B ≻ C",
     '%const $S "a" "b".."c"', '%const $S ("a" "b".."c")',
     '%rule r A %conditions "a" ∈ ("a" "b".."c")',
