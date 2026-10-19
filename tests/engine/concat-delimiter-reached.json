@@ -1,0 +1,14 @@
+{
+  "description": "A reached computed empty delimiter fails during parsing rather than loading.",
+  "grammar": "%rule text \"x\" %conditions $.value = \"y\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

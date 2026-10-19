@@ -1,0 +1,10 @@
+{
+  "description": "An unrelated bound constant does not make a computed delimiter eager.",
+  "grammar": "%const $K \"x\"\n%rule text \"x\" %conditions $.value = $K ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

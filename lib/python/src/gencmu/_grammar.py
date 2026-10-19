@@ -532,10 +532,12 @@ class _Constants:
                     raise _error(problem, path, rule["at"], self.stage)
             self.check_delimiters(path, rule, rule["at"])
 
-    def check_delimiters(self, path: str, clauses: Any, at: Any) -> None:
-        """Reject empty closed delimiters in rule and feature conditions."""
+    def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
+        """Reject direct empty delimiters, or all closed feature delimiters."""
         for call in _calls_in(clauses):
             delimiter = call["args"][0]
+            if not computed and "string" not in delimiter and "const" not in delimiter:
+                continue
             if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
                 raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
 
@@ -778,7 +780,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                 fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
                 if fault:
                     raise _error(fault[0], path, directive["at"], stage)
-            constants.check_delimiters(path, directive["conditions"], directive["at"])
+            constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)
             resolved_features.append((path, {**directive, "conditions": conditions}))
         except GencmuError as error:
             raise _error(error.message, path, directive["at"], stage) from error

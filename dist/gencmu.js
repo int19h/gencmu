@@ -6960,7 +6960,7 @@
         while (parts.length) {
           const part = /** @type {any} */ (parts.pop());
           if (!part || typeof part !== "object") continue;
-          if (part.method === "split" && !openPart(part.args[0])) {
+          if (part.method === "split" && ("string" in part.args[0] || "const" in part.args[0])) {
             const delimiter = /** @type {{string:string}} */ (this.evaluateClosed(path,part.args[0],rule.at));
             if (delimiter.string === "") throw this.faultError(path,part.args[0],rule.at,"split has an empty delimiter");
           }

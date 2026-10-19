@@ -1,0 +1,8 @@
+{
+  "description": "Feature loading rejects a closed empty delimiter even in a short-circuited branch.",
+  "grammar": "%features f\n%conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")\n%rule text \"x\"",
+  "input": "x",
+  "expect": {
+    "error": "grammar"
+  }
+}

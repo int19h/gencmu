@@ -399,6 +399,17 @@ pub(crate) fn stitch(
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|name| constants.ty(name)) {
                     return Err(located(fault.problem, document, directive.at));
                 }
+                let mut calls = Vec::new();
+                calls_in_condition(condition, &mut calls);
+                for (call, args) in calls {
+                    if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
+                        if closed_string(delimiter)
+                            && constants.evaluate(delimiter, document, directive.at)?.string().is_empty()
+                        {
+                            return Err(located("split has an empty delimiter".into(), document, directive.at));
+                        }
+                    }
+                }
                 constants.substitute_cond(condition);
                 if let Some(fault) = crate::dom::cond_type_fault(condition, &|_| Type::Any) {
                     return Err(located(fault.problem, document, directive.at));
@@ -1278,27 +1289,9 @@ impl Constants<'_> {
             calls_in_rule(rule, &mut calls);
             for (call, args) in calls {
                 if let ("split", [_, Arg::Term(delimiter)]) = (call, args) {
-                    let mut pending = vec![delimiter];
-                    let mut closed = true;
-                    while let Some(term) = pending.pop() {
-                        match term {
-                            Term::Str(_) | Term::Const(..) => {}
-                            Term::Call(name, args) if name == "concat" => {
-                                pending.extend(args.iter().filter_map(|arg| {
-                                    if let Arg::Term(term) = arg {
-                                        Some(term)
-                                    } else {
-                                        None
-                                    }
-                                }))
-                            }
-                            _ => {
-                                closed = false;
-                                break;
-                            }
-                        }
-                    }
-                    if closed && self.evaluate(delimiter, document, rule.at)?.string().is_empty() {
+                    if matches!(delimiter, Term::Str(_) | Term::Const(..))
+                        && self.evaluate(delimiter, document, rule.at)?.string().is_empty()
+                    {
                         return Err(located(
                             "split has an empty delimiter".into(),
                             document,
@@ -1553,62 +1546,81 @@ fn first_constant(term: &Term) -> Option<(usize, usize)> {
     out.first().map(|&(_, at)| at)
 }
 
-/// The calls of a rule's terms and conditions, each before the calls in
-/// its arguments.
-fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
-    fn term<'r>(t: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
-        match t {
-            Term::Call(name, args) => {
-                out.push((name, args));
+/// Whether a string term reads only literals and constants.
+fn closed_string(term: &Term) -> bool {
+    let mut pending = vec![term];
+    while let Some(term) = pending.pop() {
+        match term {
+            Term::Str(_) | Term::Const(..) => {}
+            Term::Call(name, args) if name == "concat" => {
                 for arg in args {
-                    if let Arg::Term(inner) = arg {
-                        term(inner, out);
-                    }
+                    let Arg::Term(term) = arg else { return false };
+                    pending.push(term);
                 }
             }
-            Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| term(item, out)),
-            Term::Difference(left, right) => {
-                term(left, out);
-                term(right, out);
-            }
-            Term::If(c, then) => {
-                cond(c, out);
-                term(then, out);
-            }
-            Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
+            _ => return false,
         }
     }
-    fn cond<'r>(c: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
-        match c {
-            Cond::Compare(_, left, right) => {
-                term(left, out);
-                term(right, out);
+    true
+}
+
+fn calls_in_term<'r>(term: &'r Term, out: &mut Vec<(&'r str, &'r [Arg])>) {
+    match term {
+        Term::Call(name, args) => {
+            out.push((name, args));
+            for arg in args {
+                if let Arg::Term(inner) = arg {
+                    calls_in_term(inner, out);
+                }
             }
-            Cond::Not(inner) => cond(inner, out),
-            Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| cond(item, out)),
-            Cond::If(antecedent, consequent) => {
-                cond(antecedent, out);
-                cond(consequent, out);
-            }
-            Cond::Matches(..)
-            | Cond::Begins(..)
-            | Cond::Initial(_)
-            | Cond::Final(_)
-            | Cond::Boundary(_, _, _, _)
-            | Cond::Captured(_) => {}
         }
+        Term::Union(items) | Term::Intersection(items) => items.iter().for_each(|item| calls_in_term(item, out)),
+        Term::Difference(left, right) => {
+            calls_in_term(left, out);
+            calls_in_term(right, out);
+        }
+        Term::If(condition, then) => {
+            calls_in_condition(condition, out);
+            calls_in_term(then, out);
+        }
+        Term::Pattern(_) | Term::Str(_) | Term::Tag(_) | Term::EmptySet | Term::Capture(_) | Term::Const(..) => {}
     }
-    rule.tags.iter().for_each(|t| term(t, out));
+}
+
+fn calls_in_condition<'r>(condition: &'r Cond, out: &mut Vec<(&'r str, &'r [Arg])>) {
+    match condition {
+        Cond::Compare(_, left, right) => {
+            calls_in_term(left, out);
+            calls_in_term(right, out);
+        }
+        Cond::Not(inner) => calls_in_condition(inner, out),
+        Cond::Any(items) | Cond::All(items) => items.iter().for_each(|item| calls_in_condition(item, out)),
+        Cond::If(antecedent, consequent) => {
+            calls_in_condition(antecedent, out);
+            calls_in_condition(consequent, out);
+        }
+        Cond::Matches(..)
+        | Cond::Begins(..)
+        | Cond::Initial(_)
+        | Cond::Final(_)
+        | Cond::Boundary(_, _, _, _)
+        | Cond::Captured(_) => {}
+    }
+}
+
+/// The calls of a rule's terms and conditions, each before its argument calls.
+fn calls_in_rule<'r>(rule: &'r RuleDef, out: &mut Vec<(&'r str, &'r [Arg])>) {
+    rule.tags.iter().for_each(|term| calls_in_term(term, out));
     for alternative in &rule.alternatives {
-        tests_in(&alternative.expr).into_iter().for_each(|(_, t, _)| term(t, out));
-        alternative.tags.iter().for_each(|t| term(t, out));
+        tests_in(&alternative.expr).into_iter().for_each(|(_, term, _)| calls_in_term(term, out));
+        alternative.tags.iter().for_each(|term| calls_in_term(term, out));
     }
     for item in rule.emit.iter().flatten() {
-        if let EmitItem::Capture(_, Some(t), ..) | EmitItem::Insert(Some(t), _) = item {
-            term(t, out);
+        if let EmitItem::Capture(_, Some(term), ..) | EmitItem::Insert(Some(term), _) = item {
+            calls_in_term(term, out);
         }
     }
-    rule.conditions.iter().for_each(|c| cond(c, out));
+    rule.conditions.iter().for_each(|condition| calls_in_condition(condition, out));
 }
 
 /// Checks an alternative, and its rule's clauses where `clauses` says that

@@ -30,9 +30,6 @@ def literal_string(term: Any) -> str | None:
         return term["string"]
     if isinstance(term.get("const"), str):
         return scalar(term["const"])
-    if isinstance(term.get("concat"), list):
-        parts = [literal_string(part) for part in term["concat"]]
-        return "".join(parts) if all(part is not None for part in parts) else None
     return None
 
 

@@ -1,0 +1,10 @@
+{
+  "description": "A computed delimiter is not evaluated in a short-circuited ordinary condition.",
+  "grammar": "%rule text \"x\" %conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

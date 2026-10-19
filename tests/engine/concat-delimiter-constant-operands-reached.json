@@ -1,0 +1,14 @@
+{
+  "description": "A reached concatenation of empty constant operands fails during parsing.",
+  "grammar": "%const $E \"\"\n%rule text \"x\" %conditions $.value = \"y\" ∨ \"a\" ∈ \"ab\".split($E ++ $E)",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "grammar"
+      }
+    },
+    "error": "grammar"
+  }
+}

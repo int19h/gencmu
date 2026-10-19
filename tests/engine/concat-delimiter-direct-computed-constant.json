@@ -1,0 +1,8 @@
+{
+  "description": "A direct delimiter constant with an empty computed value still fails during loading.",
+  "grammar": "%const $E \"\" ++ \"\"\n%rule text \"x\" %conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split($E)",
+  "input": "x",
+  "expect": {
+    "error": "grammar"
+  }
+}

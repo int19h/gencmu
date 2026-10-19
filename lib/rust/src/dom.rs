@@ -897,21 +897,12 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
     }
 }
 
-/// A split delimiter known to be empty is a document error (engine §9).
+/// A literal empty split delimiter is a document error (engine §9).
 pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static str> {
-    fn empty(arg: &Arg) -> bool {
-        let mut pending = vec![arg];
-        while let Some(arg) = pending.pop() {
-            match arg {
-                Arg::Term(Term::Str(text)) if text.is_empty() => {}
-                Arg::Term(Term::Call(name, args)) if name == "concat" => pending.extend(args),
-                _ => return false,
-            }
-        }
-        true
-    }
     match call {
-        "split" if args.get(1).is_some_and(empty) => Some("split has an empty delimiter"),
+        "split" if matches!(args.get(1), Some(Arg::Term(Term::Str(text))) if text.is_empty()) => {
+            Some("split has an empty delimiter")
+        }
         _ => None,
     }
 }

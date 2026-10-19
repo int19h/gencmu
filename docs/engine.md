@@ -1976,6 +1976,8 @@ In the check of §7, ordinary span methods read their receivers' projected spans
 
 An empty delimiter is an error. It is an error of the document when the delimiter is the literal `""` or a constant whose value is `""` (§2, §9). Otherwise it is an error of the grammar when a parse evaluates the `split`, and the whole parse fails with it (§13). So `$x.value.split($y.source-text)` is such an error where `$y` is empty.
 
+A concatenation remains computed even when all operands are closed or constants occur elsewhere in the rule. Short-circuit evaluation can skip it. Feature conditions reject every closed empty delimiter during loading (§2).
+
 Every tag name is written in the grammar. No method constructs a tag from a string. Values remain available for input-dependent comparisons.
 
 `s.ngrams(n)` takes one positive decimal integer literal without leading zeros. An n-gram is a run of adjacent code points. Its value is the set of all length-`n` substrings, with duplicates removed. A string shorter than `n` gives `∅`, including when `n` exceeds any machine integer. Constants cannot supply `n` because the term language has no integer type. Noninteger, zero, negative, missing, and extra arguments are document errors.

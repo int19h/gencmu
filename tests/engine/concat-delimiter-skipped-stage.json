@@ -1,0 +1,23 @@
+{
+  "description": "An ordinary computed delimiter is not evaluated when until skips its stage.",
+  "documents": {
+    "p.md": "```jbogenbau\n%stage first\n%ambiguity-resolution greedy\n%rule text A\n%emits\n%stage second\n%ambiguity-resolution greedy\n%const $E \"\"\n%rule text A\n%conditions $.value.split($E ++ $E) = ∅\n```\n"
+  },
+  "pipeline": "p.md",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "options": {
+    "until": "first"
+  },
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}
