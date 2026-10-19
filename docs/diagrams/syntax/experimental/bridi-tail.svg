@@ -1,43 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="827" height="192" viewBox="0 0 827 192" role="img" aria-label="Railroad diagram of the rule bridi-tail">
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="236" viewBox="0 0 740 236" role="img" aria-label="Railroad diagram of the rule bridi-tail">
 <style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
 <rect width="100%" height="100%" fill="#fff"/>
 <text class="title" x="10" y="24" textLength="84" lengthAdjust="spacingAndGlyphs">bridi-tail</text>
-<path d="M10 58v16m4 -16v16M14 66h6"/>
-<g class="rule"><rect x="20" y="54" width="117" height="24" rx="0"/><text x="78.5" y="71" textLength="100.8" lengthAdjust="spacingAndGlyphs">bridi-tail-1</text></g>
-<path d="M137 66h10"/>
-<path d="M147 66h20"/>
-<path d="M167 66h20"/>
-<path d="M187 66h20"/>
-<g class="rule"><rect x="207" y="54" width="193" height="24" rx="0"/><text x="303.5" y="71" textLength="176.4" lengthAdjust="spacingAndGlyphs">bridi-tail-connective</text></g>
-<path d="M400 66h10"/>
-<path d="M410 66h20"/>
-<g class="rule"><rect x="430" y="54" width="50" height="24" rx="0"/><text x="455" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
-<path d="M480 66H500"/>
-<path d="M410 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H480a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
-<path d="M500 66H520"/>
-<path d="M187 66a10 10 0 0 1 10 10V90a10 10 0 0 0 10 10"/>
-<g class="terminal"><rect x="207" y="88" width="33" height="24" rx="12"/><text x="223.5" y="105" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
-<path d="M240 100h10"/>
-<g class="rule"><rect x="250" y="88" width="50" height="24" rx="0"/><text x="275" y="105" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
-<path d="M300 100H500a10 10 0 0 0 10 -10V76a10 10 0 0 1 10 -10"/>
-<path d="M520 66h10"/>
-<g class="terminal"><rect x="530" y="54" width="33" height="24" rx="12"/><text x="546.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
-<path d="M563 66h10"/>
-<g class="rule"><rect x="573" y="54" width="25" height="24" rx="0"/><text x="585.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M598 66h10"/>
-<g class="rule"><rect x="608" y="54" width="159" height="24" rx="0"/><text x="687.5" y="71" textLength="142.8" lengthAdjust="spacingAndGlyphs">headed-bridi-tail</text></g>
-<path d="M767 66H767a10 10 0 0 1 10 10V112a10 10 0 0 1 -10 10H187a10 10 0 0 0 -10 10V160a10 10 0 0 0 10 10"/>
-<path d="M187 170h20"/>
-<g class="terminal"><rect x="207" y="158" width="50" height="24" rx="12"/><text x="232" y="175" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
-<path d="M257 170H279"/>
-<path d="M187 170a10 10 0 0 0 10 -10V158a10 10 0 0 1 10 -10H259a10 10 0 0 1 10 10V160a10 10 0 0 0 10 10"/>
-<text class="label" x="211" y="143" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
-<path d="M279 170h10"/>
-<g class="rule"><rect x="289" y="158" width="25" height="24" rx="0"/><text x="301.5" y="175" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
-<path d="M314 170h10"/>
-<g class="rule"><rect x="324" y="158" width="100" height="24" rx="0"/><text x="374" y="175" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
-<path d="M424 170H787"/>
-<path d="M787 170H807"/>
-<path d="M147 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H787a10 10 0 0 1 10 10V160a10 10 0 0 0 10 10"/>
-<path d="M807 170h6m0 -8v16m4 -16v16"/>
+<path d="M10 38v16m4 -16v16M14 46h6"/>
+<path d="M20 46h20"/>
+<g class="rule"><rect x="40" y="34" width="168" height="24" rx="0"/><text x="124" y="51" textLength="151.2" lengthAdjust="spacingAndGlyphs">bridi-tail-1-final</text></g>
+<path d="M208 46H700a10 10 0 0 1 10 10V58a10 10 0 0 1 -10 10H40a10 10 0 0 0 -10 10V100a10 10 0 0 0 10 10"/>
+<path d="M40 110h20"/>
+<path d="M60 110h20"/>
+<path d="M80 110h20"/>
+<g class="rule"><rect x="100" y="98" width="193" height="24" rx="0"/><text x="196.5" y="115" textLength="176.4" lengthAdjust="spacingAndGlyphs">bridi-tail-connective</text></g>
+<path d="M293 110h10"/>
+<path d="M303 110h20"/>
+<g class="rule"><rect x="323" y="98" width="50" height="24" rx="0"/><text x="348" y="115" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M373 110H393"/>
+<path d="M303 110a10 10 0 0 0 10 -10V98a10 10 0 0 1 10 -10H373a10 10 0 0 1 10 10V100a10 10 0 0 0 10 10"/>
+<path d="M393 110H413"/>
+<path d="M80 110a10 10 0 0 1 10 10V134a10 10 0 0 0 10 10"/>
+<g class="terminal"><rect x="100" y="132" width="33" height="24" rx="12"/><text x="116.5" y="149" textLength="16.8" lengthAdjust="spacingAndGlyphs">GI</text></g>
+<path d="M133 144h10"/>
+<g class="rule"><rect x="143" y="132" width="50" height="24" rx="0"/><text x="168" y="149" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M193 144H393a10 10 0 0 0 10 -10V120a10 10 0 0 1 10 -10"/>
+<path d="M413 110h10"/>
+<g class="terminal"><rect x="423" y="98" width="33" height="24" rx="12"/><text x="439.5" y="115" textLength="16.8" lengthAdjust="spacingAndGlyphs">KE</text></g>
+<path d="M456 110h10"/>
+<g class="rule"><rect x="466" y="98" width="25" height="24" rx="0"/><text x="478.5" y="115" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M491 110h10"/>
+<g class="rule"><rect x="501" y="98" width="159" height="24" rx="0"/><text x="580.5" y="115" textLength="142.8" lengthAdjust="spacingAndGlyphs">headed-bridi-tail</text></g>
+<path d="M660 110H660a10 10 0 0 1 10 10V156a10 10 0 0 1 -10 10H80a10 10 0 0 0 -10 10V204a10 10 0 0 0 10 10"/>
+<path d="M80 214h20"/>
+<g class="terminal"><rect x="100" y="202" width="50" height="24" rx="12"/><text x="125" y="219" textLength="33.6" lengthAdjust="spacingAndGlyphs">KEhE</text></g>
+<path d="M150 214H172"/>
+<path d="M80 214a10 10 0 0 0 10 -10V202a10 10 0 0 1 10 -10H152a10 10 0 0 1 10 10V204a10 10 0 0 0 10 10"/>
+<text class="label" x="104" y="187" textLength="43.2" lengthAdjust="spacingAndGlyphs">elided</text>
+<path d="M172 214h10"/>
+<g class="rule"><rect x="182" y="202" width="25" height="24" rx="0"/><text x="194.5" y="219" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M207 214h10"/>
+<g class="rule"><rect x="217" y="202" width="100" height="24" rx="0"/><text x="267" y="219" textLength="84" lengthAdjust="spacingAndGlyphs">tail-terms</text></g>
+<path d="M317 214H680"/>
+<path d="M680 214H700"/>
+<path d="M40 110a10 10 0 0 0 10 -10V88a10 10 0 0 1 10 -10H680a10 10 0 0 1 10 10V204a10 10 0 0 0 10 10"/>
+<path d="M700 214H720"/>
+<path d="M720 214h6m0 -8v16m4 -16v16"/>
 </svg>
