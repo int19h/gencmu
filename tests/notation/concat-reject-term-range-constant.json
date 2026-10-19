@@ -1,0 +1,10 @@
+{
+  "description": "A constant definition rejects a range as a term at the range start (engine §9.3).",
+  "document": "```jbogenbau\n%const $S \"a\" ++ \"b\"..\"z\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

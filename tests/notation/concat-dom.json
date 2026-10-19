@@ -1,0 +1,36 @@
+{
+  "description": "The DOM flattens grouped joins while preserving their empty string operands (engine §9.3).",
+  "document": "```jbogenbau\n%const $S \"a\" ++ (\"\" ++ \"b\")\n```",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "S",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": ""
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

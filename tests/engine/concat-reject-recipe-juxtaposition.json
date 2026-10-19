@@ -1,0 +1,13 @@
+{
+  "description": "Adjacent recipe literals require an instruction to join them with ++ (engine §9.3, §11.3).",
+  "grammar": "%rule text := \"a\" \"b\" | \"x\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 15
+    }
+  }
+}

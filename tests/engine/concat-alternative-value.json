@@ -1,0 +1,21 @@
+{
+  "description": "An alternative value recipe joins captured values and supplies the implied image (engine §11.3).",
+  "grammar": "%rule text $a:\"a\" $b:\"b\" := $a.value ++ \"-\" ++ $b.value %emits",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "a-b",
+              "image": "a-b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

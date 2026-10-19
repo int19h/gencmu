@@ -1,0 +1,13 @@
+{
+  "description": "Constant evaluation rejects an empty delimiter joined from literals at the definition (engine §2, §10).",
+  "grammar": "%const $S \"ab\".split(\"\" ++ \"\")\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

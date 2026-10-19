@@ -162,8 +162,8 @@
     "suffix": "\""
   },
   {
-    "name": "string-of-escapes",
-    "description": "A string with many interpolated quotes and backslashes in a value test (engine §9.1).",
+    "name": "string-of-dollar-forms",
+    "description": "A plain string contains many dollar forms without decoding them (engine §9.1).",
     "prefix": "%rule a B=\"",
     "open": "$(_0022)$(_005C)",
     "middle": "",

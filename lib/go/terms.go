@@ -131,14 +131,15 @@ type walk struct {
 // with neither a condition nor a term fills lazy with the value of the
 // term above it, the tags of $.
 type frame struct {
-	ev   *evaluator
-	c    *domCond
-	t    *domTerm
-	at   int
-	s    spanVal
-	v    value
-	sets []*tagset
-	lazy *lazyTags
+	ev      *evaluator
+	c       *domCond
+	t       *domTerm
+	at      int
+	s       spanVal
+	v       value
+	sets    []*tagset
+	strings []string
+	lazy    *lazyTags
 }
 
 // cond begins the walk of a condition.
@@ -309,12 +310,19 @@ func (w *walk) termStep(f *frame) *nestedQuery {
 	ev, t := f.ev, f.t
 	in := ev.in()
 	switch t.Kind {
-	case tmInterpolate:
-		v, err := ev.g.stage.evaluateClosed("", t, [2]int{})
-		if err != nil {
-			panic(&parseFailure{message: err.Message})
+	case tmConcat:
+		if f.at == 0 {
+			f.strings = f.strings[:0]
 		}
-		w.endTerm(value{kind: vString, s: v.s})
+		if f.at > 0 {
+			f.strings = append(f.strings, toStr(w.v))
+		}
+		if f.at == len(t.Items) {
+			w.endTerm(value{kind: vString, s: strings.Join(f.strings, "")})
+			return nil
+		}
+		f.at++
+		w.push(ev, nil, t.Items[f.at-1])
 		return nil
 	case tmCapture:
 		w.endTerm(value{kind: vString, s: ev.run.spanValue(w.span(ev, t))})

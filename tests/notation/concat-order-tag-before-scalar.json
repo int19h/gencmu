@@ -1,0 +1,10 @@
+{
+  "description": "The reader rejects a tag as the first join operand before reading a later surrogate constant (engine §9.3).",
+  "document": "```jbogenbau\n%const $S A ++ $_D800\n%rule text \"x\"\n%ambiguity-resolution greedy\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

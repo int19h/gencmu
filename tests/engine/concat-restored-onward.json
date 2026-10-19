@@ -1,0 +1,23 @@
+{
+  "grammar": "%rule text $x:r B %conditions $x.without-elision.onward.value ++ \"\" = \"ab\"\n%rule r A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    },
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "A join reads the onward span of a restored capture, including the following token (engine §10)."
+}

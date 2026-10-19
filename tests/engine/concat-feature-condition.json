@@ -1,0 +1,10 @@
+{
+  "grammar": "%const $A \"a\"\n%features f\n%conditions $A ++ \"b\" = \"ab\"\n%rule text f? \"x\"",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "A feature condition joins a stage constant with a literal before testing equality (engine §3.1, §10)."
+}

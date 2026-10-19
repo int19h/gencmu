@@ -1,0 +1,30 @@
+{
+  "description": "A classifier matches a key that a constant constructs by joining two other constants (engine §2, §10).",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $K $A ++ $B\n%classifier c $K ∈ AB\n%rule text _ :: $.value.classify(c) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab",
+              "tags": [
+                "AB"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

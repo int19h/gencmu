@@ -1,0 +1,10 @@
+{
+  "description": "Engine §10 joins string terms before string-set membership and equality.",
+  "grammar": "%const $A \"b\"\n%const $S (\"a\" ++ $A) ∪ \"c\"\n%rule text ε %conditions \"ab\" ∈ $S, $S = (\"ab\" \"c\")",
+  "input": "",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

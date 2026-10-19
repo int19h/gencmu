@@ -451,6 +451,10 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 			c.fail("a missing value of a test")
 			return
 		}
+		if !stringTermShape(e.Value) {
+			c.fail("a value test requires a literal or constant string")
+			return
+		}
 		c.term(e.Value, depth+1, false)
 		c.tests = append(c.tests, e)
 	case exLiteral:
@@ -964,9 +968,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a string is not valid UTF-8")
 		}
 	case tmCapture, tmEmptySet:
-	case tmInterpolate, tmConcat:
-		if len(t.Items) == 0 {
-			c.fail("an empty string expression")
+	case tmConcat:
+		if len(t.Items) < 2 {
+			c.fail("a concatenation requires two operands")
 		}
 		for _, part := range t.Items {
 			c.term(part, depth+1, false)
@@ -975,10 +979,16 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
 			case "literal":
+				if !stringTermShape(p.Value) {
+					return "a pattern literal requires a literal or constant string"
+				}
 				c.term(p.Value, d, false)
 				return ""
 			case "range":
 				for _, end := range p.Ends {
+					if !stringTermShape(end) {
+						return "a pattern range requires literal or constant strings"
+					}
 					c.term(end, d, false)
 				}
 				return ""
@@ -994,6 +1004,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 					c.term(r.Value, d+1, false)
 				}
 				return ""
+			}
+			if !stringTermShape(p.Value) {
+				return "a pattern value test requires a literal or constant string"
 			}
 			if openPart(p.Value) != nil {
 				return "a pattern test requires a closed operand"
@@ -1223,7 +1236,7 @@ func readsOwnTags(t *domTerm) bool {
 		}
 		switch p.t.Kind {
 		case tmCapture:
-		case tmIf, tmUnion, tmIntersection, tmDifference:
+		case tmIf, tmUnion, tmIntersection, tmDifference, tmConcat:
 			stack = append(stack, p.children()...)
 		case tmCall:
 			if (p.t.Str == "tags" || p.t.Str == "classes") && len(p.t.Items) == 1 {
@@ -1578,6 +1591,24 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 					fault = &typeFault{msg, &domTerm{Kind: tmConst, Str: p.Name, At: p.At}}
 				}
 			}
+			operands := []*domTerm{}
+			if p.Kind == "literal" {
+				operands = append(operands, p.Value)
+			}
+			if p.Kind == "range" {
+				operands = append(operands, p.Ends[:]...)
+			}
+			for _, operand := range operands {
+				ty, f := termTypeMemo(operand, ct, memo)
+				if f != nil {
+					fault = f
+					return
+				}
+				if ty != tyString && ty != tyAny {
+					fault = &typeFault{"a pattern terminal requires a string", operand}
+					return
+				}
+			}
 			if p.Kind == "test" && p.Op != "tags" {
 				ty, f := termTypeMemo(p.Value, ct, memo)
 				if f != nil {
@@ -1588,7 +1619,18 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 			}
 		})
 		return tyPattern, fault
-	case tmString, tmInterpolate, tmConcat:
+	case tmString:
+		return tyString, nil
+	case tmConcat:
+		for _, part := range t.Items {
+			ty, f := termTypeMemo(part, ct, memo)
+			if f != nil {
+				return 0, f
+			}
+			if ty != tyString && ty != tyAny {
+				return 0, &typeFault{"++ requires string operands", t}
+			}
+		}
 		return tyString, nil
 	case tmTag:
 		return tyTags, nil
@@ -1841,7 +1883,7 @@ func openPart(t *domTerm) *domTerm {
 			}
 		})
 		return found
-	case tmUnion, tmIntersection, tmDifference, tmInterpolate:
+	case tmUnion, tmIntersection, tmDifference, tmConcat:
 	default:
 		return nil
 	}

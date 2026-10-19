@@ -1,0 +1,8 @@
+{
+  "description": "Feature loading rejects a closed empty delimiter join even after a true disjunct (engine §9.3, §10).",
+  "grammar": "%features f\n%conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")\n%rule text \"x\"",
+  "input": "x",
+  "expect": {
+    "error": "grammar"
+  }
+}

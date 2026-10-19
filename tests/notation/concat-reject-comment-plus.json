@@ -1,0 +1,10 @@
+{
+  "description": "A comment cannot separate the two signs of ++ (engine §9.1).",
+  "document": "```jbogenbau\n%const $S \"a\" + (* comment *) + \"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 15
+    }
+  }
+}

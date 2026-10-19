@@ -1,0 +1,17 @@
+{
+  "grammar": "%rule text [$x:A] B %conditions $x.value ++ \"x\" = \"ax\"",
+  "tokens": [
+    {
+      "text": "b",
+      "tags": [
+        "B"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "An absent optional capture removes a condition that reads its value through concatenation (engine §3.6)."
+}

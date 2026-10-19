@@ -1,0 +1,10 @@
+{
+  "description": "Body range endpoints accept constants whose joins each produce one scalar (engine §2, §10).",
+  "grammar": "%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH %emits",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

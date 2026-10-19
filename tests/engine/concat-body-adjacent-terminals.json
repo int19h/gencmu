@@ -1,0 +1,10 @@
+{
+  "description": "Adjacent body terminals for e and U+0301 read two tokens (engine §2).",
+  "grammar": "%rule text \"e\" $_0301",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "input": "é"
+}

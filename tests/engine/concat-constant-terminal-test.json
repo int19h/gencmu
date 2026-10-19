@@ -1,0 +1,18 @@
+{
+  "description": "A body terminal and its value test can reference the same joined string constant (engine §2, §10).",
+  "grammar": "%const $JOIN-1 \"a\" ++ \"b\"\n%rule text $JOIN-1=$JOIN-1 %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

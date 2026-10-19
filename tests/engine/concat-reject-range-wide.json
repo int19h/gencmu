@@ -1,0 +1,13 @@
+{
+  "description": "A range endpoint rejects a joined constant whose value contains two scalars (engine §2).",
+  "grammar": "%const $S \"a\" ++ \"b\"\n%rule text $S..\"z\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 12
+    }
+  }
+}

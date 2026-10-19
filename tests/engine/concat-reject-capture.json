@@ -1,0 +1,13 @@
+{
+  "description": "A bare capture cannot serve as a string join operand (engine §10).",
+  "grammar": "%rule text $x:\"a\" %conditions $x ++ \"c\" = \"ac\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 31
+    }
+  }
+}

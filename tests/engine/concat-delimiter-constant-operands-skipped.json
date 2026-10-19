@@ -1,0 +1,10 @@
+{
+  "description": "A skipped split call does not evaluate its delimiter join after binding empty constant operands (engine §10).",
+  "grammar": "%const $E \"\"\n%rule text \"x\" %conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split($E ++ \"\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

@@ -13,7 +13,7 @@ use crate::tags::is_name;
 use crate::unicode::{is_property_name, Unicode};
 
 /// The DOM format version (`docs/output.md`), part of every cache key.
-pub const DOM_FORMAT: i64 = 33;
+pub const DOM_FORMAT: i64 = 34;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Dom {
@@ -673,7 +673,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
             }
         } else {
             match key {
-                "union" | "intersection" | "difference" | "interpolate" | "concat" => {
+                "union" | "intersection" | "difference" | "concat" => {
                     children.extend(array(value, key)?.iter().map(|child| (child, false)))
                 }
                 "if" => {
@@ -761,9 +761,7 @@ fn read_value(root: &Json, condition: bool) -> R<ReadValue> {
                     Term::Difference(Box::new(left), Box::new(right))
                 }
                 "if" => Term::If(Box::new(operands.next().unwrap().cond()), Box::new(operands.next().unwrap().term())),
-                "interpolate" | "concat" => {
-                    Term::Call(key.into(), operands.map(|value| Arg::Term(value.term())).collect())
-                }
+                "concat" => Term::Call(key.into(), operands.map(|value| Arg::Term(value.term())).collect()),
                 "method" => {
                     let mut args = vec![Arg::Term(operands.next().unwrap().term())];
                     for arg in array(value, "args")? {
@@ -901,14 +899,10 @@ fn elidable_head_json(expr: &Json) -> Option<&Json> {
 
 /// A literal empty split delimiter is a document error (engine §9).
 pub(crate) fn literal_call_problem(call: &str, args: &[Arg]) -> Option<&'static str> {
-    fn literal(arg: Option<&Arg>) -> Option<&str> {
-        match arg {
-            Some(Arg::Term(Term::Str(text))) => Some(text),
-            _ => None,
-        }
-    }
     match call {
-        "split" if literal(args.get(1)) == Some("") => Some("split has an empty delimiter"),
+        "split" if matches!(args.get(1), Some(Arg::Term(Term::Str(text))) if text.is_empty()) => {
+            Some("split has an empty delimiter")
+        }
         _ => None,
     }
 }
@@ -1271,7 +1265,7 @@ pub(crate) fn write_term(out: &mut String, term: &Term) {
             out.push('}');
         }
         Term::Call(name, args) => {
-            if matches!(name.as_str(), "concat" | "interpolate") {
+            if matches!(name.as_str(), "concat") {
                 write_list(out, name, args, write_argument);
             } else {
                 out.push_str("{\"method\":");
@@ -1775,9 +1769,7 @@ const SPAN_NOT_VALUE: &str = "a span is not a value: tags($x) is the tag set of 
 /// The type of the value a function gives (engine §10).
 pub(crate) fn call_type(call: &str) -> Type {
     match call {
-        "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" | "interpolate" => {
-            Type::String
-        }
+        "value" | "text" | "decomposed-source-text" | "image" | "verbatim-text" | "concat" => Type::String,
         "split" | "ngrams" => Type::Strings,
         "tags" | "classes" | "classify" | "requirements" | "forbid" => Type::Tags,
         _ => Type::Span,
@@ -1931,11 +1923,14 @@ pub(crate) fn term_type_in(term: &Term, constants: ConstantTypes) -> Result<Type
                 if let Arg::Term(arg) = arg {
                     let ty = term_type_in(arg, constants)?;
                     let expected = match call.as_str() {
-                        "split" | "ngrams" | "classify" | "concat" | "interpolate" => Type::String,
+                        "split" | "ngrams" | "classify" | "concat" => Type::String,
                         "requirements" | "forbid" => Type::Tags,
                         _ if index == 0 => Type::Span,
                         _ => continue,
                     };
+                    if call == "concat" && !matches!(ty, Type::String | Type::Any) {
+                        return Err(Fault::in_term("++ requires string operands".into(), term));
+                    }
                     if let Some(problem) = expected_problem(ty, expected) {
                         return Err(Fault::in_term(format!(".{}: {problem}", method_spelling(call)), term));
                     }

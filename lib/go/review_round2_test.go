@@ -66,7 +66,7 @@ func TestReviewPrivateRecipeExports(t *testing.T) {
 		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε := $x.value`, "items"},
 		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :- $x.image`, "items"},
 		{`%rule text :: ∅ | ($x:A ≻ $x:B) %emits ε :: $x ⟹ $x.tags`, "items"},
-		{`%rule text ($x:A ≻ $x:B) := $.emitted.value $x.value %emits`, "concat"},
+		{`%rule text ($x:A ≻ $x:B) := $.emitted.value ++ $x.value %emits`, "concat"},
 		{`%rule text ($x:A ≻ B) := $x.value %emits`, "concat"},
 		{`%rule text :: ∅ := $x.value | ($x:A ≻ B) := "overridden" %emits`, "concat"},
 		{`%rule text :: ∅ | ($x:A ≻ B) [$carrier:C] %emits $carrier := $x.value`, "items"},
@@ -130,9 +130,9 @@ func TestReviewCachedRecipeCyclePositions(t *testing.T) {
 		// The image recipe closes the cycle, so §11.3 now selects its first atom.
 		{`%rule text := $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
 		{`%rule text := "independent" :- $.emitted.image | "a" %emits`, "$.emitted.image", 3},
-		{`%rule text := $.emitted.image :- "prefix" $.emitted.value | "a" %emits`, `"prefix"`, 3},
-		{`%rule text := $.emitted.image $.emitted.value :- "image first" $.emitted.image | "a" %emits`, `"image first"`, 3},
-		{`%rule text := $.emitted.value $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
+		{`%rule text := $.emitted.image :- "prefix" ++ $.emitted.value | "a" %emits`, `"prefix"`, 3},
+		{`%rule text := $.emitted.image ++ $.emitted.value :- "image first" ++ $.emitted.image | "a" %emits`, `"image first"`, 3},
+		{`%rule text := $.emitted.value ++ $.emitted.image :- $.emitted.value | "a" %emits`, "$.emitted.value", 3},
 		{`%rule text := $.emitted.image :- "header"
   | "a" :- $.emitted.value %emits`, "$.emitted.value", 4},
 		{`%rule text "a" := $.emitted.value %emits`, "$.emitted.value", 3},
@@ -209,7 +209,7 @@ func TestReviewRecipeProductionOrder(t *testing.T) {
 %redefine-rule text "a"`, 4},
 		{"resolved constant", `%const $K "k"
 %rule text "a"
-%rule other := $K $.emitted.value | "b"
+%rule other := $K ++ $.emitted.value | "b"
 %extend-rule text := $.emitted.image | "c"`, 5},
 	} {
 		t.Run(c.name, func(t *testing.T) {

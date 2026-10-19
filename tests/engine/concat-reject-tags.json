@@ -1,0 +1,13 @@
+{
+  "description": "A tag literal cannot serve as a string join operand (engine §10).",
+  "grammar": "%rule text $x:\"a\" %conditions A ++ \"c\" = \"ac\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 31
+    }
+  }
+}

@@ -15,6 +15,9 @@ func unionTerm(a, b *domTerm) *domTerm {
 }
 
 func (b *domBuilder) tagRun(n *Node) *domTerm {
+	if b.inRecipe && n.Rule == "string-run" {
+		b.fail(n, "juxtaposed recipe strings require ++, use ++ between string atoms")
+	}
 	for _, index := range []int{n.Span[0] - 1, n.Span[1]} {
 		if index >= 0 && index < len(b.toks) {
 			t := b.toks[index].Value
@@ -188,75 +191,10 @@ func (b *domBuilder) constantRef(n *Node) *domTerm {
 
 func (b *domBuilder) stringTerm(n *Node) *domTerm {
 	rs := []rune(b.tokenValue(n))
-	original := []rune(b.sourceText(n))
-	originalIndex := 1
 	if len(rs) < 2 || rs[0] != '"' || rs[len(rs)-1] != '"' {
 		b.fail(n, "a string uses double quotes")
 	}
-	var parts []*domTerm
-	var literal strings.Builder
-	flush := func() {
-		if literal.Len() > 0 {
-			parts = append(parts, &domTerm{Kind: tmString, Str: literal.String()})
-			literal.Reset()
-		}
-	}
-	for i := 1; i < len(rs)-1; i++ {
-		c := rs[i]
-		if c == '\\' {
-			b.fail(n, "a backslash is not legal in a string")
-		}
-		if c != '$' {
-			literal.WriteRune(c)
-			continue
-		}
-		if i+1 < len(rs)-1 && rs[i+1] == '$' {
-			literal.WriteRune('$')
-			i++
-			continue
-		}
-		if i+1 >= len(rs)-1 || rs[i+1] != '(' {
-			b.fail(n, "a dollar sign requires interpolation or $$")
-		}
-		end := i + 2
-		for end < len(rs)-1 && rs[end] != ')' {
-			end++
-		}
-		if end == len(rs)-1 {
-			b.fail(n, "an interpolation requires a closing parenthesis")
-		}
-		name := string(rs[i+2 : end])
-		// Interpolation syntax survives decomposition unchanged. Find its
-		// original offset so that earlier decomposed letters do not shift it.
-		for originalIndex < len(original)-1 && !(original[originalIndex] == '$' && original[originalIndex+1] == '(') {
-			if original[originalIndex] == '$' && original[originalIndex+1] == '$' {
-				originalIndex += 2
-			} else {
-				originalIndex++
-			}
-		}
-		at := b.gt.at(b.toks[n.Token].Source[0] + originalIndex)
-		for originalIndex < len(original)-1 && original[originalIndex] != ')' {
-			originalIndex++
-		}
-		originalIndex++
-		if !constName.MatchString(name) {
-			if _, ok := engineScalar(name); !ok {
-				panic(grammarError(b.doc, at, "invalid interpolation constant %s", name))
-			}
-		}
-		flush()
-		parts = append(parts, &domTerm{Kind: tmConst, Str: name, At: at})
-		i = end
-	}
-	flush()
-	if len(parts) == 0 {
-		return &domTerm{Kind: tmString}
-	}
-	if len(parts) == 1 && parts[0].Kind == tmString {
-		return parts[0]
-	}
-	return &domTerm{Kind: tmInterpolate, Items: parts}
+	return &domTerm{Kind: tmString, Str: string(rs[1 : len(rs)-1])}
 }
 
 func (b *domBuilder) stringRange(n *Node) [2]*domTerm {
@@ -382,57 +320,41 @@ func (b *domBuilder) recipes(n *Node) (value, image *domTerm) {
 	return
 }
 
-func recipeStringRun(n *Node) *Node {
-	for _, wrapper := range []string{"term", "union", "intersection", "term-atom"} {
-		if n.Rule != wrapper {
-			return nil
-		}
-		children := parts(n)
-		if len(children) != 1 || children[0].Kind != KindRule {
-			return nil
-		}
-		n = children[0]
-	}
-	if n.Rule == "string-run" {
-		return n
-	}
-	return nil
-}
-
 func (b *domBuilder) recipe(n *Node) *domTerm {
 	r := &domTerm{Kind: tmConcat, At: b.at(n)}
 	for _, atom := range b.some(n, "recipe-atom", 1) {
-		first := b.toks[atom.Span[0]].Value
-		if first == "(" || first == "∪" || first == "∩" {
-			b.fail(atom, "a recipe atom uses no grouping or operator")
+		if len(r.Items) > 0 {
+			b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 		}
 		for i := atom.Span[0]; i < atom.Span[1]; i++ {
-			switch b.toks[i].Value {
-			case "∪", "∩", "∖", "⟹":
-				b.fail(atom, "a recipe atom uses no operator")
+			if b.toks[i].Value == "(" || b.toks[i].Value == ")" || b.toks[i].Value == "∪" || b.toks[i].Value == "∩" || b.toks[i].Value == "∖" || b.toks[i].Value == "⟹" {
+				b.fail(atom, "a recipe uses no grouping or arguments")
 			}
-		}
-		if run := recipeStringRun(b.only(atom, "term")); run != nil {
-			for _, str := range b.some(run, "string", 2) {
-				r.Items = append(r.Items, b.term(str))
-			}
-			continue
 		}
 		b.inRecipe = true
 		t := b.term(b.only(atom, "term"))
 		b.inRecipe = false
-		valid := stringTermShape(t)
-		if t.Kind == tmCall && len(t.Items) == 1 {
-			receiver := t.Items[0]
-			valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
-			if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
-				valid = t.Str == "value" || t.Str == "image"
+		items := []*domTerm{t}
+		if t.Kind == tmConcat {
+			items = t.Items
+		}
+		for _, t := range items {
+			if t.Kind == tmUnion {
+				b.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
 			}
+			valid := stringTermShape(t)
+			if t.Kind == tmCall && len(t.Items) == 1 {
+				receiver := t.Items[0]
+				valid = receiver.Kind == tmCapture && (t.Str == "value" || t.Str == "image" || t.Str == "source-text" || t.Str == "decomposed-source-text" || t.Str == "verbatim-text")
+				if receiver.Kind == tmCall && receiver.Str == "emitted" && len(receiver.Items) == 1 && receiver.Items[0].Kind == tmCapture {
+					valid = t.Str == "value" || t.Str == "image"
+				}
+			}
+			if !valid {
+				b.fail(atom, "a recipe requires a string or capture string method")
+			}
+			r.Items = append(r.Items, t)
 		}
-		if !valid {
-			b.fail(atom, "a recipe requires a string or capture string method")
-		}
-		r.Items = append(r.Items, t)
 	}
 	return r
 }

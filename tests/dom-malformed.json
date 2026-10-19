@@ -5176,5 +5176,656 @@
       ]
     },
     "malformed": true
+  },
+  {
+    "description": "A concatenation of two strings is well formed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A general term accepts nested concatenations.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "concat": [
+                  {
+                    "string": "b"
+                  },
+                  {
+                    "string": "c"
+                  }
+                ]
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": false
+  },
+  {
+    "description": "A concatenation without operands is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": []
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A concatenation outside a recipe requires at least two operands.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A concatenation with a string-set operand is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "union": [
+                  {
+                    "string": "b"
+                  },
+                  {
+                    "string": "c"
+                  }
+                ]
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A concatenation with a bare capture operand is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "capture": ""
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A concatenation with a tag operand is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "tag": "A"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "An interpolate node is malformed.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "=",
+          "left": {
+            "interpolate": [
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "right": {
+            "string": "ab"
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A body terminal rejects a closed concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "literal": {
+              "concat": [
+                {
+                  "string": "a"
+                },
+                {
+                  "string": "b"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A range rejects closed scalar joins.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "range": [
+              {
+                "concat": [
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": "a"
+                  }
+                ]
+              },
+              {
+                "concat": [
+                  {
+                    "string": ""
+                  },
+                  {
+                    "string": "z"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A value test rejects a closed concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "test": "=",
+            "value": {
+              "concat": [
+                {
+                  "string": "a"
+                },
+                {
+                  "string": "b"
+                }
+              ]
+            },
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A body terminal rejects a captured string inside its join.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "literal": {
+              "concat": [
+                {
+                  "method": "value",
+                  "receiver": {
+                    "capture": ""
+                  },
+                  "args": []
+                },
+                {
+                  "string": "b"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A recipe rejects a nested concatenation atom.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "empty": true
+          }
+        }
+      ],
+      "conditions": [],
+      "at": [
+        1,
+        1
+      ],
+      "value": {
+        "concat": [
+          {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern terminal rejects a closed concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "literal": {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "string": "b"
+                  }
+                ]
+              },
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern terminal rejects a captured string in its join.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "literal": {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "method": "value",
+                    "receiver": {
+                      "capture": "x"
+                    },
+                    "args": []
+                  }
+                ]
+              },
+              "at": [
+                1,
+                1
+              ]
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
+  },
+  {
+    "description": "A pattern value test rejects a closed concatenation.",
+    "rule": {
+      "name": "text",
+      "op": "define",
+      "flags": [],
+      "alternatives": [
+        {
+          "guards": [],
+          "expr": {
+            "capture": "x",
+            "expr": {
+              "ref": "A"
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "op": "≅",
+          "left": {
+            "capture": "x"
+          },
+          "right": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "string": "b"
+                  }
+                ]
+              },
+              "expr": {
+                "terminal": "A",
+                "at": [
+                  1,
+                  1
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "at": [
+        1,
+        1
+      ]
+    },
+    "malformed": true
   }
 ]

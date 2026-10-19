@@ -1,6 +1,6 @@
 {
   "description": ".split cuts a string only at its delimiter: a space or a tab is part of a piece (engine §10).",
-  "grammar": "%rule text $x:A %conditions (\"a\" ∉ $x.value.split(\".\") ∧ \"a b$(_0009)c\" ∈ $x.value.split(\".\") ∧ \"d\" ∈ $x.value.split(\".\"))\n",
+  "grammar": "%rule text $x:A %conditions (\"a\" ∉ $x.value.split(\".\") ∧ (\"a b\" ++ $_0009 ++ \"c\") ∈ $x.value.split(\".\") ∧ \"d\" ∈ $x.value.split(\".\"))\n",
   "tokens": [
     {
       "text": "x",

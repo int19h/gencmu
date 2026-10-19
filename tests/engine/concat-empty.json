@@ -1,0 +1,17 @@
+{
+  "description": "Joining empty strings on both sides preserves the middle string (engine §10).",
+  "grammar": "%const $S \"\" ++ \"a\" ++ \"\"\n%rule text $S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "a"
+    }
+  ]
+}

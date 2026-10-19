@@ -1,6 +1,6 @@
 {
   "description": "The earlier-cycle image recipe cannot export a private ranked capture. Name analysis reports ranked-choice-export before absence pruning and cycles (engine §2.1 and §11.4).",
-  "grammar": "%rule text ($x:A ≻ $x:B) :- $.emitted.image $x.image %emits",
+  "grammar": "%rule text ($x:A ≻ $x:B) :- $.emitted.image ++ $x.image %emits",
   "input": "",
   "expect": {
     "error": "grammar",

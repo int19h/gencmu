@@ -425,9 +425,8 @@ class _Constants:
 
     def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:
         """The value of a closed term, with the constants' values now
-        (engine §2, §10). An empty delimiter or a tag's string that is not a
-        name comes from a constant here, since the reader refuses a literal
-        one, and the error stands at that constant."""
+        (engine §2, §10). A joined empty delimiter errors at the definition.
+        A direct constant delimiter errors at its reference."""
         if "pattern" in term:
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
         if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
@@ -439,9 +438,9 @@ class _Constants:
             return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]
-        if "interpolate" in term:
+        if "concat" in term:
             parts = []
-            for part in term["interpolate"]:
+            for part in term["concat"]:
                 parts.append(_string((yield self._closed(path, part, item))))
             return "".join(parts)
         if "tag" in term:
@@ -474,6 +473,8 @@ class _Constants:
             pieces = _string((yield self._closed(path, text, item)))
             seen = _string((yield self._closed(path, delimiter, item)))
             if seen == "":
+                if "concat" in delimiter:
+                    raise _error("split has an empty delimiter", path, item, self.stage)
                 raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
             return split_string(pieces, seen)
         raise _error("a constant's value is not a closed term", path, item, self.stage)
@@ -532,10 +533,12 @@ class _Constants:
                     raise _error(problem, path, rule["at"], self.stage)
             self.check_delimiters(path, rule, rule["at"])
 
-    def check_delimiters(self, path: str, clauses: Any, at: Any) -> None:
-        """Reject empty closed delimiters in rule and feature conditions."""
+    def check_delimiters(self, path: str, clauses: Any, at: Any, *, computed: bool = False) -> None:
+        """Reject direct empty delimiters, or all closed feature delimiters."""
         for call in _calls_in(clauses):
             delimiter = call["args"][0]
+            if not computed and "string" not in delimiter and "const" not in delimiter:
+                continue
             if open_part(delimiter) is None and run(self._closed(path, delimiter, at)) == "":
                 raise self.fault_error(path, delimiter, at, "split has an empty delimiter")
 
@@ -778,7 +781,7 @@ def stitch(stage: str, documents: list[tuple[str, Dom]], unicode: Marks) -> Gram
                 fault = condition_type_fault(condition, lambda name: "string" if scalar(name) is not None else constants.values[name].type)
                 if fault:
                     raise _error(fault[0], path, directive["at"], stage)
-            constants.check_delimiters(path, directive["conditions"], directive["at"])
+            constants.check_delimiters(path, directive["conditions"], directive["at"], computed=True)
             resolved_features.append((path, {**directive, "conditions": conditions}))
         except GencmuError as error:
             raise _error(error.message, path, directive["at"], stage) from error

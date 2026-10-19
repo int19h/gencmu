@@ -1,0 +1,16 @@
+{
+  "grammar": "%rule text $x:_ %conditions $x.value.split(\"a\" ++ \"b\") = (\"c\" \"d\")",
+  "tokens": [
+    {
+      "text": "x",
+      "tags": [],
+      "value": "cabd"
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "A split call joins literal operands before using their result as its delimiter (engine §10)."
+}

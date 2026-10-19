@@ -178,7 +178,7 @@
     "atLimit": 256
   },
   {
-    "description": "Expression interpolated literal",
+    "description": "Expression scalar constant literal",
     "dom": {
       "rules": [
         {
@@ -205,17 +205,17 @@
     },
     "leaf": {
       "literal": {
-        "interpolate": [
-          {
-            "string": "a"
-          }
+        "const": "_0061",
+        "at": [
+          1,
+          1
         ]
       }
     },
     "wrapper": {
       "optional": "$inner"
     },
-    "atLimit": 255
+    "atLimit": 256
   },
   {
     "description": "Expression range",
@@ -259,7 +259,7 @@
     "atLimit": 256
   },
   {
-    "description": "Expression interpolated range endpoint",
+    "description": "Expression scalar constant range endpoint",
     "dom": {
       "rules": [
         {
@@ -287,10 +287,10 @@
     "leaf": {
       "range": [
         {
-          "interpolate": [
-            {
-              "string": "a"
-            }
+          "const": "_0061",
+          "at": [
+            1,
+            1
           ]
         },
         {
@@ -301,7 +301,7 @@
     "wrapper": {
       "optional": "$inner"
     },
-    "atLimit": 255
+    "atLimit": 256
   },
   {
     "description": "Expression seq",
@@ -738,7 +738,7 @@
     "atLimit": 254
   },
   {
-    "description": "Expression interpolated test value",
+    "description": "Expression scalar constant test value",
     "dom": {
       "rules": [
         {
@@ -766,10 +766,10 @@
     "leaf": {
       "test": "=",
       "value": {
-        "interpolate": [
-          {
-            "string": "a"
-          }
+        "const": "_0061",
+        "at": [
+          1,
+          1
         ]
       },
       "expr": {
@@ -779,7 +779,7 @@
     "wrapper": {
       "optional": "$inner"
     },
-    "atLimit": 254
+    "atLimit": 255
   },
   {
     "description": "Term union",
@@ -1108,7 +1108,7 @@
     "atLimit": 255
   },
   {
-    "description": "Term interpolate",
+    "description": "Term concat",
     "dom": {
       "rules": [
         {
@@ -1143,9 +1143,12 @@
     "leaf": {
       "op": "=",
       "left": {
-        "interpolate": [
+        "concat": [
           {
             "string": "a"
+          },
+          {
+            "string": ""
           }
         ]
       },
@@ -1312,7 +1315,7 @@
     "atLimit": 254
   },
   {
-    "description": "Term split interpolation argument",
+    "description": "Term split concatenation argument",
     "dom": {
       "rules": [
         {
@@ -1353,9 +1356,12 @@
         },
         "args": [
           {
-            "interpolate": [
+            "concat": [
               {
                 "string": "a"
+              },
+              {
+                "string": ""
               }
             ]
           }
@@ -2175,7 +2181,7 @@
     "atLimit": 255
   },
   {
-    "description": "Pattern interpolated literal",
+    "description": "Pattern scalar constant literal",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2197,10 +2203,10 @@
     },
     "leaf": {
       "literal": {
-        "interpolate": [
-          {
-            "string": "a"
-          }
+        "const": "_0061",
+        "at": [
+          1,
+          1
         ]
       },
       "at": [
@@ -2220,7 +2226,7 @@
         }
       ]
     },
-    "atLimit": 254
+    "atLimit": 255
   },
   {
     "description": "Pattern range",
@@ -2272,7 +2278,7 @@
     "atLimit": 255
   },
   {
-    "description": "Pattern interpolated range endpoint",
+    "description": "Pattern scalar constant range endpoint",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2298,10 +2304,10 @@
           "string": "a"
         },
         {
-          "interpolate": [
-            {
-              "string": "a"
-            }
+          "const": "_0061",
+          "at": [
+            1,
+            1
           ]
         }
       ],
@@ -2322,7 +2328,7 @@
         }
       ]
     },
-    "atLimit": 254
+    "atLimit": 255
   },
   {
     "description": "Pattern value test",
@@ -2485,7 +2491,7 @@
     "atLimit": 253
   },
   {
-    "description": "Pattern interpolated test value",
+    "description": "Pattern scalar constant test value",
     "dom": {
       "rules": [],
       "directives": [],
@@ -2515,10 +2521,10 @@
         ]
       },
       "value": {
-        "interpolate": [
-          {
-            "string": "a"
-          }
+        "const": "_0061",
+        "at": [
+          1,
+          1
         ]
       }
     },
@@ -2534,7 +2540,7 @@
         }
       ]
     },
-    "atLimit": 253
+    "atLimit": 254
   },
   {
     "description": "Pattern descendant path",

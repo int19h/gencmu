@@ -1,0 +1,10 @@
+{
+  "description": "A pattern value test rejects an inline join after its literal operand (engine §9.2, §10).",
+  "document": "```jbogenbau\n%const $P @(A=\"a\" ++ \"b\")\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 19
+    }
+  }
+}

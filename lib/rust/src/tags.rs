@@ -213,49 +213,51 @@ pub(crate) fn code_of_character_tag(tag: &str) -> Option<u32> {
 
 /// Canonical diagnostic spelling of a string terminal (engine §9.1).
 pub(crate) fn string_name(value: &str, unicode: &Unicode) -> String {
-    let mut out = String::from("\"");
+    let mut parts = Vec::new();
+    let mut literal = String::new();
     for c in value.chars() {
         let n = c as u32;
         if matches!(n, 0..=0x1F | 0x7F..=0x9F | 0x22 | 0x5C | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD)
             || unicode.is_mark(n)
             || unicode.changes_in_document(n)
         {
-            out.push_str(&format!("$(_{n:04X})"));
-        } else {
-            out.push(c);
-            if c == '$' {
-                out.push(c);
+            if !literal.is_empty() {
+                parts.push(format!("\"{}\"", std::mem::take(&mut literal)));
             }
+            parts.push(format!("$_{n:04X}"));
+        } else {
+            literal.push(c);
         }
     }
-    out.push('"');
-    out
+    if !literal.is_empty() {
+        parts.push(format!("\"{literal}\""));
+    }
+    if parts.is_empty() {
+        "\"\"".into()
+    } else {
+        parts.join(" ++ ")
+    }
 }
 
-pub(crate) fn string_value(name: &str) -> Option<String> {
-    let mut chars = name.strip_prefix('"')?.strip_suffix('"')?.chars().peekable();
+/// Reads the canonical diagnostic spelling, without grammar recognition.
+pub(crate) fn string_value(mut name: &str) -> Option<String> {
     let mut out = String::new();
-    while let Some(c) = chars.next() {
-        if c != '$' {
-            out.push(c);
-            continue;
+    loop {
+        if let Some(body) = name.strip_prefix('"') {
+            let end = body.find('"')?;
+            out.push_str(&body[..end]);
+            name = &body[end + 1..];
+        } else {
+            let body = name.strip_prefix('$')?;
+            let end = body.find(' ').unwrap_or(body.len());
+            out.push(crate::dom::engine_scalar(&body[..end])?);
+            name = &body[end..];
         }
-        match chars.next()? {
-            '$' => out.push('$'),
-            '(' => {
-                let mut scalar = String::new();
-                while chars.peek().is_some_and(|c| *c != ')') {
-                    scalar.push(chars.next()?);
-                }
-                if chars.next()? != ')' {
-                    return None;
-                }
-                out.push(crate::dom::engine_scalar(&scalar)?);
-            }
-            _ => return None,
+        if name.is_empty() {
+            return Some(out);
         }
+        name = name.strip_prefix(" ++ ")?;
     }
-    Some(out)
 }
 
 #[cfg(test)]

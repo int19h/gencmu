@@ -1,0 +1,83 @@
+{
+  "description": "A pattern range DOM retains both endpoint constant references and locates the range at its first endpoint (engine §9.3).",
+  "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%const $P @($LOW..$HIGH)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "LOW",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "HIGH",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "z"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        },
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "range": [
+                {
+                  "const": "LOW",
+                  "at": [
+                    4,
+                    13
+                  ]
+                },
+                {
+                  "const": "HIGH",
+                  "at": [
+                    4,
+                    19
+                  ]
+                }
+              ],
+              "at": [
+                4,
+                13
+              ]
+            }
+          },
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

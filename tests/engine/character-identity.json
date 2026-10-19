@@ -25,7 +25,7 @@
           },
           {
             "kind": "token",
-            "terminal": "\"$(_0301)\"",
+            "terminal": "$_0301",
             "token": 1,
             "source": [
               0,
@@ -43,7 +43,7 @@
           },
           {
             "kind": "token",
-            "terminal": "\"$(_0301)\"",
+            "terminal": "$_0301",
             "token": 3,
             "source": [
               2,

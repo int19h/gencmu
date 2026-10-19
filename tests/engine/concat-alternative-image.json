@@ -1,0 +1,21 @@
+{
+  "description": "An alternative image recipe joins captured values while the emitted value remains their default concatenation (engine §11.3).",
+  "grammar": "%rule text $a:\"a\" $b:\"b\" :- $a.value ++ \"-\" ++ $b.value %emits",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "ab",
+              "image": "a-b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

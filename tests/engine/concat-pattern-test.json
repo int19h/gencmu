@@ -1,0 +1,27 @@
+{
+  "description": "A wildcard terminal in a tree pattern accepts a joined constant as its value-test operand (engine §10).",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 $A ++ $B\n%rule text $x:_ %conditions $x ≅ @(_=$JOIN-1) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

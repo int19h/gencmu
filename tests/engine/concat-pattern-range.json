@@ -1,0 +1,10 @@
+{
+  "description": "A tree pattern matches a scalar range whose endpoints come from joined constants (engine §10).",
+  "grammar": "%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $x:$LOW..$HIGH %conditions $x ≅ @($LOW..$HIGH) %emits",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

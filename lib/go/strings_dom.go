@@ -175,7 +175,7 @@ func userConstRefs(nodes ...any) []*domTerm {
 }
 
 func stringTermShape(t *domTerm) bool {
-	return t != nil && (t.Kind == tmString || t.Kind == tmConst || t.Kind == tmInterpolate)
+	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
 }
 
 func hasRecipes(r *domRule) bool {
@@ -283,19 +283,26 @@ func (run *stageRun) spanImage(s spanVal) string {
 }
 
 func stringTerminal(s string, uni *unicodeTable) string {
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, c := range s {
-		switch {
-		case c == '$':
-			b.WriteString("$$")
-		case c == '"' || c == '\\' || c <= 0x1F || c >= 0x7F && c <= 0x9F ||
-			c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD || uni.isMark(c) || uni.changesInDocument(c):
-			fmt.Fprintf(&b, "$(_%04X)", c)
-		default:
-			b.WriteRune(c)
+	var parts []string
+	var literal strings.Builder
+	flush := func() {
+		if literal.Len() > 0 {
+			parts = append(parts, "\""+literal.String()+"\"")
+			literal.Reset()
 		}
 	}
-	b.WriteByte('"')
-	return b.String()
+	for _, c := range s {
+		if c == '"' || c == '\\' || c <= 0x1F || c >= 0x7F && c <= 0x9F ||
+			c >= 0xE000 && c <= 0xF8FF || c >= 0xF0000 && c <= 0xFFFFD || c >= 0x100000 && c <= 0x10FFFD || uni.isMark(c) || uni.changesInDocument(c) {
+			flush()
+			parts = append(parts, fmt.Sprintf("$_%04X", c))
+		} else {
+			literal.WriteRune(c)
+		}
+	}
+	flush()
+	if len(parts) == 0 {
+		return "\"\""
+	}
+	return strings.Join(parts, " ++ ")
 }

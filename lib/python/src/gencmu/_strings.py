@@ -30,27 +30,27 @@ def literal_string(term: Any) -> str | None:
         return term["string"]
     if isinstance(term.get("const"), str):
         return scalar(term["const"])
-    if isinstance(term.get("interpolate"), list):
-        parts = [literal_string(part) for part in term["interpolate"]]
-        return "".join(parts) if all(part is not None for part in parts) else None
     return None
 
 
 def spelling(value: str, unicode: Any) -> str:
-    out = ['"']
+    out = []
+    literal = ""
     for char in value:
         code = ord(char)
-        if char == "$":
-            out.append("$$")
-        elif (code <= 0x1F or 0x7F <= code <= 0x9F or code in (0x22, 0x5C)
+        if (code <= 0x1F or 0x7F <= code <= 0x9F or code in (0x22, 0x5C)
               or 0xE000 <= code <= 0xF8FF or 0xF0000 <= code <= 0xFFFFD
               or 0x100000 <= code <= 0x10FFFD or unicode.is_mark(code)
               or unicode.changes_in_document(code)):
-            out.append(f"$(_{code:04X})")
+            if literal:
+                out.append('"' + literal + '"')
+                literal = ""
+            out.append(f"$_{code:04X}")
         else:
-            out.append(char)
-    out.append('"')
-    return "".join(out)
+            literal += char
+    if literal:
+        out.append('"' + literal + '"')
+    return " ++ ".join(out) if out else '""'
 
 
 def lit(term: Any) -> frozenset[str]:

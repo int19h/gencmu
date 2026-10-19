@@ -1,0 +1,13 @@
+{
+  "description": "A recipe method followed by an unjoined literal requires the ++ instruction (engine §9.3, §11.3).",
+  "grammar": "%rule text := $.value \"b\" | \"x\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 23
+    }
+  }
+}

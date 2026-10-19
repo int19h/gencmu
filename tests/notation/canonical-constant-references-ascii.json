@@ -1,46 +1,68 @@
 {
-  "description": "Bare and interpolated constant references use the same decomposed name and preserve exact scalar constants.",
-  "document": "```jbogenbau\n%const $K $_00E9\n%rule text $K \"$(K)\"\n```",
+  "description": "Bare and concatenated constant references use the same decomposed name and preserve exact scalar constants.",
+  "document": "```jbogenbau\n%const $K $_00E9\n%rule text $K $K\n```",
   "expect": {
     "dom": {
-      "constants": [
-        {
-          "name": "K",
-          "value": {
-            "const": "_00E9"
-          }
-        }
-      ],
+      "format": 34,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
+          "flags": [],
           "alternatives": [
             {
+              "guards": [],
               "expr": {
                 "seq": [
                   {
                     "literal": {
-                      "const": "K"
+                      "const": "K",
+                      "at": [
+                        3,
+                        12
+                      ]
                     }
                   },
                   {
                     "literal": {
-                      "interpolate": [
-                        {
-                          "const": "K",
-                          "at": [
-                            3,
-                            16
-                          ]
-                        }
+                      "const": "K",
+                      "at": [
+                        3,
+                        15
                       ]
                     }
                   }
                 ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "K",
+          "op": "define",
+          "value": {
+            "const": "_00E9",
+            "at": [
+              2,
+              11
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
     }
   },
   "cacheMisses": true

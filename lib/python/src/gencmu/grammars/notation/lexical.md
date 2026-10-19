@@ -124,13 +124,13 @@ A capture is `$` alone or `$` followed by a lowercase name. `$` alone names the 
 
 A user constant starts with `$` and an uppercase name. An engine scalar reference starts with `$_` and letters or digits. The reader later requires valid hexadecimal digits and a Unicode scalar value.
 
-In these grammar strings, `"$$"` denotes one dollar sign. Thus `"$$" "$$"` reads two source dollars, while `"$$" upper-name` reads a constant.
+In these grammar strings, `"$"` denotes one dollar sign. Thus `"$" upper-name` reads a constant.
 
 The boundary conditions prevent either token from ending inside its name. The syntax stage receives each prefixed name as one token.
 
 ```jbogenbau
 %rule capture-token
-  "$$" | "$$" $n:lower-name
+  "$" | "$" $n:lower-name
 %conditions
   ¬$n.following-tokens.begins(name-character)
 %emits
@@ -138,14 +138,14 @@ The boundary conditions prevent either token from ending inside its name. The sy
 
 %rule constant-token
   | user-constant
-  | "$$" "_" [scalar-name]
+  | "$" "_" [scalar-name]
 %conditions
   ¬$.following-tokens.begins(scalar-name-character)
 %emits
   $ :: Constant
 
 %rule user-constant
-  "$$" upper-name
+  "$" upper-name
 %conditions
   ¬$.following-tokens.begins(name-character)
 
@@ -201,11 +201,11 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 
 ## Strings
 
-Straight double quotes enclose a string. Ordinary string characters exclude the quote, dollar sign, and backslash: U+0022, U+0024, and U+005C.
+Straight double quotes enclose a string. Ordinary string characters exclude the quote and backslash: U+0022 and U+005C.
 
-A dollar starts either `$$`, which denotes one literal dollar, or `$(NAME)`, which interpolates a constant. `dollar-ready` tests that a complete dollar form follows before the grammar consumes it.
+Dollar signs are ordinary characters.
 
-An interpolation names a user constant or an engine scalar reference. A backslash has no string form, so the stage rejects it rather than treating it as an escape.
+A backslash has no string form, so the stage rejects it rather than treating it as an escape.
 
 The reader decodes the complete token only after syntax recognition. This keeps syntax errors ahead of reader errors.
 
@@ -216,37 +216,23 @@ The reader decodes the complete token only after syntax recognition. This keeps 
   $ :: String
 
 %rule string-part
-  ordinary-string-character | dollar-ready dollar-complete
+  ordinary-string-character
 
 %rule ordinary-string-character
-  $_0000..$_0021 | $_0023 | $_0025..$_005B | $_005D..$_10FFFF
-
-%rule dollar-ready
-  ε
-%conditions
-  $.onward.begins(dollar-complete)
-
-%rule dollar-complete
-  "$$" "$$" | "$$" "(" interpolation-name ")"
-
-%rule interpolation-name
-  upper-name | "_" scalar-name
+  $_0000..$_0021 | $_0023..$_005B | $_005D..$_10FFFF
 ```
 
-<details><summary>Railroad diagrams of the 6 rules from <code>string</code> to <code>interpolation-name</code></summary>
+<details><summary>Railroad diagrams of <code>string</code>, <code>string-part</code> and <code>ordinary-string-character</code></summary>
 <p><img src="../../docs/diagrams/notation/lexical/string.svg" alt="Railroad diagram of the rule string"></p>
 <p><img src="../../docs/diagrams/notation/lexical/string-part.svg" alt="Railroad diagram of the rule string-part"></p>
 <p><img src="../../docs/diagrams/notation/lexical/ordinary-string-character.svg" alt="Railroad diagram of the rule ordinary-string-character"></p>
-<p><img src="../../docs/diagrams/notation/lexical/dollar-ready.svg" alt="Railroad diagram of the rule dollar-ready"></p>
-<p><img src="../../docs/diagrams/notation/lexical/dollar-complete.svg" alt="Railroad diagram of the rule dollar-complete"></p>
-<p><img src="../../docs/diagrams/notation/lexical/interpolation-name.svg" alt="Railroad diagram of the rule interpolation-name"></p>
 </details>
 
 ## Include paths
 
 `include` reads `%include` and its quoted path together, then emits two tokens. The keyword carries `KW-INCLUDE`, and the path carries `Include-Path`.
 
-An include path keeps dollar signs literally. It excludes quotes and backslashes, so interpolation rules never apply inside the path.
+An include path keeps dollar signs literally. It excludes quotes and backslashes.
 
 `include-tail` identifies layout followed by a path. The ordinary keyword rule uses it to avoid a competing bare `%include` token when a path follows.
 
@@ -362,7 +348,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
-The greedy reading keeps `...`, `..`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
+The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
 
 `≻` separates ranked options. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 
@@ -371,7 +357,7 @@ The greedy reading keeps `...`, `..`, `::`, `:=`, and `:-` together as compound 
   | "|" | "&" | "(" | ")" | "[" | "]" | "{" | "}" | "/" | "+" | "<" | ">" | "#" | "ε" | ","
   | "∧" | "∨" | "⟹" | "=" | "∈" | "⊆" | "∪" | "∩" | "∖" | "∅"
   | "≅" | "⋯" | "⋮" | "⋰" | "⋱" | "≻" | ":" | "." | "@"
-  | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
+  | "+" "+" | "." "." "." | "." "." | ":" ":" | ":" "=" | ":" "-"
   | ("=" | "∈" | "⊆" | "≅") $_0338
 %emits
   $

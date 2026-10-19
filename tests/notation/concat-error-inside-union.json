@@ -1,0 +1,10 @@
+{
+  "description": "A constant join inside a union reports a known tag operand error at the join start (engine §9.3).",
+  "document": "```jbogenbau\n%const $C \"q\" ∪ (\"a\" ++ A)\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 18
+    }
+  }
+}

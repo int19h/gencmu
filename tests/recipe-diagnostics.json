@@ -1,0 +1,83 @@
+{
+  "recipes": [
+    {
+      "source": "\"a\" \"b\"",
+      "at": "\"a\""
+    },
+    {
+      "source": "\"a\" ++ \"b\" \"c\"",
+      "at": "\"b\""
+    },
+    {
+      "source": "\"a\" \"b\" ++ \"c\"",
+      "at": "\"a\""
+    },
+    {
+      "source": "\"a\" ++ \"b\" \"c\" ++ \"d\"",
+      "at": "\"b\""
+    },
+    {
+      "source": "$.value \"b\"",
+      "at": "\"b\""
+    },
+    {
+      "source": "\"a\" $.value",
+      "at": "$.value"
+    },
+    {
+      "source": "$X $Y",
+      "at": "$Y"
+    },
+    {
+      "source": "$.value $.image",
+      "at": "$.image"
+    },
+    {
+      "source": "\"a\" $.tags",
+      "at": "$.tags"
+    },
+    {
+      "source": "\"a\" $.value.split(\" \")",
+      "at": "$.value"
+    }
+  ],
+  "positions": [
+    {
+      "name": "definition",
+      "template": "%rule text @CHANNEL@ @RECIPE@ | \"x\""
+    },
+    {
+      "name": "alternative",
+      "template": "%rule text \"x\" @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "ranked-alternative",
+      "template": "%rule text \"x\" ≻ \"y\" @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "whole-emission",
+      "template": "%rule text \"x\" %emits $ @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "named-emission",
+      "template": "%rule text $a:\"x\" %emits $a @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "inserted-emission",
+      "template": "%rule text \"x\" %emits ε @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "covering-emission",
+      "template": "%rule text $a:\"x\" $b:\"y\" %emits ($a) $b @CHANNEL@ @RECIPE@"
+    },
+    {
+      "name": "attached-emission",
+      "template": "%rule text $a:\"x\" $b:\"y\" %emits $a ($b) @CHANNEL@ @RECIPE@"
+    }
+  ],
+  "ordinary": [
+    "%const $S \"a\" ++ \"b\" \"c\"",
+    "%const $S \"a\" \"b\" ++ \"c\"",
+    "%rule text \"x\" %conditions \"a\" ++ \"b\" \"c\" = \"abc\""
+  ]
+}

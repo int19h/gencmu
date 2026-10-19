@@ -1,6 +1,6 @@
 {
   "description": "Constant binding keeps production text order. The earlier other recipe cycles and reports its initial constant atom before a later text extension (engine §11.3 and §9.3).",
-  "grammar": "%const $K \"k\"\n%rule text \"a\"\n%rule other := $K $.emitted.value | \"b\"\n%extend-rule text := $.emitted.image | \"c\"",
+  "grammar": "%const $K \"k\"\n%rule text \"a\"\n%rule other := $K ++ $.emitted.value | \"b\"\n%extend-rule text := $.emitted.image | \"c\"",
   "input": "a",
   "expect": {
     "error": "grammar",

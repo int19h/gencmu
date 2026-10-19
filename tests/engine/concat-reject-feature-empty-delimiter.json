@@ -1,0 +1,13 @@
+{
+  "description": "Feature loading rejects an empty joined delimiter before evaluating its split call (engine §9.3, §10).",
+  "grammar": "%features f\n%conditions $.value.split(\"\" ++ \"\") = ∅\n%rule text \"a\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 1
+    }
+  }
+}

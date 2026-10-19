@@ -17,7 +17,7 @@ fn a_partial_cluster_decomposes_its_whole_original_source() {
     let dialect = gencmu::load_dialect_sources(
         sources(
             "%rule text \"e\" $mark:$_0301\n\
-             %conditions $mark.source-text = \"$(_00E9)\", $mark.decomposed-source-text = \"é\"\n\
+             %conditions $mark.source-text = $_00E9, $mark.decomposed-source-text = \"é\"\n\
              %emits $mark := $mark.decomposed-source-text :- $mark.source-text",
         ),
         "p.md",
@@ -54,9 +54,9 @@ fn decomposed_source_text_uses_only_the_callers_table() {
 }
 
 #[test]
-fn interpolation_errors_keep_original_columns_after_expansion_and_doubled_dollars() {
-    let sources = sources("%rule text \"$$(Ignored)é$(_0061)한$(Absent)\"");
-    let expected = common::position_of(&sources["g.md"], "$(Absent)");
+fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() {
+    let sources = sources("%const $S \"$$(Ignored)é\" ++ $_0061 ++ \"한\" ++ $Absent\n%rule text $S");
+    let expected = common::position_of(&sources["g.md"], "$Absent");
     let error = gencmu::load_dialect_sources(sources, "p.md").unwrap_err();
     assert_eq!(error.document.as_deref(), Some("g.md"));
     assert_eq!((error.line, error.column), (Some(expected.0), Some(expected.1)));
@@ -73,10 +73,10 @@ fn escaped_diagnostics_read_back_as_exact_scalars() {
     assert_eq!(error.expected.len(), 4);
     for expected in error.expected {
         let terminal = expected.terminal;
-        assert!(terminal.starts_with("\"$(_"), "{terminal}");
+        assert!(terminal.starts_with("$_"), "{terminal}");
         let dialect = gencmu::load_dialect_sources(sources(&format!("%rule text {terminal}")), "p.md").unwrap();
         // A caller token keeps the exact scalar named by the diagnostic.
-        let name = terminal.strip_prefix("\"$(").unwrap().strip_suffix(")\"").unwrap();
+        let name = terminal.strip_prefix('$').unwrap();
         let code = u32::from_str_radix(name.strip_prefix('_').unwrap(), 16).unwrap();
         let text = char::from_u32(code).unwrap().to_string();
         let token = gencmu::InputToken { text, ..Default::default() };

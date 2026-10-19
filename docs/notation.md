@@ -104,9 +104,11 @@ A tag literal is a terminal in a body. A string literal or string constant is al
 
 A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
 
-A grammar document is decomposed too, so the written part of a string literal holds decomposed characters. `"é"` and `"e$(_0301)"` are one two-scalar string, and no stage-zero token can match it. A first-stage grammar reads `"e" $_0301`. An engine constant names an exact scalar, so `$_00E9` stays one scalar, inside a string too: `"$(_00E9)"` is U+00E9. The loader does not reorder a string's marks. A range endpoint must still be one scalar, so `"à".."ź"` is an error.
+A grammar document also decomposes. Written `"é"` and `"e" ++ $_0301` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" $_0301`.
 
-A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
+An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar signs inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
+
+A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant that resolves to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
 The Unicode table `grammars/unicode.txt` supplies stored stage-zero property tags. General categories use names such as `_Lu` and `_Nd`, and major categories use names such as `_L`. `_White_Space` completes the inventory. Case counts, and long aliases such as `_Letter` are errors. Engine §1 lists every name and its assignment rule.
 
@@ -116,7 +118,7 @@ An engine tag can stand in a tag test, a pattern, a condition, and a body termin
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`, and engine-constant interpolation for special characters. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes. `$(NAME)` interpolates a string constant and `$$` writes a dollar sign. `$(_0022)` writes a quote. The section "Constants" gives errors and resolution.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The sections "Constants" and ["String concatenation"](#string-concatenation) describe scalar constants and string joins.
 
 ## Tests
 
@@ -374,7 +376,7 @@ A constant names a value that several rules use, such as a list of classes. Its 
 
 The first line defines a constant of the words stage in `grammars/words/stream.md`. The last line extends Zantufa's magic words in `grammars/words/zantufa-stream.md`. Other dialects exclude LOhAI and LEhAI because experimental reads their bare markers as words. `$PAUSE` is the words stage's string constant `" "`, which names the quiet pause value.
 
-The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, and set operators. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
+The value is a string, string set, tag set, or pattern, never a span. A closed term reads no capture or input. It contains strings, tags, patterns, `∅`, constants, set operators, and closed string concatenations. `.split` and `.ngrams` on closed strings are closed too. Input methods, `.classify`, and guarded terms are errors here. Classifiers depend on features, but constants do not.
 
 A tag-set constant cannot hold an engine-tag literal, even inside a filter. A pattern constant can read engine tags as terminal atoms or tag requirements.
 
@@ -394,16 +396,40 @@ The loader gives the constants their values when it stitches each stage. So a do
 
 A constant starts with `$` and a capitalized user name. A capture starts with `$` and a lowercase name. Engine constants start with `$_` and four to six uppercase hexadecimal digits. A grammar cannot define or redefine an engine constant.
 
-Outside include paths, strings interpolate only string constants. A dollar sign starting neither `$$` nor `$(` is a document error, including a final lone dollar sign. In a redefinition, `$(X)` follows the same immediately preceding self-definition rule as `$X`.
+A string literal is plain text between straight double quotes. A dollar sign is an ordinary character. A backslash remains a lexical error.
 
-An include path is the first and only operand that `%include` takes, in straight double quotes. In it, `$` is an ordinary character. Neither `$(NAME)` nor `$$` receives special treatment. Later quoted operands use ordinary string decoding. A backslash is still a lexical error. `%include "a$b.md"` names `a$b.md`, and `%include "a$$b.md"` names `a$$b.md`.
+An include path is the first and only operand that `%include` takes, in straight double quotes. Later quoted operands use the same plain string syntax. A backslash is still a lexical error. The reader preserves its spelling without decomposition. Paths use separate tokens because includes select documents before constant binding.
 
 ```jbogenbau
-%const $ACCENTED "a$(_0301)"
-%const $QUOTED "$(_0022)Hello!$(_0022)"
-%const $DOLLAR "$$"
+%const $ACCENTED "a" ++ $_0301
+%const $QUOTED $_0022 ++ "Hello!" ++ $_0022
+%const $DOLLAR "$"
 %const $PIECES "a b".split(" ")
 ```
+
+### String concatenation
+
+`a ++ b` joins string `a` followed by string `b`, without a separator. Both operands must be strings. Sets, tags, patterns, captures, and spans are errors, so use `$x.value` to read a captured string.
+
+In a term or constant, adjacent string literals form a string set before `++` applies. Thus `"a" "b" ++ "c"` means `("a" "b") ++ "c"`. It fails because the left operand is a set.
+
+Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than intersection. Intersection binds tighter than union and difference, which bind tighter than comparisons.
+
+Concatenation groups from the left. Parentheses can group terms outside recipes. Parentheses can group a constant in a body or pattern, but cannot group a value-test operand or classifier key.
+
+A concatenation of closed strings is closed and can define a constant. For example, `%const $PAIR "b" ++ "r"` defines `"br"`. Conditions can test `$l.value ++ $r.value ∈ $INITIAL`.
+
+Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline `++` is invalid in these positions. A constant can hold any string concatenation.
+
+String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
+
+Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+
+`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
+
+A range endpoint must resolve to one scalar because a range orders scalar values.
+
+A recipe joins its atoms with `++`, for example `:= $a.value ++ "-" ++ $b.value`. A single atom needs no operator. This applies to value and image recipes on definitions, alternatives, and emission items.
 
 ## Tree patterns
 
@@ -445,9 +471,9 @@ Thus `@(sumti)` accepts a sumti or its unary wrappers. It rejects a connection, 
 | `@({P / S})` | One or more P children separated by S |
 | `@([P Q])` | An optional sequence of those two children |
 
-A capitalized or engine tag denotes its tag terminal. A string, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
+A capitalized or engine tag denotes its tag terminal. A string literal, string constant, range, or `_` denotes its terminal identity. Other names, including `#`, denote named rules. A pattern constant denotes its predicate.
 
-A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals.
+A string constant atom can carry tag and value tests, as in `@$S="x"`. A tested constant that resolves to a pattern is a document error. A nested literal denotes one predicate on a subtree. `@sumti`, `@KEhE`, `@"a"`, and `@$P` abbreviate their single-atom literals. The shorthand takes one atom, so `@"a" ++ "b"` attempts to concatenate a pattern and a string.
 
 Juxtaposition describes a complete child sequence. A single node predicate instead tests the current node. An optional or repetition always describes a child sequence. Brackets keep their ordinary optional meaning, including `[T]`, `[(T)]` and `[#]`. They never mean an omitted terminal.
 
@@ -484,7 +510,9 @@ A classifier gives a value its classes. A cmavo is a particle, a short structure
   date-li? "de'i" "ti'u" ∉ BAI
 ```
 
-An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string literal or string constant. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
 
 Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
 
@@ -610,7 +638,7 @@ The third type is the set of strings. `string.split(delimiter)` is the set of th
 
 So `$content.value.split($PAUSE)` is the set of the runs of `$content`, the stretches between its pauses. Then `$open.value ∉ $content.value.split($PAUSE)` says that the word `$open` is not one of those runs. A run can hold several words: a text writes `lemiklama` as one run.
 
-An empty delimiter is an error. It is an error of the document when the reader sees it, as `""` or a constant. Otherwise it is an error of the grammar, when a parse meets it.
+An empty delimiter is an error. A literal `""` or an empty string constant as the delimiter causes a document error. Constant evaluation and feature conditions also reject joined empty delimiters during loading. In a constant value, this document error has kind `grammar` and stands at the definition. In a rule condition, a joined empty delimiter causes a grammar error only when a parse evaluates the split. Engine §2 and §10 define these positions and evaluation times.
 
 A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_L ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
 
@@ -809,7 +837,7 @@ Juxtaposition places expressions beside each other without an operator. Its mean
 | Inside `@(…)` | Child sequence | `@(A B ∪ C)` |
 | A tag test | All requirements | `<Stressed ¬Syllable-Break>` |
 | A tag-set term | One union atom of bare tag names | `:: Word BRIVLA` |
-| A recipe | String concatenation | `:= $a.value " " $b.value` |
+| A recipe | String set, rejected because a recipe requires a string | `:= "a" "b"` |
 | A classifier entry | Separate keys | `"mi" "do" ∈ KOhA` |
 | Directive operands | A list | `%features cbm su-boundary` |
 | Other tag-set atoms | Error | `:: $m.tags Word` |
@@ -825,7 +853,7 @@ A run of bare tag names or string literals can stand alone or beside `∪`. It r
 
 Inside a pattern literal, sequence binds more tightly than set operators. `@(A B ∩ C)` is legal. Outside it, set operators combine two tag sets, two string sets, or two patterns. Mixed or unresolved types are errors.
 
-String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Interpolated literals can join a string run. Constant references and method calls require explicit operators.
+String operands convert to singleton sets, so `"a" ∪ "b"` and `("a" "b")` give the same string set. String runs obey the same grouping, flattening, and operator adjacency rules as tag runs. Constant references and method calls require explicit operators.
 
 ## Tags
 
@@ -868,7 +896,15 @@ An item can also be `ε`, which inserts an ordinary token with an empty span. It
 
 `$` is the whole constituent. Its item emits one covering token. `%emits $ :: ∅ := "n", ε :: ∅ := "o"` makes the digit 0 two phoneme tokens. Only the first covers input. Covering carriers must be disjoint in stage-input positions. Two whole items coexist only over a structurally always-empty constituent.
 
-An inserted item stands in its written order and records `insertedBy`. `%emits ε :: ∅ := "'", $v` inserts an apostrophe before the vowel. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
+An inserted item stands in its written order and records `insertedBy`. This emission list inserts an apostrophe before the captured vowel:
+
+```jbogenbau
+%emits
+  ε :: ∅ := "'"
+, $v
+```
+
+The comma separates two emission items. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
 
 `%erased` hands on nothing and removes the constituent from counted parts. `broda brode si bu` emits the letter word `broda bu` because `si` erases the preceding word. The token's source still spans the erased text. Its strings exclude that text. `%emits ε` instead inserts a token and never erases.
 
@@ -906,7 +942,7 @@ A part that an emission list does not name remains a counted part, although it e
 
 %rule quoted-word
   $m:word-quote-marker $g:word-gap $w:read-word
-    :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+    :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -937,9 +973,9 @@ Recipe priority follows this table, from strongest to weakest. A capture item's 
 
 At an inner constituent, only the alternative, rule, and concatenation rows apply. An item recipe affects only that item's token. An explicit constituent image recipe beats a constituent value recipe's implied image. Only an item's own `:-` beats that item's implied image.
 
-Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. Juxtaposition concatenates these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
+Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
-Recipes are also an exception to set parity. Their closed string language already uses juxtaposition for concatenation, so adjacent literals never form a string set.
+A recipe contains exactly one recipe term, which can be a `++` chain. The reader rejects a second recipe term at its first token and tells the author to use `++`. Juxtaposed literals form a string set, which a recipe rejects at its first literal with the same instruction. Recipe atoms cannot use parentheses or method arguments.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 
@@ -955,7 +991,7 @@ Only selected recipes run. A weaker recipe runs only when another evaluated reci
 %emits
 ```
 
-A recipe supplies a string. Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides.
+A recipe supplies a string. Both examples produce `x` on both channels. `:= $.emitted.image` without an explicit image recipe cycles through its implied image. `:= $.emitted.value ++ "x"` cycles directly. An item override leaves its constituent recipe unevaluated at runtime. Constituent cycle validation still applies before item overrides.
 
 Engine §11 defines the selected constituent dependencies.
 
@@ -1182,7 +1218,7 @@ A grammar marks each terminator that can be elided where it writes it. An elidab
 - The rest is a sequence of any primaries, or nothing. A choice or `&` in the rest stands in parentheses, as in `[+KU (A | B)]`. A `|` or `&` that joins `T` to something else is an error, because some reading of the optional then does not begin with `T`. So `[+KU | VAU]` is an error.
 - No capture stands inside an elidable optional, at any depth (see "Captures").
 
-An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU #]` without them. A second plus is an error, so `[++T]` and `[+ + T]` are invalid.
+An elidable optional is an optional in every other way. It can stand anywhere that an optional can, inside braces and other optionals too. Spaces can stand between its parts, but the grammars write `[+KU #]` without them. The token `++` is invalid here, so `[++T]` fails at its first plus. A separate second `+` is invalid too, as in `[+ + T]`.
 
 A plain optional is never elidable, whatever it holds. So `[KU]`, `[KU | VAU]` and `[{KU}]` are ordinary optionals. Where one is absent, it counts for nothing and leaves no node, as an absent optional separator does. A grammar can read a terminator both ways: `[+KU]` in one rule and `[KU]` in another. Only the first one is elided.
 

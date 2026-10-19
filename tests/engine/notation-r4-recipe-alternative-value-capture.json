@@ -1,6 +1,6 @@
 {
-  "description": "Engine §11.3 concatenates captured values and adjacent literals in an alternative value recipe.",
-  "grammar": "%const $S \"b\"\n%rule text $a:\"x\" := $a.value \"-\" \"x\"\n%emits",
+  "description": "Engine §11.3 joins captured values and literals with ++ in an alternative value recipe.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\" := $a.value ++ \"-\" ++ \"x\"\n%emits",
   "input": "x",
   "expect": {
     "result": {

@@ -1,0 +1,17 @@
+{
+  "description": "A closed join remains closed when another constant joins its result with a literal (engine §2, §10).",
+  "grammar": "%const $A \"a\" ++ \"b\"\n%const $B $A ++ \"c\"\n%rule text $B",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "abc"
+    }
+  ]
+}

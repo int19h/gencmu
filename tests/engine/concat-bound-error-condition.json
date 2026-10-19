@@ -1,0 +1,13 @@
+{
+  "description": "A comparison reports a bound set operand error at the first constant of its join (engine §9.3, §10).",
+  "grammar": "%const $T \"a\"\n%const $S \"a\" ∪ \"b\"\n%rule text ε %conditions \"y\" = $T ++ $S",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 5,
+      "column": 32
+    }
+  }
+}

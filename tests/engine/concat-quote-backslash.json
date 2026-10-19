@@ -1,0 +1,17 @@
+{
+  "description": "A constant joins literal text with exact quotation-mark and backslash engine scalars (engine §2, §10).",
+  "grammar": "%const $S \"a\" ++ $_0022 ++ $_005C\n%rule text $S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "a\"\\"
+    }
+  ]
+}

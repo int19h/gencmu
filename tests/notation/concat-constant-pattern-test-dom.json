@@ -1,0 +1,56 @@
+{
+  "description": "A pattern DOM keeps a constant terminal reference under a literal value test (engine §9.3).",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%const $P @($JOIN-1=\"ab\")\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "string": "ab"
+              },
+              "expr": {
+                "constant": "JOIN-1",
+                "at": [
+                  3,
+                  13
+                ]
+              }
+            }
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

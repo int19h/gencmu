@@ -1,6 +1,6 @@
 {
-  "description": "Engine §11.3 concatenates adjacent literals in an alternative image recipe.",
-  "grammar": "%const $S \"b\"\n%rule text $a:\"x\" :- \"a\" \"b\"\n%emits",
+  "description": "Engine §11.3 joins literals with ++ in an alternative image recipe.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\" :- \"a\" ++ \"b\"\n%emits",
   "input": "x",
   "expect": {
     "result": {

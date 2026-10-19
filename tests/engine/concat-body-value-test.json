@@ -1,0 +1,27 @@
+{
+  "description": "A body value test compares a token value with a joined string constant (engine §2, §10).",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 $A ++ $B\n%rule text T=$JOIN-1 %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

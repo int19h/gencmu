@@ -1,8 +1,8 @@
 {
-  "document": "```jbogenbau\n%rule r \"$$\"\n```\n",
+  "document": "```jbogenbau\n%rule r \"$\"\n```\n",
   "expect": {
     "dom": {
-      "format": 33,
+      "format": 34,
       "rules": [
         {
           "name": "r",
@@ -31,5 +31,5 @@
       "implications": []
     }
   },
-  "description": "A doubled dollar sign denotes one literal dollar sign (engine §9.1)."
+  "description": "A dollar sign is an ordinary string character (engine §9.1)."
 }

@@ -1,0 +1,69 @@
+{
+  "description": "A body DOM keeps a constant terminal reference under a tag test (engine §9.3).",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%rule text $JOIN-1<T>\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "tags",
+                "requirements": [
+                  {
+                    "negated": false,
+                    "value": {
+                      "tag": "T"
+                    }
+                  }
+                ],
+                "expr": {
+                  "literal": {
+                    "const": "JOIN-1",
+                    "at": [
+                      3,
+                      12
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

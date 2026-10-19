@@ -1,6 +1,6 @@
 {
-  "description": "The definition image recipe resolves \"$(RECIPE)\" to the final string constant before lowering. Engine §§2 and 11 give image \"new\".",
-  "grammar": "%const $RECIPE \"old\"\n%rule text :- \"$(RECIPE)\"\n  | A\n%emits $\n%redefine-const $RECIPE \"new\"",
+  "description": "The definition image recipe resolves $RECIPE to the final string constant before lowering. Engine §§2 and 11 give image \"new\".",
+  "grammar": "%const $RECIPE \"old\"\n%rule text :- $RECIPE\n  | A\n%emits $\n%redefine-const $RECIPE \"new\"",
   "tokens": [
     {
       "text": "a",

@@ -1,59 +1,97 @@
 {
-  "description": "Canonical diagnostic spellings name exact scalars through interpolation.",
-  "document": "```jbogenbau\n%rule text \"$(_00E9)\" \"$(_00E0)\"..\"$(_017A)\" \"$(_302E)$(_1B44)\"\n```",
+  "description": "Canonical diagnostic spellings name exact scalars through constant reference.",
+  "document": "```jbogenbau\n%const $JOIN-1 $_302E ++ $_1B44\n%rule text $_00E9 $_00E0..$_017A $JOIN-1\n```",
   "expect": {
     "dom": {
+      "format": 34,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
+          "flags": [],
           "alternatives": [
             {
+              "guards": [],
               "expr": {
                 "seq": [
                   {
                     "literal": {
-                      "interpolate": [
-                        {
-                          "const": "_00E9"
-                        }
+                      "const": "_00E9",
+                      "at": [
+                        3,
+                        12
                       ]
                     }
                   },
                   {
                     "range": [
                       {
-                        "interpolate": [
-                          {
-                            "const": "_00E0"
-                          }
+                        "const": "_00E0",
+                        "at": [
+                          3,
+                          19
                         ]
                       },
                       {
-                        "interpolate": [
-                          {
-                            "const": "_017A"
-                          }
+                        "const": "_017A",
+                        "at": [
+                          3,
+                          27
                         ]
                       }
                     ]
                   },
                   {
                     "literal": {
-                      "interpolate": [
-                        {
-                          "const": "_302E"
-                        },
-                        {
-                          "const": "_1B44"
-                        }
+                      "const": "JOIN-1",
+                      "at": [
+                        3,
+                        34
                       ]
                     }
                   }
                 ]
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "const": "_302E",
+                "at": [
+                  2,
+                  16
+                ]
+              },
+              {
+                "const": "_1B44",
+                "at": [
+                  2,
+                  26
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

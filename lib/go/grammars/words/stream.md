@@ -300,9 +300,9 @@ An attached opening mark supplies one gap space, even without whitespace. `quote
 ```jbogenbau
 %rule quoted-word
   | $m:word-quote-marker $g:word-quote-gap $w:word-quote-target
-      :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
   | $m:word-quote-marker $g:word-gap<¬Quote-Material> $w:zo-punctuation
-      :: $m.tags :- $m.source-text $g.source-text $w.verbatim-text
+      :: $m.tags :- $m.source-text ++ $g.source-text ++ $w.verbatim-text
 %emits
   $
 
@@ -365,9 +365,9 @@ The hesitation rule refuses a raw y letteral. In `zo'oi .y. bu`, the quote there
 
 ```jbogenbau
 %rule single-word-quote
-  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text $r.emitted.image
+  | $m:single-marker $r:zohoi-payload :: $m.tags :- $m.source-text ++ $r.emitted.image
   | $m:single-marker $g:zohoi-gap $s:zohoi-payload
-      :: $m.tags :- $m.source-text $g.source-text $s.emitted.image
+      :: $m.tags :- $m.source-text ++ $g.source-text ++ $s.emitted.image
 %conditions
   ¬$r.following-tokens.begins(quote-run-token),
   ¬$s.following-tokens.begins(quote-run-token),
@@ -911,7 +911,7 @@ The rule `sa-key` refuses an SA key because a run of SA forms one counted erasur
 %rule su-survivor := $b.emitted.value :- $b.emitted.image
   | sa-su? su-boundary? $b:unit<Trailing-Pause> skipped su-suffix :: $b.tags
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<Gap-Pause> su-suffix
-      :: $b.tags ∪ Trailing-Pause := $b.emitted.value $PAUSE :- $b.emitted.image $PAUSE
+      :: $b.tags ∪ Trailing-Pause := $b.emitted.value ++ $PAUSE :- $b.emitted.image ++ $PAUSE
   | sa-su? su-boundary? $b:unit<¬Trailing-Pause> skipped<¬Gap-Pause> su-suffix :: $b.tags
 %conditions
   $b.classes ∩ $SU-STOPS ≠ ∅

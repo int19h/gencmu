@@ -169,6 +169,8 @@ Every library also runs a notation case with `cacheMisses: true` through its doc
 
 Four further loads each change one identity field: the document hash, bootstrap hash, Unicode table hash, or DOM format. Each mismatched entry contains a valid DOM whose first rule has the name `cache-poison`. Each load must ignore that entry and give the original DOM. A second read with each loader must also give the original DOM.
 
+JavaScript compares every notation case with the handwritten bootstrap reader. Both readers must produce the same DOM or error position.
+
 The JavaScript library also reads each cache case with the handwritten bootstrap reader. Both DOMs must match every asserted name and equal each other. Each reader supplies the DOM for a separate cache exercise, including a cold load and all four mismatches.
 
 Open names are names that grammar authors choose.
@@ -180,6 +182,12 @@ The `canonical-*` cases pair ASCII `K` with the canonically equivalent Kelvin si
 Each case gives a document, lexical aliases, and a DOM pattern. Every library adds each alias as a rule in the lexical stage of its bundled bootstrap. The rule recognizes `spelling`, emits `tags`, and sets its value to `value`. Its `leftmost-longest` flag selects it over ordinary lexical divisions. The library reads the document with this bootstrap and matches its DOM. It also runs the cold, matching, and mismatched cache paths described above.
 
 The cases use canonically equivalent ASCII and Kelvin spellings for each alias. These aliases test captures and fixed names through a supplied notation. They add no spelling to the bundled notation. The handwritten reader implements the bundled notation, so these cases apply to library readers.
+
+## Recipe diagnostics: `recipe-diagnostics.json`
+
+This file lists recipe fragments, diagnostic markers, and templates for every recipe position. Each library substitutes both channel operators and every fragment into each template. A recipe contains exactly one term, which can be a `++` chain. The reader reports a second term at its first token and tells the author to use `++`. The marker identifies that token or the first string of an invalid run.
+
+Ordinary controls require the concatenation type error without a recipe instruction. JavaScript also runs the handwritten bootstrap reader against the same cases.
 
 ## Bootstrap errors: `bootstrap-errors.json`
 
@@ -225,7 +233,7 @@ Each entry of its `substitutions` gives a text, a `find`, a `replace`, the numbe
  {"description": "...", "rule": RULE, "malformed": false}, ...]
 ```
 
-Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 33. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
+Each item supplies one `directive` or one `rule` of a DOM (`docs/output.md`). A library puts the supplied item alone in its corresponding array, with all other declaration arrays present and empty. The DOM uses format 34. The library tests it as a precompiled DOM (engine §9). The DOM is malformed exactly when `malformed` is true.
 
 A library that refuses a malformed precompiled DOM reads the document instead. That refusal does not appear in a parse result. These cases test the DOM operation directly. The rule cases include restored spans, their accepted compositions, and invalid arguments.
 
@@ -488,4 +496,4 @@ Lines that begin with `#` are comments. An entry that the check does not need is
 
 `unicode/NormalizationTest.txt` is the complete Unicode 15.1 normalization conformance file from Unicode.org. Each library tests its canonical decomposition against every data line. Columns 1, 2 and 3 decompose to column 3. Columns 4 and 5 decompose to column 5. Every scalar that part 1 omits decomposes to itself.
 
-The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact interpolated constants, original interpolation positions and original include paths.
+The shared engine cases also pin original sources, canonical ordering, class-zero barriers, leading marks, Hangul arithmetic and caller tokens. Loader cases cover table-dependent caches, exact engine constants, original constant reference positions and original include paths.

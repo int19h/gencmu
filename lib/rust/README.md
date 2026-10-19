@@ -52,7 +52,7 @@ A `FeatureConflict` result names a disabled feature whose conditional declaratio
 
 Stage zero applies Unicode Normalization Form D (NFD), the canonical decomposition of the input. It uses the bundled Unicode table or the caller's replacement table. Each decomposed scalar keeps its original source and text. Its value and image hold the decomposed scalar. Source ranges can overlap or appear out of order after decomposition. Caller tokens skip stage zero and keep their supplied strings.
 
-Grammar documents decompose too. Written string segments decompose, but interpolated engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
+Grammar documents decompose too. Written strings decompose, but engine constants keep their exact scalars. Include paths keep their original spelling. The cache requires matching fingerprints of both the bootstrap and the Unicode table.
 
 The method `.decomposed-source-text` decomposes the original source text of a span with the configured table. It works in conditions and recipes. It also works on restored spans, where synthetic omissions add no source text. `.source-text` and `.verbatim-text` keep the original spelling.
 
@@ -69,7 +69,7 @@ For tests and tools: `Dialect::parse_tokens` feeds tokens straight to the first 
 
 A DOM holds the document's constants, classifiers and implications as the document writes them, never their values. The loader gives each constant its value when it stitches a stage. A stage resolves its classifiers for the features of each parse, once for each set of features.
 
-The DOM format is 33. The result format is 14. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
+The DOM format is 34. The result format is 14. Braces are a `repeat`, with a `separator` for `{x / s}`. A chain has `chain` set to `left` or `right` and forms its alternative's whole expression. An elidable optional, `[+T x]`, is an `optional` with `elidable`.
 
 `$x.without-elision` restores the terminators omitted inside `$x` for a query that preserves those closes. A close records an omitted terminal and its boundary. The method takes one bare capture. `$x.without-elision.onward` extends the query through the following input.
 

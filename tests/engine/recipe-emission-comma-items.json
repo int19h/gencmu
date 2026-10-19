@@ -1,0 +1,33 @@
+{
+  "description": "A comma separates an inserted apostrophe item from a captured vowel item, each with its own output token (engine §11.1).",
+  "grammar": "%rule text $v:\"a\"\n%emits\n  ε :: ∅ := \"'\"\n, $v",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "'",
+              "image": "'",
+              "span": [
+                0,
+                0
+              ],
+              "tags": []
+            },
+            {
+              "value": "a",
+              "image": "a",
+              "span": [
+                0,
+                1
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

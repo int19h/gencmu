@@ -21,6 +21,11 @@ func (p clausePart) children() []clausePart {
 				if n.Kind == "constant" {
 					out = append(out, clausePart{t: &domTerm{Kind: tmConst, Str: n.Name, At: n.At}})
 				}
+				for _, end := range n.Ends {
+					if end != nil {
+						out = append(out, clausePart{t: end})
+					}
+				}
 				if n.Value != nil {
 					out = append(out, clausePart{t: n.Value})
 				}

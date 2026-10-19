@@ -144,7 +144,7 @@ At the end of a stage's input, a rejection has `token` equal to the number of in
 
 Expected-terminal diagnostics use exact value tests and signed tag tests. Constants expand to resolved strings or requirements. Requirements sort by tag name in code point order. For one name, the positive requirement comes first. Duplicate requirements of one sign collapse.
 
-The spelling writes the terminal, then `<`, then requirements separated by one ASCII space, then `>`. A value test follows when present. No other space appears outside string literals. Empty requirements spell `<>`. Canonical strings follow engine §9.
+The spelling writes the terminal, then `<`, then requirements separated by one ASCII space, then `>`. A value test follows when present. Other spaces appear only inside string literals and around `++` in a canonical string. Empty requirements spell `<>`. Canonical strings follow engine §9.
 
 Examples are `KOhA<UI Word>`, `KOhA<¬UI>`, `LE≠"lo"`, `X<¬A B>`, and `X<A>="s"`.
 
@@ -174,15 +174,17 @@ The authoritative constructor contract is [engine §9.3](engine.md#93-conversion
 
 A grammar DOM (document object model) is the parsed form of a grammar document (engine §8, §9). A library makes it when it reads the document. `bootstrap.json` and the precompiled DOMs hold the same data.
 
-Its envelope is `{"format":33,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
+Its envelope is `{"format":34,"rules":[RULE...],"directives":[DIRECTIVE...],"constants":[CONST...],"classifiers":[CLASSIFIER...],"implications":[IMPLICATION...]}`. All five declaration arrays are present, including when empty. Every declared item has `at:[line,column]`, counted from 1. Both coordinates must be positive integers.
 
 `format` is the version of the DOM. It changes whenever the shape or accepted values of the DOM change. A library never uses a cached DOM of another version.
 
-DOM format 33 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements. A string holds the characters that stage zero gives for its written segments, and the exact scalars of its constants. DOM format 33 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
+DOM format 34 supports restored spans, close families, ordered ranked expressions, stage selectors, patterns, tree comparisons, rule flags, braces, and elidable optional markers. It also supports token strings, recipes, stored engine tags, and method expressions. Elidable terminators accept value tests and signed tag requirements.
 
-DOM format 33 adds integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+A written literal holds its stage-zero characters. Engine constants keep their exact scalars. DOM format 34 also supports boundary atoms, the `ends-input` method and the `fewest` flag. DOM depth follows the compound ancestors and transparent wrappers defined in engine §9. Feature directives can hold a `conditions` member.
 
-Format 33 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":33,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
+DOM format 34 supports integer method arguments and query target choices. Integer arguments store decimal digits as strings so that every library preserves arbitrarily large values.
+
+Format 34 also applies to bootstrap and cache envelopes. A bootstrap is `{"format":34,"stages":[{"name":"lexical","documents":[{"path":PATH,"dom":DOM}]}...]}`. Each document run stores its path and DOM. Stage names are distinct, and each stage has at least one document run. A library rejects other bootstrap formats and skips other cache formats.
 
 The cache identity also includes the bootstrap hash (engine §8).
 
@@ -260,7 +262,7 @@ The first symbol of an elidable optional is an ordinary tag `ref`, optionally te
 Terms have these forms:
 
 ```text
-{"string":"s"}               {"interpolate":[STRINGTERM...]}
+{"string":"s"}               {"concat":[TERM,TERM...]}
 {"tag":"Word"}               {"emptySet":true}
 {"const":"SU-STOPS","at":[line,column]}
 {"union":[TERM,TERM...]}       {"intersection":[TERM,TERM...]}
@@ -280,7 +282,9 @@ For example, `A ∪ (B ∪ C)` gives this term:
 {"union":[{"tag":"A"},{"tag":"B"},{"tag":"C"}]}
 ```
 
-`STRINGTERM` is `string`, string-valued `const`, or `interpolate`. Interpolation parts are literal strings and constant references. The array is nonempty and preserves written order. The reader merges adjacent literal segments and omits empty segments unless every segment is empty. A literal without interpolation uses `string` directly. Engine constants retain their `_` names and reference positions like user constants.
+`STRINGTERM` is `string` or string-valued `const`. A written string literal uses `string`, with dollar signs unchanged. Engine constants retain their `_` names and reference positions like user constants.
+
+`concat` joins string terms in written order. Outside a recipe root, its array contains at least two operands. The reader flattens nested concatenations, including grouped operands. It preserves empty operands and does not merge literals or resolve constants. Supplied DOMs can retain nested `concat` terms.
 
 Engine constants resolve directly as scalar strings outside the user constant version graph (engine §2).
 
@@ -316,13 +320,13 @@ For example, `$m.without-elision.matches(sumti)` uses this condition DOM:
 
 The extended prefix uses `$m.without-elision.onward.begins(sumti)`. Its receiver nests an `onward` method around the restored span. Query conditions use the same method schema as terms.
 
-A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are STRINGTERM or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
+A recipe is `{"concat":[ATOM...]}` with a nonempty array. Atoms are `string`, string-valued `const`, or one of the seven recipe string methods on a bare capture. The methods `.emitted.value` and `.emitted.image` are the two channel forms of `emitted`. An emitted-channel atom nests the channel selector around `{"method":"emitted","receiver":CAPTURE,"args":[]}`. `emitted` alone cannot be a recipe atom.
 
 ```json
 {"concat":[{"method":"value","receiver":{"capture":"a"},"args":[]},{"string":" "},{"method":"image","receiver":{"method":"emitted","receiver":{"capture":"b"},"args":[]},"args":[]}]}
 ```
 
-Recipe syntax accepts no other method chains or expression types. `concat` belongs only to recipes. Conditions and constant definitions cannot concatenate strings through this node.
+Recipe syntax joins atoms with `++` and accepts no other method chains or expression types. A recipe root always uses `concat`, including for one atom. Its array contains only recipe atoms. General terms also use `concat` for `++` in conditions and constants. DOM format 34 rejects the `interpolate` node.
 
 Conditions have these forms:
 
@@ -354,7 +358,7 @@ Engine constants cannot be declared.
 
 A classifier is `{"name":"lexicon","entries":[ENTRY...],"at":[line,column]}`. Its name begins with `a` to `z`. `entries` can be empty, for a `%classifier` with no entry.
 
-An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals, with interpolation permitted. The operator is `∈` or `∉`. The class starts and ends with capitals and never starts with `_`.
+An entry is `{"guards":[GUARD...],"keys":[STRINGTERM...],"op":"∈","class":"KOhA","at":[line,column]}`. Guards are gates only. Keys are nonempty in count, but an individual string can be empty. Source classifier keys are string literals or string constants. The operator is `∈` or `∉`. The class starts and ends with capitals and never starts with `_`.
 
 An entry's `at` is the line and column of its first token, where the loader reports an error of the entry (engine §2).
 
@@ -468,7 +472,7 @@ The DOM holds no lowered helper, admission key, [seal](notation.md#ranked-choice
 
 ### Precompiled DOMs
 
-`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":33,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
+`grammars/compiled.json` holds the precompiled DOMs. `tools/sync.js` generates it and copies it into every package. Its shape is `{"format":34,"bootstrap":HASH,"unicode":HASH,"documents":{PATH:{"hash":HASH,"dom":DOM}}}`. `PATH` is relative to the grammars directory. Each `HASH` is the FNV-1a hash of engine §8. `unicode` is the hash of the text of the `unicode.txt` that read the documents.
 
 A library uses an entry only where four values match. They are the format, the hash of the bootstrap, the hash of its Unicode table and the hash of the document.
 

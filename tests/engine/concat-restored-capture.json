@@ -1,0 +1,17 @@
+{
+  "grammar": "%rule text $x:r %conditions $x.without-elision.value ++ \"\" = \"a\"\n%rule r A [+T]",
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "description": "A restored capture keeps its input value when joined with an empty string (engine §10)."
+}

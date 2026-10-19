@@ -1,6 +1,6 @@
 {
   "description": "Engine §10 counts code points inside combining sequences when it builds n-grams.",
-  "grammar": "%const $S \"a$(_0301)b\".ngrams(2)\n%rule text ε %conditions $S = (\"a$(_0301)\" \"$(_0301)b\")",
+  "grammar": "%const $S (\"a\" ++ $_0301 ++ \"b\").ngrams(2)\n%rule text ε %conditions $S = ((\"a\" ++ $_0301) ∪ ($_0301 ++ \"b\"))",
   "tokens": [],
   "expect": {
     "result": {

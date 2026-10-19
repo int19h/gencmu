@@ -1,0 +1,10 @@
+{
+  "description": "Binding an unrelated comparison constant does not evaluate a skipped delimiter join (engine §10).",
+  "grammar": "%const $K \"x\"\n%rule text \"x\" %conditions $.value = $K ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

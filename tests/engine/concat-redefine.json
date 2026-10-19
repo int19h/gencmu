@@ -1,0 +1,17 @@
+{
+  "description": "A constant redefinition joins its predecessor value with a literal (engine §2).",
+  "grammar": "%const $S \"a\"\n%redefine-const $S $S ++ \"b\"\n%rule text $S",
+  "input": "a",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "ab"
+    }
+  ]
+}

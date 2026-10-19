@@ -192,9 +192,44 @@ fn pattern_test_order_precedes_invalid_bases() {
     for body in [
         r#"%rule text $c:A %conditions $c ≅ @(_Bogus<"bad"><A>)"#,
         r#"%rule text $c:A %conditions $c ≅ @($_D800<"bad"><A>)"#,
-        r#"%rule text $c:A %conditions $c ≅ @("$(_D800)"=UI<A>)"#,
+        r#"%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)"#,
     ] {
         let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```\n")).unwrap_err();
-        assert_eq!((error.line, error.column), (Some(2), Some(49)), "{body}: {error}");
+        let column = body[..body.find("<A>").unwrap()].chars().count() + 1;
+        assert_eq!((error.line, error.column), (Some(2), Some(column)), "{body}: {error}");
+    }
+}
+
+#[test]
+fn every_recipe_position_instructs_the_author_to_use_concat() {
+    let text = std::fs::read_to_string(common::repository().join("tests/recipe-diagnostics.json")).unwrap();
+    let cases = parse_json(&text).unwrap();
+    for position in cases.get("positions").unwrap().array() {
+        for channel in [":=", ":-"] {
+            for recipe in cases.get("recipes").unwrap().array() {
+                let source = recipe.get("source").and_then(Value::str).unwrap();
+                let body = position
+                    .get("template")
+                    .and_then(Value::str)
+                    .unwrap()
+                    .replace("@CHANNEL@", channel)
+                    .replace("@RECIPE@", source);
+                let marker =
+                    body.find(source).unwrap() + source.find(recipe.get("at").and_then(Value::str).unwrap()).unwrap();
+                let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```")).unwrap_err();
+                assert!(error.message.to_lowercase().contains("use ++"), "{body}: {error}");
+                assert_eq!(
+                    (error.line, error.column),
+                    (Some(2), Some(body[..marker].chars().count() + 1)),
+                    "{body}: {error}"
+                );
+            }
+        }
+    }
+    for body in cases.get("ordinary").unwrap().array() {
+        let body = body.str().unwrap();
+        let error = gencmu::tools::read_grammar_document(&format!("```jbogenbau\n{body}\n```")).unwrap_err();
+        assert!(error.message.contains("++"), "{body}: {error}");
+        assert!(!error.message.to_lowercase().contains("use ++"), "{body}: {error}");
     }
 }

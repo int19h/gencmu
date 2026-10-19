@@ -403,10 +403,24 @@ func (f *termFrame) resume(b *domBuilder, in any) readStep {
 	if problem != "" && !b.featureContext {
 		b.fail(n, "%s", problem)
 	}
+	if n.Rule == "concatenation" && ty != tyString && ty != tyAny && !b.featureContext {
+		b.fail(n, "++ requires string operands")
+	}
 	f.items = append(f.items, t)
 	f.types = append(f.types, ty)
 	if len(f.items) < len(f.parts) {
 		return ask(&valueFrame{n: f.parts[len(f.items)]})
+	}
+	if n.Rule == "concatenation" {
+		var items []*domTerm
+		for _, t := range f.items {
+			if t.Kind == tmConcat {
+				items = append(items, t.Items...)
+			} else {
+				items = append(items, t)
+			}
+		}
+		return give(&domTerm{Kind: tmConcat, Items: items})
 	}
 	op := f.ops[0]
 	for _, o := range f.ops {
@@ -484,8 +498,16 @@ func (f *termFrame) start(b *domBuilder) readStep {
 		}
 		f.parts, f.ops = ps, ops
 		return ask(&valueFrame{n: ps[0]})
-	case "intersection":
+	case "concatenation":
 		ps := b.some(n, "term-atom", 1)
+		if len(ps) == 1 {
+			f.pass = true
+			return ask(&termFrame{n: ps[0], argument: f.argument})
+		}
+		f.parts, f.ops = ps, []string{"++"}
+		return ask(&valueFrame{n: ps[0]})
+	case "intersection":
+		ps := b.some(n, "concatenation", 1)
 		if len(ps) == 1 {
 			f.pass = true
 			return ask(&termFrame{n: ps[0], argument: f.argument})

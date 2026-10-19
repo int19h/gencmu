@@ -211,7 +211,7 @@ The rules below build the letters of a lujvo from the left, and they place each 
 
 A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
 
-`pair-across-y` applies the permissible-pair restrictions to the consonants on each side of a hyphen. The shared sets in [shapes.md](shapes.md#consonants) give their voicing and sibilant groups.
+`pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants).
 
 ```jbogenbau
 %rule hyphen-y
@@ -279,13 +279,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 %rule pair-across-y
   $l:consonant hyphen-y $r:consonant
 %conditions
-  $l.value ≠ $r.value,
-  ¬($l.value ∈ $VOICED ∧ $r.value ∈ $UNVOICED),
-  ¬($l.value ∈ $UNVOICED ∧ $r.value ∈ $VOICED),
-  ¬($l.value ∈ $SIBILANTS ∧ $r.value ∈ $SIBILANTS),
-  ¬($l.value = "x" ∧ $r.value ∈ ("c" "k")),
-  ¬($l.value ∈ ("c" "k") ∧ $r.value = "x"),
-  ¬($l.value = "m" ∧ $r.value = "z")
+  $l.value ++ $r.value ∈ $PERMISSIBLE
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>hyphen-y</code> to <code>pair-across-y</code></summary>
@@ -314,6 +308,8 @@ Otherwise, the test applies only if the next rafsi is the last one, a CVCCV gism
 
 If the test examines at least one pair and every examined pair is an initial pair, it adds the `y` at the first joint. `lujvo-after-cv` is the part of a lujvo from the third letter of a first CVC or CVCC rafsi. Its first joint has no hyphen only if the test asks for none. A `y` there is either required or the one the test adds. `tosmabru-positive` is the test on the letters from the first joint, and `tosmabru-y` is the same test on a word that carries the added `y`. So `tospatytosmabru` is `to spatytosmabru`, and the lujvo is `tosypatytosmabru`.
 
+`initial-pair-across-y` reads an initial pair with a `y` between its consonants. It joins their values and tests `$INITIAL`.
+
 ```jbogenbau
 %rule lujvo-after-cv
   | $k:consonant lujvo-rest
@@ -338,54 +334,9 @@ If the test examines at least one pair and every examined pair is an initial pai
   | initial-pair-across-y vowel initial-pair vowel
 
 %rule initial-pair-across-y
-  | "b" hyphen-y "l"
-  | "b" hyphen-y "r"
-  | "c" hyphen-y "f"
-  | "c" hyphen-y "k"
-  | "c" hyphen-y "l"
-  | "c" hyphen-y "m"
-  | "c" hyphen-y "n"
-  | "c" hyphen-y "p"
-  | "c" hyphen-y "r"
-  | "c" hyphen-y "t"
-  | "d" hyphen-y "j"
-  | "d" hyphen-y "r"
-  | "d" hyphen-y "z"
-  | "f" hyphen-y "l"
-  | "f" hyphen-y "r"
-  | "g" hyphen-y "l"
-  | "g" hyphen-y "r"
-  | "j" hyphen-y "b"
-  | "j" hyphen-y "d"
-  | "j" hyphen-y "g"
-  | "j" hyphen-y "m"
-  | "j" hyphen-y "v"
-  | "k" hyphen-y "l"
-  | "k" hyphen-y "r"
-  | "m" hyphen-y "l"
-  | "m" hyphen-y "r"
-  | "p" hyphen-y "l"
-  | "p" hyphen-y "r"
-  | "s" hyphen-y "f"
-  | "s" hyphen-y "k"
-  | "s" hyphen-y "l"
-  | "s" hyphen-y "m"
-  | "s" hyphen-y "n"
-  | "s" hyphen-y "p"
-  | "s" hyphen-y "r"
-  | "s" hyphen-y "t"
-  | "t" hyphen-y "c"
-  | "t" hyphen-y "r"
-  | "t" hyphen-y "s"
-  | "v" hyphen-y "l"
-  | "v" hyphen-y "r"
-  | "x" hyphen-y "l"
-  | "x" hyphen-y "r"
-  | "z" hyphen-y "b"
-  | "z" hyphen-y "d"
-  | "z" hyphen-y "g"
-  | "z" hyphen-y "m"
-  | "z" hyphen-y "v"
+  $l:consonant hyphen-y $r:consonant
+%conditions
+  $l.value ++ $r.value ∈ $INITIAL
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>lujvo-after-cv</code> to <code>initial-pair-across-y</code></summary>

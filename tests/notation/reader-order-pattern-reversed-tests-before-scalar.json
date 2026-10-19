@@ -1,0 +1,10 @@
+{
+  "description": "The invalid pattern test order fails before base conversion and the earlier bad test operand (engine §9.3).",
+  "document": "```jbogenbau\n%rule text $c:A %conditions $c ≅ @($_D800=UI<A>)\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 45
+    }
+  }
+}

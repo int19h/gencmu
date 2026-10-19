@@ -98,17 +98,7 @@ function lex(text, originalPositions) {
     let j = from;
     while (j < n && chars[j] !== '"') {
       if (chars[j] === "\\") return { end: n + 1, reach: j };
-      if (!path && chars[j] === "$") {
-        if (chars[j + 1] === "$") j += 2;
-        else if (chars[j + 1] === "(") {
-          let k = j + 2;
-          if (chars[k] === "_") k = scalarEnds[k + 1];
-          else if (isCapital(chars[k] || "")) k = runEnds[k];
-          else return { end: n + 1, reach: j };
-          if (chars[k] !== ")") return { end: n + 1, reach: j };
-          j = k + 1;
-        } else return { end: n + 1, reach: j };
-      } else j++;
+      j++;
     }
     return { end: j + 1, reach: j };
   };
@@ -206,6 +196,7 @@ function lex(text, originalPositions) {
       reach = Math.max(reach, chars[i + 1] === "." ? Math.min(i + 3, n) : i + 1);
     }
     if (["=", "∈", "⊆", "≅"].includes(c) && chars[i + 1] === "̸") found.push([i + 2, ({ "=": "≠", "∈": "∉", "⊆": "⊈", "≅": "≇" })[c]]);
+    if (c === "+" && chars[i + 1] === "+") found.push([i + 2, "++"]);
     if (SYMBOLS.has(c)) found.push([i + 1, c]);
     for (const [end] of found) reach = Math.max(reach, end);
     found.sort((x, y) => y[0] - x[0]);
@@ -254,7 +245,7 @@ const COMPARATORS = new Set(["=", "≠", "∈", "∉", "⊆", "⊈"]);
 const TEST_COMPARATORS = new Set(["=", "≠", "<"]);
 // What may follow a term in parentheses that begins a comparison, and not
 // conditions in parentheses: a comparator, or more of the term.
-const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "∪", "∩", "∖"]);
+const AFTER_TERM = new Set(["≅", "≇", ...COMPARATORS, "++", "∪", "∩", "∖"]);
 const TERM_STARTS = new Set(["identifier", "tag", "string", "capture", "constant", "(", "∅", "@", "∪", "∩"]);
 const EMIT_STARTS = new Set(["capture", "identifier", "tag", "ε", "(", "string", "constant"]);
 const PRIMARY_STARTS = new Set(["identifier", "tag", "string", "_", "capture", "constant", "(", "[", "{", "#", "ε"]);
@@ -400,15 +391,15 @@ class Parser {
     const start = this.index;
     const children = [this.tok()];
     children.push(this.is("identifier") ? this.leaf("classifier-name") : this.fail("expected a classifier's name"));
-    while (this.is("guard") || this.is("string")) {
+    while (this.is("guard") || this.is("string") || this.is("constant")) {
       const at = this.index;
       const entry = [];
       while (this.is("guard")) entry.push(this.leaf("guard"));
       do {
         const keyAt = this.index;
-        entry.push(this.is("string") ? this.node("classifier-key", keyAt, [this.leaf("string")]) : this.fail("expected a key"));
+        entry.push(this.is("string") || this.is("constant") ? this.node("classifier-key", keyAt, [this.leaf(this.is("string") ? "string" : "constant-reference")]) : this.fail("expected a key"));
       }
-      while (this.is("string"));
+      while (this.is("string") || this.is("constant"));
       entry.push(this.is("∈") || this.is("∉") ? this.leaf("classifier-operator") : this.fail("expected ∈ or ∉"));
       entry.push(this.is("identifier") || this.is("tag") ? this.leaf("classifier-class") : this.fail("expected a class"));
       children.push(this.node("classifier-entry", at, entry));
@@ -733,9 +724,16 @@ class Parser {
     const start = this.index;
     const children = [];
     if (this.is("∩")) children.push(this.tok());
-    children.push((yield this.termAtom()));
-    while (this.is("∩")) children.push(this.tok(), (yield this.termAtom()));
+    children.push((yield this.concatenation()));
+    while (this.is("∩")) children.push(this.tok(), (yield this.concatenation()));
     return this.node("intersection", start, children);
+  }
+
+  *concatenation() {
+    const start = this.index;
+    const children = [(yield this.termAtom())];
+    while (this.is("++")) children.push(this.tok(), (yield this.termAtom()));
+    return this.node("concatenation", start, children);
   }
 
   *termAtom() {

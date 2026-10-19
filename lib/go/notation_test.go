@@ -359,6 +359,7 @@ func sameValue(a, b reflect.Value) bool {
 
 // DOM 27 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
 func TestNotationLexicalTags(t *testing.T) {
+	// The quoted scalar-shaped text tests literal dollars.
 	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {
@@ -441,7 +442,7 @@ func TestCharacterTags(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	for c, want := range map[rune]string{'a': `"a"`, 0x301: `"$(_0301)"`, 0xED80: `"$(_ED80)"`, '"': `"$(_0022)"`, '\\': `"$(_005C)"`, 0x7F: `"$(_007F)"`, 'é': `"$(_00E9)"`, '각': `"$(_AC01)"`, 0x10FFFD: `"$(_10FFFD)"`} {
+	for c, want := range map[rune]string{'a': `"a"`, 0x301: `$_0301`, 0xED80: `$_ED80`, '"': `$_0022`, '\\': `$_005C`, 0x7F: `$_007F`, 'é': `$_00E9`, '각': `$_AC01`, 0x10FFFD: `$_10FFFD`} {
 		if got := stringTerminal(string(c), bundled.uni); got != want {
 			t.Errorf("U+%04X: %s, want %s", c, got, want)
 		}
@@ -616,6 +617,54 @@ func TestFormat17Refused(t *testing.T) {
 	for _, d := range []string{dom(17, `{"repeat":{"ref":"A"}}`), dom(domFormat, `{"repeat":{"ref":"A"},"extra":true}`)} {
 		if _, err := decodeDOM(json.RawMessage(d), bundled.uni); err == nil {
 			t.Errorf("an unsupported or malformed DOM decodes: %s", d)
+		}
+	}
+}
+
+func TestRecipeConcatenationDiagnostics(t *testing.T) {
+	t.Parallel()
+	if err := loadBundled(); err != nil {
+		t.Fatal(err)
+	}
+	text, err := os.ReadFile("../../tests/recipe-diagnostics.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases struct {
+		Recipes []struct {
+			Source string `json:"source"`
+			At     string `json:"at"`
+		} `json:"recipes"`
+		Positions []struct {
+			Name     string `json:"name"`
+			Template string `json:"template"`
+		} `json:"positions"`
+		Ordinary []string `json:"ordinary"`
+	}
+	if err := unmarshalJSON(text, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, position := range cases.Positions {
+		for _, channel := range []string{":=", ":-"} {
+			for _, recipe := range cases.Recipes {
+				t.Run(position.Name+channel+recipe.Source, func(t *testing.T) {
+					body := strings.ReplaceAll(strings.ReplaceAll(position.Template, "@CHANNEL@", channel), "@RECIPE@", recipe.Source)
+					marker := strings.Index(body, recipe.Source) + strings.Index(recipe.Source, recipe.At)
+					_, failure := bundled.reader.read("```jbogenbau\n"+body+"\n```", "recipe.md")
+					if failure == nil || !strings.Contains(strings.ToLower(failure.Message), "use ++") {
+						t.Fatalf("expected a recipe instruction: %v", failure)
+					}
+					if failure.Line != 2 || failure.Column != len([]rune(body[:marker]))+1 {
+						t.Fatalf("expected the first juxtaposed string at column %d: %v", len([]rune(body[:marker]))+1, failure)
+					}
+				})
+			}
+		}
+	}
+	for _, body := range cases.Ordinary {
+		_, failure := bundled.reader.read("```jbogenbau\n"+body+"\n```", "ordinary.md")
+		if failure == nil || !strings.Contains(failure.Message, "++") || strings.Contains(strings.ToLower(failure.Message), "use ++") {
+			t.Fatalf("expected an ordinary type error: %v", failure)
 		}
 	}
 }

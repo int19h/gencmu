@@ -1,0 +1,13 @@
+{
+  "description": "Binding a classifier key constant reports an undefined operand inside its joined definition (engine §2).",
+  "grammar": "%const $KEY \"a\" ++ $NOPE\n%classifier c $KEY ∈ K\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 20
+    }
+  }
+}

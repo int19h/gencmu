@@ -1,0 +1,13 @@
+{
+  "description": "An undefined constant inside a closed join fails at its reference (engine §2).",
+  "grammar": "%const $S \"a\" ++ $UNKNOWN\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 18
+    }
+  }
+}

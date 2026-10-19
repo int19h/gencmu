@@ -1,0 +1,64 @@
+{
+  "description": "A pattern DOM preserves separate references to the same constant in its terminal atom and value-test operand (engine §9.3).",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%const $P @($JOIN-1=$JOIN-1)\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "B",
+                "at": [
+                  2,
+                  23
+                ]
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "const": "JOIN-1",
+                "at": [
+                  3,
+                  21
+                ]
+              },
+              "expr": {
+                "constant": "JOIN-1",
+                "at": [
+                  3,
+                  13
+                ]
+              }
+            }
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

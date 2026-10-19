@@ -571,7 +571,7 @@ fn lowered_term_atom(term: &crate::lower::LTerm) -> Option<&LCond> {
                 }
                 stack.push(t);
             }
-            LTerm::Union(ts) | LTerm::Inter(ts) => stack.extend(ts.iter().rev()),
+            LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => stack.extend(ts.iter().rev()),
             LTerm::Diff(a, b) | LTerm::Split(a, b) => stack.extend([&**b, &**a]),
             LTerm::Classify(t, _) | LTerm::Ngrams(t, _) => stack.push(t),
             _ => {}
@@ -586,7 +586,7 @@ fn term_ownership(term: &mut crate::lower::LTerm, own: bool) {
             ownership(c, own);
             term_ownership(t, own);
         }
-        LTerm::Union(ts) | LTerm::Inter(ts) => {
+        LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => {
             for t in ts {
                 term_ownership(t, own)
             }

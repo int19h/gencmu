@@ -1,6 +1,6 @@
 {
-  "description": "Engine §11.3 concatenates empty and nonempty adjacent literals in an item image recipe.",
-  "grammar": "%const $S \"b\"\n%rule text $a:\"x\"\n%emits $a :- \"\" \"\" \"a\"",
+  "description": "Engine §11.3 joins empty and nonempty literals with ++ in an item image recipe.",
+  "grammar": "%const $S \"b\"\n%rule text $a:\"x\"\n%emits $a :- \"\" ++ \"\" ++ \"a\"",
   "input": "x",
   "expect": {
     "result": {

@@ -412,7 +412,7 @@ pub(crate) fn demanded(g: &crate::lower::Lowered) -> crate::fxhash::FxSet<u32> {
                 cond(c, p, w, todo);
                 term(t, p, w, todo);
             }
-            LTerm::Union(ts) | LTerm::Inter(ts) => {
+            LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => {
                 for t in ts {
                     term(t, p, w, todo);
                 }
@@ -753,7 +753,7 @@ pub(crate) fn local_demands(g: &crate::lower::Lowered) -> Vec<LocalDemand> {
                 cond(c, out);
                 term(t, out);
             }
-            LTerm::Union(ts) | LTerm::Inter(ts) => {
+            LTerm::Union(ts) | LTerm::Inter(ts) | LTerm::Concat(ts) => {
                 for t in ts {
                     term(t, out);
                 }

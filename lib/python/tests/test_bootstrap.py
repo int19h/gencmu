@@ -174,11 +174,11 @@ class Compiled(unittest.TestCase):
 
 
 class Lexical(unittest.TestCase):
-    def test_the_lexical_stage_tags_braces_and_the_backslash(self) -> None:
+    def test_the_lexical_stage_tags_braces_and_plain_dollar_text(self) -> None:
         """Stored token tags follow the lexical grammar.
 
         Punctuation retains its stage-zero categories. Strings carry their
-        lexical tag. Backslash values use engine interpolation (engine §9).
+        lexical tag. Dollar forms inside strings stay literal (engine §9).
         """
         notation = gencmu.load_dialect("notation")
         result = notation.parse(

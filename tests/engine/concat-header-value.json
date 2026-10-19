@@ -1,0 +1,21 @@
+{
+  "description": "A header value recipe joins captured values and supplies the implied image (engine §11.3).",
+  "grammar": "%rule text := $a.value ++ \"-\" ++ $b.value | $a:\"a\" $b:\"b\" %emits",
+  "input": "ab",
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "main",
+          "output": [
+            {
+              "value": "a-b",
+              "image": "a-b"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "A constant definition cannot read a captured value through a join (engine §2).",
+  "grammar": "%const $S $x.value ++ \"a\"\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 11
+    }
+  }
+}

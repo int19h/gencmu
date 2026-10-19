@@ -1,0 +1,36 @@
+{
+  "description": "Balanced, incomplete, and doubled dollar forms remain literal terminal text (engine §9.1).",
+  "grammar": "%rule text \"$(NAME)\" \"$$\" \"$\" \"$(\" \"$(foo\"",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "tokens": [
+    {
+      "text": "a",
+      "tags": [],
+      "value": "$(NAME)"
+    },
+    {
+      "text": "b",
+      "tags": [],
+      "value": "$$"
+    },
+    {
+      "text": "c",
+      "tags": [],
+      "value": "$"
+    },
+    {
+      "text": "d",
+      "tags": [],
+      "value": "$("
+    },
+    {
+      "text": "e",
+      "tags": [],
+      "value": "$(foo"
+    }
+  ]
+}

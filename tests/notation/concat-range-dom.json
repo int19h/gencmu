@@ -1,0 +1,85 @@
+{
+  "description": "A body range DOM retains unresolved endpoint references while their constant definitions hold joins (engine §9.3).",
+  "document": "```jbogenbau\n%const $LOW \"\" ++ \"a\"\n%const $HIGH \"\" ++ \"z\"\n%rule text $LOW..$HIGH\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "range": [
+                  {
+                    "const": "LOW",
+                    "at": [
+                      4,
+                      12
+                    ]
+                  },
+                  {
+                    "const": "HIGH",
+                    "at": [
+                      4,
+                      18
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            4,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "LOW",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "a"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        },
+        {
+          "name": "HIGH",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": ""
+              },
+              {
+                "string": "z"
+              }
+            ]
+          },
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "description": "A range's terminal identity uses canonical scalar-string endpoints. The canonical tree escapes combining-mark endpoints with engine scalar interpolation (engine §4, docs/output.md).",
+  "description": "A range's terminal identity uses canonical scalar-string endpoints. The canonical tree escapes combining-mark endpoints with engine scalar concatenation (engine §4, docs/output.md).",
   "grammar": "%rule text (\"a\"..\"z\" \"̀\"..\"ͯ\" \"x\"..\"z\")",
   "input": "b́y",
   "expect": {
@@ -15,7 +15,7 @@
           },
           {
             "kind": "token",
-            "terminal": "\"$(_0300)\"..\"$(_036F)\""
+            "terminal": "$_0300..$_036F"
           },
           {
             "kind": "token",

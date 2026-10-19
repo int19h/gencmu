@@ -1,0 +1,35 @@
+{
+  "description": "The DOM stores parenthesized, doubled, and trailing dollar characters as literal string text (engine §9.1, §9.3).",
+  "document": "```jbogenbau\n%rule text \"$(S)$$$\"\n```",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "string": "$(S)$$$"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

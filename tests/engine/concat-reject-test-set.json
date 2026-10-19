@@ -1,0 +1,13 @@
+{
+  "description": "A body value test rejects a constant whose value is a string set (engine §2).",
+  "grammar": "%const $S \"a\" ∪ \"b\"\n%rule text A=$S",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 14
+    }
+  }
+}

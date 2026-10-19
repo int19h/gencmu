@@ -1,0 +1,10 @@
+{
+  "description": "A constant definition rejects a right string run that forms a set before concatenation (engine §9.3, §10).",
+  "document": "```jbogenbau\n%const $S \"a\" ++ \"b\" \"c\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 11
+    }
+  }
+}

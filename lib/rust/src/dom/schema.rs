@@ -81,21 +81,21 @@ fn span(value: &Json) -> bool {
 }
 
 fn string_atom(value: &Json) -> bool {
-    exact(value, &["string"], &[]) && is_str(value.get("string"))
-        || exact(value, &["const", "at"], &[])
-        || exact(value, &["interpolate"], &[])
+    exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
 }
 
 /// Literal endpoints must already form an ordered scalar interval.
 fn literal_range(left: &Json, right: &Json) -> bool {
-    let scalar = |value: &Json| {
-        let text = value.get("string")?.as_str()?;
-        let mut chars = text.chars();
-        let first = chars.next()?;
-        chars.next().is_none().then_some(first)
+    let text = |value: &Json| {
+        if let Some(text) = value.get("string").and_then(Json::as_str) {
+            Some(text.to_string())
+        } else {
+            value.get("const").and_then(Json::as_str).and_then(engine_scalar).map(|c| c.to_string())
+        }
     };
-    [left, right].iter().all(|v| v.get("string").is_none() || scalar(v).is_some())
-        && match (scalar(left), scalar(right)) {
+    let ends = [text(left), text(right)];
+    ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
+        && match (&ends[0], &ends[1]) {
             (Some(a), Some(b)) => a <= b,
             _ => true,
         }
@@ -484,17 +484,13 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                     {
                         return Some("a malformed constant reference");
                     }
-                } else if exact(value, &["interpolate"], &[]) {
-                    let Some(items) =
-                        value.get("interpolate").and_then(Json::as_array).filter(|items| !items.is_empty())
+                } else if exact(value, &["concat"], &[]) {
+                    let Some(items) = value.get("concat").and_then(Json::as_array).filter(|items| items.len() >= 2)
                     else {
-                        return Some("a malformed interpolation");
+                        return Some("a malformed concatenation");
                     };
                     for item in items {
-                        if !(item.get("string").is_some() || item.get("const").is_some()) {
-                            return Some("a malformed interpolation part");
-                        }
-                        pending.push((Part::String, item, next));
+                        pending.push((Part::Term, item, next));
                     }
                 } else if exact(value, &["pattern"], &[]) {
                     pending.push((Part::Pattern, value.get("pattern").unwrap(), next));
@@ -815,7 +811,7 @@ fn closed(root: &Term) -> bool {
         match term {
             Term::Capture(_) | Term::If(..) => return false,
             Term::Call(name, args) => {
-                if !matches!(name.as_str(), "split" | "ngrams" | "interpolate") {
+                if !matches!(name.as_str(), "split" | "ngrams" | "concat") {
                     return false;
                 }
                 for arg in args {

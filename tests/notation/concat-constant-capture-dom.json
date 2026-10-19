@@ -1,0 +1,61 @@
+{
+  "description": "The DOM wraps a string-constant terminal reference in a named capture (engine §9.3).",
+  "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%rule text $x:$JOIN-1\n```\n",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "capture": "x",
+                "expr": {
+                  "literal": {
+                    "const": "JOIN-1",
+                    "at": [
+                      3,
+                      15
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "string": "b"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

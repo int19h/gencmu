@@ -63,8 +63,7 @@
 
   // Keywords, names and quoted tokens used by pipeline directives (§9.1).
   // Comments stop at their first closer. Quotes never use backslash escapes.
-  // Include paths keep dollar signs literally, so this scan does not expand
-  // string interpolation. Other punctuation ends a directive operand.
+  // Strings keep dollar signs literally. Other punctuation ends an operand.
   function tokens(text) {
     const cs = [...text];
     const at = (i, what) => cs.slice(i, i + what.length).join("") === what;

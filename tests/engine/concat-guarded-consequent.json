@@ -1,0 +1,10 @@
+{
+  "description": "A guarded joined consequent becomes a singleton string set when true and an empty string set when false (engine §10).",
+  "grammar": "%rule text \"x\"\n%conditions\n  (\"x\" = \"x\" ⟹ \"a\" ++ \"b\") = (\"ab\" ∪ \"ab\"),\n  (\"x\" = \"y\" ⟹ \"a\" ++ \"b\") = (\"z\" ∖ \"z\")",
+  "input": "x",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

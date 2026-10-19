@@ -1,0 +1,65 @@
+{
+  "description": "The DOM preserves the order of an exact acute-accent constant and a following literal combining mark (engine §9.3, §10).",
+  "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $_0301 ++ \"̣\"\n%rule text $JOIN-1\n```",
+  "expect": {
+    "dom": {
+      "format": 34,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "const": "JOIN-1",
+                  "at": [
+                    3,
+                    12
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            3,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [
+        {
+          "name": "JOIN-1",
+          "op": "define",
+          "value": {
+            "concat": [
+              {
+                "string": "a"
+              },
+              {
+                "const": "_0301",
+                "at": [
+                  2,
+                  23
+                ]
+              },
+              {
+                "string": "̣"
+              }
+            ]
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

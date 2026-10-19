@@ -16,7 +16,7 @@ class Marks(Protocol):
     def changes_in_document(self, code: int) -> bool: ...
 
 
-FORMAT = 33
+FORMAT = 34
 MAX_DEPTH = 256
 TOO_DEEP = "nested too deeply"
 CONSTANT_NAME = USER_NAME
@@ -496,10 +496,12 @@ def _walk(pending: list, unicode: Marks, deferred: set[int]) -> str | None:
                         return "a malformed method name argument"
                 else:
                     pending.append(("term", arg, below, False, False))
-        elif "interpolate" in node:
-            if keys != {"interpolate"} or not _items(node["interpolate"]):
-                return "a malformed interpolation"
-            pending.extend(("string", x, below, False, False) for x in node["interpolate"])
+        elif "concat" in node:
+            if kind == "string":
+                return "a string operand requires a literal or constant"
+            if keys != {"concat"} or not _items(node["concat"], 2):
+                return "a malformed concatenation"
+            pending.extend(("term", x, below, False, False) for x in node["concat"])
         elif "string" in node:
             if keys != {"string"} or not isinstance(node["string"], str) or any(0xD800 <= ord(c) <= 0xDFFF for c in node["string"]):
                 return "a malformed scalar string"

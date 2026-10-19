@@ -191,7 +191,7 @@ impl<'a> Reader<'a> {
         let guards = Self::rules(node, "guard").map(|guard| self.guard(guard, true)).collect::<R<_>>()?;
         let mut keys = Vec::new();
         for key_node in self.some(node, "classifier-key", 1)? {
-            let key = self.string_term(self.token(self.one(key_node, "string")?)?)?;
+            let key = self.string_operand(self.inner(key_node, &["string", "constant-reference"])?)?;
             keys.push(key);
         }
         let operator = self.one(node, "classifier-operator")?;
@@ -649,6 +649,7 @@ impl<'a> Reader<'a> {
             Frame::Term(term) => self.resume_term(term, input),
             Frame::Union(joined) => self.resume_union(joined, input),
             Frame::Intersection(joined) => self.resume_intersection(joined, input),
+            Frame::Concatenation(joined) => self.resume_concatenation(joined, input),
             Frame::Atom(atom) => self.resume_atom(atom, input),
             Frame::Method(method) => self.resume_method(method, input),
             Frame::Argument(argument) => self.resume_argument(argument, input),
@@ -1119,6 +1120,42 @@ impl<'a> Reader<'a> {
 
     fn resume_intersection(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
         if frame.parts.is_none() {
+            let atoms: Vec<&Node> = Self::rules(frame.node, "concatenation").collect();
+            match atoms[..] {
+                [] => return Err(self.shape_error(frame.node, "concatenation")),
+                [atom] => {
+                    frame.parts = Some(Vec::new());
+                    frame.pass = true;
+                    return Ok(Step::Call(Frame::Concatenation(Joined::new(atom, frame.argument))));
+                }
+                _ => {}
+            }
+            frame.parts = Some(atoms);
+        }
+        if frame.pass {
+            return Ok(Step::Done(input.expect("the atom")));
+        }
+        if let Some(Val::Term(term, ty)) = input {
+            frame.items.push(term);
+            frame.types.push(ty);
+            if matches!(ty, Type::Span) && !self.feature_context.get() {
+                return Err(self.error(frame.node, "set operators require sets or patterns"));
+            }
+        }
+        let atoms = frame.parts.as_ref().expect("the atoms");
+        if let Some(&atom) = atoms.get(frame.items.len()) {
+            return Ok(Step::Call(Frame::Concatenation(Joined::new(atom, false))));
+        }
+        let ty = if self.feature_context.get() {
+            Type::Any
+        } else {
+            joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?
+        };
+        Ok(Step::Done(Val::Term(Term::Intersection(std::mem::take(&mut frame.items)), ty)))
+    }
+
+    fn resume_concatenation(&self, frame: &mut Joined<'a>, input: Option<Val>) -> R<Step<'a>> {
+        if frame.parts.is_none() {
             let atoms: Vec<&Node> = Self::rules(frame.node, "term-atom").collect();
             match atoms[..] {
                 [] => return Err(self.shape_error(frame.node, "term-atom")),
@@ -1137,20 +1174,25 @@ impl<'a> Reader<'a> {
         if let Some(Val::Term(term, ty)) = input {
             frame.items.push(term);
             frame.types.push(ty);
-            if matches!(ty, Type::Span) && !self.feature_context.get() {
-                return Err(self.error(frame.node, "set operators require sets or patterns"));
+            if !matches!(ty, Type::String | Type::Any) && !self.feature_context.get() {
+                return Err(self.error(frame.node, "++ requires string operands"));
             }
         }
         let atoms = frame.parts.as_ref().expect("the atoms");
         if let Some(&atom) = atoms.get(frame.items.len()) {
             return Ok(Step::Call(Frame::Atom(Atom::new(atom, false))));
         }
-        let ty = if self.feature_context.get() {
-            Type::Any
-        } else {
-            joined_type(&frame.types, "∩").map_err(|problem| self.error(frame.node, problem))?
-        };
-        Ok(Step::Done(Val::Term(Term::Intersection(std::mem::take(&mut frame.items)), ty)))
+        let mut args = Vec::new();
+        for mut term in std::mem::take(&mut frame.items) {
+            if let Term::Call(name, nested) = &mut term {
+                if name == "concat" {
+                    args.append(nested);
+                    continue;
+                }
+            }
+            args.push(Arg::Term(term));
+        }
+        Ok(Step::Done(Val::Term(Term::Call("concat".into(), args), Type::String)))
     }
 
     fn resume_atom(&self, frame: &mut Atom<'a>, input: Option<Val>) -> R<Step<'a>> {
@@ -1182,6 +1224,9 @@ impl<'a> Reader<'a> {
                 typed(Term::Tag(tag), Type::Tags)
             }
             "tag-run" | "string-run" => {
+                if self.in_recipe.get() && inner.rule.as_deref() == Some("string-run") {
+                    return Err(self.error(inner, "juxtaposed recipe strings require ++, use ++ between string atoms"));
+                }
                 let before = node.span.start.checked_sub(1).and_then(|i| self.tokens.get(i));
                 let after = self.tokens.get(node.span.end);
                 if before.into_iter().chain(after).any(|t| matches!(t.value.as_str(), "∩" | "∖")) {
@@ -1929,83 +1974,10 @@ impl<'a> Reader<'a> {
 
     fn string_term(&self, token: &'a Node) -> R<Term> {
         let text = self.value(token);
-        // Written segments use the decomposed value. References keep their
-        // original positions, even when earlier scalars expand or reorder.
-        let original: Vec<char> = self.source_text(token).chars().collect();
-        let mut original_index = 1;
         let Some(body) = text.strip_prefix('"').and_then(|s| s.strip_suffix('"')) else {
             return Err(self.error(token, "a string requires double quotes"));
         };
-        let mut chars = body.chars().peekable();
-        let mut literal = String::new();
-        let mut parts = Vec::new();
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                return Err(self.error(token, "backslash is not a string escape"));
-            }
-            if c != '$' {
-                literal.push(c);
-                continue;
-            }
-            match chars.next() {
-                Some('$') => literal.push('$'),
-                Some('(') => {
-                    if !literal.is_empty() {
-                        parts.push(Term::Str(std::mem::take(&mut literal)));
-                    }
-                    while original_index < original.len() {
-                        if original[original_index] == '$' && original.get(original_index + 1) == Some(&'(') {
-                            break;
-                        }
-                        original_index +=
-                            if original[original_index] == '$' && original.get(original_index + 1) == Some(&'$') {
-                                2
-                            } else {
-                                1
-                            };
-                    }
-                    let reference = (self.position)(token.source.start + original_index);
-                    while original_index < original.len() && original[original_index] != ')' {
-                        original_index += 1;
-                    }
-                    original_index += 1;
-                    let mut name = String::new();
-                    while chars.peek().is_some_and(|c| *c != ')') {
-                        name.push(chars.next().unwrap());
-                    }
-                    if chars.next().is_none()
-                        || !(crate::dom::is_constant_name(&name) || crate::dom::engine_scalar(&name).is_some())
-                    {
-                        return Err(Error::grammar("invalid string interpolation").at(reference.0, reference.1));
-                    }
-                    parts.push(Term::Const(name, reference));
-                }
-                _ => return Err(self.error(token, "a dollar sign requires interpolation or doubling")),
-            }
-        }
-        if !literal.is_empty() || parts.is_empty() {
-            parts.push(Term::Str(literal));
-        }
-        if parts.len() == 1 && matches!(parts[0], Term::Str(_)) {
-            Ok(parts.pop().unwrap())
-        } else {
-            Ok(Term::Call("interpolate".into(), parts.into_iter().map(Arg::Term).collect()))
-        }
-    }
-
-    fn recipe_string_run(mut node: &Node) -> Option<&Node> {
-        for wrapper in ["term", "union", "intersection", "term-atom"] {
-            if rule_name(node) != wrapper {
-                return None;
-            }
-            let children = Self::parts(node);
-            let [child] = children.as_slice() else { return None };
-            if child.kind != NodeKind::Rule {
-                return None;
-            }
-            node = child;
-        }
-        (rule_name(node) == "string-run").then_some(node)
+        Ok(Term::Str(body.into()))
     }
 
     fn channels(&self, node: &'a Node) -> R<Channels> {
@@ -2020,40 +1992,52 @@ impl<'a> Reader<'a> {
                 let mut atoms = Vec::new();
                 self.in_recipe.set(true);
                 for atom in self.some(recipe, "recipe-atom", 1)? {
-                    let first = self.tokens.get(atom.span.start).map(|t| t.value.as_str()).unwrap_or("");
-                    if matches!(first, "(" | "∪" | "∩")
-                        || self.tokens[atom.span.clone()]
-                            .iter()
-                            .any(|t| matches!(t.value.as_str(), "∪" | "∩" | "∖" | "⟹"))
+                    if !atoms.is_empty() {
+                        return Err(
+                            self.error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
+                        );
+                    }
+                    if self.tokens[atom.span.clone()]
+                        .iter()
+                        .any(|t| matches!(t.value.as_str(), "(" | ")" | "∪" | "∩" | "∖" | "⟹"))
                     {
-                        return Err(self.error(atom, "a recipe atom has no grouping or operators"));
+                        return Err(self.error(atom, "a recipe atom has no grouping or arguments"));
                     }
-                    if let Some(run) = Self::recipe_string_run(self.one(atom, "term")?) {
-                        for string in self.some(run, "string", 2)? {
-                            atoms.push(Arg::Term(self.string_term(self.token(string)?)?));
+                    let (mut term, _) = self.term(self.one(atom, "term")?, true)?;
+                    let terms = if let Term::Call(name, args) = &mut term {
+                        if name == "concat" {
+                            std::mem::take(args)
+                        } else {
+                            vec![Arg::Term(term)]
                         }
-                        continue;
-                    }
-                    let (term, _) = self.term(self.one(atom, "term")?, true)?;
-                    let valid = match &term {
-                        Term::Str(_) | Term::Const(..) => true,
-                        Term::Call(name, args) if name == "interpolate" => !args.is_empty(),
-                        Term::Call(name, args)
-                            if matches!(
-                                name.as_str(),
-                                "value" | "image" | "text" | "decomposed-source-text" | "verbatim-text"
-                            ) =>
-                        {
-                            matches!(&args[..], [Arg::Term(Term::Capture(_))])
-                                || matches!(name.as_str(), "value" | "image")
-                                    && matches!(&args[..], [Arg::Term(Term::Call(name, args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
-                        }
-                        _ => false,
+                    } else {
+                        vec![Arg::Term(term)]
                     };
-                    if !valid {
-                        return Err(self.error(atom, "a recipe atom must be a string or a captured string method"));
+                    for arg in terms {
+                        let Arg::Term(term) = arg else { unreachable!("string operand") };
+                        let valid = match &term {
+                            Term::Str(_) | Term::Const(..) => true,
+                            Term::Union(_) => {
+                                return Err(self
+                                    .error(atom, "juxtaposed recipe strings require ++, use ++ between string atoms"))
+                            }
+                            Term::Call(name, args)
+                                if matches!(
+                                    name.as_str(),
+                                    "value" | "image" | "text" | "decomposed-source-text" | "verbatim-text"
+                                ) =>
+                            {
+                                matches!(&args[..], [Arg::Term(Term::Capture(_))])
+                                    || matches!(name.as_str(), "value" | "image")
+                                        && matches!(&args[..], [Arg::Term(Term::Call(name,args))] if name == "emitted" && matches!(&args[..], [Arg::Term(Term::Capture(_))]))
+                            }
+                            _ => false,
+                        };
+                        if !valid {
+                            return Err(self.error(atom, "a recipe atom must be a string or a captured string method"));
+                        }
+                        atoms.push(Arg::Term(term));
                     }
-                    atoms.push(Arg::Term(term));
                 }
                 self.in_recipe.set(false);
                 *target = Some(Term::Call("concat".into(), atoms));
@@ -2143,7 +2127,10 @@ impl<'a> Reader<'a> {
         let mut union = union;
         loop {
             let [intersection] = Self::rules(union, "intersection").collect::<Vec<_>>()[..] else { return None };
-            let [atom] = Self::rules(intersection, "term-atom").collect::<Vec<_>>()[..] else { return None };
+            let [concatenation] = Self::rules(intersection, "concatenation").collect::<Vec<_>>()[..] else {
+                return None;
+            };
+            let [atom] = Self::rules(concatenation, "term-atom").collect::<Vec<_>>()[..] else { return None };
             let inner = self.inner(atom, ATOMS).ok()?;
             match rule_name(inner) {
                 "name" => {
@@ -2191,6 +2178,7 @@ enum Frame<'a> {
     Term(TermFrame<'a>),
     Union(Joined<'a>),
     Intersection(Joined<'a>),
+    Concatenation(Joined<'a>),
     Atom(Atom<'a>),
     Method(MethodFrame<'a>),
     Argument(ArgumentFrame<'a>),
@@ -2511,6 +2499,7 @@ const KNOWN: &[&str] = &[
     "guarded-term",
     "union",
     "intersection",
+    "concatenation",
     "term-atom",
     "string",
     "name",

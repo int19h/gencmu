@@ -210,9 +210,8 @@ func (g *stageGrammar) bindConstants() *Error {
 }
 
 // evaluateClosed is the value of a closed term, with the constants' values
-// now (engine §2, §10). An empty delimiter or a tag's string that is not a
-// name comes from a constant here, since the reader refuses a literal one,
-// and the error stands at that constant.
+// now (engine §2, §10). A joined empty delimiter errors at the definition.
+// A direct constant delimiter errors at its reference.
 func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expected ...termType) (*constValue, *Error) {
 	set := func(part *domTerm) (*tagset, *Error) {
 		v, err := g.evaluateClosed(doc, part, item)
@@ -245,7 +244,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
 		}
 		return &constValue{ty: tySet}, nil
-	case tmInterpolate:
+	case tmConcat:
 		var b strings.Builder
 		for _, part := range t.Items {
 			piece, err := str(part)
@@ -324,6 +323,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 				return nil, err
 			}
 			if delimiter == "" {
+				if t.Items[1].Kind == tmConcat {
+					return nil, g.constError(doc, item, "split has an empty delimiter")
+				}
 				return nil, g.faultError(doc, t.Items[1], item, "split has an empty delimiter")
 			}
 			return &constValue{ty: tyStrings, names: in.fromList(splitString(s, delimiter)).names}, nil
@@ -362,7 +364,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(item.doc, directive.At, "%s", fault.problem)
 			}
 		}
-		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}); err != nil {
+		if err := g.checkDelimiters(item.doc, &domRule{Conditions: directive.Conditions, At: directive.At}, true); err != nil {
 			err.Document, err.Line, err.Column = item.doc, directive.At[0], directive.At[1]
 			return err
 		}
@@ -412,7 +414,7 @@ func (g *stageGrammar) resolveConstants() *Error {
 				return g.constError(u.doc, u.rule.At, "%s", msg)
 			}
 		}
-		if err := g.checkDelimiters(u.doc, u.rule); err != nil {
+		if err := g.checkDelimiters(u.doc, u.rule, false); err != nil {
 			return err
 		}
 	}
@@ -451,10 +453,13 @@ func (g *stageGrammar) resolveConstants() *Error {
 	return nil
 }
 
-// checkDelimiters applies the same closed-term validation to rules and features.
-func (g *stageGrammar) checkDelimiters(doc string, rule *domRule) *Error {
+// checkDelimiters checks direct delimiters, or every closed feature delimiter.
+func (g *stageGrammar) checkDelimiters(doc string, rule *domRule, computed bool) *Error {
 	for _, call := range closedCalls(rule) {
 		delimiter := call.Items[1]
+		if !computed && delimiter.Kind != tmString && delimiter.Kind != tmConst {
+			continue
+		}
 		if openPart(delimiter) != nil {
 			continue
 		}

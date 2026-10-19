@@ -1,0 +1,13 @@
+{
+  "description": "A parenthesized string set cannot serve as a join operand (engine §10).",
+  "grammar": "%rule text $x:\"a\" %conditions (\"a\" \"b\") ++ \"c\" = \"ac\"",
+  "input": "a",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 3,
+      "column": 31
+    }
+  }
+}

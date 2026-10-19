@@ -40,7 +40,7 @@ _MAPPED = frozenset("""directive argument-word argument-string argument-tag argu
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
-union intersection term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
+union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"))
@@ -235,7 +235,7 @@ class DomBuilder:
                 raise self.fail(guard, "a classifier entry accepts gates only")
             guards.append(value)
         for key_node in self.some(node, "classifier-key"):
-            keys.append(self.value(self.only(key_node, "string")))
+            keys.append(self.value(self.known_of(key_node, frozenset(("string", "constant-reference")))))
         op = self.operator(self.token(self.only(node, "classifier-operator")))
         class_node = self.only(node, "classifier-class")
         name = self.token_value(self.token(class_node))
@@ -340,37 +340,31 @@ class DomBuilder:
     def recipe(self, node: Node) -> Dom:
         atoms = []
         for atom in self.some(node, "recipe-atom"):
-            term = self.only(atom, "term")
-            current = term
-            # Only wrappers and single operands can lead to a recipe atom.
-            while current.rule in ("term", "union", "intersection", "term-atom"):
-                kids = self.kids(current)
-                if any(k.kind == "token" for k in kids):
-                    raise self.fail(atom, "a recipe atom accepts no grouping or operator")
-                rules = [k for k in kids if k.kind == "rule"]
-                if len(rules) != 1:
-                    raise self.fail(atom, "a recipe atom requires a string or captured string method")
-                current = rules[0]
-            if current.rule == "string-run":
-                atoms.extend(self.value(string) for string in self.some(current, "string", 2))
-                continue
-            if current.rule not in ("string", "constant-reference", "method"):
-                raise self.fail(atom, "a recipe atom requires a string or captured string method")
+            if atoms:
+                raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
+            if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
+                raise self.fail(atom, "a recipe atom accepts no grouping or arguments")
+            if any(t.value in ("∪", "∩", "∖", "⟹") for t in self.tokens[atom.span[0]:atom.span[1]]):
+                raise self.fail(atom, "a recipe atom accepts no set operator")
             before = self.recipe_context
             self.recipe_context = True
             try:
-                value = self.value(current)
+                value = self.value(self.only(atom, "term"))
             finally:
                 self.recipe_context = before
-            if "method" in value:
-                receiver = value["receiver"]
-                emitted = receiver.get("method") == "emitted" and receiver.get("args") == [] and set(receiver.get("receiver", {})) == {"capture"}
-                if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
-                    or value["method"] in ("value", "image") and emitted):
-                    raise self.fail(atom, "invalid recipe method chain")
-            elif "string" not in value and "const" not in value and "interpolate" not in value:
-                raise self.fail(atom, "a recipe atom requires a string")
-            atoms.append(value)
+            values = value.get("concat", [value])
+            if any("union" in part for part in values):
+                raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
+            for value in values:
+                if "method" in value:
+                    receiver = value["receiver"]
+                    emitted = receiver.get("method") == "emitted" and receiver.get("args") == [] and set(receiver.get("receiver", {})) == {"capture"}
+                    if value["args"] or not (value["method"] in ("value", "image", "source-text", "decomposed-source-text", "verbatim-text") and set(receiver) == {"capture"}
+                        or value["method"] in ("value", "image") and emitted):
+                        raise self.fail(atom, "invalid recipe method chain")
+                elif "string" not in value and "const" not in value:
+                    raise self.fail(atom, "a recipe atom requires a string")
+                atoms.append(value)
         from ._recipes import Recipe
         return Recipe(atoms, self.position(node))
 
@@ -629,44 +623,7 @@ class DomBuilder:
         return None
 
     def decode(self, token: Node) -> Dom:
-        text = self.token_value(token)
-        original = self.source_text(token)
-        original_index = 1
-        parts = []
-        plain = []
-        i = 1
-        while i < len(text) - 1:
-            char = text[i]
-            if char != "$":
-                plain.append(char)
-                i += 1
-                continue
-            if text[i:i + 2] == "$$":
-                plain.append("$")
-                i += 2
-                continue
-            if text[i:i + 2] != "$(":
-                raise self.fail(token, "invalid string interpolation")
-            while original_index < len(original) - 1 and original[original_index:original_index + 2] != "$(":
-                original_index += 2 if original[original_index:original_index + 2] == "$$" else 1
-            reference_index = original_index
-            original_index = original.find(")", original_index + 2) + 1
-            end = text.find(")", i + 2)
-            name = text[i + 2:end]
-            if end < 0 or not (USER_NAME.fullmatch(name) or scalar(name) is not None):
-                index = self.first_token(token)
-                line, column = self.grammar_text.position(self.tokens[index].source[0] + reference_index)
-                raise GencmuError("invalid string constant name", document=self.document, line=line, column=column)
-            if plain:
-                parts.append({"string": "".join(plain)})
-                plain = []
-            index = self.first_token(token)
-            position = self.grammar_text.position(self.tokens[index].source[0] + reference_index)
-            parts.append({"const": name, "at": list(position)})
-            i = end + 1
-        if plain:
-            parts.append({"string": "".join(plain)})
-        return {"interpolate": parts} if any("const" in p for p in parts) else {"string": "".join(p["string"] for p in parts)}
+        return {"string": self.token_value(token)[1:-1]}
 
     def tag_of(self, token: Node) -> str:
         name = self.token_value(token)
@@ -989,9 +946,9 @@ class DomBuilder:
             if parts:
                 result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
             else:
-                token = first if first.kind == "token" else self.token(first)
-                name = self.token_value(token)
-                at = list(self.position(token))
+                token = first if first.kind == "token" else None if first.rule in ("string-terminal", "range") else self.token(first)
+                name = self.token_value(token) if token is not None else ""
+                at = list(self.position(first))
                 if first.rule == "constant-reference":
                     value = self.value(first)
                     pattern = {"literal": value, "at": at} if name.startswith("$_") else {"constant": value["const"], "at": at}
@@ -1102,8 +1059,21 @@ class DomBuilder:
                     result = {"union": [result, following]}
                     open_union = True
             return result
+        if rule == "concatenation":
+            nodes = self.some(node, "term-atom")
+            items = []
+            for part in nodes:
+                value = yield self._term(part, argument and len(nodes) == 1)
+                if len(nodes) > 1:
+                    kind, problem = term_type(value, memo=self.types)
+                    if not self.feature_context and (problem or kind not in ("string", "any")):
+                        raise self.fail(node, problem or "++ requires string operands")
+                items.extend(value.get("concat", [value]))
+            if len(nodes) == 1:
+                return items[0] if len(items) == 1 else {"concat": items}
+            return {"concat": items}
         if rule == "intersection":
-            parts = self.some(node, "term-atom")
+            parts = self.some(node, "concatenation")
             if len(parts) == 1:
                 return (yield self._term(parts[0], argument))
             items = []
@@ -1128,6 +1098,8 @@ class DomBuilder:
         if rule == "range":
             raise self.fail(node, "a range is a terminal, not a term")
         if rule in ("tag-run", "string-run"):
+            if self.recipe_context and rule == "string-run":
+                raise self.fail(node, "juxtaposed recipe strings require ++, use ++ between string atoms")
             self.tag_run_placement(node)
             return {"union": [self.value(tag) for tag in self.some(node, "string" if rule == "string-run" else "tag", 2)]}
         if rule == "empty-set":
