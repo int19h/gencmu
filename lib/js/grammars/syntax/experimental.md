@@ -99,6 +99,30 @@ The ranked choice compares complete candidates and prefers the form without an i
 
 An initial connective cannot immediately follow a leading free modifier in the same reading. Thus `doi zed jinvi jena morji` reads the vocative `doi zed` before one sentence with connected bridi-tails. So `coi je mi klama` and `doi djan do'u je do klama` fail, as in camxes-exp.
 
+IhAU stands for the elided terminators that end the current sentence, except its last VAU. It closes every construction that is still open in that sentence.
+
+So a reset belongs to one sentence. In `mi klama .i je do cadzu iau ti`, it closes only the second sentence, and `ti` joins that sentence's main bridi.
+
+While the main bridi is open, IhAU permits more terms, a written VAU and free modifiers. A plain `.i`, a statement connection or a sentence link can then follow, as after written terminators.
+
+The terms after IhAU stand after the whole bridi-tail of the sentence. Connected bridi-tails share them, as they share terms after the last connected tail. A bridi-tail connection cannot follow the reset. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. Thus `mi klama lo nu do cadzu iau do gi'e tavla` rejects. The written form `mi klama lo nu do cadzu vau kei ku do gi'e tavla` parses.
+
+IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama i'au ko danfu`. There it closes the constructions in those terms. That head reset needs a term before IhAU. A CU can stand before the reset or after it, but not on both sides.
+
+A reset after leading free modifiers closes them, as `do'u` closes a vocative. A sentence, a prenex, a TUhE group or a fragment can follow it.
+
+IhAU stands in the unit that it marks: a sentence, a prenexed statement, or the paragraph item of a fragment. So an indicator after IhAU marks that whole unit, as definition 66786 says.
+
+A bridi reset belongs to a sentence of a text. A subsentence inside a description, a relative clause or a term has none, so a reset always returns to the outer bridi.
+
+A quotation, a parenthesis and a TUhE group each hold their own text. A reset inside one of them returns to the sentence of that inner text.
+
+A reset needs an earlier construction, so `iau mi klama` rejects. A reset after a closed TUhE group also rejects, because the group leaves no bridi open. A fragment has no main bridi, so `li pa iau do` rejects.
+
+The prefix condition keeps adjacent leading free modifiers together. Otherwise, a free slot before the sentence and the reset prefix can split the same modifiers into duplicate readings.
+
+A written final VAU closes the main bridi. A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
+
 ```jbogenbau
 %const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
 
@@ -131,7 +155,21 @@ An initial connective cannot immediately follow a leading free modifier in the s
   {(I joik-jek-ek | lone-i) [[tag] BO] #}
 
 %redefine-rule paragraph
-  (statement | fragment) [{lone-i # [statement | fragment]}]
+  paragraph-item [{lone-i # [paragraph-item]}]
+
+%rule paragraph-item
+  statement | [reset-opening] fragment | reset-opening
+
+%rule reset-opening
+  $f:reset-free-prefix IhAU #
+%conditions
+  ¬$f.preceded-by(free)
+
+%rule reset-free-prefix
+  {free}
+
+%rule reset-head
+  [CU #] {terms / CU #} [CU #]
 
 %rule lone-i
   (* I_clause !jek !joik !joik_jek in camxes-exp's paragraph, whose joik includes A *)
@@ -140,7 +178,7 @@ An initial connective cannot immediately follow a leading free modifier in the s
   ¬$i.following-tokens.begins(joik-jek-ek)
 ```
 
-<details><summary>Railroad diagrams of the 10 rules from <code>text</code> to <code>lone-i</code></summary>
+<details><summary>Railroad diagrams of the 14 rules from <code>text</code> to <code>lone-i</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/text.svg" alt="Railroad diagram of the rule text"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/text-token.svg" alt="Railroad diagram of the rule text-token"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/indicators.svg" alt="Railroad diagram of the rule indicators"></p>
@@ -150,6 +188,10 @@ An initial connective cannot immediately follow a leading free modifier in the s
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph-break.svg" alt="Railroad diagram of the rule paragraph-break"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/leading-separators.svg" alt="Railroad diagram of the rule leading-separators"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/paragraph.svg" alt="Railroad diagram of the rule paragraph"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/paragraph-item.svg" alt="Railroad diagram of the rule paragraph-item"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-opening.svg" alt="Railroad diagram of the rule reset-opening"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-free-prefix.svg" alt="Railroad diagram of the rule reset-free-prefix"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-head.svg" alt="Railroad diagram of the rule reset-head"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/lone-i.svg" alt="Railroad diagram of the rule lone-i"></p>
 </details>
 
@@ -164,6 +206,9 @@ A TUhE group is not a sentence, so `tu'e mi klama tu'u je .i do klama` fails, as
 A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omits the separate `NA #` alternative from `fragment`, because it duplicates that reading.
 
 ```jbogenbau
+%redefine-rule statement
+  statement-1 | [reset-opening] prenex statement
+
 %redefine-rule statement-1
   | statement-2
   | statement-1 I connective [statement-2]
@@ -172,7 +217,7 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   statement-3 [I [joik-jek-ek] [stag] BO # [statement-2]]
 
 %redefine-rule statement-3
-  sentence | [tag] TUhE # text-1 [+TUhU] #
+  [reset-opening] (top-sentence | [tag] TUhE # text-1 [+TUhU] #)
 
 %redefine-rule fragment
   ek # | gihek # | mekso-fragment | terms [+VAU] # | prenex | relative-clauses | links | linkargs
@@ -181,7 +226,8 @@ A bare `na` forms a term. So `na` and `na na` are terms fragments. The layer omi
   [terms] ZOhU #
 ```
 
-<details><summary>Railroad diagrams of the 5 rules from <code>statement-1</code> to <code>prenex</code></summary>
+<details><summary>Railroad diagrams of the 6 rules from <code>statement</code> to <code>prenex</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/statement.svg" alt="Railroad diagram of the rule statement"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-1.svg" alt="Railroad diagram of the rule statement-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-2.svg" alt="Railroad diagram of the rule statement-2"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/statement-3.svg" alt="Railroad diagram of the rule statement-3"></p>
@@ -203,7 +249,36 @@ A final connection is last at its grammar level. The layer reuses `bridi-tail-1-
 
 The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets. A bare NA or tag can omit KU before a written closing word, a gihek, or the text's end. A bare NA can also omit KU before any actual term. The "Terms" section gives the complete KU rule. A written CU separates runs of terms within a head.
 
+`top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
+
+The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each bridi-tail rule takes this tag from its final tail. KE and NA wrappers retain the tag.
+
+An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
+
+The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
+
+`reset-bridi` reads the main bridi and each later reset from left to right. A closed bridi takes only free modifiers after IhAU. So the parser rejects the first term or VAU after that reset at that word.
+
 ```jbogenbau
+%rule top-sentence
+  [$h:reset-head IhAU #] $b:reset-bridi [top-sentence-link]
+%conditions
+  $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰)
+
+%rule reset-bridi
+  | headed-bridi-tail
+  | $o:reset-bridi IhAU # $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | $c:reset-bridi IhAU # :: Closed-Bridi
+%conditions
+  Closed-Bridi ⊈ $o.tags,
+  Closed-Bridi ⊆ $c.tags
+
+%rule top-sentence-link
+  connective [[stag] BO] I # top-subsentence
+
+%rule top-subsentence
+  [reset-opening] (top-sentence | prenex top-subsentence)
+
 %redefine-rule sentence
   (* sentence <- terms? bridi_tail_t1 ... (joik_jek (stag? BO_clause)? I_clause free* subsentence)* *)
   headed-bridi-tail [sentence-link]
@@ -215,23 +290,25 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
   | {terms / CU #} [CU #]
   | CU # [{terms / CU #} [CU #]]
 
-%rule headed-bridi-tail
-  [bridi-tail-head] bridi-tail
+%rule headed-bridi-tail :: $b.tags ∩ Closed-Bridi
+  | [bridi-tail-head] $b:bridi-tail
 
 %rule headed-bridi-tail-2
   [bridi-tail-head] bridi-tail-2
 
 %redefine-rule bridi-tail
-  bridi-tail-1-final [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # tail-terms]
+  | $b:bridi-tail-1-final :: $b.tags ∩ Closed-Bridi
+  | bridi-tail-1-final (bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %redefine-rule bridi-tail-1
-  bridi-tail-2 | bridi-tail-1 bridi-tail-connective connected-bridi-tail tail-terms
+  | bridi-tail-2
+  | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %const $KE-FORETHOUGHT @([tag] KE [#] gek-sentence KEhE [#])
 
 %redefine-rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail tail-terms
+  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 %conditions
   $b ≇ $KE-FORETHOUGHT
 
@@ -244,19 +321,30 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
   $b ≇ @((selbri ∩ $KE-START) ⋰)
 
 %redefine-rule bridi-tail-2
-  bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 tail-terms]
+  | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
+  | bridi-tail-3 (bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
+
+%redefine-rule bridi-tail-3
+  | selbri $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | gek-sentence
 
 %redefine-rule gek-sentence
-  gek subsentence gik subsentence tail-terms | [tag] KE # gek-sentence [+KEhE] # | NA # gek-sentence
+  | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | [tag] KE # $g:gek-sentence [+KEhE] # :: ($g.tags ∩ Closed-Bridi) ∪ ($ ≅ @(⋯ KEhE≠"" [#]) ⟹ Closed-Bridi)
+  | NA # $g:gek-sentence :: $g.tags ∩ Closed-Bridi
 
 %rule(fewest) bridi-tail-connective
   gihek # | connective
 
-%redefine-rule tail-terms
-  [terms] [+VAU] #
+%redefine-rule tail-terms :: ($ ≅ $WRITTEN-VAU ⟹ Closed-Bridi)
+  | [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 13 rules from <code>sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-bridi.svg" alt="Railroad diagram of the rule reset-bridi"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence-link.svg" alt="Railroad diagram of the rule sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-head.svg" alt="Railroad diagram of the rule bridi-tail-head"></p>
@@ -267,6 +355,7 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-1-final.svg" alt="Railroad diagram of the rule bridi-tail-1-final"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/connected-bridi-tail.svg" alt="Railroad diagram of the rule connected-bridi-tail"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-2.svg" alt="Railroad diagram of the rule bridi-tail-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-3.svg" alt="Railroad diagram of the rule bridi-tail-3"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-sentence.svg" alt="Railroad diagram of the rule gek-sentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/bridi-tail-connective.svg" alt="Railroad diagram of the rule bridi-tail-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tail-terms.svg" alt="Railroad diagram of the rule tail-terms"></p>
@@ -318,6 +407,28 @@ Inside NUhI, a ranked choice prefers `gek-termset-body` over `terms` when both c
 
 NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate. In `nu'i ge ni'e broda brode gi re mi nu'u klama`, the first branch contains one quantified sumti. NIhE supplies its quantifier, and `brode` supplies its predicate. The second branch contains `re mi`.
 
+NOIhA converts a selbri into an adverbial term with elidable FEhU. `poi'a`, `noi'a`, and `soi'a` describe the bridi, while `poi'o'a` describes its first argument.
+
+The term has no implied sumti or relative-clause opener. A following bare sumti stays outside, and an inner argument needs BE.
+
+Before the main predicate, an omitted FEhU lets that predicate continue the adverbial's tanru. Thus `mi poi'a sutra klama` is a terms fragment.
+
+With FEhU, `mi poi'a sutra fe'u klama` has the main predicate `klama`. The converted predicate is only `sutra`.
+
+SOhOI instead contains a full subsentence with elidable SEhU. It binds `ke'a` to the containing bridi and works independently of the `soi-clause` feature.
+
+Before the main predicate, an omitted SEhU lets that predicate continue the clause's tanru. Thus `mi so'oi cafne klama` is a terms fragment. With SEhU, `mi so'oi cafne se'u klama` has the main predicate `klama`.
+
+In `mi klama so'oi do cadzu ti`, the following `ti` stays inside the clause. In `mi klama so'oi do cadzu se'u ti`, it belongs to the main bridi.
+
+CAhEI abbreviates `ca lo nu` as a subsentence term with elidable KUhEI. It takes an event clause, not unrestricted text or a free modifier.
+
+Before the main predicate, an omitted KUhEI lets that predicate continue the event clause's tanru. Thus `mi ca'ei do cadzu klama` is a terms fragment. With KUhEI, `mi ca'ei do cadzu ku'ei klama` has the main predicate `klama`.
+
+In `mi klama ca'ei do cadzu ti`, the following `ti` stays inside the event clause. In `mi klama ca'ei do cadzu ku'ei ti`, it belongs to the main bridi.
+
+These terms carry no span or connection flag. Their contained predicates still use the existing `fewest` and late-elision preferences.
+
 ```jbogenbau
 %redefine-rule terms-1
   {... terms-2 / PEhE # connective}
@@ -343,7 +454,7 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
-%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI
+%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
 %const $BARE-TAG @(tag KU="" [#])
 %const $BARE-NA @(NA [#] KU="" [#])
@@ -355,6 +466,9 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
   | termset
   | bare-na
   | soi-clause? soi-term
+  | noiha-term
+  | sohoi-term
+  | cahei-term
 
 %rule bare-na
   (* !gek !ek !joik_jek !gihek NA_clause free* KU_elidible free* *)
@@ -368,6 +482,15 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
 
 %rule soi-term
   SOI # subsentence [+SEhU] #
+
+%rule noiha-term
+  NOIhA # selbri [+FEhU] #
+
+%rule sohoi-term
+  SOhOI # subsentence [+SEhU] #
+
+%rule cahei-term
+  CAhEI # subsentence [+KUhEI] #
 
 %rule tagged-term
   (* tag_term: !gek tag free* followed by a sumti or KU_elidible free* *)
@@ -401,7 +524,7 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
   NUhI # (gek-termset-body ≻ terms) [+NUhU] #
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
+<details><summary>Railroad diagrams of the 20 rules from <code>terms-1</code> to <code>termset-with-nuhi</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/terms-1.svg" alt="Railroad diagram of the rule terms-1"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term.svg" alt="Railroad diagram of the rule term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/term-bo-group.svg" alt="Railroad diagram of the rule term-bo-group"></p>
@@ -411,6 +534,9 @@ NIhE keeps an ordinary elidable TEhU, so it can close before the next predicate.
 <p><img src="../../docs/diagrams/syntax/experimental/bare-na.svg" alt="Railroad diagram of the rule bare-na"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/na-connective.svg" alt="Railroad diagram of the rule na-connective"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/soi-term.svg" alt="Railroad diagram of the rule soi-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/noiha-term.svg" alt="Railroad diagram of the rule noiha-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/sohoi-term.svg" alt="Railroad diagram of the rule sohoi-term"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/cahei-term.svg" alt="Railroad diagram of the rule cahei-term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/tagged-term.svg" alt="Railroad diagram of the rule tagged-term"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/termset.svg" alt="Railroad diagram of the rule termset"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/gek-termset-body.svg" alt="Railroad diagram of the rule gek-termset-body"></p>
@@ -606,6 +732,46 @@ A tanru unit can take a selbri relative clause. The clause opens with `no'oi`, c
 <p><img src="../../docs/diagrams/syntax/experimental/selbri-relative-clause.svg" alt="Railroad diagram of the rule selbri-relative-clause"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/linkargs.svg" alt="Railroad diagram of the rule linkargs"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/links.svg" alt="Railroad diagram of the rule links"></p>
+</details>
+
+### Quoted predicates and converted attitudes
+
+GOhOI and MUhOI arrive as opaque quote tokens from the words stage. Each acts as one tanru unit, with a free slot after it.
+
+LUhEI instead opens grammatical quoted text, with elidable LIhAU. Its x1 expresses that text to audience x2 through medium x3.
+
+The text body preserves leading indicators and vocatives as quoted content. It can contain complete sentences or fragments, like an LU quotation.
+
+A written LIhAU ends the quote before an outer audience sumti. In `mi lu'ei coi do`, `do` stays inside the quoted vocative. In `mi lu'ei coi li'au do`, it names the outer audience.
+
+CIhAU converts attitudes into a predicate whose x1 feels them toward x2. Its run must contain at least one UI, with optional CAI and NAI.
+
+The indicator stage keeps that run as syntax tokens. Therefore, its attitudes describe the predicate's subject rather than becoming the speaker's attached reaction.
+
+CIhAUhU ends the conversion before another attitude. Without it, consecutive UI, CAI, and NAI tokens stay in the conversion. Each NAI belongs to the UI or CAI directly before it, even with intervening emphasis.
+
+DAhO, FUhE, and FUhO do not belong to the converted run. A written CIhAUhU permits them outside it with their ordinary attachment behavior.
+
+Emphasis before an attitude or its NAI remains attached to that token. It does not change the conversion's syntax.
+
+```jbogenbau
+%extend-rule tanru-unit-2
+  | GOhOI #
+  | MUhOI #
+  | LUhEI text [+LIhAU] #
+  | CIhAU cihau-run [+CIhAUhU] #
+
+%rule cihau-run
+  [{cihau-cai}] UI [NAI] [{UI [NAI] | cihau-cai}]
+
+%rule cihau-cai
+  CAI [NAI]
+```
+
+<details><summary>Railroad diagrams of <code>tanru-unit-2</code>, <code>cihau-run</code> and <code>cihau-cai</code></summary>
+<p><img src="../../docs/diagrams/syntax/experimental/tanru-unit-2.2.svg" alt="Railroad diagram of the rule tanru-unit-2"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/cihau-run.svg" alt="Railroad diagram of the rule cihau-run"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/cihau-cai.svg" alt="Railroad diagram of the rule cihau-cai"></p>
 </details>
 
 ## Numbers, lerfu strings and mekso
@@ -859,6 +1025,12 @@ The condition on XI tests `$FREE-ENDING` along the actual last-child path. That 
 
 The condition excludes an exposed modifier attachment when the modifier belongs to the marked word. It keeps a modifier inside VEI, LAhE, or PEhO when the actual constructor boundary follows that modifier.
 
+DOhOI supplies a listener through one raw quoted word. It takes the relative-clause suffix and elidable DOhU of `doi la'oi`.
+
+A COI run can precede that quoted listener, as it can precede DOI. DOhOI takes no second listener argument.
+
+Its free modifier inherits `leftmost-longest`, so a complete longer vocative outranks a split into shorter modifiers. A written DOhU fixes its end.
+
 ```jbogenbau
 %const $NON-XI-FREE @(free) ∖ @(XI ⋯)
 %const $FREE-ENDING @(⋱ (# ∩ @(⋯ $NON-XI-FREE ⋯)))
@@ -873,6 +1045,7 @@ The condition excludes an exposed modifier attachment when the modifier belongs 
   | XI # $m:mex-2
   | LOhAI<Quote>
   | LEhAI
+  | [{COI}] DOhOI # [relative-clauses] [+DOhU]
   | ¬soi-clause? SOI # sumti [sumti] [+SEhU]
 %conditions
   $m ≇ $FREE-ENDING
@@ -1106,6 +1279,46 @@ CLL states the nesting convention:[^cll-s18-13]
 camxes-exp also nests the second subscript of `xa xi xa xi xa`. camxes-std instead gives both subscripts to the first `xa`. This layer's free-modifier preference selects the nested reading.
 
 CLL has no free slot after a subscript: `XI # (number | lerfu-string) /BOI/`. This layer and the official parser attach the parenthesis in `mi broda xi pa boi to do toi` to `broda`. camxes-exp reads the subscript operand as `mex_2`, whose final free slot takes the parenthesis. This layer excludes that exposed attachment but retains modifiers inside VEI, LAhE or PEhO when the actual constructor boundary follows them.
+
+### Newer experimental constructions
+
+camxes-exp lacks GOhOI, MUhOI, NOIhA, IhAU, DOhOI, SOhOI, CAhEI, LUhEI, LIhAU, and CIhAU. This layer admits their dictionary constructions with the stated boundaries.
+
+GOhOI and MUhOI use the predicate roles of Zantufa's `tanru_unit_1`. LUhEI also follows its grammatical text body and elidable LIhAU.
+
+The [NOIhA proposal](https://solpahi.wordpress.com/2016/10/13/noiha/) places a converted selbri in a term. Its selected dictionary definitions specify FEhU, while Zantufa's related POIhA construction uses KU.
+
+This layer uses FEhU alone and requires BE for the converted predicate's inner arguments. It does not turn NOIhA into a sumti relative clause.
+
+IhAU follows dictionary definition 66786 literally. It stands for the elided terminators that end the current sentence, except its last VAU.
+
+Zantufa instead uses `statement [IAU #] [terms]` at paragraph level. Its added terms need no written IAU, as `mi klama vau do` shows. Its reset covers a whole `.i je` chain, and no statement connection can follow it.
+
+Here a reset belongs to one sentence. A statement connection, a sentence link or `.i ba bo` can follow it, as written terminators allow.
+
+Zantufa has no head or leading free-modifier reset. This layer permits both forms, including a leading reset before a fragment. Neither dialect permits a reset after a fragment without a main bridi.
+
+Zantufa permits one reset, with no written VAU after its terms. This layer permits repeated resets and a written VAU after added terms.
+
+Zantufa accepts terms after a written final VAU, a closed TUhE group, or a KE-wrapped forethought bridi that a written KEhE closes. These terms require no written IAU. This layer rejects those terms because each boundary closes the main bridi. Free modifiers after a reset can still mark the closed bridi.
+
+A bridi-tail connection cannot follow a reset here. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. A speaker who needs that connection writes the terminators instead.
+
+The head reset uses `reset-head`, which permits the ordinary CU positions around terms. Unlike `bridi-tail-head`, it excludes CU alone. A tree condition prevents a final CU before IhAU and an initial CU after it.
+
+DOhOI follows its dictionary expansion as `doi la'oi`, including a preceding COI run and an optional DOhU. The inspected Zantufa grammar has no DOhOI construction.
+
+SOhOI follows the [new-soi proposal](https://mw.lojban.org/papri/new_soi) as a subsentence term. Its two selected dictionary definitions, 71817 and 72780, disagree about claiming the outer bridi.
+
+Definition 71817 leaves the outer bridi unclaimed. Definition 72780 also claims it incidentally. The shared syntax supports both meanings without selecting one.
+
+CAhEI follows its `ca lo nu` definition, with KUhEI as its closer.
+
+CIhAU follows the attitude conversion of dictionary definition 71992, with the CIhAUhU closer of definition 71993. Its run contains UI, CAI, and NAI only.
+
+DAhO, FUhE, and FUhO require a written CIhAUhU before their external use. This explicit boundary is a deliberate restriction because the conversion proposal leaves their internal meaning unspecified.
+
+The inspected Zantufa grammar has no SOhOI, CAhEI, or CIhAU construction. These additions introduce no new ranking flags.
 
 [^cll-s18-13]: [CLL 1.1, section 18.13](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-subscripts-math.html).
 

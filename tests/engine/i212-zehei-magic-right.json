@@ -1,0 +1,78 @@
+{
+  "description": "The experimental nonce word rejects an active right operation with its named diagnostic.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "broda ze'ei si",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": false,
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "token": 4,
+        "source": [
+          12,
+          14
+        ],
+        "line": 1,
+        "column": 13,
+        "expected": [
+          {
+            "terminal": "BRIVLA<Cgv-Warning>",
+            "rules": [
+              "brivla-token"
+            ]
+          },
+          {
+            "terminal": "BRIVLA<¬Cgv-Warning>",
+            "rules": [
+              "brivla-token"
+            ]
+          },
+          {
+            "terminal": "CMEVLA<Cgv-Warning>",
+            "rules": [
+              "cmevla-token"
+            ]
+          },
+          {
+            "terminal": "CMEVLA<¬Cgv-Warning>",
+            "rules": [
+              "cmevla-token"
+            ]
+          },
+          {
+            "terminal": "Cmavo<¬BU ¬DOhOI ¬FAhO ¬GOhOI ¬LEhAI ¬LEhU ¬LOhAI ¬LOhU ¬MEhOI ¬MUhOI ¬SA ¬SI ¬SU ¬SUhUhUhUhUhUhUhU ¬ZEI ¬ZO ¬ZOI ¬ZOhOI>",
+            "rules": [
+              "nonmagic-zehei-right"
+            ]
+          },
+          {
+            "terminal": "Hesitation",
+            "rules": [
+              "y-run"
+            ]
+          },
+          {
+            "terminal": "PAUSE",
+            "rules": [
+              "pause-run"
+            ]
+          },
+          {
+            "terminal": "Silent",
+            "rules": [
+              "pause-run"
+            ]
+          }
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

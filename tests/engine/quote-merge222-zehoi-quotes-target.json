@@ -1,0 +1,51 @@
+{
+  "description": "GOhOI quotes COI as a predicate unit.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "ze'oi coi",
+  "options": {},
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "verdict": "unique",
+          "output": [
+            {
+              "value": "ze'oi coi",
+              "image": "ze'oi coi",
+              "source": [
+                0,
+                9
+              ],
+              "tags": [
+                "Cmavo",
+                "GOhOI",
+                "Word"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indicators"
+        },
+        {
+          "name": "syntax"
+        }
+      ]
+    },
+    "brackets": "ze'oi coi"
+  }
+}

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="545" height="88" viewBox="0 0 545 88" role="img" aria-label="Railroad diagram of the rule top-sentence-link">
+<style>path{fill:none;stroke:#333;stroke-width:1.5}.rule rect{fill:#e8eefc;stroke:#333;stroke-width:1.5}.terminal rect{fill:#fdf6d8;stroke:#333;stroke-width:1.5}text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono","Liberation Mono",monospace;font-size:14px;fill:#111;text-anchor:middle}text.label{font-size:12px;font-style:italic;fill:#555;text-anchor:start}text.title{font-weight:bold;text-anchor:start}</style>
+<rect width="100%" height="100%" fill="#fff"/>
+<text class="title" x="10" y="24" textLength="142.8" lengthAdjust="spacingAndGlyphs">top-sentence-link</text>
+<path d="M10 58v16m4 -16v16M14 66h6"/>
+<g class="rule"><rect x="20" y="54" width="100" height="24" rx="0"/><text x="70" y="71" textLength="84" lengthAdjust="spacingAndGlyphs">connective</text></g>
+<path d="M120 66h10"/>
+<path d="M130 66h20"/>
+<path d="M150 66h20"/>
+<g class="rule"><rect x="170" y="54" width="50" height="24" rx="0"/><text x="195" y="71" textLength="33.6" lengthAdjust="spacingAndGlyphs">stag</text></g>
+<path d="M220 66H240"/>
+<path d="M150 66a10 10 0 0 0 10 -10V54a10 10 0 0 1 10 -10H220a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M240 66h10"/>
+<g class="terminal"><rect x="250" y="54" width="33" height="24" rx="12"/><text x="266.5" y="71" textLength="16.8" lengthAdjust="spacingAndGlyphs">BO</text></g>
+<path d="M283 66H303"/>
+<path d="M130 66a10 10 0 0 0 10 -10V44a10 10 0 0 1 10 -10H283a10 10 0 0 1 10 10V56a10 10 0 0 0 10 10"/>
+<path d="M303 66h10"/>
+<g class="terminal"><rect x="313" y="54" width="25" height="24" rx="12"/><text x="325.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">I</text></g>
+<path d="M338 66h10"/>
+<g class="rule"><rect x="348" y="54" width="25" height="24" rx="0"/><text x="360.5" y="71" textLength="8.4" lengthAdjust="spacingAndGlyphs">#</text></g>
+<path d="M373 66h10"/>
+<g class="rule"><rect x="383" y="54" width="142" height="24" rx="0"/><text x="454" y="71" textLength="126" lengthAdjust="spacingAndGlyphs">top-subsentence</text></g>
+<path d="M525 66h6m0 -8v16m4 -16v16"/>
+</svg>

@@ -1,12 +1,11 @@
 {
-  "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
+  "description": "The tree condition sees the complete ZO quote, and UI attaches to that quote.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "input": "zo ie'o ui cmavo",
-  "options": {
-  },
+  "input": "zo ba'ei ui cmavo",
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -22,19 +21,24 @@
         },
         {
           "name": "words",
+          "verdict": "unique",
           "output": [
             {
-              "image": "zo ie'o",
-              "value": "zo ie'o",
+              "value": "zo ba'ei",
+              "image": "zo ba'ei",
               "tags": [
                 "Cmavo",
                 "Word",
                 "ZO"
+              ],
+              "source": [
+                0,
+                8
               ]
             },
             {
-              "image": "ui",
               "value": "ui",
+              "image": "ui",
               "tags": [
                 "Cmavo",
                 "Continued",
@@ -44,11 +48,15 @@
                 "Run-Initial",
                 "UI",
                 "Word"
+              ],
+              "source": [
+                9,
+                11
               ]
             },
             {
-              "image": "cmavo",
               "value": "cmavo",
+              "image": "cmavo",
               "tags": [
                 "BRIVLA",
                 "Continued",
@@ -56,6 +64,10 @@
                 "Run-Final",
                 "Run-Initial",
                 "Word"
+              ],
+              "source": [
+                12,
+                17
               ]
             }
           ]
@@ -68,6 +80,6 @@
         }
       ]
     },
-    "brackets": "([zo ie'o ui] cmavo)"
+    "brackets": "([zo ba'ei ui] cmavo)"
   }
 }

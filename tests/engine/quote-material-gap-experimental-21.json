@@ -1,5 +1,5 @@
 {
-  "description": "One-word quote and opening delimiter gaps cannot skip raw material. Body spacing and quiet boundaries retain their readings.",
+  "description": "The opaque MUhOI body preserves standalone punctuation.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -12,61 +12,29 @@
     "result": {
       "ok": true,
       "stages": [
-        {},
-        {},
-        {},
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
         {
           "name": "words",
           "verdict": "unique",
           "output": [
             {
-              "value": "mu'oi",
-              "image": "mu'oi",
+              "value": "mu'oi gy @ gy",
+              "image": "mu'oi gy. @ .gy",
               "source": [
                 0,
-                5
-              ],
-              "tags": [
-                "Cmavo",
-                "Continued",
-                "MUhOI",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "Word"
-              ]
-            },
-            {
-              "value": "gy",
-              "image": "gy",
-              "source": [
-                6,
-                8
-              ],
-              "tags": [
-                "BY",
-                "Cmavo",
-                "Continued",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "Word"
-              ]
-            },
-            {
-              "value": "gy",
-              "image": "gy",
-              "source": [
-                13,
                 15
               ],
               "tags": [
-                "BY",
                 "Cmavo",
-                "Continued",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
+                "MUhOI",
                 "Word"
               ]
             }

@@ -1,15 +1,14 @@
 {
-  "description": "The new experimental quote-related class has no construction under issue 212.",
+  "description": "ZO skips the hesitation ie'o and quotes ui.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
-  "input": "ta'ai coi",
-  "options": {
-  },
+  "input": "zo ie'o ui cmavo",
+  "options": {},
   "expect": {
     "result": {
-      "ok": false,
+      "ok": true,
       "stages": [
         {
           "name": "phonemes"
@@ -22,26 +21,30 @@
         },
         {
           "name": "words",
+          "verdict": "unique",
           "output": [
             {
-              "image": "ta'ai",
-              "value": "ta'ai",
+              "value": "zo ui",
+              "image": "zo ie'o ui",
+              "source": [
+                0,
+                10
+              ],
               "tags": [
                 "Cmavo",
-                "Continued",
-                "GOhOI",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "Word"
+                "Word",
+                "ZO"
               ]
             },
             {
-              "image": "coi",
-              "value": "coi",
+              "value": "cmavo",
+              "image": "cmavo",
+              "source": [
+                11,
+                16
+              ],
               "tags": [
-                "COI",
-                "Cmavo",
+                "BRIVLA",
                 "Continued",
                 "Onset",
                 "Run-Final",
@@ -57,16 +60,8 @@
         {
           "name": "syntax"
         }
-      ],
-      "error": {
-        "kind": "rejected",
-        "stage": "syntax",
-        "source": [
-          0,
-          5
-        ]
-      }
+      ]
     },
-    "error": "rejected"
+    "brackets": "(zo ie'o ui cmavo)"
   }
 }

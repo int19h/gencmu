@@ -32,7 +32,7 @@ The [BPFK Magic Words proposal](https://mw.lojban.org/papri/Magic_Words) treats 
 
 The same rule applies to the newer quote kinds. The syntax reads each quote through one terminal of its opening class. The tree of the words stage retains its internal structure.
 
-`$QUOTE-OPENERS` identifies LU as a boundary where indicators remain syntax tokens. Indicators after `to`, `to'i` and `tu'e` instead attach to those openers. An indicator after `to` marks the whole parenthetical remark, so it attaches to the opener.[^cll-e19-67]
+`$INDICATOR-BOUNDARIES` identifies LU as a boundary where indicators remain syntax tokens. Indicators after `to`, `to'i` and `tu'e` instead attach to those openers. An indicator after `to` marks the whole parenthetical remark, so it attaches to the opener.[^cll-e19-67]
 
 A quotation must hold any text, including one that begins with an indicator. Attaching that indicator to `lu` prevents the speaker from quoting such a text. An attachment to `lu` also duplicates an indicator on `li'u`.
 
@@ -43,13 +43,15 @@ The words stage supplies one token for each finished quote, including `zo`, `lo'
 A leading indicator run also stays in the stream at the start of the whole text. Closing words, such as `li'u` and `toi`, take ordinary indicator attachments.
 
 ```jbogenbau
-%const $QUOTE-OPENERS
+%const $INDICATOR-BOUNDARIES
   LU
 ```
 
+The name `$INDICATOR-BOUNDARIES` lets a dialect layer add boundaries that open no quotation.
+
 ## The stream
 
-`text` reads an optional leading indicator run, then ordinary items, then any unattached final `ba'e` run. `item-run` permits a new leading run only after a quotation opener.
+`text` reads an optional leading indicator run, then ordinary items, then any unattached final `ba'e` run. `item-run` permits a new leading run only after an indicator boundary.
 
 ```jbogenbau
 %rule text
@@ -60,7 +62,7 @@ A leading indicator run also stays in the stream at the start of the whole text.
   | item-run item
   | $p:item-run leading
 %conditions
-  $p.last-token.classes ∩ $QUOTE-OPENERS ≠ ∅
+  $p.last-token.classes ∩ $INDICATOR-BOUNDARIES ≠ ∅
 ```
 
 <details><summary>Railroad diagrams of <code>text</code> and <code>item-run</code></summary>
@@ -68,13 +70,13 @@ A leading indicator run also stays in the stream at the start of the whole text.
 <p><img src="../../docs/diagrams/indicators/cll/item-run.svg" alt="Railroad diagram of the rule item-run"></p>
 </details>
 
-An item hands on a word with its preceding `ba'e` run and following indicator run attached. A quotation opener takes no following indicators, as above.
+An item hands on a word with its preceding `ba'e` run and following indicator run attached. A boundary token takes no following indicators, as above.
 
 ```jbogenbau
 %rule item
   [$b:bahe-run] $w:unit [$a:indicator-run] :: $w.tags
 %conditions
-  $a ⟹ $w.classes ∩ $QUOTE-OPENERS = ∅
+  $a ⟹ $w.classes ∩ $INDICATOR-BOUNDARIES = ∅
 %emits
   ($b) $w ($a)
 

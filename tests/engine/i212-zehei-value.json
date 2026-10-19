@@ -1,0 +1,45 @@
+{
+  "description": "The experimental nonce word retains the right value and the complete source image.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
+  },
+  "pipeline": "pipeline.md",
+  "input": "broda ze'ei la",
+  "options": {
+    "until": "words"
+  },
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words",
+          "output": [
+            {
+              "value": "la",
+              "image": "broda ze'ei la",
+              "tags": [
+                "Cmavo",
+                "LE",
+                "Word"
+              ],
+              "source": [
+                0,
+                14
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

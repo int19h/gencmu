@@ -1,0 +1,37 @@
+{
+  "description": "MUhOI needs a complete delimited quote, so a bare marker rejects in words.",
+  "documents": {
+    "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
+  },
+  "pipeline": "pipeline.md",
+  "input": "mu'oi coi",
+  "options": {},
+  "expect": {
+    "result": {
+      "ok": false,
+      "stages": [
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
+        {
+          "name": "words"
+        }
+      ],
+      "error": {
+        "kind": "rejected",
+        "stage": "words",
+        "source": [
+          9,
+          9
+        ]
+      }
+    },
+    "error": "rejected"
+  }
+}

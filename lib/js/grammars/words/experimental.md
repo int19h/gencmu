@@ -13,6 +13,30 @@ The prose uses these Lojban terms for words:
 - A lujvo is a compound word.
 - A rafsi is a shortened word form used inside compounds.
 
+## Hesitation words
+
+The filler `ie'o` has class Y and acts as hesitation. The forms stage marks it `Hesitation`, so every words-stage reader uses the same classification.
+
+It carries no ordinary `Word` or `Cmavo` tag. Thus a raw quote body cannot read it through two competing token kinds.
+
+The words stage drops hesitation outside opaque bodies, except before BU. That exception forms a letter word and also supports letter-word delimiters.
+
+```jbogenbau
+%redefine-rule source-word
+  | $c:cmavo-shape :: Word ∪ Cmavo ∪ $c.tags ∪ $c.value.classify(lexicon)
+  | $y:cmavo-shape :: Hesitation ∪ Y ∪ $y.tags
+  | $b:brivla-shape :: Word ∪ BRIVLA ∪ $b.tags
+  | $n:cmevla-shape :: Word ∪ CMEVLA ∪ $n.tags
+  | $h:hesitation-shape :: Hesitation ∪ $h.tags
+%conditions
+  Y ⊈ $c.value.classify(lexicon),
+  Y ⊆ $y.value.classify(lexicon)
+```
+
+<details><summary>Railroad diagram of <code>source-word</code></summary>
+<p><img src="../../docs/diagrams/words/experimental/source-word.svg" alt="Railroad diagram of the rule source-word"></p>
+</details>
+
 ## The pair mz
 
 A diphthong combines two vowels in one syllable. A nucleus is a syllable's vowel or diphthong. A glide is an `i` or `u` before a nucleus.
@@ -376,6 +400,10 @@ The alternatives and repetitions state morphology constraints without PEG order.
 This layer accepts CgV in names and borrowings, unlike camxes-exp. CLL 1.1 permits these diphthongs in those classes.[^cll-s3-4] The words stage identifies this extension by default when it reads a marked word. Opaque raw bodies and text after active FAhO contain no such word reads. The full borrowing shape still rejects invalid compound-like forms. Only borrowing syllables receive the added onset, so a rafsi slot cannot use it.
 
 camxes-exp reads no glide letters. This layer refuses a glide letter as a vowel, and an onglide letter as the second letter of a diphthong. So a glide letter reads only as a glide.
+
+The experimental filler `ie'o` uses ordinary hesitation behavior, including the BU exception. Zantufa also recognizes it, but restricts where hesitation counts as spacing.
+
+This dialect keeps its existing broader spacing behavior. Both raw one-word quote gaps and ordinary word gaps skip the same hesitation classification.
 
 [^cll-s3-6]: [CLL 1.1, section 3.6](https://lojban.org/publications/cll/cll_v1.1_xhtml-section-chunks/section-clusters.html).
 
