@@ -1,5 +1,5 @@
 {
-  "description": "A condition joins two captured values before comparing the resulting string.",
+  "description": "A condition joins two captured values before comparing the combined string (engine §10).",
   "grammar": "%rule text $l:\"a\" \"y\" $r:\"b\" %conditions $l.value ++ $r.value = \"ab\"",
   "input": "ayb",
   "expect": {

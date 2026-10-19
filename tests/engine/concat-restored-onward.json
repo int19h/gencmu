@@ -19,5 +19,5 @@
       "ok": true
     }
   },
-  "description": "A concatenation preserves capture presence and restored input observations."
+  "description": "A join reads the onward span of a restored capture, including the following token (engine §10)."
 }

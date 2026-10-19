@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A pattern value test rejects an inline join after its literal operand (engine §9.2, §10).",
   "document": "```jbogenbau\n%const $P @(A=\"a\" ++ \"b\")\n```\n",
   "expect": {
     "error": {

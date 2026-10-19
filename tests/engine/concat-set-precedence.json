@@ -1,5 +1,5 @@
 {
-  "description": "Concatenation binds more tightly than set union.",
+  "description": "Concatenation binds before union, intersection, and difference in condition terms (engine §10).",
   "grammar": "%rule text ε %conditions \"ab\" ∈ \"a\" ++ \"b\" ∪ \"cd\", (\"a\" ++ \"b\" ∩ \"ab\") = \"ab\", (\"a\" ++ \"b\" ∖ \"x\") = \"ab\"",
   "input": "",
   "expect": {

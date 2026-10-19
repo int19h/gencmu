@@ -6,5 +6,5 @@
       "ok": true
     }
   },
-  "description": "A feature condition compares a join that reads a stage constant."
+  "description": "A feature condition joins a stage constant with a literal before testing equality (engine §3.1, §10)."
 }

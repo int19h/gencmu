@@ -1,5 +1,5 @@
 {
-  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "description": "The body DOM keeps a reference to a string constant and stores its join in the constant definition (engine §9.3).",
   "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ \"b\"\n%rule text $JOIN-1\n```\n",
   "expect": {
     "dom": {

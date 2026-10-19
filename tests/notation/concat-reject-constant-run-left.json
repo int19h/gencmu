@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A constant definition rejects a left string run that forms a set before concatenation (engine §9.3, §10).",
   "document": "```jbogenbau\n%const $S \"a\" \"b\" ++ \"c\"\n```\n",
   "expect": {
     "error": {

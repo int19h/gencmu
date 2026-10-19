@@ -1,5 +1,5 @@
 {
-  "description": "A string constant supplies the terminal.",
+  "description": "A body group reads one terminal from a constant whose nested joins include empty strings (engine §2, §10).",
   "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 ($A ++ \"\") ++ ($B ++ \"\")\n%rule text ($JOIN-1) %emits",
   "tokens": [
     {

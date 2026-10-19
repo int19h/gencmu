@@ -1,5 +1,5 @@
 {
-  "description": "Concatenation requires scalar string operands.",
+  "description": "The contextual empty set cannot serve as a string join operand (engine §10).",
   "grammar": "%rule text $x:\"a\" %conditions ∅ ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {

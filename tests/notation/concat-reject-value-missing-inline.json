@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A body value test rejects ++ even when the join has no right operand (engine §9.2, §10).",
   "document": "```jbogenbau\n%rule text A=\"a\" ++\n```\n",
   "expect": {
     "error": {

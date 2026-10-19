@@ -1,5 +1,5 @@
 {
-  "description": "A direct delimiter constant with an empty computed value still fails during loading.",
+  "description": "Loading rejects a direct delimiter constant whose closed join evaluates to an empty string (engine §9.3, §10).",
   "grammar": "%const $E \"\" ++ \"\"\n%rule text \"x\" %conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split($E)",
   "input": "x",
   "expect": {

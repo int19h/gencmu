@@ -1,5 +1,5 @@
 {
-  "description": "The reader requires ++ between adjacent recipe strings.",
+  "description": "Adjacent recipe literals require an instruction to join them with ++ (engine §9.3, §11.3).",
   "grammar": "%rule text := \"a\" \"b\" | \"x\"",
   "input": "",
   "expect": {

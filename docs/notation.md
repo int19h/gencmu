@@ -419,7 +419,11 @@ A concatenation of closed strings is closed and can define a constant. For examp
 
 Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline `++` is invalid in these positions. A constant can hold any string concatenation.
 
-Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. The joined value `"e" ++ $_0301` names one token with a similar spelling. Requiring a string constant keeps that change explicit. This is the stated exception to string and string-set parity.
+String sets and strings take the same forms unless a reason is stated. These positions restrict inline joins to keep token sequences and separate classifier keys distinct from joined strings.
+
+Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+
+`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
 A range endpoint must resolve to one scalar because a range orders scalar values.
 
@@ -504,7 +508,9 @@ A classifier gives a value its classes. A cmavo is a particle, a short structure
   date-li? "de'i" "ti'u" ∉ BAI
 ```
 
-An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+An entry is one or more keys, `∈` or `∉`, and one class. A `%classifier` can also have no entries. A key is a string literal or string constant. `∈` adds the class to each key, and `∉` removes it from each key. A word in several classes has several entries.
+
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
 
 Line breaks mean nothing here, as everywhere in the notation. An entry ends after its class, and by convention each entry stands on a line of its own.
 

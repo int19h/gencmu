@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A body range rejects an inline join after its second endpoint (engine §9.2, §10).",
   "document": "```jbogenbau\n%rule text \"a\"..\"y\" ++ \"z\"\n```\n",
   "expect": {
     "error": {

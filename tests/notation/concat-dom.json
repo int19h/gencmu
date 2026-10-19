@@ -1,5 +1,5 @@
 {
-  "description": "Concatenation preserves empty operands and flattens grouped joins.",
+  "description": "The DOM flattens grouped joins while preserving their empty string operands (engine §9.3).",
   "document": "```jbogenbau\n%const $S \"a\" ++ (\"\" ++ \"b\")\n```",
   "expect": {
     "dom": {

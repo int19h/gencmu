@@ -1,5 +1,5 @@
 {
-  "description": "A concatenation resolves a string constant defined later in the stage.",
+  "description": "A constant join resolves a reference to a string constant declared later in the stage (engine §2).",
   "grammar": "%const $S $A ++ \"b\"\n%const $A \"a\"\n%rule text $S",
   "input": "a",
   "expect": {

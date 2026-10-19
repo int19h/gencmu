@@ -1,5 +1,5 @@
 {
-  "description": "This string position rejects a constant whose value is a set.",
+  "description": "A string-set constant cannot supply a terminal atom inside a tree pattern (engine §10).",
   "grammar": "%const $S \"a\" ∪ \"b\"\n%const $P @($S)\n%rule text ε",
   "input": "",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "description": "The DOM stores a grouped join in its constant definition and uses its reference as a body value-test operand (engine §9.3).",
   "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ $B)\n%rule text A=$JOIN-1\n```\n",
   "expect": {
     "dom": {

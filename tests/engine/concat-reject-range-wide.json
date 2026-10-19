@@ -1,5 +1,5 @@
 {
-  "description": "The loader rejects a range endpoint that resolves to more than one scalar.",
+  "description": "A range endpoint rejects a joined constant whose value contains two scalars (engine §2).",
   "grammar": "%const $S \"a\" ++ \"b\"\n%rule text $S..\"z\"",
   "input": "",
   "expect": {

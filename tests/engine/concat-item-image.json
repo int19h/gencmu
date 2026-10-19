@@ -1,5 +1,5 @@
 {
-  "description": "The item recipe joins capture strings.",
+  "description": "An emission-item image recipe joins captured values without replacing the emitted value (engine §11.3).",
   "grammar": "%rule text $a:\"a\" $b:\"b\" %emits $ :- $a.value ++ \"-\" ++ $b.value",
   "input": "ab",
   "expect": {

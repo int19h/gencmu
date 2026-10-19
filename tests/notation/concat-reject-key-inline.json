@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A classifier entry rejects an inline join between literal keys (engine §9.2, §10).",
   "document": "```jbogenbau\n%classifier c \"a\" ++ \"b\" ∈ K\n```\n",
   "expect": {
     "error": {

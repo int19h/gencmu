@@ -12,5 +12,5 @@
       "ok": true
     }
   },
-  "description": "A method argument joins exact string operands before split reads its delimiter."
+  "description": "A split call joins literal operands before using their result as its delimiter (engine §10)."
 }

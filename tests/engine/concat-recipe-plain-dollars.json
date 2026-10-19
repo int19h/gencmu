@@ -1,5 +1,5 @@
 {
-  "description": "A recipe emits dollar characters without substitution.",
+  "description": "A value recipe emits parenthesized and doubled dollar characters as plain text (engine §9.1, §11.3).",
   "grammar": "%rule text := \"$(UNKNOWN)$$\" | \"a\" %emits",
   "input": "a",
   "expect": {

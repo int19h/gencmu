@@ -1,5 +1,5 @@
 {
-  "description": "The loader rejects an undefined constant in a concatenation.",
+  "description": "An undefined constant inside a closed join fails at its reference (engine §2).",
   "grammar": "%const $S \"a\" ++ $UNKNOWN\n%rule text ε",
   "input": "",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "Concatenation requires scalar string operands.",
+  "description": "A tag literal cannot serve as a string join operand (engine §10).",
   "grammar": "%rule text $x:\"a\" %conditions A ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {

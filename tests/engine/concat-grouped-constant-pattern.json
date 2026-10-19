@@ -1,6 +1,6 @@
 {
-  "description": "A grouped pattern constant keeps its predicate meaning.",
-  "grammar": "%const $P @(A)\n%rule text $x:A %conditions $x \u2245 @(($P)) %emits",
+  "description": "Parentheses around a pattern constant preserve its predicate meaning (engine §10).",
+  "grammar": "%const $P @(A)\n%rule text $x:A %conditions $x ≅ @(($P)) %emits",
   "tokens": [
     {
       "text": "x",

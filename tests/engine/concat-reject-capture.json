@@ -1,5 +1,5 @@
 {
-  "description": "The reader rejects a bare capture as a concatenation operand.",
+  "description": "A bare capture cannot serve as a string join operand (engine §10).",
   "grammar": "%rule text $x:\"a\" %conditions $x ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {

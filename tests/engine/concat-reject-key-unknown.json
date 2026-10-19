@@ -1,5 +1,5 @@
 {
-  "description": "An undefined classifier key constant fails at its reference.",
+  "description": "An undefined constant used directly as a classifier key fails at its reference (engine §2).",
   "grammar": "%classifier c $NOPE ∈ K\n%rule text ε",
   "input": "",
   "expect": {

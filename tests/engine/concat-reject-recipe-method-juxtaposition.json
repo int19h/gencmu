@@ -1,5 +1,5 @@
 {
-  "description": "The reader requires ++ between a recipe method and its next string.",
+  "description": "A recipe method followed by an unjoined literal requires the ++ instruction (engine §9.3, §11.3).",
   "grammar": "%rule text := $.value \"b\" | \"x\"",
   "input": "",
   "expect": {

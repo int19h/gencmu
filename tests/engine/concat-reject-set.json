@@ -1,5 +1,5 @@
 {
-  "description": "The reader rejects a string set as a concatenation operand.",
+  "description": "A parenthesized string set cannot serve as a join operand (engine §10).",
   "grammar": "%rule text $x:\"a\" %conditions (\"a\" \"b\") ++ \"c\" = \"ac\"",
   "input": "a",
   "expect": {

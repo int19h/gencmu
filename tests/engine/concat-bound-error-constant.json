@@ -1,5 +1,5 @@
 {
-  "description": "A join inside a union reports its type error at the first constant of the join.",
+  "description": "A constant definition reports a bound set operand error at the join inside its union (engine §2, §9.3).",
   "grammar": "%const $T \"a\"\n%const $S \"a\" ∪ \"b\"\n%const $C \"q\" ∪ ($T ++ $S)\n%rule text ε",
   "input": "",
   "expect": {

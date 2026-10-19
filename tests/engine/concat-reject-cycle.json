@@ -1,5 +1,5 @@
 {
-  "description": "The loader rejects a cyclic dependency through a concatenation.",
+  "description": "A self-reference inside a constant join forms an invalid dependency cycle (engine §2).",
   "grammar": "%const $S \"a\" ++ $S\n%rule text ε",
   "input": "",
   "expect": {

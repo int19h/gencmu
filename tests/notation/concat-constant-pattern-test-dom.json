@@ -1,5 +1,5 @@
 {
-  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "description": "A pattern DOM keeps a constant terminal reference under a literal value test (engine §9.3).",
   "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\")\n%const $P @($JOIN-1=\"ab\")\n```\n",
   "expect": {
     "dom": {

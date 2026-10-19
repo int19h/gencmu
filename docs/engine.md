@@ -171,7 +171,9 @@ Each error of a constant is an error of the document. Reader errors follow §9.3
 
 A stage also has classifiers. A classifier maps a string to a tag set, the string's classes (§10). An item `%classifier NAME` (`classifier`) names a classifier of the stage and lists entries for it. `NAME` is a name (§9) that begins with `a` to `z`. Several items can name one classifier, and together they make it. So a second item of one name is no error, unlike a second `%rule`.
 
-An entry has gates, one or more keys, an operator and one class. A gate is a guard `f?` or `¬f?`, as in an alternative (§3.1). A key is an exact string (§5, §9). The operator is `∈` or `∉`. The class begins and ends with an uppercase ASCII letter and never starts with `_`.
+An entry has gates, one or more keys, an operator and one class. A gate is a guard `f?` or `¬f?`, as in an alternative (§3.1). A key is a string literal or string constant, with its exact value (§5, §9). The operator is `∈` or `∉`. The class begins and ends with an uppercase ASCII letter and never starts with `_`.
+
+A constant key can contain a quotation mark or backslash. For example, `%const $QUOTE $_0022` supplies the key in `$QUOTE ∈ K`. `%const $BACKSLASH $_005C` likewise supplies a backslash key.
 
 A classifier's value depends on the features, so the stage resolves it for one set of enabled features. It starts with no memberships, and takes the entries of every item of that name in the stitching order. It skips an entry whose gates do not all hold, as lowering drops an alternative (§3.1). For each key of any other entry, in order, `∈` adds the membership of the key in the class, and `∉` removes it. The value maps each key to the classes that it has after the last entry.
 
@@ -2002,7 +2004,11 @@ A concatenation is closed exactly when every operand is closed. Constant binding
 
 Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline concatenation is invalid in these positions. A constant can hold a joined string.
 
-Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. The joined value `"e" ++ $_0301` names one token with a similar spelling. A string constant makes that change explicit. This exception to string and string-set parity prevents confusion between terminals and token sequences.
+String sets and strings take the same forms unless a reason is stated. These positions restrict inline joins to keep token sequences and separate classifier keys distinct from joined strings.
+
+Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
+
+`"e" ++ $_0301` produces one string: `e` followed by U+0301. A terminal with that value reads one token. A constant holding that value supplies one classifier key. The constant makes this change explicit.
 
 In a set operation, a scalar string converts to its singleton string set. This includes empty strings, concatenated strings, string constants, and string method results. A capture or span never converts directly to a set. A lone string remains scalar.
 

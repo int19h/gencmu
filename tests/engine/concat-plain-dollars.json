@@ -1,5 +1,5 @@
 {
-  "description": "Balanced and incomplete dollar forms are plain string characters.",
+  "description": "Balanced, incomplete, and doubled dollar forms remain literal terminal text (engine §9.1).",
   "grammar": "%rule text \"$(NAME)\" \"$$\" \"$\" \"$(\" \"$(foo\"",
   "expect": {
     "result": {

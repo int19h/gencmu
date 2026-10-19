@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A condition rejects a right string run that forms a set before concatenation (engine §9.3, §10).",
   "document": "```jbogenbau\n%rule text A %conditions \"a\" ++ \"b\" \"c\" = \"abc\"\n```\n",
   "expect": {
     "error": {

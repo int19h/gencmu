@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A classifier key rejects a parenthesized string literal (engine §9.2, §10).",
   "document": "```jbogenbau\n%classifier c (\"a\") ∈ K\n```\n",
   "expect": {
     "error": {

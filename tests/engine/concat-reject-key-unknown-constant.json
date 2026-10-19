@@ -1,5 +1,5 @@
 {
-  "description": "An undefined classifier key constant fails at its reference.",
+  "description": "Binding a classifier key constant reports an undefined operand inside its joined definition (engine §2).",
   "grammar": "%const $KEY \"a\" ++ $NOPE\n%classifier c $KEY ∈ K\n%rule text ε",
   "input": "",
   "expect": {

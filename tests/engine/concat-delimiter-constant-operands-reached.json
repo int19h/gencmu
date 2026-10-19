@@ -1,5 +1,5 @@
 {
-  "description": "A reached concatenation of empty constant operands fails during parsing.",
+  "description": "A reached split call rejects an empty delimiter computed by joining empty constant operands (engine §10).",
   "grammar": "%const $E \"\"\n%rule text \"x\" %conditions $.value = \"y\" ∨ \"a\" ∈ \"ab\".split($E ++ $E)",
   "input": "x",
   "expect": {

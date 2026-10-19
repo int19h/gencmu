@@ -1,5 +1,5 @@
 {
-  "description": "The reader rejects a set operator in a recipe.",
+  "description": "A recipe rejects a union operator between string literals (engine §9.3, §11.3).",
   "grammar": "%rule text := \"a\" ∪ \"b\" | \"x\"",
   "input": "",
   "expect": {

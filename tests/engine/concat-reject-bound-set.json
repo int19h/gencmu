@@ -1,5 +1,5 @@
 {
-  "description": "The loader rejects a string-set constant as a concatenation operand.",
+  "description": "Constant binding rejects a string-set constant used as a join operand (engine §2, §10).",
   "grammar": "%const $S \"a\" \"b\"\n%const $T $S ++ \"c\"\n%rule text ε",
   "input": "",
   "expect": {

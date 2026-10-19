@@ -1,5 +1,5 @@
 {
-  "description": "This string position rejects a constant whose value is a set.",
+  "description": "A classifier key constant must resolve to a string rather than a string set (engine §2).",
   "grammar": "%const $S \"a\" ∪ \"b\"\n%classifier c $S ∈ AB\n%rule text ε",
   "input": "",
   "expect": {

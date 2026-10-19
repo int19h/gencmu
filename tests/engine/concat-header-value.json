@@ -1,5 +1,5 @@
 {
-  "description": "The header recipe joins capture strings.",
+  "description": "A header value recipe joins captured values and supplies the implied image (engine §11.3).",
   "grammar": "%rule text := $a.value ++ \"-\" ++ $b.value | $a:\"a\" $b:\"b\" %emits",
   "input": "ab",
   "expect": {

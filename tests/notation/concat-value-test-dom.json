@@ -1,5 +1,5 @@
 {
-  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "description": "A body value-test DOM retains a constant reference while the constant definition stores its unresolved joined operand (engine §9.3).",
   "document": "```jbogenbau\n%const $JOIN-1 \"a\" ++ $B\n%rule text A=$JOIN-1\n```\n",
   "expect": {
     "dom": {

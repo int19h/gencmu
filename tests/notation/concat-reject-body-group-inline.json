@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A body group rejects an inline join between its string terminals (engine §9.2, §10).",
   "document": "```jbogenbau\n%rule text (\"a\" ++ \"b\")\n```\n",
   "expect": {
     "error": {

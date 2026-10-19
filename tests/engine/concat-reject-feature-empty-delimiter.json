@@ -1,5 +1,5 @@
 {
-  "description": "An empty concatenated delimiter fails before a feature condition runs.",
+  "description": "Feature loading rejects an empty joined delimiter before evaluating its split call (engine §9.3, §10).",
   "grammar": "%features f\n%conditions $.value.split(\"\" ++ \"\") = ∅\n%rule text \"a\"",
   "input": "a",
   "expect": {

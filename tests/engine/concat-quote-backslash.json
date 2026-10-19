@@ -1,5 +1,5 @@
 {
-  "description": "A concatenation joins quotation marks and backslashes from exact engine constants.",
+  "description": "A constant joins literal text with exact quotation-mark and backslash engine scalars (engine §2, §10).",
   "grammar": "%const $S \"a\" ++ $_0022 ++ $_005C\n%rule text $S",
   "input": "a",
   "expect": {

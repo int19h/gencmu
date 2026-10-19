@@ -1,5 +1,5 @@
 {
-  "description": "A constant cannot contain a captured string method.",
+  "description": "A constant definition cannot read a captured value through a join (engine §2).",
   "grammar": "%const $S $x.value ++ \"a\"\n%rule text ε",
   "input": "",
   "expect": {

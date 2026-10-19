@@ -1,5 +1,5 @@
 {
-  "description": "Both readers reject this form at its first forbidden operand or token.",
+  "description": "A body value test rejects ++ before reading a proposed capture operand (engine §9.2, §10).",
   "document": "```jbogenbau\n%rule text A=\"a\" ++ $x\n```\n",
   "expect": {
     "error": {

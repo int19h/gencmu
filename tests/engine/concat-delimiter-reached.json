@@ -1,5 +1,5 @@
 {
-  "description": "A reached computed empty delimiter fails during parsing rather than loading.",
+  "description": "An ordinary split call rejects a computed empty literal delimiter only when evaluation reaches it (engine §10).",
   "grammar": "%rule text \"x\" %conditions $.value = \"y\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
   "input": "x",
   "expect": {

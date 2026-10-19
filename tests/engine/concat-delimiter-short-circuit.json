@@ -1,5 +1,5 @@
 {
-  "description": "A computed delimiter is not evaluated in a short-circuited ordinary condition.",
+  "description": "A true disjunct skips a split call whose literal delimiter join produces an empty string (engine §10).",
   "grammar": "%rule text \"x\" %conditions $.value = \"x\" ∨ \"a\" ∈ \"ab\".split(\"\" ++ \"\")",
   "input": "x",
   "expect": {

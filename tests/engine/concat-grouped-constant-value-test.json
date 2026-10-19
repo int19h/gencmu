@@ -1,5 +1,5 @@
 {
-  "description": "A string constant supplies the captured or tested terminal.",
+  "description": "A body value test accepts a string constant whose definition groups a join of constants (engine §2, §10).",
   "grammar": "%const $A \"a\"\n%const $B \"b\"\n%const $JOIN-1 ($A ++ $B)\n%rule text T=$JOIN-1 %emits",
   "tokens": [
     {

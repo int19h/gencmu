@@ -1,5 +1,5 @@
 {
-  "description": "A grouped join supplies the receiver of split.",
+  "description": "A grouped join supplies the string receiver of split (engine §10).",
   "grammar": "%const $S (\"a\" ++ (\"b\" ++ \"c\")).split(\"b\")\n%rule text ε %conditions $S = (\"a\" \"c\")",
   "input": "",
   "expect": {

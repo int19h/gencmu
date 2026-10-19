@@ -1,5 +1,5 @@
 {
-  "description": "The DOM keeps the join in a constant and its reference in the string position.",
+  "description": "The DOM flattens nested constant joins while removing parentheses around the body terminal reference (engine §9.3).",
   "document": "```jbogenbau\n%const $JOIN-1 (\"a\" ++ \"b\") ++ (\"c\" ++ $D)\n%rule text ($JOIN-1)\n```\n",
   "expect": {
     "dom": {
