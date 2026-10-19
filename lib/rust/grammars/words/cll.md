@@ -211,7 +211,7 @@ The rules below build the letters of a lujvo from the left, and they place each 
 
 A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
 
-`pair-across-y` applies the permissible-pair restrictions to the consonants on each side of a hyphen. The shared sets in [shapes.md](shapes.md#consonants) give their voicing and sibilant groups.
+`pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants). `initial-pair-across-y` tests the same joined values against `$INITIAL`.
 
 ```jbogenbau
 %rule hyphen-y
@@ -279,13 +279,7 @@ A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects 
 %rule pair-across-y
   $l:consonant hyphen-y $r:consonant
 %conditions
-  $l.value ≠ $r.value,
-  ¬($l.value ∈ $VOICED ∧ $r.value ∈ $UNVOICED),
-  ¬($l.value ∈ $UNVOICED ∧ $r.value ∈ $VOICED),
-  ¬($l.value ∈ $SIBILANTS ∧ $r.value ∈ $SIBILANTS),
-  ¬($l.value = "x" ∧ $r.value ∈ ("c" "k")),
-  ¬($l.value ∈ ("c" "k") ∧ $r.value = "x"),
-  ¬($l.value = "m" ∧ $r.value = "z")
+  $l.value ++ $r.value ∈ $PERMISSIBLE
 ```
 
 <details><summary>Railroad diagrams of the 13 rules from <code>hyphen-y</code> to <code>pair-across-y</code></summary>
@@ -338,54 +332,9 @@ If the test examines at least one pair and every examined pair is an initial pai
   | initial-pair-across-y vowel initial-pair vowel
 
 %rule initial-pair-across-y
-  | "b" hyphen-y "l"
-  | "b" hyphen-y "r"
-  | "c" hyphen-y "f"
-  | "c" hyphen-y "k"
-  | "c" hyphen-y "l"
-  | "c" hyphen-y "m"
-  | "c" hyphen-y "n"
-  | "c" hyphen-y "p"
-  | "c" hyphen-y "r"
-  | "c" hyphen-y "t"
-  | "d" hyphen-y "j"
-  | "d" hyphen-y "r"
-  | "d" hyphen-y "z"
-  | "f" hyphen-y "l"
-  | "f" hyphen-y "r"
-  | "g" hyphen-y "l"
-  | "g" hyphen-y "r"
-  | "j" hyphen-y "b"
-  | "j" hyphen-y "d"
-  | "j" hyphen-y "g"
-  | "j" hyphen-y "m"
-  | "j" hyphen-y "v"
-  | "k" hyphen-y "l"
-  | "k" hyphen-y "r"
-  | "m" hyphen-y "l"
-  | "m" hyphen-y "r"
-  | "p" hyphen-y "l"
-  | "p" hyphen-y "r"
-  | "s" hyphen-y "f"
-  | "s" hyphen-y "k"
-  | "s" hyphen-y "l"
-  | "s" hyphen-y "m"
-  | "s" hyphen-y "n"
-  | "s" hyphen-y "p"
-  | "s" hyphen-y "r"
-  | "s" hyphen-y "t"
-  | "t" hyphen-y "c"
-  | "t" hyphen-y "r"
-  | "t" hyphen-y "s"
-  | "v" hyphen-y "l"
-  | "v" hyphen-y "r"
-  | "x" hyphen-y "l"
-  | "x" hyphen-y "r"
-  | "z" hyphen-y "b"
-  | "z" hyphen-y "d"
-  | "z" hyphen-y "g"
-  | "z" hyphen-y "m"
-  | "z" hyphen-y "v"
+  $l:consonant hyphen-y $r:consonant
+%conditions
+  $l.value ++ $r.value ∈ $INITIAL
 ```
 
 <details><summary>Railroad diagrams of the 5 rules from <code>lujvo-after-cv</code> to <code>initial-pair-across-y</code></summary>

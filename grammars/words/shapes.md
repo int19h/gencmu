@@ -16,18 +16,12 @@ CLL[^cll-s3-6] gives the restrictions on permissible consonant pairs. A pair can
 
 Each consonant token has one lowercase Latin letter as its value, in both the Latin and Cyrillic scripts. Thus adjacent code points in a consonant run are exactly its adjacent token values.
 
-`$VOICED` and `$UNVOICED` name the consonants subject to the voicing restriction. The restriction exempts `l m n r`. `$SIBILANTS` names the four consonants that cannot pair with each other.
-
 CLL[^cll-s3-7] lists the 48 pairs in `$INITIAL` that can begin a word. A borrowing is a word taken from another language. A longer cluster can begin a borrowing if each adjacent pair in it is one of the 48 (CLL[^cll-s4-7]). So `spraile` is a borrowing, but not `ktraile` or `trkaile`. `long-initial-run` is every such cluster of three consonants or more. CLL[^cll-s3-7] forbids the triples `ndj ndz ntc nts`, except in a name.
 
 ```jbogenbau
 %rule consonant
   | "b" | "c" | "d" | "f" | "g" | "j" | "k" | "l" | "m"
   | "n" | "p" | "r" | "s" | "t" | "v" | "x" | "z"
-
-%const $VOICED "b" "d" "g" "v" "j" "z"
-%const $UNVOICED "p" "t" "k" "f" "c" "s" "x"
-%const $SIBILANTS "c" "j" "s" "z"
 
 %const $INITIAL
   "bl" "br"
