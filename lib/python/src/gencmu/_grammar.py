@@ -439,9 +439,9 @@ class _Constants:
             return {"pattern":{key:patterns}}
         if "string" in term:
             return term["string"]
-        if "interpolate" in term:
+        if "concat" in term:
             parts = []
-            for part in term["interpolate"]:
+            for part in term["concat"]:
                 parts.append(_string((yield self._closed(path, part, item))))
             return "".join(parts)
         if "tag" in term:

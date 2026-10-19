@@ -349,8 +349,6 @@ class Emitter:
         for atom in recipe["concat"]:
             if "string" in atom:
                 value = atom["string"]
-            elif "interpolate" in atom:
-                value = "".join(part["string"] for part in atom["interpolate"])
             else:
                 method = atom["method"]
                 receiver = atom["receiver"]

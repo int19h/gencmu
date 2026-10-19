@@ -703,9 +703,9 @@ class Evaluator:
         if "capture" in dom:
             start, end, _ = yield self._span(dom, bound)
             return self.input_value(start, end)
-        if "interpolate" in dom:
+        if "concat" in dom:
             parts = []
-            for part in dom["interpolate"]:
+            for part in dom["concat"]:
                 parts.append((yield self.walk_value(part, bound)))
             return "".join(parts)
         if "string" in dom:

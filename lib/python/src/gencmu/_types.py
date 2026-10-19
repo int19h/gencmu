@@ -316,12 +316,12 @@ def _term_typing_once(term: Any, constants: ConstantTypes, memo: Memo) -> Walk:
         return "set", None
     if isinstance(term.get("capture"), str):
         return "capture", None
-    if "interpolate" in term:
-        for part in term["interpolate"]:
+    if "concat" in term:
+        for part in term["concat"]:
             kind, fault = yield _term_typing(part, constants, memo)
             if fault is not None:
                 return None, fault
-            problem = expected_problem(kind, "string")
+            problem = None if kind in ("string", "any") else "++ requires string operands"
             if problem:
                 return None, (problem, part)
         return "string", None
@@ -569,7 +569,7 @@ def open_part(term: Any) -> Any:
                 return current
             items = [current["receiver"], *current["args"]]
         else:
-            for key in ("union", "intersection", "difference", "interpolate"):
+            for key in ("union", "intersection", "difference", "concat"):
                 if isinstance(current.get(key), list):
                     items = current[key]
                     break
