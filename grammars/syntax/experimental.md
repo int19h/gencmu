@@ -417,7 +417,15 @@ With FEhU, `mi poi'a sutra fe'u klama` has the main predicate `klama`. The conve
 
 SOhOI instead contains a full subsentence with elidable SEhU. It binds `ke'a` to the containing bridi and works independently of the `soi-clause` feature.
 
+Before the main predicate, an omitted SEhU lets that predicate continue the clause's tanru. Thus `mi so'oi cafne klama` is a terms fragment. With SEhU, `mi so'oi cafne se'u klama` has the main predicate `klama`.
+
+In `mi klama so'oi do cadzu ti`, the following `ti` stays inside the clause. In `mi klama so'oi do cadzu se'u ti`, it belongs to the main bridi.
+
 CAhEI abbreviates `ca lo nu` as a subsentence term with elidable KUhEI. It takes an event clause, not unrestricted text or a free modifier.
+
+Before the main predicate, an omitted KUhEI lets that predicate continue the event clause's tanru. Thus `mi ca'ei do cadzu klama` is a terms fragment. With KUhEI, `mi ca'ei do cadzu ku'ei klama` has the main predicate `klama`.
+
+In `mi klama ca'ei do cadzu ti`, the following `ti` stays inside the event clause. In `mi klama ca'ei do cadzu ku'ei ti`, it belongs to the main bridi.
 
 These terms carry no span or connection flag. Their contained predicates still use the existing `fewest` and late-elision preferences.
 
@@ -446,7 +454,7 @@ These terms carry no span or connection flag. Their contained predicates still u
 
 %const $EXTENSIBLE-END Link-Extensible-End ∪ Bo-Extensible-End
 
-%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI ∪ CIhAUhU
+%const $PLACE-CLOSE I ∪ NIhO ∪ CU ∪ GI ∪ BEI ∪ ZOhU ∪ CEhE ∪ PEhE ∪ KU ∪ VAU ∪ KEI ∪ KUhO ∪ BEhO ∪ LIhU ∪ TOI ∪ NUhU ∪ GEhU ∪ SEhU ∪ LUhU ∪ TEhU ∪ MEhU ∪ BOI ∪ VEhO ∪ KEhE ∪ LOhO ∪ DOhU ∪ FEhU ∪ TUhU ∪ KUhE ∪ KUhAU ∪ KUhOI ∪ IhAU ∪ LIhAU ∪ KUhEI
 
 %const $BARE-TAG @(tag KU="" [#])
 %const $BARE-NA @(NA [#] KU="" [#])
@@ -734,11 +742,13 @@ LUhEI instead opens grammatical quoted text, with elidable LIhAU. Its x1 express
 
 The text body preserves leading indicators and vocatives as quoted content. It can contain complete sentences or fragments, like an LU quotation.
 
+A written LIhAU ends the quote before an outer audience sumti. In `mi lu'ei coi do`, `do` stays inside the quoted vocative. In `mi lu'ei coi li'au do`, it names the outer audience.
+
 CIhAU converts attitudes into a predicate whose x1 feels them toward x2. Its run must contain at least one UI, with optional CAI and NAI.
 
 The indicator stage keeps that run as syntax tokens. Therefore, its attitudes describe the predicate's subject rather than becoming the speaker's attached reaction.
 
-CIhAUhU ends the conversion before another attitude. Without it, consecutive UI and CAI tokens stay in the conversion.
+CIhAUhU ends the conversion before another attitude. Without it, consecutive UI, CAI, and NAI tokens stay in the conversion. Each NAI belongs to the UI or CAI directly before it, even with intervening emphasis.
 
 DAhO, FUhE, and FUhO do not belong to the converted run. A written CIhAUhU permits them outside it with their ordinary attachment behavior.
 

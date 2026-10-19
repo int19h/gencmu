@@ -20,9 +20,9 @@ Indicators after `lu` begin the quoted text. Indicators after `to` and `to'i` at
 
 LUhEI opens grammatical quoted content, as LU does. CIhAU introduces attitudes that syntax converts into a predicate.
 
-Both markers end the preceding attachment context. The following indicators remain separate syntax tokens, including a NAI with its own emphasis.
+Neither marker takes a following indicator run. A leading run of separate indicator tokens can follow either marker, including a NAI with its own emphasis.
 
-The boundary constant names all three classes because CIhAU is not a quotation. Closing LIhAU and CIhAUhU take ordinary following attachments.
+The name `$INDICATOR-BOUNDARIES` also covers CIhAU, which opens no quotation. Closing LIhAU and CIhAUhU take ordinary following attachments.
 
 ```jbogenbau
 %redefine-const $INDICATOR-BOUNDARIES
@@ -59,4 +59,4 @@ In `mi .e ui da'o nai do`, camxes-exp nests bare NAI inside DAhO, under UI. This
 
 LUhEI and CIhAU add indicator boundaries that camxes-exp lacks. LUhEI preserves quoted initial attitudes, while CIhAU preserves converted attitudes for syntax instead of attaching them to its opener.
 
-Zantufa also gives LUhEI a grammatical text body, but its lexicon does not attach indicators in this stage. The experimental boundary preserves the same quoted-content distinction with its ordinary indicator processing.
+Zantufa also gives LUhEI a grammatical text body. No word of the Zantufa lexicon carries the indicator tag, so this stage attaches only BAhE there. The experimental boundary preserves the same quoted-content distinction with its ordinary indicator processing.

@@ -10,7 +10,7 @@ The dictionary additions follow the [policy for issue #211](https://github.com/i
 
 An experimental cmavo below that score also qualifies when real text uses it consistently with its highest-voted English definition. Both its meaning and its selma'o must match that definition. The closing section identifies the words that qualify through corpus evidence and the words excluded for inconsistent use.
 
-The closing section also records class corrections based on a definition's meaning and attested use.
+The closing section also records class corrections based on a definition's meaning and attested use. It states each maintainer exception to this policy.
 
 Each entry lists words by their normalized value and gives them one selma'o, as [lexicon-cll.md](lexicon-cll.md) explains. A selbri is a predicate. `la`, `lai` and `la'i` are LE because a name can be a selbri.
 
@@ -55,6 +55,7 @@ The implication after the entries marks some words `Indicator`, which the indica
   "cei" ∈ CEI
   "ce'e" ∈ CEhE
   "ci'au" ∈ CIhAU
+  (* #212: score-two exception, explained under Dictionary additions. *)
   "ci'au'u" ∈ CIhAUhU
   "co" ∈ CO
   "be'e" "co'o" "co'oi" "coi" "di'ai" "fe'o" "fi'i" "je'e" "ju'i" "ke'o" "ki'ai" "ki'e" "mi'e" ∈ COI
@@ -301,6 +302,8 @@ The implication after the entries marks some words `Indicator`, which the indica
 
 All 255 experimental cmavo whose highest English score is at least three appear here. The dictionary gives `io'e` no selma'o. Its English definition 71929 scores three and calls it an attitudinal. The maintainers therefore assign it UI from that definition.
 
+The lexicon also includes `ci'au'u` as a required companion of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because the CIhAU construction needs its written terminator.
+
 English definitions determine the classes, rather than the combined classes in `word.toml`. Among the 255 words that meet the score threshold, no highest-voted definition ties or lists several classes. The following table records their disagreements about base classes between English definitions. Definition numbers identify the English files in the dictionary snapshot.
 
 | Word | Selected definition | Score | Base class | Other definitions and scores |
@@ -430,8 +433,6 @@ The review excludes the following twelve words. Eleven have uses that conflict w
 The other reviewed words lack clear evidence or appear as different words, so this policy does not add them.
 
 `ni'au` has one English definition, 57080 by gleki, with a score of one. It describes a Chinese-style greeting and points to `coi`, but files the word in CAI. The maintainers assign COI from that meaning and its attested vocative use. The evidence includes about 59 IRC lines by at least six speakers. Examples include `ni'au .cntr.`, `ni'au ma`, `ni'au nai` and `doi ksion ni'au`. This class correction follows meaning and use rather than the dictionary's CAI filing.
-
-The lexicon also includes `ci'au'u` as a required companion of CIhAU. [Definition 71993](https://github.com/int19h/jbocirvei/blob/8c1579254e73c72d20d202557e42d4d92346f6bc/dict/ci%27au%27u/en-71993.md) gives it class CIhAUhU and score two. The maintainer permits this exception because the CIhAU construction needs its written terminator.
 
 ### Classes and words without their defined constructions
 

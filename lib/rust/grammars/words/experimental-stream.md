@@ -80,6 +80,10 @@ The left operand is the preceding live unit. The right operand is one raw word, 
 
 The joiner uses ZEI's clean gaps and groups repeated operations from the left. BU, ZEI, and SI then act on the complete result.
 
+SA matches an existing nonce word by its inherited class, as in `broda ze'ei ko'a sa ko'a`. Before constructing a nonce word, SA instead takes its next raw word as the key. Thus `ko'e brodi sa broda ze'ei ko'a` keeps `ko'e` and the nonce word.
+
+Inherited BAhE, CAI, DAhO, FUhE, and FUhO classes act in the indicator stage like their template words. In `mi broda ze'ei ba'e klama`, the nonce word emphasizes `klama`. In `mi broda ze'ei fu'e ui klama`, it opens the indicator run.
+
 A magic right word rejects because this construction does not dispatch new word operations. The named right-word rule supplies a diagnostic with its forbidden classes.
 
 The right reader keeps the shared y-letter exception and predicate-word warnings. Its particle alternative tests `Cmavo` directly, not through `cmavo-token`, so the diagnostic names the forbidden classes. It also forbids LOhAI and LEhAI, whose raw quote markers have special plain-word fallbacks.
@@ -173,10 +177,12 @@ camxes-exp rejects CgV in names and borrowings. This dialect admits those word f
 
 GOhOI, MUhOI, DOhOI, `ze'ei`, and the global eraser add word operations that camxes-exp lacks. Their quotations retain the shared Magic Words opacity rules.
 
-GOhOI uses ZO's targets, as the bundled Zantufa stream does. MUhOI uses ZOI's empty and nonempty bodies.
+GOhOI shares ZO's marker to keep one target reader for both quote kinds. Upstream Zantufa reads only a Lojban word after GOhOI, through `any_word`. This dialect also admits ZO's standalone material targets. [The Zantufa word stream](zantufa-stream.md) shares that wider reader. MUhOI uses ZOI's empty and nonempty bodies.
 
 Experimental rejects a bare MUhOI before SI or BU, as it rejects a bare ZOI. Zantufa permits that fallback, so this dialect deliberately differs.
 
 Zantufa puts `ze'ei` in SI and erases its left word. Experimental instead follows its dictionary definition's right-word grammar, while rejecting magic right operands.
+
+An unfinished `lo'ai` can also serve as its base and then carries no fault. camxes-exp and Zantufa have no such reading, because `ze'ei` erases there.
 
 The LUhEI boundary extends experimental SU's stopping classes by analogy with LU. The global eraser ignores every such boundary and has no Zantufa counterpart.

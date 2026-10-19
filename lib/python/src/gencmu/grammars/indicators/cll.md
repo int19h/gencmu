@@ -47,6 +47,8 @@ A leading indicator run also stays in the stream at the start of the whole text.
   LU
 ```
 
+The name `$INDICATOR-BOUNDARIES` lets a dialect layer add boundaries that open no quotation.
+
 ## The stream
 
 `text` reads an optional leading indicator run, then ordinary items, then any unattached final `ba'e` run. `item-run` permits a new leading run only after an indicator boundary.

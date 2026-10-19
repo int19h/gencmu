@@ -183,7 +183,7 @@ The forms stage supplies source words, their lexical classes, and their run boun
 
 The shared reader reads a cmavo, brivla, cmevla, or the y letteral. A cmavo is a particle. A brivla is a predicate word. A cmevla is a name word.
 
-Most particle readers use `cmavo-token`. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a dialect warn when it reads a predicate word or name. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
+Every cmavo read in this shared reader uses `cmavo-token`. Only the `zei-spelling` test reads `Cmavo` directly, and it matches one spelling. CLL is *The Complete Lojban Language*. The CLL family adds optional word-form warnings in `cmavo-token`. `brivla-token` and `cmevla-token` likewise let a dialect warn when it reads a predicate word or name. A word read in the chosen derivation keeps its warning even if an eraser later removes the word.
 
 A failed words stage publishes no warnings from that stage. A successful stage keeps warnings from its chosen derivation. Raw quote bodies and the suffix after active `fa'o` supply no word reads.
 
@@ -713,7 +713,7 @@ Only `zohoi-payload` defines a body image recipe. Its `.verbatim-text` preserves
 
 ## Compounds
 
-The `constructor-word` rule names the operators that construct a word from a preceding unit. Replacement-quote markers use it for their constructor fallback.
+The `constructor-word` rule names the operators that construct a word from a preceding unit: BU and ZEI here. Replacement-quote markers use this rule to recognize a constructor after an unfinished marker. The shared rule gives each dialect one place to name its constructors.
 
 BU takes the preceding live unit and forms one letteral. ZEI takes that unit and the next word as read, then forms one BRIVLA unit.
 
@@ -842,7 +842,7 @@ SA at normal end has no key and erases back to the start of the text. SA before 
 
 A reach is the stretch from a candidate unit to SA. Its tags keep classes of its first unit that no later live unit shares. Thus a surviving class identifies the nearest candidate for that key. Each nested SA intersects the possible target classes from its reaches. The rule `sa-wipe-core` handles too few matching units. No reach searches inside a quote or compound.
 
-In cll-ebnf, bpfk, and experimental, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its [word layer](experimental-stream.md#erasure-and-grammatical-quotations). The last surviving boundary word remains. Later LIhU, LIhAU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
+In cll-ebnf, bpfk, and experimental, SU uses these four shared stopping classes: NIhO, LU, TUhE, and TO. Experimental adds LUhEI through its [word layer](experimental-stream.md#erasure-and-grammatical-quotations). The last surviving boundary word remains. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. In Zantufa, SU erases everything before it.
 
 The feature `su-boundary` makes SU keep its stopping boundary. A boundary inside an opaque unit cannot stop SU. With no boundary, SU erases the whole prefix. When a boundary survives SU, the grammar groups both into one unit. Thus `unit` includes `su-survivor`.
 
@@ -1015,7 +1015,7 @@ Zantufa gives SA class UI, so it performs no SA erasure.
 
 In cll-ebnf, bpfk, and experimental, the shared SU boundary classes are NIhO, LU, TUhE, and TO. These four boundary classes come from Magic Words and camxes-std. The [experimental word layer](experimental-stream.md#erasure-and-grammatical-quotations) adds LUhEI.
 
-The boundary word survives as in camxes-std. Later LIhU, LIhAU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
+The boundary word survives as in camxes-std. Later LIhU, TOI, and TUhU do not cancel an earlier boundary. [Departure 8](#cll-and-magic-words) says which stops agree with CLL and which depart from it. Zantufa erases the whole preceding text, as its reference grammar specifies.
 
 ### Final markers and Zantufa exceptions
 
