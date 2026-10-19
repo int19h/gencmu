@@ -4,7 +4,7 @@ This document is a layer (a document that changes earlier rules) over [the indic
 
 This layer adds bare NAI indicators and changes leading runs. It keeps the CLL stage's flat attachment. [The notation document](../../docs/notation.md) explains the notation.
 
-A bare `nai` is an indicator, which [the experimental word forms](../words/experimental.md) mark through an implication. Outside a quotation boundary, a `nai` after a word attaches to it. For example, `mi nai klama` is `mi klama` with the indicator `nai`. In `je nai`, the `nai` attaches to `je`. A bare `nai` stays in the stream at the start of a text or directly after `lu`. After `to` or `to'i`, it attaches to the opener.
+A bare `nai` is an indicator, which [the experimental word forms](../words/experimental.md) mark through an implication. Outside an indicator boundary, a `nai` after a word attaches to it. For example, `mi nai klama` is `mi klama` with the indicator `nai`. In `je nai`, the `nai` attaches to `je`. A bare `nai` stays in the stream at the start of a text or directly after `lu`. After `to` or `to'i`, it attaches to the opener.
 
 An attitudinal expresses an attitude. A `nai` directly after an attitudinal attaches to the attitudinal, as in the CLL document. So `mi ui nai klama` gives `mi` the indicator `ui`, and `ui` carries `nai`. Any other `nai` is an indicator of its own. That includes a `nai` after a `fu'e`, as in `mi ui fu'e nai klama`, and a `nai` after a word that is not an attitudinal.
 
@@ -18,7 +18,16 @@ A FUhE needs an indicator after it. So `mi fu'e ui klama` is a text, and `mi fu'
 
 Indicators after `lu` begin the quoted text. Indicators after `to` and `to'i` attach to the opener. So `to ui mi klama toi` attaches `ui` to `to`.
 
+LUhEI opens grammatical quoted content, as LU does. CIhAU introduces attitudes that syntax converts into a predicate.
+
+Both markers end the preceding attachment context. The following indicators remain separate syntax tokens, including a NAI with its own emphasis.
+
+The boundary constant names all three classes because CIhAU is not a quotation. Closing LIhAU and CIhAUhU take ordinary following attachments.
+
 ```jbogenbau
+%redefine-const $INDICATOR-BOUNDARIES
+  $INDICATOR-BOUNDARIES ∪ LUhEI ∪ CIhAU
+
 %redefine-rule leading
   | [fuhe] indicator | leading [fuhe] indicator
 
@@ -47,3 +56,8 @@ In [camxes-exp](https://github.com/lojban/ilmentufa/blob/778ea138f7d150121ca722d
 For example, camxes-exp nests `fu'e ui` inside DAhO in `mi da'o fu'e ui klama`. This layer attaches DAhO and the FUhE group directly to `mi`. The same difference holds after UI, CAI, FUhO and NAI.
 
 In `mi .e ui da'o nai do`, camxes-exp nests bare NAI inside DAhO, under UI. This layer attaches the separate indicators UI, DAhO and NAI directly to `.e`.
+
+
+LUhEI and CIhAU add indicator boundaries that camxes-exp lacks. LUhEI preserves quoted initial attitudes, while CIhAU preserves converted attitudes for syntax instead of attaching them to its opener.
+
+Zantufa also gives LUhEI a grammatical text body, but its lexicon does not attach indicators in this stage. The experimental boundary preserves the same quoted-content distinction with its ordinary indicator processing.
