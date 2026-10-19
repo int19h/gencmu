@@ -211,7 +211,7 @@ The rules below build the letters of a lujvo from the left, and they place each 
 
 A y-hyphen must be unstressed. `hyphen-y` tests its lowercase value and rejects the tag `Stressed`. Every y-hyphen read uses this rule, so a written capital `Y` cannot become a lujvo hyphen after normalization.
 
-`pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants). `initial-pair-across-y` tests the same joined values against `$INITIAL`.
+`pair-across-y` joins the consonant values on each side of a hyphen and tests `$PERMISSIBLE` from [shapes.md](shapes.md#consonants).
 
 ```jbogenbau
 %rule hyphen-y
@@ -307,6 +307,8 @@ If the test stops at a required `y`, it examines the joints before that `y`. So 
 Otherwise, the test applies only if the next rafsi is the last one, a CVCCV gismu form whose middle pair is an initial pair. It then examines the joints of the chain, the joint before the gismu, and the gismu's middle pair. So `tosmabru` needs its `y`, but `tosmabryklama` does not, because its `y` follows the four-letter `mabr`.
 
 If the test examines at least one pair and every examined pair is an initial pair, it adds the `y` at the first joint. `lujvo-after-cv` is the part of a lujvo from the third letter of a first CVC or CVCC rafsi. Its first joint has no hyphen only if the test asks for none. A `y` there is either required or the one the test adds. `tosmabru-positive` is the test on the letters from the first joint, and `tosmabru-y` is the same test on a word that carries the added `y`. So `tospatytosmabru` is `to spatytosmabru`, and the lujvo is `tosypatytosmabru`.
+
+`initial-pair-across-y` reads an initial pair with a `y` between its consonants. It joins their values and tests `$INITIAL`.
 
 ```jbogenbau
 %rule lujvo-after-cv

@@ -1,0 +1,32 @@
+{
+  "description": "Parentheses around a closed string retain its terminal form and reference positions.",
+  "document": "```jbogenbau\n%const $P @(($Q))\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "constant": "Q",
+              "at": [
+                2,
+                14
+              ]
+            }
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

@@ -1,9 +1,9 @@
 {
-  "description": "Written segments decompose and constant reference keeps original positions.",
-  "document": "```jbogenbau\n%rule text $_00E9\n```",
+  "description": "A closed string join preserves its operands in the body.",
+  "document": "```jbogenbau\n%rule text \"a\" ++ \"b\"\n```",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 35,
       "rules": [
         {
           "name": "text",
@@ -14,10 +14,13 @@
               "guards": [],
               "expr": {
                 "literal": {
-                  "const": "_00E9",
-                  "at": [
-                    2,
-                    12
+                  "concat": [
+                    {
+                      "string": "a"
+                    },
+                    {
+                      "string": "b"
+                    }
                   ]
                 }
               }

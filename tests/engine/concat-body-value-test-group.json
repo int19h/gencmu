@@ -1,0 +1,27 @@
+{
+  "description": "A value test accepts a grouped closed join.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text T=($A ++ $B) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

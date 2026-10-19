@@ -174,6 +174,22 @@ func userConstRefs(nodes ...any) []*domTerm {
 	return out
 }
 
+func closedStringShape(t *domTerm) bool {
+	pending := []*domTerm{t}
+	for len(pending) > 0 {
+		part := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if stringTermShape(part) {
+			continue
+		}
+		if part == nil || part.Kind != tmConcat || len(part.Items) < 2 {
+			return false
+		}
+		pending = append(pending, part.Items...)
+	}
+	return true
+}
+
 func stringTermShape(t *domTerm) bool {
 	return t != nil && (t.Kind == tmString || t.Kind == tmConst)
 }

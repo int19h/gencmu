@@ -3,19 +3,33 @@
   "document": "```jbogenbau\n%rule text \"$(S)$$$\"\n```",
   "expect": {
     "dom": {
+      "format": 35,
       "rules": [
         {
+          "name": "text",
+          "op": "define",
+          "flags": [],
           "alternatives": [
             {
+              "guards": [],
               "expr": {
                 "literal": {
                   "string": "$(S)$$$"
                 }
               }
             }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
           ]
         }
-      ]
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

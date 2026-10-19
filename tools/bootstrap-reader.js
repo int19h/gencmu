@@ -371,8 +371,58 @@ class Parser {
   // where the rule reads one (`asNode` false), or else as its own node.
   *range() {
     const start = this.index;
-    const children = [this.stringOperand(), this.expect(".."), this.stringOperand()];
+    const children = [this.closedString(), this.expect(".."), this.closedString()];
     return this.node("range", start, children);
+  }
+
+  closedEnd() {
+    let at = this.index, depth = 0, operand = true;
+    for (;;) {
+      const kind = this.tokens[at]?.kind;
+      const value = this.tokens[at]?.value;
+      if (operand) {
+        if (value === "(") { depth++; at++; continue; }
+        if (kind !== "string" && kind !== "constant") return null;
+        at++; operand = false;
+      } else if (value === "++") { at++; operand = true; }
+      else if (value === ")" && depth) { at++; depth--; }
+      else return depth ? null : at;
+    }
+  }
+
+  outerJoin(end) {
+    if (end === null) return false;
+    let depth = 0;
+    for (let i = this.index; i < end; i++) {
+      const value = this.tokens[i].value;
+      if (value === "(") depth++;
+      else if (value === ")") depth--;
+      else if (value === "++" && depth === 0) return true;
+    }
+    return false;
+  }
+
+  closedString(join = false) {
+    const frames = [{start: this.index, children: []}];
+    for (;;) {
+      let frame = frames[frames.length - 1];
+      if (this.is("(")) {
+        const start = this.index, open = this.tok();
+        frames.push({start, open, children: []});
+        continue;
+      }
+      frame.children.push(this.stringOperand());
+      for (;;) {
+        if (this.is("++")) { frame.children.push(this.tok()); break; }
+        const node = this.node(join && frames.length === 1 && frame.children.length > 1 ? "string-join" : "closed-string", frame.start, frame.children);
+        if (frames.length === 1) return join && frame.children.length === 1 ? frame.children[0] : node;
+        const close = this.expect(")");
+        frames.pop();
+        const parent = frames[frames.length - 1];
+        parent.children.push(this.node("string-operand", frame.start, [frame.open, node, close]));
+        frame = parent;
+      }
+    }
   }
 
   stringOperand() {
@@ -391,15 +441,15 @@ class Parser {
     const start = this.index;
     const children = [this.tok()];
     children.push(this.is("identifier") ? this.leaf("classifier-name") : this.fail("expected a classifier's name"));
-    while (this.is("guard") || this.is("string")) {
+    while (this.is("guard") || this.is("string") || this.is("constant") || this.is("(")) {
       const at = this.index;
       const entry = [];
       while (this.is("guard")) entry.push(this.leaf("guard"));
       do {
         const keyAt = this.index;
-        entry.push(this.is("string") ? this.node("classifier-key", keyAt, [this.leaf("string")]) : this.fail("expected a key"));
+        entry.push(this.node("classifier-key", keyAt, [this.closedString()]));
       }
-      while (this.is("string"));
+      while (this.is("string") || this.is("constant") || this.is("("));
       entry.push(this.is("∈") || this.is("∉") ? this.leaf("classifier-operator") : this.fail("expected ∈ or ∉"));
       entry.push(this.is("identifier") || this.is("tag") ? this.leaf("classifier-class") : this.fail("expected a class"));
       children.push(this.node("classifier-entry", at, entry));
@@ -541,14 +591,18 @@ class Parser {
 
   *symbol() {
     const start = this.index;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) return yield this.range();
+    if (this.closedEnd() !== null && this.tokens[this.closedEnd()]?.value === "..") return yield this.range();
     switch (this.kindAt()) {
       case "identifier": return this.leaf(isCapital(this.peek().value) ? "tag" : "reference");
       case "#": return this.leaf("reference");
       case "tag": return this.leaf("tag");
-      case "string": case "constant": return this.node("string-terminal", start, [this.stringOperand()]);
+      case "string": case "constant": return this.node("string-terminal", start, [this.closedString()]);
       case "_": return this.leaf("wildcard");
-      case "(": return this.node("group", start, [this.tok(), (yield this.choice()), this.expect(")")]);
+      case "(": {
+        const end = this.closedEnd();
+        if (end !== null) return this.node("string-terminal", start, [this.closedString()]);
+        return this.node("group", start, [this.tok(), (yield this.choice()), this.expect(")")]);
+      }
       case "[": {
         const children = [this.tok()];
         if (this.is("+")) children.push(this.tok());
@@ -590,6 +644,7 @@ class Parser {
   *testOperand() {
     const start = this.index;
     // A bare tag here is one requirement, rather than a juxtaposed run.
+    if (this.outerJoin(this.closedEnd())) return this.node("test-operand", start, [this.closedString(true)]);
     return this.node("test-operand", start, [(yield this.atom(false))]);
   }
 
@@ -744,7 +799,7 @@ class Parser {
   *atom(runs) {
     const start = this.index;
     let base;
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) base = yield this.range();
+    if (this.closedEnd() !== null && this.tokens[this.closedEnd()]?.value === "..") base = yield this.range();
     else switch (this.kindAt()) {
       case "@": base = yield this.patternLiteral(); break;
       case "string": {
@@ -845,10 +900,10 @@ class Parser {
   *patternAtom() {
     const start = this.index;
     const children = [];
-    if ((this.is("string") || this.is("constant")) && this.is("..", 1)) children.push((yield this.range()));
+    if (this.closedEnd() !== null && this.tokens[this.closedEnd()]?.value === "..") children.push((yield this.range()));
     else if (this.is("identifier") || this.is("#")) children.push(this.tok());
     else if (this.is("tag")) children.push(this.leaf("tag"));
-    else if (this.is("string")) children.push(this.leaf("string"));
+    else if (this.closedEnd() !== null) children.push(this.node("string-terminal", start, [this.closedString()]));
     else if (this.is("_")) children.push(this.leaf("wildcard"));
     else if (this.is("constant")) children.push(this.leaf("constant-reference"));
     else if (this.is("@")) return this.node("pattern-atom", start, [(yield this.patternLiteral())]);

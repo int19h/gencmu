@@ -1,10 +1,39 @@
 {
-  "description": "Engine §9.3 reports a forbidden value-test operand at its start in bodies and patterns.",
+  "description": "A value test accepts a grouped closed string in a rule body.",
   "document": "```jbogenbau\n%rule text A≠(\"a\")\n```",
   "expect": {
-    "error": {
-      "line": 2,
-      "column": 14
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "test": "≠",
+                "value": {
+                  "string": "a"
+                },
+                "expr": {
+                  "ref": "A"
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

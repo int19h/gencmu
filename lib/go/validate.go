@@ -258,7 +258,7 @@ func entryProblem(e *domEntry, uni *unicodeTable) *domProblem {
 		}
 	}
 	for _, key := range e.KeyTerms {
-		if !stringTermShape(key) {
+		if !closedStringShape(key) {
 			return &domProblem{message: "a classifier key requires a string term"}
 		}
 		c := &domChecker{uni: uni}
@@ -455,7 +455,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 		c.tests = append(c.tests, e)
 	case exLiteral:
 		c.term(e.Value, depth, false)
-		if !stringTermShape(e.Value) {
+		if !closedStringShape(e.Value) {
 			c.fail("a literal requires a string term")
 		}
 	case exWildcard:
@@ -472,7 +472,7 @@ func (c *domChecker) expr(e *domExpr, depth int, whole, sealed bool) {
 	case exRange:
 		for _, end := range e.Ends {
 			c.term(end, depth, false)
-			if !stringTermShape(end) {
+			if !closedStringShape(end) {
 				c.fail("a range requires string endpoints")
 			}
 		}
@@ -975,10 +975,16 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 		msg := patternProblem(t.Pattern, depth+1, func(p *domPattern, d int) string {
 			switch p.Kind {
 			case "literal":
+				if !closedStringShape(p.Value) {
+					return "a pattern literal requires a closed string"
+				}
 				c.term(p.Value, d, false)
 				return ""
 			case "range":
 				for _, end := range p.Ends {
+					if !closedStringShape(end) {
+						return "a pattern range requires closed strings"
+					}
 					c.term(end, d, false)
 				}
 				return ""
@@ -1576,6 +1582,24 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 				if ty := ct.of(p.Name); ty != tyString && ty != tyPattern && ty != tyAny {
 					msg := "a pattern atom requires a string or pattern constant"
 					fault = &typeFault{msg, &domTerm{Kind: tmConst, Str: p.Name, At: p.At}}
+				}
+			}
+			operands := []*domTerm{}
+			if p.Kind == "literal" {
+				operands = append(operands, p.Value)
+			}
+			if p.Kind == "range" {
+				operands = append(operands, p.Ends[:]...)
+			}
+			for _, operand := range operands {
+				ty, f := termTypeMemo(operand, ct, memo)
+				if f != nil {
+					fault = f
+					return
+				}
+				if ty != tyString && ty != tyAny {
+					fault = &typeFault{"a pattern terminal requires a string", operand}
+					return
 				}
 			}
 			if p.Kind == "test" && p.Op != "tags" {

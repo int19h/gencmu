@@ -1,0 +1,49 @@
+{
+  "description": "A concatenation keeps the written order of decomposed marks and exact engine constants.",
+  "document": "```jbogenbau\n%rule text \"a\" ++ $_0301 ++ \"̣\"\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "concat": [
+                    {
+                      "string": "a"
+                    },
+                    {
+                      "const": "_0301",
+                      "at": [
+                        2,
+                        19
+                      ]
+                    },
+                    {
+                      "string": "̣"
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

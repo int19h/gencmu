@@ -6,5 +6,5 @@
       "ok": true
     }
   },
-  "description": "Explicit joins and plain dollar strings retain their meaning in this position."
+  "description": "A feature condition compares a join that reads a stage constant."
 }

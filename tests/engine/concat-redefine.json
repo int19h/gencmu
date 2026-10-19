@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation redefine.",
+  "description": "A constant redefinition joins its previous string value with literal text.",
   "grammar": "%const $S \"a\"\n%redefine-const $S $S ++ \"b\"\n%rule text $S",
   "input": "a",
   "expect": {

@@ -1,0 +1,62 @@
+{
+  "description": "A closed string join preserves its operands in the pattern test.",
+  "document": "```jbogenbau\n%const $P @(\"a\" ++ $B=\"a\" ++ $B)\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "concat": [
+                  {
+                    "string": "a"
+                  },
+                  {
+                    "const": "B",
+                    "at": [
+                      2,
+                      30
+                    ]
+                  }
+                ]
+              },
+              "expr": {
+                "literal": {
+                  "concat": [
+                    {
+                      "string": "a"
+                    },
+                    {
+                      "const": "B",
+                      "at": [
+                        2,
+                        20
+                      ]
+                    }
+                  ]
+                },
+                "at": [
+                  2,
+                  13
+                ]
+              }
+            }
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

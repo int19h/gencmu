@@ -1,6 +1,6 @@
 {
-  "description": "Classifier keys contain plain literal strings.",
-  "grammar": "%const $K \"A,B\"\n%classifier words \"A,B\" ∈ WORD\n%rule text _ :: $.value.classify(words) %emits",
+  "description": "A classifier matches a literal key with a comma and capital letters.",
+  "grammar": "%classifier words \"A,B\" ∈ WORD\n%rule text _ :: $.value.classify(words) %emits",
   "tokens": [
     {
       "text": "a",

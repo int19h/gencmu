@@ -1,0 +1,10 @@
+{
+  "description": "Adjacent body strings read two tokens, while a closed join reads one token.",
+  "grammar": "%rule text \"e\" $_0301",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  },
+  "input": "é"
+}

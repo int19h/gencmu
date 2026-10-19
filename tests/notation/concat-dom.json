@@ -3,9 +3,13 @@
   "document": "```jbogenbau\n%const $S \"a\" ++ (\"\" ++ \"b\")\n```",
   "expect": {
     "dom": {
-      "format": 34,
+      "format": 35,
+      "rules": [],
+      "directives": [],
       "constants": [
         {
+          "name": "S",
+          "op": "define",
           "value": {
             "concat": [
               {
@@ -18,9 +22,15 @@
                 "string": "b"
               }
             ]
-          }
+          },
+          "at": [
+            2,
+            1
+          ]
         }
-      ]
+      ],
+      "classifiers": [],
+      "implications": []
     }
   }
 }

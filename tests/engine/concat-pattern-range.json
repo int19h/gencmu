@@ -1,0 +1,10 @@
+{
+  "description": "A range accepts closed endpoints that each resolve to one scalar.",
+  "grammar": "%rule text $x:(\"\" ++ \"a\")..(\"\" ++ \"z\") %conditions $x ≅ @((\"\" ++ \"a\")..(\"\" ++ \"z\")) %emits",
+  "input": "b",
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

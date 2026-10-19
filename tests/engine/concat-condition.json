@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation condition.",
+  "description": "A condition joins two captured values before comparing the resulting string.",
   "grammar": "%rule text $l:\"a\" \"y\" $r:\"b\" %conditions $l.value ++ $r.value = \"ab\"",
   "input": "ayb",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation set precedence.",
+  "description": "Concatenation binds more tightly than set union.",
   "grammar": "%rule text ε %conditions \"ab\" ∈ \"a\" ++ \"b\" ∪ \"cd\", (\"a\" ++ \"b\" ∩ \"ab\") = \"ab\", (\"a\" ++ \"b\" ∖ \"x\") = \"ab\"",
   "input": "",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation closed.",
+  "description": "A concatenation of closed strings can define a constant.",
   "grammar": "%const $A \"a\" ++ \"b\"\n%const $B $A ++ \"c\"\n%rule text $B",
   "input": "a",
   "expect": {

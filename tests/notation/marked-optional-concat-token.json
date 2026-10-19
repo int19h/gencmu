@@ -1,0 +1,10 @@
+{
+  "description": "An elidable optional rejects the ++ token at its first plus.",
+  "document": "```jbogenbau\n%rule text [++T] A\n```",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 13
+    }
+  }
+}

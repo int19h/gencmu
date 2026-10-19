@@ -1,0 +1,30 @@
+{
+  "description": "A closed string term supplies the classifier key.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%classifier c $A ++ $B \u2208 AB\n%rule text _ :: $.value.classify(c) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab",
+              "tags": [
+                "AB"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

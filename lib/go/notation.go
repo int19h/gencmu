@@ -298,7 +298,7 @@ var domRules = map[string]bool{
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true, "range": true,
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
-	"classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
+	"closed-string": true, "string-join": true, "classifier": true, "classifier-name": true, "classifier-entry": true, "classifier-key": true,
 	"classifier-operator": true, "classifier-class": true, "implication-declaration": true,
 	"headed-body": true, "string-terminal": true, "wildcard": true, "tag-test": true, "tag-requirement": true, "value-test": true,
 	"value-clause": true, "image-clause": true, "erased-clause": true, "recipe": true, "recipe-atom": true,
@@ -449,7 +449,7 @@ var (
 	primaryRules   = []string{"reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"}
 	conditionRules = []string{"comparison", "tree-comparison", "method", "negation", "presence", "implication"}
 	termRules      = []string{"union", "guarded-term"}
-	atomRules      = []string{"string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
+	atomRules      = []string{"closed-string", "string-join", "string", "tag", "string-terminal", "wildcard", "range", "name", "empty-set", "term", "guarded-term", "union", "method", "tag-run", "string-run", "capture-reference", "constant-reference", "pattern-literal"}
 )
 
 // sourceText reads original spelling only for include paths and source positions.
@@ -623,7 +623,7 @@ func (b *domBuilder) entry(n *Node) *domEntry {
 		e.Guards = append(e.Guards, g)
 	}
 	for _, p := range b.some(n, "classifier-key", 1) {
-		key := b.stringTerm(b.token(b.only(p, "string")))
+		key := b.closedString(b.only(p, "closed-string"))
 		e.KeyTerms = append(e.KeyTerms, key)
 	}
 	e.Op = b.operator(b.token(b.only(n, "classifier-operator")))

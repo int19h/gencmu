@@ -40,13 +40,13 @@ _MAPPED = frozenset("""directive argument-word argument-string argument-tag argu
 choice conjunction sequence primary repetition reference string-terminal string tag wildcard name tested tag-test tag-requirement value-test test test-operand capture
  group optional empty tags-clause value-clause image-clause recipe recipe-atom conditions-clause emits-clause erased-clause emit-item emit-target emit-tags emit-before
 emit-after implication any-of all-of condition comparison comparator tree-comparator negation presence method method-receiver method-selector method-name arguments argument term guarded-term
-union intersection concatenation term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
+union intersection concatenation closed-string string-join term-atom tag-run string-run integer empty-set capture-reference range constant-definition constant-definer
 constant-reference classifier classifier-name classifier-entry classifier-key classifier-operator classifier-class
 implication-declaration tree-comparison pattern-literal pattern-union pattern-intersection pattern-sequence pattern-item pattern-atom pattern-brackets pattern-repeat pattern-path pattern-separator""".split())
 _PRIMARIES = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "tested", "capture", "group", "optional", "repetition", "empty", "constant-reference"))
 _CONDITIONS = frozenset(("tree-comparison", "comparison", "method", "negation", "presence", "implication"))
 _TERMS = frozenset(("union", "guarded-term"))
-_ATOMS = frozenset(("string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal"))
+_ATOMS = frozenset(("closed-string", "string-join", "string", "tag", "tag-run", "string-run", "range", "name", "empty-set", "term", "union", "guarded-term", "method", "capture-reference", "constant-reference", "pattern-literal"))
 _ITEMS = frozenset(("directive", "rule", "constant-definition", "classifier", "implication-declaration"))
 _SYMBOLS = frozenset(("reference", "tag", "string-terminal", "wildcard", "range", "constant-reference"))
 _DEFINERS = {"%rule": "define", "%redefine-rule": "redefine", "%extend-rule": "extend"}
@@ -235,7 +235,7 @@ class DomBuilder:
                 raise self.fail(guard, "a classifier entry accepts gates only")
             guards.append(value)
         for key_node in self.some(node, "classifier-key"):
-            keys.append(self.value(self.only(key_node, "string")))
+            keys.append(self.closed_string(self.only(key_node, "closed-string")))
         op = self.operator(self.token(self.only(node, "classifier-operator")))
         class_node = self.only(node, "classifier-class")
         name = self.token_value(self.token(class_node))
@@ -340,6 +340,8 @@ class DomBuilder:
     def recipe(self, node: Node) -> Dom:
         atoms = []
         for atom in self.some(node, "recipe-atom"):
+            if atoms:
+                raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
             if any(t.value in ("(", ")") for t in self.tokens[atom.span[0]:atom.span[1]]):
                 raise self.fail(atom, "a recipe atom accepts no grouping or arguments")
             if any(t.value in ("∪", "∩", "∖", "⟹") for t in self.tokens[atom.span[0]:atom.span[1]]):
@@ -351,7 +353,7 @@ class DomBuilder:
             finally:
                 self.recipe_context = before
             values = value.get("concat", [value])
-            if atoms or any("union" in part for part in values):
+            if any("union" in part for part in values):
                 raise self.fail(atom, "juxtaposed recipe strings require ++, use ++ between string atoms")
             for value in values:
                 if "method" in value:
@@ -482,8 +484,10 @@ class DomBuilder:
             return {"ref": self.token_value(self.token(node))}
         if rule == "tag":
             return {"ref": self.tag_of(self.token(node))}
+        if rule in ("string-join", "closed-string"):
+            return self.closed_string(node)
         if rule == "string-terminal":
-            value = self.known_of(node, frozenset(("string", "constant-reference")))
+            value = self.known_of(node, frozenset(("string", "constant-reference", "string-join", "closed-string")))
             return {"literal": self.value(value)}
         if rule == "wildcard":
             self.token(node)
@@ -629,8 +633,21 @@ class DomBuilder:
             raise self.fail(token, "invalid tag name")
         return name
 
+    def closed_string(self, node: Node) -> Dom:
+        pending = [node]
+        items = []
+        while pending:
+            part = pending.pop()
+            if part.rule in ("string", "constant-reference"):
+                items.append(self.value(part))
+            else:
+                pending.extend(reversed([child for child in self.kids(part) if child.kind == "rule"]))
+        if not items:
+            raise self.lacks(node, "a closed string")
+        return items[0] if len(items) == 1 else {"concat": items}
+
     def range_of(self, node: Node) -> list[Dom]:
-        parts = [kid for kid in self.kids(node) if kid.rule in ("string", "constant-reference")]
+        parts = [kid for kid in self.kids(node) if kid.rule in ("closed-string", "string", "constant-reference")]
         if len(parts) < 2:
             raise self.lacks(node, "two string operands")
         ends = [self.value(end) for end in parts[:2]]
@@ -677,9 +694,17 @@ class DomBuilder:
                 op = self.operator(self.token(self.only(test, "test")))
                 operand = self.only(test, "test-operand")
                 base = self.known_of(operand, _ATOMS)
-                if base.rule not in ("string", "constant-reference"):
+                if base.rule not in ("string", "constant-reference", "string-join", "term"):
                     raise self.fail(operand, "a value test requires a string or string constant")
-                expr = {"test": op, "value": self.value(base), "expr": expr}
+                value = self.value(base)
+                pending = [value]
+                while pending:
+                    part = pending.pop()
+                    if "concat" in part:
+                        pending.extend(part["concat"])
+                    elif "string" not in part and "const" not in part:
+                        raise self.fail(operand, "a value test requires a closed string")
+                expr = {"test": op, "value": value, "expr": expr}
         return expr
 
     def emission(self, node: Node) -> Dom:
@@ -886,7 +911,7 @@ class DomBuilder:
                 raise self.lacks(node, "pattern atom")
             first = kids[0]
             tests = [kid for kid in kids if kid.rule in ("tag-test", "value-test")]
-            valid = first.rule in ("tag", "string-terminal", "string", "range", "wildcard", "constant-reference")
+            valid = first.rule in ("tag", "string-terminal", "string-join", "string", "range", "wildcard", "constant-reference")
             if first.kind == "token":
                 name = self.token_value(first)
                 valid = USER_NAME.fullmatch(name) is not None or name in ENGINE_TAGS
@@ -944,15 +969,15 @@ class DomBuilder:
             if parts:
                 result = {"node":self._pattern_node(parts[0])} if first.rule == "pattern-literal" else parts[0]
             else:
-                token = first if first.kind == "token" else self.token(first)
-                name = self.token_value(token)
-                at = list(self.position(token))
+                token = first if first.kind == "token" else None if first.rule in ("string-terminal", "string-join", "range") else self.token(first)
+                name = self.token_value(token) if token is not None else ""
+                at = list(self.position(first))
                 if first.rule == "constant-reference":
                     value = self.value(first)
                     pattern = {"literal": value, "at": at} if name.startswith("$_") else {"constant": value["const"], "at": at}
-                elif first.rule in ("string-terminal", "string"):
-                    value = self.value(first if first.rule == "string" else self.known_of(first, frozenset(("string", "constant-reference"))))
-                    pattern = {"literal": value, "at": at}
+                elif first.rule in ("string-terminal", "string-join", "string"):
+                    value = self.value(first if first.rule in ("string", "string-join") else self.known_of(first, frozenset(("string", "constant-reference", "string-join", "closed-string"))))
+                    pattern = {"constant": value["const"], "at": value["at"]} if "const" in value and not value["const"].startswith("_") else {"literal": value, "at": at}
                 elif first.rule == "range":
                     pattern = {"range": self.range_of(first), "at": at}
                 elif first.rule == "wildcard" or name == "_":
@@ -999,6 +1024,8 @@ class DomBuilder:
             finally:
                 self.closed_for = closed
             return {"pattern":self._pattern_node(children)}
+        if rule in ("closed-string", "string-join"):
+            return self.closed_string(node)
         if rule in ("test-operand", "term-atom"):
             # A test's operand is one term, as a term-atom reads it.
             return (yield self._term(self.known_of(node, _ATOMS), argument))

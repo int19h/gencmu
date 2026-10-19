@@ -1,0 +1,13 @@
+{
+  "description": "The loader rejects a range endpoint that resolves to more than one scalar.",
+  "grammar": "%const $S \"a\" ++ \"b\"\n%rule text $S..\"z\"",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 12
+    }
+  }
+}

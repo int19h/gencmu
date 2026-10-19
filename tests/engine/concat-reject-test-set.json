@@ -1,0 +1,13 @@
+{
+  "description": "A value test rejects a join with a string-set operand.",
+  "grammar": "%const $S \"a\" ∪ \"b\"\n%rule text A=\"x\" ++ $S",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 21
+    }
+  }
+}

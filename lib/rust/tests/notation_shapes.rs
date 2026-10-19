@@ -393,8 +393,8 @@ fn missing_pattern_parts_are_grammar_errors() {
     }
 }
 
-/// A supplied tree can test grouped and nested literals. Their target
-/// error precedes an invalid scalar constant inside the base.
+/// Supplied trees can test nonterminal groups and nested literals. Their
+/// target error precedes an invalid scalar constant inside the base.
 #[test]
 fn grouped_pattern_tests_fail_before_base_conversion() {
     let bundled = parse_json(&read(&["grammars", "notation", "bootstrap.json"])).unwrap();
@@ -402,7 +402,7 @@ fn grouped_pattern_tests_fail_before_base_conversion() {
         (
             2,
             r#"{"seq":[{"literal":{"string":"("}},{"ref":"pattern-union"},{"literal":{"string":")"}},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#,
-            "(($_D800)<A>)",
+            "(($_D800 A)<A>)",
         ),
         (1, r#"{"seq":[{"ref":"pattern-literal"},{"optional":{"repeat":{"ref":"symbol-test"}}}]}"#, "(@($_D800)<A>)"),
     ] {

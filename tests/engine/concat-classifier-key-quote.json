@@ -1,0 +1,30 @@
+{
+  "description": "A classifier key joins exact quotation-mark and backslash constants.",
+  "grammar": "%const $Q $_0022\n%classifier c $Q ++ $_005C \u2208 AB\n%rule text _ :: $.value.classify(c) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "\"\\",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "\"\\",
+              "tags": [
+                "AB"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

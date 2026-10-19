@@ -203,7 +203,7 @@ A `¬` immediately before a guard belongs to that guard. Elsewhere, `negation` e
 
 Straight double quotes enclose a string. Ordinary string characters exclude the quote and backslash: U+0022 and U+005C.
 
-Dollar signs are ordinary characters, including in `$$` and `$(NAME)`.
+Dollar signs are ordinary characters.
 
 A backslash has no string form, so the stage rejects it rather than treating it as an escape.
 
@@ -348,7 +348,7 @@ Value tests select known keywords. `$KEYWORDS` holds their exact names. The fall
 
 A symbol is punctuation that no larger lexical form contains. Symbols preserve their input values and images. The operator `≇` has value and image `≅` followed by U+0338. Its `text` retains `≇`.
 
-The greedy reading keeps `...`, `..`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
+The greedy reading keeps `...`, `..`, `++`, `::`, `:=`, and `:-` together as compound tokens. `@` and `(` remain separate tokens.
 
 `≻` separates ranked options. `/` separates a repetition's item and separator. Pattern paths and comparisons retain their own punctuation tokens.
 

@@ -1,0 +1,66 @@
+{
+  "description": "A closed string join preserves its operands in the classifier key.",
+  "document": "```jbogenbau\n%classifier c $K \"a\" ++ $B (\"x\" ++ \"y\") ∈ AB\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [],
+      "directives": [],
+      "constants": [],
+      "classifiers": [
+        {
+          "name": "c",
+          "entries": [
+            {
+              "guards": [],
+              "keys": [
+                {
+                  "const": "K",
+                  "at": [
+                    2,
+                    15
+                  ]
+                },
+                {
+                  "concat": [
+                    {
+                      "string": "a"
+                    },
+                    {
+                      "const": "B",
+                      "at": [
+                        2,
+                        25
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "concat": [
+                    {
+                      "string": "x"
+                    },
+                    {
+                      "string": "y"
+                    }
+                  ]
+                }
+              ],
+              "op": "∈",
+              "class": "AB",
+              "at": [
+                2,
+                15
+              ]
+            }
+          ],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "implications": []
+    }
+  }
+}

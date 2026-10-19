@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation empty.",
+  "description": "A concatenation preserves an empty operand.",
   "grammar": "%const $S \"\" ++ \"a\" ++ \"\"\n%rule text $S",
   "input": "a",
   "expect": {

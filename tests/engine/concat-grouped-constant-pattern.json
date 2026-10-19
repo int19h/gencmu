@@ -1,0 +1,18 @@
+{
+  "description": "A grouped pattern constant keeps its predicate meaning.",
+  "grammar": "%const $P @(A)\n%rule text $x:A %conditions $x \u2245 @(($P)) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "A"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true
+    }
+  }
+}

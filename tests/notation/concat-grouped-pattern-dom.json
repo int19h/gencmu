@@ -1,0 +1,47 @@
+{
+  "description": "Parentheses around a closed string retain its terminal form and reference positions.",
+  "document": "```jbogenbau\n%const $P @((\"a\" ++ \"b\")=\"ab\")\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [],
+      "directives": [],
+      "constants": [
+        {
+          "name": "P",
+          "op": "define",
+          "value": {
+            "pattern": {
+              "test": "=",
+              "value": {
+                "string": "ab"
+              },
+              "expr": {
+                "literal": {
+                  "concat": [
+                    {
+                      "string": "a"
+                    },
+                    {
+                      "string": "b"
+                    }
+                  ]
+                },
+                "at": [
+                  2,
+                  13
+                ]
+              }
+            }
+          },
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

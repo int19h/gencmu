@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation forward.",
+  "description": "A concatenation resolves a string constant defined later in the stage.",
   "grammar": "%const $S $A ++ \"b\"\n%const $A \"a\"\n%rule text $S",
   "input": "a",
   "expect": {

@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation exact scalars.",
+  "description": "A concatenation preserves the exact scalars of its engine constants.",
   "grammar": "%const $S \"a\" ++ $_0301 ++ $_0323\n%rule text ε %conditions $S = (\"a\" ++ $_0301 ++ $_0323)",
   "input": "",
   "expect": {

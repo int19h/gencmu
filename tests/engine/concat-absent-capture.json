@@ -13,5 +13,5 @@
       "ok": true
     }
   },
-  "description": "String concatenation preserves capture presence and restored input observations."
+  "description": "A concatenation preserves capture presence and restored input observations."
 }

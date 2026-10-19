@@ -1,5 +1,5 @@
 {
-  "description": "String concatenation group method.",
+  "description": "A grouped join supplies the receiver of split.",
   "grammar": "%const $S (\"a\" ++ (\"b\" ++ \"c\")).split(\"b\")\n%rule text ε %conditions $S = (\"a\" \"c\")",
   "input": "",
   "expect": {

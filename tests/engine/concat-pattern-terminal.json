@@ -1,0 +1,27 @@
+{
+  "description": "A closed string term supplies the pattern terminal.",
+  "grammar": "%const $A \"a\"\n%const $B \"b\"\n%rule text $x:$A ++ $B %conditions $x ≅ @($A ++ $B) %emits",
+  "tokens": [
+    {
+      "text": "x",
+      "value": "ab",
+      "tags": [
+        "T"
+      ]
+    }
+  ],
+  "expect": {
+    "result": {
+      "ok": true,
+      "stages": [
+        {
+          "output": [
+            {
+              "value": "ab"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

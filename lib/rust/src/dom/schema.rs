@@ -80,20 +80,43 @@ fn span(value: &Json) -> bool {
         )
 }
 
+fn closed_string(value: &Json) -> bool {
+    let mut pending = vec![value];
+    while let Some(part) = pending.pop() {
+        if string_atom(part) {
+            continue;
+        }
+        let Some(items) = part.get("concat").and_then(Json::as_array).filter(|items| items.len() >= 2) else {
+            return false;
+        };
+        pending.extend(items);
+    }
+    true
+}
+
 fn string_atom(value: &Json) -> bool {
     exact(value, &["string"], &[]) && is_str(value.get("string")) || exact(value, &["const", "at"], &[])
 }
 
 /// Literal endpoints must already form an ordered scalar interval.
 fn literal_range(left: &Json, right: &Json) -> bool {
-    let scalar = |value: &Json| {
-        let text = value.get("string")?.as_str()?;
-        let mut chars = text.chars();
-        let first = chars.next()?;
-        chars.next().is_none().then_some(first)
+    let text = |value: &Json| {
+        let mut pending = vec![value];
+        let mut text = String::new();
+        while let Some(part) = pending.pop() {
+            if let Some(value) = part.get("string").and_then(Json::as_str) {
+                text.push_str(value);
+            } else if let Some(items) = part.get("concat").and_then(Json::as_array) {
+                pending.extend(items.iter().rev());
+            } else {
+                text.push(part.get("const").and_then(Json::as_str).and_then(engine_scalar)?);
+            }
+        }
+        Some(text)
     };
-    [left, right].iter().all(|v| v.get("string").is_none() || scalar(v).is_some())
-        && match (scalar(left), scalar(right)) {
+    let ends = [text(left), text(right)];
+    ends.iter().all(|end| end.as_ref().map_or(true, |s| s.chars().count() == 1))
+        && match (&ends[0], &ends[1]) {
             (Some(a), Some(b)) => a <= b,
             _ => true,
         }
@@ -462,7 +485,7 @@ pub(super) fn problem(dom: &Json, unicode: &Unicode) -> Option<&'static str> {
                 }
             }
             Part::String => {
-                if !string_atom(value) {
+                if !closed_string(value) {
                     return Some("a string term is required");
                 }
                 pending.push((Part::Term, value, depth));

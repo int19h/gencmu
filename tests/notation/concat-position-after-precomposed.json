@@ -1,0 +1,46 @@
+{
+  "description": "A constant reference after decomposed literal text keeps its original column.",
+  "document": "```jbogenbau\n%rule text \"é\" ++ $_0301\n```",
+  "expect": {
+    "dom": {
+      "format": 35,
+      "rules": [
+        {
+          "name": "text",
+          "op": "define",
+          "flags": [],
+          "alternatives": [
+            {
+              "guards": [],
+              "expr": {
+                "literal": {
+                  "concat": [
+                    {
+                      "string": "é"
+                    },
+                    {
+                      "const": "_0301",
+                      "at": [
+                        2,
+                        19
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "conditions": [],
+          "at": [
+            2,
+            1
+          ]
+        }
+      ],
+      "directives": [],
+      "constants": [],
+      "classifiers": [],
+      "implications": []
+    }
+  }
+}

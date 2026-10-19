@@ -23,6 +23,22 @@
     {
       "source": "\"a\" $.value",
       "at": "$.value"
+    },
+    {
+      "source": "$X $Y",
+      "at": "$Y"
+    },
+    {
+      "source": "$.value $.image",
+      "at": "$.image"
+    },
+    {
+      "source": "\"a\" $.tags",
+      "at": "$.tags"
+    },
+    {
+      "source": "\"a\" $.value.split(\" \")",
+      "at": "$.value"
     }
   ],
   "positions": [

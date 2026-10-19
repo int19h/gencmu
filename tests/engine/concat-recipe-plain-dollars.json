@@ -1,5 +1,5 @@
 {
-  "description": "Explicit joins and plain dollar strings retain their meaning in this position.",
+  "description": "A recipe emits dollar characters without substitution.",
   "grammar": "%rule text := \"$(UNKNOWN)$$\" | \"a\" %emits",
   "input": "a",
   "expect": {

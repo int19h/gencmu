@@ -12,5 +12,5 @@
       "ok": true
     }
   },
-  "description": "Explicit joins and plain dollar strings retain their meaning in this position."
+  "description": "A method argument joins exact string operands before split reads its delimiter."
 }
