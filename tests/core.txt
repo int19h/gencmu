@@ -5903,3 +5903,5 @@ free-span.cll-ebnf.abstraction
 free-span.experimental.term
 free-span.experimental.statement
 free-span.experimental.abstraction
+i200.syntax.na-ke-control
+i201.syntax.quantified-selbri-control
