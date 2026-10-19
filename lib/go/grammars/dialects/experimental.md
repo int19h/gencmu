@@ -168,7 +168,13 @@ The syntax layer preserves these camxes-exp preferences among complete readings,
 - Without written BOI, a number consumes every following number part, and a letter string consumes every following letter ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
 - A subscript after another subscript nests ([free modifiers](../syntax/experimental.md#free-modifiers-vocatives-and-indicators)).
 
-A free modifier's span is settled before the connection preference, as in camxes-exp. Its terminator can be omitted. In `mi nelci le nu broda to brodi .e le nu brode melbi`, the parenthesis contains `brodi .e le nu brode melbi`. The `.e` connects bridi-tails inside that parenthesis. With written `toi`, `mi nelci le nu broda to brodi toi .e le nu brode melbi` instead joins the two outer descriptions.
+A free modifier's span follows the standard rule for omitted terminators: it closes as late as the text allows. This settles its span before the connection preference. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
+
+In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. JACU is the experimental connection between bridi-tails. It permits `.e` between bridi-tails, so the standard rule permits the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The standard grammar also closes before `.e`, which cannot connect its bridi-tails.
+
+camxes-exp's PEG greedily reads `le nu brode melbi` as a description inside the parenthesis. That leaves no selbri for the second bridi-tail. camxes-exp does not backtrack into that completed description, so the inner connection fails. This layer also considers a description that ends before `melbi` and keeps the parenthesis open.
+
+Written TOI closes the parenthesis in `mi nelci le nu broda to brodi toi .e le nu brode melbi`. The `.e` then joins the two outer descriptions in both grammars.
 
 Two related readings depart from camxes-exp. With a free modifier between `gi'e` and `ke`, camxes-exp takes the plain connection. This layer still gives the group to the connective, as in `mi broda gi'e to do toi ke ge brode gi brodi ke'e`.
 

@@ -59,7 +59,7 @@ The layer permits ambiguity beyond omitted terminators. It uses these rules to s
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
-The span preference follows camxes-exp. In `mi nelci le nu broda to brodi .e le nu brode melbi`, the parenthesis contains `brodi .e le nu brode melbi`. The `.e` connects bridi-tails inside that parenthesis. Written TOI ends it in `mi nelci le nu broda to brodi toi .e le nu brode melbi`, so `.e` joins the two outer descriptions.
+A free modifier's span follows the standard rule for omitted terminators: it closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis.
 
 The experimental terminators `ku'au` and `ku'oi` are elidable: the rules below write them `[+KUhAU]` and `[+KUhOI]`.
 
@@ -1068,6 +1068,12 @@ This layer also accepts `ge mi klama pu gi do klama` and `ge mi pu gi do nu'u kl
 ### Free modifiers and subscripts
 
 The free-modifier preference compares complete readings. Thus `le to mi pilno li reci namcu` remains possible. An incomplete longer parenthesis does not block its shorter complete reading.
+
+In `mi nelci le nu broda to brodi .e le nu brode melbi`, this layer keeps `brodi .e le nu brode melbi` inside the parenthesis. JACU permits `.e` between bridi-tails, so the standard rule permits the later close. camxes-exp instead closes after `brodi`, and `.e` joins the two outer descriptions. The standard grammar also closes before `.e`, which cannot connect its bridi-tails.
+
+camxes-exp's PEG greedily reads `le nu brode melbi` as a description inside the parenthesis. That leaves no selbri for the second bridi-tail. camxes-exp does not backtrack into that completed description, so the inner connection fails. This layer also considers a description that ends before `melbi` and keeps the parenthesis open.
+
+Written TOI closes the parenthesis in `mi nelci le nu broda to brodi toi .e le nu brode melbi`. The `.e` then joins the two outer descriptions in both grammars.
 
 A number cannot end before another number part without written BOI. So `li pa joi xi re re` fails because both `re` words belong to the subscript. No operand remains after `joi`. `li pa joi xi re boi re` keeps the subscript boundary and the following operand.
 

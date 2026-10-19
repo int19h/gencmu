@@ -667,7 +667,7 @@ The dialect also states three conventions as rules:
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
 
-A free modifier's span is settled before the connection preference, as in camxes-exp. Its terminator can be omitted. The [experimental syntax document](../grammars/syntax/experimental.md) gives examples with omitted and written `toi`.
+A free modifier's span follows the standard rule for omitted terminators: it closes as late as the text allows. This settles its span before the connection preference. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/syntax/experimental.md) gives examples with omitted and written `toi`.
 
 The Zantufa grammar states its attachment conventions as rules, derived from its reference parser:
 

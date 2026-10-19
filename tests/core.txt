@@ -5897,3 +5897,9 @@ i216.syntax.term-fe-mi
 i216.syntax.term-main-cu
 i216.syntax.free-span
 i216.syntax.free-span-toi
+free-span.cll-ebnf.term
+free-span.cll-ebnf.statement
+free-span.cll-ebnf.abstraction
+free-span.experimental.term
+free-span.experimental.statement
+free-span.experimental.abstraction
