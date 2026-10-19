@@ -1287,11 +1287,11 @@ Thus `_lu`, `_Letter`, and `_Lux` are each one invalid token. None splits into a
 
 A capture token matches `$[a-z][A-Za-z0-9_-]*`, or `$` alone. Its name must match `[a-z][a-z0-9_-]*`. `$fooBar:A` therefore reports the capture-name error at `$fooBar`. A user constant reference is `$` followed by an uppercase name.
 
-An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must consist of four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. Interpolated engine names meet the same validity rules.
+An engine constant token is `$_` followed by the longest run of `[0-9A-Za-z]`. That run must consist of four to six uppercase hexadecimal digits and denote one scalar value. `$_0041Z` is one invalid constant, not a constant followed by a name. This validity rule applies to engine constant tokens only.
 
 An Integer token is a nonempty run of ASCII decimal digits. Section 9.3 defines its validity as a method argument.
 
-String delimiters are straight double quotes. Their contents are plain text. Dollar signs are ordinary characters, including `$$` and `$(NAME)`. The reader stores the decomposed token value between the delimiters.
+String delimiters are straight double quotes. Their contents are plain text. Dollar signs are ordinary characters, including `$$` and `$(NAME)`. The reader stores the decomposed token value between the delimiters. The reader does not validate scalar names inside strings.
 
 Backslash has no escape meaning and is a lexical error. A string containing a quote or backslash joins `$_0022` or `$_005C` with `++`.
 
@@ -1630,7 +1630,7 @@ Each declaration's `at` records its first token's line and column, counted from 
 | `pattern-repeat` | One item union and optional separator union | Repeated children |
 | `pattern-path` | One path token and one `pattern-atom` | Descendant, first, or last path |
 
-The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. Interpolation positions count the original text. An include path keeps the token's original text, without its quotes.
+The reader maps `=` U+0338 to `≠`, `∈` U+0338 to `∉`, `⊆` U+0338 to `⊈`, and `≅` U+0338 to `≇`. It does not normalize decoded strings. An include path keeps the token's original text, without its quotes.
 
 For a string token, the reader removes only its delimiters. It preserves every character of the decomposed token value, including dollar signs.
 
@@ -1916,7 +1916,7 @@ A DOM is malformed in each of these cases, whether it is read, cached or in the 
 - It has an implication whose sides are not closed tag-set terms, or either side names an engine tag.
 - Its `.classify` argument is not a classifier name, or a classifier name appears in another argument position.
 
-The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text. Interpolated constants keep their exact scalar values.
+The reader takes semantic names and syntax from token values, including rule names, tags, constants, features, classes, classifier keys, and methods. Include paths keep their original spelling. Diagnostic positions count the original text.
 
 String decoding preserves dollar signs literally. `++` joins string operands in conditions, constants, closed terms, and recipes. Include paths keep their original spelling. §9.1 defines scalar constants and canonical diagnostic spelling.
 

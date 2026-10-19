@@ -104,7 +104,9 @@ A tag literal is a terminal in a body. A string literal or string constant is al
 
 A scalar value is a Unicode code point outside surrogates. Engine constants such as `$_ED80` denote one scalar string. Their hexadecimal has four to six uppercase digits and cannot exceed `10FFFF`. Surrogates `D800` to `DFFF` are errors. `"a"` and `$_0061` have the same terminal identity. `$_0301` denotes a combining acute accent.
 
-A grammar document is decomposed too, so the written part of a string literal holds decomposed characters. `"é"` and `"e$(_0301)"` are one two-scalar string, and no stage-zero token can match it. A first-stage grammar reads `"e" $_0301`. An engine constant names an exact scalar, so `$_00E9` stays one scalar, inside a string too: `"$(_00E9)"` is U+00E9. The loader does not reorder a string's marks. A range endpoint must still be one scalar, so `"à".."ź"` is an error.
+A grammar document also decomposes. Written `"é"` and `"e" ++ $_0301` both contain `e` followed by U+0301. Neither string can match one stage-zero token. A first-stage grammar reads `"e" $_0301`.
+
+An engine constant names one exact scalar, so `$_00E9` stays one scalar. Dollar signs inside quotes are ordinary characters. Concatenation does not reorder marks. A range endpoint must contain one scalar, so `"à".."ź"` is an error.
 
 A range, `"a".."z"`, reads a token whose value is one scalar within its inclusive endpoints. Each endpoint is a string literal or constant resolving to one scalar. The range skips surrogates, so `$_D7FF..$_E000` has two possible values. A reversed range is an error. `%rule digit "0".."9"` names a scalar interval. `...` is a chain marker, so `"a"..."z"` is an error.
 
