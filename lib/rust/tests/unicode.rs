@@ -54,7 +54,7 @@ fn decomposed_source_text_uses_only_the_callers_table() {
 }
 
 #[test]
-fn constant_errors_keep_original_columns_after_expansion_and_plain_dollars() {
+fn constant_errors_keep_original_columns_with_concatenation_and_plain_dollars() {
     let sources = sources("%const $S \"$$(Ignored)é\" ++ $_0061 ++ \"한\" ++ $Absent\n%rule text $S");
     let expected = common::position_of(&sources["g.md"], "$Absent");
     let error = gencmu::load_dialect_sources(sources, "p.md").unwrap_err();

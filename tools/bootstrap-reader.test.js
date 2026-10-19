@@ -96,7 +96,7 @@ test("the bootstrap and engine readers agree on the notation documents", () => {
   }
 });
 
-test("both readers admit every new family of written forms", () => {
+test("both readers admit written forms, including plain dollar text", () => {
   const loader = notationLoader();
   for (const source of [
     '%rule r $x:A≠"x" %conditions $x.value ≠ "x", "a" ∉ "a b".split(" "), A ⊈ $x.tags, $x ≇ @A',

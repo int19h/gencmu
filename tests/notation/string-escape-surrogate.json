@@ -1,5 +1,5 @@
 {
-  "description": "An concatenated surrogate name is invalid (engine §9.1).",
+  "description": "A surrogate engine constant name is invalid (engine §9.1).",
   "document": "```jbogenbau\n%rule a A=$_D800\n```\n",
   "expect": {
     "error": {

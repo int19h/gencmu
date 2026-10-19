@@ -359,6 +359,7 @@ func sameValue(a, b reflect.Value) bool {
 
 // DOM 27 uses stored tags for names and strings. Single-scalar punctuation inherits the stage zero Unicode tags.
 func TestNotationLexicalTags(t *testing.T) {
+	// The quoted scalar-shaped text tests literal dollars.
 	t.Parallel()
 	d, err := LoadDialect("notation")
 	if err != nil {

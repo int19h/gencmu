@@ -72,13 +72,13 @@ func TestNormalizationIncludePathAndConstantLocations(t *testing.T) {
 	if err := loadBundled(); err != nil {
 		t.Fatal(err)
 	}
-	doc := "```jbogenbau\n%const $S \"é$$é\" ++ $_0301 ++ \"é\" ++ $_0323\n%rule text $S\n```"
+	doc := "```jbogenbau\n%const $S \"é$é\" ++ $_0301 ++ \"é\" ++ $_0323\n%rule text $S\n```"
 	dom, failure := bundled.reader.read(doc, "g.md")
 	if failure != nil {
 		t.Fatal(failure)
 	}
 	parts := dom.Constants[0].Value.Items
-	if parts[1].At != [2]int{2, 21} || parts[3].At != [2]int{2, 38} {
+	if parts[1].At != [2]int{2, 20} || parts[3].At != [2]int{2, 37} {
 		t.Fatalf("constant locations: %#v %#v", parts[1], parts[3])
 	}
 }

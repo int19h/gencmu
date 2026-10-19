@@ -1,5 +1,5 @@
 {
-  "description": "An concatenated engine name cannot contain seven hexadecimal digits (engine §9.1).",
+  "description": "An engine constant name cannot contain seven hexadecimal digits (engine §9.1).",
   "document": "```jbogenbau\n%rule a $x:A %conditions $x.source-text = $_0000041\n```\n",
   "expect": {
     "error": {

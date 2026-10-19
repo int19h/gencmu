@@ -1,6 +1,6 @@
 {
   "description": "Declarations, extensions, guards, classifier keys, and tag runs keep decomposed names.",
-  "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%classifier cK\n fK? \"K\" \"$(K)\" ∈ K\n%implies K Q ⟹ K Q\n%rule rK fK! K<K> :: K\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```",
+  "document": "```jbogenbau\n%features K fK\n%stage sK\n%extend-stage sK\n%redefine-stage sK\n%const $K \"K\"\n%redefine-const $K $K\n%classifier cK\n fK? \"K\" \"K\" ∈ K\n%implies K Q ⟹ K Q\n%rule rK fK! K<K> :: K\n%extend-rule rK ¬fK? K\n%redefine-rule rK fK? K\n```",
   "expect": {
     "dom": {
       "format": 34,
@@ -180,7 +180,7 @@
                   "string": "K"
                 },
                 {
-                  "string": "$(K)"
+                  "string": "K"
                 }
               ],
               "op": "∈",
