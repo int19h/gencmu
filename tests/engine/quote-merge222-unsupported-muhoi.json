@@ -1,12 +1,11 @@
 {
-  "description": "The new experimental quote-related class has no construction under issue 212.",
+  "description": "MUhOI needs a complete delimited quote, so a bare marker rejects in words.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "mu'oi coi",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": false,
@@ -21,49 +20,15 @@
           "name": "forms"
         },
         {
-          "name": "words",
-          "output": [
-            {
-              "image": "mu'oi",
-              "value": "mu'oi",
-              "tags": [
-                "Cmavo",
-                "Continued",
-                "MUhOI",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "Word"
-              ]
-            },
-            {
-              "image": "coi",
-              "value": "coi",
-              "tags": [
-                "COI",
-                "Cmavo",
-                "Continued",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "Word"
-              ]
-            }
-          ]
-        },
-        {
-          "name": "indicators"
-        },
-        {
-          "name": "syntax"
+          "name": "words"
         }
       ],
       "error": {
         "kind": "rejected",
-        "stage": "syntax",
+        "stage": "words",
         "source": [
-          0,
-          5
+          9,
+          9
         ]
       }
     },

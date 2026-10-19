@@ -1,12 +1,11 @@
 {
-  "description": "Tree conditions see the complete quote terminal and retain the KU and free-modifier boundary rules.",
+  "description": "The ZO target reader skips hesitation, quotes UI, and retains the full source image.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```"
   },
   "pipeline": "pipeline.md",
   "input": "zo ie'o ui cmavo",
-  "options": {
-  },
+  "options": {},
   "expect": {
     "result": {
       "ok": true,
@@ -22,10 +21,15 @@
         },
         {
           "name": "words",
+          "verdict": "unique",
           "output": [
             {
-              "image": "zo ie'o",
-              "value": "zo ie'o",
+              "value": "zo ui",
+              "image": "zo ie'o ui",
+              "source": [
+                0,
+                10
+              ],
               "tags": [
                 "Cmavo",
                 "Word",
@@ -33,22 +37,12 @@
               ]
             },
             {
-              "image": "ui",
-              "value": "ui",
-              "tags": [
-                "Cmavo",
-                "Continued",
-                "Indicator",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
-                "UI",
-                "Word"
-              ]
-            },
-            {
-              "image": "cmavo",
               "value": "cmavo",
+              "image": "cmavo",
+              "source": [
+                11,
+                16
+              ],
               "tags": [
                 "BRIVLA",
                 "Continued",
@@ -68,6 +62,6 @@
         }
       ]
     },
-    "brackets": "([zo ie'o ui] cmavo)"
+    "brackets": "(zo ie'o ui cmavo)"
   }
 }

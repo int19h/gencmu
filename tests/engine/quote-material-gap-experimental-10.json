@@ -1,5 +1,5 @@
 {
-  "description": "One-word quote and opening delimiter gaps cannot skip raw material. Body spacing and quiet boundaries retain their readings.",
+  "description": "GOhOI quotes the standalone punctuation target instead of skipping it before broda.",
   "documents": {
     "pipeline.md": "```jbogenbau\n%include \"../dialects/experimental.md\"\n```\n"
   },
@@ -12,27 +12,29 @@
     "result": {
       "ok": true,
       "stages": [
-        {},
-        {},
-        {},
+        {
+          "name": "phonemes"
+        },
+        {
+          "name": "normalize"
+        },
+        {
+          "name": "forms"
+        },
         {
           "name": "words",
           "verdict": "unique",
           "output": [
             {
-              "value": "go'oi",
-              "image": "go'oi",
+              "value": "go'oi :)",
+              "image": "go'oi :)",
               "source": [
                 0,
-                5
+                8
               ],
               "tags": [
                 "Cmavo",
-                "Continued",
                 "GOhOI",
-                "Onset",
-                "Run-Final",
-                "Run-Initial",
                 "Word"
               ]
             },
