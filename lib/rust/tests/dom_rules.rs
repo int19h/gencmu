@@ -210,12 +210,8 @@ fn a_well_formed_dom_is_used() {
         "}".repeat(255)
     );
     assert!(!document_was_read(&tested(&optionals)));
-    let deep_value = format!(
-        "{}{{\"test\":\"=\",\"value\":{{\"string\":\"b\"}},\"expr\":{{\"literal\":{{\"string\":\"b\"}}}}}}{}",
-        "{\"optional\":".repeat(255),
-        "}".repeat(255)
-    );
-    assert!(!document_was_read(&tested(&deep_value)));
+    assert!(!document_was_read(&with_constants(&constant("K", "define", &nested_concat(256), 5), "")));
+
     // Four captures, and nodes below exactly 256 compound nodes, are allowed.
     let four = with_alternative(
         r#"{"guards":[],"expr":{"seq":[{"capture":"w","expr":{"literal":{"string":"b"}}},{"capture":"x","expr":{"literal":{"string":"c"}}},{"capture":"y","expr":{"literal":{"string":"c"}}},{"capture":"z","expr":{"literal":{"string":"c"}}}]}}"#,
@@ -359,11 +355,6 @@ fn every_malformed_dom_is_a_cache_miss() {
         "{\"optional\":".repeat(256),
         "}".repeat(256)
     );
-    let deep_value = format!(
-        "{}{{\"test\":\"=\",\"value\":{{\"interpolate\":[{{\"string\":\"b\"}},{{\"string\":\"\"}}]}},\"expr\":{{\"literal\":{{\"string\":\"b\"}}}}}}{}",
-        "{\"optional\":".repeat(255),
-        "}".repeat(255)
-    );
     let cases: Vec<(&str, String)> = vec![
         ("format 5", dom(B, "", "", 5, r#""greedy""#)),
         ("an unknown comparator", test("==", sound, b)),
@@ -409,7 +400,10 @@ fn every_malformed_dom_is_a_cache_miss() {
             tested(r##"{"optional":{"literal":{"string":"b"}},"test":"=","value":{"string":"b"},"expr":{"ref":"#"}}"##),
         ),
         ("a tested symbol nested too deeply", tested(&tested_nested)),
-        ("a test's value nested too deeply", tested(&deep_value)),
+        (
+            "a concatenation constant nested too deeply",
+            with_constants(&constant("K", "define", &nested_concat(257), 5), ""),
+        ),
         ("a directive argument that is not a string", dom(B, "", "", DOM_FORMAT, "7")),
         (
             "a rule name that is not a name",
@@ -1094,6 +1088,11 @@ fn a_bootstrap_with_a_malformed_constant_is_an_error() {
     // A bootstrap that is read, whose notation then fails on g.md.
     assert_eq!(refusal(&constant("K", "define", r#"{"tag":"Tag-a"}"#, 5)), None);
     assert_eq!(refusal(&constant("k", "define", r#"{"tag":"Tag-a"}"#, 5)).as_deref(), Some("a malformed constant"));
+}
+
+/// A closed string with exactly `depth` concatenation ancestors.
+fn nested_concat(depth: usize) -> String {
+    format!(r#"{}{{"string":"b"}}{}"#, r#"{"concat":["#.repeat(depth), r#",{"string":""}]}"#.repeat(depth))
 }
 
 /// A constant's value nested `depth` unions deep.
