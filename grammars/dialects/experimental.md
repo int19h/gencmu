@@ -144,7 +144,7 @@ A bridi-tail is a predicate with its following terms.
 
 A span is a range between input token boundaries.
 
-A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer bridi-tail connections. `late-elision` ranks the remaining readings.
+A ranked choice orders alternatives at one written position. An earlier option can exclude a later option over the same span. The [notation document](../../docs/notation.md#ranked-choices) defines when this occurs. `leftmost-longest` prefers the reading whose flagged rules start earliest and run longest. `fewest` next prefers fewer bridi-tail connections in the whole reading. `late-elision` ranks the remaining readings.
 
 The `free` rule prefers the earliest, longest modifier among complete readings. A longer modifier that cannot complete the text excludes nothing.
 
@@ -166,7 +166,7 @@ The syntax layer preserves these camxes-exp preferences among complete readings,
 
 - A free modifier or a tense takes the earliest and longest span before connection ranking (`leftmost-longest`, [parse preferences](../syntax/experimental.md#choosing-among-parses)).
 - An ek, a jek or a joik directly after `.i` belongs to `.i` ([text and paragraphs](../syntax/experimental.md#the-text-and-its-paragraphs)).
-- After span ranking, sumti and term connections take priority over bridi-tail connections ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)). A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
+- After span ranking, `fewest` prefers fewer bridi-tail links in the whole reading ([terms](../syntax/experimental.md#terms), [bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)). Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU. A sumti connection also takes priority over a term connection. Term connections include terms marked with `fe` or `pu`, and bare `na ku` terms.
 - A `be` group attaches to the preceding tanru unit ([selbri and tanru](../syntax/experimental.md#selbri-and-tanru)).
 - A final bridi-tail connective owns a following `ke` group, with or without an intervening tag. A bare `gi` with a tag also owns its following `ke` group ([sentences and bridi-tails](../syntax/experimental.md#sentences-and-bridi-tails)).
 - Without written BOI, a number consumes every following number part or letter word. A letter string consumes every following letter word or PA ([numbers and mekso](../syntax/experimental.md#numbers-lerfu-strings-and-mekso)).
@@ -213,6 +213,16 @@ The examples below compare this layer's explicit preferences with camxes-exp. So
 In `mi nelci le su'u delno .enai le su'u stero delno`, `.enai` joins the two descriptions, as in camxes-exp. This reading avoids a bridi-tail link inside the first abstraction. The `fewest` flag selects it before late elision.
 
 In `lo ka smuni .e fe lo ka pemci cu melbi`, `.e` joins terms before the main selbri `melbi`. camxes-exp instead keeps the connection inside the first abstraction and reads the text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading puts `cu` inside an abstraction.
+
+In `mi djica lo nu do klama .e lo nu do citka .e lo plise cu cpacu`, the competing readings each have one bridi-tail link. Late elision keeps the first description open. The first `.e` links going to getting, while the second joins the eating event and the apple. camxes-exp instead joins the two outer event descriptions.
+
+Writing `kei ku` after `klama` chooses `mi djica lo nu do klama kei ku .e lo nu do citka .e lo plise cu cpacu`. The wanting then covers two event descriptions, for going and for eating. The getting predicate remains inside the second description.
+
+In `mi djica lo nu do klama .e lo mlatu .e lo gerku cu citka`, the first description also stays open. The wanting covers going and eating inside one event description. The cat and dog supply connected terms for the eating predicate.
+
+Writing `gi'e` for the first `.e` gives `mi djica lo nu do klama gi'e lo mlatu .e lo gerku cu citka`. That connective cannot join sumti or terms, so it explicitly marks a bridi-tail link. Late elision still keeps that link inside the first event description.
+
+No preference based only on form selects the intended meaning in every text. This layer keeps the whole-reading count and leaves the other readings available through written words.
 
 Where both readings already connect sumti, `fewest` cannot choose, and late elision keeps the inner connection. In `mi nelci lo nu mi djica gy .e lo nu do klama`, `.e` therefore joins `gy` with the second description inside the first abstraction. A writer who means the two `nu` descriptions closes the first one. For example, `mi nelci lo nu mi djica gy ku .e lo nu do klama` makes `.e` join those descriptions. The flag gives no preference between the two scopes, so late elision alone decides.
 

@@ -663,9 +663,11 @@ The experimental dialect redefines `selbri-4` and `operator`, with the same rank
 
 The dialect also states three conventions as rules:
 
-- A sumti connection takes priority over a term connection. After span ranking, sumti and term connections take priority over bridi-tail connections. This includes terms marked with `fe` or `pu`, and bare `na ku` terms.
+- A sumti connection takes priority over a term connection. After span ranking, `fewest` prefers fewer bridi-tail links in the whole reading. Equal counts leave late elision to decide, which can keep the first description open. This applies to A, JA, JOI, and VUhU, including terms marked with `fe` or `pu` and bare `na ku` terms.
 - A `be` group attaches to the preceding unit when there is one.
 - A subscript after a subscript nests, as CLL 18.13 says.
+
+A preference for each connective or argument can misread natural texts. Form alone does not determine the intended meaning. The experimental dialect keeps the whole-reading count. Written `kei ku` after the first description selects parallel descriptions, while `gi'e` explicitly marks a bridi-tail link. The [syntax closing section](../grammars/syntax/experimental.md#terms-and-descriptions) gives both choices and their written forms in plain words.
 
 The `leftmost-longest` flag on `free` settles a free modifier's span before the `fewest` ranking. An omitted terminator therefore closes as late as the text allows. In `mi viska to do klama le zarci`, `le zarci` stays inside the parenthesis. The [experimental syntax document](../grammars/syntax/experimental.md) gives examples with omitted and written `toi`.
 

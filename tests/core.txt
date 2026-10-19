@@ -5905,3 +5905,13 @@ free-span.experimental.statement
 free-span.experimental.abstraction
 i200.syntax.na-ke-control
 i201.syntax.quantified-selbri-control
+i216.syntax.equal-count.djica
+i216.syntax.equal-count.djica-closed
+i216.syntax.equal-count.nelci
+i216.syntax.equal-count.nelci-closed
+i216.syntax.equal-count.noun-terms
+i216.syntax.equal-count.proposition-event
+i216.syntax.equal-count.explicit-gihe
+i216.syntax.equal-count.ka
+i216.syntax.equal-count.ja
+i216.syntax.equal-count.joi

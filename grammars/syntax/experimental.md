@@ -47,7 +47,9 @@ A derivation is one complete grammatical reading. An admitted derivation survive
 
 `free` and `tense-modal` carry `leftmost-longest`. A rule profile counts flagged spans. Both rules contribute to one span profile, without priority by rule name. The earliest differing start decides, with longer spans first. A flagged span that prevents the full text from completing contributes nothing.
 
-The `bridi-tail-connective` rule carries `fewest`, which prefers fewer nonempty occurrences. After span ranking, this favors sumti and term connections over readings with more bridi-tail links. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. A bridi-tail link remains available where no preferred reading completes. The flag compares whole readings because their omitted terminators fall under different parents and at different boundaries.
+The `bridi-tail-connective` rule carries `fewest`, which counts bridi-tail links in the whole reading. After span ranking, a smaller count wins. Equal counts leave late elision to decide, which can keep the first description open. The same ranking applies to A, JA, JOI, and VUhU. Each family can connect sumti and bridi-tails. The flag compares whole readings because their omitted terminators fall under different parents and at different boundaries.
+
+This favors sumti and term connections when they avoid a bridi-tail link. Such terms include terms marked with `fe` or `pu`, and bare `na ku` terms. Written `kei ku` after the first description selects parallel descriptions. A written `gi'e` explicitly marks a bridi-tail link. The closing section explains both choices with examples.
 
 So `to mi klama` holds `mi klama` in its parenthesis. In the same way, `lu mi klama` holds `mi klama` in its quote.
 
@@ -55,7 +57,7 @@ The layer permits ambiguity beyond omitted terminators. It uses these rules to s
 
 - A free modifier's span is settled before the `fewest` ranking. Its terminator can be omitted.
 - In a tanru and between operators, `ke` directly after a joik, jek or ek opens the connective's own group. The selbri and mekso sections explain that choice.
-- A connection that can be a sumti connection is one ("Terms"). After span ranking, sumti and term connections take priority over bridi-tail connections.
+- A connection that can be a sumti connection is one ("Terms"). After span ranking, fewer bridi-tail links in the whole reading win. Equal counts leave late elision to decide.
 - A `be` group attaches to the tanru unit before it ("Selbri and tanru").
 - A subscript after a subscript nests. Any other free modifier after a subscript belongs to the word that the subscript marks ("Free modifiers, vocatives and indicators").
 
@@ -294,7 +296,7 @@ The same KU rule applies in lists and single-term positions. A written KU permit
 
 A connection that can form one sumti takes that reading. Each term connection tests its preceding part and the link after the connective. The condition refuses the link when both parts can form one sumti. Thus `mi .e do klama` and `mi .e bo do klama` join sumti. In `mi .e ca do klama`, `ca do` is a modal term, so the connective joins terms.
 
-After span ranking, `fewest` also favors term connections over readings with more bridi-tail links.
+After span ranking, `fewest` also favors term connections over readings with more bridi-tail links in the whole reading. Equal counts leave closing boundaries to late elision.
 
 Three tags carry these facts through the tree. `Link-Extensible-End` marks a sumti that a plain connective can extend. `Bo-Extensible-End` marks one that a BO connective can extend. `Sumti-Start` marks a link that begins with a sumti. `$EXTENSIBLE-END` holds the two end tags.
 
@@ -971,7 +973,19 @@ Inside NUhI, this layer ranks the complete forethought body first. In `nu'i ge n
 
 camxes-exp excludes every bare NAhE operand that starts with a tense or modal because `na'e pu` matches `tag`. This layer excludes only one actual tagged term, whose tag reading duplicates it. A connection of terms remains possible, even with omitted KUs.
 
-The `fewest` flag compares complete readings after span ranking and prefers fewer bridi-tail links before elision ranking. It favors sumti and term connections, including terms marked with `fe` or `pu`, and bare `na ku` terms. Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+The `fewest` flag compares the number of bridi-tail links in the whole reading after span ranking. It favors sumti and term connections when these avoid a link. This includes terms marked with `fe` or `pu`, and bare `na ku` terms. The same ranking applies to A, JA, JOI, and VUhU. Equal counts leave late elision to decide, which can keep the first description open.
+
+Thus `mi nelci lo ka smuni .e lo ka pemci melbi` joins the two descriptions, as camxes-exp does. The flag does not choose between two sumti connections with different scopes. Late elision still selects their closing boundaries.
+
+In `mi djica lo nu do klama .e lo nu do citka .e lo plise cu cpacu`, the competing readings each have one bridi-tail link. Late elision keeps the first description open. The first `.e` links going to getting, while the second joins the eating event and the apple. camxes-exp instead joins the two outer event descriptions.
+
+Writing `kei ku` after `klama` chooses `mi djica lo nu do klama kei ku .e lo nu do citka .e lo plise cu cpacu`. The wanting then covers two event descriptions, for going and for eating. The getting predicate remains inside the second description.
+
+In `mi djica lo nu do klama .e lo mlatu .e lo gerku cu citka`, the first description also stays open. The wanting covers going and eating inside one event description. The cat and dog supply connected terms for the eating predicate.
+
+Writing `gi'e` for the first `.e` gives `mi djica lo nu do klama gi'e lo mlatu .e lo gerku cu citka`. That connective cannot join sumti or terms, so it explicitly marks a bridi-tail link. Late elision still keeps that link inside the first event description.
+
+No preference based only on form selects the intended meaning in every text. This layer keeps the whole-reading count and leaves the other readings available through written words.
 
 In `lo ka smuni .e fe lo ka pemci cu melbi`, this layer connects terms before the main selbri `melbi`. camxes-exp keeps the connection inside the first abstraction and reads the whole text as a bare sumti. The written `cu` marks the main bridi, so this layer prefers the reading with a main bridi. The inner reading instead puts `cu` inside an abstraction.
 
