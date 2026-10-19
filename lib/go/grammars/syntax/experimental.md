@@ -103,7 +103,7 @@ IhAU stands for the elided terminators that end the current sentence, except its
 
 So a reset belongs to one sentence. In `mi klama .i je do cadzu iau ti`, it closes only the second sentence, and `ti` joins that sentence's main bridi.
 
-Before the final VAU, IhAU permits more terms, a written VAU and free modifiers. A plain `.i`, a statement connection or a sentence link can then follow, as after written terminators.
+While the main bridi is open, IhAU permits more terms, a written VAU and free modifiers. A plain `.i`, a statement connection or a sentence link can then follow, as after written terminators.
 
 The terms after IhAU stand after the whole bridi-tail of the sentence. Connected bridi-tails share them, as they share terms after the last connected tail. A bridi-tail connection cannot follow the reset. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. Thus `mi klama lo nu do cadzu iau do gi'e tavla` rejects. The written form `mi klama lo nu do cadzu vau kei ku do gi'e tavla` parses.
 
@@ -111,7 +111,7 @@ IhAU can also stand among the terms before the selbri, as in `fau lo nu do klama
 
 A reset after leading free modifiers closes them, as `do'u` closes a vocative. A sentence, a prenex, a TUhE group or a fragment can follow it.
 
-IhAU stands inside the sentence, statement or fragment that it marks. So an indicator after IhAU marks that whole unit, as definition 66786 says.
+IhAU stands in the unit that it marks: a sentence, a prenexed statement, or the paragraph item of a fragment. So an indicator after IhAU marks that whole unit, as definition 66786 says.
 
 A bridi reset belongs to a sentence of a text. A subsentence inside a description, a relative clause or a term has none, so a reset always returns to the outer bridi.
 
@@ -121,7 +121,7 @@ A reset needs an earlier construction, so `iau mi klama` rejects. A reset after 
 
 The prefix condition keeps adjacent leading free modifiers together. Otherwise, a free slot before the sentence and the reset prefix can split the same modifiers into duplicate readings.
 
-A written final VAU closes the main bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
+A written final VAU closes the main bridi. A written KEhE also closes a KE-wrapped forethought bridi. A later reset permits free modifiers, but it cannot reopen that bridi for terms. Thus `mi klama vau iau ui` parses, while `mi klama vau iau ti` rejects.
 
 ```jbogenbau
 %const $NEEDS-TEXT @(ek ⋰) ∪ @(VUhU ⋰)
@@ -251,7 +251,13 @@ The KU conditions apply in heads, tails, prenexes, fragments, and NUhI termsets.
 
 `top-sentence` is the sentence of a text, and it adds the resets. `sentence` serves subsentences, which take no reset. `top-sentence-link` and `top-subsentence` repeat the sentence link at the top level, so that a linked sentence can reset too.
 
-The `CLOSED-BRIDI` tag records a written VAU on the main tail. Each bridi-tail rule takes this tag from its final tail, rather than its embedded clauses. KE and NA wrappers retain that tag. The reset conditions then forbid more terms or another VAU after that written VAU, including across repeated resets.
+The `Closed-Bridi` tag marks a closed main bridi. It records a written final VAU or a written KEhE around a forethought bridi. Each bridi-tail rule takes this tag from its final tail. KE and NA wrappers retain the tag.
+
+An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge klama gi cadzu vau vau iau ti` needs the tag. Its second VAU closes the main bridi inside a KE wrapper. A descendant pattern also finds the VAU of inner clauses. It cannot identify the main tail through arbitrarily nested wrappers.
+
+The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
+
+The reset conditions reject terms or another VAU after the main bridi closes. They test the initial bridi and every earlier reset tail.
 
 ```jbogenbau
 %const $RESET-CONTINUATION @(terms ⋯) ∪ $WRITTEN-VAU
@@ -260,7 +266,7 @@ The `CLOSED-BRIDI` tag records a written VAU on the main tail. Each bridi-tail r
   [$h:reset-head IhAU #] $b:headed-bridi-tail [{IhAU # tail-terms}] [top-sentence-link]
 %conditions
   $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰),
-  CLOSED-BRIDI ⊆ $b.tags ⟹ $ ≇ @(⋯ IhAU [#] (tail-terms ∩ $RESET-CONTINUATION) ⋯),
+  Closed-Bridi ⊆ $b.tags ⟹ $ ≇ @(⋯ IhAU [#] (tail-terms ∩ $RESET-CONTINUATION) ⋯),
   $ ≇ @(⋯ (tail-terms ∩ $WRITTEN-VAU) ⋯ IhAU [#] (tail-terms ∩ $RESET-CONTINUATION) ⋯)
 
 %rule top-sentence-link
@@ -280,24 +286,25 @@ The `CLOSED-BRIDI` tag records a written VAU on the main tail. Each bridi-tail r
   | {terms / CU #} [CU #]
   | CU # [{terms / CU #} [CU #]]
 
-%rule headed-bridi-tail :: $b.tags ∩ CLOSED-BRIDI
+%rule headed-bridi-tail :: $b.tags ∩ Closed-Bridi
   | [bridi-tail-head] $b:bridi-tail
 
 %rule headed-bridi-tail-2
   [bridi-tail-head] bridi-tail-2
 
-%redefine-rule bridi-tail :: ($t ⟹ $t.tags ∩ CLOSED-BRIDI) ∪ (¬$t ⟹ $b.tags ∩ CLOSED-BRIDI)
-  | $b:bridi-tail-1-final [(bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # $t:tail-terms]
+%redefine-rule bridi-tail
+  | $b:bridi-tail-1-final :: $b.tags ∩ Closed-Bridi
+  | bridi-tail-1-final (bridi-tail-connective [stag] | GI stag) KE # headed-bridi-tail [+KEhE] # $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %redefine-rule bridi-tail-1
   | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ CLOSED-BRIDI
+  | bridi-tail-1 bridi-tail-connective connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %const $KE-FORETHOUGHT @([tag] KE [#] gek-sentence KEhE [#])
 
 %redefine-rule bridi-tail-1-final
   | bridi-tail-2
-  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ CLOSED-BRIDI
+  | bridi-tail-1 bridi-tail-connective $b:connected-bridi-tail $t:tail-terms :: $t.tags ∩ Closed-Bridi
 %conditions
   $b ≇ $KE-FORETHOUGHT
 
@@ -309,22 +316,23 @@ The `CLOSED-BRIDI` tag records a written VAU on the main tail. Each bridi-tail r
 %conditions
   $b ≇ @((selbri ∩ $KE-START) ⋰)
 
-%redefine-rule bridi-tail-2 :: ($t ⟹ $t.tags ∩ CLOSED-BRIDI) ∪ (¬$t ⟹ $b.tags ∩ CLOSED-BRIDI)
-  | $b:bridi-tail-3 [(bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 $t:tail-terms]
+%redefine-rule bridi-tail-2
+  | $b:bridi-tail-3 :: $b.tags ∩ Closed-Bridi
+  | bridi-tail-3 (bridi-tail-connective [stag] | GI stag) BO # headed-bridi-tail-2 $t:tail-terms :: $t.tags ∩ Closed-Bridi
 
 %redefine-rule bridi-tail-3
-  | selbri $t:tail-terms :: $t.tags ∩ CLOSED-BRIDI
+  | selbri $t:tail-terms :: $t.tags ∩ Closed-Bridi
   | gek-sentence
 
 %redefine-rule gek-sentence
-  | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ CLOSED-BRIDI
-  | [tag] KE # $g:gek-sentence [+KEhE] # :: $g.tags ∩ CLOSED-BRIDI
-  | NA # $g:gek-sentence :: $g.tags ∩ CLOSED-BRIDI
+  | gek subsentence gik subsentence $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | [tag] KE # $g:gek-sentence [+KEhE] # :: ($g.tags ∩ Closed-Bridi) ∪ ($ ≅ @(⋯ KEhE≠"" [#]) ⟹ Closed-Bridi)
+  | NA # $g:gek-sentence :: $g.tags ∩ Closed-Bridi
 
 %rule(fewest) bridi-tail-connective
   gihek # | connective
 
-%redefine-rule tail-terms :: ($ ≅ $WRITTEN-VAU ⟹ CLOSED-BRIDI)
+%redefine-rule tail-terms :: ($ ≅ $WRITTEN-VAU ⟹ Closed-Bridi)
   | [terms] [+VAU] #
 ```
 
@@ -1269,7 +1277,7 @@ This layer uses FEhU alone and requires BE for the converted predicate's inner a
 
 IhAU follows dictionary definition 66786 literally. It stands for the elided terminators that end the current sentence, except its last VAU.
 
-Zantufa instead wraps a complete statement in `statement [IAU # [terms]]` at paragraph level. Its reset covers a whole `.i je` chain, and no statement connection can follow it.
+Zantufa instead uses `statement [IAU #] [terms]` at paragraph level. Its added terms need no written IAU, as `mi klama vau do` shows. Its reset covers a whole `.i je` chain, and no statement connection can follow it.
 
 Here a reset belongs to one sentence. A statement connection, a sentence link or `.i ba bo` can follow it, as written terminators allow.
 
@@ -1277,7 +1285,7 @@ Zantufa has no head or leading free-modifier reset. This layer permits both form
 
 Zantufa permits one reset, with no written VAU after its terms. This layer permits repeated resets and a written VAU after added terms.
 
-Zantufa accepts terms after a written final VAU or a closed TUhE group. This layer rejects them because neither boundary leaves a bridi open. Free modifiers after a reset can still mark a bridi that a written VAU closes.
+Zantufa accepts terms after a written final VAU, a closed TUhE group, or a KE-wrapped forethought bridi that a written KEhE closes. These terms require no written IAU. This layer rejects those terms because each boundary closes the main bridi. Free modifiers after a reset can still mark the closed bridi.
 
 A bridi-tail connection cannot follow a reset here. Issue [#240](https://github.com/int19h/gencmu/issues/240) tracks this limit. A speaker who needs that connection writes the terminators instead.
 
