@@ -22,8 +22,19 @@ type parseState struct {
 	// writes a content in before it looks the content up (terms.go).
 	contents                map[string]int
 	contentKey, contentText []byte
-	queryContext            int
-	queryContexts           map[activeQueryParent]int
+	// contentStrings holds each content that contents numbers, at its
+	// number less one, for the keys of the shared memos.
+	contentStrings []string
+	// memoLimit is the bound of the shared memos for this parse, and
+	// alignedAsked counts the aligned queries it asked. An answer whose
+	// nested parse asked one stays out of the shared memo, and so does
+	// every answer that reads it (engine §4.3).
+	memoLimit    int
+	alignedAsked uint64
+	// alignedActive counts the aligned queries active now.
+	alignedActive int
+	queryContext  int
+	queryContexts map[activeQueryParent]int
 	// consts holds the tag set of each constant's value a term has read,
 	// made once (engine §2).
 	consts map[*constValue]*tagset

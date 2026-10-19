@@ -319,6 +319,8 @@ declare class Pending {
     at: [number, number] | null;
     key: string;
     unseen: boolean;
+    /** The count of aligned queries when the query halted (engine §4.3). */
+    asked: number;
     /** @type {import("./types.js").AlignedSpan|null} */
     aligned: import("./types.js").AlignedSpan | null;
     /**

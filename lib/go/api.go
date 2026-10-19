@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -437,6 +438,9 @@ type Dialect struct {
 	// lowered holds each stage's lowered grammars, keyed by the guarded
 	// features that are on.
 	lowered []*recent[lowerKey, *lowerEntry]
+	// memoLimit is the bound of the shared memos that the library's own
+	// tests set, 0 where they set none (memo.go).
+	memoLimit atomic.Int64
 }
 
 type lowerKey struct {
@@ -624,6 +628,13 @@ func (d *Dialect) parse(text []rune, tokens []Token, options ParseOptions) (res 
 	}
 	ps := newParseState(d.uni, text)
 	ps.private = options.private
+	// The private options of the library's own tests can change answers,
+	// so such a parse neither reads nor keeps shared answers (engine §4.3).
+	// Nor does a parse whose work a test counts, so that answers of an
+	// earlier parse never shorten the count.
+	if options.private == nil && work.Load() == nil {
+		ps.memoLimit = d.memoBound()
+	}
 	if tokens == nil {
 		tokens = ps.characterTokens()
 	}

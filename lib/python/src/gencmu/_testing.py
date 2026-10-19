@@ -93,6 +93,18 @@ def fault(name: str, site: str = "") -> bool:
 
 work: dict[str, int] | None = None
 
+# The bound of the shared memos (engine §4.3), or None for the default. A
+# bound of 0 turns them off.
+memo_limit: int | None = None
+
+# Sees the rule of each answer that a shared memo serves, with the number of
+# aligned queries active then, for the library's own tests.
+memo_hit: Callable[[str, int], None] | None = None
+
+# Sees 1 where the nested parse of an aligned query starts, and -1 where it
+# ends, for the library's own tests.
+aligned_query: Callable[[int], None] | None = None
+
 
 def count(name: str, amount: int = 1) -> None:
     if work is not None:

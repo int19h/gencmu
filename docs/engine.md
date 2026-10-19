@@ -595,7 +595,7 @@ But such a key costs time in proportion to the span, and the span of `.onward` o
 
 The recognition of §7 is not a query and has no entry.
 
-`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` needs its own entry, since `begins` of a span can hold where `matches` of it does not. A memo that outlives the parse of one stage must also be keyed by what differs between the parses that it serves. These are the tokens, the original text, the lowered grammar and the features.
+`matches` and `tags` of one span and rule can share an entry, since one recognition answers both. `begins` needs its own entry, since `begins` of a span can hold where `matches` of it does not. A memo that outlives the parse of one stage must also be keyed by what differs between the parses that it serves. These are the tokens, the original text, and the inputs that select a shared memo. §4.3 specifies such a memo.
 
 An ordinary nested parse sets the start and end visible to `.starts-input`, `.onward`, and `.following-tokens` to its span. An aligned parse uses its context bounds above. It restores both when it ends, also when it fails with an error of the grammar.
 
@@ -756,6 +756,44 @@ Among several, the first is the one with the least boundary. Then comes the earl
 The audit (`docs/design.md`, "Diagnostics and debugging") adds one note kind for atoms. A query reaches a rule when its rule argument is that rule, or when a body reference of a reached rule names it. Each stage's audit lists every reached rule that holds a boundary atom in a `%conditions` list. Each entry names the rule and the definition that holds the query.
 
 A second note names each target that no derivation of `text` can build, only a query witness, with the atom that names it. Neither note is an error. The loader and the parser never report them.
+
+### 4.3 The shared memo
+
+A shared memo keeps the answers of ordinary nested queries across parses. An implementation can keep shared memos. It is not required.
+
+One shared memo serves one stage of one loaded dialect, lowered for one set of features that are on. It also has that lowering's resolved classifiers (§2) and the dialect's Unicode table. Together these fix every input of a nested query except its content (§4). Two feature sets can share one memo where they turn on the same gates. These are the gates of alternatives (§3.1) and the gates of classifier entries. A feature that gates nothing changes neither.
+
+The loaded dialect owns its shared memos, and a memo lives no longer than its dialect. Two loaded dialects never share a memo, even where they read the same documents. A memo goes with its lowering, so an implementation keeps no more memos than lowerings. The reader of the notation (§8) has grammars of its own, and their memos follow the same rules.
+
+A conditional `%features` declaration (§13) holds or fails before its stage parses. The features it turns on select that stage's lowering, and so its shared memo. So the key needs no part for them.
+
+`until` and `elision-only` leave the answer of an ordinary query unchanged. A query keeps its caller's lowered grammar and reads only its own span. The check of §7 starts its ordinary queries over the stage's own input, with the main grammar (§7.6). So the key needs no part for these options either.
+
+The shared memo holds only ordinary queries with a key of content. A key of position names a place in one input, so it stays in the memo of one parse. An aligned query also stays there, since its key holds observations of one parse.
+
+A shared key holds what the content key of one parse holds, with each token's tags by name. So it holds the query kind and the rule. It also holds the original text over the source of the span. For each token of the span, it holds the tags, text, value, image, and the source offsets, counted from the start of that text.
+
+`matches` and `tags` share a kind. `begins` has its own.
+
+Only a nested parse that completes leaves an entry. A parse that ends in an error of the grammar leaves none, so every parse that meets the error finds it again. An entry for `matches` and `tags` holds whether the span is accepted, and the names of its tags. An entry for `begins` holds whether a prefix is accepted. A choice of targets (§10) keeps one entry for each rule target. A terminal target reads its token directly and keeps none.
+
+A shared memo must never change a result. A warm shared memo holds entries from earlier parses. A parse with a warm shared memo gives exactly the result of the same parse with an empty one. This holds for every order of parses, and for parses that run at the same time on other threads.
+
+With the inputs of one memo, a nested parse of one content asks the same queries in every parse, and gives the same answer. Aligned queries are the exception, since they depend on the stack of active queries (above). So an answer stays out of the shared memo where its nested parse, at any depth, asks an aligned query. It also stays out where that nested parse reads such an answer from the memo of its parse. Every other answer depends on its content alone, so a shared answer is the answer that its nested parse computes. A query with a key of position inside it changes nothing here, since its answer also depends on its content alone.
+
+A shared answer also never hides an error. The shared memo serves no answer while an aligned query is active. Then every active query is ordinary, and its context is its span. A nested parse asks only about parts of its context.
+
+Take an active query, and a later query inside it with the same rule and span. Every query between them is over that span and reads its content. By the premise above, the later query then asks the same chain again, and so it asks about itself. No parse completes such a query, so the shared memo never holds one.
+
+An aligned query has the context `[a,N)`, which can run past its span. The argument above does not cover a query asked while an aligned query is active. So the shared memo serves no answer then. It still keeps the ordinary answers computed in that time.
+
+A shared memo keeps its entries in two generations, a newer and an older set of entries. A lookup reads the newer generation, then the older one. An entry found in the older one moves to the newer one. Before an entry enters the newer generation, by an insertion or by that move, the memo makes room. Where the newer generation already holds the bound, the older one is dropped, and the newer one becomes the older one. This drop is eviction.
+
+A key that the newer generation holds does not enter it again. Eviction can happen during a parse. It only decides whether a later query runs its nested parse again. This is the scheme of the libraries. Any other bounded scheme also keeps every result.
+
+The Go, JavaScript and Python libraries bound each generation at 8,192 entries. The recorded measurements parse single words to the forms stage of the bpfk dialect, once for each bound. In JavaScript, a bound of 8,192 entries saves about 90% of the time that 32,768 entries save. In Python, 8,192 entries save no more time than 4,096, and add about a third of the memory that 32,768 entries add. Go has no measurement of bounds. The Rust library keeps no shared memo.
+
+An entry never changes after it enters the shared memo. Parses on several threads can share one dialect. Each lookup is then one atomic step, with its move and its eviction. So is each insertion, with its eviction.
 
 ## 5. Values, images and text
 

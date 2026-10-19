@@ -812,9 +812,16 @@
     if (most !== undefined && counted > most) throw new WorkBudget(`${counted} ${kind}, past the budget of ${most}`);
   }
 
-  /** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null}} */
+  /** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
   const hooks = { boundaryAdmission:null, elisionCheck: null, work: null, slotAdmission: null,
-    /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null };
+    /** @type {((summary:boolean, direct:boolean) => void)|null} */ familyAlignment: null,
+    // The bound of the shared memos (engine §4.3), or null for the default.
+    // A bound of 0 turns them off. memoInsert sees the key of each answer
+    // that enters a shared memo, and memoHit the key of each answer that one
+    // serves, with the number of aligned queries active then. alignedQuery
+    // sees 1 where the nested parse of an aligned query starts, and -1 where
+    // it ends.
+    memoLimit: null, memoInsert: null, memoHit: null, alignedQuery: null };
 
   /**
    * Whether a fault is on, at one of its sites. A fault that is on counts the
@@ -8567,6 +8574,8 @@
       this.at = at;
       this.key = key;
       this.unseen = unseen;
+      /** The count of aligned queries when the query halted (engine §4.3). */
+      this.asked = 0;
       /** @type {import("./types.js").AlignedSpan|null} */
       this.aligned = null;
       /**
@@ -8741,6 +8750,8 @@
     }
     if (!unseen) context.inProgress.add(circular);
     else unseenDepth++;
+    if (query.aligned) sharingOf(context).alignedActive++;
+    if (query.aligned && hooks.alignedQuery) hooks.alignedQuery(1);
     if (context.trace) context.trace.depth++;
     return startRun(context, rule, start, end, query);
   }
@@ -8757,6 +8768,8 @@
     if (query === null) return;
     if (!query.unseen) context.inProgress.delete("parse\u0001" + query.rule + "\u0001" + query.start + "\u0001" + query.end);
     else unseenDepth--;
+    if (query.aligned) sharingOf(context).alignedActive--;
+    if (query.aligned && hooks.alignedQuery) hooks.alignedQuery(-1);
     if (context.trace) context.trace.depth--;
   }
 
@@ -8771,6 +8784,8 @@
     const { context, kind, rule, start } = query;
     /** @type {boolean | TagSet} */
     let answer;
+    /** @type {boolean | {accepted: boolean, tags: string[]} | null} */
+    let shared = null;
     if (query.aligned) {
       const constraint = query.aligned;
       const witnesses = [];
@@ -8796,8 +8811,6 @@
         for (const item of aligned) tags.add(context.interner.get(item.tagId));
         answer = tags.result();
       } else answer = aligned.length !== 0;
-    } else   if (kind === "matches") {
-      answer = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule))).length > 0;
     } else if (kind === "begins") {
       // A completed item from the span's start, in any set (engine §4).
       /** @type {Item[]} */
@@ -8807,12 +8820,19 @@
         for (const item of set.items) if (item.complete && item.origin === start && item.production.lhs === rule && !!item.production.closeRequested === !!chart.closeRequested) witnesses.push(item);
       }
       answer = eligibleWitnesses(chart, boundaryWitnesses(chart,witnesses)).length > 0;
+      shared = answer;
     } else {
+      // One recognition answers matches and tags, so the shared memo keeps
+      // both in one entry (engine §4.3).
+      const witnesses = eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)));
       const result = new TagUnion();
-      for (const item of eligibleWitnesses(chart, boundaryWitnesses(chart,rootItems(chart, rule)))) result.add(context.interner.get(item.tagId));
-      answer = result.result();
+      for (const item of witnesses) result.add(context.interner.get(item.tagId));
+      const tags = result.result();
+      answer = kind === "matches" ? witnesses.length > 0 : tags;
+      shared = { accepted: witnesses.length > 0, tags: [...tags] };
     }
     context.nested.set(query.key, answer);
+    if (shared !== null) rememberShared(query, shared);
     return answer;
   }
 
@@ -10886,17 +10906,165 @@
   function nested(context, kind, rule, start, end, target) {
     const at = target === null ? null : target.key;
     const aligned = target?.aligned;
+    const sharing = sharingOf(context);
+    if (aligned) sharing.asked++;
     if (aligned && !aligned.observation.valid) return kind === "tags" ? tagSet() : false;
     const key = aligned ? JSON.stringify(["aligned",kind,rule,start,end,aligned.candidateEnd,aligned.matchEnd,aligned.family,context.closes?.identity(aligned.observation)])
       : at !== null && end - start > CONTENT_KEY_LIMIT
         ? JSON.stringify(["at", kind, rule, at[0], at[1]])
         : nestedKey(context, kind, rule, start, end);
     const known = context.nested.get(key);
-    if (known !== undefined) return known;
+    if (known !== undefined) {
+      if (sharing.tainted.has(key)) sharing.asked++;
+      return known;
+    }
+    const limit = memoLimit();
+    // While an aligned query is active, the shared memo serves nothing
+    // (engine §4.3). Then a shared answer cannot hide an error of the stack
+    // of active queries, so the stack can be checked after the memos.
+    if (!aligned && limit > 0 && sharing.alignedActive === 0 && key.startsWith('["of"')) {
+      const found = sharedMemoOf(context.lowered).get(sharedKey(key), limit);
+      if (found !== undefined) {
+        if (hooks.memoHit) hooks.memoHit(sharedKey(key), sharing.alignedActive);
+        // The answer enters the memo of the parse, as the answer of its
+        // nested parse does.
+        const answer = typeof found === "boolean" ? found : kind === "tags" ? tagSet(found.tags) : found.accepted;
+        context.nested.set(key, answer);
+        return answer;
+      }
+    }
     // A fault finds no query cycle while the check runs (F25).
     halting = new Pending(context, kind, rule, start, end, at, key, context.checking && fault("F25"));
     halting.aligned = aligned ?? null;
+    halting.asked = sharing.asked;
     return HALT;
+  }
+
+  /**
+   * The shared memo of a lowered grammar (engine §4.3): the answers of
+   * ordinary nested queries with a key of content, kept across parses, in
+   * two generations. A key of content names tags and rules, so it holds no
+   * number of one parse. An answer is a boolean for begins, and for matches
+   * and tags whether the span is accepted and the names of its tags.
+   */
+  class SharedMemo {
+    constructor() {
+      /** @type {Map<string, boolean | {accepted: boolean, tags: string[]}>} */
+      this.newer = new Map();
+      /** @type {Map<string, boolean | {accepted: boolean, tags: string[]}>} */
+      this.older = new Map();
+    }
+    /** @param {number} limit */
+    room(limit) {
+      if (this.newer.size >= limit) {
+        this.older = this.newer;
+        this.newer = new Map();
+      }
+    }
+    /**
+     * The answer of a key, if the memo holds it. An answer found in the older
+     * generation moves to the newer one.
+     * @param {string} key
+     * @param {number} limit
+     * @returns {boolean | {accepted: boolean, tags: string[]} | undefined}
+     */
+    get(key, limit) {
+      const found = this.newer.get(key);
+      if (found !== undefined) return found;
+      const old = this.older.get(key);
+      if (old === undefined) return undefined;
+      this.older.delete(key);
+      this.room(limit);
+      this.newer.set(key, old);
+      return old;
+    }
+    /**
+     * @param {string} key
+     * @param {boolean | {accepted: boolean, tags: string[]}} answer
+     * @param {number} limit
+     */
+    set(key, answer, limit) {
+      if (this.newer.has(key)) return;
+      this.room(limit);
+      this.newer.set(key, answer);
+    }
+  }
+
+  /** @type {WeakMap<object, SharedMemo>} */
+  const sharedMemos = new WeakMap();
+
+  /**
+   * @param {object} lowered
+   * @returns {SharedMemo}
+   */
+  function sharedMemoOf(lowered) {
+    let memo = sharedMemos.get(lowered);
+    if (!memo) sharedMemos.set(lowered, memo = new SharedMemo());
+    return memo;
+  }
+
+  /**
+   * The bound of the shared memos. A fault of the library's own tests
+   * changes answers, so a parse with a fault neither reads nor keeps shared
+   * answers. Nor does a parse whose work a test counts, so that answers of
+   * an earlier parse never shorten the count.
+   * @returns {number}
+   */
+  function memoLimit() {
+    if (faults.size !== 0 || hooks.work) return 0;
+    return hooks.memoLimit ?? DEFAULT_MEMO_LIMIT;
+  }
+
+  /** The default bound on the entries of one generation of a shared memo. */
+  const DEFAULT_MEMO_LIMIT = 1 << 13;
+
+  /**
+   * For each context, how many aligned queries it asked, and the keys of the
+   * answers that depend on one. Such an answer stays out of the shared memo,
+   * and so does every answer that reads it (engine §4.3). Also how many
+   * aligned queries are active now.
+   * @type {WeakMap<ParseContext, {asked: number, tainted: Set<string>, alignedActive: number}>}
+   */
+  const sharings = new WeakMap();
+
+  /**
+   * @param {ParseContext} context
+   * @returns {{asked: number, tainted: Set<string>, alignedActive: number}}
+   */
+  function sharingOf(context) {
+    let sharing = sharings.get(context);
+    if (!sharing) sharings.set(context, sharing = { asked: 0, tainted: new Set(), alignedActive: 0 });
+    return sharing;
+  }
+
+  /**
+   * The key of the shared memo for a key of content: matches and tags share
+   * a kind, since one recognition answers both (engine §4.3).
+   * @param {string} key
+   * @returns {string}
+   */
+  function sharedKey(key) {
+    const tags = '["of","tags",';
+    return key.startsWith(tags) ? '["of","matches",' + key.slice(tags.length) : key;
+  }
+
+  /**
+   * Keeps the answer of a nested parse that has finished in the shared memo,
+   * unless it depends on an aligned query.
+   * @param {Pending} query
+   * @param {boolean | {accepted: boolean, tags: string[]}} answer
+   */
+  function rememberShared(query, answer) {
+    const { context, key } = query;
+    const sharing = sharingOf(context);
+    if (sharing.asked !== query.asked) {
+      sharing.tainted.add(key);
+      return;
+    }
+    const limit = memoLimit();
+    if (query.aligned || limit === 0 || !key.startsWith('["of"')) return;
+    if (hooks.memoInsert) hooks.memoInsert(sharedKey(key));
+    sharedMemoOf(context.lowered).set(sharedKey(key), answer, limit);
   }
 
   /**

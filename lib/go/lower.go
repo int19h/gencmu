@@ -100,10 +100,13 @@ type lrule struct {
 }
 
 type lowered struct {
-	boundaryOnce   sync.Once
-	boundary       *boundaryMachine
-	prepareOnce    sync.Once
-	preparation    *preparation
+	boundaryOnce sync.Once
+	boundary     *boundaryMachine
+	prepareOnce  sync.Once
+	preparation  *preparation
+	// memo keeps the answers of ordinary nested queries across parses
+	// (engine §4.3).
+	memo           sharedMemo
 	rankedHelpers  map[int32]*rankedGroup
 	writtenHelpers map[int32]string
 	stage          *stageGrammar

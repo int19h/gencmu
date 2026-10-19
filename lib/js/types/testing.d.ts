@@ -290,7 +290,7 @@ export declare class WorkBudget extends Error {
  * @param {number} [steps]
  */
 export declare function countWork(work: WorkCounts, kind: WorkKind, steps?: number): void;
-/** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null}} */
+/** @type {{boundaryAdmission:((splits:any[],chart:any)=>void)|null, familyAlignment: ((summary:boolean, direct:boolean) => void)|null, elisionCheck: ((run: ElisionCheckRun) => ElisionCheckWatch) | null, work: WorkCounts | null, slotAdmission: ((statistics: {chartFacts:number,groups:number,candidateEdges:number,retainedEdges:number,boundarySplits?:any[]}) => void) | null, memoLimit: number | null, memoInsert: ((key: string) => void) | null, memoHit: ((key: string, alignedActive: number) => void) | null, alignedQuery: ((change: number) => void) | null}} */
 export declare const hooks: {
     boundaryAdmission: ((splits: any[], chart: any) => void) | null;
     familyAlignment: ((summary: boolean, direct: boolean) => void) | null;
@@ -303,6 +303,10 @@ export declare const hooks: {
         retainedEdges: number;
         boundarySplits?: any[];
     }) => void) | null;
+    memoLimit: number | null;
+    memoInsert: ((key: string) => void) | null;
+    memoHit: ((key: string, alignedActive: number) => void) | null;
+    alignedQuery: ((change: number) => void) | null;
 };
 /**
  * Whether a fault is on, at one of its sites. A fault that is on counts the

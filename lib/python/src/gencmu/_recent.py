@@ -39,6 +39,10 @@ class Recent(Generic[K, V]):
             _, (_, dropped) = self._entries.popitem(last=False)
             self._size -= dropped
 
+    def values(self) -> list[V]:
+        """The values, from the least recently used."""
+        return [value for value, _ in self._entries.values()]
+
     def __len__(self) -> int:
         return len(self._entries)
 

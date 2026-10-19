@@ -1,0 +1,1802 @@
+{
+  "description": "Runs of parses that share one dialect object. Each run parses every input under every option set, input by input. Each result must equal, as canonical JSON, the result of the same parse on a fresh dialect, or with an empty shared memo where a library keeps one (engine §4.3). A parse that ends in an error must give the same error. tests/README.md explains how the runners use this file.",
+  "runs": [
+    {
+      "dialect": "bpfk",
+      "texts": [
+        "klama",
+        "bairsazdanti",
+        "nu'o",
+        "djim.bu",
+        "ybu",
+        "tosmabru",
+        "mi klama le zarci",
+        "lo nu do klama cu xamgu",
+        "mi su do",
+        "lu mi klama li'u",
+        "zoi gy. abc .gy",
+        "mi klama si do",
+        "mi klama le zarci",
+        "klama",
+        "ми клама"
+      ],
+      "options": [
+        {},
+        {
+          "until": "forms"
+        },
+        {
+          "elisionOnly": true
+        },
+        {
+          "withoutFeatures": [
+            "su-boundary"
+          ]
+        }
+      ]
+    },
+    {
+      "dialect": "cll-ebnf",
+      "texts": [
+        "klama",
+        "bairsazdanti",
+        "nu'o",
+        "djim.bu",
+        "ybu",
+        "tosmabru",
+        "mi klama le zarci",
+        "lo nu do klama cu xamgu",
+        "mi su do",
+        "lu mi klama li'u",
+        "zoi gy. abc .gy",
+        "mi klama si do",
+        "mi klama le zarci",
+        "klama",
+        "ми клама"
+      ],
+      "options": [
+        {},
+        {
+          "until": "words"
+        },
+        {
+          "elisionOnly": true
+        },
+        {
+          "features": [
+            "cll-cyrillic"
+          ]
+        },
+        {
+          "withoutFeatures": [
+            "cll-cyrillic"
+          ]
+        }
+      ]
+    },
+    {
+      "dialect": "experimental",
+      "texts": [
+        "klama",
+        "bairsazdanti",
+        "nu'o",
+        "djim.bu",
+        "ybu",
+        "tosmabru",
+        "mi klama le zarci",
+        "lo nu do klama cu xamgu",
+        "mi su do",
+        "lu mi klama li'u",
+        "zoi gy. abc .gy",
+        "mi klama si do",
+        "mi klama le zarci",
+        "klama",
+        "ми клама"
+      ],
+      "options": [
+        {},
+        {
+          "until": "forms"
+        },
+        {
+          "withoutFeatures": [
+            "cbm"
+          ]
+        }
+      ]
+    },
+    {
+      "dialect": "zantufa",
+      "texts": [
+        "klama",
+        "bairsazdanti",
+        "nu'o",
+        "djim.bu",
+        "ybu",
+        "tosmabru",
+        "mi klama le zarci",
+        "lo nu do klama cu xamgu",
+        "mi su do",
+        "lu mi klama li'u",
+        "zoi gy. abc .gy",
+        "mi klama si do",
+        "mi klama le zarci",
+        "klama",
+        "ми клама"
+      ],
+      "options": [
+        {},
+        {
+          "until": "forms"
+        }
+      ]
+    },
+    {
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.matches(driver)), $x.onward.begins(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.matches(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.begins(tail)\n\n%rule tail Y\n",
+      "inputs": [
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text ($x:pair $y:pair) %conditions $x.matches(probe), ¬($y.matches(probe))\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.image = \"x\"\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "image": "x"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "image": "y"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "image": "y"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "image": "x"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "image": "x"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"x\"\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "value": "x"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "value": "y"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe (Q W)\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W",
+              "Q"
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:_\n%conditions\n  $x.matches(probe)\n\n%rule probe\n  W\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "X"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.source-text = \"a\"\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              0,
+              1
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              0,
+              2
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              2,
+              3
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text ($x:pair V) %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe (W $g:W) %conditions $g.source-text = \"x\"\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              4,
+              5
+            ]
+          },
+          {
+            "text": "xx",
+            "tags": [
+              "V"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "source": [
+              4,
+              5
+            ]
+          },
+          {
+            "text": "yy",
+            "tags": [
+              "V"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text ($x:candidate {Y}) %conditions ¬($x.matches(driver)), ¬($x.matches(wrap))\n%rule wrap $z:candidate %conditions $z.matches(driver)\n\n%rule candidate (X [+T])\n%rule driver $y:candidate %conditions $y.without-elision.matches(rival)\n\n%rule rival (X [+T]) %conditions $.following-tokens.begins(tail)\n\n%rule tail Y\n",
+      "inputs": [
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "X"
+            ]
+          },
+          {
+            "text": "y",
+            "tags": [
+              "Y"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.matches(probe)\n%rule b (B $x:W) %conditions $x.tags(probe) = ∅\n%rule probe W :: ∅\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%classifier lex f? \"x\" ∈ K\n%rule text $a:pair %conditions $a.matches(probe)\n%rule pair (W)\n%rule probe ($w:W) %conditions K ⊆ $w.value.classify(lex)\n",
+      "inputs": [
+        [
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {},
+        {
+          "features": [
+            "f"
+          ]
+        }
+      ]
+    },
+    {
+      "grammar": "%rule text a | b\n%rule a (A $x:pair) %conditions $x.begins(probe)\n%rule b (B $x:pair) %conditions $x.matches(probe)\n%rule pair (W W)\n%rule probe W\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "text": "p",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "q",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "text": "p",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "q",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text a | b\n%rule a (A $x:W) %conditions $x.matches(loop)\n%rule b (B $x:W) %conditions $x.matches(probe)\n%rule loop $y:W %conditions $y.matches(loop)\n%rule probe W\n",
+      "inputs": [
+        [
+          {
+            "text": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "A"
+            ]
+          },
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "b",
+            "tags": [
+              "B"
+            ]
+          },
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%features g\n%conditions\n  $.tags ∩ (Z) ≠ ∅\n%rule text ($x:W {Z}) %conditions $x.matches(probe)\n%rule probe g? W | ¬g? Q\n",
+      "inputs": [
+        [
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "x",
+            "tags": [
+              "W"
+            ]
+          },
+          {
+            "text": "z",
+            "tags": [
+              "Z"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:run %conditions $x.matches(probe)\n%rule run {T}\n%rule probe {W}\n",
+      "inputs": [
+        [
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          }
+        ],
+        [
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "X"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          },
+          {
+            "text": "t",
+            "tags": [
+              "T",
+              "W"
+            ]
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    },
+    {
+      "grammar": "%rule text $x:pair %conditions $x.matches(probe)\n\n%rule pair (W W)\n%rule probe ($f:W W) %conditions $f.value = \"a:1|b,c\"\n",
+      "inputs": [
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "value": "a:1|b,c"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "value": "d"
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "value": "a:1"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "value": "|b,cd"
+          }
+        ],
+        [
+          {
+            "text": "a",
+            "tags": [
+              "W"
+            ],
+            "value": "a\u0001"
+          },
+          {
+            "text": "b",
+            "tags": [
+              "W"
+            ],
+            "value": ":1|b,cd"
+          }
+        ]
+      ],
+      "options": [
+        {}
+      ]
+    }
+  ]
+}
