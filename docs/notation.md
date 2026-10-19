@@ -118,7 +118,7 @@ An engine tag can stand in a tag test, a pattern, a condition, and a body termin
 
 Either terminal can take a test. Neither a range nor an engine tag can mark an elidable optional. Emission inserts tokens with `ε` and explicit clauses, never with a range or property literal. Expected terminals and tree leaves use canonical spellings, such as `"a".."z"`.
 
-A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The section "Constants" describes engine scalar constants for special characters.
+A string uses straight double quotes, such as `"la"`. It can be a terminal, a condition value, or a recipe atom. Strings have no backslash escapes, and dollar signs are plain characters. String terms can join with `++`. The sections "Constants" and ["String concatenation"](#string-concatenation) describe scalar constants and string joins.
 
 ## Tests
 
@@ -413,13 +413,15 @@ An include path is the first and only operand that `%include` takes, in straight
 
 In a term or constant, adjacent string literals form a string set before `++` applies. Thus `"a" "b" ++ "c"` means `("a" "b") ++ "c"`. It fails because the left operand is a set.
 
-Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than `∩`, then `∪` and `∖`, then comparisons. Concatenation groups from the left. Parentheses can group terms outside recipes.
+Guarded terms bind less tightly than comparisons. Method selection binds tighter than `++`. Concatenation binds tighter than intersection. Intersection binds tighter than union and difference, which bind tighter than comparisons.
+
+Concatenation groups from the left. Parentheses can group terms outside recipes. Parentheses can group a constant in a body or pattern, but cannot group a value-test operand or classifier key.
 
 A concatenation of closed strings is closed and can define a constant. For example, `%const $PAIR "b" ++ "r"` defines `"br"`. Conditions can test `$l.value ++ $r.value ∈ $INITIAL`.
 
 Body terminals, value tests, pattern terminals, range endpoints, and classifier keys accept string literals or string constants. Inline `++` is invalid in these positions. A constant can hold any string concatenation.
 
-String sets and strings take the same forms unless a reason is stated. These positions restrict inline joins to keep token sequences and separate classifier keys distinct from joined strings.
+String and string-set terms share forms where their required types permit them. These string positions occur in bodies, patterns, or classifier entries, where adjacent strings describe sequences or separate keys. One rule for all their string positions keeps the reading predictable. A constant can always hold a join.
 
 Side-by-side strings in a body or pattern describe a sequence of tokens. `"e" $_0301` reads two tokens. In a classifier entry, `"e" $_0301 ∈ K` gives two keys.
 
@@ -636,7 +638,7 @@ The third type is the set of strings. `string.split(delimiter)` is the set of th
 
 So `$content.value.split($PAUSE)` is the set of the runs of `$content`, the stretches between its pauses. Then `$open.value ∉ $content.value.split($PAUSE)` says that the word `$open` is not one of those runs. A run can hold several words: a text writes `lemiklama` as one run.
 
-An empty delimiter is an error. It is an error of the document when the reader sees it, as `""` or a constant. Otherwise it is an error of the grammar, when a parse meets it.
+An empty delimiter is an error. A literal `""` or an empty string constant as the delimiter causes a document error. Constant evaluation and feature conditions also reject joined empty delimiters during loading. In a constant value, this document error has kind `grammar` and stands at the definition. In a rule condition, a joined empty delimiter causes a grammar error only when a parse evaluates the split. Engine §2 and §10 define these positions and evaluation times.
 
 A tag literal denotes a singleton tag set. `UI ∪ CAI` contains both tags and `Indicator` denotes that mark. Ranges are terminals only and cannot form condition sets. `_L ⊆ $c.tags` tests the stored letter property. A scalar-range condition needs a grammar query over the corresponding range terminal.
 
@@ -894,7 +896,15 @@ An item can also be `ε`, which inserts an ordinary token with an empty span. It
 
 `$` is the whole constituent. Its item emits one covering token. `%emits $ :: ∅ := "n", ε :: ∅ := "o"` makes the digit 0 two phoneme tokens. Only the first covers input. Covering carriers must be disjoint in stage-input positions. Two whole items coexist only over a structurally always-empty constituent.
 
-An inserted item stands in its written order and records `insertedBy`. `%emits ε :: ∅ := "'", $v` inserts an apostrophe before the vowel. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
+An inserted item stands in its written order and records `insertedBy`. This emission list inserts an apostrophe before the captured vowel:
+
+```jbogenbau
+%emits
+  ε :: ∅ := "'"
+, $v
+```
+
+The comma separates two emission items. An item can have empty tags because string terminals and `_` can read it. Engine §11 defines anchors near absent attachments and carriers.
 
 `%erased` hands on nothing and removes the constituent from counted parts. `broda brode si bu` emits the letter word `broda bu` because `si` erases the preceding word. The token's source still spans the erased text. Its strings exclude that text. `%emits ε` instead inserts a token and never erases.
 
@@ -965,7 +975,7 @@ At an inner constituent, only the alternative, rule, and concatenation rows appl
 
 Recipes form a closed language. They accept string literals, string constants, and these methods on a bare capture or `$`: `.value`, `.image`, `.source-text`, `.decomposed-source-text`, `.verbatim-text`, `.emitted.value`, and `.emitted.image`. `++` joins these terms without a separator. Every other term is a document error. A bare capture and `.emitted` without a channel are errors.
 
-A recipe contains exactly one recipe term, which can be a `++` chain. A second term is an error at its first token. Juxtaposition forms a string set in recipes too. A recipe requires a string, so the reader rejects adjacent strings and tells the author to use `++`. Recipe atoms cannot use parentheses or method arguments.
+A recipe contains exactly one recipe term, which can be a `++` chain. The reader rejects a second recipe term at its first token and tells the author to use `++`. Juxtaposed literals form a string set, which a recipe rejects at its first literal with the same instruction. Recipe atoms cannot use parentheses or method arguments.
 
 An input method reads the stage's original input tokens, including erased text. `.emitted.value` and `.emitted.image` read the string walk before the current item's override. They include constituent recipes and exclude erased parts.
 

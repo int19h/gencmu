@@ -236,9 +236,8 @@ export declare class Grammar {
     faultError(path: string, node: unknown, item: [number, number], problem: string): GencmuError;
     /**
      * The value of a closed term, with the constants' values now (engine §2,
-     * §10). An empty delimiter or a tag's string that is not a name comes
-     * from a constant here, since the reader refuses a literal one, and the
-     * error stands at that constant.
+     * §10). A joined empty delimiter errors at the definition. A direct
+     * constant delimiter errors at its reference.
      * @param {string} path
      * @param {Term} term
      * @param {[number, number]} item the position of the definition

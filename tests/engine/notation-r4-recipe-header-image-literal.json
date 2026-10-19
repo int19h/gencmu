@@ -1,5 +1,5 @@
 {
-  "description": "Engine §11.3 concatenates adjacent literals in a header image recipe.",
+  "description": "Engine §11.3 joins literals with ++ in a header image recipe.",
   "grammar": "%const $S \"b\"\n%rule text :- \"a\" ++ \"b\"\n  | $a:\"x\"\n%emits",
   "input": "x",
   "expect": {

@@ -425,9 +425,8 @@ class _Constants:
 
     def _closed(self, path: str, term: Dom, item: Any, expected: str = "any") -> Walk:
         """The value of a closed term, with the constants' values now
-        (engine §2, §10). An empty delimiter or a tag's string that is not a
-        name comes from a constant here, since the reader refuses a literal
-        one, and the error stands at that constant."""
+        (engine §2, §10). A joined empty delimiter errors at the definition.
+        A direct constant delimiter errors at its reference."""
         if "pattern" in term:
             return {"pattern":(yield self._closed_pattern(path, term["pattern"], item))}
         if any(key in term for key in ("union", "intersection", "difference")) and (expected == "pattern" or self._is_pattern(term)):
@@ -474,6 +473,8 @@ class _Constants:
             pieces = _string((yield self._closed(path, text, item)))
             seen = _string((yield self._closed(path, delimiter, item)))
             if seen == "":
+                if "concat" in delimiter:
+                    raise _error("split has an empty delimiter", path, item, self.stage)
                 raise self.fault_error(path, delimiter, item, "split has an empty delimiter")
             return split_string(pieces, seen)
         raise _error("a constant's value is not a closed term", path, item, self.stage)

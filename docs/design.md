@@ -145,7 +145,8 @@ A rule is a keyword, its optional flags, its name and its body, followed by its 
 %rule joined-vowel
   $v:vowel  :: $v.tags
 %emits
-  ε :: ∅ := "'", $v
+  ε :: ∅ := "'"
+, $v
 ```
 
 Only `|` and `&` in bodies, `∪` and `∩` in terms, and `∧` and `∨` in conditions can also stand first. A list can therefore put one item on each line. The commas of a clause's list can stand first too.

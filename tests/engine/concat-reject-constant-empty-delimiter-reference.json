@@ -1,0 +1,13 @@
+{
+  "description": "Constant evaluation reports an empty joined delimiter at the definition, even with a referenced operand (engine §2, §10).",
+  "grammar": "%const $E \"\"\n%const $S \"ab\".split($E ++ \"\")\n%rule text ε",
+  "input": "",
+  "expect": {
+    "error": "grammar",
+    "where": {
+      "document": "main.md",
+      "line": 4,
+      "column": 1
+    }
+  }
+}

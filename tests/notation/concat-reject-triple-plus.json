@@ -1,0 +1,10 @@
+{
+  "description": "Longest punctuation recognition reads +++ as ++ then + and rejects the third sign (engine §9.1).",
+  "document": "```jbogenbau\n%const $S \"a\" +++ \"b\"\n```\n",
+  "expect": {
+    "error": {
+      "line": 2,
+      "column": 17
+    }
+  }
+}

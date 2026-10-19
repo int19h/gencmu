@@ -1,0 +1,10 @@
+{
+  "description": "A value test rejects a grouped constant at the opening parenthesis (engine §9.3).",
+  "document": "```jbogenbau\n%const $C \"a\"\n%rule text A=($C)\n```\n",
+  "expect": {
+    "error": {
+      "line": 3,
+      "column": 14
+    }
+  }
+}

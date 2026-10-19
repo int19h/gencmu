@@ -210,9 +210,8 @@ func (g *stageGrammar) bindConstants() *Error {
 }
 
 // evaluateClosed is the value of a closed term, with the constants' values
-// now (engine §2, §10). An empty delimiter or a tag's string that is not a
-// name comes from a constant here, since the reader refuses a literal one,
-// and the error stands at that constant.
+// now (engine §2, §10). A joined empty delimiter errors at the definition.
+// A direct constant delimiter errors at its reference.
 func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expected ...termType) (*constValue, *Error) {
 	set := func(part *domTerm) (*tagset, *Error) {
 		v, err := g.evaluateClosed(doc, part, item)
@@ -324,6 +323,9 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 				return nil, err
 			}
 			if delimiter == "" {
+				if t.Items[1].Kind == tmConcat {
+					return nil, g.constError(doc, item, "split has an empty delimiter")
+				}
 				return nil, g.faultError(doc, t.Items[1], item, "split has an empty delimiter")
 			}
 			return &constValue{ty: tyStrings, names: in.fromList(splitString(s, delimiter)).names}, nil

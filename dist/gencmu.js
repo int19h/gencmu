@@ -6853,9 +6853,8 @@
 
     /**
      * The value of a closed term, with the constants' values now (engine §2,
-     * §10). An empty delimiter or a tag's string that is not a name comes
-     * from a constant here, since the reader refuses a literal one, and the
-     * error stands at that constant.
+     * §10). A joined empty delimiter errors at the definition. A direct
+     * constant delimiter errors at its reference.
      * @param {string} path
      * @param {Term} term
      * @param {[number, number]} item the position of the definition
@@ -6918,7 +6917,9 @@
         const pieces = string(term.receiver);
         const delimiter = /** @type {Term} */ (term.args[0]);
         const seen = string(delimiter);
-        if (seen === "") throw this.faultError(path,delimiter,item,"split has an empty delimiter");
+        if (seen === "") throw "concat" in delimiter
+          ? this.documentError(path,item,"split has an empty delimiter")
+          : this.faultError(path,delimiter,item,"split has an empty delimiter");
         return {set:splitString(pieces,seen)};
       }
       throw new GencmuError("grammar", `${path}: a constant's value is not a closed term`, { document: path });

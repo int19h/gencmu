@@ -950,9 +950,8 @@ impl Constants<'_> {
     }
 
     /// The value of a closed term, with the constants' values now (engine
-    /// §2, §10). An empty delimiter or a tag's string that is not a name
-    /// comes from a constant here, since the reader refuses a literal one,
-    /// and the error stands at that constant.
+    /// §2, §10). A joined empty delimiter errors at the definition.
+    /// A direct constant delimiter errors at its reference.
     fn evaluate(&self, term: &Term, document: &str, item: (usize, usize)) -> Result<Value, Error> {
         if self.is_pattern(term) {
             return self.evaluate_pattern_value(term, document, item);
@@ -1146,7 +1145,11 @@ impl Constants<'_> {
                             return Err(located(
                                 "split has an empty delimiter".into(),
                                 document,
-                                first_constant(delimiter).unwrap_or(item),
+                                if matches!(delimiter, Term::Call(name, _) if name == "concat") {
+                                    item
+                                } else {
+                                    first_constant(delimiter).unwrap_or(item)
+                                },
                             ));
                         }
                         Value::Set(
