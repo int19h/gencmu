@@ -6185,3 +6185,8 @@ i212.r5.zantufa-ke-bare-term
 i212.r5.zantufa-ke-reset
 i212.r5.diagnostic-later-term
 i212.r5.diagnostic-later-free
+i212.r6.closed-vau-vocative
+i212.r6.zantufa-forethought-bare-term
+i212.r6.zantufa-forethought-reset
+i212.r6.forethought-bare-term
+i212.r6.forethought-reset

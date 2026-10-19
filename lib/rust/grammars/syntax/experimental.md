@@ -257,17 +257,21 @@ An elided KEhE stops a last-child pattern before the main VAU. Thus `mi ke ge kl
 
 The explicit alternatives in `bridi-tail` and `bridi-tail-2` select the closing tag. Without a further KE or BO group, the tail passes its current tag. With a group, the following shared tail supplies the tag.
 
-The reset conditions reject terms or another VAU after the main bridi closes. They test the initial bridi and every earlier reset tail.
+`reset-bridi` reads the main bridi and each later reset from left to right. A closed bridi takes only free modifiers after IhAU. So the parser rejects the first term or VAU after that reset at that word.
 
 ```jbogenbau
-%const $RESET-CONTINUATION @(terms ⋯) ∪ $WRITTEN-VAU
-
 %rule top-sentence
-  [$h:reset-head IhAU #] $b:headed-bridi-tail [{IhAU # tail-terms}] [top-sentence-link]
+  [$h:reset-head IhAU #] $b:reset-bridi [top-sentence-link]
 %conditions
-  $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰),
-  Closed-Bridi ⊆ $b.tags ⟹ $ ≇ @(⋯ IhAU [#] (tail-terms ∩ $RESET-CONTINUATION) ⋯),
-  $ ≇ @(⋯ (tail-terms ∩ $WRITTEN-VAU) ⋯ IhAU [#] (tail-terms ∩ $RESET-CONTINUATION) ⋯)
+  $h ≇ @(⋯ CU [#]) ∨ $b ≇ @(CU ⋰)
+
+%rule reset-bridi
+  | headed-bridi-tail
+  | $o:reset-bridi IhAU # $t:tail-terms :: $t.tags ∩ Closed-Bridi
+  | $c:reset-bridi IhAU # :: Closed-Bridi
+%conditions
+  Closed-Bridi ⊈ $o.tags,
+  Closed-Bridi ⊆ $c.tags
 
 %rule top-sentence-link
   connective [[stag] BO] I # top-subsentence
@@ -336,8 +340,9 @@ The reset conditions reject terms or another VAU after the main bridi closes. Th
   | [terms] [+VAU] #
 ```
 
-<details><summary>Railroad diagrams of the 17 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
+<details><summary>Railroad diagrams of the 18 rules from <code>top-sentence</code> to <code>tail-terms</code></summary>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence.svg" alt="Railroad diagram of the rule top-sentence"></p>
+<p><img src="../../docs/diagrams/syntax/experimental/reset-bridi.svg" alt="Railroad diagram of the rule reset-bridi"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/top-sentence-link.svg" alt="Railroad diagram of the rule top-sentence-link"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/top-subsentence.svg" alt="Railroad diagram of the rule top-subsentence"></p>
 <p><img src="../../docs/diagrams/syntax/experimental/sentence.svg" alt="Railroad diagram of the rule sentence"></p>
