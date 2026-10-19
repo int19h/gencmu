@@ -964,9 +964,9 @@ func (c *domChecker) term(t *domTerm, depth int, argument bool) {
 			c.fail("a string is not valid UTF-8")
 		}
 	case tmCapture, tmEmptySet:
-	case tmInterpolate, tmConcat:
-		if len(t.Items) == 0 {
-			c.fail("an empty string expression")
+	case tmConcat:
+		if len(t.Items) < 2 {
+			c.fail("a concatenation requires two operands")
 		}
 		for _, part := range t.Items {
 			c.term(part, depth+1, false)
@@ -1588,7 +1588,18 @@ func termTypeOnce(t *domTerm, ct constTypes, memo *typeMemo) (termType, *typeFau
 			}
 		})
 		return tyPattern, fault
-	case tmString, tmInterpolate, tmConcat:
+	case tmString:
+		return tyString, nil
+	case tmConcat:
+		for _, part := range t.Items {
+			ty, f := termTypeMemo(part, ct, memo)
+			if f != nil {
+				return 0, f
+			}
+			if ty != tyString && ty != tyAny {
+				return 0, &typeFault{"++ requires string operands", t}
+			}
+		}
 		return tyString, nil
 	case tmTag:
 		return tyTags, nil
@@ -1841,7 +1852,7 @@ func openPart(t *domTerm) *domTerm {
 			}
 		})
 		return found
-	case tmUnion, tmIntersection, tmDifference, tmInterpolate:
+	case tmUnion, tmIntersection, tmDifference, tmConcat:
 	default:
 		return nil
 	}

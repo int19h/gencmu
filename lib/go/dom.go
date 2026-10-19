@@ -8,7 +8,7 @@ import (
 )
 
 // domFormat is the version of the grammar DOM (docs/output.md).
-const domFormat = 33
+const domFormat = 34
 
 // The grammar DOM: what reading one grammar document produces (engine §8,
 // §9), and what bootstrap.json and compiled.json hold.
@@ -160,7 +160,6 @@ const (
 	tmIf           = "if"
 	tmConst        = "const"
 	tmPattern      = "pattern"
-	tmInterpolate  = "interpolate"
 	tmConcat       = "concat"
 )
 
@@ -531,7 +530,7 @@ func (t *domTerm) writeJSON(w *jsonWriter) {
 		w.raw(`,"at":`)
 		w.pair(t.At)
 		w.raw("}")
-	case tmUnion, tmIntersection, tmDifference, tmInterpolate, tmConcat:
+	case tmUnion, tmIntersection, tmDifference, tmConcat:
 		w.raw("{")
 		w.str(t.Kind)
 		w.raw(":[")
@@ -1154,7 +1153,7 @@ var exprForms = [][]string{
 
 var termForms = [][]string{
 	{tmUnion}, {tmIntersection}, {tmDifference}, {tmIf, "then"}, {"method", "receiver", "args"},
-	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmInterpolate}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
+	{tmString}, {tmTag}, {tmTerminal}, {tmInteger}, {tmConcat}, {tmEmptySet}, {tmCapture}, {tmRule}, {tmClassifier}, {tmConst, "at"}, {tmPattern},
 }
 
 var condForms = [][]string{
@@ -1219,7 +1218,7 @@ func decodeTermAt(raw json.RawMessage, depth int) (*domTerm, error) {
 		at, err := decodePosition(o["at"])
 		return &domTerm{Kind: tmConst, Str: name, At: at}, err
 	}
-	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmInterpolate} {
+	for _, k := range []string{tmUnion, tmIntersection, tmDifference, tmConcat} {
 		if v, ok := o[k]; ok {
 			items, err := decodeList(v, func(r json.RawMessage) (*domTerm, error) { return decodeTermAt(r, depth+1) })
 			return &domTerm{Kind: k, Items: items}, err

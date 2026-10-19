@@ -245,7 +245,7 @@ func (g *stageGrammar) evaluateClosed(doc string, t *domTerm, item [2]int, expec
 			return &constValue{ty: tyPattern, pattern: emptyPattern()}, nil
 		}
 		return &constValue{ty: tySet}, nil
-	case tmInterpolate:
+	case tmConcat:
 		var b strings.Builder
 		for _, part := range t.Items {
 			piece, err := str(part)

@@ -294,7 +294,7 @@ var domRules = map[string]bool{
 	"any-of": true, "all-of": true, "comparison": true, "negation": true,
 	"tree-comparison": true, "pattern-literal": true, "pattern-union": true, "pattern-intersection": true, "pattern-sequence": true, "pattern-item": true, "pattern-atom": true, "pattern-brackets": true, "pattern-repeat": true, "pattern-path": true, "pattern-separator": true,
 	"presence": true, "term": true, "guarded-term": true, "union": true,
-	"intersection": true, "empty-set": true, "capture-reference": true,
+	"intersection": true, "concatenation": true, "empty-set": true, "capture-reference": true,
 	"alternative-tags": true, "argument-word": true, "argument-string": true, "argument-tag": true, "guard": true,
 	"comparator": true, "range": true,
 	"constant-definition": true, "constant-definer": true, "constant-reference": true,
